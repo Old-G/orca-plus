@@ -4667,6 +4667,11 @@
             "resumedAria": "{{value0}} chats resumed. Click to see them.",
             "resumedTooltip": "Chats Orca resumed after the restart. Click to see them."
           },
+          "LspStatusSegment": {
+            "starting": "Language server starting…",
+            "running": "Language server",
+            "badge": "LSP"
+          },
           "StatusBarUsageChangeNotices": {
             "compactTitle": "Usage display is now compact",
             "compactBody": "One headline metric per provider. Choose <detailed>Detailed</detailed> in the Usage menu to show more limits."
