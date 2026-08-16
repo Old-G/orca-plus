@@ -4298,6 +4298,11 @@
             "resumingAriaOne": "Resuming 1 chat. Click to open details.",
             "resumingAria": "Resuming {{value0}} chats. Click to open details.",
             "resumingTooltip": "Restoring interrupted chats and asking them to carry on…"
+          },
+          "LspStatusSegment": {
+            "starting": "Language server starting…",
+            "running": "Language server",
+            "badge": "LSP"
           }
         }
       },
