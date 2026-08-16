@@ -28,6 +28,7 @@ import { useMonacoMarkdownAnnotations } from '../markdown-source-tools/monaco/us
 import { useMonacoEditorDecorations } from './use-monaco-editor-decorations'
 import { useMonacoGitBlame } from '../blame/use-monaco-git-blame'
 import { useMonacoEditorMount } from './use-monaco-editor-mount'
+import { useMonacoLsp } from '../use-monaco-lsp'
 import { snapshotMonacoViewState } from './monaco-view-state-persistence'
 import { MonacoMarkdownAnnotationOverlay } from '../markdown-source-tools/monaco/MonacoMarkdownAnnotationOverlay'
 import { usePluginSyntaxLanguage } from './use-plugin-syntax-language'
@@ -164,6 +165,8 @@ export default function MonacoEditor({
     fileId,
     onContentChange
   })
+  useMonacoLsp({ mountedEditor, filePath, language, worktreeId, liveTail })
+
   const annotations = useMonacoMarkdownAnnotations({
     mountedEditor,
     editorContainerRef,

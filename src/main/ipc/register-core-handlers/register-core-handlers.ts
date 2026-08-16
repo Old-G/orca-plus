@@ -13,6 +13,7 @@ import type { StatsCollector } from '../../stats/collector'
 import { registerFilesystemHandlers } from '../filesystem/filesystem'
 import type { CommitMessageAgentEnvironmentResolvers } from '../../text-generation/execution/commit-message-agent-environment'
 import { registerFilesystemWatcherHandlers } from '../filesystem/watchers/filesystem-watcher-handlers'
+import { registerLspHandlers } from '../lsp'
 import { registerGitHubHandlers } from '../source-control/github'
 import { registerGitLabHandlers } from '../source-control/gitlab'
 import { registerHostedReviewHandlers } from '../source-control/hosted-review'
@@ -218,6 +219,7 @@ export async function registerCoreHandlers(
     registerLocalhostWorktreeLabelHandlers(store)
     registerFilesystemHandlers(store, commitMessageAgentEnv)
     registerFilesystemWatcherHandlers()
+    registerLspHandlers(store)
     registerRuntimeHandlers(runtime)
     const hostsReady = registerRuntimeHostHandlers(store, lifecycleOptions.hostInitialization)
     registerWslMoveWiring(store, runtime)

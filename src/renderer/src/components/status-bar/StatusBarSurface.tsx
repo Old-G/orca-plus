@@ -15,6 +15,7 @@ import { PluginStatusBarItems } from './plugins/PluginStatusBarItems'
 import { RemoteServerUpdateStatusSegment } from './updates/RemoteServerUpdateStatusSegment'
 import { TOGGLE_FLOATING_TERMINAL_EVENT } from '@/components/floating-terminal/workspace/floating-workspace-open-intent'
 import { FloatingTerminalIconContextMenu } from '@/components/floating-terminal/trigger/FloatingTerminalIconContextMenu'
+import { LspStatusSegment } from './LspStatusSegment'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/overlay-interaction/close-all-context-menus'
 import { useStatusBarController } from './composition/use-status-bar-controller'
 import { StatusBarUsageArea } from './StatusBarUsageArea'
@@ -107,6 +108,7 @@ export function StatusBarSurface({
         className="-mx-1 flex min-w-0 items-center self-stretch overflow-x-auto scrollbar-none"
       >
         <div className="flex w-max items-center gap-3 px-1">
+          <LspStatusSegment iconOnly={false} />
           {!isPairedWebClientWindow() ? (
             <>
               <PluginsStatusSegment />
