@@ -9,6 +9,7 @@ import type { StatsCollector } from '../../stats/collector'
 import { registerFilesystemHandlers } from '../filesystem/filesystem'
 import type { CommitMessageAgentEnvironmentResolvers } from '../../text-generation/execution/commit-message-agent-environment'
 import { registerFilesystemWatcherHandlers } from '../filesystem/watchers/filesystem-watcher-handlers'
+import { registerLspHandlers } from '../lsp'
 import { registerGitHubHandlers } from '../source-control/github'
 import { registerLazyGitLabHandlers } from '../source-control/lazy-gitlab-handlers'
 import { registerLazyLinearHandlers } from '../linear/lazy-linear-handlers'
@@ -148,6 +149,7 @@ export async function registerCoreHandlers(
     registerLazyWorkspacePortHandlers(store)
     registerFilesystemHandlers(store, commitMessageAgentEnv)
     registerFilesystemWatcherHandlers()
+    registerLspHandlers(store)
     registerRuntimeHandlers(runtime)
     const hostsReady = registerRuntimeHostHandlers(store, lifecycleOptions.hostInitialization)
     if (process.platform === 'win32' || canCreateWslHostService()) {

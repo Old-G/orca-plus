@@ -42,6 +42,7 @@ import type { MobileApi } from './api/mobile/mobile-api'
 import type { NativeChatApi } from './api/native-chat/native-chat-api'
 import type { OnboardingApi, StarNagApi } from './api/onboarding/onboarding-api'
 import type { OrcaProfileApi } from './api/profiles/orca-profile-api'
+import type { LspApi } from './api/lsp-api'
 import type {
   ComputerUsePermissionsApi,
   DeveloperPermissionsApi,
@@ -172,6 +173,7 @@ export type PreloadApi = {
   aiVault: AiVaultApi
   nativeChat: NativeChatApi
   fs: FilesystemApi['fs']
+  lsp: LspApi
   git: Merged<GitInspectionApi & GitOperationApi>
   ui: Merged<UiCommandEventApi & UiWindowApi & BotLinkEventApi>
   runtime: RuntimeApi['runtime']
