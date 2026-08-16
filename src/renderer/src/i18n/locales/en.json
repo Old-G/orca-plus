@@ -4098,6 +4098,11 @@
             "checkAriaOne": "1 chat to check after resuming. Click for details.",
             "checkAria": "{{value0}} chats to check after resuming. Click for details.",
             "checkTooltip": "Chats Orca couldn’t resume, or couldn’t confirm it resumed, after the restart. Click for details."
+          },
+          "LspStatusSegment": {
+            "starting": "Language server starting…",
+            "running": "Language server",
+            "badge": "LSP"
           }
         }
       },
