@@ -386,6 +386,10 @@ vi.mock('../gitlab', () => ({
   registerGitLabHandlers: registerGitLabHandlersMock
 }))
 
+vi.mock('../lsp', () => ({
+  registerLspHandlers: vi.fn()
+}))
+
 vi.mock('../hosted-review', () => ({
   registerHostedReviewHandlers: registerHostedReviewHandlersMock
 }))

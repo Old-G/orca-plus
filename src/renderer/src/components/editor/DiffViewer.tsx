@@ -17,6 +17,7 @@ import { diffEditorScrollbarOptions } from './diff-editor-scrollbar-options'
 import { LargeDiffFallback } from './LargeDiffFallback'
 import { getLargeDiffRenderLimit } from './large-diff-render-limit'
 import { useDiffViewerLargeDiffLifecycle } from './useDiffViewerLargeDiffLifecycle'
+import { useMonacoLspForDiff } from './use-monaco-lsp-for-diff'
 import { useDiffViewerFirstChangeAutoScroll } from './useDiffViewerFirstChangeAutoScroll'
 import { getDiffViewerLargeDiffSaveAction } from './diff-viewer-large-diff-save-action'
 import type { DiffViewerProps } from './diff-viewer-props'
@@ -72,6 +73,13 @@ export default function DiffViewer({
   const { registerDiffEditor, unregisterDiffEditor } = useDiffEditorRegistration()
   const lineNumberOptionsSubRef = useRef<{ dispose: () => void } | null>(null)
   const [modifiedEditor, setModifiedEditor] = useState<editor.ICodeEditor | null>(null)
+  useMonacoLspForDiff({
+    modifiedEditor,
+    relativePath,
+    worktreeId,
+    language,
+    modelIdentity: modifiedModelKey ?? modelKey
+  })
 
   const renderLimit = useMemo(
     () => largeDiffRenderLimit ?? getLargeDiffRenderLimit({ originalContent, modifiedContent }),
