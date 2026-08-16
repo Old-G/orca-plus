@@ -21,6 +21,7 @@ import { useMonacoContentSyncBridge } from './use-monaco-content-sync-bridge'
 import { useMonacoMarkdownAnnotations } from './use-monaco-markdown-annotations'
 import { useMonacoEditorDecorations } from './use-monaco-editor-decorations'
 import { useMonacoEditorMount } from './use-monaco-editor-mount'
+import { useMonacoLsp } from './use-monaco-lsp'
 import { snapshotMonacoViewState } from './monaco-view-state-persistence'
 import { MonacoMarkdownAnnotationOverlay } from './MonacoMarkdownAnnotationOverlay'
 import { usePluginSyntaxLanguage } from './use-plugin-syntax-language'
@@ -155,6 +156,8 @@ export default function MonacoEditor({
     fileId,
     onContentChange
   })
+  useMonacoLsp({ mountedEditor, filePath, language, worktreeId, liveTail })
+
   const annotations = useMonacoMarkdownAnnotations({
     mountedEditor,
     editorContainerRef,

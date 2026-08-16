@@ -62,6 +62,28 @@ const diagnosticsOptions = {
 monacoTS.typescriptDefaults.setDiagnosticsOptions(diagnosticsOptions)
 monacoTS.javascriptDefaults.setDiagnosticsOptions(diagnosticsOptions)
 
+// Why: the same sandboxed worker also answers hover/completion/definition with
+// import types collapsed to `any` — misleading for the same reason as the
+// diagnostics above. Disable exactly the features the local LSP bridge
+// (lib/monaco-lsp) replaces when a language server is installed; without one,
+// plain text beats confidently wrong types. Everything the bridge does NOT
+// provide (signature help, rename, code actions, inlay hints, outline,
+// formatting) stays on the worker so no surface loses it outright.
+const tsWorkerModeConfiguration = {
+  completionItems: false,
+  hovers: false,
+  definitions: false,
+  references: false
+}
+monacoTS.typescriptDefaults.setModeConfiguration({
+  ...monacoTS.typescriptDefaults.modeConfiguration,
+  ...tsWorkerModeConfiguration
+})
+monacoTS.javascriptDefaults.setModeConfiguration({
+  ...monacoTS.javascriptDefaults.modeConfiguration,
+  ...tsWorkerModeConfiguration
+})
+
 // TSX/JSX share TypeScript/JavaScript defaults; preserve JSX parsing without emission to avoid TS17004 on tags.
 monacoTS.typescriptDefaults.setCompilerOptions({
   ...monacoTS.typescriptDefaults.getCompilerOptions(),

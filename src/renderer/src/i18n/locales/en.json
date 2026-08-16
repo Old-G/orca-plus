@@ -4974,6 +4974,11 @@
             "ariaLabelCount_one": "{{count}} chat available to resume",
             "ariaLabelCount_other": "{{count}} chats available to resume"
           },
+          "LspStatusSegment": {
+            "starting": "Language server starting…",
+            "running": "Language server",
+            "badge": "LSP"
+          },
           "StatusBarUsageChangeNotices": {
             "compactTitle": "Usage display is now compact",
             "compactBody": "One headline metric per provider. Choose <detailed>Detailed</detailed> in the Usage menu to show more limits."
