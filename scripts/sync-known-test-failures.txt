@@ -1,0 +1,11 @@
+# Test files that fail on this machine with or without our stack; the scheduled sync accepts them
+# only after a retry. Keep this short: a listed file can hide a real regression.
+# One repo-relative path per line.
+
+# need a real, logged-in `claude` binary
+src/main/claude/claude-structured-real-cli.test.ts
+src/main/claude/claude-tui-resume-real-binary.integration.test.ts
+# timing-sensitive against the local daemon
+src/main/ipc/pty-runtime-hidden-at-spawn-mark.test.ts
+# fails on pure upstream main 563dd5487f too (12/12 on this machine, 2026-09-23)
+src/main/browser/browser-manager-viewport-ownership.test.ts
