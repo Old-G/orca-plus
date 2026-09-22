@@ -28,6 +28,7 @@ export type UiWindowApi = {
         }
       | string
   ) => Promise<{ ok: boolean; reason?: string }>
+  readClipboardFile: () => Promise<{ ok: boolean; filePaths: string[]; reason?: string }>
   onFileDrop: (callback: (data: NativeFileDropPayload) => void) => () => void
   getZoomLevel: () => number
   setZoomLevel: (level: number) => void

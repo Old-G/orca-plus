@@ -120,6 +120,8 @@ export const uiClipboardAndWindowControlsApi = {
         }
       | string
   ): Promise<{ ok: boolean; reason?: string }> => ipcRenderer.invoke('clipboard:writeFile', args),
+  readClipboardFile: (): Promise<{ ok: boolean; filePaths: string[]; reason?: string }> =>
+    ipcRenderer.invoke('clipboard:readFile'),
   onFileDrop: (callback: (data: NativeFileDropPayload) => void): (() => void) =>
     subscribeNativeFileDrop(callback),
   getZoomLevel: (): number => webFrame.getZoomLevel(),

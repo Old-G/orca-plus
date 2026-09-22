@@ -12252,7 +12252,8 @@
           },
           "FileExplorerBackgroundMenu": {
             "3b5e2dcb8d": "New Folder",
-            "21fe46ed36": "New File"
+            "21fe46ed36": "New File",
+            "paste": "Paste"
           },
           "FileExplorerRow": {
             "addc01145f": "Delete",
@@ -12288,7 +12289,8 @@
             "clipboardStagingUnavailable": "Could not copy the file because Orca's temporary storage is unavailable",
             "revealInFinder": "Reveal in Finder",
             "openContainingFolder": "Open Containing Folder",
-            "revealInFileExplorer": "Reveal in File Explorer"
+            "revealInFileExplorer": "Reveal in File Explorer",
+            "paste": "Paste"
           },
           "FileExplorerToolbar": {
             "d238264654": "Show Git Ignored Files",
@@ -13659,6 +13661,10 @@
             "sourceMissing": "Transcript is no longer available",
             "metadataMatch": "Match in session metadata",
             "sourceActionsUnavailable": "The transcript source is unavailable."
+          },
+          "fileExplorerClipboardPaste": {
+            "failed": "Failed to paste {{value0}} {{value1}}.",
+            "skipped": "Skipped {{value0}} {{value1}}."
           }
         }
       },

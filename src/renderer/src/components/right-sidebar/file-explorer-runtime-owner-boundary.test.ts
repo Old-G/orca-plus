@@ -12,6 +12,7 @@ describe('right sidebar file/git runtime ownership boundaries', () => {
   it.each([
     'src/renderer/src/components/right-sidebar/useFileExplorerTree.ts',
     'src/renderer/src/components/right-sidebar/useFileExplorerImport.ts',
+    'src/renderer/src/components/right-sidebar/file-explorer-clipboard-paste.ts',
     'src/renderer/src/components/right-sidebar/useFileExplorerInlineInput.ts',
     'src/renderer/src/components/right-sidebar/useFileExplorerMoveDrop.ts',
     'src/renderer/src/components/right-sidebar/useFileDuplicate.ts',
