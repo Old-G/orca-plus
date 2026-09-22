@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react'
 import {
+  ClipboardPaste,
   Copy,
   Download,
   ExternalLink,
@@ -35,6 +36,11 @@ import {
 } from '@/lib/reveal-in-file-manager'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import type { FileExplorerRowProps } from './FileExplorerRow'
+import {
+  fileExplorerPasteShortcutLabel,
+  requestFileExplorerPaste
+} from './file-explorer-paste-bridge'
+import { shouldShowPasteFileAction } from './file-explorer-clipboard-paste'
 import {
   shouldShowCollapseFolderAction,
   shouldShowCopyFileAction,
@@ -164,6 +170,15 @@ export function FileExplorerRowContextMenu({
         <ContextMenuItem onSelect={handleCopyFile}>
           <Copy />
           {translate('auto.components.right.sidebar.FileExplorerRow.98a79948b3', 'Copy')}
+        </ContextMenuItem>
+      )}
+      {shouldShowPasteFileAction() && (
+        <ContextMenuItem
+          onSelect={() => requestFileExplorerPaste(node.isDirectory ? node.path : targetDir)}
+        >
+          <ClipboardPaste />
+          {translate('auto.components.right.sidebar.FileExplorerRow.paste', 'Paste')}
+          <ContextMenuShortcut>{fileExplorerPasteShortcutLabel()}</ContextMenuShortcut>
         </ContextMenuItem>
       )}
       <ContextMenuItem onSelect={() => onCopyPaths('absolute')}>
