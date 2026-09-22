@@ -36,6 +36,12 @@ import {
 } from './clipboard-file-copy'
 import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 import {
+  readFilesFromClipboard,
+  runClipboardCommandCapture,
+  type ClipboardFileReadDeps,
+  type ClipboardFileReadResult
+} from './clipboard-file-read'
+import {
   cleanupExpiredRemoteClipboardFiles,
   scheduleLegacyRemoteClipboardFileCleanup
 } from './clipboard-remote-file-copy'
@@ -119,6 +125,7 @@ export function registerClipboardHandlers(
   ipcMain.removeHandler('clipboard:writeSelectionText')
   ipcMain.removeHandler('clipboard:writeImage')
   ipcMain.removeHandler('clipboard:writeFile')
+  ipcMain.removeHandler('clipboard:readFile')
   ipcMain.removeHandler('clipboard:saveImageAsTempFile')
   ipcMain.removeHandler('clipboard:savePastedTextAsFile')
   ipcMain.removeHandler('clipboard:readImageThumbnail')
@@ -233,6 +240,10 @@ export function registerClipboardHandlers(
       })
     }
   )
+  ipcMain.handle('clipboard:readFile', (event): Promise<ClipboardFileReadResult> => {
+    assertTrustedClipboardSender(event)
+    return readFilesFromClipboard(makeClipboardFileReadDeps())
+  })
   ipcMain.handle('clipboard:writeText', async (event, text: string) => {
     assertTrustedClipboardTextSender(event)
     try {
@@ -306,6 +317,15 @@ function normalizeClipboardWriteFileRequest(args: unknown): ClipboardWriteFileRe
     return { filePath, connectionId }
   }
   return { filePath }
+}
+
+function makeClipboardFileReadDeps(): ClipboardFileReadDeps {
+  return {
+    platform: process.platform,
+    desktop: process.env.XDG_CURRENT_DESKTOP,
+    readBuffer: (format) => clipboard.readBuffer(format),
+    runCommand: runClipboardCommandCapture
+  }
 }
 
 function assertTrustedClipboardSender(event: IpcMainInvokeEvent): void {
