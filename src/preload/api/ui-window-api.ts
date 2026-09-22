@@ -42,6 +42,7 @@ export type UiWindowApi = {
         }
       | string
   ) => Promise<{ ok: boolean; reason?: string }>
+  readClipboardFile: () => Promise<{ ok: boolean; filePaths: string[]; reason?: string }>
   getZoomLevel: () => number
   setZoomLevel: (level: number) => void
   syncTrafficLights: (zoomFactor: number) => void

@@ -14,6 +14,7 @@ import { useFileDeletion } from './useFileDeletion'
 import { useFileExplorerDragDrop } from './useFileExplorerDragDrop'
 import { useFileExplorerHandlers } from './useFileExplorerHandlers'
 import { useFileExplorerImport } from './useFileExplorerImport'
+import { useFileExplorerPasteTarget } from './file-explorer-paste-bridge'
 import { useFileExplorerInlineInput } from './useFileExplorerInlineInput'
 import { useFileExplorerNodeCommands } from './use-file-explorer-node-commands'
 import { useFileExplorerRowScrolling } from './use-file-explorer-row-scrolling'
@@ -225,6 +226,15 @@ export function useFileExplorerTreePaneState({
     worktreeId: activeWorktreeId,
     refreshDir,
     clearNativeDragState: dragDrop.clearNativeDragState,
+    setSelectedPath: setSingleSelectedPath,
+    operationOwner: rootCache?.operationOwner
+  })
+  useFileExplorerPasteTarget({
+    worktreePath: visibleFilesWorktreePath,
+    activeWorktreeId,
+    selectedNode,
+    rowProjection,
+    refreshDir,
     setSelectedPath: setSingleSelectedPath,
     operationOwner: rootCache?.operationOwner
   })
