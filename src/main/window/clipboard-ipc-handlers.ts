@@ -33,6 +33,12 @@ import {
   type ClipboardFileResult
 } from './clipboard-file-copy'
 import {
+  readFilesFromClipboard,
+  runClipboardCommandCapture,
+  type ClipboardFileReadDeps,
+  type ClipboardFileReadResult
+} from './clipboard-file-read'
+import {
   cleanupExpiredRemoteClipboardFiles,
   scheduleLegacyRemoteClipboardFileCleanup,
   writeRemoteFileToClipboard
@@ -96,6 +102,7 @@ export function registerClipboardHandlers(store: Store): void {
   ipcMain.removeHandler('clipboard:writeSelectionText')
   ipcMain.removeHandler('clipboard:writeImage')
   ipcMain.removeHandler('clipboard:writeFile')
+  ipcMain.removeHandler('clipboard:readFile')
   ipcMain.removeHandler('clipboard:saveImageAsTempFile')
   ipcMain.removeHandler('clipboard:readImageThumbnail')
   ipcMain.removeHandler('clipboard:hasImage')
@@ -190,6 +197,10 @@ export function registerClipboardHandlers(store: Store): void {
       return writeFileToClipboard(request.filePath, deps)
     }
   )
+  ipcMain.handle('clipboard:readFile', (event): Promise<ClipboardFileReadResult> => {
+    assertTrustedClipboardSender(event)
+    return readFilesFromClipboard(makeClipboardFileReadDeps())
+  })
   ipcMain.handle('clipboard:writeText', async (event, text: string) => {
     assertTrustedClipboardTextSender(event)
     const safeText = await assertClipboardTextWriteWithinLimitWithYield(text)
@@ -278,6 +289,15 @@ function makeClipboardFileDeps(
     resolveFilePath,
     writeBuffer: (format, buffer) => clipboard.writeBuffer(format, buffer),
     runCommand
+  }
+}
+
+function makeClipboardFileReadDeps(): ClipboardFileReadDeps {
+  return {
+    platform: process.platform,
+    desktop: process.env.XDG_CURRENT_DESKTOP,
+    readBuffer: (format) => clipboard.readBuffer(format),
+    runCommand: runClipboardCommandCapture
   }
 }
 

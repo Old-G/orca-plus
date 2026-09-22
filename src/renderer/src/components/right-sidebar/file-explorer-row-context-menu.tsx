@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react'
 import {
+  ClipboardPaste,
   Copy,
   Download,
   ExternalLink,
@@ -29,6 +30,11 @@ import { openFileInBrowserTab } from '@/lib/file-preview'
 import { isLocalPathOpenBlocked, showLocalPathOpenBlockedToast } from '@/lib/local-path-open-guard'
 import { translate } from '@/i18n/i18n'
 import type { FileExplorerRowProps } from './FileExplorerRow'
+import {
+  fileExplorerPasteShortcutLabel,
+  requestFileExplorerPaste
+} from './file-explorer-paste-bridge'
+import { shouldShowPasteFileAction } from './file-explorer-clipboard-paste'
 import {
   shouldShowCollapseFolderAction,
   shouldShowCopyFileAction,
@@ -168,6 +174,15 @@ export function FileExplorerRowContextMenu({
         <ContextMenuItem onSelect={handleCopyFile}>
           <Copy />
           {translate('auto.components.right.sidebar.FileExplorerRow.98a79948b3', 'Copy')}
+        </ContextMenuItem>
+      )}
+      {shouldShowPasteFileAction() && (
+        <ContextMenuItem
+          onSelect={() => requestFileExplorerPaste(node.isDirectory ? node.path : targetDir)}
+        >
+          <ClipboardPaste />
+          {translate('auto.components.right.sidebar.FileExplorerRow.paste', 'Paste')}
+          <ContextMenuShortcut>{fileExplorerPasteShortcutLabel()}</ContextMenuShortcut>
         </ContextMenuItem>
       )}
       <ContextMenuItem onSelect={() => onCopyPaths('absolute')}>
