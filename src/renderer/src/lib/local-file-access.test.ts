@@ -237,7 +237,11 @@ const USER_NAMED_TAB_OPENERS = [
   'components/tab-bar/tab-create-entry-absolute-file.ts',
   'components/terminal-pane/terminal-file-open-routing.ts',
   'hooks/useGlobalFileDrop.ts',
+  // Custom build (claude-ide, lsp): open only paths inside their owning worktree / LSP root, so their
+  // tabs are never user-named; listed because the heuristic matches a relativePath derived from filePath.
+  'lib/claude-ide/claude-ide-open-file.ts',
   'lib/floating-workspace-tab-creation.ts',
+  'lib/monaco-lsp/monaco-lsp-providers.ts',
   'lib/open-document-in-floating-workspace.ts',
   'store/slices/editor/actions/markdown-link-action.ts'
 ]

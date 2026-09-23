@@ -33,6 +33,7 @@ import { registerUpdaterStatusIpcBridge } from './updater-status-ipc-bridge'
 import { createWorktreeEventRuntime } from './worktree-event-runtime'
 import { registerWorkspaceShortcutIpcBridge } from './workspace-shortcut-ipc-bridge'
 import { registerZoomIpcBridge } from './zoom-ipc-bridge'
+import { registerClaudeIdeIpcBridge } from '@/lib/claude-ide/claude-ide-ipc-bridge'
 
 function isRuntimeEnvironmentActive(): boolean {
   return Boolean(useAppStore.getState().settings?.activeRuntimeEnvironmentId?.trim())
@@ -98,6 +99,7 @@ export function installAppLifetimeIpcEvents(
   registerOrcaProfileAuthIpcBridge(unsubs)
   registerWorkspaceShortcutIpcBridge(unsubs)
   registerOsMarkdownFileOpenBridge(unsubs)
+  registerClaudeIdeIpcBridge(unsubs)
   unsubs.push(
     window.api.ui.onActivateWorktree(({ repoId, worktreeId, setup, startup, defaultTabs }) => {
       void worktreeRuntime

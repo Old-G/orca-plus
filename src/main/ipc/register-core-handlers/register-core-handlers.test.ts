@@ -402,6 +402,10 @@ vi.mock('../lsp', () => ({
   registerLspHandlers: vi.fn()
 }))
 
+vi.mock('../../claude-ide/claude-ide-integration', () => ({
+  registerClaudeIdeIntegration: vi.fn()
+}))
+
 vi.mock('../hosted-review', () => ({
   registerHostedReviewHandlers: registerHostedReviewHandlersMock
 }))
