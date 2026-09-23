@@ -92,6 +92,7 @@ import type {
   SparsePresetsApi,
   WorktreeApi
 } from './api/workspaces/worktree-api'
+import type { CustomCssApi, KeybindingsApi, SettingsApi } from './api/preferences/settings-api'
 
 // Flattens contracts that share one PreloadApi key: an intersection is not type-identical to the flat shape.
 type Merged<T> = { [K in keyof T]: T[K] }
@@ -132,6 +133,7 @@ export type PreloadApi = {
   agentAwake: AgentAwakeApi
   localhostWorktreeLabels: LocalhostWorktreeLabelsApi
   keybindings: KeybindingsApi
+  customCss: CustomCssApi
   codexAccounts: CodexAccountsApi
   claudeAccounts: ClaudeAccountsApi
   cli: CliApi

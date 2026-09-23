@@ -38,6 +38,7 @@ import { useOnboardingAndFeatureTips } from './app-shell/startup/use-onboarding-
 import { usePersistedUIWriter } from './app-shell/storage/use-persisted-ui-writer'
 import { useRuntimeGraphSync } from './runtime/sync-runtime-graph/use-runtime-graph-sync'
 import { useWindowVisibilityEffects } from './app-shell/chrome/use-window-visibility-effects'
+import { useCustomCss } from './app-shell/use-custom-css'
 import { SpaceWindowStatePublisher } from './components/workspace-space/SpaceWindowStatePublisher'
 import { PlainSshTerminalPanels } from './components/plain-ssh-terminal/PlainSshTerminalPanels'
 import { PluginShotReplayMount } from './components/plugins/view/PluginShotReplayMount'
@@ -62,6 +63,7 @@ function App(): React.JSX.Element {
   useRuntimeGraphSync()
   usePersistedUIWriter()
   useDocumentAppearance()
+  useCustomCss()
   useWindowVisibilityEffects()
   useGlobalKeybindings({ layout, floatingWorkspace })
   // App owns active-selection removal; the Space window only mirrors selection.
