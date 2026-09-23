@@ -1,4 +1,5 @@
-export const DEFAULT_MAC_COMMAND_PATH = '/usr/local/bin/orca'
+// Custom build (orca-plus-packaging): `orca-plus`, so installing it never replaces the stock Orca's `orca`.
+export const DEFAULT_MAC_COMMAND_PATH = '/usr/local/bin/orca-plus'
 export const DEV_COMMAND_NAME = 'orca-dev'
 export const LEGACY_LINUX_COMMAND_NAME = 'orca'
 export const DEV_LAUNCHER_DIR = ['cli', 'bin'] as const
