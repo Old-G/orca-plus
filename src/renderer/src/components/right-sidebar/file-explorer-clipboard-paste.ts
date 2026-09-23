@@ -2,9 +2,16 @@ import { toast } from 'sonner'
 import { extractIpcErrorMessage } from '@/lib/ipc-error'
 import { dirname } from '@/lib/path'
 import { translate } from '@/i18n/i18n'
-import { importExternalPathsToRuntime } from '@/runtime/runtime-file-client'
+import { deleteRuntimePath, importExternalPathsToRuntime } from '@/runtime/runtime-file-client'
+import type { ImportItemResult } from '../../../../shared/filesystem-import-result-types'
 import type { FileExplorerOperationOwner } from './file-explorer-types'
 import { captureFileExplorerOperationGuard } from './file-explorer-operation-owner'
+import { commitFileExplorerOp } from './fileExplorerUndoRedo'
+import { keepFileExplorerFocus } from './file-explorer-focus-keeper'
+import {
+  matchPendingExplorerCut,
+  moveCutPathsIntoExplorerFolder
+} from './file-explorer-clipboard-cut-copy'
 
 export function shouldShowPasteFileAction(): boolean {
   return Reflect.get(globalThis, '__ORCA_WEB_CLIENT__') !== true
@@ -46,27 +53,66 @@ export async function pasteClipboardFilesIntoExplorerFolder(args: {
     return
   }
 
+  const cutSources = matchPendingExplorerCut(filePaths, args.worktreeId)
+  if (cutSources) {
+    try {
+      await moveCutPathsIntoExplorerFolder({
+        sourcePaths: cutSources,
+        destinationDir: args.destinationDir,
+        worktreeId: args.worktreeId,
+        worktreePath: args.worktreePath,
+        operationOwner: args.operationOwner,
+        refreshDir: args.refreshDir,
+        setSelectedPath: args.setSelectedPath
+      })
+    } catch (error) {
+      toast.error(extractIpcErrorMessage(error, 'Failed to move files.'))
+    }
+    return
+  }
+
   try {
     const operationGuard = captureFileExplorerOperationGuard(args.worktreeId, args.operationOwner)
     operationGuard.assertCurrent()
-    const { results } = await importExternalPathsToRuntime(
-      {
-        settings: operationGuard.route.settings,
-        worktreeId: args.worktreeId,
-        worktreePath: args.worktreePath,
-        connectionId: operationGuard.route.connectionId,
-        expectedExecutionHostId: operationGuard.route.expectedExecutionHostId,
-        expectedSshTargetId: operationGuard.route.expectedSshTargetId,
-        expectedSshConnectionGeneration: operationGuard.route.expectedSshConnectionGeneration
-      },
-      filePaths,
-      args.destinationDir,
-      { assertCurrent: operationGuard.assertCurrent }
-    )
+    const fileContext = {
+      settings: operationGuard.route.settings,
+      worktreeId: args.worktreeId,
+      worktreePath: args.worktreePath,
+      connectionId: operationGuard.route.connectionId,
+      expectedExecutionHostId: operationGuard.route.expectedExecutionHostId,
+      expectedSshTargetId: operationGuard.route.expectedSshTargetId,
+      expectedSshConnectionGeneration: operationGuard.route.expectedSshConnectionGeneration
+    }
+    const importInto = (sourcePaths: string[]): Promise<{ results: ImportItemResult[] }> =>
+      importExternalPathsToRuntime(fileContext, sourcePaths, args.destinationDir, {
+        assertCurrent: operationGuard.assertCurrent
+      })
+    const { results } = await importInto(filePaths)
 
     await args.refreshDir(args.destinationDir)
 
     const imported = results.filter((result) => result.status === 'imported')
+    if (imported.length > 0) {
+      // Undo trashes what the paste created (recoverable from the OS trash); redo
+      // re-imports the same sources, which may pick fresh names if others now exist.
+      let pasted = imported
+      commitFileExplorerOp({
+        undo: () =>
+          keepFileExplorerFocus(async () => {
+            operationGuard.assertCurrent()
+            for (const item of pasted) {
+              await deleteRuntimePath(fileContext, item.destPath, item.kind === 'directory')
+            }
+            await args.refreshDir(args.destinationDir)
+          }),
+        redo: () =>
+          keepFileExplorerFocus(async () => {
+            const again = await importInto(pasted.map((item) => item.sourcePath))
+            pasted = again.results.filter((result) => result.status === 'imported')
+            await args.refreshDir(args.destinationDir)
+          })
+      })
+    }
     const skipped = results.filter((result) => result.status === 'skipped')
     const failed = results.filter((result) => result.status === 'failed')
 

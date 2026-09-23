@@ -115,6 +115,9 @@ describe('dashboard popout clipboard access', () => {
     expect(() => handlers.get('clipboard:readFile')?.(popoutEvent)).toThrow(
       'Unauthorized clipboard IPC sender'
     )
+    expect(() => handlers.get('clipboard:writeFiles')?.(popoutEvent, ['/tmp/a'])).toThrow(
+      'Unauthorized clipboard IPC sender'
+    )
     expect(() =>
       handlers.get('clipboard:writeImage')?.(popoutEvent, 'data:image/png;base64,AAAA')
     ).toThrow('Unauthorized clipboard IPC sender')

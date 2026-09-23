@@ -140,6 +140,7 @@ export function createWebUiApi(): NonNullable<Partial<PreloadApi>['ui']> {
     writeClipboardImage: () => Promise.resolve(),
     writeClipboardFile: () => Promise.resolve({ ok: false, reason: 'unsupported-platform' }),
     readClipboardFile: () => Promise.resolve({ ok: true, filePaths: [] }),
+    writeClipboardFiles: () => Promise.resolve({ ok: false, reason: 'unsupported-platform' }),
     performNativePaste: () => {
       document.execCommand?.('paste')
     },

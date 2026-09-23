@@ -13665,6 +13665,10 @@
           "fileExplorerClipboardPaste": {
             "failed": "Failed to paste {{value0}} {{value1}}.",
             "skipped": "Skipped {{value0}} {{value1}}."
+          },
+          "fileExplorerClipboardCutCopy": {
+            "moveFailed": "Failed to move '{{value0}}'.",
+            "writeFailed": "Could not copy the files to the clipboard"
           }
         }
       },
