@@ -84,7 +84,7 @@ export function CustomCssSetting({
         // Why: the file location and live reload aren't discoverable from the toggle.
         description={translate(
           'settings.appearance.customCss.description',
-          'Load ~/.orca/custom.css on top of the built-in theme. Changes apply as soon as you save the file.'
+          "Load custom.css from this build's profile folder on top of the built-in theme. Changes apply as soon as you save the file."
         )}
         checked={enabled}
         onChange={() => updateSettings({ customCssEnabled: !enabled })}
