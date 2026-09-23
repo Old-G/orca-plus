@@ -6,6 +6,7 @@ import {
   type JournalPayloadLimits
 } from '../agent-session-journal/journal-payload-bounds'
 import { codexGoalRowText, codexThreadGoalState } from '../../codex/codex-goal-journal-rows'
+import { claudeHookResponseNotice } from './claude-hook-response-notice'
 import {
   classifyProviderFrame,
   hasTypedProviderFrameTranslator
@@ -98,7 +99,10 @@ export function unhandledProviderFrameJournalItem(
   ) {
     return null
   }
-  const classification = classifyProviderFrame(provider, kind, payload)
+  const hookNotice = provider === 'claude' ? claudeHookResponseNotice(kind, payload) : null
+  const classification = hookNotice
+    ? 'timeline-substantive'
+    : classifyProviderFrame(provider, kind, payload)
   if (
     classification === 'stream-into-item' ||
     classification === 'status-chrome' ||
@@ -122,8 +126,9 @@ export function unhandledProviderFrameJournalItem(
           ? 'warning'
           : undefined
       : undefined
-  const tone = noticeTone ?? (classification === 'error-surface' ? 'error' : undefined)
-  let message = readableProviderFrameText(payload)
+  const tone =
+    hookNotice?.tone ?? noticeTone ?? (classification === 'error-surface' ? 'error' : undefined)
+  let message = hookNotice?.text ?? readableProviderFrameText(payload)
   if (
     provider === 'codex' &&
     (method === 'configWarning' || method === 'deprecationNotice') &&
