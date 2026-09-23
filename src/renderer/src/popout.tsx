@@ -10,6 +10,7 @@ import { installRendererCrashDiagnostics } from './diagnostics/crash-reporting/c
 import { recordRendererCrashBreadcrumb } from './diagnostics/crash-reporting/crash-breadcrumb-recorder'
 import { applyStartupAppTheme, useAppThemePaint } from './app-shell/appearance/use-app-theme-paint'
 import { buildAppFontFamily } from './app-shell/appearance/app-font-family'
+import { useCustomCss } from './app-shell/use-custom-css'
 import { applyCodeFontSmoothing } from './lib/editor/appearance/code-font-smoothing'
 import { I18nProvider } from './i18n/I18nProvider'
 import { useTranslate } from './i18n/use-translate'
@@ -61,6 +62,7 @@ function PopoutSettingsSync(): null {
   const settings = useAppStore((state) => state.settings)
   useReduceVisualEffects(settings?.reduceVisualEffects)
   useAppThemePaint()
+  useCustomCss()
 
   useEffect(() => {
     let disposed = false

@@ -35,6 +35,7 @@ import {
 import { registerLazyWorkspacePortHandlers } from '../ports/lazy-workspace-ports-handlers'
 import { registerLazyAutomationHandlers } from '../lazy-automations-handlers'
 import { registerLazyKeybindingHandlers } from '../lazy-keybindings-handlers'
+import { registerCustomCssHandlers } from '../custom-css'
 import { registerTelemetryHandlers } from '../telemetry'
 import { registerPluginHandlers } from '../plugins/plugins'
 import { registerUIHandlers, setTrustedUIRendererWebContentsId } from '../ui'
@@ -139,6 +140,7 @@ export async function registerCoreHandlers(
         void pluginService?.reconcileActivationState()
       })
     }
+    registerCustomCssHandlers()
     if (pluginService) {
       registerPluginHandlers(store, pluginService, marketplaceServices)
     }
