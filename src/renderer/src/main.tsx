@@ -24,6 +24,7 @@ import { I18nProvider } from './i18n/I18nProvider'
 import { translate } from './i18n/i18n'
 import { getOrCreateRendererRoot } from './lib/react-renderer-root'
 import { primeTerminalWebglAddon } from './lib/pane-manager/pane-webgl-renderer'
+import { preloadTerminalSymbolsFont } from './lib/pane-manager/terminal-symbols-font-preload'
 import { SkillWarningPreviewLauncher } from './components/skills/SkillWarningPreviewLauncher'
 import { installBrowserClientPageRenderer } from './components/browser-pane/browser-client-page-renderer-installation'
 import { registerBrowserClientPageGuestMessageHandler } from './components/browser-pane/browser-client-page-retained-elements'
@@ -96,3 +97,4 @@ recordRendererCrashBreadcrumb('renderer_bootstrap_rendered')
 
 // Defer the 243KB WebGL addon until first render; panes need it only much later, keeping it off boot’s import graph.
 void primeTerminalWebglAddon()
+preloadTerminalSymbolsFont()
