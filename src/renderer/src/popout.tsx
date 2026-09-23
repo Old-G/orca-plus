@@ -13,6 +13,7 @@ import {
 } from './lib/crash-diagnostics'
 import { applyDocumentTheme } from './lib/document-theme'
 import { resolvePaintedTheme } from './lib/terminal-app-theme'
+import { useCustomCss } from './app-shell/use-custom-css'
 import { buildAppFontFamily } from './lib/app-font-family'
 import { applyCodeFontSmoothing } from './lib/editor/appearance/code-font-smoothing'
 import { I18nProvider } from './i18n/I18nProvider'
@@ -64,6 +65,7 @@ if (!rootElement) {
 function PopoutSettingsSync(): null {
   const settings = useAppStore((state) => state.settings)
   useReduceVisualEffects(settings?.reduceVisualEffects)
+  useCustomCss()
 
   useEffect(() => {
     let disposed = false
