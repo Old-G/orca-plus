@@ -21,6 +21,7 @@ import { normalizeClaudeRuntimeSelection } from '../claude-accounts/runtime-sele
 import { isAgentStatusHooksEnabled } from '../agent-hooks/managed-agent-hook-controls'
 import { agentHookServer } from '../agent-hooks/server'
 import { setSystemCodexHomeHookSweepSuppressed } from '../codex/hook-service'
+import { ORCA_PLUS_KEEPS_SHARED_CODEX_HOOKS } from '../orca-plus/orca-plus-packaged-identity'
 import { isRealHomeCodexHookLaneUsable } from '../codex/codex-real-home-hook-install'
 import { resolveHostCodexSessionSourceHome } from '../codex/codex-session-source-home'
 import { browserManager } from '../browser/browser-manager'
@@ -49,9 +50,10 @@ export function initializeMainProcessAccountServices(): void {
   // trust lane re-arms the sweep so downgrade, opt-out, and rollback converge.
   setSystemCodexHomeHookSweepSuppressed(
     () =>
-      state.codexRuntimeHome !== null &&
-      state.codexRuntimeHome.isHostSystemDefaultRealHome() &&
-      isAgentStatusHooksEnabled(state.store?.getSettings())
+      ORCA_PLUS_KEEPS_SHARED_CODEX_HOOKS ||
+      (state.codexRuntimeHome !== null &&
+        state.codexRuntimeHome.isHostSystemDefaultRealHome() &&
+        isAgentStatusHooksEnabled(state.store?.getSettings()))
   )
   state.codexSessionMigration = createCodexSessionMigrationScheduler({
     isEligible: () =>

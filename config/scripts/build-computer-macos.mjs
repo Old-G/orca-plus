@@ -15,7 +15,8 @@ const entitlementsPath = path.join(
   'entitlements.computer-use.mac.plist'
 )
 const bundleId = process.env.ORCA_COMPUTER_MACOS_BUNDLE_ID ?? 'com.stablyai.orca.computer-use'
-const displayName = 'Orca Computer Use'
+// Why: custom build (orca-plus-packaging) names its helper so TCC lists it apart from stock Orca's.
+const displayName = process.env.ORCA_COMPUTER_MACOS_DISPLAY_NAME ?? 'Orca Computer Use'
 const signingIdentity = resolveSigningIdentity()
 const universalTriples = ['arm64-apple-macosx', 'x86_64-apple-macosx']
 

@@ -13,6 +13,7 @@ import {
 } from './external-chromium-browser-process'
 import { resolveOrcadAgentBrowserBinary } from './orcad-agent-browser-binary'
 import { ElectronServeBrowserProcess } from './electron-serve-browser-process'
+import { orcaPlusMacExecutableCandidates } from '../orca-plus/orca-plus-installed-app-paths'
 
 export type OrcadBrowserProvider = {
   kind: 'electron' | 'chromium'
@@ -65,6 +66,7 @@ export function installedElectronCandidates(
   const joinPath = platform === 'win32' ? win32.join : posix.join
   if (platform === 'darwin') {
     return [
+      ...orcaPlusMacExecutableCandidates(homePath),
       '/Applications/Orca.app/Contents/MacOS/Orca',
       joinPath(homePath, 'Applications', 'Orca.app', 'Contents', 'MacOS', 'Orca')
     ]
