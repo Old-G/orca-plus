@@ -385,6 +385,14 @@
           "activity": "activité"
         }
       },
+      "customCss": {
+        "title": "CSS personnalisé",
+        "description": "Charge ~/.orca/custom.css par-dessus le thème intégré. Les modifications s'appliquent dès que vous enregistrez le fichier.",
+        "openFile": "Ouvrir custom.css",
+        "revealFile": "Révéler dans le gestionnaire de fichiers",
+        "tooLarge": "custom.css dépasse {{limit}} Ko et n'a pas été chargé.",
+        "unreadable": "Impossible de lire custom.css : {{message}}"
+      },
       "chat": {
         "fontFamily": "Police",
         "fontFamilyDescription": "Police des messages, de l’activité et de la zone de saisie.",

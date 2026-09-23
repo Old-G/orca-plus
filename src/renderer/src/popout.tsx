@@ -12,6 +12,7 @@ import {
   recordRendererCrashBreadcrumb
 } from './lib/crash-diagnostics'
 import { applyDocumentTheme } from './lib/document-theme'
+import { useCustomCss } from './app-shell/use-custom-css'
 import { buildAppFontFamily } from './lib/app-font-family'
 import { I18nProvider } from './i18n/I18nProvider'
 import { translate } from './i18n/i18n'
@@ -59,6 +60,7 @@ if (!rootElement) {
 
 function PopoutSettingsSync(): null {
   const settings = useAppStore((state) => state.settings)
+  useCustomCss()
 
   useEffect(() => {
     let disposed = false
