@@ -11,6 +11,7 @@ import { recordRendererCrashBreadcrumb } from './diagnostics/crash-reporting/cra
 import { applyDocumentTheme } from './app-shell/appearance/document-theme'
 import { resolvePaintedTheme } from './app-shell/appearance/terminal-app-theme'
 import { buildAppFontFamily } from './app-shell/appearance/app-font-family'
+import { useCustomCss } from './app-shell/use-custom-css'
 import { applyCodeFontSmoothing } from './lib/editor/appearance/code-font-smoothing'
 import { I18nProvider } from './i18n/I18nProvider'
 import { useTranslate } from './i18n/use-translate'
@@ -61,6 +62,7 @@ if (!rootElement) {
 function PopoutSettingsSync(): null {
   const settings = useAppStore((state) => state.settings)
   useReduceVisualEffects(settings?.reduceVisualEffects)
+  useCustomCss()
 
   useEffect(() => {
     let disposed = false

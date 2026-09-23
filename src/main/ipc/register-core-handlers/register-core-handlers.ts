@@ -58,6 +58,7 @@ import { registerLinkPreviewHandlers } from '../link-preview'
 import { registerLocalhostWorktreeLabelHandlers } from '../localhost-worktree-labels'
 import { registerAutomationHandlers } from '../automations'
 import { registerKeybindingHandlers } from '../keybindings'
+import { registerCustomCssHandlers } from '../custom-css'
 import { registerTelemetryHandlers } from '../telemetry'
 import { registerShellHandlers } from '../shell'
 import { registerPetHandlers } from '../pets/pet'
@@ -226,6 +227,7 @@ export function registerCoreHandlers(
       void pluginService?.reconcileActivationState()
     })
   }
+  registerCustomCssHandlers()
   if (pluginService) {
     registerPluginHandlers(store, pluginService, marketplaceServices)
   }

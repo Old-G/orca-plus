@@ -79,6 +79,8 @@ export type GlobalSettings = GlobalSettingsBase & {
   uiLanguagePortugueseMigrationApplied?: boolean
   appIcon: AppIconId
   appFontFamily: string
+  /** Load `~/.orca/custom.css` on top of the built-in theme and reload it on save. */
+  customCssEnabled?: boolean
   editorAutoSave: boolean
   /** Days a release must be public before Orca offers it; absent/0 offers releases immediately. */
   updateDelayDays?: number
