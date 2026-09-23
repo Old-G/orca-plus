@@ -40,6 +40,8 @@ import {
   type ClipboardFileReadDeps,
   type ClipboardFileReadResult
 } from './clipboard-file-read'
+import { writeFilesToClipboard, type ClipboardFilesResult } from './clipboard-files-write'
+import { resolveAuthorizedClipboardFile } from './clipboard-authorized-file'
 import {
   cleanupExpiredRemoteClipboardFiles,
   scheduleLegacyRemoteClipboardFileCleanup
@@ -123,6 +125,7 @@ export function registerClipboardHandlers(
   ipcMain.removeHandler('clipboard:writeImage')
   ipcMain.removeHandler('clipboard:writeFile')
   ipcMain.removeHandler('clipboard:readFile')
+  ipcMain.removeHandler('clipboard:writeFiles')
   ipcMain.removeHandler('clipboard:saveImageAsTempFile')
   ipcMain.removeHandler('clipboard:readImageThumbnail')
   ipcMain.removeHandler('clipboard:hasImage')
@@ -227,6 +230,18 @@ export function registerClipboardHandlers(
     assertTrustedClipboardSender(event)
     return readFilesFromClipboard(makeClipboardFileReadDeps())
   })
+  // Why: File Explorer Cmd+C / Cmd+X of a multi-selection needs every file on the
+  // clipboard; `clipboard:writeFile` holds one.
+  ipcMain.handle(
+    'clipboard:writeFiles',
+    (event, filePaths: unknown): Promise<ClipboardFilesResult> => {
+      assertTrustedClipboardSender(event)
+      return writeFilesToClipboard(
+        filePaths,
+        makeClipboardFileDeps(resolveAuthorizedClipboardFile(store))
+      )
+    }
+  )
   ipcMain.handle('clipboard:writeText', async (event, text: string) => {
     assertTrustedClipboardTextSender(event)
     try {

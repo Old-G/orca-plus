@@ -84,7 +84,7 @@ export async function writeFileToClipboard(
 }
 
 // True only on a clean exit; a helper that cannot start, fails or times out is false.
-async function runClipboardHelper(
+export async function runClipboardHelper(
   runProcess: ClipboardFileDeps['runProcess'],
   spec: ProcessSpec
 ): Promise<boolean> {
