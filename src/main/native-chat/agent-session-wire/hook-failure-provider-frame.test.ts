@@ -115,7 +115,8 @@ describe('failed hook provider frames', () => {
         output: 'Other output'
       })?.body
     ).toMatchObject({
-      tone: 'error',
+      // Custom build (native-chat-hook-warning): a failed Claude hook is a warning, as in the CLI.
+      tone: 'warning',
       text: 'Claude PostToolUse:Bash hook failed (exit code 1): Script not found'
     })
   })
