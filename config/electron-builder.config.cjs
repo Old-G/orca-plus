@@ -102,7 +102,10 @@ const devChannelRepo = isHourlyChannel
     : isAdhocChannel
       ? 'orca-adhoc'
       : null
-const appId = 'com.stablyai.orca'
+// Custom build (orca-plus-packaging): opt-in at build time, so the default config and
+// upstream's tests stay stock; scripts/build-orca-plus-mac.sh sets it.
+const orcaPlusPackaging = process.env.ORCA_PLUS_PACKAGING === '1'
+const appId = orcaPlusPackaging ? 'com.oldg.orca-plus' : 'com.stablyai.orca'
 const featureWallResources = {
   from: 'resources/onboarding/feature-wall',
   to: 'onboarding/feature-wall'
@@ -236,8 +239,12 @@ const ORCA_MAC_TEAM_ID = '6CX3WHS9HZ'
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   appId,
-  productName: 'Orca',
-  protocols: [{ name: 'Orca', schemes: ['orca'] }],
+  productName: orcaPlusPackaging ? 'Orca Plus' : 'Orca',
+  protocols: [
+    orcaPlusPackaging
+      ? { name: 'Orca Plus', schemes: ['orca-plus'] }
+      : { name: 'Orca', schemes: ['orca'] }
+  ],
   toolsets: { appimage: '1.0.3' },
   ...(devChannelBuildVersion
     ? { extraMetadata: { version: devChannelBuildVersion } }
@@ -642,7 +649,7 @@ module.exports = {
   // silently downgrading to ad-hoc artifacts that look shippable in CI logs.
   forceCodeSigning: isMacRelease,
   dmg: {
-    artifactName: 'orca-macos-${arch}.${ext}'
+    artifactName: orcaPlusPackaging ? 'orca-plus-macos-${arch}.${ext}' : 'orca-macos-${arch}.${ext}'
   },
   linux: {
     // shared-mime-info already maps md/markdown: advertise handler only, leaving mimeapps.list defaults intact.
@@ -734,8 +741,8 @@ module.exports = {
   npmRebuild: true,
   publish: {
     provider: 'github',
-    owner: 'stablyai',
-    repo: devChannelRepo ?? 'orca',
+    owner: orcaPlusPackaging ? 'Old-G' : 'stablyai',
+    repo: orcaPlusPackaging ? 'orca-plus' : (devChannelRepo ?? 'orca'),
     // Keep main-repo releases draft until release-cut verifies all assets; early --publish always would expose missing Windows installers.
     releaseType: devChannelRepo ? 'prerelease' : 'draft'
   }
