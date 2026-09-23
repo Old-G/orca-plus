@@ -3,8 +3,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   clipboardEventCarriesFiles,
+  isFileExplorerClipboardEvent,
+  resolveFileExplorerClipboardNodes,
   shouldHandleFileExplorerPasteEvent
 } from './file-explorer-paste-bridge'
+import type { TreeNode } from './file-explorer-types'
 
 function pasteEventOn(target: Element, types: string[]): ClipboardEvent {
   const event = new ClipboardEvent('paste', { bubbles: true, cancelable: true })
@@ -54,5 +57,38 @@ describe('file explorer paste bridge', () => {
     const outside = document.createElement('div')
     document.body.append(outside)
     expect(shouldHandleFileExplorerPasteEvent(pasteEventOn(outside, ['Files']))).toBe(false)
+  })
+
+  it('claims cut/copy when a row has focus even if the DOM selection is elsewhere', () => {
+    const { row } = mountExplorer()
+    const chat = document.createElement('p')
+    document.body.append(chat)
+    row.focus()
+    expect(isFileExplorerClipboardEvent({ target: chat })).toBe(true)
+    row.blur()
+    expect(isFileExplorerClipboardEvent({ target: chat })).toBe(false)
+  })
+
+  it('leaves cut/copy in the focused explorer filter to the input', () => {
+    const { filter } = mountExplorer()
+    filter.focus()
+    expect(isFileExplorerClipboardEvent({ target: filter })).toBe(false)
+  })
+
+  it('acts on a multi-selection as a whole, otherwise on the focused row', () => {
+    const node = (path: string): TreeNode => ({
+      name: path.slice(3),
+      path,
+      relativePath: path.slice(3),
+      isDirectory: false,
+      depth: 0
+    })
+    const a = node('/r/a')
+    const b = node('/r/b')
+    const c = node('/r/c')
+    expect(resolveFileExplorerClipboardNodes(c, [a, b])).toEqual([a, b])
+    expect(resolveFileExplorerClipboardNodes(c, [a])).toEqual([c])
+    expect(resolveFileExplorerClipboardNodes(null, [a])).toEqual([a])
+    expect(resolveFileExplorerClipboardNodes(null, [])).toEqual([])
   })
 })
