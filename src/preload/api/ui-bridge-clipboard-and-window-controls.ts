@@ -136,6 +136,10 @@ export const uiClipboardAndWindowControlsApi = {
   ): Promise<{ ok: boolean; reason?: string }> => ipcRenderer.invoke('clipboard:writeFile', args),
   readClipboardFile: (): Promise<{ ok: boolean; filePaths: string[]; reason?: string }> =>
     ipcRenderer.invoke('clipboard:readFile'),
+  writeClipboardFiles: (
+    filePaths: string[]
+  ): Promise<{ ok: boolean; reason?: string; filePaths?: string[] }> =>
+    ipcRenderer.invoke('clipboard:writeFiles', filePaths),
   getZoomLevel: (): number => webFrame.getZoomLevel(),
   setZoomLevel: (level: number): void => webFrame.setZoomLevel(level),
   syncTrafficLights: (zoomFactor: number): void =>
