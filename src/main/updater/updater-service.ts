@@ -12,6 +12,7 @@ import type {
 import type { ReleaseBuild, ReleaseChannel } from '../../shared/release-channel'
 import type { ReleaseBuildListOptions } from './releases/updater-release-build-cache'
 import { UpdaterSetup, type UpdaterSetupOptions } from './lifecycle/updater-setup'
+import { ORCA_PLUS_STOCK_UPDATES_DISABLED } from '../orca-plus/orca-plus-packaged-identity'
 import type { UpdateInstallMode } from './lifecycle/updater-state'
 
 const updater = new UpdaterSetup()
@@ -48,14 +49,23 @@ export function installRemoteServerUpdate(runtimeId: string): RemoteServerUpdate
 }
 
 export function checkForUpdates(): void {
+  if (ORCA_PLUS_STOCK_UPDATES_DISABLED) {
+    return
+  }
   updater.checkForUpdates()
 }
 
 export function checkForUpdatesFromMenu(options?: UpdateCheckOptions): void {
+  if (ORCA_PLUS_STOCK_UPDATES_DISABLED) {
+    return
+  }
   updater.checkForUpdatesFromMenu(options)
 }
 
 export function downloadUpdate(): void {
+  if (ORCA_PLUS_STOCK_UPDATES_DISABLED) {
+    return
+  }
   updater.downloadUpdate()
 }
 
@@ -94,5 +104,9 @@ export function setupAutoUpdater(
   mainWindow: BrowserWindow | null,
   opts?: UpdaterSetupOptions
 ): void {
+  // Why: custom build (orca-plus-packaging); stock Orca's feed would overwrite Orca+.
+  if (ORCA_PLUS_STOCK_UPDATES_DISABLED) {
+    return
+  }
   updater.setupAutoUpdater(mainWindow, opts)
 }
