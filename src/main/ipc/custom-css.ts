@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import type { CustomCssSnapshot } from '../../shared/custom-css'
 import { CustomCssService } from '../custom-css/custom-css-service'
-import { authorizeExternalPath } from './filesystem-auth'
+import { getCustomBuildCustomCssPath } from '../custom-css/custom-css-profile-location'
 
 export type CustomCssHandlerService = Pick<
   CustomCssService,
@@ -19,6 +19,7 @@ function broadcastCustomCssChanged(snapshot: CustomCssSnapshot): void {
 export function createCustomCssService(): CustomCssService {
   return new CustomCssService({
     homePath: app.getPath('home'),
+    path: getCustomBuildCustomCssPath(),
     onChanged: broadcastCustomCssChanged
   })
 }
@@ -31,8 +32,6 @@ export function registerCustomCssHandlers(
   ipcMain.handle('customCss:get', () => service.getSnapshot())
   ipcMain.handle('customCss:openFile', async () => {
     const snapshot = service.ensureFile()
-    // Why: custom.css is outside any workspace; opening it in Orca's editor still needs fs IPC access.
-    authorizeExternalPath(snapshot.path)
     const error = await shell.openPath(snapshot.path)
     if (error) {
       throw new Error(error)
@@ -41,7 +40,6 @@ export function registerCustomCssHandlers(
   })
   ipcMain.handle('customCss:revealFile', () => {
     const snapshot = service.ensureFile()
-    authorizeExternalPath(snapshot.path)
     shell.showItemInFolder(snapshot.path)
     return snapshot
   })
