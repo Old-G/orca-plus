@@ -21,6 +21,7 @@ import {
   createClaudeUserMessageQueue
 } from './claude-agent-sdk-user-message-queue'
 import type { ClaudeStructuredSdkOptions } from './claude-structured-launch-resolution'
+import { buildClaudeIdeSdkOptions } from '../claude-ide/claude-ide-hooks'
 
 export { ClaudeControlRequestError }
 
@@ -112,13 +113,14 @@ export async function openClaudeStreamJsonConnection(
   spawnImpl: typeof spawnProcess = spawnProcess,
   queryImpl?: typeof ClaudeAgentSdk.query
 ): Promise<ClaudeStreamJsonConnection> {
-  const { query } = await loadClaudeAgentSdk()
+  const sdk = await loadClaudeAgentSdk()
   const spawner = createClaudeCodeProcessSpawn(spawnImpl)
   const inbox = createClaudeUserMessageQueue()
-  const session = (queryImpl ?? query)({
+  const session = (queryImpl ?? sdk.query)({
     prompt: inbox.messages,
     options: {
       ...launch.options,
+      ...buildClaudeIdeSdkOptions(sdk),
       cwd: launch.cwd,
       // Why env is never omitted: the SDK inherits process.env when it is, which is
       // exactly the ambient ANTHROPIC_* auth leak this lane already shipped once.

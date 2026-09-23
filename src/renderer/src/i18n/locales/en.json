@@ -17294,6 +17294,21 @@
         "dispatchRejected": "The agent refused the “continue” message. Open the chat and send one yourself.",
         "unsupported": "This chat can’t be resumed by Orca. Open it to see where it stopped.",
         "fallback": "Orca couldn’t resume this chat. Open it to continue manually."
+      },
+      "claude": {
+        "ide": {
+          "ClaudeProposalBanner": {
+            "title": "Claude proposes changes to {{value0}}",
+            "hint": "Edit the right side before accepting.",
+            "reject": "Reject",
+            "accept": "Accept"
+          },
+          "mention": {
+            "action": "Mention in Claude Code",
+            "noSession": "No Claude Code session is connected to Orca",
+            "noSessionHint": "Start claude in an Orca terminal, then mention again."
+          }
+        }
       }
     },
     "i18n": {

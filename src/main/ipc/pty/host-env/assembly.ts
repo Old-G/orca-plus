@@ -29,6 +29,7 @@ import {
   restoreOrStripOverlayEnv
 } from './pi-agent'
 import { AGENT_HOOK_RUNTIME_ENV_KEYS } from './spawn-env-keys'
+import { applyClaudeIdeTerminalEnv } from '../../../claude-ide/claude-ide-hooks'
 
 /**
  * Mutates `baseEnv` in place with all host-local PTY env vars and returns it.
@@ -160,6 +161,8 @@ export function buildPtyHostEnv(
       }
     }
   }
+
+  applyClaudeIdeTerminalEnv(baseEnv, { isWsl: opts.isWsl })
 
   // Why: PI_CODING_AGENT_DIR is the user's config/session root; install only Orca-owned extension files, don't override it.
   if (opts.agentStatusHooksEnabled) {
