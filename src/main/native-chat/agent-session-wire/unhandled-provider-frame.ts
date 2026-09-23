@@ -7,6 +7,7 @@ import {
 } from '../agent-session-journal/journal-payload-bounds'
 import { codexGoalRowText, codexThreadGoalState } from '../../codex/codex-goal-journal-rows'
 import { isProviderRecord } from '../../provider-process/provider-json-record'
+import { claudeHookResponseNotice } from './claude-hook-response-notice'
 import { classifyProviderFrame } from './provider-frame-disposition'
 
 export type UnhandledProviderFrameJournalItem = {
@@ -126,10 +127,13 @@ export function unhandledProviderFrameJournalItem(
   limits: JournalPayloadLimits = PROVIDER_FRAME_PAYLOAD_LIMITS,
   options: UnhandledProviderFrameJournalItemOptions = {}
 ): UnhandledProviderFrameJournalItem | null {
+  const hookNotice = provider === 'claude' ? claudeHookResponseNotice(kind, payload) : null
   const classification =
     options.reportsFailure === true
       ? 'error-surface'
-      : classifyProviderFrame(provider, kind, payload)
+      : hookNotice
+        ? 'timeline-substantive'
+        : classifyProviderFrame(provider, kind, payload)
   if (
     classification === 'stream-into-item' ||
     classification === 'status-chrome' ||
@@ -153,10 +157,12 @@ export function unhandledProviderFrameJournalItem(
           ? 'warning'
           : undefined
       : undefined
-  const tone = noticeTone ?? (classification === 'error-surface' ? 'error' : undefined)
+  const tone =
+    hookNotice?.tone ?? noticeTone ?? (classification === 'error-surface' ? 'error' : undefined)
   let message = readableProviderFrameText(payload)
-  if (classification === 'error-surface') {
-    message = hookFailureFrameText(provider, kind, payload, message) ?? message
+  // Custom build (native-chat-hook-warning): upstream's wording, our warning weight for Claude.
+  if (hookNotice || classification === 'error-surface') {
+    message = hookFailureFrameText(provider, kind, payload, message) ?? hookNotice?.text ?? message
   }
   if (
     provider === 'codex' &&
