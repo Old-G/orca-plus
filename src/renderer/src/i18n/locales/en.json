@@ -20379,6 +20379,21 @@
           }
         }
       },
+      "claude": {
+        "ide": {
+          "ClaudeProposalBanner": {
+            "title": "Claude proposes changes to {{value0}}",
+            "hint": "Edit the right side before accepting.",
+            "reject": "Reject",
+            "accept": "Accept"
+          },
+          "mention": {
+            "action": "Mention in Claude Code",
+            "noSession": "No Claude Code session is connected to Orca",
+            "noSessionHint": "Start claude in an Orca terminal, then mention again."
+          }
+        }
+      },
       "TaskPageJiraSavedFilters": {
         "6c381858a1": "Saved filters",
         "d14121662d": "No saved filters yet.",

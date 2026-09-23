@@ -7,6 +7,12 @@ import { DiffViewer, ImageDiffViewer, MarkdownPreview } from '../editor-lazy-vie
 import { ExternalFileChangeBanner } from '../external-changes/ExternalFileChangeBanner'
 import { MarkdownPreviewSizeGate } from '../markdown-preview/render-tree/MarkdownPreviewSizeGate'
 import type { useMarkdownDocuments } from '../markdown/documents/useMarkdownDocuments'
+import { ClaudeProposalBanner } from '@/components/claude-ide/ClaudeProposalBanner'
+import {
+  acceptClaudeProposal,
+  isClaudeProposalFile,
+  updateClaudeProposalContent
+} from '@/lib/claude-ide/claude-ide-diff-proposal-state'
 
 type MarkdownDocumentsController = ReturnType<typeof useMarkdownDocuments>
 
@@ -54,7 +60,8 @@ export function EditorDiffFileSurface({
     )
   }
 
-  const isEditable = activeFile.diffSource === 'unstaged'
+  const isClaudeProposal = isClaudeProposalFile(activeFile)
+  const isEditable = activeFile.diffSource === 'unstaged' || isClaudeProposal
   if (diffContent.kind === 'binary') {
     if (diffContent.tooLarge) {
       return <DiffTooLargeNotice forConnection={diffContent.tooLargeForConnection} />
@@ -110,6 +117,7 @@ export function EditorDiffFileSurface({
   if (
     isMarkdown &&
     mdViewMode === 'preview' &&
+    !isClaudeProposal &&
     diffContent.largeDiffRenderLimit?.limited !== true
   ) {
     return (
@@ -166,10 +174,36 @@ export function EditorDiffFileSurface({
       editable={isEditable}
       worktreeId={activeFile.worktreeId}
       noteSource={activeFile}
-      onContentChange={isEditable ? onContentChange : undefined}
-      onSave={isEditable ? (isMarkdown ? markdownDocuments.mdSave : onSave) : undefined}
+      onContentChange={
+        isClaudeProposal
+          ? (content) => updateClaudeProposalContent(activeFile.id, content)
+          : isEditable
+            ? onContentChange
+            : undefined
+      }
+      onSave={
+        isClaudeProposal
+          ? async (content) => {
+              // Why: accepting hands the text to the CLI, which writes the file; Orca must not.
+              acceptClaudeProposal(activeFile.id, content)
+              return true
+            }
+          : isEditable
+            ? isMarkdown
+              ? markdownDocuments.mdSave
+              : onSave
+            : undefined
+      }
     />
   )
+  if (isClaudeProposal) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <ClaudeProposalBanner file={activeFile} />
+        <div className="flex min-h-0 flex-1 flex-col">{diffViewer}</div>
+      </div>
+    )
+  }
   if (activeFile.externalMutation !== 'changed') {
     return diffViewer
   }
