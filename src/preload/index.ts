@@ -64,6 +64,7 @@ import { appIconApi } from './api/window-ui/app-icon-bridge'
 import { browserPasswordsApi } from './api/browser/browser-passwords-bridge'
 import { lspApi } from './api/lsp-bridge'
 import { claudeIdeApi } from './api/claude-ide-bridge'
+import { customCssApi } from './api/custom-css-bridge'
 import { browserApi } from './api/browser/browser-bridge'
 import { emulatorApi } from './api/emulator/emulator-bridge'
 import { hooksApi } from './api/agent-hooks/hooks-bridge'
@@ -158,6 +159,7 @@ const api = {
   agentAwake: agentAwakeApi,
   localhostWorktreeLabels: localhostWorktreeLabelsApi,
   keybindings: keybindingsApi,
+  customCss: customCssApi,
   codexAccounts: codexAccountsApi,
   claudeAccounts: claudeAccountsApi,
   cli: cliApi,
