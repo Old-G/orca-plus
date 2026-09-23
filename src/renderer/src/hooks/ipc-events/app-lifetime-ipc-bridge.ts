@@ -34,6 +34,7 @@ import { registerWorkspaceShortcutIpcBridge } from './workspace-shortcut-ipc-bri
 import { registerZoomIpcBridge } from './zoom-ipc-bridge'
 import { registerWslAccountNoticeIpcBridge } from './wsl-account-notice-ipc-bridge'
 import { registerWslHostIpcBridge } from './wsl-host-ipc-bridge'
+import { registerClaudeIdeIpcBridge } from '@/lib/claude-ide/claude-ide-ipc-bridge'
 
 function isRuntimeEnvironmentActive(): boolean {
   return Boolean(useAppStore.getState().settings?.activeRuntimeEnvironmentId?.trim())
@@ -89,6 +90,7 @@ export function installAppLifetimeIpcEvents(): () => void {
   registerWorkspaceShortcutIpcBridge(unsubs)
   registerOsMarkdownFileOpenBridge(unsubs)
   registerWslAccountNoticeIpcBridge(unsubs)
+  registerClaudeIdeIpcBridge(unsubs)
   unsubs.push(
     window.api.ui.onActivateWorktree(
       ({ repoId, worktreeId, setup, startup, defaultTabs, providesInitialSurface }) => {
