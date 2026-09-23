@@ -24,6 +24,8 @@ export type DiffSource =
   | 'combined-uncommitted'
   | 'combined-branch'
   | 'combined-commit'
+  // Custom build (claude-ide): an edit the Claude CLI proposes, held in memory until accepted.
+  | 'claude-proposal'
 
 export type BranchCompareSnapshot = Pick<
   GitBranchCompareSummary,

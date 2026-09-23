@@ -18805,6 +18805,21 @@
           }
         }
       },
+      "claude": {
+        "ide": {
+          "ClaudeProposalBanner": {
+            "title": "Claude proposes changes to {{value0}}",
+            "hint": "Edit the right side before accepting.",
+            "reject": "Reject",
+            "accept": "Accept"
+          },
+          "mention": {
+            "action": "Mention in Claude Code",
+            "noSession": "No Claude Code session is connected to Orca",
+            "noSessionHint": "Start claude in an Orca terminal, then mention again."
+          }
+        }
+      },
       "NativeChatResumeRunPanel": {
         "description": "Each chat is restored with its full context and asked to check where it stopped. You can close this; the status bar keeps track.",
         "finished": "These chats were working when Orca closed. Orca restored each one where it stopped, with its full context, and asked the agent to check what it was doing before carrying on. Your own prompts weren’t re-sent.",
