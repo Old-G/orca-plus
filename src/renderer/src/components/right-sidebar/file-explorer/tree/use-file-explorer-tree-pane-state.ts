@@ -234,7 +234,9 @@ export function useFileExplorerTreePaneState({
   useFileExplorerPasteTarget({
     worktreePath: visibleFilesWorktreePath,
     activeWorktreeId,
+    connectionId: activeRepo?.connectionId,
     selectedNode,
+    selectedPaths,
     rowProjection,
     refreshDir,
     setSelectedPath: setSingleSelectedPath,

@@ -47,6 +47,8 @@ import {
   type ClipboardFileReadDeps,
   type ClipboardFileReadResult
 } from '../clipboard-file-read'
+import { writeFilesToClipboard, type ClipboardFilesResult } from '../clipboard-files-write'
+import { resolveAuthorizedClipboardFile } from '../clipboard-authorized-file'
 import {
   cleanupExpiredRemoteClipboardFiles,
   scheduleLegacyRemoteClipboardFileCleanup
@@ -132,6 +134,7 @@ export function registerClipboardHandlers(
     ipcMain.removeHandler('clipboard:writeImage')
     ipcMain.removeHandler('clipboard:writeFile')
     ipcMain.removeHandler('clipboard:readFile')
+    ipcMain.removeHandler('clipboard:writeFiles')
     ipcMain.removeHandler('clipboard:saveImageAsTempFile')
     ipcMain.removeHandler('clipboard:savePastedTextAsFile')
     ipcMain.removeHandler('clipboard:readImageThumbnail')
@@ -260,6 +263,15 @@ export function registerClipboardHandlers(
     assertTrustedClipboardSender(event)
     return readFilesFromClipboard(makeClipboardFileReadDeps())
   })
+  // Why: File Explorer Cmd+C / Cmd+X of a multi-selection needs every file on the
+  // clipboard; `clipboard:writeFile` holds one.
+  ipc.handle('clipboard:writeFiles', (event, filePaths: unknown): Promise<ClipboardFilesResult> => {
+    assertTrustedClipboardSender(event)
+    return writeFilesToClipboard(
+      filePaths,
+      makeClipboardFileDeps(resolveAuthorizedClipboardFile(authorizeLocalPath))
+    )
+  })
   ipc.handle('clipboard:writeText', async (event, text: string) => {
     assertTrustedClipboardTextSender(event)
     try {
@@ -330,11 +342,25 @@ function normalizeClipboardWriteFileRequest(args: unknown): ClipboardWriteFileRe
   return { filePath }
 }
 
-function makeClipboardFileReadDeps(): ClipboardFileReadDeps {
+function makeClipboardFileDeps(
+  resolveFilePath: ClipboardFileDeps['resolveFilePath']
+): ClipboardFileDeps {
   return {
     platform: process.platform,
     desktop: process.env.XDG_CURRENT_DESKTOP,
-    readBuffer: (format) => clipboard.readBuffer(format),
+    resolveFilePath,
+    writeBuffer: writeClipboardBuffer,
+    runProcess
+  }
+}
+
+function makeClipboardFileReadDeps(): ClipboardFileReadDeps {
+  // Why: Electron 45 dropped clipboard.readBuffer; one snapshot reads the clipboard once per request.
+  const snapshot = clipboardFormatSnapshot()
+  return {
+    platform: process.platform,
+    desktop: process.env.XDG_CURRENT_DESKTOP,
+    readBuffer: (format) => snapshot.readBuffer(format),
     runCommand: runClipboardCommandCapture
   }
 }
