@@ -10,6 +10,8 @@ function createMacBuildCompatibility({ version, commit, architecture }) {
   }
   return {
     ...compatibilityContract,
+    // Custom build (orca-plus-packaging): stock Orca must not accept an Orca+ build as its own.
+    ...(process.env.ORCA_PLUS_PACKAGING === '1' ? { appId: 'com.oldg.orca-plus' } : {}),
     buildId: `${version}-${commit}-${architecture}`,
     version,
     commit,
