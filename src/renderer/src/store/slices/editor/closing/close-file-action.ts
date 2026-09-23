@@ -238,7 +238,8 @@ export function createCloseFileAction(
             wtRecent &&
             opts?.captureRecentlyClosed !== false &&
             !shouldDeleteFromDisk &&
-            closedFile.mode !== 'markdown-preview'
+            closedFile.mode !== 'markdown-preview' &&
+            closedFile.diffSource !== 'claude-proposal'
           ) {
             const snap = closedEditorFileSnapshot(closedFile)
             const stack = s.recentlyClosedEditorTabsByWorktree[wtRecent] ?? []

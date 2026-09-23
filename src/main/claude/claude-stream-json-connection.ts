@@ -25,6 +25,7 @@ import { withProviderSpawnAbsence } from '../provider-process/provider-executabl
 import { claudeStreamJsonExitError } from './claude-stream-json-exit-error'
 import { withObservedProviderExit } from '../native-chat/agent-session-wire/startup/structured-agent-session-failure-text'
 import type { ProviderProcessCloseOptions } from '../provider-process/provider-process-close'
+import { buildClaudeIdeSdkOptions } from '../claude-ide/claude-ide-hooks'
 
 export { ClaudeControlRequestError }
 
@@ -105,7 +106,7 @@ export async function openClaudeStreamJsonConnection(
   spawnImpl: PipedProcessSpawner = spawnProcess,
   queryImpl?: typeof ClaudeAgentSdk.query
 ): Promise<ClaudeStreamJsonConnection> {
-  const { query } = await loadClaudeAgentSdk()
+  const sdk = await loadClaudeAgentSdk()
   const startup = claudeStartupAnswerObservation(handlers.onStdout)
   const spawner = createClaudeCodeProcessSpawn(spawnImpl, process.platform, launch, startup.feed)
   // Always supply scrubbed env to prevent ambient auth leaks; only launch.env may pin CLAUDE_CONFIG_DIR.
@@ -118,10 +119,11 @@ export async function openClaudeStreamJsonConnection(
     )
   )
   const inbox = createClaudeUserMessageQueue()
-  const session = (queryImpl ?? query)({
+  const session = (queryImpl ?? sdk.query)({
     prompt: inbox.messages,
     options: {
       ...launch.options,
+      ...buildClaudeIdeSdkOptions(sdk),
       cwd: launch.cwd,
       env,
       pathToClaudeCodeExecutable: launch.pathToClaudeCodeExecutable,

@@ -1,5 +1,9 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
 import { getEditorFileReadContext } from '@/lib/editor/file-operations/editor-file-operation-owner'
+import {
+  claudeProposalLoadError,
+  loadClaudeProposalDiff
+} from '@/lib/claude-ide/claude-ide-diff-proposal-state'
 import type { OpenFile } from '@/store/slices/editor/types/open-file'
 import { useAppStore } from '@/store'
 import {
@@ -54,6 +58,14 @@ export function useEditorPanelDiffContentLoader({
   return useCallback(
     async (file: OpenFile | null, options?: EditorPanelContentLoadOptions): Promise<void> => {
       if (!file || (file.mode === 'edit' && !canUseChangesModeForFile(file))) {
+        return
+      }
+      if (file.diffSource === 'claude-proposal') {
+        // Why: the proposal lives in memory (claude-ide), not in git.
+        const result = await loadClaudeProposalDiff(file.id).catch((error: unknown) =>
+          claudeProposalLoadError(error)
+        )
+        setDiffContents((prev) => ({ ...prev, [file.id]: result }))
         return
       }
       const generation = diffReadGenerationCounterRef.current + 1

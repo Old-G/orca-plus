@@ -13,6 +13,7 @@ import { registerFilesystemHandlers } from '../filesystem/filesystem'
 import type { CommitMessageAgentEnvironmentResolvers } from '../../text-generation/commit-message-agent-environment'
 import { registerFilesystemWatcherHandlers } from '../filesystem/watchers/filesystem-watcher-handlers'
 import { registerLspHandlers } from '../lsp'
+import { registerClaudeIdeIntegration } from '../../claude-ide/claude-ide-integration'
 import { registerUsageProviderHandlers } from '../usage-provider-handlers'
 import { registerGitHubHandlers } from '../source-control/github'
 import { registerGitLabHandlers } from '../source-control/gitlab'
@@ -169,6 +170,7 @@ export function registerCoreHandlers(
   setTrustedBrowserRendererWebContentsId(mainWindowWebContentsId)
   setTrustedClipboardRendererWebContentsId(mainWindowWebContentsId)
   setTrustedUIRendererWebContentsId(mainWindowWebContentsId)
+  registerClaudeIdeIntegration(mainWindowWebContentsId)
   setAgentBrowserBridgeRef(runtime.getAgentBrowserBridge())
   if (registered) {
     return

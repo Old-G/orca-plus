@@ -2,6 +2,12 @@ import { DiffTooLargeNotice } from './diff/large-files/DiffTooLargeNotice'
 import { useTranslate } from '@/i18n/use-translate'
 import type { OpenFile } from '@/store/slices/editor/types/open-file'
 import type { GitDiffResult } from '../../../../shared/git/diff/git-diff-compare-types'
+import { ClaudeProposalBanner } from '@/components/claude-ide/ClaudeProposalBanner'
+import {
+  acceptClaudeProposal,
+  isClaudeProposalFile,
+  updateClaudeProposalContent
+} from '@/lib/claude-ide/claude-ide-diff-proposal-state'
 import { getDiffContentSignature } from './diff/sections/diff-content-signature'
 import { DiffViewer, ImageDiffViewer, MarkdownPreview } from './editor-lazy-views'
 import { ExternalFileChangeBanner } from './external-changes/ExternalFileChangeBanner'
@@ -54,7 +60,8 @@ export function EditorDiffFileSurface({
     )
   }
 
-  const isEditable = activeFile.diffSource === 'unstaged'
+  const isClaudeProposal = isClaudeProposalFile(activeFile)
+  const isEditable = activeFile.diffSource === 'unstaged' || isClaudeProposal
   if (diffContent.kind === 'binary') {
     if (diffContent.tooLarge) {
       return <DiffTooLargeNotice />
@@ -110,6 +117,7 @@ export function EditorDiffFileSurface({
   if (
     isMarkdown &&
     mdViewMode === 'preview' &&
+    !isClaudeProposal &&
     diffContent.largeDiffRenderLimit?.limited !== true
   ) {
     return (
@@ -166,10 +174,36 @@ export function EditorDiffFileSurface({
       editable={isEditable}
       worktreeId={activeFile.worktreeId}
       noteSource={activeFile}
-      onContentChange={isEditable ? onContentChange : undefined}
-      onSave={isEditable ? (isMarkdown ? markdownDocuments.mdSave : onSave) : undefined}
+      onContentChange={
+        isClaudeProposal
+          ? (content) => updateClaudeProposalContent(activeFile.id, content)
+          : isEditable
+            ? onContentChange
+            : undefined
+      }
+      onSave={
+        isClaudeProposal
+          ? async (content) => {
+              // Why: accepting hands the text to the CLI, which writes the file; Orca must not.
+              acceptClaudeProposal(activeFile.id, content)
+              return true
+            }
+          : isEditable
+            ? isMarkdown
+              ? markdownDocuments.mdSave
+              : onSave
+            : undefined
+      }
     />
   )
+  if (isClaudeProposal) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <ClaudeProposalBanner file={activeFile} />
+        <div className="flex min-h-0 flex-1 flex-col">{diffViewer}</div>
+      </div>
+    )
+  }
   if (activeFile.externalMutation !== 'changed') {
     return diffViewer
   }

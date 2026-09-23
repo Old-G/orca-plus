@@ -1,5 +1,5 @@
 import { app, ipcMain, webContents } from 'electron'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import {
   LSP_REQUEST_METHODS,
   type LspChangeDocumentArgs,
@@ -8,12 +8,20 @@ import {
   type LspOpenDocumentResult,
   type LspRequestArgs
 } from '../../shared/lsp-types'
-import { createLspSessionManager } from '../lsp/lsp-session-manager'
-import { resolveAuthorizedPath } from './filesystem/filesystem-auth'
-import { isDescendantOrEqual } from './filesystem/filesystem-path-containment'
+import { createLspSessionManager, type LspSessionManager } from '../lsp/lsp-session-manager'
+import { resolveAuthorizedPath } from './filesystem/access/filesystem-auth'
+import { isDescendantOrEqual } from './filesystem/access/filesystem-path-containment'
+
+let sharedManager: LspSessionManager | null = null
+
+/** The editor's session manager, for main-side consumers that want its warm servers. */
+export function getSharedLspSessionManager(): LspSessionManager | null {
+  return sharedManager
+}
 
 export function registerLspHandlers(store: Store): void {
   const manager = createLspSessionManager()
+  sharedManager = manager
   // Why: diagnostics go to every window; sessions are keyed by workspace, and
   // stale-model payloads are dropped renderer-side by uri lookup.
   manager.onDiagnostics((payload) => {
