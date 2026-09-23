@@ -14,12 +14,17 @@ function app_realpath() {
 
 APP_PATH="$(app_realpath "${BASH_SOURCE[0]}")"
 if [ -z "$APP_PATH" ]; then
-	echo "Unable to determine Orca.app path from symlink: ${BASH_SOURCE[0]}"
+	echo "Unable to determine Orca Plus.app path from symlink: ${BASH_SOURCE[0]}"
 	exit 1
 fi
 
 CONTENTS="$APP_PATH/Contents"
-ELECTRON="$CONTENTS/MacOS/Orca"
+ELECTRON="$CONTENTS/MacOS/Orca Plus"
+# Why: custom build (orca-plus-packaging) renames the executable; stock-named bundles still work.
+[ -x "$ELECTRON" ] || ELECTRON="$CONTENTS/MacOS/Orca"
+# Why: custom build (orca-plus-packaging); a stock Orca terminal exports its own ORCA_USER_DATA_PATH,
+# which would point this CLI at stock Orca. Only ORCA_PLUS_USER_DATA_PATH overrides the profile.
+export ORCA_USER_DATA_PATH="${ORCA_PLUS_USER_DATA_PATH:-$HOME/Library/Application Support/orca-plus}"
 # Why: Orca packages the CLI entrypoint outside app.asar so the public shell
 # command can execute it directly with ELECTRON_RUN_AS_NODE, mirroring VS Code's
 # launcher model instead of requiring a separate npm-distributed binary.
