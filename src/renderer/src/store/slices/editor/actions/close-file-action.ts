@@ -244,7 +244,8 @@ export function createCloseFileAction(
           closedFile &&
           wtRecent &&
           !shouldDeleteFromDisk &&
-          closedFile.mode !== 'markdown-preview'
+          closedFile.mode !== 'markdown-preview' &&
+          closedFile.diffSource !== 'claude-proposal'
         ) {
           const {
             id: _id,

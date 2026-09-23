@@ -18080,6 +18080,21 @@
           }
         }
       },
+      "claude": {
+        "ide": {
+          "ClaudeProposalBanner": {
+            "title": "Claude proposes changes to {{value0}}",
+            "hint": "Edit the right side before accepting.",
+            "reject": "Reject",
+            "accept": "Accept"
+          },
+          "mention": {
+            "action": "Mention in Claude Code",
+            "noSession": "No Claude Code session is connected to Orca",
+            "noSessionHint": "Start claude in an Orca terminal, then mention again."
+          }
+        }
+      },
       "NativeChatResumeRunPanel": {
         "resumedTitle": "Resumed {{value0}} of {{value1}} chats",
         "resumingTitleOne": "Resuming 1 chat",
