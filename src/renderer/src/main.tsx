@@ -24,6 +24,7 @@ import { useTranslate } from './i18n/use-translate'
 import { getOrCreateRendererRoot } from './app-shell/startup/react-renderer-root'
 import './lib/pane-manager/terminal-rendering/pane-webgl-renderer'
 import { primeTerminalWebglAddon } from './lib/pane-manager/terminal-rendering/terminal-webgl-addon-loader'
+import { preloadTerminalSymbolsFont } from './lib/pane-manager/terminal-symbols-font-preload'
 import { SkillWarningPreviewLauncher } from './components/skills/installation/preview/SkillWarningPreviewLauncher'
 import { installBrowserClientPageRenderer } from './components/browser-pane/host-guest/client-pages/browser-client-page-renderer-installation'
 import { registerBrowserClientPageGuestMessageHandler } from './components/browser-pane/host-guest/client-pages/browser-client-page-retained-elements'
@@ -107,3 +108,4 @@ recordRendererCrashBreadcrumb('renderer_bootstrap_rendered')
 
 // Defer the 243KB WebGL addon until first render; panes need it only much later, keeping it off boot’s import graph.
 void primeTerminalWebglAddon()
+preloadTerminalSymbolsFont()
