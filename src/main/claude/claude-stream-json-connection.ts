@@ -25,6 +25,7 @@ import { withProviderSpawnAbsence } from '../provider-process/provider-executabl
 import { claudeStreamJsonExitError } from './sdk-transport/claude-stream-json-exit-error'
 import { withObservedProviderExit } from '../native-chat/agent-session-wire/startup/structured-agent-session-failure-text'
 import type { ProviderProcessCloseOptions } from '../provider-process/provider-process-close'
+import { buildClaudeIdeSdkOptions } from '../claude-ide/claude-ide-hooks'
 
 /** Bound output draining after proven exit so inherited pipes cannot hold close open. */
 export const CLAUDE_READER_DRAIN_AFTER_EXIT_MS = 2_000
@@ -103,7 +104,7 @@ export async function openClaudeStreamJsonConnection(
   spawnImpl: PipedProcessSpawner = spawnProcess,
   queryImpl?: typeof ClaudeAgentSdk.query
 ): Promise<ClaudeStreamJsonConnection> {
-  const { query } = await loadClaudeAgentSdk()
+  const sdk = await loadClaudeAgentSdk()
   const startup = claudeStartupAnswerObservation(handlers.onStdout)
   const spawner = createClaudeCodeProcessSpawn(spawnImpl, process.platform, launch, startup.feed)
   // Always supply scrubbed env to prevent ambient auth leaks; only launch.env may pin CLAUDE_CONFIG_DIR.
@@ -116,10 +117,11 @@ export async function openClaudeStreamJsonConnection(
     )
   )
   const inbox = createClaudeUserMessageQueue()
-  const session = (queryImpl ?? query)({
+  const session = (queryImpl ?? sdk.query)({
     prompt: inbox.messages,
     options: {
       ...launch.options,
+      ...buildClaudeIdeSdkOptions(sdk),
       cwd: launch.cwd,
       env: withOrcaClaudeChatEntrypoint(env, process.platform),
       pathToClaudeCodeExecutable: launch.pathToClaudeCodeExecutable,
