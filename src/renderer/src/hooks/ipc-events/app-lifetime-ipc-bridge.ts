@@ -54,6 +54,7 @@ import { registerZoomIpcBridge } from './native-app/zoom-ipc-bridge'
 import { registerWslAccountNoticeIpcBridge } from '../../runtime/hosts/wsl/wsl-account-notice-ipc-bridge'
 import { registerWslHostIpcBridge } from '../../runtime/hosts/wsl/wsl-host-ipc-bridge'
 import { noteOrchestrationSessionWorkersChanged } from '@/lib/orchestration-session-workers'
+import { registerClaudeIdeIpcBridge } from '@/lib/claude-ide/claude-ide-ipc-bridge'
 
 function isRuntimeEnvironmentActive(): boolean {
   return Boolean(useAppStore.getState().settings?.activeRuntimeEnvironmentId?.trim())
@@ -132,6 +133,7 @@ export function installAppLifetimeIpcEvents(): () => void {
   registerOsMarkdownFileOpenBridge(unsubs)
   registerBotDeepLinkIpcBridge(unsubs)
   registerWslAccountNoticeIpcBridge(unsubs)
+  registerClaudeIdeIpcBridge(unsubs)
   unsubs.push(
     window.api.ui.onActivateWorktree(
       ({ repoId, worktreeId, setup, startup, defaultTabs, providesInitialSurface }) => {

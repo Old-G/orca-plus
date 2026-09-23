@@ -43,6 +43,7 @@ import type { NativeChatApi } from './api/native-chat/native-chat-api'
 import type { OnboardingApi, StarNagApi } from './api/onboarding/onboarding-api'
 import type { OrcaProfileApi } from './api/profiles/orca-profile-api'
 import type { LspApi } from './api/lsp-api'
+import type { ClaudeIdeApi } from './api/claude-ide-api'
 import type {
   ComputerUsePermissionsApi,
   DeveloperPermissionsApi,
@@ -171,6 +172,7 @@ export type PreloadApi = {
   nativeChat: NativeChatApi
   fs: FilesystemApi['fs']
   lsp: LspApi
+  claudeIde: ClaudeIdeApi
   git: Merged<GitInspectionApi & GitOperationApi>
   ui: Merged<UiCommandEventApi & UiWindowApi & BotLinkEventApi>
   runtime: RuntimeApi['runtime']
