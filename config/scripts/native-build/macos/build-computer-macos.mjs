@@ -30,7 +30,7 @@ createHelperApp()
 function buildUniversalBinary() {
   const builtBinaries = universalTriples.map((triple) => {
     // SwiftPM 6.4+ swiftbuild default skips the .build/<triple>/release layout lipo reads (#21145)
-    run('swift', [
+    const buildArgs = [
       'build',
       '-c',
       'release',
@@ -40,8 +40,15 @@ function buildUniversalBinary() {
       triple,
       '--build-system',
       'native'
-    ])
-    return path.join(packagePath, '.build', triple, 'release', 'orca-computer-use-macos')
+    ]
+    run('swift', buildArgs)
+    // Why: Swift 6.4's build system writes every triple to .build/out/Products/Release
+    // instead of .build/<triple>/release, so ask for the path and stage each slice
+    // before the next triple overwrites it.
+    const binDir = capture('swift', [...buildArgs, '--show-bin-path'])
+    const staged = path.join(packagePath, '.build', `orca-computer-use-macos-${triple}`)
+    copyFileSync(path.join(binDir, 'orca-computer-use-macos'), staged)
+    return staged
   })
   mkdirSync(path.dirname(binaryPath), { recursive: true })
   run('lipo', ['-create', ...builtBinaries, '-output', binaryPath])
@@ -92,6 +99,14 @@ function resolveSigningIdentity() {
     identities.stdout.match(/"([^"]*Developer ID Application:[^"]+)"/) ??
     identities.stdout.match(/"([^"]*Apple Distribution:[^"]+)"/)
   return releaseMatch?.[1] ?? developmentMatch?.[1] ?? '-'
+}
+
+function capture(command, args) {
+  const result = spawnSync(command, args, { encoding: 'utf8' })
+  if (result.status !== 0) {
+    throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr}`)
+  }
+  return result.stdout.trim().split('\n').pop()
 }
 
 function run(command, args) {
