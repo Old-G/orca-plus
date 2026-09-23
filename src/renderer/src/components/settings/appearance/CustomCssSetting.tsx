@@ -4,7 +4,7 @@ import { ExternalLink, FolderOpen } from 'lucide-react'
 import { CUSTOM_CSS_MAX_BYTES, type CustomCssFileError } from '../../../../../shared/custom-css'
 import type { GlobalSettings } from '../../../../../shared/global-settings-types'
 import { translate } from '@/i18n/i18n'
-import { isWebClientLocation } from '@/lib/web-client-location'
+import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import { Button } from '../../ui/button'
 import { SearchableSetting } from '../section-layout/SearchableSetting'
 import { SettingsSwitchRow } from '../form-controls/SettingsFormControls'
@@ -84,7 +84,7 @@ export function CustomCssSetting({
         // Why: the file location and live reload aren't discoverable from the toggle.
         description={translate(
           'settings.appearance.customCss.description',
-          'Load ~/.orca/custom.css on top of the built-in theme. Changes apply as soon as you save the file.'
+          "Load custom.css from this build's profile folder on top of the built-in theme. Changes apply as soon as you save the file."
         )}
         checked={enabled}
         onChange={() => updateSettings({ customCssEnabled: !enabled })}

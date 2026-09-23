@@ -4,7 +4,7 @@ import type { CustomCssSnapshot } from '../../shared/custom-css'
 import {
   startShallowWatcher,
   type ShallowWatcherSubscription
-} from '../ipc/filesystem/watcher-process/parcel-watcher-shallow-subscription'
+} from '../ipc/filesystem/watcher-process/native-subscriptions/parcel-watcher-shallow-subscription'
 import { ensureCustomCssFile, getUserCustomCssPath, readCustomCssFile } from './custom-css-file'
 
 // Why: one editor save can fire several events; coalesce them into one reload.
@@ -15,6 +15,8 @@ const WATCH_RETRY_DELAYS_MS = [500, 1_000, 2_000, 4_000, 8_000]
 
 export type CustomCssServiceOptions = {
   homePath: string
+  /** Overrides `~/.orca/custom.css`. */
+  path?: string
   onChanged: (snapshot: CustomCssSnapshot) => void
 }
 
@@ -28,7 +30,7 @@ export class CustomCssService {
   private disposed = false
 
   constructor(options: CustomCssServiceOptions) {
-    this.path = getUserCustomCssPath(options.homePath)
+    this.path = options.path ?? getUserCustomCssPath(options.homePath)
     this.onChanged = options.onChanged
   }
 
