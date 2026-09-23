@@ -255,6 +255,10 @@ vi.mock('../keybindings', () => ({
   registerKeybindingHandlers: registerKeybindingHandlersMock
 }))
 
+vi.mock('../custom-css', () => ({
+  registerCustomCssHandlers: vi.fn()
+}))
+
 vi.mock('../telemetry', () => ({
   registerTelemetryHandlers: registerTelemetryHandlersMock
 }))
