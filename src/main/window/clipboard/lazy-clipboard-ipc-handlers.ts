@@ -14,6 +14,8 @@ const CLIPBOARD_IPC_CHANNELS = [
   'clipboard:writeFile',
   // Custom build (explorer-paste): Finder/Explorer-copied files pasted into a File Explorer folder.
   'clipboard:readFile',
+  // Custom build (explorer-clipboard): Cmd+C / Cmd+X of several files in the File Explorer.
+  'clipboard:writeFiles',
   'clipboard:saveImageAsTempFile',
   'clipboard:savePastedTextAsFile',
   'clipboard:readImageThumbnail',
