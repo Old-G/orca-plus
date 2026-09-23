@@ -17395,6 +17395,21 @@
             "hostOnly": "Cursor sign-in details are only readable on the computer running Orca."
           }
         }
+      },
+      "claude": {
+        "ide": {
+          "ClaudeProposalBanner": {
+            "title": "Claude proposes changes to {{value0}}",
+            "hint": "Edit the right side before accepting.",
+            "reject": "Reject",
+            "accept": "Accept"
+          },
+          "mention": {
+            "action": "Mention in Claude Code",
+            "noSession": "No Claude Code session is connected to Orca",
+            "noSessionHint": "Start claude in an Orca terminal, then mention again."
+          }
+        }
       }
     },
     "i18n": {
