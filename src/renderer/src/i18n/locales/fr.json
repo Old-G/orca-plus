@@ -146,7 +146,7 @@
       },
       "customCss": {
         "title": "CSS personnalisé",
-        "description": "Charge ~/.orca/custom.css par-dessus le thème intégré. Les modifications s'appliquent dès que vous enregistrez le fichier.",
+        "description": "Charge custom.css depuis le dossier de profil de cette version par-dessus le thème intégré. Les modifications s'appliquent dès que vous enregistrez le fichier.",
         "openFile": "Ouvrir custom.css",
         "revealFile": "Révéler dans le gestionnaire de fichiers",
         "tooLarge": "custom.css dépasse {{limit}} Ko et n'a pas été chargé.",

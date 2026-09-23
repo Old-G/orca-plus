@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import type { CustomCssSnapshot } from '../../shared/custom-css'
 import { CustomCssService } from '../custom-css/custom-css-service'
+import { getCustomBuildCustomCssPath } from '../custom-css/custom-css-profile-location'
 import { authorizeExternalPath } from './filesystem-auth'
 
 export type CustomCssHandlerService = Pick<
@@ -19,6 +20,7 @@ function broadcastCustomCssChanged(snapshot: CustomCssSnapshot): void {
 export function createCustomCssService(): CustomCssService {
   return new CustomCssService({
     homePath: app.getPath('home'),
+    path: getCustomBuildCustomCssPath(),
     onChanged: broadcastCustomCssChanged
   })
 }

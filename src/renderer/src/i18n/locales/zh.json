@@ -47,7 +47,7 @@
       },
       "customCss": {
         "title": "自定义 CSS",
-        "description": "在内置主题之上加载 ~/.orca/custom.css。保存文件后更改会立即生效。",
+        "description": "在内置主题之上加载此版本配置文件夹中的 custom.css。保存文件后立即生效。",
         "openFile": "打开 custom.css",
         "revealFile": "在文件管理器中显示",
         "tooLarge": "custom.css 超过 {{limit}} KB，未加载。",

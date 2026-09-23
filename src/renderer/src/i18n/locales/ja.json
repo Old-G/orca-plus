@@ -47,7 +47,7 @@
       },
       "customCss": {
         "title": "カスタム CSS",
-        "description": "組み込みテーマの上に ~/.orca/custom.css を読み込みます。ファイルを保存するとすぐに変更が反映されます。",
+        "description": "このビルドのプロファイルフォルダーにある custom.css を組み込みテーマの上に読み込みます。ファイルを保存するとすぐに反映されます。",
         "openFile": "custom.css を開く",
         "revealFile": "ファイルマネージャーで表示",
         "tooLarge": "custom.css が {{limit}} KB を超えているため読み込まれませんでした。",

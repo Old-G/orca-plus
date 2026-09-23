@@ -42,7 +42,7 @@
       },
       "customCss": {
         "title": "CSS personalizado",
-        "description": "Carga ~/.orca/custom.css sobre el tema integrado. Los cambios se aplican en cuanto guardas el archivo.",
+        "description": "Carga custom.css desde la carpeta de perfil de esta compilación sobre el tema integrado. Los cambios se aplican en cuanto guardas el archivo.",
         "openFile": "Abrir custom.css",
         "revealFile": "Mostrar en el administrador de archivos",
         "tooLarge": "custom.css supera los {{limit}} KB y no se cargó.",
