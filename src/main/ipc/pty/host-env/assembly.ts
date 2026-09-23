@@ -38,6 +38,7 @@ import { getClaudeHookPluginDir } from '../../../claude/hooks/claude-hook-plugin
 import { applyManagedDataAccountEnvironment } from '../../../managed-data-accounts/launch-environment'
 import { applyOpenCodeStatusPluginEnv, captureOpenCodeSourceConfig } from './opencode-config'
 import { applyRemoteViewerClipboardEnv } from './remote-viewer-clipboard-env'
+import { applyClaudeIdeTerminalEnv } from '../../../claude-ide/claude-ide-hooks'
 
 /** Mutate host-local PTY environment only for local execution; SSH cannot use these loopback endpoints or filesystem paths. */
 export function buildPtyHostEnv(
@@ -165,6 +166,8 @@ export function buildPtyHostEnv(
       }
     }
   }
+
+  applyClaudeIdeTerminalEnv(baseEnv, { isWsl: opts.isWsl })
 
   // Preserve the user's Pi config/session root; install only Orca-owned extension files.
   if (opts.agentStatusHooksEnabled) {

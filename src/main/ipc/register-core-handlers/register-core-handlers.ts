@@ -10,6 +10,7 @@ import { registerFilesystemHandlers } from '../filesystem/filesystem'
 import type { CommitMessageAgentEnvironmentResolvers } from '../../text-generation/execution/commit-message-agent-environment'
 import { registerFilesystemWatcherHandlers } from '../filesystem/watchers/filesystem-watcher-handlers'
 import { registerLspHandlers } from '../lsp'
+import { registerClaudeIdeIntegration } from '../../claude-ide/claude-ide-integration'
 import { registerGitHubHandlers } from '../source-control/github'
 import { registerLazyGitLabHandlers } from '../source-control/lazy-gitlab-handlers'
 import { registerLazyLinearHandlers } from '../linear/lazy-linear-handlers'
@@ -94,6 +95,7 @@ export async function registerCoreHandlers(
   setTrustedBrowserRendererWebContentsId(mainWindowWebContentsId)
   setTrustedClipboardRendererWebContentsId(mainWindowWebContentsId)
   setTrustedUIRendererWebContentsId(mainWindowWebContentsId)
+  registerClaudeIdeIntegration(mainWindowWebContentsId)
   setAgentBrowserBridgeRef(runtime.getAgentBrowserBridge())
   const { rendererCheckpoint } = lifecycleOptions
   if (!rendererCheckpoint) {
