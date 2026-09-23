@@ -12,6 +12,7 @@ import { useAppStore } from '../../../store/index'
 import { selectDrawsNewWorktreeCards } from '@/store/appearance/worktree-card-style'
 import { USAGE_PERCENTAGE_DISPLAY_SETTING_ID } from './appearance-usage-percentage-search'
 import { getAppIconEntries } from './appearance-app-icon-search'
+import { getCustomCssEntries } from './appearance-custom-css-search'
 import {
   getCodeEditorThemeEntries,
   getLanguageEntries,
@@ -115,7 +116,8 @@ export function AppearancePane({
     ...getTitlebarEntries(),
     ...getReduceVisualEffectsEntries(),
     ...getSystemTrayEntries({ showSystemTray: isDesktopWindows }),
-    ...getMenuBarIconEntries({ showMenuBarIcon: isDesktopMac })
+    ...getMenuBarIconEntries({ showMenuBarIcon: isDesktopMac }),
+    ...getCustomCssEntries()
   ]
   const terminalSearchEntries = [
     { title: terminalTitle },
