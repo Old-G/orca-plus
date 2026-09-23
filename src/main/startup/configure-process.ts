@@ -11,6 +11,7 @@ import {
   readActiveProfileId,
   readPersistedHttp1CompatibilityMode
 } from './http1-compatibility-profile-state'
+import { applyOrcaPlusPackagedProfile } from '../orca-plus/orca-plus-packaged-identity'
 
 const DEV_PARENT_SHUTDOWN_GRACE_MS = 3000
 const HTTP1_COMPATIBILITY_ENV_VAR = 'ORCA_DISABLE_HTTP2'
@@ -209,6 +210,10 @@ export function configureDevUserDataPath(isDev: boolean): void {
   }
 
   if (!isDev) {
+    // Why not under vitest: upstream tests pin the stock packaged userData contract.
+    if (import.meta.env.MODE !== 'test') {
+      applyOrcaPlusPackagedProfile(app, process.env)
+    }
     return
   }
   const overrideUserDataPath = process.env.ORCA_DEV_USER_DATA_PATH
