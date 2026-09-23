@@ -24,8 +24,10 @@ test.describe('custom.css', () => {
   }) => {
     await waitForSessionReady(orcaPage)
     const cssPath = await orcaPage.evaluate(async () => (await window.api.customCss.get()).path)
-    // The fixture isolates HOME under a realpath'd temp dir; never write into the real ~/.orca.
-    expect(cssPath.startsWith(realpathSync.native(os.tmpdir()))).toBe(true)
+    // Never write into a real profile: custom.css must sit in the e2e userData temp dir (realpath: macOS /var → /private/var).
+    expect(
+      realpathSync.native(path.dirname(cssPath)).startsWith(realpathSync.native(os.tmpdir()))
+    ).toBe(true)
     mkdirSync(path.dirname(cssPath), { recursive: true })
 
     const stock = {
