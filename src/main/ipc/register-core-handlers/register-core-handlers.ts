@@ -37,6 +37,7 @@ import { registerLazyAutomationHandlers } from '../lazy-automations-handlers'
 import { registerLazyKeybindingHandlers } from '../lazy-keybindings-handlers'
 import { registerCustomCssHandlers } from '../custom-css'
 import { registerCustomAppearanceBackgroundHandlers } from '../custom-appearance-background'
+import { registerVscodeThemeHandlers } from '../vscode-themes'
 import { registerTelemetryHandlers } from '../telemetry'
 import { registerPluginHandlers } from '../plugins/plugins'
 import { registerUIHandlers, setTrustedUIRendererWebContentsId } from '../ui'
@@ -138,6 +139,7 @@ export async function registerCoreHandlers(
     }
     registerCustomCssHandlers()
     registerCustomAppearanceBackgroundHandlers()
+    registerVscodeThemeHandlers()
     if (pluginService) {
       registerPluginHandlers(store, pluginService, marketplaceServices)
     }
