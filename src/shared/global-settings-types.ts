@@ -10,6 +10,7 @@ import type { AiVaultSearchSettings } from './ai-vault/search/ai-vault-search-se
 import type { GitLabProjectSettings } from './gitlab-types'
 import type { TaskProvider } from './work-items/task-providers'
 import type { AppIconId } from './app-icon'
+import type { CustomAppearanceBackground } from './custom-appearance-background'
 import type { SourceControlAiSettings } from './source-control/ai/settings/source-control-ai-settings-types'
 import type { ClaudeAgentTeamsMode } from './claude-agent-teams-tmux-compat'
 import type { TerminalCustomTheme } from './terminal-themes/terminal-custom-themes'
@@ -83,6 +84,8 @@ export type GlobalSettings = GlobalSettingsBase & {
   customCssEnabled?: boolean
   /** Custom build (custom-appearance): master switch for custom.css, background and imported theme. */
   customAppearanceEnabled?: boolean
+  /** Custom build (appearance-background): window background image, drawn only while the block is on. */
+  customAppearanceBackground?: CustomAppearanceBackground | null
   editorAutoSave: boolean
   /** Days a release must be public before Orca offers it; absent/0 offers releases immediately. */
   updateDelayDays?: number
