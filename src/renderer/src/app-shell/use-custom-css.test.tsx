@@ -45,7 +45,13 @@ describe('useCustomCss', () => {
         }
       }
     })
-    useAppStore.setState({ settings: { ...getDefaultSettings('/tmp'), customCssEnabled: true } })
+    useAppStore.setState({
+      settings: {
+        ...getDefaultSettings('/tmp'),
+        customCssEnabled: true,
+        customAppearanceEnabled: true
+      }
+    })
   })
 
   afterEach(() => {
@@ -56,6 +62,16 @@ describe('useCustomCss', () => {
 
   it('does nothing while the setting is off', () => {
     useAppStore.setState({ settings: { ...getDefaultSettings('/tmp'), customCssEnabled: false } })
+    const { unmount } = renderHook(() => useCustomCss())
+
+    expect(get).not.toHaveBeenCalled()
+    expect(mocks.applyCustomCssSheet).not.toHaveBeenCalled()
+    unmount()
+  })
+
+  it('does nothing while Custom appearance is off, even with custom.css on', () => {
+    const settings = useAppStore.getState().settings!
+    useAppStore.setState({ settings: { ...settings, customAppearanceEnabled: false } })
     const { unmount } = renderHook(() => useCustomCss())
 
     expect(get).not.toHaveBeenCalled()

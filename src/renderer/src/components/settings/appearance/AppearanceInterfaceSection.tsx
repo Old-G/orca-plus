@@ -10,8 +10,6 @@ import {
   SettingsSearchableSelect,
   type SettingsSearchableSelectOption
 } from '../form-controls/SettingsSearchableSelect'
-import { CustomCssSetting } from './CustomCssSetting'
-import { getCustomCssEntries } from './appearance-custom-css-search'
 import { useAppStore } from '../../../store/index'
 import { useShortcutKeyComboDetails } from '@/hooks/useShortcutLabel'
 import { ShortcutHintList } from './AppearanceShortcutHintList'
@@ -137,8 +135,7 @@ export function AppearanceInterfaceSection({
     ...getTitlebarEntries(),
     ...getReduceVisualEffectsEntries(),
     ...getSystemTrayEntries({ showSystemTray: isDesktopWindows }),
-    ...getMenuBarIconEntries({ showMenuBarIcon: isDesktopMac }),
-    ...getCustomCssEntries()
+    ...getMenuBarIconEntries({ showMenuBarIcon: isDesktopMac })
   ]
   const showAdvanced = !isSearching || matchesSettingsSearch(searchQuery, advancedEntries)
   const languageTitle = t('settings.appearance.language.title', 'Language')
@@ -410,8 +407,6 @@ export function AppearanceInterfaceSection({
                 />
               </SearchableSetting>
             ) : null}
-
-            <CustomCssSetting settings={settings} updateSettings={updateSettings} />
           </div>
         </AppearanceAdvancedDisclosure>
       ) : null}

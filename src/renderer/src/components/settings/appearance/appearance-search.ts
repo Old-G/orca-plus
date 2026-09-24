@@ -12,6 +12,7 @@ import { getMenuBarIconEntries, getSystemTrayEntries } from './appearance-system
 import { getReduceVisualEffectsEntries } from './appearance-reduce-visual-effects-search'
 import { getAppIconEntries } from './appearance-app-icon-search'
 import { getCustomCssEntries } from './appearance-custom-css-search'
+import { getCustomAppearanceEntries } from './custom-appearance-search'
 
 export const getThemeEntries = createLocalizedCatalog((): SettingsSearchEntry[] => [
   {
@@ -281,6 +282,7 @@ export function getAppearancePaneSearchEntries(
     ...getAppIconEntries(),
     ...getSystemTrayEntries(options),
     ...getMenuBarIconEntries(options),
+    ...getCustomAppearanceEntries(),
     ...getCustomCssEntries()
   ]
 }

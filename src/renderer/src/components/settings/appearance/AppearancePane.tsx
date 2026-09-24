@@ -10,10 +10,10 @@ import { AppearanceWindowSidebarSection } from './AppearanceWindowSidebarSection
 import { SearchableSetting } from '../section-layout/SearchableSetting'
 import { SettingsGroup } from '../section-layout/SettingsGroup'
 import { matchesSettingsSearch, normalizeSettingsSearchQuery } from '../search/settings-search'
+import { CustomAppearanceSection } from './CustomAppearanceSection'
 import { useAppStore } from '../../../store/index'
 import { USAGE_PERCENTAGE_DISPLAY_SETTING_ID } from './appearance-usage-percentage-search'
 import { getAppIconEntries } from './appearance-app-icon-search'
-import { getCustomCssEntries } from './appearance-custom-css-search'
 import {
   getCodeEditorThemeEntries,
   getLanguageEntries,
@@ -137,8 +137,7 @@ export function AppearancePane({
     ...getTitlebarEntries(),
     ...getReduceVisualEffectsEntries(),
     ...getSystemTrayEntries({ showSystemTray: isDesktopWindows }),
-    ...getMenuBarIconEntries({ showMenuBarIcon: isDesktopMac }),
-    ...getCustomCssEntries()
+    ...getMenuBarIconEntries({ showMenuBarIcon: isDesktopMac })
   ]
   const terminalSearchEntries = [
     { title: terminalTitle },
@@ -264,6 +263,8 @@ export function AppearancePane({
           />
         </AppearanceSection>
       ) : null}
+
+      <CustomAppearanceSection settings={settings} updateSettings={updateSettings} />
 
       {/* Keep the App Icon easter egg at the bottom instead of inside Interface advanced. */}
       {appIconMatches ? (

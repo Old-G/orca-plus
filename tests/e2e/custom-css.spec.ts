@@ -14,7 +14,10 @@ function readRootVar(page: Page, name: string): Promise<string> {
 
 function setCustomCssEnabled(page: Page, enabled: boolean): Promise<void> {
   return page.evaluate(async (customCssEnabled) => {
-    await window.__store?.getState().updateSettings({ customCssEnabled })
+    // Why: custom build — custom.css applies only inside the "Custom appearance" block, which is off by default.
+    await window.__store
+      ?.getState()
+      .updateSettings({ customCssEnabled, customAppearanceEnabled: customCssEnabled })
   }, enabled)
 }
 
