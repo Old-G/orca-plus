@@ -267,6 +267,10 @@ vi.mock('../custom-css', () => ({
   registerCustomCssHandlers: vi.fn()
 }))
 
+vi.mock('../custom-appearance-background', () => ({
+  registerCustomAppearanceBackgroundHandlers: vi.fn()
+}))
+
 vi.mock('../telemetry', () => ({
   registerTelemetryHandlers: registerTelemetryHandlersMock
 }))
