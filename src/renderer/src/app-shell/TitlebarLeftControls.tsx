@@ -16,6 +16,7 @@ import {
 import { useShortcutLabel } from '../hooks/useShortcutLabel'
 import { useAppStore } from '../store'
 import { hasCustomTitleBar, isMac } from './app-window-chrome'
+import { orcaPlusAppName } from '../lib/orca-plus-app-name'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 
 /**
@@ -71,10 +72,10 @@ export function TitlebarLeftControls({ layout }: { layout: AppChromeLayout }): R
             <ContextMenuTrigger asChild>
               <div
                 className="titlebar-app-name"
-                aria-label={translate('auto.App.5096cbbc86', 'Orca')}
+                aria-label={orcaPlusAppName(translate('auto.App.5096cbbc86', 'Orca'))}
               >
                 <span className="titlebar-app-name-main">
-                  {translate('auto.App.5096cbbc86', 'Orca')}
+                  {orcaPlusAppName(translate('auto.App.5096cbbc86', 'Orca'))}
                 </span>
               </div>
             </ContextMenuTrigger>

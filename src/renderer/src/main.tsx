@@ -25,8 +25,10 @@ import { primeTerminalWebglAddon } from './lib/pane-manager/pane-webgl-renderer'
 import { preloadTerminalSymbolsFont } from './lib/pane-manager/terminal-symbols-font-preload'
 import { SkillWarningPreviewLauncher } from './components/skills/SkillWarningPreviewLauncher'
 import { installBrowserClientPageRenderer } from './components/browser-pane/browser-client-page-renderer-installation'
+import { orcaPlusAppName } from './lib/orca-plus-app-name'
 
 recordRendererCrashBreadcrumb('renderer_bootstrap_started', { dev: import.meta.env.DEV })
+document.title = orcaPlusAppName(document.title)
 installRendererCrashDiagnostics()
 installTypingLatencyDiagnostic()
 installAutomationHostDiagnostic()
