@@ -1,3 +1,4 @@
+import { withCustomAppearanceTerminalColors } from '../../custom-appearance/custom-appearance-terminal'
 import { getTheme, getThemeNames } from './terminal-themes-data'
 import {
   makeCustomTerminalThemeSelection,
@@ -96,6 +97,8 @@ export function resolveEffectiveTerminalAppearance(
     | 'terminalCustomThemes'
     | 'terminalPluginPalettes'
     | 'terminalDividerColorLight'
+    | 'customAppearanceEnabled'
+    | 'customAppearanceTheme'
   > &
     TerminalPaletteSettings,
   systemPrefersDark = getSystemPrefersDark()
@@ -113,7 +116,7 @@ export function resolveEffectiveTerminalAppearance(
     sourceTheme: settings.theme,
     themeName,
     dividerColor,
-    theme,
+    theme: withCustomAppearanceTerminalColors(theme, settings, mode === 'dark'),
     systemPrefersDark
   }
 }
