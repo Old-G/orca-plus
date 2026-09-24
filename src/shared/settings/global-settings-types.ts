@@ -19,6 +19,8 @@ import type { AgentChatPermissionMode } from '../agent-launch/permissions/agent-
 import type { ComputerAwakeMode } from '../app-lifecycle/computer-awake-mode'
 import type { CommitMessageAiSettings } from '../source-control/ai/generation/commit-message-ai-types'
 import type { HostSettingOverrides } from '../execution-host/host-setting-overrides'
+import type { CustomAppearanceBackground } from './custom-appearance-background'
+import type { UiLanguage } from './i18n/ui-language'
 import type {
   ClaudeManagedAccount,
   ClaudeManagedAccountRuntimeSelection,
@@ -78,6 +80,8 @@ export type GlobalSettings = GlobalSettingsBase & {
   customCssEnabled?: boolean
   /** Custom build (custom-appearance): master switch for custom.css, background and imported theme. */
   customAppearanceEnabled?: boolean
+  /** Custom build (appearance-background): window background image, drawn only while the block is on. */
+  customAppearanceBackground?: CustomAppearanceBackground | null
   editorAutoSave: boolean
   /** Days a release must be public before Orca offers it; absent/0 offers releases immediately. */
   updateDelayDays?: number
