@@ -65,7 +65,8 @@ import type {
   KeybindingsApi,
   SettingsApi,
   CustomAppearanceBackgroundApi,
-  CustomCssApi
+  CustomCssApi,
+  VscodeThemesApi
 } from './api/preferences/settings-api'
 import type { ShellApi } from './api/terminal/shell-api'
 import type { BotChangesApi } from './api/bot-changes-api'
@@ -140,6 +141,7 @@ export type PreloadApi = {
   keybindings: KeybindingsApi
   customCss: CustomCssApi
   customAppearanceBackground: CustomAppearanceBackgroundApi
+  vscodeThemes: VscodeThemesApi
   codexAccounts: CodexAccountsApi
   claudeAccounts: ClaudeAccountsApi
   cli: CliApi
