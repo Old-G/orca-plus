@@ -164,6 +164,19 @@
       "customAppearance": {
         "title": "Custom appearance",
         "description": "Your own theme, background image and CSS on top of Orca. Turn it off to get the stock look back.",
+        "background": {
+          "title": "Background",
+          "description": "A picture drawn over the whole window. Clicks pass through it.",
+          "choose": "Choose image…",
+          "replace": "Replace…",
+          "remove": "Remove",
+          "opacity": "Opacity",
+          "blur": "Blur",
+          "errorUnsupported": "Pick a PNG, JPG, WebP or GIF image.",
+          "errorTooLarge": "The image is larger than 25 MB.",
+          "errorUnreadable": "Could not read the selected file.",
+          "errorSaveFailed": "Could not save the image."
+        },
         "switchLabel": "Use custom appearance",
         "summaryOn": "On",
         "summaryOff": "Off — stock Orca look"

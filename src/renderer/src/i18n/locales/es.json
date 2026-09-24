@@ -43,6 +43,19 @@
       "customAppearance": {
         "title": "Apariencia personalizada",
         "description": "Tu propio tema, imagen de fondo y CSS sobre Orca. Desactívala para volver al aspecto original.",
+        "background": {
+          "title": "Fondo",
+          "description": "Una imagen dibujada sobre toda la ventana. Los clics la atraviesan.",
+          "choose": "Elegir imagen…",
+          "replace": "Reemplazar…",
+          "remove": "Quitar",
+          "opacity": "Opacidad",
+          "blur": "Desenfoque",
+          "errorUnsupported": "Elige una imagen PNG, JPG, WebP o GIF.",
+          "errorTooLarge": "La imagen pesa más de 25 MB.",
+          "errorUnreadable": "No se pudo leer el archivo seleccionado.",
+          "errorSaveFailed": "No se pudo guardar la imagen."
+        },
         "switchLabel": "Usar apariencia personalizada",
         "summaryOn": "Activada",
         "summaryOff": "Desactivada — aspecto original de Orca"

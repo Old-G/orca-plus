@@ -53,7 +53,12 @@ import type { PreflightApi } from './api/preflight-api'
 import type { PtyApi } from './api/pty-api'
 import type { ProjectGroupsApi, ProjectsApi, RepositoryApi } from './api/repository-api'
 import type { RuntimeApi } from './api/runtime-api'
-import type { CustomCssApi, KeybindingsApi, SettingsApi } from './api/settings-api'
+import type {
+  CustomAppearanceBackgroundApi,
+  CustomCssApi,
+  KeybindingsApi,
+  SettingsApi
+} from './api/settings-api'
 import type { ShellApi } from './api/shell-api'
 import type { SpeechApi } from './api/speech-api'
 import type { SshApi } from './api/ssh-api'
@@ -104,6 +109,7 @@ export type PreloadApi = {
   localhostWorktreeLabels: LocalhostWorktreeLabelsApi
   keybindings: KeybindingsApi
   customCss: CustomCssApi
+  customAppearanceBackground: CustomAppearanceBackgroundApi
   codexAccounts: CodexAccountsApi
   claudeAccounts: ClaudeAccountsApi
   cli: CliApi

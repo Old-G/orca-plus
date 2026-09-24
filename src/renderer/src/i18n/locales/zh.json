@@ -48,6 +48,19 @@
       "customAppearance": {
         "title": "自定义外观",
         "description": "在 Orca 之上使用你自己的主题、背景图片和 CSS。关闭即可恢复默认外观。",
+        "background": {
+          "title": "背景",
+          "description": "绘制在整个窗口之上的图片。点击会穿透它。",
+          "choose": "选择图片…",
+          "replace": "替换…",
+          "remove": "移除",
+          "opacity": "不透明度",
+          "blur": "模糊",
+          "errorUnsupported": "请选择 PNG、JPG、WebP 或 GIF 图片。",
+          "errorTooLarge": "图片大于 25 MB。",
+          "errorUnreadable": "无法读取所选文件。",
+          "errorSaveFailed": "无法保存图片。"
+        },
         "switchLabel": "使用自定义外观",
         "summaryOn": "已开启",
         "summaryOff": "已关闭 — Orca 默认外观"

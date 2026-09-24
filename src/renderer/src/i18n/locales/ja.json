@@ -48,6 +48,19 @@
       "customAppearance": {
         "title": "カスタム外観",
         "description": "独自のテーマ、背景画像、CSS を Orca に重ねます。オフにすると標準の見た目に戻ります。",
+        "background": {
+          "title": "背景",
+          "description": "ウィンドウ全体の上に描かれる画像です。クリックは画像を通り抜けます。",
+          "choose": "画像を選択…",
+          "replace": "置き換え…",
+          "remove": "削除",
+          "opacity": "不透明度",
+          "blur": "ぼかし",
+          "errorUnsupported": "PNG、JPG、WebP、GIF のいずれかの画像を選んでください。",
+          "errorTooLarge": "画像が 25 MB を超えています。",
+          "errorUnreadable": "選択したファイルを読み込めませんでした。",
+          "errorSaveFailed": "画像を保存できませんでした。"
+        },
         "switchLabel": "カスタム外観を使う",
         "summaryOn": "オン",
         "summaryOff": "オフ — Orca 標準の見た目"

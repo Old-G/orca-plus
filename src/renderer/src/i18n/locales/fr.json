@@ -147,6 +147,19 @@
       "customAppearance": {
         "title": "Apparence personnalisée",
         "description": "Votre propre thème, image de fond et CSS par-dessus Orca. Désactivez-la pour retrouver l’apparence d’origine.",
+        "background": {
+          "title": "Arrière-plan",
+          "description": "Une image dessinée sur toute la fenêtre. Les clics la traversent.",
+          "choose": "Choisir une image…",
+          "replace": "Remplacer…",
+          "remove": "Supprimer",
+          "opacity": "Opacité",
+          "blur": "Flou",
+          "errorUnsupported": "Choisissez une image PNG, JPG, WebP ou GIF.",
+          "errorTooLarge": "L’image dépasse 25 Mo.",
+          "errorUnreadable": "Impossible de lire le fichier sélectionné.",
+          "errorSaveFailed": "Impossible d’enregistrer l’image."
+        },
         "switchLabel": "Utiliser l’apparence personnalisée",
         "summaryOn": "Activée",
         "summaryOff": "Désactivée — apparence d’origine d’Orca"
