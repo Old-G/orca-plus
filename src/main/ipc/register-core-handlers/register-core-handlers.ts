@@ -57,6 +57,7 @@ import { registerLocalhostWorktreeLabelHandlers } from '../ports/localhost-workt
 import { registerAutomationHandlers } from '../automations'
 import { registerKeybindingHandlers } from '../keybindings'
 import { registerCustomCssHandlers } from '../custom-css'
+import { registerCustomAppearanceBackgroundHandlers } from '../custom-appearance-background'
 import { registerTelemetryHandlers } from '../telemetry'
 import { registerShellHandlers } from '../shell/shell'
 import { registerPetHandlers } from '../pets/pet'
@@ -201,6 +202,7 @@ export async function registerCoreHandlers(
       })
     }
     registerCustomCssHandlers()
+    registerCustomAppearanceBackgroundHandlers()
     if (pluginService) {
       registerPluginHandlers(store, pluginService, marketplaceServices)
     }
