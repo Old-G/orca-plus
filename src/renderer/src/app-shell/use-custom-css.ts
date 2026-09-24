@@ -1,12 +1,15 @@
 import { useEffect } from 'react'
 import type { CustomCssSnapshot } from '../../../shared/custom-css'
 import { applyCustomCssSheet, buildCustomCssSheet } from '@/lib/custom-css-sheet'
-import { isWebClientLocation } from '@/lib/web-client-location'
+import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import { useAppStore } from '../store'
 
 /** Applies `~/.orca/custom.css` to this window while the setting is on, following edits live. */
 export function useCustomCss(): void {
-  const enabled = useAppStore((s) => s.settings?.customCssEnabled === true)
+  // Why: custom build (custom-appearance) — custom.css is one part of the Custom appearance block.
+  const enabled = useAppStore(
+    (s) => s.settings?.customCssEnabled === true && s.settings.customAppearanceEnabled === true
+  )
 
   useEffect(() => {
     // Why: the paired web client cannot reach the host's ~/.orca folder.
