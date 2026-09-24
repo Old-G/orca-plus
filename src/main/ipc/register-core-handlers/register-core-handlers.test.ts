@@ -259,6 +259,10 @@ vi.mock('../custom-appearance-background', () => ({
   registerCustomAppearanceBackgroundHandlers: vi.fn()
 }))
 
+vi.mock('../vscode-themes', () => ({
+  registerVscodeThemeHandlers: vi.fn()
+}))
+
 vi.mock('../telemetry', () => ({
   registerTelemetryHandlers: registerTelemetryHandlersMock
 }))
