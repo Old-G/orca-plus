@@ -1,9 +1,9 @@
 import { mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import type { Page } from '@stablyai/playwright-test'
-import { expect, test } from './helpers/orca-app'
-import { waitForSessionReady } from './helpers/store'
+import { expect, type Page } from '@stablyai/playwright-test'
+import { test } from './desktop/electron-fixtures/orca-app'
+import { waitForSessionReady } from './desktop/renderer-probes/store'
 
 function readRootVar(page: Page, name: string): Promise<string> {
   return page.evaluate(
@@ -14,7 +14,10 @@ function readRootVar(page: Page, name: string): Promise<string> {
 
 function setCustomCssEnabled(page: Page, enabled: boolean): Promise<void> {
   return page.evaluate(async (customCssEnabled) => {
-    await window.__store?.getState().updateSettings({ customCssEnabled })
+    // Why: custom build — custom.css applies only inside the "Custom appearance" block, which is off by default.
+    await window.__store
+      ?.getState()
+      .updateSettings({ customCssEnabled, customAppearanceEnabled: customCssEnabled })
   }, enabled)
 }
 
