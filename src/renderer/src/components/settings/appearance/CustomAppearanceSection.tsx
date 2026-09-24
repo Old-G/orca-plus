@@ -1,16 +1,18 @@
 import type React from 'react'
 import { useState } from 'react'
-import { Palette } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/class-names'
 import type { GlobalSettings } from '../../../../../shared/global-settings-types'
 import { translate } from '@/i18n/i18n'
-import { isWebClientLocation } from '@/lib/web-client-location'
+import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import { useAppStore } from '../../../store'
-import { AppearanceSection } from './AppearanceSection'
+import { SettingsGroup } from '../section-layout/SettingsGroup'
 import { CustomAppearanceBackgroundSetting } from './CustomAppearanceBackgroundSetting'
+import { CustomAppearanceThemeSetting } from '../CustomAppearanceThemeSetting'
 import { CustomCssSetting } from './CustomCssSetting'
 import { SearchableSetting } from '../section-layout/SearchableSetting'
 import { SettingsSwitchRow } from '../form-controls/SettingsFormControls'
-import { getCustomCssEntries } from './appearance-search'
+import { getCustomCssEntries } from './appearance-custom-css-search'
 import { getCustomAppearanceEntries } from './custom-appearance-search'
 import { matchesSettingsSearch, normalizeSettingsSearchQuery } from '../search/settings-search'
 
@@ -25,7 +27,7 @@ export function CustomAppearanceSection({
   updateSettings
 }: CustomAppearanceSectionProps): React.JSX.Element | null {
   const searchQuery = useAppStore((state) => state.settingsSearchQuery)
-  // Why: collapsed while off, so the stock layout (three open sections) is what users see.
+  // Why: collapsed while off, so the stock layout is what users see.
   const [open, setOpen] = useState(() => settings.customAppearanceEnabled === true)
   if (isWebClientLocation()) {
     return null
@@ -41,46 +43,62 @@ export function CustomAppearanceSection({
   const enabled = settings.customAppearanceEnabled === true
   const title = translate('settings.appearance.customAppearance.title', 'Custom appearance')
 
+  const expanded = isSearching || open
+  const contentId = 'appearance-section-custom-appearance'
+
   return (
-    <AppearanceSection
+    // Why: upstream's settings are cards (SettingsGroup); the chevron keeps the block folded while off.
+    <SettingsGroup
       id="custom-appearance"
-      icon={<Palette aria-hidden="true" />}
       title={title}
-      summary={
+      description={
         enabled
           ? translate('settings.appearance.customAppearance.summaryOn', 'On')
           : translate('settings.appearance.customAppearance.summaryOff', 'Off — stock Orca look')
       }
-      open={isSearching || open}
-      onToggle={() => setOpen((current) => !current)}
-      toggleDisabled={isSearching}
-    >
-      <div className="divide-y divide-border/40">
-        <SearchableSetting
-          title={title}
-          description={entry?.description}
-          keywords={entry?.keywords ?? ['custom', 'theme', 'appearance']}
+      action={
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls={contentId}
+          aria-label={title}
+          onClick={() => setOpen((current) => !current)}
+          disabled={isSearching}
+          className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default"
         >
-          <SettingsSwitchRow
-            label={translate(
-              'settings.appearance.customAppearance.switchLabel',
-              'Use custom appearance'
-            )}
+          <ChevronRight className={cn('size-4 transition-transform', expanded && 'rotate-90')} />
+        </button>
+      }
+    >
+      {expanded ? (
+        <div id={contentId}>
+          <SearchableSetting
+            title={title}
             description={entry?.description}
-            checked={enabled}
-            onChange={() => updateSettings({ customAppearanceEnabled: !enabled })}
-          />
-        </SearchableSetting>
-        {enabled ? (
-          <>
-            <CustomAppearanceBackgroundSetting
-              settings={settings}
-              updateSettings={updateSettings}
+            keywords={entry?.keywords ?? ['custom', 'theme', 'appearance']}
+          >
+            <SettingsSwitchRow
+              label={translate(
+                'settings.appearance.customAppearance.switchLabel',
+                'Use custom appearance'
+              )}
+              description={entry?.description}
+              checked={enabled}
+              onChange={() => updateSettings({ customAppearanceEnabled: !enabled })}
             />
-            <CustomCssSetting settings={settings} updateSettings={updateSettings} />
-          </>
-        ) : null}
-      </div>
-    </AppearanceSection>
+          </SearchableSetting>
+          {enabled ? (
+            <>
+              <CustomAppearanceThemeSetting settings={settings} updateSettings={updateSettings} />
+              <CustomAppearanceBackgroundSetting
+                settings={settings}
+                updateSettings={updateSettings}
+              />
+              <CustomCssSetting settings={settings} updateSettings={updateSettings} />
+            </>
+          ) : null}
+        </div>
+      ) : null}
+    </SettingsGroup>
   )
 }
