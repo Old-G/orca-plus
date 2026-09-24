@@ -495,7 +495,8 @@ module.exports = {
       role: 'Editor',
       rank: 'Alternate'
     })),
-    icon: 'resources/build/icon.icns',
+    // Custom build (orca-plus-name): the stock icon with a "+" badge, apart from Orca in the Dock.
+    icon: orcaPlusPackaging ? 'resources/orca-plus/icon.icns' : 'resources/build/icon.icns',
     entitlements: 'resources/build/entitlements.mac.plist',
     entitlementsInherit: 'resources/build/entitlements.mac.plist',
     signIgnore: bundledRipgrepMacSignIgnore,
@@ -518,7 +519,10 @@ module.exports = {
       NSDocumentsFolderUsageDescription:
         "Application requests access to the user's Documents folder.",
       NSDownloadsFolderUsageDescription:
-        "Application requests access to the user's Downloads folder."
+        "Application requests access to the user's Downloads folder.",
+      // Custom build (orca-plus-name): Dock, menu bar and Finder say "Orca+" via en.lproj; the raw
+      // CFBundleName stays productName because Electron finds "<CFBundleName> Helper.app" by it.
+      ...(orcaPlusPackaging ? { CFBundleDisplayName: 'Orca+', LSHasLocalizedDisplayName: true } : {})
     },
     // Why: local macOS validation builds should launch without Apple release
     // credentials. Hardened runtime + notarization stay enabled only on the
@@ -549,6 +553,7 @@ module.exports = {
         from: 'native/computer-use-macos/.build/release/Orca Computer Use.app',
         to: 'Orca Computer Use.app'
       },
+      ...(orcaPlusPackaging ? [{ from: 'resources/orca-plus/en.lproj', to: 'en.lproj' }] : []),
       featureWallResources
     ],
     // Why: the notification-status helper must execute from Contents/MacOS —
