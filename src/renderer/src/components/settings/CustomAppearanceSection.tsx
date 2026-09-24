@@ -7,6 +7,7 @@ import { isWebClientLocation } from '@/lib/web-client-location'
 import { useAppStore } from '../../store'
 import { AppearanceSection } from './AppearanceSection'
 import { CustomAppearanceBackgroundSetting } from './CustomAppearanceBackgroundSetting'
+import { CustomAppearanceThemeSetting } from './CustomAppearanceThemeSetting'
 import { CustomCssSetting } from './CustomCssSetting'
 import { SearchableSetting } from './SearchableSetting'
 import { SettingsSwitchRow } from './SettingsFormControls'
@@ -73,6 +74,7 @@ export function CustomAppearanceSection({
         </SearchableSetting>
         {enabled ? (
           <>
+            <CustomAppearanceThemeSetting settings={settings} updateSettings={updateSettings} />
             <CustomAppearanceBackgroundSetting
               settings={settings}
               updateSettings={updateSettings}
