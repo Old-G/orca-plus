@@ -1,5 +1,13 @@
 import type { CustomCssSnapshot } from '../../shared/custom-css'
 import type { BackgroundPickResult } from '../../shared/custom-appearance-background'
+import type {
+  ImportedThemeSummary,
+  InstalledThemeExtensionSummary,
+  OpenThemeSourceResult,
+  OpenVsxThemeSearchResult,
+  ThemeSourceRequest
+} from '../../shared/vscode-theme/vscode-theme-ipc'
+import type { ImportedVscodeTheme } from '../../shared/vscode-theme/vscode-theme-types'
 import type { KeybindingActionId, KeybindingFileSnapshot } from '../../shared/keybindings'
 import type {
   WarpThemeImportPreview,
@@ -41,6 +49,17 @@ export type CustomAppearanceBackgroundApi = {
   pick: () => Promise<BackgroundPickResult>
   read: (fileName: string) => Promise<Uint8Array | null>
   clear: () => Promise<void>
+}
+
+/** Custom build (vscode-theme-import). */
+export type VscodeThemesApi = {
+  listInstalled: () => Promise<InstalledThemeExtensionSummary[]>
+  searchOpenVsx: (query: string) => Promise<OpenVsxThemeSearchResult[] | null>
+  openSource: (request: ThemeSourceRequest) => Promise<OpenThemeSourceResult>
+  importTheme: (token: string, label: string) => Promise<ImportedThemeSummary | null>
+  listImported: () => Promise<ImportedThemeSummary[]>
+  readImported: (id: string) => Promise<ImportedVscodeTheme | null>
+  removeImported: (id: string) => Promise<void>
 }
 
 export type CustomCssApi = {
