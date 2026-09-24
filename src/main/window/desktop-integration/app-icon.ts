@@ -7,6 +7,7 @@ import { dirname, resolve } from 'node:path'
 import { app, BrowserWindow, nativeImage } from 'electron'
 import classicIcon from '../../../../resources/icon.png?asset'
 import classicDevIcon from '../../../../resources/icon-dev.png?asset'
+import orcaPlusIcon from '../../../../resources/orca-plus/icon.png?asset'
 import watercolorIcon from '../../../../resources/app-icons/orca-watercolor.png?asset'
 import watercolorMacDockIcon from '../../../../resources/app-icons/orca-watercolor.png?asset&asarUnpack'
 import blueIcon from '../../../../resources/app-icons/orca-blue.png?asset'
@@ -17,9 +18,10 @@ import {
   type BuiltInAppIconId
 } from '../../../shared/app-icon'
 import { getCustomAppIconPath, hasCustomAppIcon } from './custom-app-icon'
+import { USES_ORCA_PLUS_ICON } from '../../orca-plus/orca-plus-app-name'
 
 const APP_ICON_PATHS = {
-  classic: !app.isPackaged ? classicDevIcon : classicIcon,
+  classic: !app.isPackaged ? classicDevIcon : USES_ORCA_PLUS_ICON ? orcaPlusIcon : classicIcon,
   watercolor: watercolorIcon,
   blue: blueIcon
 } satisfies Record<BuiltInAppIconId, string>

@@ -616,7 +616,8 @@ module.exports = {
     // Set for ONNX Runtime (#22690, #39135), now gone; transcribe-cpp needs 11.0, Electron 12.0. Kept until
     // Kelvin decides. The update-manifest gate reads this from Info.plist.
     minimumSystemVersion: '13.4',
-    icon: 'resources/build/icon.icns',
+    // Custom build (orca-plus-name): the stock icon with a "+" badge, apart from Orca in the Dock.
+    icon: orcaPlusPackaging ? 'resources/orca-plus/icon.icns' : 'resources/build/icon.icns',
     entitlements: 'resources/build/entitlements.mac.plist',
     entitlementsInherit: 'resources/build/entitlements.mac.plist',
     ...(isMacRelease
@@ -629,7 +630,12 @@ module.exports = {
       '/Contents/Resources/agent-browser-darwin-[^/]+$',
       ...macTerminalHostSignIgnore
     ],
-    extendInfo: macUsageDescriptions,
+    extendInfo: {
+      ...macUsageDescriptions,
+      // Custom build (orca-plus-name): Dock, menu bar and Finder say "Orca+" via en.lproj; the raw
+      // CFBundleName stays productName because Electron finds "<CFBundleName> Helper.app" by it.
+      ...(orcaPlusPackaging ? { CFBundleDisplayName: 'Orca+', LSHasLocalizedDisplayName: true } : {})
+    },
     // Local macOS builds need no release credentials; hardening/notarization stay on explicit release paths.
     hardenedRuntime: isMacRelease,
     // Dev notarization preserves TCC identifier/team identity across cdhash changes; unticketed hourly updates otherwise lose folder grants with EPERM and no prompt.
@@ -649,6 +655,7 @@ module.exports = {
         from: 'native/computer-use-macos/.build/release/Orca Computer Use.app',
         to: 'Orca Computer Use.app'
       },
+      ...(orcaPlusPackaging ? [{ from: 'resources/orca-plus/en.lproj', to: 'en.lproj' }] : []),
       featureWallResources
     ],
     // macOS 26 UNUserNotificationCenter aborts helpers launched from Resources; execute from Contents/MacOS (#7929).
