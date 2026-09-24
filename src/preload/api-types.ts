@@ -59,7 +59,8 @@ import type {
   CustomAppearanceBackgroundApi,
   CustomCssApi,
   KeybindingsApi,
-  SettingsApi
+  SettingsApi,
+  VscodeThemesApi
 } from './api/settings-api'
 import type { ShellApi } from './api/shell-api'
 import type { SpeechApi } from './api/speech-api'
@@ -112,6 +113,7 @@ export type PreloadApi = {
   keybindings: KeybindingsApi
   customCss: CustomCssApi
   customAppearanceBackground: CustomAppearanceBackgroundApi
+  vscodeThemes: VscodeThemesApi
   codexAccounts: CodexAccountsApi
   claudeAccounts: ClaudeAccountsApi
   cli: CliApi
