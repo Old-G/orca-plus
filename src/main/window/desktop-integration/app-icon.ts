@@ -8,6 +8,7 @@ import { app, BrowserWindow, nativeImage } from 'electron'
 import classicIcon from '../../../../resources/icon.png?asset'
 import classicDevIcon from '../../../../resources/icon-dev.png?asset'
 import classicDevMacIcon from '../../../../resources/icon-dev-mac.png?asset'
+import orcaPlusIcon from '../../../../resources/orca-plus/icon.png?asset'
 import watercolorIcon from '../../../../resources/app-icons/orca-watercolor.png?asset'
 import watercolorMacIcon from '../../../../resources/app-icons/orca-watercolor-mac.png?asset'
 import watercolorMacDockIcon from '../../../../resources/app-icons/orca-watercolor-mac.png?asset&asarUnpack'
@@ -20,12 +21,19 @@ import {
 } from '../../../shared/app-lifecycle/identity/app-icon'
 import { getCustomAppIconPath, getCustomAppIconRevision, hasCustomAppIcon } from './custom-app-icon'
 import { fitAppIconToPlatformShape } from './platform-app-icon-shape'
+import { USES_ORCA_PLUS_ICON } from '../../orca-plus/orca-plus-app-name'
 
 const isMac = process.platform === 'darwin'
 
 // The -mac variants sit in Apple's 824/1024 icon tile; Windows and Linux keep their larger tiles (#5357).
 const APP_ICON_PATHS = {
-  classic: app.isPackaged ? classicIcon : isMac ? classicDevMacIcon : classicDevIcon,
+  classic: app.isPackaged
+    ? USES_ORCA_PLUS_ICON
+      ? orcaPlusIcon
+      : classicIcon
+    : isMac
+      ? classicDevMacIcon
+      : classicDevIcon,
   watercolor: isMac ? watercolorMacIcon : watercolorIcon,
   blue: blueIcon
 } satisfies Record<BuiltInAppIconId, string>
