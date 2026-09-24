@@ -1,5 +1,6 @@
 import type { CustomCssSnapshot } from '../../../shared/custom-css'
 import type { KeybindingActionId, KeybindingFileSnapshot } from '../../../shared/keybindings/types'
+import type { BackgroundPickResult } from '../../../shared/custom-appearance-background'
 import type {
   WarpThemeImportPreview,
   WarpThemeImportSource
@@ -39,6 +40,13 @@ export type KeybindingsApi = {
   openFile: () => Promise<KeybindingFileSnapshot>
   revealFile: () => Promise<KeybindingFileSnapshot>
   onChanged: (callback: (snapshot: KeybindingFileSnapshot) => void) => () => void
+}
+
+/** Custom build (appearance-background). */
+export type CustomAppearanceBackgroundApi = {
+  pick: () => Promise<BackgroundPickResult>
+  read: (fileName: string) => Promise<Uint8Array | null>
+  clear: () => Promise<void>
 }
 
 export type CustomCssApi = {

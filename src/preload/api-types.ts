@@ -62,7 +62,12 @@ import type { RuntimeApi } from './api/runtime/runtime-api'
 import type { WslMoveApi } from './api/wsl/wsl-move-bridge'
 import type { WslDriveProjectApi } from './api/wsl/wsl-drive-project-bridge'
 import type { WslDriveUncConversionApi } from './api/wsl/wsl-drive-unc-conversion-bridge'
-import type { KeybindingsApi, SettingsApi } from './api/preferences/settings-api'
+import type {
+  KeybindingsApi,
+  SettingsApi,
+  CustomAppearanceBackgroundApi,
+  CustomCssApi
+} from './api/preferences/settings-api'
 import type { ShellApi } from './api/terminal/shell-api'
 import type { BotChangesApi } from './api/bot-changes-api'
 import type { GoogleSetupApi } from './api/google-setup-api'
@@ -136,6 +141,7 @@ export type PreloadApi = {
   localhostWorktreeLabels: LocalhostWorktreeLabelsApi
   keybindings: KeybindingsApi
   customCss: CustomCssApi
+  customAppearanceBackground: CustomAppearanceBackgroundApi
   codexAccounts: CodexAccountsApi
   claudeAccounts: ClaudeAccountsApi
   cli: CliApi
