@@ -6,6 +6,7 @@ import type { GitLabProjectSettings } from './gitlab-types'
 import type { TaskProvider } from './task-providers'
 import type { KeybindingOverrides, TerminalShortcutPolicy } from './keybindings'
 import type { AppIconId } from './app-icon'
+import type { CustomAppearanceBackground } from './custom-appearance-background'
 import type { SourceControlAiSettings } from './source-control-ai-types'
 import type { ClaudeAgentTeamsMode } from './claude-agent-teams-tmux-compat'
 import type { TerminalCustomTheme } from './terminal-custom-themes'
@@ -89,6 +90,8 @@ export type GlobalSettings = {
   customCssEnabled?: boolean
   /** Custom build (custom-appearance): master switch for custom.css, background and imported theme. */
   customAppearanceEnabled?: boolean
+  /** Custom build (appearance-background): window background image, drawn only while the block is on. */
+  customAppearanceBackground?: CustomAppearanceBackground | null
   editorAutoSave: boolean
   editorAutoSaveDelayMs: number
   editorMinimapEnabled: boolean
