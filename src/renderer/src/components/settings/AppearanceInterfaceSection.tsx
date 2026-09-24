@@ -5,14 +5,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { UIZoomControl } from './UIZoomControl'
 import { SearchableSetting } from './SearchableSetting'
 import { AppearanceAdvancedDisclosure } from './AppearanceAdvancedDisclosure'
-import { CustomCssSetting } from './CustomCssSetting'
 import { useAppStore } from '../../store'
 import { useShortcutKeyComboDetails } from '@/hooks/useShortcutLabel'
 import { ShortcutHintList } from './AppearanceShortcutHintList'
 import { FontAutocomplete, SettingsRow, SettingsSwitchRow } from './SettingsFormControls'
 import { DEFAULT_APP_FONT_FAMILY } from '../../../../shared/constants'
 import {
-  getCustomCssEntries,
   getLanguageEntries,
   getMenuBarIconEntries,
   getSystemTrayEntries,
@@ -93,8 +91,7 @@ export function AppearanceInterfaceSection({
   const advancedEntries = [
     ...getTitlebarEntries(),
     ...getSystemTrayEntries({ showSystemTray: isDesktopWindows }),
-    ...getMenuBarIconEntries({ showMenuBarIcon: isDesktopMac }),
-    ...getCustomCssEntries()
+    ...getMenuBarIconEntries({ showMenuBarIcon: isDesktopMac })
   ]
   const showAdvanced = !isSearching || matchesSettingsSearch(searchQuery, advancedEntries)
   const languageTitle = translate('settings.appearance.language.title', 'Language')
@@ -344,8 +341,6 @@ export function AppearanceInterfaceSection({
                 />
               </SearchableSetting>
             ) : null}
-
-            <CustomCssSetting settings={settings} updateSettings={updateSettings} />
           </div>
         </AppearanceAdvancedDisclosure>
       ) : null}
