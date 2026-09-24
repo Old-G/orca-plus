@@ -11,6 +11,7 @@ import type { GitLabProjectSettings } from './gitlab-types'
 import type { TaskProvider } from './work-items/task-providers'
 import type { AppIconId } from './app-icon'
 import type { CustomAppearanceBackground } from './custom-appearance-background'
+import type { CustomAppearanceTheme } from './vscode-theme/custom-appearance-theme'
 import type { SourceControlAiSettings } from './source-control/ai/settings/source-control-ai-settings-types'
 import type { ClaudeAgentTeamsMode } from './claude-agent-teams-tmux-compat'
 import type { TerminalCustomTheme } from './terminal-themes/terminal-custom-themes'
@@ -86,6 +87,8 @@ export type GlobalSettings = GlobalSettingsBase & {
   customAppearanceEnabled?: boolean
   /** Custom build (appearance-background): window background image, drawn only while the block is on. */
   customAppearanceBackground?: CustomAppearanceBackground | null
+  /** Custom build (custom-appearance-theme): the imported VS Code theme in use, while the block is on. */
+  customAppearanceTheme?: CustomAppearanceTheme | null
   editorAutoSave: boolean
   /** Days a release must be public before Orca offers it; absent/0 offers releases immediately. */
   updateDelayDays?: number
