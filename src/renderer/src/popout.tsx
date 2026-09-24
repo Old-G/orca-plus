@@ -14,6 +14,7 @@ import {
 import { applyDocumentTheme } from './lib/document-theme'
 import { resolvePaintedTheme } from './lib/terminal-app-theme'
 import { useCustomCss } from './app-shell/use-custom-css'
+import { useCustomAppearanceTheme } from './app-shell/use-custom-appearance-theme'
 import { buildAppFontFamily } from './lib/app-font-family'
 import { applyCodeFontSmoothing } from './lib/editor/appearance/code-font-smoothing'
 import { I18nProvider } from './i18n/I18nProvider'
@@ -66,6 +67,7 @@ function PopoutSettingsSync(): null {
   const settings = useAppStore((state) => state.settings)
   useReduceVisualEffects(settings?.reduceVisualEffects)
   useCustomCss()
+  useCustomAppearanceTheme()
 
   useEffect(() => {
     let disposed = false
