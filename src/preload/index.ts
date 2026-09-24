@@ -40,6 +40,7 @@ import { localhostWorktreeLabelsApi } from './api/localhost-worktree-labels-brid
 import { keybindingsApi } from './api/keybindings-bridge'
 import { customCssApi } from './api/custom-css-bridge'
 import { customAppearanceBackgroundApi } from './api/custom-appearance-background-bridge'
+import { vscodeThemesApi } from './api/vscode-themes-bridge'
 import { codexAccountsApi } from './api/codex-accounts-bridge'
 import { claudeAccountsApi } from './api/claude-accounts-bridge'
 import { cliApi } from './api/cli-bridge'
@@ -143,6 +144,7 @@ const api = {
   keybindings: keybindingsApi,
   customCss: customCssApi,
   customAppearanceBackground: customAppearanceBackgroundApi,
+  vscodeThemes: vscodeThemesApi,
   codexAccounts: codexAccountsApi,
   claudeAccounts: claudeAccountsApi,
   cli: cliApi,
