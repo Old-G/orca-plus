@@ -7,6 +7,7 @@ import type { TaskProvider } from './task-providers'
 import type { KeybindingOverrides, TerminalShortcutPolicy } from './keybindings'
 import type { AppIconId } from './app-icon'
 import type { CustomAppearanceBackground } from './custom-appearance-background'
+import type { CustomAppearanceTheme } from './vscode-theme/custom-appearance-theme'
 import type { SourceControlAiSettings } from './source-control-ai-types'
 import type { ClaudeAgentTeamsMode } from './claude-agent-teams-tmux-compat'
 import type { TerminalCustomTheme } from './terminal-custom-themes'
@@ -92,6 +93,8 @@ export type GlobalSettings = {
   customAppearanceEnabled?: boolean
   /** Custom build (appearance-background): window background image, drawn only while the block is on. */
   customAppearanceBackground?: CustomAppearanceBackground | null
+  /** Custom build (custom-appearance-theme): the imported VS Code theme in use, while the block is on. */
+  customAppearanceTheme?: CustomAppearanceTheme | null
   editorAutoSave: boolean
   editorAutoSaveDelayMs: number
   editorMinimapEnabled: boolean

@@ -1,4 +1,5 @@
 import type { ITheme } from '@xterm/xterm'
+import { withCustomAppearanceTerminalColors } from './custom-appearance/custom-appearance-terminal'
 import { getTheme, getThemeNames } from './terminal-themes-data'
 import type { GlobalSettings } from '../../../shared/global-settings-types'
 import {
@@ -118,6 +119,8 @@ export function resolveEffectiveTerminalAppearance(
     | 'terminalThemeLight'
     | 'terminalCustomThemes'
     | 'terminalDividerColorLight'
+    | 'customAppearanceEnabled'
+    | 'customAppearanceTheme'
   >,
   systemPrefersDark = getSystemPrefersDark()
 ): EffectiveTerminalAppearance {
@@ -136,7 +139,11 @@ export function resolveEffectiveTerminalAppearance(
     sourceTheme: settings.theme,
     themeName,
     dividerColor,
-    theme: getTerminalThemePreview(themeName, settings, useLightVariant ? 'light' : 'dark'),
+    theme: withCustomAppearanceTerminalColors(
+      getTerminalThemePreview(themeName, settings, useLightVariant ? 'light' : 'dark'),
+      settings,
+      sourceTheme === 'dark'
+    ),
     systemPrefersDark
   }
 }
