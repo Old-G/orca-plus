@@ -1,3 +1,16 @@
+> [!NOTE]
+> **Orca+ is an unofficial fork of [Orca](https://github.com/stablyai/orca)** by [Stably AI](https://github.com/stablyai). It is not affiliated with or endorsed by Stably AI. All credit for Orca goes to its authors; this fork keeps their MIT license and stays as close to upstream as possible, rebasing a small stack of features on top of every upstream release.
+>
+> What the "+" adds (one commit per feature on the `custom` branch, trailer `Custom-Feature:`):
+> - **LSP** in the editor and diff views
+> - **File Explorer**: paste files copied in Finder/Explorer; Cmd+C / Cmd+X / Cmd+Z for files
+> - **Claude Code IDE**: Orca acts as Claude Code's IDE, like the VS Code extension (diagnostics, diffs to review)
+> - **Custom appearance** (Settings → Appearance, off by default = stock look): import any VS Code / Cursor color theme — installed ones, Open VSX or a `.vsix` — to recolor the UI, editor and terminal; a background image; a user `custom.css`
+> - Fixes: Nerd symbols font before prompts render, failed Claude hooks shown as a warning, Swift 6.4 native builds
+> - **Packaging**: a packaged "Orca+" (`Orca Plus.app`, bundle id `com.oldg.orca-plus`) installs beside the stock Orca with its own profile, CLI (`orca-plus`) and URL scheme
+>
+> Branches: `main` mirrors upstream; `custom` (default) is upstream plus the stack above. Upstream README follows.
+
 <h1 align="center">
   <a href="https://onOrca.dev"><img src="resources/build/icon.png" alt="Orca" width="64" valign="middle" /></a> Orca
 </h1>
