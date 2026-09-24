@@ -4,8 +4,9 @@ import { Palette } from 'lucide-react'
 import type { GlobalSettings } from '../../../../../shared/global-settings-types'
 import { translate } from '@/i18n/i18n'
 import { isWebClientLocation } from '@/lib/web-client-location'
-import { useAppStore } from '../../store'
+import { useAppStore } from '../../../store'
 import { AppearanceSection } from './AppearanceSection'
+import { CustomAppearanceBackgroundSetting } from './CustomAppearanceBackgroundSetting'
 import { CustomCssSetting } from './CustomCssSetting'
 import { SearchableSetting } from '../section-layout/SearchableSetting'
 import { SettingsSwitchRow } from '../form-controls/SettingsFormControls'
@@ -70,7 +71,15 @@ export function CustomAppearanceSection({
             onChange={() => updateSettings({ customAppearanceEnabled: !enabled })}
           />
         </SearchableSetting>
-        {enabled ? <CustomCssSetting settings={settings} updateSettings={updateSettings} /> : null}
+        {enabled ? (
+          <>
+            <CustomAppearanceBackgroundSetting
+              settings={settings}
+              updateSettings={updateSettings}
+            />
+            <CustomCssSetting settings={settings} updateSettings={updateSettings} />
+          </>
+        ) : null}
       </div>
     </AppearanceSection>
   )
