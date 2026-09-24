@@ -20,6 +20,7 @@ import type { ComputerAwakeMode } from '../app-lifecycle/computer-awake-mode'
 import type { CommitMessageAiSettings } from '../source-control/ai/generation/commit-message-ai-types'
 import type { HostSettingOverrides } from '../execution-host/host-setting-overrides'
 import type { CustomAppearanceBackground } from './custom-appearance-background'
+import type { CustomAppearanceTheme } from './vscode-theme/custom-appearance-theme'
 import type { UiLanguage } from './i18n/ui-language'
 import type {
   ClaudeManagedAccount,
@@ -82,6 +83,8 @@ export type GlobalSettings = GlobalSettingsBase & {
   customAppearanceEnabled?: boolean
   /** Custom build (appearance-background): window background image, drawn only while the block is on. */
   customAppearanceBackground?: CustomAppearanceBackground | null
+  /** Custom build (custom-appearance-theme): the imported VS Code theme in use, while the block is on. */
+  customAppearanceTheme?: CustomAppearanceTheme | null
   editorAutoSave: boolean
   /** Days a release must be public before Orca offers it; absent/0 offers releases immediately. */
   updateDelayDays?: number
