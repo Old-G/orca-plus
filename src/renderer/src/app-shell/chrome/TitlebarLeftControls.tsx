@@ -16,6 +16,8 @@ import {
 import { useShortcutLabel } from '../../lib/keyboard/useShortcutLabel'
 import { useAppStore } from '../../store/index'
 import { hasCustomTitleBar, hasMacTrafficLights } from './app-window-chrome'
+import { orcaPlusAppName } from '../../lib/orca-plus-app-name'
+import { HqModeSwitch } from '../../components/orca-plus/hq/HqModeSwitch'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 
 /** Reuse left chrome across full-width and sidebar-width headers so controls/popovers stay consistent. */
@@ -65,8 +67,13 @@ export function TitlebarLeftControls({ layout }: { layout: AppChromeLayout }): R
         {layout.showSidebar && !hasCustomTitleBar && layout.showTitlebarAppName && (
           <ContextMenu>
             <ContextMenuTrigger asChild>
-              <div className="titlebar-app-name" aria-label={t('auto.App.5096cbbc86', 'Orca')}>
-                <span className="titlebar-app-name-main">{t('auto.App.5096cbbc86', 'Orca')}</span>
+              <div
+                className="titlebar-app-name"
+                aria-label={orcaPlusAppName(t('auto.App.5096cbbc86', 'Orca'))}
+              >
+                <span className="titlebar-app-name-main">
+                  {orcaPlusAppName(t('auto.App.5096cbbc86', 'Orca'))}
+                </span>
               </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
@@ -98,6 +105,7 @@ export function TitlebarLeftControls({ layout }: { layout: AppChromeLayout }): R
             </TooltipContent>
           </Tooltip>
         )}
+        <HqModeSwitch />
       </div>
       {/* Show shared workspace/page history wherever its shortcut is available. */}
       {shouldShowWorktreeHistoryControls(layout.activeView) && (

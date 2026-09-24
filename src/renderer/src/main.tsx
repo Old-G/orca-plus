@@ -32,12 +32,14 @@ import { installOsFileDropCancellationGuard } from './lib/files/drop/os-file-dro
 import { installBodyOverlayAttributes } from './lib/overlay-interaction/body-overlay-attributes'
 import { applyWindowMaterialToDocument } from './app-shell/appearance/window-material-runtime'
 import { trackPageFocusLossForTerminalIme } from './components/terminal-pane/input/focus/regular-terminal-focus-ownership'
+import { orcaPlusAppName } from './lib/orca-plus-app-name'
 
 const disposeOsFileDropGuard = installOsFileDropCancellationGuard()
 import.meta.hot?.dispose(disposeOsFileDropGuard)
 const disposeBodyOverlayAttributes = installBodyOverlayAttributes()
 import.meta.hot?.dispose(disposeBodyOverlayAttributes)
 recordRendererCrashBreadcrumb('renderer_bootstrap_started', { dev: import.meta.env.DEV })
+document.title = orcaPlusAppName(document.title)
 installRendererCrashDiagnostics()
 installTypingLatencyDiagnostic()
 installAppKeyboardRouter()
