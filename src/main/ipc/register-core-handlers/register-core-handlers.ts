@@ -60,6 +60,7 @@ import { registerAutomationHandlers } from '../automations'
 import { registerKeybindingHandlers } from '../keybindings'
 import { registerCustomCssHandlers } from '../custom-css'
 import { registerCustomAppearanceBackgroundHandlers } from '../custom-appearance-background'
+import { registerVscodeThemeHandlers } from '../vscode-themes'
 import { registerTelemetryHandlers } from '../telemetry'
 import { registerShellHandlers } from '../shell'
 import { registerPetHandlers } from '../pets/pet'
@@ -230,6 +231,7 @@ export function registerCoreHandlers(
   }
   registerCustomCssHandlers()
   registerCustomAppearanceBackgroundHandlers()
+  registerVscodeThemeHandlers()
   if (pluginService) {
     registerPluginHandlers(store, pluginService, marketplaceServices)
   }
