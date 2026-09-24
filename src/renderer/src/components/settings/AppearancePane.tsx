@@ -7,6 +7,7 @@ import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { AppearanceSection } from './AppearanceSection'
 import { AppearanceInterfaceSection } from './AppearanceInterfaceSection'
 import { AppearanceWindowSidebarSection } from './AppearanceWindowSidebarSection'
+import { CustomAppearanceSection } from './CustomAppearanceSection'
 import { SearchableSetting } from './SearchableSetting'
 import { matchesSettingsSearch, normalizeSettingsSearchQuery } from './settings-search'
 import { useAppStore } from '../../store'
@@ -16,7 +17,6 @@ import {
   getAppearancePaneSearchEntries,
   getLanguageEntries,
   getLayoutEntries,
-  getCustomCssEntries,
   getMenuBarIconEntries,
   getSidebarEntries,
   getStatusBarEntries,
@@ -144,8 +144,7 @@ export function AppearancePane({
     ...(SHOW_UI_LANGUAGE_SETTING ? getLanguageEntries() : []),
     ...getTitlebarEntries(),
     ...getSystemTrayEntries({ showSystemTray: isDesktopWindows }),
-    ...getMenuBarIconEntries({ showMenuBarIcon: isDesktopMac }),
-    ...getCustomCssEntries()
+    ...getMenuBarIconEntries({ showMenuBarIcon: isDesktopMac })
   ]
   const terminalSearchEntries = [
     { title: terminalTitle },
@@ -279,6 +278,8 @@ export function AppearancePane({
           />
         </AppearanceSection>
       ) : null}
+
+      <CustomAppearanceSection settings={settings} updateSettings={updateSettings} />
 
       {/* App icon stays at the bottom of Appearance as a small easter egg,
           matching production — not buried inside Interface advanced. */}

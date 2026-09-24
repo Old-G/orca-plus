@@ -40,6 +40,13 @@
         "title": "Mostrar icono en la barra de menús",
         "description": "Mantén un acceso directo de Orca e indicador de actividad en la barra de menús de macOS."
       },
+      "customAppearance": {
+        "title": "Apariencia personalizada",
+        "description": "Tu propio tema, imagen de fondo y CSS sobre Orca. Desactívala para volver al aspecto original.",
+        "switchLabel": "Usar apariencia personalizada",
+        "summaryOn": "Activada",
+        "summaryOff": "Desactivada — aspecto original de Orca"
+      },
       "customCss": {
         "title": "CSS personalizado",
         "description": "Carga custom.css desde la carpeta de perfil de esta compilación sobre el tema integrado. Los cambios se aplican en cuanto guardas el archivo.",

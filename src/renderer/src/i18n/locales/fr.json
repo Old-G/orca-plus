@@ -144,6 +144,13 @@
           "activity": "activité"
         }
       },
+      "customAppearance": {
+        "title": "Apparence personnalisée",
+        "description": "Votre propre thème, image de fond et CSS par-dessus Orca. Désactivez-la pour retrouver l’apparence d’origine.",
+        "switchLabel": "Utiliser l’apparence personnalisée",
+        "summaryOn": "Activée",
+        "summaryOff": "Désactivée — apparence d’origine d’Orca"
+      },
       "customCss": {
         "title": "CSS personnalisé",
         "description": "Charge custom.css depuis le dossier de profil de cette version par-dessus le thème intégré. Les modifications s'appliquent dès que vous enregistrez le fichier.",

@@ -161,6 +161,13 @@
           "activity": "activity"
         }
       },
+      "customAppearance": {
+        "title": "Custom appearance",
+        "description": "Your own theme, background image and CSS on top of Orca. Turn it off to get the stock look back.",
+        "switchLabel": "Use custom appearance",
+        "summaryOn": "On",
+        "summaryOff": "Off — stock Orca look"
+      },
       "customCss": {
         "title": "Custom CSS",
         "description": "Load custom.css from this build's profile folder on top of the built-in theme. Changes apply as soon as you save the file.",

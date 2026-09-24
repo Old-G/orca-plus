@@ -45,6 +45,13 @@
           "activity": "활동"
         }
       },
+      "customAppearance": {
+        "title": "사용자 지정 모양",
+        "description": "Orca 위에 나만의 테마, 배경 이미지, CSS를 적용합니다. 끄면 기본 모양으로 돌아갑니다.",
+        "switchLabel": "사용자 지정 모양 사용",
+        "summaryOn": "켜짐",
+        "summaryOff": "꺼짐 — Orca 기본 모양"
+      },
       "customCss": {
         "title": "사용자 지정 CSS",
         "description": "이 빌드의 프로필 폴더에 있는 custom.css를 기본 테마 위에 불러옵니다. 파일을 저장하면 바로 적용됩니다.",

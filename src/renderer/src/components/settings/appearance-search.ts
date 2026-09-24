@@ -9,6 +9,7 @@ import { getStatusBarToggles } from './appearance-status-bar-search'
 import { getUsagePercentageDisplayEntry } from './appearance-usage-percentage-search'
 import { getMenuBarIconEntries, getSystemTrayEntries } from './appearance-system-presence-search'
 import { getCustomCssEntries } from './appearance-custom-css-search'
+import { getCustomAppearanceEntries } from './custom-appearance-search'
 
 export {
   getCustomCssEntries,
@@ -247,6 +248,7 @@ export function getAppearancePaneSearchEntries(
     ...getAppIconEntries(),
     ...getSystemTrayEntries(options),
     ...getMenuBarIconEntries(options),
+    ...getCustomAppearanceEntries(),
     ...getCustomCssEntries()
   ]
 }

@@ -45,6 +45,13 @@
           "activity": "活動"
         }
       },
+      "customAppearance": {
+        "title": "カスタム外観",
+        "description": "独自のテーマ、背景画像、CSS を Orca に重ねます。オフにすると標準の見た目に戻ります。",
+        "switchLabel": "カスタム外観を使う",
+        "summaryOn": "オン",
+        "summaryOff": "オフ — Orca 標準の見た目"
+      },
       "customCss": {
         "title": "カスタム CSS",
         "description": "このビルドのプロファイルフォルダーにある custom.css を組み込みテーマの上に読み込みます。ファイルを保存するとすぐに反映されます。",
