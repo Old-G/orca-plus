@@ -26,6 +26,7 @@ import { useAppShellServices } from './app-shell/use-app-shell-services'
 import { useAppStartupHydration } from './app-shell/use-app-startup-hydration'
 import { useDocumentAppearance } from './app-shell/use-document-appearance'
 import { useCustomCss } from './app-shell/use-custom-css'
+import { useCustomAppearanceTheme } from './app-shell/use-custom-appearance-theme'
 import { useCustomAppearanceBackground } from './app-shell/use-custom-appearance-background'
 import { useFloatingWorkspacePanel } from './app-shell/use-floating-workspace-panel'
 import { useGlobalKeybindings } from './app-shell/use-global-keybindings'
@@ -52,6 +53,7 @@ function App(): React.JSX.Element {
   useDocumentAppearance()
   useCustomCss()
   useCustomAppearanceBackground()
+  useCustomAppearanceTheme()
   useWindowVisibilityEffects()
   useGlobalKeybindings({ layout, floatingWorkspace })
 
