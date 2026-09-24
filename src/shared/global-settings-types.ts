@@ -87,6 +87,8 @@ export type GlobalSettings = {
   appFontFamily: string
   /** Load `~/.orca/custom.css` on top of the built-in theme and reload it on save. */
   customCssEnabled?: boolean
+  /** Custom build (custom-appearance): master switch for custom.css, background and imported theme. */
+  customAppearanceEnabled?: boolean
   editorAutoSave: boolean
   editorAutoSaveDelayMs: number
   editorMinimapEnabled: boolean
