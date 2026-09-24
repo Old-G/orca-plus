@@ -8,14 +8,16 @@ import { app, BrowserWindow, nativeImage } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import classicIcon from '../../resources/icon.png?asset'
 import classicDevIcon from '../../resources/icon-dev.png?asset'
+import orcaPlusIcon from '../../resources/orca-plus/icon.png?asset'
 import watercolorIcon from '../../resources/app-icons/orca-watercolor.png?asset'
 import watercolorMacDockIcon from '../../resources/app-icons/orca-watercolor.png?asset&asarUnpack'
 import blueIcon from '../../resources/app-icons/orca-blue.png?asset'
 import blueMacDockIcon from '../../resources/app-icons/orca-blue.png?asset&asarUnpack'
 import { normalizeAppIconId, type AppIconId } from '../shared/app-icon'
+import { USES_ORCA_PLUS_ICON } from './orca-plus/orca-plus-app-name'
 
 const APP_ICON_PATHS = {
-  classic: is.dev ? classicDevIcon : classicIcon,
+  classic: is.dev ? classicDevIcon : USES_ORCA_PLUS_ICON ? orcaPlusIcon : classicIcon,
   watercolor: watercolorIcon,
   blue: blueIcon
 } satisfies Record<AppIconId, string>
