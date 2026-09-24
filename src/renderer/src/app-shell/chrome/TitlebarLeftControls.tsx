@@ -21,6 +21,8 @@ import { useAppStore } from '../../store/index'
 import { showWorkspaceListThen } from '../../components/app-rail/app-rail-navigation'
 import { selectAppRailVisible } from '../../components/app-rail/app-rail-layout'
 import { hasCustomTitleBar, hasMacTrafficLights } from './app-window-chrome'
+import { orcaPlusAppName } from '../../lib/orca-plus-app-name'
+import { HqModeSwitch } from '../../components/orca-plus/hq/HqModeSwitch'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 import {
   registerTitlebarSidebarToggle,
@@ -171,10 +173,12 @@ export function TitlebarLeftControls({ layout }: { layout: AppChromeLayout }): R
               <ContextMenuTrigger asChild>
                 <div
                   className="titlebar-app-name"
-                  aria-label={t('auto.App.5096cbbc86', 'Orca')}
+                  aria-label={orcaPlusAppName(t('auto.App.5096cbbc86', 'Orca'))}
                   data-titlebar-fold-step="1"
                 >
-                  <span className="titlebar-app-name-main">{t('auto.App.5096cbbc86', 'Orca')}</span>
+                  <span className="titlebar-app-name-main">
+                    {orcaPlusAppName(t('auto.App.5096cbbc86', 'Orca'))}
+                  </span>
                 </div>
               </ContextMenuTrigger>
               <ContextMenuContent>
@@ -212,6 +216,7 @@ export function TitlebarLeftControls({ layout }: { layout: AppChromeLayout }): R
             </TooltipContent>
           </Tooltip>
         )}
+        <HqModeSwitch />
       </div>
       {/* Show shared workspace/page history wherever its shortcut is available. */}
       {/* Folded, Back stays (dimmed without history so nothing shifts); Forward and then Back move into the pane ⋯. */}
