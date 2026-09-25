@@ -185,6 +185,30 @@ export const getIntegrationsPaneSearchEntries = createLocalizedCatalog(() => [
     ]
   },
   {
+    title: translate(
+      'auto.components.settings.integrations.search.slackTitle',
+      'Slack Integration'
+    ),
+    description: translate(
+      'auto.components.settings.integrations.search.slackDescription',
+      'Send agent updates to Slack and reply to agents from a thread.'
+    ),
+    keywords: [
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.slackKeyword',
+        'slack'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.slackNotificationsKeyword',
+        'notifications'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.c450244ad7',
+        'integration'
+      )
+    ]
+  },
+  {
     title: translate('auto.components.settings.integrations.search.617603509b', 'Jira Integration'),
     description: translate(
       'auto.components.settings.integrations.search.76f6af7c57',

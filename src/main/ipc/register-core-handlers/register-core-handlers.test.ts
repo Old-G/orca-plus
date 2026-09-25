@@ -53,6 +53,7 @@ const {
   registerJiraHandlersMock,
   registerJiraIssueSummaryGenerationHandlersMock,
   registerClickUpHandlersMock,
+  registerSlackHandlersMock,
   registerBitbucketHandlersMock,
   registerGitLabHandlersMock,
   registerHostedReviewHandlersMock,
@@ -125,6 +126,7 @@ const {
   registerJiraHandlersMock: vi.fn(),
   registerJiraIssueSummaryGenerationHandlersMock: vi.fn(),
   registerClickUpHandlersMock: vi.fn(),
+  registerSlackHandlersMock: vi.fn(),
   registerBitbucketHandlersMock: vi.fn(),
   registerGitLabHandlersMock: vi.fn(),
   registerHostedReviewHandlersMock: vi.fn(),
@@ -429,6 +431,10 @@ vi.mock('../clickup', () => ({
   registerClickUpHandlers: registerClickUpHandlersMock
 }))
 
+vi.mock('../slack', () => ({
+  registerSlackHandlers: registerSlackHandlersMock
+}))
+
 vi.mock('../bitbucket', () => ({
   registerBitbucketHandlers: registerBitbucketHandlersMock
 }))
@@ -521,6 +527,7 @@ describe('registerCoreHandlers', () => {
     registerJiraHandlersMock.mockReset()
     registerJiraIssueSummaryGenerationHandlersMock.mockReset()
     registerClickUpHandlersMock.mockReset()
+    registerSlackHandlersMock.mockReset()
     registerBitbucketHandlersMock.mockReset()
     registerGitLabHandlersMock.mockReset()
     registerHostedReviewHandlersMock.mockReset()
@@ -627,6 +634,7 @@ describe('registerCoreHandlers', () => {
     expect(registerJiraHandlersMock).toHaveBeenCalled()
     expect(registerJiraIssueSummaryGenerationHandlersMock).toHaveBeenCalledWith(store, undefined)
     expect(registerClickUpHandlersMock).toHaveBeenCalled()
+    expect(registerSlackHandlersMock).toHaveBeenCalled()
     expect(registerBitbucketHandlersMock).toHaveBeenCalled()
     expect(registerGitLabHandlersMock).toHaveBeenCalledWith(store)
     expect(registerHostedReviewHandlersMock).toHaveBeenCalledWith(store, stats)
