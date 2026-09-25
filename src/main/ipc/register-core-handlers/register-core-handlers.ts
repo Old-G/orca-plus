@@ -129,7 +129,7 @@ export async function registerCoreHandlers(
     registerLazyLinearHandlers()
     registerLazyJiraHandlers(store, commitMessageAgentEnv)
     registerClickUpHandlers()
-    registerSlackHandlers()
+    registerSlackHandlers(store, runtime)
     if (crashReports) {
       registerLazyCrashReportingHandlers(crashReports)
     }
