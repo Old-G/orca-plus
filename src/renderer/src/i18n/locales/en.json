@@ -2396,7 +2396,8 @@
         "linearModeHasWorktreeTooltip": "Linear tickets linked to an Orca workspace",
         "linearEmptyHasWorktree": "No Linear tickets are linked to an Orca workspace yet. Start work from a Linear issue to see it here.",
         "linearOpenAttachedWorkspace": "Open workspace attached to {{value0}}",
-        "linearWorktreesColumn": "Workspaces"
+        "linearWorktreesColumn": "Workspaces",
+        "clickUpSource": "ClickUp"
       },
       "Terminal": {
         "73768427cf": "Close",
@@ -17424,6 +17425,52 @@
             "verifying": "Verifying...",
             "connect": "Connect",
             "tokenPlaceholder": "pk_..."
+          }
+        }
+      },
+      "task-page": {
+        "clickup": {
+          "Content": {
+            "connectTitle": "Connect ClickUp",
+            "connectBody": "Browse your ClickUp tasks and start a workspace from any of them.",
+            "connect": "Connect ClickUp",
+            "hide": "Hide ClickUp",
+            "shown": "{{count}} shown",
+            "empty": "No ClickUp tasks found",
+            "emptySearch": "Title search covers the 500 most recently updated tasks in this view.",
+            "emptyFilter": "No open tasks match these filters."
+          },
+          "Filters": {
+            "mine": "Assigned to me",
+            "all": "Everyone",
+            "includeDone": "Include done",
+            "space": "Space",
+            "allSpaces": "All spaces",
+            "list": "List",
+            "allLists": "All lists",
+            "refresh": "Refresh ClickUp tasks",
+            "searchPlaceholder": "Search by title, DEV-123 or a ClickUp link, then press Enter",
+            "search": "Search tasks"
+          },
+          "TaskList": {
+            "unassigned": "Unassigned",
+            "startWorkspace": "Start workspace"
+          },
+          "TaskSheet": {
+            "title": "ClickUp task",
+            "description": "Preview the task, change its status, comment, and start work from it.",
+            "start": "Start workspace",
+            "open": "Open in ClickUp",
+            "close": "Close",
+            "status": "Status",
+            "unassigned": "Unassigned",
+            "due": "Due {{date}}",
+            "noDescription": "No description provided.",
+            "loading": "Loading task…",
+            "comments": "Comments",
+            "noComments": "No comments yet.",
+            "commentPlaceholder": "Add a comment to this task",
+            "comment": "Comment"
           }
         }
       }

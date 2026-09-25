@@ -2009,7 +2009,8 @@
         "jiraLinkSourceUnavailable": "Couldn’t link this Jira issue. Reconnect Jira or pick the matching site, then try again.",
         "loadPageUnreachable": "La página {{value0}} está más allá de lo que la búsqueda de GitHub puede devolver.",
         "loadPageFailed": "No se pudo cargar la página {{value0}} desde GitHub.",
-        "loadPageNoMoreResults": "No hay más resultados en la página {{value0}}."
+        "loadPageNoMoreResults": "No hay más resultados en la página {{value0}}.",
+        "clickUpSource": "ClickUp"
       },
       "Terminal": {
         "73768427cf": "Cerrar",
@@ -14781,6 +14782,52 @@
             "verifying": "Verificando...",
             "connect": "Conectar",
             "tokenPlaceholder": "pk_..."
+          }
+        }
+      },
+      "task-page": {
+        "clickup": {
+          "Content": {
+            "connectTitle": "Conectar ClickUp",
+            "connectBody": "Explora tus tareas de ClickUp e inicia un espacio de trabajo desde cualquiera de ellas.",
+            "connect": "Conectar ClickUp",
+            "hide": "Ocultar ClickUp",
+            "shown": "{{count}} mostradas",
+            "empty": "No se encontraron tareas de ClickUp",
+            "emptySearch": "La búsqueda por título abarca las 500 tareas actualizadas más recientemente en esta vista.",
+            "emptyFilter": "Ninguna tarea abierta coincide con estos filtros."
+          },
+          "Filters": {
+            "mine": "Asignadas a mí",
+            "all": "Todos",
+            "includeDone": "Incluir terminadas",
+            "space": "Espacio",
+            "allSpaces": "Todos los espacios",
+            "list": "Lista",
+            "allLists": "Todas las listas",
+            "refresh": "Actualizar tareas de ClickUp",
+            "searchPlaceholder": "Busca por título, DEV-123 o un enlace de ClickUp y pulsa Intro",
+            "search": "Buscar tareas"
+          },
+          "TaskList": {
+            "unassigned": "Sin asignar",
+            "startWorkspace": "Iniciar espacio de trabajo"
+          },
+          "TaskSheet": {
+            "title": "Tarea de ClickUp",
+            "description": "Previsualiza la tarea, cambia su estado, coméntala e inicia el trabajo desde ella.",
+            "start": "Iniciar espacio de trabajo",
+            "open": "Abrir en ClickUp",
+            "close": "Cerrar",
+            "status": "Estado",
+            "unassigned": "Sin asignar",
+            "due": "Vence el {{date}}",
+            "noDescription": "No se proporcionó descripción.",
+            "loading": "Cargando tarea…",
+            "comments": "Comentarios",
+            "noComments": "Aún no hay comentarios.",
+            "commentPlaceholder": "Añade un comentario a esta tarea",
+            "comment": "Comentar"
           }
         }
       }

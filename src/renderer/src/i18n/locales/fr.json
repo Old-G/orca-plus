@@ -2343,7 +2343,8 @@
         "linearModeHasWorktreeTooltip": "Tickets Linear liés à un espace de travail Orca",
         "linearEmptyHasWorktree": "Aucun ticket Linear n'est encore lié à un espace de travail Orca. Démarrez le travail depuis une issue Linear pour le voir ici.",
         "linearOpenAttachedWorkspace": "Ouvrir l'espace de travail attaché à {{value0}}",
-        "linearWorktreesColumn": "Espaces de travail"
+        "linearWorktreesColumn": "Espaces de travail",
+        "clickUpSource": "ClickUp"
       },
       "Terminal": {
         "73768427cf": "Fermer",
@@ -17362,6 +17363,52 @@
             "verifying": "Vérification...",
             "connect": "Connecter",
             "tokenPlaceholder": "pk_..."
+          }
+        }
+      },
+      "task-page": {
+        "clickup": {
+          "Content": {
+            "connectTitle": "Connecter ClickUp",
+            "connectBody": "Parcourez vos tâches ClickUp et démarrez un espace de travail à partir de n'importe laquelle.",
+            "connect": "Connecter ClickUp",
+            "hide": "Masquer ClickUp",
+            "shown": "{{count}} affichées",
+            "empty": "Aucune tâche ClickUp trouvée",
+            "emptySearch": "La recherche par titre couvre les 500 tâches mises à jour le plus récemment dans cette vue.",
+            "emptyFilter": "Aucune tâche ouverte ne correspond à ces filtres."
+          },
+          "Filters": {
+            "mine": "Assignées à moi",
+            "all": "Tout le monde",
+            "includeDone": "Inclure les terminées",
+            "space": "Espace",
+            "allSpaces": "Tous les espaces",
+            "list": "Liste",
+            "allLists": "Toutes les listes",
+            "refresh": "Actualiser les tâches ClickUp",
+            "searchPlaceholder": "Recherchez par titre, DEV-123 ou un lien ClickUp, puis appuyez sur Entrée",
+            "search": "Rechercher des tâches"
+          },
+          "TaskList": {
+            "unassigned": "Non assigné",
+            "startWorkspace": "Démarrer l'espace de travail"
+          },
+          "TaskSheet": {
+            "title": "Tâche ClickUp",
+            "description": "Prévisualisez la tâche, changez son statut, commentez-la et démarrez le travail à partir de celle-ci.",
+            "start": "Démarrer l'espace de travail",
+            "open": "Ouvrir dans ClickUp",
+            "close": "Fermer",
+            "status": "Statut",
+            "unassigned": "Non assigné",
+            "due": "Échéance le {{date}}",
+            "noDescription": "Aucune description fournie.",
+            "loading": "Chargement de la tâche…",
+            "comments": "Commentaires",
+            "noComments": "Aucun commentaire pour le moment.",
+            "commentPlaceholder": "Ajouter un commentaire à cette tâche",
+            "comment": "Commenter"
           }
         }
       }

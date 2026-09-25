@@ -2240,7 +2240,8 @@
         "jiraLinkSourceUnavailable": "Couldn’t link this Jira issue. Reconnect Jira or pick the matching site, then try again.",
         "loadPageUnreachable": "{{value0}} 페이지는 GitHub 검색이 반환할 수 있는 범위를 벗어났습니다.",
         "loadPageFailed": "GitHub에서 {{value0}} 페이지를 불러오지 못했습니다.",
-        "loadPageNoMoreResults": "{{value0}} 페이지에 더 이상 결과가 없습니다."
+        "loadPageNoMoreResults": "{{value0}} 페이지에 더 이상 결과가 없습니다.",
+        "clickUpSource": "ClickUp"
       },
       "Terminal": {
         "73768427cf": "닫기",
@@ -17263,6 +17264,52 @@
             "verifying": "확인 중...",
             "connect": "연결",
             "tokenPlaceholder": "pk_..."
+          }
+        }
+      },
+      "task-page": {
+        "clickup": {
+          "Content": {
+            "connectTitle": "ClickUp 연결",
+            "connectBody": "ClickUp 작업을 둘러보고 어떤 작업에서든 워크스페이스를 시작하세요.",
+            "connect": "ClickUp 연결",
+            "hide": "ClickUp 숨기기",
+            "shown": "{{count}}개 표시됨",
+            "empty": "ClickUp 작업을 찾을 수 없습니다",
+            "emptySearch": "제목 검색은 이 보기에서 최근 업데이트된 작업 500개를 대상으로 합니다.",
+            "emptyFilter": "이 필터와 일치하는 열린 작업이 없습니다."
+          },
+          "Filters": {
+            "mine": "나에게 할당됨",
+            "all": "모든 사람",
+            "includeDone": "완료 포함",
+            "space": "스페이스",
+            "allSpaces": "모든 스페이스",
+            "list": "목록",
+            "allLists": "모든 목록",
+            "refresh": "ClickUp 작업 새로 고침",
+            "searchPlaceholder": "제목, DEV-123 또는 ClickUp 링크로 검색한 뒤 Enter를 누르세요",
+            "search": "작업 검색"
+          },
+          "TaskList": {
+            "unassigned": "할당되지 않음",
+            "startWorkspace": "워크스페이스 시작"
+          },
+          "TaskSheet": {
+            "title": "ClickUp 작업",
+            "description": "작업을 미리 보고, 상태를 바꾸고, 댓글을 달고, 작업을 시작하세요.",
+            "start": "워크스페이스 시작",
+            "open": "ClickUp에서 열기",
+            "close": "닫기",
+            "status": "상태",
+            "unassigned": "할당되지 않음",
+            "due": "마감 {{date}}",
+            "noDescription": "설명이 제공되지 않았습니다.",
+            "loading": "작업 불러오는 중…",
+            "comments": "댓글",
+            "noComments": "아직 댓글이 없습니다.",
+            "commentPlaceholder": "이 작업에 댓글 추가",
+            "comment": "댓글 달기"
           }
         }
       }

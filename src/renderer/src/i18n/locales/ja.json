@@ -2240,7 +2240,8 @@
         "jiraLinkSourceUnavailable": "この Jira Issue をリンクできませんでした。Jira に再接続するか該当するサイトを選択してから、もう一度お試しください。",
         "loadPageUnreachable": "ページ {{value0}} は GitHub 検索が返せる範囲を超えています。",
         "loadPageFailed": "GitHub からページ {{value0}} を読み込めませんでした。",
-        "loadPageNoMoreResults": "ページ {{value0}} にはこれ以上結果がありません。"
+        "loadPageNoMoreResults": "ページ {{value0}} にはこれ以上結果がありません。",
+        "clickUpSource": "ClickUp"
       },
       "Terminal": {
         "73768427cf": "閉じる",
@@ -17263,6 +17264,52 @@
             "verifying": "確認中…",
             "connect": "接続",
             "tokenPlaceholder": "pk_..."
+          }
+        }
+      },
+      "task-page": {
+        "clickup": {
+          "Content": {
+            "connectTitle": "ClickUp に接続",
+            "connectBody": "ClickUp のタスクを閲覧し、どのタスクからでもワークスペースを開始できます。",
+            "connect": "ClickUp に接続",
+            "hide": "ClickUp を非表示",
+            "shown": "{{count}} 件を表示",
+            "empty": "ClickUp のタスクが見つかりません",
+            "emptySearch": "タイトル検索の対象は、このビューで最近更新された 500 件のタスクです。",
+            "emptyFilter": "これらのフィルターに一致する未完了のタスクはありません。"
+          },
+          "Filters": {
+            "mine": "自分に割り当て",
+            "all": "全員",
+            "includeDone": "完了を含める",
+            "space": "スペース",
+            "allSpaces": "すべてのスペース",
+            "list": "リスト",
+            "allLists": "すべてのリスト",
+            "refresh": "ClickUp のタスクを更新",
+            "searchPlaceholder": "タイトル、DEV-123、または ClickUp のリンクで検索し、Enter を押します",
+            "search": "タスクを検索"
+          },
+          "TaskList": {
+            "unassigned": "未割り当て",
+            "startWorkspace": "ワークスペースを開始"
+          },
+          "TaskSheet": {
+            "title": "ClickUp タスク",
+            "description": "タスクをプレビューし、ステータスの変更、コメント、作業の開始ができます。",
+            "start": "ワークスペースを開始",
+            "open": "ClickUp で開く",
+            "close": "閉じる",
+            "status": "ステータス",
+            "unassigned": "未割り当て",
+            "due": "期限 {{date}}",
+            "noDescription": "説明はありません。",
+            "loading": "タスクを読み込み中…",
+            "comments": "コメント",
+            "noComments": "まだコメントはありません。",
+            "commentPlaceholder": "このタスクにコメントを追加",
+            "comment": "コメント"
           }
         }
       }

@@ -2240,7 +2240,8 @@
         "jiraLinkSourceUnavailable": "无法关联此 Jira 议题。请重新连接 Jira 或选择匹配的站点，然后重试。",
         "loadPageUnreachable": "第 {{value0}} 页超出了 GitHub 搜索可返回的范围。",
         "loadPageFailed": "无法从 GitHub 加载第 {{value0}} 页。",
-        "loadPageNoMoreResults": "第 {{value0}} 页没有更多结果。"
+        "loadPageNoMoreResults": "第 {{value0}} 页没有更多结果。",
+        "clickUpSource": "ClickUp"
       },
       "Terminal": {
         "73768427cf": "关闭",
@@ -17263,6 +17264,52 @@
             "verifying": "正在验证...",
             "connect": "连接",
             "tokenPlaceholder": "pk_..."
+          }
+        }
+      },
+      "task-page": {
+        "clickup": {
+          "Content": {
+            "connectTitle": "连接 ClickUp",
+            "connectBody": "浏览你的 ClickUp 任务，并从任意任务启动工作区。",
+            "connect": "连接 ClickUp",
+            "hide": "隐藏 ClickUp",
+            "shown": "显示 {{count}} 个",
+            "empty": "未找到 ClickUp 任务",
+            "emptySearch": "标题搜索范围为此视图中最近更新的 500 个任务。",
+            "emptyFilter": "没有符合这些筛选条件的未完成任务。"
+          },
+          "Filters": {
+            "mine": "分配给我",
+            "all": "所有人",
+            "includeDone": "包含已完成",
+            "space": "空间",
+            "allSpaces": "所有空间",
+            "list": "列表",
+            "allLists": "所有列表",
+            "refresh": "刷新 ClickUp 任务",
+            "searchPlaceholder": "按标题、DEV-123 或 ClickUp 链接搜索，然后按 Enter",
+            "search": "搜索任务"
+          },
+          "TaskList": {
+            "unassigned": "未分配",
+            "startWorkspace": "启动工作区"
+          },
+          "TaskSheet": {
+            "title": "ClickUp 任务",
+            "description": "预览任务、更改状态、评论并从中开始工作。",
+            "start": "启动工作区",
+            "open": "在 ClickUp 中打开",
+            "close": "关闭",
+            "status": "状态",
+            "unassigned": "未分配",
+            "due": "截止 {{date}}",
+            "noDescription": "没有提供描述。",
+            "loading": "正在加载任务…",
+            "comments": "评论",
+            "noComments": "暂无评论。",
+            "commentPlaceholder": "为此任务添加评论",
+            "comment": "评论"
           }
         }
       }
