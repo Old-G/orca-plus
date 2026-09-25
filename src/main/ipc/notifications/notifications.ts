@@ -177,16 +177,19 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
         import('./notification-authorization-status'),
         import('./notification-permission-probe'),
         import('./native-notification-delivery'),
-        import('../../external-conversations/external-conversation-links')
+        import('../../external-conversations/external-conversation-links'),
+        import('../../slack/slack-notification-channel')
       ]).then(
         ([
           { createNotificationDeliveryService: createService },
           { readNotificationAuthorizationStatus },
           { recordNotificationDeliveryOutcome },
           { deliverNativeNotification },
-          { sessionRepliesInSlack }
-        ]) =>
-          createService({
+          { sessionRepliesInSlack },
+          { createSlackNotificationChannel }
+        ]) => {
+          const slackChannel = createSlackNotificationChannel(store, runtime)
+          return createService({
             readNotificationSettings: () => store.getSettings().notifications,
             findActiveWindow: () =>
               BrowserWindow.getAllWindows().find((window) => !window.isDestroyed()) ?? null,
@@ -237,8 +240,17 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
                   )
                 )
               }
+            },
+            dispatchSlackNotification: (request) => void slackChannel.notify(request),
+            isDesktopAway: () => {
+              try {
+                return readDesktopAwayState(powerMonitor)
+              } catch {
+                return undefined
+              }
             }
           })
+        }
       )
     }
     return deliveryServicePromise
