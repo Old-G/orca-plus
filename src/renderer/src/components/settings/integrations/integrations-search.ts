@@ -14,7 +14,8 @@ export const INTEGRATION_SETTING_TARGET_IDS = {
   azuredevops: 'integrations-azure-devops',
   gitea: 'integrations-gitea',
   jira: JIRA_INTEGRATION_SECTION_ID,
-  linear: LINEAR_INTEGRATION_SECTION_ID
+  linear: LINEAR_INTEGRATION_SECTION_ID,
+  clickup: 'integrations-clickup'
 } as const
 
 export const getIntegrationsPaneSearchEntries = createLocalizedCatalog(() => [
@@ -173,6 +174,35 @@ export const getIntegrationsPaneSearchEntries = createLocalizedCatalog(() => [
       ...translateSearchKeyword(
         'auto.components.settings.integrations.search.2ec2bd328c',
         'api token'
+      )
+    ]
+  },
+  {
+    targetSectionId: INTEGRATION_SETTING_TARGET_IDS.clickup,
+    title: translate(
+      'auto.components.settings.integrations.search.clickUpTitle',
+      'ClickUp Integration'
+    ),
+    description: translate(
+      'auto.components.settings.integrations.search.clickUpDescription',
+      'Connect ClickUp or replace the personal API token.'
+    ),
+    keywords: [
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.clickUpKeyword',
+        'clickup'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.c450244ad7',
+        'integration'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.2ec2bd328c',
+        'api token'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.3c3d3d8ffa',
+        'connect'
       )
     ]
   },

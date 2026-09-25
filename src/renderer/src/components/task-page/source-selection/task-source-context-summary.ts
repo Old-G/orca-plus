@@ -62,7 +62,7 @@ export function getTaskSourceContextSummary(
   args:
     | ({ provider: Extract<TaskProvider, 'github' | 'gitlab'> } & RepoBackedTaskSourceSummaryArgs)
     | {
-        provider: Extract<TaskProvider, 'linear' | 'jira'>
+        provider: Extract<TaskProvider, 'linear' | 'jira' | 'clickup'>
         providerLabel: string
         hostAvailability?: readonly TaskSourceHostAvailability[]
         hostLabelById?: HostLabelLookup
@@ -88,10 +88,11 @@ export function getTaskSourceContextSummary(
         t
       )
     case 'jira':
+    case 'clickup':
       return getAccountBackedTaskSourceSummary(
         args.providerLabel,
         {
-          accountLabel: args.jiraSiteName,
+          accountLabel: args.provider === 'jira' ? args.jiraSiteName : null,
           accountHostId: args.accountHostId,
           hostLabelById: args.hostLabelById,
           hostAvailability: args.hostAvailability
@@ -236,6 +237,7 @@ function getProviderIdentityLabel(
         ? `${identity.namespace}/${identity.project}`
         : (identity.projectId ?? null)
     case 'linear':
+    case 'clickup':
       return identity.workspaceName ?? identity.workspaceId ?? null
     case 'jira':
       return identity.siteUrl ?? identity.siteId ?? null
