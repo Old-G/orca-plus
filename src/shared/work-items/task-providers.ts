@@ -8,6 +8,11 @@ export const TASK_PROVIDERS: readonly TaskProvider[] = [
   'clickup'
 ]
 
+export type TaskProviderRolloutFlags = {
+  /** Why: one-shot guard to show ClickUp for profiles saved before it existed, without re-adding after an opt-out. */
+  visibleTaskProvidersDefaultedForClickUp: boolean
+}
+
 const TASK_PROVIDER_SET = new Set<TaskProvider>(TASK_PROVIDERS)
 
 export function isTaskProvider(value: unknown): value is TaskProvider {
