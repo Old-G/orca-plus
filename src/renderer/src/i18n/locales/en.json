@@ -8750,7 +8750,9 @@
           "integrationsHint": "Credentials for all providers also live under",
           "integrationsLink": "Integrations",
           "skillHint": ". After Linear is connected, usage examples stay under Settings → Linear.",
-          "incompleteBannerBodyWithLinear": "Hide providers you do not use, or expand a card and finish its steps. For Linear: API access, the agent skill, and Show in Tasks."
+          "incompleteBannerBodyWithLinear": "Hide providers you do not use, or expand a card and finish its steps. For Linear: API access, the agent skill, and Show in Tasks.",
+          "clickUpLabel": "ClickUp",
+          "clickUpDescription": "Connect ClickUp with a personal API token and show it in Tasks."
         },
         "TerminalAppearanceSection": {
           "a14a427ae4": "Thickness of the pane divider line.",
@@ -10067,7 +10069,10 @@
             "7166b9090c": "GitHub authentication via the gh CLI.",
             "f16e41cc72": "GitHub Integration",
             "760e2446e0": "Bitbucket Cloud authentication with a saved API token or environment variables.",
-            "af5ae87847": "access token"
+            "af5ae87847": "access token",
+            "clickUpTitle": "ClickUp Integration",
+            "clickUpDescription": "Connect ClickUp or replace the personal API token.",
+            "clickUpKeyword": "clickup"
           }
         },
         "jira": {
@@ -10572,7 +10577,8 @@
             "setup": "setup",
             "apiKey": "api key",
             "skill": "skill",
-            "connect": "connect"
+            "connect": "connect",
+            "clickup": "clickup"
           }
         },
         "terminal": {
@@ -12209,6 +12215,34 @@
         "TerminalRenderingSection": {
           "6d4c55bacc": "Inline Images",
           "fffab5890b": "Display images directly in the terminal using SIXEL, iTerm2 (IIP), and Kitty graphics protocols."
+        },
+        "ClickUpSetupSteps": {
+          "connectTitle": "Connect ClickUp",
+          "connectDescription": "Add a personal API token from ClickUp Settings → Apps.",
+          "manage": "Manage token",
+          "add": "Add ClickUp access"
+        },
+        "clickup": {
+          "integration": {
+            "card": {
+              "connectedAs": "Connected as {{name}}",
+              "checking": "Checking ClickUp access before showing setup actions.",
+              "pitch": "Browse your ClickUp tasks and start workspaces from them.",
+              "connected": "Connected",
+              "notConnected": "Not connected",
+              "replaceToken": "Replace token",
+              "connect": "Connect ClickUp",
+              "accountScope": "Account scope",
+              "verified": "Verified",
+              "testing": "Testing...",
+              "test": "Test",
+              "disconnect": "Disconnect",
+              "workspace": "Workspace",
+              "remoteCopy": "Connect with a ClickUp personal API token. It is sent to the selected remote runtime and stored there with runtime-supported encryption.",
+              "localCopy": "Connect with a ClickUp personal API token. It is stored locally and encrypted when local runtime storage supports it.",
+              "recheck": "Re-check"
+            }
+          }
         }
       },
       "right": {
@@ -17370,6 +17404,23 @@
             "action": "Mention in Claude Code",
             "noSession": "No Claude Code session is connected to Orca",
             "noSessionHint": "Start claude in an Orca terminal, then mention again."
+          }
+        }
+      },
+      "clickup": {
+        "connect": {
+          "dialog": {
+            "title": "Connect ClickUp",
+            "description": "Paste a personal API token. Orca reads your tasks, and changes a status or adds a comment only when you do it from Orca.",
+            "tokenLabel": "Personal API token",
+            "tokenHelp": "Create it in ClickUp under Settings → Apps → API Token. The token acts as your account, with your workspace permissions.",
+            "openSettings": "ClickUp API settings",
+            "remoteStorage": "This token is stored by the active remote runtime.",
+            "localStorage": "The token is stored on this device using Electron encrypted storage when available.",
+            "cancel": "Cancel",
+            "verifying": "Verifying...",
+            "connect": "Connect",
+            "tokenPlaceholder": "pk_..."
           }
         }
       }

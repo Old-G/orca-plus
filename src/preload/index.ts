@@ -30,6 +30,7 @@ import { glApiBridge } from './api/gl-bridge'
 import { bitbucketApi } from './api/bitbucket-bridge'
 import { linearApi } from './api/linear-bridge'
 import { jiraApi } from './api/jira-bridge'
+import { clickupApi } from './api/clickup-bridge'
 import { lspApi } from './api/lsp-bridge'
 import { claudeIdeApi } from './api/claude-ide-bridge'
 import { starNagApi } from './api/star-nag-bridge'
@@ -130,6 +131,7 @@ const api = {
   bitbucket: bitbucketApi,
   linear: linearApi,
   jira: jiraApi,
+  clickup: clickupApi,
   lsp: lspApi,
   claudeIde: claudeIdeApi,
   starNag: starNagApi,

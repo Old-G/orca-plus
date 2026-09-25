@@ -107,6 +107,17 @@ import {
 } from './browser-params'
 import { ScreencastUnsubscribe } from './browser-screencast-params'
 import { BrowserOpenUrlParams, BrowserTabCreateParams } from './browser-tab-create-params'
+import {
+  Connect,
+  ListRef,
+  ListTasks,
+  SearchTasks,
+  SelectWorkspace,
+  SpaceRef,
+  TaskComment,
+  TaskRef,
+  TaskStatusUpdate
+} from './clickup-params'
 import { ClientEventsUnsubscribeParams } from './client-events-params'
 import {
   NativeChatSessionOptionsMutation,
@@ -291,7 +302,7 @@ import {
 } from './hosted-review-params'
 import {
   AssignableUsers,
-  Connect,
+  Connect as ConnectOfJiraParams,
   CreateIssue as CreateIssueOfJiraParams,
   IssueComment as IssueCommentOfJiraParams,
   IssueKey,
@@ -339,7 +350,7 @@ import {
   ProjectId,
   ProjectIssues,
   SearchIssues as SearchIssuesOfLinearParams,
-  SelectWorkspace,
+  SelectWorkspace as SelectWorkspaceOfLinearParams,
   TeamId,
   WorkspaceSelection
 } from './linear-params'
@@ -708,6 +719,20 @@ export const RPC_PARAMS_BY_METHOD = {
   'browser.upload': Upload,
   'browser.viewport': Viewport,
   'browser.wait': Wait,
+  'clickup.addTaskComment': TaskComment,
+  'clickup.connect': Connect,
+  'clickup.disconnect': null,
+  'clickup.getTask': TaskRef,
+  'clickup.listLists': SpaceRef,
+  'clickup.listSpaces': null,
+  'clickup.listStatuses': ListRef,
+  'clickup.listTasks': ListTasks,
+  'clickup.searchTasks': SearchTasks,
+  'clickup.selectWorkspace': SelectWorkspace,
+  'clickup.status': null,
+  'clickup.taskComments': TaskRef,
+  'clickup.testConnection': null,
+  'clickup.updateTaskStatus': TaskStatusUpdate,
   'clipboard.abortImageUpload': AbortImageUpload,
   'clipboard.appendImageUploadChunk': AppendImageUploadChunk,
   'clipboard.commitImageUpload': CommitImageUpload,
@@ -901,7 +926,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
   'jira.addIssueComment': IssueCommentOfJiraParams,
-  'jira.connect': Connect,
+  'jira.connect': ConnectOfJiraParams,
   'jira.createIssue': CreateIssueOfJiraParams,
   'jira.disconnect': SiteSelection,
   'jira.getIssue': IssueKey,
@@ -958,7 +983,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'linear.resolveCurrentIssue': LinearCurrentContext,
   'linear.saveIssue': LinearSaveIssue,
   'linear.searchIssues': SearchIssuesOfLinearParams,
-  'linear.selectWorkspace': SelectWorkspace,
+  'linear.selectWorkspace': SelectWorkspaceOfLinearParams,
   'linear.status': null,
   'linear.teamLabels': TeamId,
   'linear.teamMembers': TeamId,

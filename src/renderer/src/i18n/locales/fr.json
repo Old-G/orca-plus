@@ -8687,7 +8687,9 @@
           "integrationsHint": "Les identifiants de tous les fournisseurs se trouvent aussi sous",
           "integrationsLink": "Intégrations",
           "skillHint": ". Une fois Linear connecté, des exemples d'utilisation restent disponibles sous Paramètres → Linear.",
-          "incompleteBannerBodyWithLinear": "Masquez les fournisseurs que vous n'utilisez pas, ou dépliez une carte et terminez ses étapes. Pour Linear : accès API, skill d'agent et Afficher dans Tâches."
+          "incompleteBannerBodyWithLinear": "Masquez les fournisseurs que vous n'utilisez pas, ou dépliez une carte et terminez ses étapes. Pour Linear : accès API, skill d'agent et Afficher dans Tâches.",
+          "clickUpLabel": "ClickUp",
+          "clickUpDescription": "Connectez ClickUp avec un jeton d'API personnel et affichez-le dans Tâches."
         },
         "TerminalAppearanceSection": {
           "a14a427ae4": "Épaisseur de la ligne de séparation des volets.",
@@ -10004,7 +10006,10 @@
             "7166b9090c": "Authentification GitHub via la CLI gh.",
             "f16e41cc72": "Intégration GitHub",
             "760e2446e0": "Authentification Bitbucket Cloud avec un jeton API enregistré ou des variables d'environnement.",
-            "af5ae87847": "jeton d'accès"
+            "af5ae87847": "jeton d'accès",
+            "clickUpTitle": "Intégration ClickUp",
+            "clickUpDescription": "Connecter ClickUp ou remplacer le jeton d'API personnel.",
+            "clickUpKeyword": "clickup"
           }
         },
         "jira": {
@@ -10509,7 +10514,8 @@
             "setup": "configuration",
             "apiKey": "clé API",
             "skill": "skill",
-            "connect": "connect"
+            "connect": "connect",
+            "clickup": "clickup"
           }
         },
         "terminal": {
@@ -12151,6 +12157,34 @@
         "TerminalRenderingSection": {
           "6d4c55bacc": "Images en ligne",
           "fffab5890b": "Affichez les images directement dans le terminal à l'aide des protocoles graphiques SIXEL, iTerm2 (IIP) et Kitty."
+        },
+        "ClickUpSetupSteps": {
+          "connectTitle": "Connecter ClickUp",
+          "connectDescription": "Ajoutez un jeton d'API personnel depuis Paramètres → Apps de ClickUp.",
+          "manage": "Gérer le jeton",
+          "add": "Ajouter l'accès ClickUp"
+        },
+        "clickup": {
+          "integration": {
+            "card": {
+              "connectedAs": "Connecté en tant que {{name}}",
+              "checking": "Vérification de l'accès ClickUp avant d'afficher les actions de configuration.",
+              "pitch": "Parcourez vos tâches ClickUp et démarrez des espaces de travail à partir de celles-ci.",
+              "connected": "Connecté",
+              "notConnected": "Non connecté",
+              "replaceToken": "Remplacer le jeton",
+              "connect": "Connecter ClickUp",
+              "accountScope": "Portée des comptes",
+              "verified": "Vérifié",
+              "testing": "Test en cours...",
+              "test": "Tester",
+              "disconnect": "Déconnecter",
+              "workspace": "Espace ClickUp",
+              "remoteCopy": "Connectez-vous avec un jeton d'API personnel ClickUp. Il est envoyé au runtime distant sélectionné et y est stocké avec le chiffrement pris en charge par le runtime.",
+              "localCopy": "Connectez-vous avec un jeton d'API personnel ClickUp. Il est stocké localement et chiffré lorsque le stockage local du runtime le permet.",
+              "recheck": "Revérifier"
+            }
+          }
         }
       },
       "right": {
@@ -17310,6 +17344,23 @@
         "dispatchRejected": "L'agent a refusé le message « continuer ». Ouvrez le chat et envoyez-en un vous-même.",
         "unsupported": "Ce chat ne peut pas être repris par Orca. Ouvrez-le pour voir où il s'est arrêté.",
         "fallback": "Orca n'a pas pu reprendre cette conversation. Ouvrez-le pour continuer manuellement."
+      },
+      "clickup": {
+        "connect": {
+          "dialog": {
+            "title": "Connecter ClickUp",
+            "description": "Collez un jeton d'API personnel. Orca lit vos tâches et ne change un statut ou n'ajoute un commentaire que lorsque vous le faites depuis Orca.",
+            "tokenLabel": "Jeton d'API personnel",
+            "tokenHelp": "Créez-le dans ClickUp sous Paramètres → Apps → API Token. Le jeton agit en votre nom, avec vos autorisations sur l'espace.",
+            "openSettings": "Paramètres d'API ClickUp",
+            "remoteStorage": "Ce jeton est stocké par le runtime distant actif.",
+            "localStorage": "Le jeton est stocké sur cet appareil avec le stockage chiffré d'Electron lorsqu'il est disponible.",
+            "cancel": "Annuler",
+            "verifying": "Vérification...",
+            "connect": "Connecter",
+            "tokenPlaceholder": "pk_..."
+          }
+        }
       }
     },
     "i18n": {

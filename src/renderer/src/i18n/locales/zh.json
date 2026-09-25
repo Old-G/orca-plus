@@ -8531,7 +8531,9 @@
           "integrationsHint": "所有提供商的凭据也可在此管理：",
           "integrationsLink": "集成",
           "skillHint": "。连接 Linear 后，可在设置 → Linear 中查看使用示例。",
-          "incompleteBannerBodyWithLinear": "隐藏不使用的提供商，或展开卡片并完成其中的步骤。Linear 需要 API 访问权限、智能体技能以及在任务中显示。"
+          "incompleteBannerBodyWithLinear": "隐藏不使用的提供商，或展开卡片并完成其中的步骤。Linear 需要 API 访问权限、智能体技能以及在任务中显示。",
+          "clickUpLabel": "ClickUp",
+          "clickUpDescription": "使用个人 API 令牌连接 ClickUp，并在任务中显示。"
         },
         "TerminalAppearanceSection": {
           "a14a427ae4": "窗格分隔线的厚度。",
@@ -9844,7 +9846,10 @@
             "7166b9090c": "通过 gh CLI 进行 GitHub 身份验证。",
             "f16e41cc72": "GitHub 集成",
             "760e2446e0": "使用保存的 API 令牌或环境变量进行 Bitbucket Cloud 身份验证。",
-            "af5ae87847": "访问令牌"
+            "af5ae87847": "访问令牌",
+            "clickUpTitle": "ClickUp 集成",
+            "clickUpDescription": "连接 ClickUp 或替换个人 API 令牌。",
+            "clickUpKeyword": "clickup"
           }
         },
         "jira": {
@@ -10352,7 +10357,8 @@
             "setup": "设置",
             "apiKey": "API 密钥",
             "skill": "技能",
-            "connect": "连接"
+            "connect": "连接",
+            "clickup": "clickup"
           }
         },
         "terminal": {
@@ -12048,6 +12054,34 @@
         "TerminalRenderingSection": {
           "6d4c55bacc": "内嵌图像",
           "fffab5890b": "使用 SIXEL、iTerm2 (IIP) 和 Kitty 图形协议直接在终端中显示图像。"
+        },
+        "ClickUpSetupSteps": {
+          "connectTitle": "连接 ClickUp",
+          "connectDescription": "在 ClickUp 的设置 → Apps 中添加个人 API 令牌。",
+          "manage": "管理令牌",
+          "add": "添加 ClickUp 访问权限"
+        },
+        "clickup": {
+          "integration": {
+            "card": {
+              "connectedAs": "已以 {{name}} 身份连接",
+              "checking": "正在检查 ClickUp 访问权限，然后显示设置操作。",
+              "pitch": "浏览你的 ClickUp 任务，并从中启动工作区。",
+              "connected": "已连接",
+              "notConnected": "未连接",
+              "replaceToken": "替换令牌",
+              "connect": "连接 ClickUp",
+              "accountScope": "账户范围",
+              "verified": "已验证",
+              "testing": "测试中...",
+              "test": "测试",
+              "disconnect": "断开连接",
+              "workspace": "ClickUp 工作空间",
+              "remoteCopy": "使用 ClickUp 个人 API 令牌连接。令牌会发送到所选的远程运行时，并以运行时支持的加密方式存储。",
+              "localCopy": "使用 ClickUp 个人 API 令牌连接。令牌存储在本地，并在本地运行时存储支持时加密。",
+              "recheck": "重新检查"
+            }
+          }
         }
       },
       "right": {
@@ -17211,6 +17245,23 @@
         "dispatchRejected": "代理拒绝了“继续”消息。打开聊天并自己发送一个。",
         "unsupported": "Orca 无法恢复此聊天。打开它看看它停在哪里。",
         "fallback": "Orca 无法恢复此聊天。打开它以手动继续。"
+      },
+      "clickup": {
+        "connect": {
+          "dialog": {
+            "title": "连接 ClickUp",
+            "description": "粘贴个人 API 令牌。Orca 会读取你的任务，只有当你在 Orca 中操作时才会更改状态或添加评论。",
+            "tokenLabel": "个人 API 令牌",
+            "tokenHelp": "在 ClickUp 的设置 → Apps → API Token 中创建。该令牌以你的账户身份、按你的工作空间权限运行。",
+            "openSettings": "ClickUp API 设置",
+            "remoteStorage": "此令牌由当前的远程运行时存储。",
+            "localStorage": "令牌在可用时使用 Electron 加密存储保存在此设备上。",
+            "cancel": "取消",
+            "verifying": "正在验证...",
+            "connect": "连接",
+            "tokenPlaceholder": "pk_..."
+          }
+        }
       }
     },
     "i18n": {

@@ -7450,7 +7450,9 @@
           "integrationsHint": "Las credenciales de todos los proveedores también están en",
           "integrationsLink": "Integraciones",
           "skillHint": ". Después de conectar Linear, los ejemplos de uso están en Ajustes → Linear.",
-          "incompleteBannerBodyWithLinear": "Oculta los proveedores que no uses o expande una tarjeta y completa sus pasos. Para Linear: acceso a la API, la habilidad del agente y Mostrar en Tareas."
+          "incompleteBannerBodyWithLinear": "Oculta los proveedores que no uses o expande una tarjeta y completa sus pasos. Para Linear: acceso a la API, la habilidad del agente y Mostrar en Tareas.",
+          "clickUpLabel": "ClickUp",
+          "clickUpDescription": "Conecta ClickUp con un token de API personal y muéstralo en Tareas."
         },
         "TerminalAppearanceSection": {
           "a14a427ae4": "Grosor de la línea divisoria del panel.",
@@ -8639,7 +8641,10 @@
             "41ccade05c": "gh",
             "b79c21bd42": "github",
             "7166b9090c": "Autenticación de GitHub a través de la CLI de gh.",
-            "f16e41cc72": "Integración de GitHub"
+            "f16e41cc72": "Integración de GitHub",
+            "clickUpTitle": "Integración con ClickUp",
+            "clickUpDescription": "Conecta ClickUp o reemplaza el token de API personal.",
+            "clickUpKeyword": "clickup"
           }
         },
         "jira": {
@@ -9120,7 +9125,8 @@
             "setup": "configuración",
             "apiKey": "clave de API",
             "skill": "habilidad",
-            "connect": "conectar"
+            "connect": "conectar",
+            "clickup": "clickup"
           }
         },
         "terminal": {
@@ -10448,6 +10454,34 @@
           "saveFailed": "No se pudieron guardar los valores predeterminados de visibilidad.",
           "updateServer": "Actualiza este servidor para configurar los valores predeterminados de las fuentes.",
           "updateServerDefaults": "Actualiza este servidor para configurar los valores predeterminados de visibilidad."
+        },
+        "ClickUpSetupSteps": {
+          "connectTitle": "Conectar ClickUp",
+          "connectDescription": "Añade un token de API personal desde Ajustes → Apps de ClickUp.",
+          "manage": "Administrar token",
+          "add": "Añadir acceso a ClickUp"
+        },
+        "clickup": {
+          "integration": {
+            "card": {
+              "connectedAs": "Conectado como {{name}}",
+              "checking": "Comprobando el acceso a ClickUp antes de mostrar las acciones de configuración.",
+              "pitch": "Explora tus tareas de ClickUp e inicia espacios de trabajo desde ellas.",
+              "connected": "Conectado",
+              "notConnected": "No conectado",
+              "replaceToken": "Reemplazar token",
+              "connect": "Conectar ClickUp",
+              "accountScope": "Alcance de la cuenta",
+              "verified": "Verificado",
+              "testing": "Probando...",
+              "test": "Probar",
+              "disconnect": "Desconectar",
+              "workspace": "Espacio de ClickUp",
+              "remoteCopy": "Conéctate con un token de API personal de ClickUp. Se envía al runtime remoto seleccionado y se guarda allí con el cifrado que admita el runtime.",
+              "localCopy": "Conéctate con un token de API personal de ClickUp. Se guarda localmente y se cifra cuando el almacenamiento local del runtime lo admite.",
+              "recheck": "Volver a comprobar"
+            }
+          }
         }
       },
       "right": {
@@ -14729,6 +14763,23 @@
         "description": "Anida este espacio de trabajo bajo otro en la barra lateral. No cambia la rama base.",
         "searchPlaceholder": "Buscar espacios de trabajo...",
         "noMatches": "No hay coincidencias."
+      },
+      "clickup": {
+        "connect": {
+          "dialog": {
+            "title": "Conectar ClickUp",
+            "description": "Pega un token de API personal. Orca lee tus tareas y solo cambia un estado o añade un comentario cuando lo haces tú desde Orca.",
+            "tokenLabel": "Token de API personal",
+            "tokenHelp": "Créalo en ClickUp en Ajustes → Apps → API Token. El token actúa como tu cuenta, con tus permisos del espacio.",
+            "openSettings": "Ajustes de API de ClickUp",
+            "remoteStorage": "Este token lo guarda el runtime remoto activo.",
+            "localStorage": "El token se guarda en este dispositivo con el almacenamiento cifrado de Electron cuando está disponible.",
+            "cancel": "Cancelar",
+            "verifying": "Verificando...",
+            "connect": "Conectar",
+            "tokenPlaceholder": "pk_..."
+          }
+        }
       }
     },
     "i18n": {

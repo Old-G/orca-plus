@@ -157,6 +157,34 @@ export const getIntegrationsPaneSearchEntries = createLocalizedCatalog(() => [
     ]
   },
   {
+    title: translate(
+      'auto.components.settings.integrations.search.clickUpTitle',
+      'ClickUp Integration'
+    ),
+    description: translate(
+      'auto.components.settings.integrations.search.clickUpDescription',
+      'Connect ClickUp or replace the personal API token.'
+    ),
+    keywords: [
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.clickUpKeyword',
+        'clickup'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.c450244ad7',
+        'integration'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.2ec2bd328c',
+        'api token'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.3c3d3d8ffa',
+        'connect'
+      )
+    ]
+  },
+  {
     title: translate('auto.components.settings.integrations.search.617603509b', 'Jira Integration'),
     description: translate(
       'auto.components.settings.integrations.search.76f6af7c57',

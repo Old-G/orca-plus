@@ -8568,7 +8568,9 @@
           "integrationsHint": "すべてのプロバイダーの認証情報は次の場所でも管理できます：",
           "integrationsLink": "連携",
           "skillHint": "。Linear の接続後、使用例は設定 → Linear で確認できます。",
-          "incompleteBannerBodyWithLinear": "使用しないプロバイダーを非表示にするか、カードを展開して手順を完了してください。Linear では API アクセス、Agent スキル、タスクへの表示が必要です。"
+          "incompleteBannerBodyWithLinear": "使用しないプロバイダーを非表示にするか、カードを展開して手順を完了してください。Linear では API アクセス、Agent スキル、タスクへの表示が必要です。",
+          "clickUpLabel": "ClickUp",
+          "clickUpDescription": "個人用APIトークンで ClickUp に接続し、タスクに表示します。"
         },
         "TerminalAppearanceSection": {
           "a14a427ae4": "ペイン分割線の太さ。",
@@ -9881,7 +9883,10 @@
             "7166b9090c": "gh CLI を介した GitHub 認証。",
             "f16e41cc72": "GitHub 連携",
             "760e2446e0": "保存された API トークンまたは環境変数を使用した Bitbucket クラウド認証。",
-            "af5ae87847": "アクセストークン"
+            "af5ae87847": "アクセストークン",
+            "clickUpTitle": "ClickUp 連携",
+            "clickUpDescription": "ClickUp に接続するか、個人用APIトークンを置き換えます。",
+            "clickUpKeyword": "clickup"
           }
         },
         "jira": {
@@ -10389,7 +10394,8 @@
             "setup": "セットアップ",
             "apiKey": "APIキー",
             "skill": "スキル",
-            "connect": "接続"
+            "connect": "接続",
+            "clickup": "clickup"
           }
         },
         "terminal": {
@@ -12048,6 +12054,34 @@
         "TerminalRenderingSection": {
           "6d4c55bacc": "インライン画像",
           "fffab5890b": "SIXEL、iTerm2 (IIP)、および Kitty グラフィックスプロトコルを使用して、ターミナルに画像を直接表示します。"
+        },
+        "ClickUpSetupSteps": {
+          "connectTitle": "ClickUp に接続",
+          "connectDescription": "ClickUp の設定 → Apps で個人用APIトークンを追加します。",
+          "manage": "トークンを管理",
+          "add": "ClickUp のアクセスを追加"
+        },
+        "clickup": {
+          "integration": {
+            "card": {
+              "connectedAs": "{{name}} として接続中",
+              "checking": "セットアップ操作を表示する前に ClickUp へのアクセスを確認しています。",
+              "pitch": "ClickUp のタスクを閲覧し、そこからワークスペースを開始します。",
+              "connected": "接続済み",
+              "notConnected": "未接続",
+              "replaceToken": "トークンを置き換える",
+              "connect": "ClickUp に接続",
+              "accountScope": "アカウントスコープ",
+              "verified": "確認済み",
+              "testing": "テスト中…",
+              "test": "テスト",
+              "disconnect": "切断",
+              "workspace": "ClickUp ワークスペース",
+              "remoteCopy": "ClickUp の個人用APIトークンで接続します。トークンは選択したリモートランタイムに送信され、ランタイムが対応する暗号化で保存されます。",
+              "localCopy": "ClickUp の個人用APIトークンで接続します。トークンはローカルに保存され、ローカルランタイムのストレージが対応していれば暗号化されます。",
+              "recheck": "再確認"
+            }
+          }
         }
       },
       "right": {
@@ -17211,6 +17245,23 @@
         "dispatchRejected": "Agent は「続行」メッセージを拒否しました。チャットを開いて自分でチャットを送信してください。",
         "unsupported": "Orca ではこのチャットを再開できません。開いてどこで止まったかを確認します。",
         "fallback": "Orca はこのチャットを再開できませんでした。手動で続行するには、それを開いてください。"
+      },
+      "clickup": {
+        "connect": {
+          "dialog": {
+            "title": "ClickUp に接続",
+            "description": "個人用APIトークンを貼り付けてください。Orca はタスクを読み取り、ステータスの変更やコメントの追加はあなたが Orca から操作したときだけ行います。",
+            "tokenLabel": "個人用APIトークン",
+            "tokenHelp": "ClickUp の設定 → Apps → API Token で作成します。トークンはあなたのアカウントとして、ワークスペースの権限で動作します。",
+            "openSettings": "ClickUp API 設定",
+            "remoteStorage": "このトークンはアクティブなリモートランタイムに保存されます。",
+            "localStorage": "トークンは、利用可能な場合 Electron の暗号化ストレージを使ってこのデバイスに保存されます。",
+            "cancel": "キャンセル",
+            "verifying": "確認中…",
+            "connect": "接続",
+            "tokenPlaceholder": "pk_..."
+          }
+        }
       }
     },
     "i18n": {
