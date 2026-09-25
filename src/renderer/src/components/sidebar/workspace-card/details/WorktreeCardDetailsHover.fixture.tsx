@@ -88,6 +88,8 @@ const linearIssue = {
 }
 
 const jiraIssue = {
+  // Custom build (clickup-workspace-link): the Jira slot also carries ClickUp tasks.
+  provider: 'jira' as const,
   identifier: 'PLAT-2087',
   title: 'Rotate staging webhook signing secrets',
   url: 'https://orca.atlassian.net/browse/PLAT-2087'
