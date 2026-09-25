@@ -25,7 +25,8 @@ export function getWorkspaceJiraIssueKey(
   const items = getWorkspaceAttachments(workspace)
   const primary = workspace?.linkedWorkItem
   if (primary?.provider === 'jira') {
-    const key = attachmentJiraIssueKey(primary)
+    // Custom build (clickup-workspace-link): the linked item's provider also allows 'clickup'.
+    const key = attachmentJiraIssueKey({ ...primary, provider: 'jira' })
     if (key) {
       return key
     }
