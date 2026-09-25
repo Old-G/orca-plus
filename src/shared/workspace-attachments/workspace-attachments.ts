@@ -128,7 +128,11 @@ function synchronizeSelection(
   const rich =
     (previous && items.find((item) => matchesWorkspaceAttachmentIdentity(item, previous))) ??
     items.find((item) => item.type === 'issue' && toWorkspaceLinkedItem(item))
-  result.linkedWorkItem = toWorkspaceLinkedItem(rich)
+  // Custom build (clickup-workspace-link): ClickUp is not an attachment provider, so an attachment
+  // edit must not erase the workspace's ClickUp task.
+  result.linkedWorkItem =
+    toWorkspaceLinkedItem(rich) ??
+    (meta.linkedWorkItem?.provider === 'clickup' ? meta.linkedWorkItem : null)
   result.linkedTaskSourceContext = rich?.taskSourceContext ?? null
   return result
 }
