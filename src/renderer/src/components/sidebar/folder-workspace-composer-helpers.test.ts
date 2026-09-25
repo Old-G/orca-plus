@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { ProjectGroup } from '../../../../shared/project-group-types'
 import type { Repo } from '../../../../shared/repo-types'
-import { getFolderSourceRepos } from './folder-workspace-composer-helpers'
+import {
+  getFolderSourceRepos,
+  toFolderWorkspaceLinkedTask
+} from './folder-workspace-composer-helpers'
 
 function repo(id: string, overrides: Partial<Repo> = {}): Repo {
   return {
@@ -74,5 +77,20 @@ describe('getFolderSourceRepos', () => {
         projectGroup
       ).map((item) => item.id)
     ).toEqual(['runtime-by-path', 'runtime-by-group'])
+  })
+})
+
+describe('toFolderWorkspaceLinkedTask', () => {
+  it('keeps the ClickUp custom id so the sidebar badge can show it', () => {
+    expect(
+      toFolderWorkspaceLinkedTask({
+        type: 'issue',
+        provider: 'clickup',
+        number: 0,
+        title: 'DEV-17664 Write-back',
+        url: 'https://app.clickup.com/t/12487v2bqy0',
+        clickupIdentifier: 'DEV-17664'
+      })
+    ).toMatchObject({ provider: 'clickup', clickupIdentifier: 'DEV-17664' })
   })
 })

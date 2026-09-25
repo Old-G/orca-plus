@@ -18,9 +18,30 @@ describe('getWorktreeCardJiraIssueDisplay', () => {
         }
       })
     ).toEqual({
+      provider: 'jira',
       identifier: 'KAN-1',
       title: 'Test Jira card icon',
       url: 'https://company.atlassian.net/browse/KAN-1'
+    })
+  })
+
+  it('projects a linked ClickUp task by its custom id', () => {
+    expect(
+      getWorktreeCardJiraIssueDisplay({
+        linkedWorkItem: {
+          provider: 'clickup',
+          type: 'issue',
+          number: 0,
+          clickupIdentifier: 'DEV-17092',
+          title: 'DEV-17092 T2-A7 · Agents reach the hub',
+          url: 'https://app.clickup.com/t/86cbcnw6g'
+        }
+      })
+    ).toEqual({
+      provider: 'clickup',
+      identifier: 'DEV-17092',
+      title: 'T2-A7 · Agents reach the hub',
+      url: 'https://app.clickup.com/t/86cbcnw6g'
     })
   })
 

@@ -5690,6 +5690,9 @@
           "jiraIssue": "Jira {{value0}}",
           "viewOnJira": "Ver en Jira",
           "linkedJira": "Jira {{value0}} vinculado",
+          "linkedClickUp": "ClickUp {{value0}} vinculado",
+          "clickUpTask": "ClickUp {{value0}}",
+          "viewOnClickUp": "Ver en ClickUp",
           "openInOrcaBrowser": "Abrir en el navegador Orca"
         },
         "WorktreeCardMetadataStatusBadges": {
