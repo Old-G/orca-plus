@@ -18,6 +18,7 @@ import {
   canUseIssueCommandForLinkedItemProvider,
   getWorkspaceSeedName,
   DEFAULT_ISSUE_COMMAND_TEMPLATE,
+  getLinkedWorkItemTemplateVars,
   renderIssueCommandTemplate
 } from '@/lib/workspace/creation/new-workspace'
 import { getSetupConfig } from '../../../../shared/workspace-setup/hooks/orca-hook-setup-config'
@@ -196,10 +197,7 @@ export function useDerivedComposerState(input: DerivedComposerStateInput) {
       return ''
     }
     const template = issueCommandTemplate.trim() || DEFAULT_ISSUE_COMMAND_TEMPLATE
-    return renderIssueCommandTemplate(template, {
-      issueNumber: linkedWorkItem.type === 'issue' ? linkedWorkItem.number : null,
-      artifactUrl: linkedWorkItem.url
-    })
+    return renderIssueCommandTemplate(template, getLinkedWorkItemTemplateVars(linkedWorkItem))
   }, [issueCommandTemplate, linkedWorkItem, shouldApplyLinkedOnlyTemplate])
 
   const normalizedLinkQuery = useMemo(
