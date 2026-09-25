@@ -106,6 +106,45 @@ describe('Store', () => {
     expect(settings.notifications.suppressWhenFocused).toBe(true)
   })
 
+  it('adds ClickUp once to a profile saved before it existed', async () => {
+    writeDataFile({
+      ...getDefaultPersistedState(testState.dir),
+      settings: {
+        visibleTaskProviders: ['github', 'gitlab', 'linear', 'jira'],
+        visibleTaskProvidersDefaultedForJira: true
+      }
+    })
+
+    const store = await createStore()
+
+    expect(store.getSettings().visibleTaskProviders).toEqual([
+      'github',
+      'gitlab',
+      'linear',
+      'jira',
+      'clickup'
+    ])
+    store.flush()
+    expect(readDataFile()).toMatchObject({
+      settings: { visibleTaskProvidersDefaultedForClickUp: true }
+    })
+  })
+
+  it('keeps ClickUp hidden after the user opted out', async () => {
+    writeDataFile({
+      ...getDefaultPersistedState(testState.dir),
+      settings: {
+        visibleTaskProviders: ['github', 'jira'],
+        visibleTaskProvidersDefaultedForJira: true,
+        visibleTaskProvidersDefaultedForClickUp: true
+      }
+    })
+
+    const store = await createStore()
+
+    expect(store.getSettings().visibleTaskProviders).toEqual(['github', 'jira'])
+  })
+
   it('repairs a persisted terminal line height outside xterm bounds', async () => {
     const persisted = getDefaultPersistedState(testState.dir)
     writeDataFile({
