@@ -42,6 +42,7 @@ import type { MobileApi } from './api/mobile/mobile-api'
 import type { NativeChatApi } from './api/native-chat/native-chat-api'
 import type { OnboardingApi, StarNagApi } from './api/onboarding/onboarding-api'
 import type { OrcaProfileApi } from './api/profiles/orca-profile-api'
+import type { ClickUpApi } from './api/clickup-api'
 import type { LspApi } from './api/lsp-api'
 import type { ClaudeIdeApi } from './api/claude-ide-api'
 import type {
@@ -130,6 +131,7 @@ export type PreloadApi = {
   bitbucket: BitbucketApi
   linear: LinearApi
   jira: JiraApi
+  clickup: ClickUpApi
   starNag: StarNagApi
   telemetryTrack: TelemetryApi['telemetryTrack']
   telemetrySetOptIn: TelemetryApi['telemetrySetOptIn']
