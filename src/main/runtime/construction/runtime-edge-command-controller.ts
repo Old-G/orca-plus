@@ -13,6 +13,7 @@ import {
   EMULATOR_COMMAND_NAMES,
   JIRA_ASYNC_COMMAND_NAMES
 } from './lazy-edge-command-bindings'
+import { RuntimeClickUpCommands } from '../integrations/clickup/runtime-clickup-commands'
 
 type PublicMethods<T> = Pick<T, keyof T>
 type BrowserSurface = Omit<PublicMethods<RuntimeBrowserCommands>, 'browserScreencast'> & {
@@ -31,6 +32,7 @@ type BrowserSurface = Omit<PublicMethods<RuntimeBrowserCommands>, 'browserScreen
 
 export type RuntimeEdgeCommandSurface = BrowserSurface &
   PublicMethods<RuntimeJiraCommands> &
+  PublicMethods<RuntimeClickUpCommands> &
   PublicMethods<RuntimeEmulatorCommands>
 
 type ScreencastDependencies = ConstructorParameters<typeof RuntimeBrowserScreencastController>[0]
@@ -145,6 +147,20 @@ const BROWSER_COMMAND_NAMES = [
   'browserTabClose'
 ] as const satisfies readonly (keyof RuntimeBrowserCommands)[]
 
+// Why: ClickUp commands are small and eager; upstream's lazy binders only cover Jira/emulator.
+function bindPrefixedMethods<T extends object>(
+  instance: T,
+  prefix: string
+): Partial<PublicMethods<T>> {
+  const bound: Record<string, unknown> = {}
+  for (const name of Object.getOwnPropertyNames(Object.getPrototypeOf(instance))) {
+    if (name.startsWith(prefix)) {
+      bound[name] = (instance[name as keyof T] as (...args: unknown[]) => unknown).bind(instance)
+    }
+  }
+  return bound as Partial<PublicMethods<T>>
+}
+
 function bindBrowserMethods<T extends object>(
   instance: T,
   names: readonly (keyof T)[]
@@ -166,6 +182,7 @@ export class RuntimeEdgeCommandController {
   private emulatorInstance: RuntimeEmulatorCommands | null = null
   private emulatorPromise: Promise<RuntimeEmulatorCommands> | null = null
   private readonly emulatorHost: EmulatorHost
+  private readonly clickup = new RuntimeClickUpCommands()
   private readonly browser: RuntimeBrowserCommands
   private screencasts: RuntimeBrowserScreencastController | null = null
   private screencastsPromise: Promise<RuntimeBrowserScreencastController> | null = null
@@ -193,6 +210,7 @@ export class RuntimeEdgeCommandController {
         this.jiraInstance
           ? this.jiraInstance.jiraCancelGenerateIssueSummary(cancelArgs, owner)
           : { ok: true },
+      ...bindPrefixedMethods(this.clickup, 'clickup'),
       ...bindBrowserMethods(this.browser, BROWSER_COMMAND_NAMES),
       ...bindLazyAsyncMethods(() => this.loadEmulator(), EMULATOR_COMMAND_NAMES),
       browserScreencast: async (params, options) =>
