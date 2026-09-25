@@ -5920,7 +5920,10 @@
           "cliStartupAgent": "{{value0}}(으)로 시작됨",
           "cliCreated": "Orca CLI로 생성됨",
           "linkedJira": "연결된 Jira {{value0}}",
-          "openInOrcaBrowser": "Orca 브라우저에서 열기"
+          "openInOrcaBrowser": "Orca 브라우저에서 열기",
+          "linkedClickUp": "연결된 ClickUp {{value0}}",
+          "clickUpTask": "ClickUp {{value0}}",
+          "viewOnClickUp": "ClickUp에서 보기"
         },
         "WorktreeCardMetadataStatusBadges": {
           "fe188062a1": "상태: 열림",

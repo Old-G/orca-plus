@@ -29,6 +29,8 @@ type CardTask = {
   title: string
   state: WorktreeTaskState | null
   labels?: string[]
+  /** Custom build (clickup-workspace-link): a ClickUp task rides in the Jira slot under its own name. */
+  providerLabel?: string
 }
 
 // Why: expressing the card's tasks as attachments shares labels, sources and menus with linked rows.
@@ -71,7 +73,8 @@ function getCardTasks(
         url: jiraIssue.url
       },
       title: jiraIssue.title,
-      state: null
+      state: null,
+      ...(jiraIssue.provider === 'clickup' ? { providerLabel: 'ClickUp' } : {})
     })
   }
   return tasks
@@ -175,14 +178,14 @@ export function WorktreeCardTaskDetailSection({
         onAddReference={onManageLinks}
       />
       <div className="divide-y divide-border">
-        {tasks.map(({ item, title, state, labels }) => (
+        {tasks.map(({ item, title, state, labels, providerLabel }) => (
           <div key={item.provider} className="py-1.5">
             <WorktreeCardReferenceRow
               review={null}
               kind="issue"
               title={title}
               label={workspaceAttachmentLabel(item)}
-              provider={workspaceAttachmentProviderLabel(item)}
+              provider={providerLabel ?? workspaceAttachmentProviderLabel(item)}
               source={getWorkspaceAttachmentSourceLabel(item)}
               taskState={state}
               labels={labels}

@@ -6465,7 +6465,10 @@
           "cliStartupAgent": "Démarré avec {{value0}}",
           "cliCreated": "Créé par Orca CLI",
           "linkedJira": "Lié à Jira {{value0}}",
-          "openInOrcaBrowser": "Ouvrir dans le navigateur Orca"
+          "openInOrcaBrowser": "Ouvrir dans le navigateur Orca",
+          "linkedClickUp": "Lié à ClickUp {{value0}}",
+          "clickUpTask": "ClickUp {{value0}}",
+          "viewOnClickUp": "Voir sur ClickUp"
         },
         "WorktreeCardMetadataStatusBadges": {
           "fe188062a1": "État : ouvert",
