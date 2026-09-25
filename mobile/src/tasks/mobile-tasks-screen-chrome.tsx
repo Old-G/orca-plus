@@ -19,7 +19,8 @@ const REFRESH_LABELS = {
   github: 'Refresh GitHub work',
   gitlab: 'Refresh GitLab work items',
   linear: 'Refresh Linear',
-  jira: 'Refresh Jira issues'
+  jira: 'Refresh Jira issues',
+  clickup: 'Refresh ClickUp tasks'
 } as const
 
 export function renderMobileTasksChrome(model: ConnectionPresentationModel) {

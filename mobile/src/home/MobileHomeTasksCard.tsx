@@ -8,7 +8,8 @@ const TASK_PROVIDER_LABELS: Record<TaskProvider, string> = {
   github: 'GitHub',
   gitlab: 'GitLab',
   linear: 'Linear',
-  jira: 'Jira'
+  jira: 'Jira',
+  clickup: 'ClickUp'
 }
 
 export function MobileHomeTasksCard(props: {
