@@ -205,7 +205,7 @@ export function registerCoreHandlers(
   registerJiraHandlers()
   registerJiraIssueSummaryGenerationHandlers(store, commitMessageAgentEnv)
   registerClickUpHandlers()
-  registerSlackHandlers()
+  registerSlackHandlers(store, runtime)
   registerBitbucketHandlers()
   registerFeedbackHandlers()
   if (crashReports) {
