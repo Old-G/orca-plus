@@ -113,6 +113,13 @@ export const TaskProviderIdentity = lazyZodSchema(() =>
           siteUrl: z.string().nullable().optional(),
           projectKey: z.string().nullable().optional()
         })
+        .passthrough(),
+      z
+        .object({
+          provider: z.literal('clickup'),
+          workspaceId: z.string().nullable().optional(),
+          workspaceName: z.string().nullable().optional()
+        })
         .passthrough()
     ])
     .optional()
@@ -123,7 +130,7 @@ export const TaskSourceContext = lazyZodSchema(() =>
   z
     .object({
       kind: z.literal('task-source'),
-      provider: z.enum(['github', 'gitlab', 'linear', 'jira']),
+      provider: z.enum(['github', 'gitlab', 'linear', 'jira', 'clickup']),
       projectId: requiredString('Missing source project id'),
       hostId: ExecutionHostId,
       projectHostSetupId: OptionalNullablePlainString,
