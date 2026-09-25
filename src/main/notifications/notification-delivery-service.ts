@@ -47,6 +47,10 @@ export type NotificationDeliveryDependencies = {
   recordAnnounced?: (request: NotificationDispatchRequest) => void
   /** Whether the chat behind a structured notification answers a Slack thread. */
   repliesInSlack?: (sessionId: string) => boolean
+  /** Custom build (slack-notifications): posts agent updates to Slack; absent when not wired. */
+  dispatchSlackNotification?: (request: NotificationDispatchRequest) => void
+  /** True when the screen is locked or the user has been idle; undefined when unknown. */
+  isDesktopAway?: () => boolean | undefined
 }
 
 export type NotificationDeliveryService = {
@@ -172,6 +176,18 @@ export function createNotificationDeliveryService(
             ...(request.structuredOrigin ? { structuredOrigin: request.structuredOrigin } : {})
           })
           deps.recordAnnounced?.(request)
+        }
+      }
+
+      // Why: Slack is for when the user is not watching this workspace, so it runs before the
+      // desktop gates and has its own presence rule instead of the desktop toggles.
+      if (deps.dispatchSlackNotification && request.source === 'agent-task-complete') {
+        const watching =
+          request.isActiveWorktree === true &&
+          deps.findActiveWindow()?.isFocused() === true &&
+          deps.isDesktopAway?.() !== true
+        if (!watching) {
+          deps.dispatchSlackNotification(request)
         }
       }
 
