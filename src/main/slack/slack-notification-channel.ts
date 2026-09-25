@@ -49,7 +49,20 @@ export function gitSummaryFromStatus(status: GitStatusResult): SlackGitSummary {
   }
 }
 
-export function createSlackNotificationChannel(
+let sharedChannel: SlackAgentNotifier | null = null
+
+/** One notifier per process: notifications and Slack replies share its threads and ordering. */
+export function getSlackNotificationChannel(
+  store: WorktreeMetaReader,
+  runtime: Pick<OrcaRuntimeService, 'getRuntimeGitStatus'> | undefined
+): SlackAgentNotifier {
+  sharedChannel ??= createSlackNotificationChannel(store, runtime)
+  return sharedChannel
+}
+
+export const sharedSlackThreadStore = createSlackThreadStore()
+
+function createSlackNotificationChannel(
   store: WorktreeMetaReader,
   runtime: Pick<OrcaRuntimeService, 'getRuntimeGitStatus'> | undefined
 ): SlackAgentNotifier {
@@ -63,7 +76,7 @@ export function createSlackNotificationChannel(
     },
     withSession: withSlackSession,
     request: slackRequest,
-    threads: createSlackThreadStore(),
+    threads: sharedSlackThreadStore,
     readLinkedItem: (worktreeId) =>
       linkedItemForSlack(store.getWorktreeMeta(worktreeId)?.linkedWorkItem),
     readGitSummary: async (worktreeId) => {

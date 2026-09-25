@@ -24,7 +24,9 @@ function memoryThreads(): SlackThreadStore {
   return {
     get: (channel, worktree) => map.get(`${channel}/${worktree}`) ?? null,
     set: (channel, worktree, ts) => void map.set(`${channel}/${worktree}`, ts),
-    forget: (channel, worktree) => void map.delete(`${channel}/${worktree}`)
+    forget: (channel, worktree) => void map.delete(`${channel}/${worktree}`),
+    setPane: () => {},
+    findByTs: () => null
   }
 }
 
