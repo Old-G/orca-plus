@@ -8,7 +8,7 @@ import type { GitHubProjectSettings } from '../github/projects/project-types'
 import type { VoiceSettings } from '../speech/speech-types'
 import type { AiVaultSearchSettings } from '../ai-vault/search/ai-vault-search-settings'
 import type { GitLabProjectSettings } from '../gitlab/gitlab-types'
-import type { TaskProvider } from '../work-items/task-providers'
+import type { TaskProvider, TaskProviderRolloutFlags } from '../work-items/task-providers'
 import type { AppIconId } from '../app-lifecycle/identity/app-icon'
 import type { SourceControlAiSettings } from '../source-control/ai/settings/source-control-ai-settings-types'
 import type { ClaudeAgentTeamsMode } from '../agent-launch/startup/claude-agent-teams-tmux-compat'
@@ -19,9 +19,7 @@ import type { AgentChatPermissionMode } from '../agent-launch/permissions/agent-
 import type { ComputerAwakeMode } from '../app-lifecycle/computer-awake-mode'
 import type { CommitMessageAiSettings } from '../source-control/ai/generation/commit-message-ai-types'
 import type { HostSettingOverrides } from '../execution-host/host-setting-overrides'
-import type { CustomAppearanceBackground } from './custom-appearance-background'
-import type { CustomAppearanceTheme } from './vscode-theme/custom-appearance-theme'
-import type { UiLanguage } from './i18n/ui-language'
+import type { CustomBuildSettings } from '../custom-build-settings'
 import type {
   ClaudeManagedAccount,
   ClaudeManagedAccountRuntimeSelection,
@@ -516,4 +514,4 @@ export type GlobalSettings = GlobalSettingsBase & {
   voiceDictationModeDefaultedToAuto?: boolean
   /** Transcript full-text search consent + retention. Absent means off; nothing indexes until the user opts in. */
   aiVaultSearch?: AiVaultSearchSettings
-}
+} & TaskProviderRolloutFlags
