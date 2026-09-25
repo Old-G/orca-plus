@@ -39,6 +39,11 @@ export ORCA_COMPUTER_MACOS_SIGN_IDENTITY="$mac_identity"
 export ORCA_COMPUTER_MACOS_BUNDLE_ID=com.oldg.orca-plus.computer-use
 export ORCA_COMPUTER_MACOS_DISPLAY_NAME="Orca+ Computer Use"
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+# Why: upstream main never bumps package.json (release tags live on release branches), so About
+# would claim a months-old version; number the build after the newest upstream release instead.
+ORCA_LOCAL_BUILD_VERSION=$(node config/scripts/orca-plus-build-version.mjs)
+export ORCA_LOCAL_BUILD_VERSION
+echo "build-orca-plus-mac: version $ORCA_LOCAL_BUILD_VERSION"
 
 # Why: build:desktop bundles the mobile web app, and mobile/ is its own pnpm project.
 if [ ! -d mobile/node_modules/expo-router ]; then
