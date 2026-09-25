@@ -31,6 +31,7 @@ import { bitbucketApi } from './api/bitbucket-bridge'
 import { linearApi } from './api/linear-bridge'
 import { jiraApi } from './api/jira-bridge'
 import { clickupApi } from './api/clickup-bridge'
+import { slackApi } from './api/slack-bridge'
 import { lspApi } from './api/lsp-bridge'
 import { claudeIdeApi } from './api/claude-ide-bridge'
 import { starNagApi } from './api/star-nag-bridge'
@@ -132,6 +133,7 @@ const api = {
   linear: linearApi,
   jira: jiraApi,
   clickup: clickupApi,
+  slack: slackApi,
   lsp: lspApi,
   claudeIde: claudeIdeApi,
   starNag: starNagApi,

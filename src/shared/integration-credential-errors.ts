@@ -1,4 +1,4 @@
-export type IntegrationCredentialService = 'Linear' | 'Jira' | 'Bitbucket' | 'ClickUp'
+export type IntegrationCredentialService = 'Linear' | 'Jira' | 'Bitbucket' | 'ClickUp' | 'Slack'
 
 export function credentialDecryptionMessage(service: IntegrationCredentialService): string {
   return `Could not decrypt saved ${service} credential. Approve Keychain access or reconnect ${service}.`
@@ -12,6 +12,7 @@ export function isIntegrationCredentialDecryptionError(error: unknown): boolean 
     message.includes(credentialDecryptionMessage('Linear')) ||
     message.includes(credentialDecryptionMessage('Jira')) ||
     message.includes(credentialDecryptionMessage('Bitbucket')) ||
-    message.includes(credentialDecryptionMessage('ClickUp'))
+    message.includes(credentialDecryptionMessage('ClickUp')) ||
+    message.includes(credentialDecryptionMessage('Slack'))
   )
 }
