@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { NotificationDispatchRequest } from '../../shared/notification-settings-types'
+import type { NotificationDispatchRequest } from '../../shared/notifications/notification-settings-types'
 import { createSlackAgentNotifier, type SlackAgentNotifierDeps } from './slack-agent-notifier'
 import type { SlackSession } from './slack-client'
 import { SlackApiError } from './slack-request'
@@ -24,7 +24,9 @@ function memoryThreads(): SlackThreadStore {
   return {
     get: (channel, worktree) => map.get(`${channel}/${worktree}`) ?? null,
     set: (channel, worktree, ts) => void map.set(`${channel}/${worktree}`, ts),
-    forget: (channel, worktree) => void map.delete(`${channel}/${worktree}`)
+    forget: (channel, worktree) => void map.delete(`${channel}/${worktree}`),
+    setPane: () => {},
+    findByTs: () => null
   }
 }
 
