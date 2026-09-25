@@ -197,7 +197,7 @@ function buildAgentTaskCompleteFallbackBody(
         translate('notifications.taskComplete.body', 'A coding agent finished working.'))
 }
 
-function formatNotificationAgentLabel(agentType: string | null | undefined): string {
+export function formatNotificationAgentLabel(agentType: string | null | undefined): string {
   return formatAgentTypeLabel(
     normalizeNotificationText(agentType, NOTIFICATION_AGENT_LABEL_MAX_LENGTH)
   )
