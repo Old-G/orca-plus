@@ -21,6 +21,7 @@ import { deliverNativeNotification } from './native-notification-delivery'
 import { removeReadMacosNotifications } from './macos-notification-center'
 import { sessionRepliesInSlack } from '../../external-conversations/external-conversation-links'
 import { createNotificationDeliveryService } from '../../notifications/notification-delivery-service'
+import { createSlackNotificationChannel } from '../../slack/slack-notification-channel'
 import {
   createAnnouncedNotificationRegistry,
   type AnnouncedNotification
@@ -223,6 +224,7 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
     }
   )
 
+  const slackChannel = createSlackNotificationChannel(store, runtime)
   const deliveryService = createNotificationDeliveryService({
     readNotificationSettings: () => store.getSettings().notifications,
     findActiveWindow: () =>
@@ -273,6 +275,14 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
             request
           )
         )
+      }
+    },
+    dispatchSlackNotification: (request) => void slackChannel.notify(request),
+    isDesktopAway: () => {
+      try {
+        return readDesktopAwayState(powerMonitor)
+      } catch {
+        return undefined
       }
     }
   })
