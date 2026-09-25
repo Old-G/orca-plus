@@ -16,6 +16,7 @@ import { registerLazyGitLabHandlers } from '../source-control/lazy-gitlab-handle
 import { registerLazyLinearHandlers } from '../linear/lazy-linear-handlers'
 import { registerLazyJiraHandlers } from '../jira/lazy-jira-handlers'
 import { registerClickUpHandlers } from '../clickup'
+import { registerSlackHandlers } from '../slack'
 import { registerLazyCrashReportingHandlers } from '../crash-reporting/lazy-crash-reporting-handlers'
 import { registerStatsHandlers } from '../stats'
 import { registerLazyRateLimitHandlers } from '../lazy-rate-limits-handlers'
@@ -123,6 +124,7 @@ export async function registerCoreHandlers(
     registerLazyLinearHandlers()
     registerLazyJiraHandlers(store, commitMessageAgentEnv)
     registerClickUpHandlers()
+    registerSlackHandlers()
     if (crashReports) {
       registerLazyCrashReportingHandlers(crashReports)
     }
