@@ -10,13 +10,15 @@ import type { WorktreeIdentity } from './identity'
 import type { WorktreeScanFailureKind } from '../worktree-scan-failure'
 
 export type WorkspaceLinkedItem = {
-  provider: 'github' | 'gitlab' | 'linear' | 'jira'
+  provider: 'github' | 'gitlab' | 'linear' | 'jira' | 'clickup'
   type: 'issue' | 'pr' | 'mr'
   number: number
   title: string
   url: string
   linearIdentifier?: string
   jiraIdentifier?: string
+  /** ClickUp custom task id (e.g. DEV-123) when the workspace has one, else the task id. */
+  clickupIdentifier?: string
   repoId?: string
 }
 

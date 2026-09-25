@@ -14,11 +14,13 @@ export function getWorktreeCardJiraIssueDisplay(
   worktree: Pick<Worktree, 'linkedWorkItem'>
 ): WorktreeCardJiraIssueDisplay | null {
   const item = worktree.linkedWorkItem
-  if (item?.provider !== 'jira' || item.type !== 'issue') {
+  if ((item?.provider !== 'jira' && item?.provider !== 'clickup') || item.type !== 'issue') {
     return null
   }
-  const identifier = item.jiraIdentifier ?? String(item.number)
+  const identifier =
+    (item.provider === 'jira' ? item.jiraIdentifier : item.clickupIdentifier) ?? String(item.number)
   return {
+    provider: item.provider,
     identifier,
     title: withoutRepeatedJiraIdentifier(item.title, identifier),
     url: item.url

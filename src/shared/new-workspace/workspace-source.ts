@@ -49,6 +49,7 @@ export type WorkspaceSourceSelectionKind =
   | 'branch'
   | 'linear'
   | 'jira'
+  | 'clickup'
 
 export type WorkspaceSourceSelection = {
   kind: WorkspaceSourceSelectionKind
@@ -78,6 +79,14 @@ function isJiraIssueUrl(url: string): boolean {
   }
 }
 
+function isClickUpTaskUrl(url: string): boolean {
+  try {
+    return /(?:^|\.)clickup\.com$/i.test(new URL(url).hostname)
+  } catch {
+    return false
+  }
+}
+
 export function getWorkspaceSourceProvider(item: WorkspaceSourceItemLike): WorkspaceSourceProvider {
   if (item.provider) {
     return item.provider
@@ -87,6 +96,9 @@ export function getWorkspaceSourceProvider(item: WorkspaceSourceItemLike): Works
   }
   if (item.jiraIdentifier || isJiraIssueUrl(item.url)) {
     return 'jira'
+  }
+  if (item.clickupIdentifier || isClickUpTaskUrl(item.url)) {
+    return 'clickup'
   }
   if (item.type === 'mr' || isGitLabIssueUrl(item.url)) {
     return 'gitlab'
@@ -198,17 +210,22 @@ export function buildWorkspaceSourceSelection(args: {
       ? 'linear'
       : provider === 'jira'
         ? 'jira'
-        : provider === 'gitlab'
-          ? linkedWorkItem.type === 'mr'
-            ? 'gitlab-mr'
-            : 'gitlab-issue'
-          : linkedWorkItem.type === 'pr'
-            ? 'github-pr'
-            : 'github-issue'
+        : provider === 'clickup'
+          ? 'clickup'
+          : provider === 'gitlab'
+            ? linkedWorkItem.type === 'mr'
+              ? 'gitlab-mr'
+              : 'gitlab-issue'
+            : linkedWorkItem.type === 'pr'
+              ? 'github-pr'
+              : 'github-issue'
   return {
     kind,
     label:
-      provider === 'linear' || provider === 'jira' || linkedWorkItem.number === 0
+      provider === 'linear' ||
+      provider === 'jira' ||
+      provider === 'clickup' ||
+      linkedWorkItem.number === 0
         ? linkedWorkItem.title
         : `#${linkedWorkItem.number} ${linkedWorkItem.title}`,
     url: linkedWorkItem.url
@@ -222,5 +239,5 @@ export function shouldPreserveWorkspaceSourceOnRepoChange(
     return false
   }
   const provider = getWorkspaceSourceProvider(item)
-  return provider === 'linear' || provider === 'jira'
+  return provider === 'linear' || provider === 'jira' || provider === 'clickup'
 }

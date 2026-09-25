@@ -5532,7 +5532,10 @@
           "jiraIssue": "Jira {{value0}}",
           "viewOnJira": "在 Jira 中查看",
           "linkedJira": "已关联 Jira {{value0}}",
-          "openInOrcaBrowser": "在 Orca 浏览器中打开"
+          "openInOrcaBrowser": "在 Orca 浏览器中打开",
+          "linkedClickUp": "已关联 ClickUp {{value0}}",
+          "clickUpTask": "ClickUp {{value0}}",
+          "viewOnClickUp": "在 ClickUp 中查看"
         },
         "WorktreeCardMetadataStatusBadges": {
           "fe188062a1": "状态：开放",

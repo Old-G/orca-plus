@@ -27,6 +27,7 @@ import {
   getLinkedWorkItemWorkspaceName,
   getLinkedWorkItemProvider,
   canUseIssueCommandForLinkedItemProvider,
+  getLinkedWorkItemTemplateVars,
   renderIssueCommandTemplate,
   DEFAULT_ISSUE_COMMAND_TEMPLATE,
   buildAgentPromptWithContext
@@ -154,11 +155,7 @@ export function useFullSubmitSourcePreparation(input: FullSubmitSourcePreparatio
         submitShouldApplyLinkedOnlyTemplate && submitLinkedWorkItem
           ? renderIssueCommandTemplate(
               issueCommandTemplate.trim() || DEFAULT_ISSUE_COMMAND_TEMPLATE,
-              {
-                issueNumber:
-                  submitLinkedWorkItem.type === 'issue' ? submitLinkedWorkItem.number : null,
-                artifactUrl: submitLinkedWorkItem.url
-              }
+              getLinkedWorkItemTemplateVars(submitLinkedWorkItem)
             )
           : ''
 

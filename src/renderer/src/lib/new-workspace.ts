@@ -43,7 +43,7 @@ export type LinkedWorkItemSummary = Omit<FolderWorkspaceLinkedTask, 'provider'> 
 export function canUseIssueCommandForLinkedItemProvider(
   provider: FolderWorkspaceLinkedTask['provider'] | null
 ): boolean {
-  return provider === 'github' || provider === 'gitlab'
+  return provider === 'github' || provider === 'gitlab' || provider === 'clickup'
 }
 
 // Why: when a repo has no `orca.yaml` issueCommand and no per-user override,
@@ -90,12 +90,36 @@ function getSetupConfigKind(
  * and keeps `{{issue}}` working silently for repos that have not migrated
  * their `orca.yaml` / `.orca/issue-command` yet.
  */
+export type IssueCommandTemplateVars = {
+  issueNumber: number | null
+  artifactUrl: string | null
+  /** ClickUp task id (DEV-123) for {{task}}. */
+  taskId?: string | null
+}
+
+export function getLinkedWorkItemTemplateVars(item: {
+  provider?: FolderWorkspaceLinkedTask['provider']
+  type: 'issue' | 'pr' | 'mr'
+  number: number
+  url: string
+  clickupIdentifier?: string
+}): IssueCommandTemplateVars {
+  if (item.provider === 'clickup') {
+    // Why: ClickUp's number is a 0 sentinel; {{issue}} must stay unrendered rather than read "0".
+    return { issueNumber: null, artifactUrl: item.url, taskId: item.clickupIdentifier ?? null }
+  }
+  return { issueNumber: item.type === 'issue' ? item.number : null, artifactUrl: item.url }
+}
+
 export function renderIssueCommandTemplate(
   template: string,
-  vars: { issueNumber: number | null; artifactUrl: string | null }
+  vars: IssueCommandTemplateVars
 ): string {
-  const { issueNumber, artifactUrl } = vars
+  const { issueNumber, artifactUrl, taskId } = vars
   let rendered = template
+  if (taskId) {
+    rendered = rendered.replace(/\{\{task\}\}/g, taskId)
+  }
   if (artifactUrl !== null) {
     rendered = rendered.replace(/\{\{artifact_url\}\}/g, artifactUrl)
   }

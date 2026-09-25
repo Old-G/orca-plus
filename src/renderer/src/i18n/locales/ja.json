@@ -5532,7 +5532,10 @@
           "jiraIssue": "Jira {{value0}}",
           "viewOnJira": "Jira で表示",
           "linkedJira": "リンク済み Jira {{value0}}",
-          "openInOrcaBrowser": "Orca ブラウザで開く"
+          "openInOrcaBrowser": "Orca ブラウザで開く",
+          "linkedClickUp": "リンク済み ClickUp {{value0}}",
+          "clickUpTask": "ClickUp {{value0}}",
+          "viewOnClickUp": "ClickUp で表示"
         },
         "WorktreeCardMetadataStatusBadges": {
           "fe188062a1": "状態: オープン",

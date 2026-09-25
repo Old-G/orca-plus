@@ -4757,7 +4757,10 @@
           "cliCreated": "Created by Orca CLI",
           "jiraIssue": "Jira {{value0}}",
           "viewOnJira": "Ver en Jira",
-          "linkedJira": "Jira {{value0}} vinculado"
+          "linkedJira": "Jira {{value0}} vinculado",
+          "linkedClickUp": "ClickUp {{value0}} vinculado",
+          "clickUpTask": "ClickUp {{value0}}",
+          "viewOnClickUp": "Ver en ClickUp"
         },
         "WorktreeCardMetadataStatusBadges": {
           "fe188062a1": "Estado: Abierto",
