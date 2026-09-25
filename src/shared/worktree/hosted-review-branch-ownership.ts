@@ -29,7 +29,10 @@ function hasSelection(context: HostedReviewContext): boolean {
 function hostedReviewSelectionSignature(
   context: HostedReviewContext
 ): HostedReviewSelectionSignature {
-  const item = context.linkedWorkItem
+  const linked = context.linkedWorkItem
+  // Custom build (clickup-core): a ClickUp item fills no hosted-review slot, so it never names a source.
+  const item =
+    linked && linked.provider !== 'clickup' ? { ...linked, provider: linked.provider } : null
   const source =
     item &&
     WORKSPACE_ATTACHMENT_NUMBER_SLOTS.some(
