@@ -3,6 +3,7 @@ import { CalendarClock, CircleDot, Link2, SquareTerminal, StickyNote } from 'luc
 import { cn } from '@/lib/utils'
 import { LinearIcon } from '@/components/icons/LinearIcon'
 import { JiraIcon } from '@/components/icons/JiraIcon'
+import { ClickUpIcon } from '@/components/icons/ClickUpIcon'
 import { MetaIconBadge } from './WorktreeCardMetadataControls'
 import { getReviewLabel, ReviewIcon } from './worktree-review-helpers'
 import type {
@@ -157,13 +158,25 @@ export const WorktreeCardMetaBadges = React.forwardRef<
       ) : (
         jiraIssue && (
           <MetaIconBadge
-            label={translate(
-              'auto.components.sidebar.WorktreeCardMeta.linkedJira',
-              'Linked Jira {{value0}}',
-              { value0: jiraIssue.identifier }
-            )}
+            label={
+              jiraIssue.provider === 'clickup'
+                ? translate(
+                    'auto.components.sidebar.WorktreeCardMeta.linkedClickUp',
+                    'Linked ClickUp {{value0}}',
+                    { value0: jiraIssue.identifier }
+                  )
+                : translate(
+                    'auto.components.sidebar.WorktreeCardMeta.linkedJira',
+                    'Linked Jira {{value0}}',
+                    { value0: jiraIssue.identifier }
+                  )
+            }
           >
-            <JiraIcon className="text-muted-foreground" />
+            {jiraIssue.provider === 'clickup' ? (
+              <ClickUpIcon className="text-muted-foreground" />
+            ) : (
+              <JiraIcon className="text-muted-foreground" />
+            )}
           </MetaIconBadge>
         )
       )}
