@@ -28,6 +28,9 @@ export function shouldHideTaskPageListChrome({
       return hasGitLabDetail
     case 'jira':
       return hasJiraDetail
+    case 'clickup':
+      // Why: the ClickUp detail is a sheet over the list, so filters stay visible.
+      return false
     case 'linear':
       return hasLinearIssueDetail || hasLinearProjectContext || hasLinearViewContext
   }
