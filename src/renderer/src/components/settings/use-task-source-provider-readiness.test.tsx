@@ -85,6 +85,9 @@ beforeEach(() => {
     jiraStatus: { connected: true },
     jiraStatusChecked: true,
     jiraStatusContextKey: 'local',
+    clickUpStatus: { connected: true },
+    clickUpStatusChecked: true,
+    clickUpStatusContextKey: 'local',
     linearStatusChecked: true,
     linearStatusContextKey: 'local',
     linearConnected: true
@@ -120,6 +123,7 @@ describe('useTaskSourceProviderReadiness', () => {
     expect(latest?.github).toMatchObject({ connected: true, checking: false })
     expect(latest?.gitlab).toMatchObject({ connected: true, checking: false })
     expect(latest?.jira).toMatchObject({ connected: true, checking: false })
+    expect(latest?.clickup).toMatchObject({ connected: true, checking: false })
     expect(latest?.linear).toMatchObject({
       connected: true,
       checking: false,
