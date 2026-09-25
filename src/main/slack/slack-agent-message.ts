@@ -88,7 +88,9 @@ export function buildSlackThreadParent(input: {
     text: input.title,
     blocks: [
       section(`${title}${linked}`),
-      context('Orca+ posts this workspace’s agent updates in this thread.')
+      context(
+        'Orca+ posts this workspace’s agent updates here. Reply in this thread to answer the agent.'
+      )
     ]
   }
 }

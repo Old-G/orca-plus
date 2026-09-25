@@ -15,7 +15,7 @@ import { isMainWindowVisible } from '../window/main-window-visibility'
 import { activeNotificationsById } from './native-notification-lifecycle'
 import { deliverNativeNotification } from './native-notification-delivery'
 import { createNotificationDeliveryService } from '../notifications/notification-delivery-service'
-import { createSlackNotificationChannel } from '../slack/slack-notification-channel'
+import { getSlackNotificationChannel } from '../slack/slack-notification-channel'
 import { createAnnouncedNotificationRegistry } from '../notifications/announced-notification-registry'
 import { registerNotificationSoundHandlers } from './notification-sound-ipc'
 import { openNotificationSystemSettings } from './notification-system-settings-link'
@@ -119,7 +119,7 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
     }
   )
 
-  const slackChannel = createSlackNotificationChannel(store, runtime)
+  const slackChannel = getSlackNotificationChannel(store, runtime)
   const deliveryService = createNotificationDeliveryService({
     readNotificationSettings: () => store.getSettings().notifications,
     findActiveWindow: () =>

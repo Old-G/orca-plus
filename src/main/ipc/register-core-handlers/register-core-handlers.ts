@@ -167,7 +167,7 @@ export function registerCoreHandlers(
   registerLinearHandlers()
   registerJiraHandlers()
   registerClickUpHandlers()
-  registerSlackHandlers()
+  registerSlackHandlers(store, runtime)
   registerBitbucketHandlers()
   registerFeedbackHandlers()
   if (crashReports) {

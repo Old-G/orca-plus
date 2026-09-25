@@ -32,6 +32,8 @@ export type SlackAgentNotifierDeps = {
 
 export type SlackAgentNotifier = {
   notify: (request: NotificationDispatchRequest) => Promise<void>
+  /** Posts a plain line into a workspace's thread, opening the thread first when needed. */
+  announce: (worktreeId: string, title: string, text: string) => Promise<void>
 }
 
 // Why: Slack answers these when the thread's parent was deleted, so a fresh parent is posted.
@@ -96,16 +98,52 @@ export function createSlackAgentNotifier(deps: SlackAgentNotifierDeps): SlackAge
           unfurl_links: false
         })
       }
-      try {
-        await post(await ensureThread(session, channel, worktreeId, title))
-      } catch (error) {
-        if (!(error instanceof SlackApiError && LOST_THREAD_ERRORS.has(error.code))) {
-          throw error
-        }
-        deps.threads.forget(channel, worktreeId)
-        await post(await ensureThread(session, channel, worktreeId, title))
+      await postWithThread(session, channel, worktreeId, title, post)
+      if (request.paneKey) {
+        deps.threads.setPane(channel, worktreeId, {
+          paneKey: request.paneKey,
+          surface: request.surface ?? 'terminal'
+        })
       }
     })
+  }
+
+  const postWithThread = async (
+    session: SlackSession,
+    channel: string,
+    worktreeId: string,
+    title: string,
+    post: (threadTs: string) => Promise<void>
+  ): Promise<void> => {
+    try {
+      await post(await ensureThread(session, channel, worktreeId, title))
+    } catch (error) {
+      if (!(error instanceof SlackApiError && LOST_THREAD_ERRORS.has(error.code))) {
+        throw error
+      }
+      deps.threads.forget(channel, worktreeId)
+      await post(await ensureThread(session, channel, worktreeId, title))
+    }
+  }
+
+  const serialize = (worktreeId: string, run: () => Promise<void>): Promise<void> => {
+    const previous = chains.get(worktreeId) ?? Promise.resolve()
+    const next = previous.then(run).catch((error: unknown) => {
+      if (error instanceof SlackApiError && error.code === 'not_connected') {
+        return
+      }
+      console.warn(
+        '[slack] agent update not delivered:',
+        error instanceof Error ? error.message : error
+      )
+    })
+    chains.set(worktreeId, next)
+    void next.finally(() => {
+      if (chains.get(worktreeId) === next) {
+        chains.delete(worktreeId)
+      }
+    })
+    return next
   }
 
   return {
@@ -124,25 +162,20 @@ export function createSlackAgentNotifier(deps: SlackAgentNotifierDeps): SlackAge
           recentIds.delete(recentIds.values().next().value ?? key)
         }
       }
-      const previous = chains.get(worktreeId) ?? Promise.resolve()
-      const next = previous
-        .then(() => deliver(request, worktreeId))
-        .catch((error: unknown) => {
-          if (error instanceof SlackApiError && error.code === 'not_connected') {
-            return
-          }
-          console.warn(
-            '[slack] agent update not delivered:',
-            error instanceof Error ? error.message : error
-          )
+      return serialize(worktreeId, () => deliver(request, worktreeId))
+    },
+    announce: (worktreeId, title, text) =>
+      serialize(worktreeId, () =>
+        deps.withSession(async (session) => {
+          const channel = slackTargetChannelId(session.metadata)
+          await postWithThread(session, channel, worktreeId, title, async (threadTs) => {
+            await deps.request(session.tokens.botToken, 'chat.postMessage', {
+              channel,
+              thread_ts: threadTs,
+              text
+            })
+          })
         })
-      chains.set(worktreeId, next)
-      void next.finally(() => {
-        if (chains.get(worktreeId) === next) {
-          chains.delete(worktreeId)
-        }
-      })
-      return next
-    }
+      )
   }
 }
