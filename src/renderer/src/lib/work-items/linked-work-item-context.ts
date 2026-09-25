@@ -95,6 +95,18 @@ export function buildLinearLaunchContextBlock(args: LinearLaunchContextArgs): st
   return lines.join('\n')
 }
 
+// Why: like Linear, a ClickUp draft carries only the task id and link; the prose stays in the contained block.
+function buildClickUpDraftReference(
+  item: { provider?: TaskProvider; clickupIdentifier?: string; url?: string } | null | undefined
+): string | null {
+  const identifier = item?.clickupIdentifier?.trim()
+  const url = item?.url?.trim()
+  if (item?.provider !== 'clickup' || !identifier || !url) {
+    return null
+  }
+  return `Linked ClickUp task: ${identifier}\n${url}`
+}
+
 function escapeLinkedContextControlChars(value: string): string {
   return Array.from(value, (char) => {
     const code = char.codePointAt(0) ?? 0
@@ -152,6 +164,7 @@ export function getLaunchableWorkItemDraftContent(args: {
   url: string
   title?: string
   linearIdentifier?: string
+  clickupIdentifier?: string
   linkedContext?: LinkedWorkItemContext
 }): string {
   if (args.pasteContent?.trim()) {
@@ -166,7 +179,8 @@ export function getLaunchableWorkItemDraftContent(args: {
     })
     return linearBlock ? formatDraftContextBlock(linearBlock) : ''
   }
-  return args.url
+  const clickUpReference = buildClickUpDraftReference(args)
+  return clickUpReference ? formatDraftContextBlock(clickUpReference) : args.url
 }
 
 export function resolveQuickCreateLinkedWorkItemPrompt(
@@ -178,8 +192,9 @@ export function resolveQuickCreateLinkedWorkItemPrompt(
           url: string
           title?: string
           linearIdentifier?: string
+          clickupIdentifier?: string
         },
-        'provider' | 'number' | 'url' | 'title' | 'linearIdentifier'
+        'provider' | 'number' | 'url' | 'title' | 'linearIdentifier' | 'clickupIdentifier'
       > & { linkedContext?: LinkedWorkItemContext })
     | null
     | undefined,
@@ -194,10 +209,11 @@ export function resolveQuickCreateLinkedWorkItemPrompt(
         url: linkedWorkItem?.url
       })
     : null
-  const linearDraft = linearBlock ? formatDraftContextBlock(linearBlock) : null
+  const referenceBlock = linearBlock ?? buildClickUpDraftReference(linkedWorkItem)
+  const referenceDraft = referenceBlock ? formatDraftContextBlock(referenceBlock) : null
   const linkedUrl = linkedWorkItem?.url?.trim() || null
-  const draftPrompt = linearDraft
-    ? [trimmedNote, linearDraft].filter(Boolean).join('\n\n')
+  const draftPrompt = referenceDraft
+    ? [trimmedNote, referenceDraft].filter(Boolean).join('\n\n')
     : linkedUrl
       ? [trimmedNote, linkedUrl].filter(Boolean).join('\n\n')
       : null
