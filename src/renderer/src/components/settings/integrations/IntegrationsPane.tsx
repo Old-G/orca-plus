@@ -9,6 +9,7 @@ import {
 } from '../../integrations/source-control/cli-source-control-integration-cards'
 import { JiraIntegrationCard } from '../../integrations/task-trackers/jira-integration-card'
 import { ClickUpIntegrationCard } from '../../integrations/task-trackers/clickup-integration-card'
+import { SlackIntegrationCard } from '../../integrations/messaging/slack-integration-card'
 import { LinearIntegrationCard } from '../../integrations/task-trackers/linear-integration-card'
 import { IntegrationCardPresentationProvider } from '../../integrations/presentation/integration-card-presentation'
 import { useIntegrationProviderStatusRefresh } from '../../../hooks/use-integration-provider-status-refresh'
@@ -70,6 +71,18 @@ export function IntegrationsPane(): React.JSX.Element {
           </ProviderRow>
           <ProviderRow>
             <ClickUpIntegrationCard />
+          </ProviderRow>
+        </SettingsGroup>
+
+        <SettingsGroup
+          title={t('auto.components.settings.IntegrationsPane.messagingTitle', 'Messaging')}
+          description={t(
+            'auto.components.settings.IntegrationsPane.messagingDescription',
+            'Send agent updates to a chat app and answer your agents from there.'
+          )}
+        >
+          <ProviderRow>
+            <SlackIntegrationCard />
           </ProviderRow>
         </SettingsGroup>
       </div>
