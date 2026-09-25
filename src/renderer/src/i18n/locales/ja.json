@@ -3277,6 +3277,7 @@
         "loadPageUnreachable": "ページ {{value0}} は GitHub 検索が返せる範囲を超えています。",
         "loadPageFailed": "GitHub からページ {{value0}} を読み込めませんでした。",
         "loadPageNoMoreResults": "ページ {{value0}} にはこれ以上結果がありません。",
+        "clickUpSource": "ClickUp",
         "jiraColumnsPicker": "列",
         "jiraColumnParent": "親",
         "jiraColumnSprint": "スプリント",
