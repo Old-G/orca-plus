@@ -99,11 +99,18 @@ export function prepareLoadedProfileSettings(
   })
   const visibleTaskProvidersDefaultedForJira =
     parsed.settings?.visibleTaskProvidersDefaultedForJira === true
-  const migratedVisibleTaskProviders = visibleTaskProvidersDefaultedForJira
-    ? rawTaskProviderSettings.visibleTaskProviders
-    : rawTaskProviderSettings.visibleTaskProviders.includes('jira')
-      ? rawTaskProviderSettings.visibleTaskProviders
-      : [...rawTaskProviderSettings.visibleTaskProviders, 'jira' as const]
+  const visibleTaskProvidersDefaultedForClickUp =
+    parsed.settings?.visibleTaskProvidersDefaultedForClickUp === true
+  const migratedVisibleTaskProviders = [...rawTaskProviderSettings.visibleTaskProviders]
+  if (!visibleTaskProvidersDefaultedForJira && !migratedVisibleTaskProviders.includes('jira')) {
+    migratedVisibleTaskProviders.push('jira')
+  }
+  if (
+    !visibleTaskProvidersDefaultedForClickUp &&
+    !migratedVisibleTaskProviders.includes('clickup')
+  ) {
+    migratedVisibleTaskProviders.push('clickup')
+  }
   const taskProviderSettings = normalizeTaskProviderSettings({
     visibleTaskProviders: migratedVisibleTaskProviders,
     defaultTaskSource: rawTaskProviderSettings.defaultTaskSource
@@ -124,7 +131,7 @@ export function prepareLoadedProfileSettings(
   if (migratePrimarySelectionPlatformDefault || stampPrimarySelectionTerminalDefaults) {
     markNeedsSave()
   }
-  if (!visibleTaskProvidersDefaultedForJira) {
+  if (!visibleTaskProvidersDefaultedForJira || !visibleTaskProvidersDefaultedForClickUp) {
     markNeedsSave()
   }
   const claudeAgentTeamsDefaultDisabledMigrated =
