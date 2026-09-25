@@ -63,6 +63,7 @@ import { petApi } from './api/pets/pet-bridge'
 import { appIconApi } from './api/window-ui/app-icon-bridge'
 import { browserPasswordsApi } from './api/browser/browser-passwords-bridge'
 import { clickupApi } from './api/clickup-bridge'
+import { slackApi } from './api/slack-bridge'
 import { lspApi } from './api/lsp-bridge'
 import { claudeIdeApi } from './api/claude-ide-bridge'
 import { customCssApi } from './api/custom-css-bridge'
@@ -150,6 +151,7 @@ const api = {
   linear: linearApi,
   jira: jiraApi,
   clickup: clickupApi,
+  slack: slackApi,
   lsp: lspApi,
   claudeIde: claudeIdeApi,
   starNag: starNagApi,
