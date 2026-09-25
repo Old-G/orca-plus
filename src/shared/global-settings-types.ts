@@ -8,7 +8,7 @@ import type { GitHubProjectSettings } from './github/project-types'
 import type { VoiceSettings } from './speech-types'
 import type { AiVaultSearchSettings } from './ai-vault/search/ai-vault-search-settings'
 import type { GitLabProjectSettings } from './gitlab-types'
-import type { TaskProvider } from './work-items/task-providers'
+import type { TaskProvider, TaskProviderRolloutFlags } from './work-items/task-providers'
 import type { AppIconId } from './app-icon'
 import type { CustomAppearanceBackground } from './custom-appearance-background'
 import type { CustomAppearanceTheme } from './vscode-theme/custom-appearance-theme'
@@ -507,6 +507,6 @@ export type GlobalSettings = GlobalSettingsBase & {
   voiceDictationModeDefaultedToAuto?: boolean
   /** Transcript full-text search consent + retention. Absent means off; nothing indexes until the user opts in. */
   aiVaultSearch?: AiVaultSearchSettings
-}
+} & TaskProviderRolloutFlags
 
 export type { OrcaWorkspaceLayout } from './orca-workspace-layout'

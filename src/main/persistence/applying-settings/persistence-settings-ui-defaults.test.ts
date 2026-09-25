@@ -3,13 +3,15 @@ import {
   testState,
   createStore,
   withPlatform,
-  readDataFile
+  readDataFile,
+  writeDataFile
 } from '../persistence-test-harness'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { rmSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { PersistedState } from '../../../shared/persisted-state-types'
+import { getDefaultPersistedState } from '../../../shared/constants'
 
 const { loadUserSshConfigMock, sshConfigHostsToTargetsMock } = vi.hoisted(() => ({
   loadUserSshConfigMock: vi.fn(),
@@ -62,6 +64,45 @@ describe('Store', () => {
     await closeTestStores()
     rmSync(testState.dir, { recursive: true, force: true })
   })
+  it('adds ClickUp once to a profile saved before it existed', async () => {
+    writeDataFile({
+      ...getDefaultPersistedState(testState.dir),
+      settings: {
+        visibleTaskProviders: ['github', 'gitlab', 'linear', 'jira'],
+        visibleTaskProvidersDefaultedForJira: true
+      }
+    })
+
+    const store = await createStore()
+
+    expect(store.getSettings().visibleTaskProviders).toEqual([
+      'github',
+      'gitlab',
+      'linear',
+      'jira',
+      'clickup'
+    ])
+    store.flush()
+    expect(readDataFile()).toMatchObject({
+      settings: { visibleTaskProvidersDefaultedForClickUp: true }
+    })
+  })
+
+  it('keeps ClickUp hidden after the user opted out', async () => {
+    writeDataFile({
+      ...getDefaultPersistedState(testState.dir),
+      settings: {
+        visibleTaskProviders: ['github', 'jira'],
+        visibleTaskProvidersDefaultedForJira: true,
+        visibleTaskProvidersDefaultedForClickUp: true
+      }
+    })
+
+    const store = await createStore()
+
+    expect(store.getSettings().visibleTaskProviders).toEqual(['github', 'jira'])
+  })
+
 
   it('round-trips a macOS menu bar opt-out through a non-mac host unchanged', async () => {
     await withPlatform('darwin', async () => {
