@@ -35,6 +35,7 @@ import type { GitLabApi } from './api/gitlab-api'
 import type { BitbucketApi, HostedReviewApi } from './api/hosted-review-api'
 import type { JiraApi } from './api/jira-api'
 import type { ClickUpApi } from './api/clickup-api'
+import type { SlackApi } from './api/slack-api'
 import type { LinearApi } from './api/linear-api'
 import type { LspApi } from './api/lsp-api'
 import type { ClaudeIdeApi } from './api/claude-ide-api'
@@ -101,6 +102,7 @@ export type PreloadApi = {
   linear: LinearApi
   jira: JiraApi
   clickup: ClickUpApi
+  slack: SlackApi
   starNag: StarNagApi
   telemetryTrack: TelemetryApi['telemetryTrack']
   telemetrySetOptIn: TelemetryApi['telemetrySetOptIn']

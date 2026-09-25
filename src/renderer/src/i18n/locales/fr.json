@@ -7588,7 +7588,9 @@
           "3ba07f933b": "Connectez les trackers d'issues qu'Orca peut utiliser pour parcourir les tâches et démarrer des espaces de travail avec le contexte associé.",
           "70e885705b": "Fournisseurs de tâches",
           "1683acbac4": "Connectez les hébergeurs de code qu'Orca peut utiliser pour les pull requests, merge requests, checks et statuts de revue.",
-          "298c65ecac": "Fournisseurs de revue"
+          "298c65ecac": "Fournisseurs de revue",
+          "messagingTitle": "Messagerie",
+          "messagingDescription": "Envoyez les nouvelles des agents vers une app de chat et répondez-leur depuis celle-ci."
         },
         "KagiSessionLinkForm": {
           "92f0b4e472": "Effacer",
@@ -10013,7 +10015,11 @@
             "af5ae87847": "jeton d'accès",
             "clickUpTitle": "Intégration ClickUp",
             "clickUpDescription": "Connecter ClickUp ou remplacer le jeton d'API personnel.",
-            "clickUpKeyword": "clickup"
+            "clickUpKeyword": "clickup",
+            "slackTitle": "Intégration Slack",
+            "slackDescription": "Envoyez les nouvelles des agents vers Slack et répondez-leur depuis un fil.",
+            "slackKeyword": "slack",
+            "slackNotificationsKeyword": "notifications"
           }
         },
         "jira": {
@@ -12187,6 +12193,31 @@
               "remoteCopy": "Connectez-vous avec un jeton d'API personnel ClickUp. Il est envoyé au runtime distant sélectionné et y est stocké avec le chiffrement pris en charge par le runtime.",
               "localCopy": "Connectez-vous avec un jeton d'API personnel ClickUp. Il est stocké localement et chiffré lorsque le stockage local du runtime le permet.",
               "recheck": "Revérifier"
+            }
+          }
+        },
+        "slack": {
+          "integration": {
+            "card": {
+              "connectedTo": "Connecté à {{team}}",
+              "pitch": "Recevez les nouvelles des agents dans Slack et répondez-leur depuis un fil.",
+              "connected": "Connecté",
+              "notConnected": "Non connecté",
+              "createApp": "Créer une app Slack",
+              "replaceTokens": "Remplacer les jetons",
+              "connect": "Connecter Slack",
+              "ownerOnly": "Orca+ n'agit que sur les messages de cette personne.",
+              "sent": "Envoyé",
+              "sending": "Envoi...",
+              "sendTest": "Envoyer un message de test",
+              "disconnect": "Déconnecter",
+              "targetChannel": "Les nouvelles arrivent dans #{{channel}}",
+              "targetDm": "Les nouvelles arrivent dans vos messages directs avec le bot",
+              "targetDmOption": "Message direct",
+              "targetChannelOption": "Canal",
+              "channelPlaceholder": "ID ou lien du canal",
+              "useChannel": "Utiliser le canal",
+              "setupCopy": "Créez l'app Slack à partir du manifeste Orca+, installez-la, puis connectez-la avec son jeton de bot et son jeton de niveau app."
             }
           }
         }
@@ -17409,6 +17440,30 @@
             "noComments": "Aucun commentaire pour le moment.",
             "commentPlaceholder": "Ajouter un commentaire à cette tâche",
             "comment": "Commenter"
+          }
+        }
+      },
+      "slack": {
+        "connect": {
+          "dialog": {
+            "title": "Connecter Slack",
+            "description": "Orca+ vous envoie les nouvelles des agents et n'agit que sur les messages que vous lui envoyez.",
+            "stepCreate": "Créez l'app à partir du manifeste Orca+, puis installez-la dans votre workspace.",
+            "stepAppToken": "Basic Information → App-Level Tokens : générez-en un avec le scope connections:write.",
+            "stepBotToken": "OAuth & Permissions : copiez le Bot User OAuth Token.",
+            "stepMemberId": "Votre profil Slack → ⋮ → Copy member ID.",
+            "createApp": "Créer une app Slack",
+            "yourApps": "Vos apps Slack",
+            "botTokenLabel": "Jeton du bot",
+            "appTokenLabel": "Jeton de niveau app",
+            "memberIdLabel": "Votre ID de membre",
+            "storage": "Les jetons restent dans ce profil Orca+, chiffrés avec le stockage Electron lorsqu'il est disponible.",
+            "cancel": "Annuler",
+            "verifying": "Vérification...",
+            "connect": "Connecter",
+            "botTokenPlaceholder": "xoxb-...",
+            "appTokenPlaceholder": "xapp-...",
+            "memberIdPlaceholder": "U0123ABCD"
           }
         }
       }

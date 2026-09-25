@@ -7438,7 +7438,9 @@
           "3ba07f933b": "连接 Orca 可用于浏览任务并启动带链接上下文工作区的议题追踪器。",
           "70e885705b": "任务提供商",
           "1683acbac4": "连接 Orca 可用于 pull request、merge request、检查和评审状态的源代码主机。",
-          "298c65ecac": "评审提供商"
+          "298c65ecac": "评审提供商",
+          "messagingTitle": "消息",
+          "messagingDescription": "将智能体动态发送到聊天应用，并在那里回复智能体。"
         },
         "KagiSessionLinkForm": {
           "92f0b4e472": "清除",
@@ -9853,7 +9855,11 @@
             "af5ae87847": "访问令牌",
             "clickUpTitle": "ClickUp 集成",
             "clickUpDescription": "连接 ClickUp 或替换个人 API 令牌。",
-            "clickUpKeyword": "clickup"
+            "clickUpKeyword": "clickup",
+            "slackTitle": "Slack 集成",
+            "slackDescription": "将智能体动态发送到 Slack，并在话题中回复智能体。",
+            "slackKeyword": "slack",
+            "slackNotificationsKeyword": "通知"
           }
         },
         "jira": {
@@ -12084,6 +12090,31 @@
               "remoteCopy": "使用 ClickUp 个人 API 令牌连接。令牌会发送到所选的远程运行时，并以运行时支持的加密方式存储。",
               "localCopy": "使用 ClickUp 个人 API 令牌连接。令牌存储在本地，并在本地运行时存储支持时加密。",
               "recheck": "重新检查"
+            }
+          }
+        },
+        "slack": {
+          "integration": {
+            "card": {
+              "connectedTo": "已连接到 {{team}}",
+              "pitch": "在 Slack 中接收智能体动态，并在话题中回复智能体。",
+              "connected": "已连接",
+              "notConnected": "未连接",
+              "createApp": "创建 Slack 应用",
+              "replaceTokens": "替换令牌",
+              "connect": "连接 Slack",
+              "ownerOnly": "Orca+ 只响应此用户的消息。",
+              "sent": "已发送",
+              "sending": "正在发送...",
+              "sendTest": "发送测试消息",
+              "disconnect": "断开连接",
+              "targetChannel": "动态发送到 #{{channel}}",
+              "targetDm": "动态发送到你与机器人的私信",
+              "targetDmOption": "私信",
+              "targetChannelOption": "频道",
+              "channelPlaceholder": "频道 ID 或链接",
+              "useChannel": "使用频道",
+              "setupCopy": "使用 Orca+ 清单创建 Slack 应用并安装，然后用其机器人令牌和应用级令牌连接。"
             }
           }
         }
@@ -17310,6 +17341,30 @@
             "noComments": "暂无评论。",
             "commentPlaceholder": "为此任务添加评论",
             "comment": "评论"
+          }
+        }
+      },
+      "slack": {
+        "connect": {
+          "dialog": {
+            "title": "连接 Slack",
+            "description": "Orca+ 会向你发送智能体动态，并且只响应你发送给它的消息。",
+            "stepCreate": "使用 Orca+ 清单创建应用，然后将其安装到你的工作区。",
+            "stepAppToken": "Basic Information → App-Level Tokens：生成一个带 connections:write 权限的令牌。",
+            "stepBotToken": "OAuth & Permissions：复制 Bot User OAuth Token。",
+            "stepMemberId": "你的 Slack 个人资料 → ⋮ → Copy member ID。",
+            "createApp": "创建 Slack 应用",
+            "yourApps": "你的 Slack 应用",
+            "botTokenLabel": "机器人令牌",
+            "appTokenLabel": "应用级令牌",
+            "memberIdLabel": "你的成员 ID",
+            "storage": "令牌保存在此 Orca+ 配置文件中，并在可用时使用 Electron 存储加密。",
+            "cancel": "取消",
+            "verifying": "正在验证...",
+            "connect": "连接",
+            "botTokenPlaceholder": "xoxb-...",
+            "appTokenPlaceholder": "xapp-...",
+            "memberIdPlaceholder": "U0123ABCD"
           }
         }
       }

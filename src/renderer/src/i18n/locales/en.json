@@ -7651,7 +7651,9 @@
           "3ba07f933b": "Connect issue trackers Orca can use to browse tasks and start workspaces with linked context.",
           "70e885705b": "Task providers",
           "1683acbac4": "Connect the source hosts Orca can use for pull requests, merge requests, checks, and review status.",
-          "298c65ecac": "Review providers"
+          "298c65ecac": "Review providers",
+          "messagingTitle": "Messaging",
+          "messagingDescription": "Send agent updates to a chat app and answer your agents from there."
         },
         "KagiSessionLinkForm": {
           "92f0b4e472": "Clear",
@@ -10076,7 +10078,11 @@
             "af5ae87847": "access token",
             "clickUpTitle": "ClickUp Integration",
             "clickUpDescription": "Connect ClickUp or replace the personal API token.",
-            "clickUpKeyword": "clickup"
+            "clickUpKeyword": "clickup",
+            "slackTitle": "Slack Integration",
+            "slackDescription": "Send agent updates to Slack and reply to agents from a thread.",
+            "slackKeyword": "slack",
+            "slackNotificationsKeyword": "notifications"
           }
         },
         "jira": {
@@ -12245,6 +12251,31 @@
               "remoteCopy": "Connect with a ClickUp personal API token. It is sent to the selected remote runtime and stored there with runtime-supported encryption.",
               "localCopy": "Connect with a ClickUp personal API token. It is stored locally and encrypted when local runtime storage supports it.",
               "recheck": "Re-check"
+            }
+          }
+        },
+        "slack": {
+          "integration": {
+            "card": {
+              "connectedTo": "Connected to {{team}}",
+              "pitch": "Get agent updates in Slack and answer your agents from a thread.",
+              "connected": "Connected",
+              "notConnected": "Not connected",
+              "createApp": "Create Slack app",
+              "replaceTokens": "Replace tokens",
+              "connect": "Connect Slack",
+              "ownerOnly": "Orca+ acts only on messages from this person.",
+              "sent": "Sent",
+              "sending": "Sending...",
+              "sendTest": "Send test message",
+              "disconnect": "Disconnect",
+              "targetChannel": "Updates go to #{{channel}}",
+              "targetDm": "Updates go to your direct messages with the bot",
+              "targetDmOption": "Direct message",
+              "targetChannelOption": "Channel",
+              "channelPlaceholder": "Channel ID or link",
+              "useChannel": "Use channel",
+              "setupCopy": "Create the Slack app from the Orca+ manifest, install it, then connect with its bot and app-level tokens."
             }
           }
         }
@@ -17471,6 +17502,30 @@
             "noComments": "No comments yet.",
             "commentPlaceholder": "Add a comment to this task",
             "comment": "Comment"
+          }
+        }
+      },
+      "slack": {
+        "connect": {
+          "dialog": {
+            "title": "Connect Slack",
+            "description": "Orca+ posts agent updates to you and acts only on messages you send it.",
+            "stepCreate": "Create the app from the Orca+ manifest, then install it to your workspace.",
+            "stepAppToken": "Basic Information → App-Level Tokens: generate one with the connections:write scope.",
+            "stepBotToken": "OAuth & Permissions: copy the Bot User OAuth Token.",
+            "stepMemberId": "Your Slack profile → ⋮ → Copy member ID.",
+            "createApp": "Create Slack app",
+            "yourApps": "Your Slack apps",
+            "botTokenLabel": "Bot token",
+            "appTokenLabel": "App-level token",
+            "memberIdLabel": "Your member ID",
+            "storage": "Tokens stay in this Orca+ profile, encrypted with Electron storage when available.",
+            "cancel": "Cancel",
+            "verifying": "Verifying...",
+            "connect": "Connect",
+            "botTokenPlaceholder": "xoxb-...",
+            "appTokenPlaceholder": "xapp-...",
+            "memberIdPlaceholder": "U0123ABCD"
           }
         }
       }

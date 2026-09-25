@@ -7475,7 +7475,9 @@
           "3ba07f933b": "Orca がタスクの閲覧や、コンテキストを引き継いだワークスペースの作成に使える Issue トラッカーを接続します。",
           "70e885705b": "タスクプロバイダー",
           "1683acbac4": "Orca が PR、MR、チェック、レビュー状況に使えるソースホストを接続します。",
-          "298c65ecac": "レビュープロバイダー"
+          "298c65ecac": "レビュープロバイダー",
+          "messagingTitle": "メッセージング",
+          "messagingDescription": "Agent の更新をチャットアプリに送り、そこから Agent に返信します。"
         },
         "KagiSessionLinkForm": {
           "92f0b4e472": "クリア",
@@ -9890,7 +9892,11 @@
             "af5ae87847": "アクセストークン",
             "clickUpTitle": "ClickUp 連携",
             "clickUpDescription": "ClickUp に接続するか、個人用APIトークンを置き換えます。",
-            "clickUpKeyword": "clickup"
+            "clickUpKeyword": "clickup",
+            "slackTitle": "Slack 連携",
+            "slackDescription": "Agent の更新を Slack に送り、スレッドから Agent に返信します。",
+            "slackKeyword": "slack",
+            "slackNotificationsKeyword": "通知"
           }
         },
         "jira": {
@@ -12084,6 +12090,31 @@
               "remoteCopy": "ClickUp の個人用APIトークンで接続します。トークンは選択したリモートランタイムに送信され、ランタイムが対応する暗号化で保存されます。",
               "localCopy": "ClickUp の個人用APIトークンで接続します。トークンはローカルに保存され、ローカルランタイムのストレージが対応していれば暗号化されます。",
               "recheck": "再確認"
+            }
+          }
+        },
+        "slack": {
+          "integration": {
+            "card": {
+              "connectedTo": "{{team}} に接続済み",
+              "pitch": "Agent の更新を Slack で受け取り、スレッドから Agent に返信できます。",
+              "connected": "接続済み",
+              "notConnected": "未接続",
+              "createApp": "Slack アプリを作成",
+              "replaceTokens": "トークンを置き換え",
+              "connect": "Slack に接続",
+              "ownerOnly": "Orca+ はこのユーザーのメッセージにだけ反応します。",
+              "sent": "送信済み",
+              "sending": "送信中…",
+              "sendTest": "テストメッセージを送信",
+              "disconnect": "切断",
+              "targetChannel": "更新は #{{channel}} に届きます",
+              "targetDm": "更新はボットとのダイレクトメッセージに届きます",
+              "targetDmOption": "ダイレクトメッセージ",
+              "targetChannelOption": "チャンネル",
+              "channelPlaceholder": "チャンネル ID またはリンク",
+              "useChannel": "チャンネルを使用",
+              "setupCopy": "Orca+ のマニフェストから Slack アプリを作成してインストールし、ボットトークンとアプリレベルトークンで接続します。"
             }
           }
         }
@@ -17310,6 +17341,30 @@
             "noComments": "まだコメントはありません。",
             "commentPlaceholder": "このタスクにコメントを追加",
             "comment": "コメント"
+          }
+        }
+      },
+      "slack": {
+        "connect": {
+          "dialog": {
+            "title": "Slack に接続",
+            "description": "Orca+ は Agent の更新をあなたに送信し、あなたが送ったメッセージにだけ反応します。",
+            "stepCreate": "Orca+ のマニフェストからアプリを作成し、ワークスペースにインストールします。",
+            "stepAppToken": "Basic Information → App-Level Tokens で connections:write スコープのトークンを生成します。",
+            "stepBotToken": "OAuth & Permissions で Bot User OAuth Token をコピーします。",
+            "stepMemberId": "Slack のプロフィール → ⋮ → Copy member ID。",
+            "createApp": "Slack アプリを作成",
+            "yourApps": "自分の Slack アプリ",
+            "botTokenLabel": "ボットトークン",
+            "appTokenLabel": "アプリレベルトークン",
+            "memberIdLabel": "あなたのメンバー ID",
+            "storage": "トークンはこの Orca+ プロファイルに保存され、利用可能な場合は Electron のストレージで暗号化されます。",
+            "cancel": "キャンセル",
+            "verifying": "確認中…",
+            "connect": "接続",
+            "botTokenPlaceholder": "xoxb-...",
+            "appTokenPlaceholder": "xapp-...",
+            "memberIdPlaceholder": "U0123ABCD"
           }
         }
       }

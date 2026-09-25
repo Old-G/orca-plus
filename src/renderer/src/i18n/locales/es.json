@@ -6386,7 +6386,9 @@
           "3ba07f933b": "Conecta issue trackers que Orca puede usar para explorar tareas e iniciar espacios de trabajo con contexto vinculado.",
           "70e885705b": "Proveedores de tareas",
           "1683acbac4": "Conecta los hosts de código que Orca puede usar para pull requests, merge requests, checks y estado de revisión.",
-          "298c65ecac": "Proveedores de revisión"
+          "298c65ecac": "Proveedores de revisión",
+          "messagingTitle": "Mensajería",
+          "messagingDescription": "Envía novedades de los agentes a una app de chat y respóndeles desde allí."
         },
         "KagiSessionLinkForm": {
           "92f0b4e472": "Borrar",
@@ -8648,7 +8650,11 @@
             "f16e41cc72": "Integración de GitHub",
             "clickUpTitle": "Integración con ClickUp",
             "clickUpDescription": "Conecta ClickUp o reemplaza el token de API personal.",
-            "clickUpKeyword": "clickup"
+            "clickUpKeyword": "clickup",
+            "slackTitle": "Integración con Slack",
+            "slackDescription": "Envía novedades de los agentes a Slack y respóndeles desde un hilo.",
+            "slackKeyword": "slack",
+            "slackNotificationsKeyword": "notificaciones"
           }
         },
         "jira": {
@@ -10484,6 +10490,31 @@
               "remoteCopy": "Conéctate con un token de API personal de ClickUp. Se envía al runtime remoto seleccionado y se guarda allí con el cifrado que admita el runtime.",
               "localCopy": "Conéctate con un token de API personal de ClickUp. Se guarda localmente y se cifra cuando el almacenamiento local del runtime lo admite.",
               "recheck": "Volver a comprobar"
+            }
+          }
+        },
+        "slack": {
+          "integration": {
+            "card": {
+              "connectedTo": "Conectado a {{team}}",
+              "pitch": "Recibe novedades de los agentes en Slack y respóndeles desde un hilo.",
+              "connected": "Conectado",
+              "notConnected": "No conectado",
+              "createApp": "Crear app de Slack",
+              "replaceTokens": "Reemplazar tokens",
+              "connect": "Conectar Slack",
+              "ownerOnly": "Orca+ solo actúa sobre los mensajes de esta persona.",
+              "sent": "Enviado",
+              "sending": "Enviando...",
+              "sendTest": "Enviar mensaje de prueba",
+              "disconnect": "Desconectar",
+              "targetChannel": "Las novedades van a #{{channel}}",
+              "targetDm": "Las novedades van a tus mensajes directos con el bot",
+              "targetDmOption": "Mensaje directo",
+              "targetChannelOption": "Canal",
+              "channelPlaceholder": "ID o enlace del canal",
+              "useChannel": "Usar canal",
+              "setupCopy": "Crea la app de Slack desde el manifiesto de Orca+, instálala y conéctala con su token de bot y su token de nivel de app."
             }
           }
         }
@@ -14828,6 +14859,30 @@
             "noComments": "Aún no hay comentarios.",
             "commentPlaceholder": "Añade un comentario a esta tarea",
             "comment": "Comentar"
+          }
+        }
+      },
+      "slack": {
+        "connect": {
+          "dialog": {
+            "title": "Conectar Slack",
+            "description": "Orca+ te envía novedades de los agentes y solo actúa sobre los mensajes que tú le envías.",
+            "stepCreate": "Crea la app desde el manifiesto de Orca+ e instálala en tu workspace.",
+            "stepAppToken": "Basic Information → App-Level Tokens: genera uno con el scope connections:write.",
+            "stepBotToken": "OAuth & Permissions: copia el Bot User OAuth Token.",
+            "stepMemberId": "Tu perfil de Slack → ⋮ → Copy member ID.",
+            "createApp": "Crear app de Slack",
+            "yourApps": "Tus apps de Slack",
+            "botTokenLabel": "Token del bot",
+            "appTokenLabel": "Token de nivel de app",
+            "memberIdLabel": "Tu ID de miembro",
+            "storage": "Los tokens se quedan en este perfil de Orca+, cifrados con el almacenamiento de Electron cuando está disponible.",
+            "cancel": "Cancelar",
+            "verifying": "Verificando...",
+            "connect": "Conectar",
+            "botTokenPlaceholder": "xoxb-...",
+            "appTokenPlaceholder": "xapp-...",
+            "memberIdPlaceholder": "U0123ABCD"
           }
         }
       }
