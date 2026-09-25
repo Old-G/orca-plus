@@ -95,7 +95,11 @@ export function WorkspaceAttachmentSearch({
     gitlabSourceContext: contexts.gitlab,
     jiraSourceContext: contexts.jira
   })
-  const toAttachment = controller.resolveRow
+  const toAttachment = (row: RowEntry): WorkspaceAttachment | null => {
+    const item = controller.resolveRow(row)
+    // Why: a ClickUp task links as the workspace's linkedWorkItem, never as an attachment.
+    return item && item.provider !== 'clickup' ? { ...item, provider: item.provider } : null
+  }
   const linked = (row: RowEntry): boolean => {
     const item = toAttachment(row)
     return item ? isWorkspaceAttachmentLinked(props.items, item) : false

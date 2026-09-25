@@ -38,19 +38,43 @@ export type LinkedWorkItemSummary = Omit<FolderWorkspaceLinkedTask, 'provider'> 
 export function canUseIssueCommandForLinkedItemProvider(
   provider: FolderWorkspaceLinkedTask['provider'] | null
 ): boolean {
-  return provider === 'github' || provider === 'gitlab'
+  return provider === 'github' || provider === 'gitlab' || provider === 'clickup'
 }
 
 // Linked work items without user prompt or issueCommand still need an actionable default task.
 export const DEFAULT_ISSUE_COMMAND_TEMPLATE = 'Complete {{artifact_url}}'
 
+export type IssueCommandTemplateVars = {
+  issueNumber: number | null
+  artifactUrl: string | null
+  /** ClickUp task id (DEV-123) for {{task}}. */
+  taskId?: string | null
+}
+
+export function getLinkedWorkItemTemplateVars(item: {
+  provider?: FolderWorkspaceLinkedTask['provider']
+  type: 'issue' | 'pr' | 'mr'
+  number: number
+  url: string
+  clickupIdentifier?: string
+}): IssueCommandTemplateVars {
+  if (item.provider === 'clickup') {
+    // Why: ClickUp's number is a 0 sentinel; {{issue}} must stay unrendered rather than read "0".
+    return { issueNumber: null, artifactUrl: item.url, taskId: item.clickupIdentifier ?? null }
+  }
+  return { issueNumber: item.type === 'issue' ? item.number : null, artifactUrl: item.url }
+}
+
 /** Prefer artifact_url while retaining issue substitutions for unmigrated orca.yaml/.orca/issue-command templates. */
 export function renderIssueCommandTemplate(
   template: string,
-  vars: { issueNumber: number | null; artifactUrl: string | null }
+  vars: IssueCommandTemplateVars
 ): string {
-  const { issueNumber, artifactUrl } = vars
+  const { issueNumber, artifactUrl, taskId } = vars
   let rendered = template
+  if (taskId) {
+    rendered = rendered.replace(/\{\{task\}\}/g, taskId)
+  }
   if (artifactUrl !== null) {
     rendered = rendered.replace(/\{\{artifact_url\}\}/g, artifactUrl)
   }
