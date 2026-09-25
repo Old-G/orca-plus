@@ -25,6 +25,8 @@ export type WorktreeCardLinearIssueDisplay = {
 }
 
 export type WorktreeCardJiraIssueDisplay = {
+  /** Account-backed trackers that share this card slot. */
+  provider: 'jira' | 'clickup'
   identifier: string
   title: string
   url: string
