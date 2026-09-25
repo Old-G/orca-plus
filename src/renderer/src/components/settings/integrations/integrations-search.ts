@@ -15,7 +15,8 @@ export const INTEGRATION_SETTING_TARGET_IDS = {
   gitea: 'integrations-gitea',
   jira: JIRA_INTEGRATION_SECTION_ID,
   linear: LINEAR_INTEGRATION_SECTION_ID,
-  clickup: 'integrations-clickup'
+  clickup: 'integrations-clickup',
+  slack: 'integrations-slack'
 } as const
 
 export const getIntegrationsPaneSearchEntries = createLocalizedCatalog(() => [
@@ -203,6 +204,31 @@ export const getIntegrationsPaneSearchEntries = createLocalizedCatalog(() => [
       ...translateSearchKeyword(
         'auto.components.settings.integrations.search.3c3d3d8ffa',
         'connect'
+      )
+    ]
+  },
+  {
+    targetSectionId: INTEGRATION_SETTING_TARGET_IDS.slack,
+    title: translate(
+      'auto.components.settings.integrations.search.slackTitle',
+      'Slack Integration'
+    ),
+    description: translate(
+      'auto.components.settings.integrations.search.slackDescription',
+      'Send agent updates to Slack and reply to agents from a thread.'
+    ),
+    keywords: [
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.slackKeyword',
+        'slack'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.slackNotificationsKeyword',
+        'notifications'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.c450244ad7',
+        'integration'
       )
     ]
   },
