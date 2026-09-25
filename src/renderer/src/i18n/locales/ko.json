@@ -8556,7 +8556,9 @@
           "integrationsHint": "모든 제공업체의 자격 증명은 다음에서도 관리할 수 있습니다:",
           "integrationsLink": "연동",
           "skillHint": ". Linear를 연결한 후 사용 예시는 설정 → Linear에서 확인할 수 있습니다.",
-          "incompleteBannerBodyWithLinear": "사용하지 않는 제공업체를 숨기거나 카드를 펼쳐 단계를 완료하세요. Linear에는 API 액세스, 에이전트 스킬, 작업에 표시가 필요합니다."
+          "incompleteBannerBodyWithLinear": "사용하지 않는 제공업체를 숨기거나 카드를 펼쳐 단계를 완료하세요. Linear에는 API 액세스, 에이전트 스킬, 작업에 표시가 필요합니다.",
+          "clickUpLabel": "ClickUp",
+          "clickUpDescription": "개인 API 토큰으로 ClickUp을 연결하고 작업에 표시합니다."
         },
         "TerminalAppearanceSection": {
           "a14a427ae4": "창 구분선의 두께입니다.",
@@ -9882,7 +9884,10 @@
             "7166b9090c": "gh CLI를 통한 GitHub 인증.",
             "f16e41cc72": "GitHub 연동",
             "760e2446e0": "저장된 API 토큰 또는 환경 변수를 사용한 Bitbucket 클라우드 인증.",
-            "af5ae87847": "액세스 토큰"
+            "af5ae87847": "액세스 토큰",
+            "clickUpTitle": "ClickUp 연동",
+            "clickUpDescription": "ClickUp을 연결하거나 개인 API 토큰을 교체합니다.",
+            "clickUpKeyword": "clickup"
           }
         },
         "jira": {
@@ -10390,7 +10395,8 @@
             "setup": "설정",
             "apiKey": "API 키",
             "skill": "스킬",
-            "connect": "연결"
+            "connect": "연결",
+            "clickup": "clickup"
           }
         },
         "terminal": {
@@ -12115,6 +12121,34 @@
           "usageDescription": "Cursor는 요금 주기에 따라 초기화되는 두 가지 풀과, 소진 후에 발생하는 주문형 지출로 과금합니다.",
           "usageLabel": "사용량",
           "usageTitle": "월간 플랜 사용량"
+        },
+        "ClickUpSetupSteps": {
+          "connectTitle": "ClickUp 연결",
+          "connectDescription": "ClickUp 설정 → Apps에서 개인 API 토큰을 추가하세요.",
+          "manage": "토큰 관리",
+          "add": "ClickUp 액세스 추가"
+        },
+        "clickup": {
+          "integration": {
+            "card": {
+              "connectedAs": "{{name}}(으)로 연결됨",
+              "checking": "설정 작업을 표시하기 전에 ClickUp 액세스를 확인하는 중입니다.",
+              "pitch": "ClickUp 작업을 둘러보고 작업에서 워크스페이스를 시작하세요.",
+              "connected": "연결됨",
+              "notConnected": "연결되지 않음",
+              "replaceToken": "토큰 교체",
+              "connect": "ClickUp 연결",
+              "accountScope": "계정 범위",
+              "verified": "확인됨",
+              "testing": "테스트 중...",
+              "test": "테스트",
+              "disconnect": "연결 해제",
+              "workspace": "ClickUp 워크스페이스",
+              "remoteCopy": "ClickUp 개인 API 토큰으로 연결합니다. 토큰은 선택한 원격 런타임으로 전송되어 런타임이 지원하는 암호화로 저장됩니다.",
+              "localCopy": "ClickUp 개인 API 토큰으로 연결합니다. 토큰은 로컬에 저장되며 로컬 런타임 저장소가 지원하면 암호화됩니다.",
+              "recheck": "다시 확인"
+            }
+          }
         }
       },
       "right": {
@@ -17289,6 +17323,23 @@
         "preloadApi": {
           "cursorAccounts": {
             "hostOnly": "Cursor 로그인 정보는 Orca가 실행 중인 컴퓨터에서만 읽을 수 있습니다."
+          }
+        }
+      },
+      "clickup": {
+        "connect": {
+          "dialog": {
+            "title": "ClickUp 연결",
+            "description": "개인 API 토큰을 붙여 넣으세요. Orca는 작업을 읽고, 사용자가 Orca에서 직접 할 때만 상태를 바꾸거나 댓글을 추가합니다.",
+            "tokenLabel": "개인 API 토큰",
+            "tokenHelp": "ClickUp의 설정 → Apps → API Token에서 만드세요. 토큰은 워크스페이스 권한을 가진 사용자 계정으로 동작합니다.",
+            "openSettings": "ClickUp API 설정",
+            "remoteStorage": "이 토큰은 활성 원격 런타임에 저장됩니다.",
+            "localStorage": "토큰은 가능한 경우 Electron 암호화 저장소를 사용해 이 기기에 저장됩니다.",
+            "cancel": "취소",
+            "verifying": "확인 중...",
+            "connect": "연결",
+            "tokenPlaceholder": "pk_..."
           }
         }
       }
