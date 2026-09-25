@@ -186,9 +186,9 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
           { recordNotificationDeliveryOutcome },
           { deliverNativeNotification },
           { sessionRepliesInSlack },
-          { createSlackNotificationChannel }
+          { getSlackNotificationChannel }
         ]) => {
-          const slackChannel = createSlackNotificationChannel(store, runtime)
+          const slackChannel = getSlackNotificationChannel(store, runtime)
           return createService({
             readNotificationSettings: () => store.getSettings().notifications,
             findActiveWindow: () =>
