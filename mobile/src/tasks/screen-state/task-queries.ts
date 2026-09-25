@@ -229,5 +229,8 @@ export function taskListParams(input: TaskListInput, repoKey: string): HostQuery
             query
           }
         : null
+    // Custom build (clickup): the phone has no ClickUp list read.
+    case 'clickup':
+      return null
   }
 }
