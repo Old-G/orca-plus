@@ -7,6 +7,7 @@ import { RuntimeBrowserScreencastController } from '../browser/screencast/runtim
 import { createRuntimeBrowserCommands } from '../browser/installation/runtime-browser-commands-factory'
 import { RuntimeJiraCommands } from '../integrations/jira/runtime-jira-commands'
 import type { RpcBinarySender } from '../rpc/rpc-binary-sender'
+import { RuntimeClickUpCommands } from '../integrations/clickup/runtime-clickup-commands'
 
 type PublicMethods<T> = Pick<T, keyof T>
 type BrowserSurface = Omit<PublicMethods<RuntimeBrowserCommands>, 'browserScreencast'> & {
@@ -25,6 +26,7 @@ type BrowserSurface = Omit<PublicMethods<RuntimeBrowserCommands>, 'browserScreen
 
 export type RuntimeEdgeCommandSurface = BrowserSurface &
   PublicMethods<RuntimeJiraCommands> &
+  PublicMethods<RuntimeClickUpCommands> &
   PublicMethods<RuntimeEmulatorCommands>
 
 type ScreencastDependencies = ConstructorParameters<typeof RuntimeBrowserScreencastController>[0]
@@ -145,6 +147,7 @@ function bindBrowserMethods<T extends object>(
 
 export class RuntimeEdgeCommandController {
   private readonly jira: RuntimeJiraCommands
+  private readonly clickup = new RuntimeClickUpCommands()
   private readonly browser: RuntimeBrowserCommands
   private readonly screencasts: RuntimeBrowserScreencastController
   private readonly emulator: RuntimeEmulatorCommands
@@ -167,6 +170,7 @@ export class RuntimeEdgeCommandController {
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the bound name lists are checked against the classes above; spreading loses their key types.
     this.surface = {
       ...bindPrefixedMethods(this.jira, 'jira'),
+      ...bindPrefixedMethods(this.clickup, 'clickup'),
       ...bindBrowserMethods(this.browser, BROWSER_COMMAND_NAMES),
       ...bindPrefixedMethods(this.emulator, 'emulator'),
       browserScreencast: (params, options) => this.screencasts.start(params, options)

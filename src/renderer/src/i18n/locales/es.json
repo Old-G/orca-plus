@@ -8796,6 +8796,8 @@
           "integrationsLink": "Integraciones",
           "skillHint": ". Después de conectar Linear, los ejemplos de uso están en Ajustes → Linear.",
           "incompleteBannerBodyWithLinear": "Oculta los proveedores que no uses o expande una tarjeta y completa sus pasos. Para Linear: acceso a la API, la habilidad del agente y Mostrar en Tareas.",
+          "clickUpLabel": "ClickUp",
+          "clickUpDescription": "Conecta ClickUp con un token de API personal y muéstralo en Tareas.",
           "30255b39dc": "Proveedores de tareas"
         },
         "TerminalAppearanceSection": {
@@ -10069,6 +10071,9 @@
             "41ccade05c": "gh",
             "b79c21bd42": "github",
             "7166b9090c": "Autenticación de GitHub a través de la CLI de gh.",
+            "clickUpTitle": "Integración con ClickUp",
+            "clickUpDescription": "Conecta ClickUp o reemplaza el token de API personal.",
+            "clickUpKeyword": "clickup",
             "760e2446e0": "Autenticación de Bitbucket Cloud con un token API guardado o variables de entorno.",
             "af5ae87847": "token de acceso",
             "d8906d60a9": "Integración de Jira",
@@ -10570,6 +10575,7 @@
             "apiKey": "clave de API",
             "skill": "habilidad",
             "connect": "conectar",
+            "clickup": "clickup",
             "12d2fdff3c": "Proveedores de tareas"
           }
         },
@@ -11961,6 +11967,34 @@
           "usageDescription": "Cursor factura dos cuotas que se restablecen con tu ciclo de facturación, más gasto bajo demanda cuando se agotan.",
           "usageLabel": "Uso",
           "usageTitle": "Uso del plan"
+        },
+        "ClickUpSetupSteps": {
+          "connectTitle": "Conectar ClickUp",
+          "connectDescription": "Añade un token de API personal desde Ajustes → Apps de ClickUp.",
+          "manage": "Administrar token",
+          "add": "Añadir acceso a ClickUp"
+        },
+        "clickup": {
+          "integration": {
+            "card": {
+              "connectedAs": "Conectado como {{name}}",
+              "checking": "Comprobando el acceso a ClickUp antes de mostrar las acciones de configuración.",
+              "pitch": "Explora tus tareas de ClickUp e inicia espacios de trabajo desde ellas.",
+              "connected": "Conectado",
+              "notConnected": "No conectado",
+              "replaceToken": "Reemplazar token",
+              "connect": "Conectar ClickUp",
+              "accountScope": "Alcance de la cuenta",
+              "verified": "Verificado",
+              "testing": "Probando...",
+              "test": "Probar",
+              "disconnect": "Desconectar",
+              "workspace": "Espacio de ClickUp",
+              "remoteCopy": "Conéctate con un token de API personal de ClickUp. Se envía al runtime remoto seleccionado y se guarda allí con el cifrado que admita el runtime.",
+              "localCopy": "Conéctate con un token de API personal de ClickUp. Se guarda localmente y se cifra cuando el almacenamiento local del runtime lo admite.",
+              "recheck": "Volver a comprobar"
+            }
+          }
         },
         "NotificationHostToggles": {
           "offCount": "{{count}} desactivadas",
@@ -18540,6 +18574,23 @@
           "accounts": {
             "signInHostOnly": "Agregar una cuenta o volver a iniciar sesión en ella solo está disponible en la app de escritorio del equipo que ejecuta Orca.",
             "claudeWslDefaultUnavailable": "Volver a cambiar una cuenta WSL al predeterminado del sistema solo está disponible en la app de escritorio."
+          }
+        }
+      },
+      "clickup": {
+        "connect": {
+          "dialog": {
+            "title": "Conectar ClickUp",
+            "description": "Pega un token de API personal. Orca lee tus tareas y solo cambia un estado o añade un comentario cuando lo haces tú desde Orca.",
+            "tokenLabel": "Token de API personal",
+            "tokenHelp": "Créalo en ClickUp en Ajustes → Apps → API Token. El token actúa como tu cuenta, con tus permisos del espacio.",
+            "openSettings": "Ajustes de API de ClickUp",
+            "remoteStorage": "Este token lo guarda el runtime remoto activo.",
+            "localStorage": "El token se guarda en este dispositivo con el almacenamiento cifrado de Electron cuando está disponible.",
+            "cancel": "Cancelar",
+            "verifying": "Verificando...",
+            "connect": "Conectar",
+            "tokenPlaceholder": "pk_..."
           }
         }
       },
