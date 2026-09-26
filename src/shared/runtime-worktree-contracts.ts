@@ -6,6 +6,7 @@ import type { CheckStatus } from './github/pull-request-types'
 import type { AgentChildWorkView } from './agent-status-child-work-view'
 import type { AgentSubagentSnapshot } from './agent-status-subagent-snapshot'
 import type { BaseRefSearchResult, Repo } from './repo-types'
+import type { ClaudeContextWindow } from './claude-statusline-context-window'
 import type { CreateWorktreeResult, RemoveWorktreeResult } from './worktree/create-types'
 import type {
   WorkspaceLineage,
@@ -52,6 +53,8 @@ export type RuntimeWorktreeAgentRow = {
   structuredHostOwned?: true
   /** The program's own OSC 7501 report; never decides `state`. Optional: old hosts never send it. */
   programStatus?: ProgramStatusFacet
+  /** Latest context window the agent's statusline reported (Claude only). Optional on the wire. */
+  contextWindow?: ClaudeContextWindow
 }
 
 export type RuntimeWorktreePsSummary = {

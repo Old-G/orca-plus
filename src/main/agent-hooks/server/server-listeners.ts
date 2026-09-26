@@ -19,6 +19,7 @@ import type {
   StatusDropListener
 } from './server-types'
 import { toAgentStatusIpcPayload } from './server-status-identity'
+import { withClaudeContextWindow } from './server-claude-context-window'
 import { AgentHookServerState } from './server-state'
 import { serializeAgentStatusSubject } from '../../../shared/agent-status-subject'
 import { structuredStatusLegacyEvent } from './server-structured-status-row'
@@ -226,7 +227,9 @@ export abstract class AgentHookServerListeners extends AgentHookServerState {
   /** Snapshot of cached statuses in IPC shape. Used by `agentStatus:getSnapshot` after tabs hydrate so the
    *  dashboard catches up on hook events that fired during startup. */
   getStatusSnapshot(): AgentStatusIpcPayload[] {
-    return this.combinedStatusEntries().map(toAgentStatusIpcPayload)
+    return this.combinedStatusEntries().map((entry) =>
+      withClaudeContextWindow(this.state, toAgentStatusIpcPayload(entry))
+    )
   }
 
   /** Provider-session identities, including Pi's metadata-only rows. */
@@ -239,7 +242,12 @@ export abstract class AgentHookServerListeners extends AgentHookServerState {
     if (legacy) {
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Main admits enriched legacy rows; the shared view declares their base event type.
       const row = legacy as EnrichedAgentHookEventPayload
-      return [toAgentStatusIpcPayload(this.programStatusFacets.stitch(row))]
+      return [
+        withClaudeContextWindow(
+          this.state,
+          toAgentStatusIpcPayload(this.programStatusFacets.stitch(row))
+        )
+      ]
     }
     const rows: AgentStatusIpcPayload[] = []
     for (const subject of this.canonicalSubjectsByPane.get(paneKey)?.values() ?? []) {
