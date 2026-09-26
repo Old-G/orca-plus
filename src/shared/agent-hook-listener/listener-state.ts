@@ -12,6 +12,7 @@ import {
 } from '../agent-status-legacy-adapter'
 import type { AgentStatusLegacyIngressCaller } from '../agent-status-legacy-ingress-manifest'
 import type { ClaudeLaunchedBackgroundTasks } from '../claude-owed-task-notifications'
+import type { ClaudeContextWindow } from '../claude-statusline-context-window'
 import type { ClaudeSubagentRoster } from '../claude-subagent-roster'
 import type { CodexSubagentRoster } from '../codex-subagent-roster'
 import type { CodexSubagentTranscriptState } from '../codex-subagent-transcript'
@@ -84,6 +85,8 @@ export type HookListenerState = {
   lastLaunchTokenByPaneKey: Map<string, string>
   /** Hermes turn per pane, so tool hooks from its post-turn background review can be ignored. */
   hermesTurnByPaneKey: Map<string, HermesPaneTurn>
+  /** Latest context window a Claude pane's statusline reported; renders a row, never creates one. */
+  claudeContextWindowByPaneKey: Map<string, ClaudeContextWindow>
 }
 
 export type HermesPaneTurn = {
@@ -150,7 +153,8 @@ export function createHookListenerState(
     musePaneStateByPaneKey: new Map(),
     opencodeSessionPaneBySessionId: new Map(),
     lastLaunchTokenByPaneKey: new Map(),
-    hermesTurnByPaneKey: new Map()
+    hermesTurnByPaneKey: new Map(),
+    claudeContextWindowByPaneKey: new Map()
   }
   legacyStatusAdapterByState.set(state, adapter)
   return state
@@ -248,6 +252,7 @@ export function clearPaneCacheState(state: HookListenerState, paneKey: string): 
   unbindOpenCodeSessionsOfPane(state, paneKey)
   deletePaneScopedCacheEntry(state.lastLaunchTokenByPaneKey, paneKey)
   state.hermesTurnByPaneKey.delete(paneKey)
+  state.claudeContextWindowByPaneKey.delete(paneKey)
 }
 
 /** Keep claim-bearing caches aligned with clearPaneCacheState: stored rows and latches can assert state; prompt/tool/transcript caches only render it. */
@@ -300,6 +305,7 @@ export function movePaneCacheState(
   moveOpenCodeSessionBindings(state, fromPaneKey, toPaneKey)
   movePaneScopedMapEntries(state.lastLaunchTokenByPaneKey, fromPaneKey, toPaneKey)
   movePaneScopedMapEntries(state.hermesTurnByPaneKey, fromPaneKey, toPaneKey)
+  movePaneScopedMapEntries(state.claudeContextWindowByPaneKey, fromPaneKey, toPaneKey)
 }
 
 export function clearPaneTurnCacheState(state: HookListenerState, paneKey: string): void {
@@ -344,4 +350,5 @@ export function clearAllListenerCaches(state: HookListenerState): void {
   state.opencodeSessionPaneBySessionId.clear()
   state.lastLaunchTokenByPaneKey.clear()
   state.hermesTurnByPaneKey.clear()
+  state.claudeContextWindowByPaneKey.clear()
 }
