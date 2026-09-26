@@ -1,6 +1,7 @@
 import type { StructuredHostStatus } from '../../shared/agent-hook-listener/listener-event'
 import type { ParsedAgentStatusPayload } from '../../shared/agent-status-types'
 import type { AgentMainAgentStatus } from '../../shared/main-agent-status'
+import type { ClaudeContextWindow } from '../../shared/claude-statusline-context-window'
 
 export type RuntimeWorktreeAgentSource = {
   paneKey: string
@@ -21,4 +22,5 @@ export type RuntimeWorktreeAgentSource = {
   updatedAt: number
   /** Projected by the structured session host; `owned` rows stay fresh past the staleness window. */
   structuredHost?: StructuredHostStatus
+  contextWindow?: ClaudeContextWindow
 }

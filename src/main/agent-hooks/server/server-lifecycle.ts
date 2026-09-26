@@ -6,6 +6,7 @@ import {
   CLAUDE_STATUSLINE_PATHNAME,
   parseClaudeStatusLineBody
 } from '../../../shared/claude-statusline-rate-limits'
+import { parseClaudeStatusLineContextWindow } from '../../../shared/claude-statusline-context-window'
 import { mergeAgentHookRequestHeaders } from '../../../shared/agent-hook-listener/hook-envelope'
 import { readRequestBody } from '../../../shared/agent-hook-listener/request-body'
 import { resolveHookSource } from '../../../shared/agent-hook-listener/source-routing'
@@ -15,6 +16,9 @@ import { clearAllListenerCaches } from '../../../shared/agent-hook-listener/list
 import { trackEmptyPaneKeyHook } from './server-transport-rules'
 import { AgentHookServerStatusHookLifecycle } from './server-status-hook-lifecycle'
 import { OPENCODE_STARTUP_PROMPT_CLAIM_PATH } from '../../../shared/opencode-startup-prompt'
+import { recordClaudeContextWindow } from './server-claude-context-window'
+import { isValidPaneKey } from './server-status-identity'
+import { AgentHookServerRuntimeEnv } from './server-runtime-env'
 
 export abstract class AgentHookServerLifecycle extends AgentHookServerStatusHookLifecycle {
   /** Start the loopback listener after hydration and spool replay have settled. */
@@ -87,6 +91,14 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerStatusHook
           const statusLineEvent = parseClaudeStatusLineBody(body)
           if (statusLineEvent) {
             this.onClaudeStatusLine?.(statusLineEvent)
+          }
+          const contextReport = parseClaudeStatusLineContextWindow(body, Date.now())
+          if (contextReport && isValidPaneKey(contextReport.paneKey)) {
+            recordClaudeContextWindow(
+              this.state,
+              this.resolvePaneKeyAlias(contextReport.paneKey),
+              contextReport.contextWindow
+            )
           }
           res.writeHead(204)
           res.end()
