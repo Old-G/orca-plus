@@ -2,7 +2,7 @@
 // through the same RPC methods the phone uses, dispatched in-process with a narrow allowlist.
 import { randomUUID } from 'node:crypto'
 import { app } from 'electron'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { RpcDispatcher } from '../runtime/rpc/dispatcher'
 import { AGENT_LAUNCH_METHODS } from '../runtime/rpc/methods/agent-launch/agent-launch'
@@ -13,6 +13,7 @@ import { createSlackInboundHandler, type SlackDeliveryOutcome } from './slack-in
 import { getSlackNotificationChannel, sharedSlackThreadStore } from './slack-notification-channel'
 import { asSlackRecord, SlackApiError, slackRequest } from './slack-request'
 import { SlackSocket } from './slack-socket'
+import { isSlackPausedForThisInstance } from './slack-instance-gate'
 
 // Why: these mean Orca itself refused the input; anything else (timeouts, an SSH provider that is
 // gone, a host that stopped answering) says nothing about the agent and is reported unverifiable.
@@ -195,6 +196,10 @@ export function installSlackSocketService(
 ): SlackSocket | null {
   if (service || !runtime) {
     return service
+  }
+  if (isSlackPausedForThisInstance()) {
+    console.warn('[slack] Dev build: Slack paused (set ORCA_DEV_SLACK=1 to connect)')
+    return null
   }
   service = createService(store, runtime)
   service.start()
