@@ -16,6 +16,7 @@ import type {
 } from './server-types'
 import { toAgentStatusIpcPayload } from './server-status-identity'
 import { combinedAgentStatusEntries } from './combined-agent-status-entries'
+import { withClaudeContextWindow } from './server-claude-context-window'
 import { PaneTimers } from './program-status/pane-timers'
 import { ProgramStatusFacetStore } from './program-status/facet-store'
 import { AgentHookServerAgentIdentities } from './server-agent-identities'
@@ -211,7 +212,9 @@ export abstract class AgentHookServerListeners extends AgentHookServerAgentIdent
   }
 
   getStatusSnapshot(): AgentStatusIpcPayload[] {
-    return this.combinedStatusEntries().map(toAgentStatusIpcPayload)
+    return this.combinedStatusEntries().map((entry) =>
+      withClaudeContextWindow(this.state, toAgentStatusIpcPayload(entry))
+    )
   }
 
   /** Include metadata-only provider identities. */
@@ -245,7 +248,12 @@ export abstract class AgentHookServerListeners extends AgentHookServerAgentIdent
     if (legacy) {
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Main admits enriched legacy rows; the shared view declares their base event type.
       const row = legacy as EnrichedAgentHookEventPayload
-      return [toAgentStatusIpcPayload(this.programStatusFacets.stitch(row))]
+      return [
+        withClaudeContextWindow(
+          this.state,
+          toAgentStatusIpcPayload(this.programStatusFacets.stitch(row))
+        )
+      ]
     }
     const rows: AgentStatusIpcPayload[] = []
     for (const [subjectKey, subject] of this.canonicalSubjectsByPane.get(paneKey) ?? []) {
