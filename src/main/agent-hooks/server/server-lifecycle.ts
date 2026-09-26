@@ -12,6 +12,7 @@ import {
   readClaudeStatusLineRateLimits
 } from '../../../shared/agent-usage/rate-limits/claude-statusline-rate-limits'
 import { readClaudeStatusLineModel } from '../../../shared/agent-hook-listener/providers/claude/lifecycle/claude-statusline-model'
+import { parseClaudeStatusLineContextWindow } from '../../../shared/claude-statusline-context-window'
 import { mergeAgentHookRequestHeaders } from '../../../shared/agent-hook-listener/hook-envelope'
 import { readRequestBody } from '../../../shared/agent-hook-listener/request-body'
 import { resolveHookSource } from '../../../shared/agent-hook-listener/source-routing'
@@ -22,6 +23,9 @@ import { trackEmptyPaneKeyHook } from './server-transport-rules'
 import { AgentHookServerClaudeStatusLineModel } from './server-claude-statusline-model'
 import { OPENCODE_STARTUP_PROMPT_CLAIM_PATH } from '../../../shared/agent-launch/startup/opencode-startup-prompt'
 import { CLAUDE_AGENT_VIEW_PATH } from '../../../shared/agent-hook-listener/providers/claude/view/claude-agent-view'
+import { recordClaudeContextWindow } from './server-claude-context-window'
+import { isValidPaneKey } from './server-status-identity'
+import { AgentHookServerRuntimeEnv } from './server-runtime-env'
 
 import type { HookServerStartOptions, NormalizedLocalHook } from './server-types'
 import { withPrefetchedRolloutReads } from '../../../shared/agent-hook-listener/providers/codex/codex-rollout-prefetch-scope'
@@ -136,6 +140,14 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerClaudeStat
             if (modelReport) {
               this.applyClaudeStatusLineModel(modelReport)
             }
+          }
+          const contextReport = parseClaudeStatusLineContextWindow(body, Date.now())
+          if (contextReport && isValidPaneKey(contextReport.paneKey)) {
+            recordClaudeContextWindow(
+              this.state,
+              this.resolvePaneKeyAlias(contextReport.paneKey),
+              contextReport.contextWindow
+            )
           }
           res.writeHead(204)
           res.end()
