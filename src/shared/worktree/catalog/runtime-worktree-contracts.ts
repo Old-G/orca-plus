@@ -17,6 +17,7 @@ import type { AgentSubagentSnapshot } from '../../agent-status/contracts/agent-s
 import type { RuntimeTerminalInteractiveWait } from '../../terminal/runtime/runtime-terminal-contracts'
 import type { BaseRefSearchResult, Repo } from '../../repository/repo-types'
 import type { CreateWorktreeResult, RemoveWorktreeResult } from '../create-types'
+import type { ClaudeContextWindow } from '../../claude-statusline-context-window'
 import type {
   CrossStoreWorkspaceLineage,
   WorkspaceLineageEdge,
@@ -76,6 +77,8 @@ export type RuntimeWorktreeAgentRow = {
   programStatus?: ProgramStatusFacet
   /** How the desktop Agents list shows this agent. Omitted with no desktop window, by old hosts, and for a turn newer than the window's last verdicts. */
   activity?: AgentListVerdict
+  /** Latest context window the agent's statusline reported (Claude only). Optional on the wire. */
+  contextWindow?: ClaudeContextWindow
 }
 
 export type RuntimeWorktreePsSummary = {
