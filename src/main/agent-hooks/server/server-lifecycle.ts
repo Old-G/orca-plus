@@ -6,6 +6,7 @@ import {
   CLAUDE_STATUSLINE_PATHNAME,
   parseClaudeStatusLineBody
 } from '../../../shared/claude-statusline-rate-limits'
+import { parseClaudeStatusLineContextWindow } from '../../../shared/claude-statusline-context-window'
 import { mergeAgentHookRequestHeaders } from '../../../shared/agent-hook-listener/hook-envelope'
 import { readRequestBody } from '../../../shared/agent-hook-listener/request-body'
 import { resolveHookSource } from '../../../shared/agent-hook-listener/source-routing'
@@ -14,6 +15,8 @@ import { isHookRequestTruncatedError } from '../../../shared/agent-hook-transpor
 import { drainAgentHookSpool, type SpoolRecord } from '../../../shared/agent-hook-spool'
 import { clearAllListenerCaches } from '../../../shared/agent-hook-listener/listener-state'
 import { trackEmptyPaneKeyHook } from './server-transport-rules'
+import { recordClaudeContextWindow } from './server-claude-context-window'
+import { isValidPaneKey } from './server-status-identity'
 import { AgentHookServerRuntimeEnv } from './server-runtime-env'
 
 export abstract class AgentHookServerLifecycle extends AgentHookServerRuntimeEnv {
@@ -88,6 +91,14 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerRuntimeEnv
           const statusLineEvent = parseClaudeStatusLineBody(body)
           if (statusLineEvent) {
             this.onClaudeStatusLine?.(statusLineEvent)
+          }
+          const contextReport = parseClaudeStatusLineContextWindow(body, Date.now())
+          if (contextReport && isValidPaneKey(contextReport.paneKey)) {
+            recordClaudeContextWindow(
+              this.state,
+              this.resolvePaneKeyAlias(contextReport.paneKey),
+              contextReport.contextWindow
+            )
           }
           res.writeHead(204)
           res.end()

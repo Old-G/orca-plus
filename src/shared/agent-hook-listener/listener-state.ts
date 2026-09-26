@@ -10,6 +10,7 @@ import {
   type AgentStatusLegacyAdmissionMode
 } from '../agent-status-legacy-adapter'
 import type { AgentStatusLegacyIngressCaller } from '../agent-status-legacy-ingress-manifest'
+import type { ClaudeContextWindow } from '../claude-statusline-context-window'
 import type { ClaudeSubagentRoster } from '../claude-subagent-roster'
 import type { CodexSubagentRoster } from '../codex-subagent-roster'
 import type { CodexSubagentTranscriptState } from '../codex-subagent-transcript'
@@ -68,6 +69,8 @@ export type HookListenerState = {
   opencodeSessionPaneBySessionId: Map<string, OpenCodeSessionBinding>
   /** Last launch token seen per pane; a rewritten shared-server post needs the bound pane's live token to pass its fence. */
   lastLaunchTokenByPaneKey: Map<string, string>
+  /** Latest context window a Claude pane's statusline reported; renders a row, never creates one. */
+  claudeContextWindowByPaneKey: Map<string, ClaudeContextWindow>
 }
 
 export type MusePaneState = {
@@ -119,7 +122,8 @@ export function createHookListenerState(
     grokMainAgentStatusByPaneKey: new Map(),
     musePaneStateByPaneKey: new Map(),
     opencodeSessionPaneBySessionId: new Map(),
-    lastLaunchTokenByPaneKey: new Map()
+    lastLaunchTokenByPaneKey: new Map(),
+    claudeContextWindowByPaneKey: new Map()
   }
   legacyStatusAdapterByState.set(state, adapter)
   return state
@@ -210,6 +214,7 @@ export function clearPaneCacheState(state: HookListenerState, paneKey: string): 
   state.musePaneStateByPaneKey.delete(paneKey)
   unbindOpenCodeSessionsOfPane(state, paneKey)
   deletePaneScopedCacheEntry(state.lastLaunchTokenByPaneKey, paneKey)
+  state.claudeContextWindowByPaneKey.delete(paneKey)
 }
 
 /** Does this pane still hold anything that can ASSERT a state — a stored row, or a Claude latch that
@@ -288,6 +293,7 @@ export function movePaneCacheState(
   movePaneScopedMapEntries(state.musePaneStateByPaneKey, fromPaneKey, toPaneKey)
   moveOpenCodeSessionBindings(state, fromPaneKey, toPaneKey)
   movePaneScopedMapEntries(state.lastLaunchTokenByPaneKey, fromPaneKey, toPaneKey)
+  movePaneScopedMapEntries(state.claudeContextWindowByPaneKey, fromPaneKey, toPaneKey)
 }
 
 export function clearPaneTurnCacheState(state: HookListenerState, paneKey: string): void {
@@ -341,4 +347,5 @@ export function clearAllListenerCaches(state: HookListenerState): void {
   state.grokMainAgentStatusByPaneKey.clear()
   state.opencodeSessionPaneBySessionId.clear()
   state.lastLaunchTokenByPaneKey.clear()
+  state.claudeContextWindowByPaneKey.clear()
 }
