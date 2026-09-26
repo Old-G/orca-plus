@@ -80,7 +80,8 @@ export function collectRuntimeWorktreePtyAgentSources(args: {
       updatedAt: entry.evidenceObservedAt ?? entry.receivedAt,
       ...(children !== undefined ? { children } : {}),
       ...(entry.subagents !== undefined ? { subagents: entry.subagents } : {}),
-      ...(entry.structuredHost ? { structuredHost: entry.structuredHost } : {})
+      ...(entry.structuredHost ? { structuredHost: entry.structuredHost } : {}),
+      ...(entry.claudeContextWindow ? { contextWindow: entry.claudeContextWindow } : {})
     })
   }
   const sources: RuntimeWorktreeAgentSource[] = []
