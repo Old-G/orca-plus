@@ -6,6 +6,7 @@ import type { SlackGitSummary, SlackLinkedItem } from './slack-agent-message'
 import { createSlackAgentNotifier, type SlackAgentNotifier } from './slack-agent-notifier'
 import { withSlackSession } from './slack-client'
 import { hasStoredSlackCredential } from './slack-credential-store'
+import { isSlackPausedForThisInstance } from './slack-instance-gate'
 import { slackRequest } from './slack-request'
 import { createSlackThreadStore } from './slack-thread-store'
 
@@ -69,7 +70,7 @@ function createSlackNotificationChannel(
   return createSlackAgentNotifier({
     isConnected: () => {
       try {
-        return hasStoredSlackCredential()
+        return !isSlackPausedForThisInstance() && hasStoredSlackCredential()
       } catch {
         return false
       }
