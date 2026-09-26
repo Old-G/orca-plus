@@ -4,6 +4,7 @@ import type { ParsedAgentStatusPayload } from '../../../../shared/agent-status/c
 import type { AgentChildWorkView } from '../../../../shared/agent-status/child-work/agent-status-child-work-view'
 import type { AgentMainAgentStatus } from '../../../../shared/agent-status/lifecycle/main-agent-status'
 import type { ProgramStatusFacet } from '../../../../shared/program-status/facet'
+import type { ClaudeContextWindow } from '../../../../shared/claude-statusline-context-window'
 
 export type RuntimeWorktreeAgentSource = Pick<AgentStatusIpcPayload, 'subagents'> & {
   children?: AgentChildWorkView[]
@@ -32,4 +33,5 @@ export type RuntimeWorktreeAgentSource = Pick<AgentStatusIpcPayload, 'subagents'
   /** Projected by the structured session host; `owned` rows stay fresh past the staleness window. */
   structuredHost?: StructuredHostStatus
   programStatus?: ProgramStatusFacet
+  contextWindow?: ClaudeContextWindow
 }

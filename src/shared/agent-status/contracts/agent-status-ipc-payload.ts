@@ -6,6 +6,7 @@ import type {
   AgentProviderSessionMetadata,
   SleepingAgentLaunchConfig
 } from '../../agent-session/lifecycle/agent-session-resume'
+import type { ClaudeContextWindow } from '../../claude-statusline-context-window'
 import type { WithAgentStatusObservation } from './agent-status-observation'
 import type {
   AgentStatusExecutionId,
@@ -81,6 +82,8 @@ export type AgentStatusIpcPayload = ParsedAgentStatusPayload & {
   /** Present on rows the structured session host projects; `owned` keeps them fresh past the
    *  staleness window because the host still runs the provider child. */
   structuredHost?: StructuredHostStatus
+  /** Latest context window from the pane's Claude statusline; snapshot-only, never persisted. */
+  claudeContextWindow?: ClaudeContextWindow
 } & WithAgentStatusObservation
 
 /** Match exact UI-cleared events by receivedAt/stateStartedAt. Exclude renderer-enriched connection/worktree attribution that differs from main's cache. */
