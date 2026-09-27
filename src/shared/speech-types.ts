@@ -66,12 +66,25 @@ export type UserModelConfig = {
 
 export type DictationMode = 'toggle' | 'hold'
 
+// Custom build (dictation-language): `language` above is upstream's and every profile stores 'en',
+// so honouring it would force English on everyone; this field starts at auto-detect.
+export type DictationLanguage = 'auto' | 'ru' | 'en'
+
+export const DICTATION_LANGUAGES: readonly DictationLanguage[] = ['auto', 'ru', 'en']
+
+/** ISO-639-1 code for the transcription request; undefined lets the model detect it. */
+export function dictationLanguageCode(value: unknown): 'ru' | 'en' | undefined {
+  return value === 'ru' || value === 'en' ? value : undefined
+}
+
 export type VoiceSettings = {
   enabled: boolean
   sttModel: string
   modelsDir: string
   language: string
   dictationMode: DictationMode
+  /** Absent means auto-detect. */
+  dictationLanguage?: DictationLanguage
   terminalConfirmBeforeInsert: boolean
   userModels: UserModelConfig[]
   openAiApiKeyConfigured: boolean

@@ -17,8 +17,8 @@ export type SttEventSink = (event: SttEvent) => void
 export class SttService {
   private readonly state: SttSessionState
 
-  constructor(modelManager: ModelManager) {
-    this.state = createSttSessionState(modelManager)
+  constructor(modelManager: ModelManager, readLanguage?: () => string | undefined) {
+    this.state = createSttSessionState(modelManager, readLanguage)
   }
 
   startDictation(
