@@ -1,9 +1,15 @@
+import type { ProjectGroup } from '../../shared/project/groups/project-group-types'
 import type {
   RuntimeRepoList,
   RuntimeRepoSearchRefs
 } from '../../shared/worktree/catalog/runtime-worktree-contracts'
 import type { CommandHandler, HandlerContext } from '../dispatch/dispatch'
-import { formatRepoList, formatRepoRefs, formatRepoShow } from './repo-format'
+import {
+  formatProjectGroupList,
+  formatRepoList,
+  formatRepoRefs,
+  formatRepoShow
+} from './repo-format'
 import { printResult } from '../output/command-result-output'
 import type { BrowserProfileListResult } from '../../shared/browser/runtime/runtime-browser-contracts'
 import {
@@ -52,6 +58,10 @@ export const REPO_HANDLERS: Record<string, CommandHandler> = {
   'repo list': async ({ client, json }) => {
     const result = await client.call<RuntimeRepoList>('repo.list')
     printResult(result, json, formatRepoList)
+  },
+  'repo groups': async ({ client, json }) => {
+    const result = await client.call<{ groups: ProjectGroup[] }>('projectGroup.list')
+    printResult(result, json, formatProjectGroupList)
   },
   'repo add': async ({ flags, client, cwd, json }) => {
     const repoPath = getRequiredStringFlag(flags, 'path')
