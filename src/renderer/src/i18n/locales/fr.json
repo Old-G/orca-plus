@@ -12473,6 +12473,13 @@
             }
           }
         },
+        "VoiceDictationLanguage": {
+          "title": "Langue de dictée",
+          "description": "Indique aux modèles cloud la langue que vous parlez. La détection automatique la devine à partir de l’audio.",
+          "auto": "Détection automatique",
+          "ru": "Russe",
+          "en": "Anglais"
+        },
         "NotificationHostToggles": {
           "offCount": "{{count}} désactivées",
           "machines": "Machines",

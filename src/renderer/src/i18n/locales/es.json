@@ -12089,6 +12089,13 @@
             }
           }
         },
+        "VoiceDictationLanguage": {
+          "title": "Idioma de dictado",
+          "description": "Indica a los modelos en la nube qué idioma hablas. La detección automática lo deduce del audio.",
+          "auto": "Detección automática",
+          "ru": "Ruso",
+          "en": "Inglés"
+        },
         "NotificationHostToggles": {
           "offCount": "{{count}} desactivadas",
           "machines": "Máquinas",

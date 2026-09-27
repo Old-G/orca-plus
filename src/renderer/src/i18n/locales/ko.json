@@ -12368,6 +12368,13 @@
             }
           }
         },
+        "VoiceDictationLanguage": {
+          "title": "받아쓰기 언어",
+          "description": "클라우드 모델에 사용하는 언어를 알려줍니다. 자동 감지는 오디오로 언어를 추정합니다.",
+          "auto": "자동 감지",
+          "ru": "러시아어",
+          "en": "영어"
+        },
         "NotificationHostToggles": {
           "offCount": "{{count}}대 꺼짐",
           "machines": "머신",
