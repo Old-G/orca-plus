@@ -31,6 +31,7 @@ import { useDocumentAppearance } from './app-shell/use-document-appearance'
 import { useCustomCss } from './app-shell/use-custom-css'
 import { useCustomAppearanceTheme } from './app-shell/use-custom-appearance-theme'
 import { useCustomAppearanceBackground } from './app-shell/use-custom-appearance-background'
+import { useClaudeHandoffOffers } from './app-shell/use-claude-handoff-offers'
 import { useFloatingWorkspacePanel } from './app-shell/use-floating-workspace-panel'
 import { useGlobalKeybindings } from './app-shell/use-global-keybindings'
 import { useOnboardingAndFeatureTips } from './app-shell/use-onboarding-and-feature-tips'
@@ -58,6 +59,7 @@ function App(): React.JSX.Element {
   useCustomCss()
   useCustomAppearanceBackground()
   useCustomAppearanceTheme()
+  useClaudeHandoffOffers()
   useWindowVisibilityEffects()
   useGlobalKeybindings({ layout, floatingWorkspace })
   // Why App, not store creation: the Space window mirrors this store's selection but owns none.
