@@ -56,6 +56,7 @@ export {
   formatEnvironment,
   formatEnvironmentList,
   formatMemorySnapshot,
+  formatProjectGroupList,
   formatRepoList,
   formatRepoRefs,
   formatRepoShow,

@@ -1,6 +1,13 @@
+import type { ProjectGroup } from '../../shared/project-group-types'
 import type { RuntimeRepoList, RuntimeRepoSearchRefs } from '../../shared/runtime-types'
 import type { CommandHandler } from '../dispatch'
-import { formatRepoList, formatRepoRefs, formatRepoShow, printResult } from '../format'
+import {
+  formatProjectGroupList,
+  formatRepoList,
+  formatRepoRefs,
+  formatRepoShow,
+  printResult
+} from '../format'
 import { getOptionalPositiveIntegerFlag, getRequiredStringFlag } from '../flags'
 import { resolveRepoPathArgument } from '../repo-path-arguments'
 import { RuntimeClientError } from '../runtime/types'
@@ -9,6 +16,10 @@ export const REPO_HANDLERS: Record<string, CommandHandler> = {
   'repo list': async ({ client, json }) => {
     const result = await client.call<RuntimeRepoList>('repo.list')
     printResult(result, json, formatRepoList)
+  },
+  'repo groups': async ({ client, json }) => {
+    const result = await client.call<{ groups: ProjectGroup[] }>('projectGroup.list')
+    printResult(result, json, formatProjectGroupList)
   },
   'repo add': async ({ flags, client, cwd, json }) => {
     const repoPath = getRequiredStringFlag(flags, 'path')
