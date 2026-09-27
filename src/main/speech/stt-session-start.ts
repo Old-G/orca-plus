@@ -77,7 +77,11 @@ async function startSttSession(
     if (modelState.status !== 'ready') {
       throw new Error(`Model not ready: ${modelState.status}`)
     }
-    state.cloudSession = new OpenAiTranscriptionSession(modelId, readOpenAiSpeechApiKey)
+    state.cloudSession = new OpenAiTranscriptionSession(
+      modelId,
+      readOpenAiSpeechApiKey,
+      state.readLanguage
+    )
     state.activeModelId = modelId
     state.activeHotwordsFilePath = undefined
     state.eventSink = sink

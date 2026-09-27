@@ -1,6 +1,6 @@
 import type { ModelManager } from './model-manager'
 import type { SttService } from './stt-service'
-import type { VoiceSettings } from '../../shared/speech-types'
+import { dictationLanguageCode, type VoiceSettings } from '../../shared/speech-types'
 
 /**
  * Lazy accessors for the speech services.
@@ -23,7 +23,7 @@ type SpeechSettingsStore = {
 
 export type SpeechServiceFactories = {
   createModelManager(customModelsDir: string | undefined): ModelManager
-  createSttService(models: ModelManager): SttService
+  createSttService(models: ModelManager, readLanguage: () => string | undefined): SttService
 }
 
 let factories: SpeechServiceFactories | null = null
@@ -54,7 +54,10 @@ export function getSpeechModelManager(store: SpeechSettingsStore): ModelManager 
 
 export function getSpeechSttService(store: SpeechSettingsStore): SttService {
   if (!sttService) {
-    sttService = requireFactories().createSttService(getSpeechModelManager(store))
+    // Why: read per dictation so a language change applies without restarting the service.
+    sttService = requireFactories().createSttService(getSpeechModelManager(store), () =>
+      dictationLanguageCode(store.getSettings().voice?.dictationLanguage)
+    )
   }
   return sttService
 }

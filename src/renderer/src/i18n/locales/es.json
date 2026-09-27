@@ -10629,6 +10629,13 @@
               "setupCopy": "Crea la app de Slack desde el manifiesto de Orca+, instálala y conéctala con su token de bot y su token de nivel de app."
             }
           }
+        },
+        "VoiceDictationLanguage": {
+          "title": "Idioma de dictado",
+          "description": "Indica a los modelos en la nube qué idioma hablas. La detección automática lo deduce del audio.",
+          "auto": "Detección automática",
+          "ru": "Ruso",
+          "en": "Inglés"
         }
       },
       "right": {

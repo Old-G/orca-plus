@@ -12184,6 +12184,13 @@
               "setupCopy": "使用 Orca+ 清单创建 Slack 应用并安装，然后用其机器人令牌和应用级令牌连接。"
             }
           }
+        },
+        "VoiceDictationLanguage": {
+          "title": "听写语言",
+          "description": "告诉云端模型你说的语言。自动检测会根据音频判断。",
+          "auto": "自动检测",
+          "ru": "俄语",
+          "en": "英语"
         }
       },
       "right": {
