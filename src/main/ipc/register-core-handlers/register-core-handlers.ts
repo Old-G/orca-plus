@@ -19,6 +19,7 @@ import { registerJiraHandlers } from '../jira'
 import { registerJiraIssueSummaryGenerationHandlers } from '../jira-issue-summary-generation'
 import { registerClickUpHandlers } from '../clickup'
 import { registerSlackHandlers } from '../slack'
+import { registerClaudeHandoffHandlers } from '../claude-handoff'
 import { registerBitbucketHandlers } from '../bitbucket'
 import { registerFeedbackHandlers } from '../feedback'
 import { registerCrashReportingHandlers } from '../crash-reporting'
@@ -200,6 +201,7 @@ export function registerCoreHandlers(
   registerJiraIssueSummaryGenerationHandlers(store, commitMessageAgentEnv)
   registerClickUpHandlers()
   registerSlackHandlers(store, runtime)
+  registerClaudeHandoffHandlers(store, runtime)
   registerBitbucketHandlers()
   registerFeedbackHandlers()
   if (crashReports) {
