@@ -24,19 +24,19 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
   {
     name: 'core',
     keys: ['claude-teams', 'open', 'serve', 'status'],
-    load: async () => (await import('../runtime/commands/cli-lifecycle-handlers.js')).CORE_HANDLERS
+    load: async () => (await import('../runtime/commands/cli-lifecycle-handlers.ts')).CORE_HANDLERS
   },
   ...SERVE_PAIRING_HANDLER_GROUPS,
   {
     name: 'serve-reset-identity',
     keys: ['serve reset-identity'],
     load: async () =>
-      (await import('../server/serve-reset-identity.js')).SERVE_RESET_IDENTITY_HANDLERS
+      (await import('../server/serve-reset-identity.ts')).SERVE_RESET_IDENTITY_HANDLERS
   },
   {
     name: 'serve-service',
     keys: ['serve service install', 'serve service status', 'serve service uninstall'],
-    load: async () => (await import('../server/serve-service.js')).SERVE_SERVICE_HANDLERS
+    load: async () => (await import('../server/serve-service.ts')).SERVE_SERVICE_HANDLERS
   },
   {
     name: 'account',
@@ -87,6 +87,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     name: 'repo',
     keys: [
       'repo list',
+      'repo groups',
       'repo add',
       'repo show',
       'repo set',
@@ -119,7 +120,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
       'terminal close',
       'terminal split'
     ],
-    load: async () => (await import('../terminals/terminal.js')).TERMINAL_HANDLERS
+    load: async () => (await import('../terminals/terminal.ts')).TERMINAL_HANDLERS
   },
   ...BROWSER_HANDLER_GROUPS,
   {
@@ -160,7 +161,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
       'orchestration reset'
     ],
     load: async () =>
-      (await import('../orchestration/orchestration-handlers.js')).ORCHESTRATION_HANDLERS
+      (await import('../orchestration/orchestration-handlers.ts')).ORCHESTRATION_HANDLERS
   },
   {
     name: 'emulator',
@@ -251,13 +252,13 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     name: 'introspection',
     keys: ['agent-context'],
     load: async () =>
-      (await import('../discovery/agent-context-handlers.js')).INTROSPECTION_HANDLERS
+      (await import('../discovery/agent-context-handlers.ts')).INTROSPECTION_HANDLERS
   },
   ...HOST_HANDLER_GROUPS,
   {
     name: 'skill-sharing',
     keys: ['skills installed', 'skills share'],
-    load: async () => (await import('../skills/skill-sharing.js')).SKILL_SHARING_HANDLERS
+    load: async () => (await import('../skills/skill-sharing.ts')).SKILL_SHARING_HANDLERS
   },
   ...PLUGIN_HANDLER_GROUPS,
   {
