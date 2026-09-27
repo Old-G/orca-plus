@@ -93,6 +93,19 @@ export function readOpenAiErrorMessage(
     : undefined
 }
 
+/** "fetch failed" alone hides why; undici puts the socket/DNS/TLS code on `cause`. */
+function describeFetchFailure(error: unknown, apiKey: string): string {
+  const base = error instanceof Error ? error.message : String(error)
+  const cause = error instanceof Error ? error.cause : undefined
+  const code =
+    cause && typeof cause === 'object' && 'code' in cause && typeof cause.code === 'string'
+      ? cause.code
+      : cause instanceof Error
+        ? cause.message
+        : null
+  return sanitizeOpenAiTranscriptionErrorMessage(code ? `${base} (${code})` : base, apiKey)
+}
+
 // gpt-transcribe takes a list of expected languages in place of the singular field others use.
 function languageField(model: string): string {
   return /^gpt-(live-)?transcribe/.test(model) ? 'languages[]' : 'language'
@@ -159,12 +172,43 @@ export class OpenAiTranscriptionSession {
   }
 }
 
+// Custom build (openai-transcription-retry): a dropped connection, DNS or TLS hiccup surfaces as a
+// network TypeError ("fetch failed") and loses the dictation; one retry is safe because transcription
+// has no side effects. HTTP errors and aborts are not retried.
+async function postTranscriptionWithRetry(
+  target: CloudTranscriptionTarget,
+  form: FormData,
+  signal: AbortSignal
+): Promise<Response> {
+  try {
+    return await postOpenAiTranscription(target.url, target.apiKey, form, signal)
+  } catch (firstError) {
+    if (!(firstError instanceof TypeError) || signal.aborted) {
+      throw firstError
+    }
+    console.warn(
+      `[speech] ${target.label} request failed, retrying once:`,
+      describeFetchFailure(firstError, target.apiKey)
+    )
+    try {
+      return await postOpenAiTranscription(target.url, target.apiKey, form, signal)
+    } catch (retryError) {
+      if (!(retryError instanceof TypeError) || signal.aborted) {
+        throw retryError
+      }
+      throw new Error(
+        `${target.label} transcription request failed: ${describeFetchFailure(retryError, target.apiKey)}`
+      )
+    }
+  }
+}
+
 async function upload(
   target: CloudTranscriptionTarget,
   form: FormData,
   signal: AbortSignal
 ): Promise<string> {
-  const response = await postOpenAiTranscription(target.url, target.apiKey, form, signal)
+  const response = await postTranscriptionWithRetry(target, form, signal)
   const data = (await response.json().catch(() => ({}))) as OpenAiTranscriptionResponse
   const error = readOpenAiErrorMessage(data, target.apiKey)
   if (!response.ok) {
