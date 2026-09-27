@@ -12,5 +12,5 @@ export const orcadSpeechServiceFactories: SpeechServiceFactories = {
   createModelManager: (customModelsDir) =>
     // No keychain here to prompt, so readiness can prove the key decrypts.
     new ModelManager(customModelsDir, openNodeSpeechDownloadRequest, canReadOpenAiSpeechApiKey),
-  createSttService: (models) => new SttService(models)
+  createSttService: (models, readLanguage) => new SttService(models, readLanguage)
 }
