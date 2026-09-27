@@ -67,6 +67,38 @@ function combineChunks(chunks: Float32Array[]): Float32Array {
   return combined
 }
 
+/** "fetch failed" alone hides why; undici puts the socket/DNS/TLS code on `cause`. */
+function describeFetchFailure(error: unknown): string {
+  const base = error instanceof Error ? error.message : String(error)
+  const cause = error instanceof Error ? error.cause : undefined
+  const code =
+    cause && typeof cause === 'object' && 'code' in cause && typeof cause.code === 'string'
+      ? cause.code
+      : cause instanceof Error
+        ? cause.message
+        : null
+  return sanitizeOpenAiTranscriptionErrorMessage(code ? `${base} (${code})` : base)
+}
+
+// Custom build (openai-transcription-retry): a dropped connection, DNS or TLS hiccup surfaces as a
+// network TypeError ("fetch failed") and loses the dictation; one retry is safe because transcription
+// has no side effects. HTTP errors and aborts are not retried.
+async function postTranscription(init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(OPENAI_TRANSCRIPTION_URL, init)
+  } catch (firstError) {
+    if (!(firstError instanceof TypeError)) {
+      throw firstError
+    }
+    console.warn('[speech] OpenAI request failed, retrying once:', describeFetchFailure(firstError))
+    try {
+      return await fetch(OPENAI_TRANSCRIPTION_URL, init)
+    } catch (retryError) {
+      throw new Error(`OpenAI transcription request failed: ${describeFetchFailure(retryError)}`)
+    }
+  }
+}
+
 function parseOpenAiTranscriptionResponse(data: OpenAiTranscriptionResponse): string {
   if (typeof data.text === 'string') {
     return data.text.trim()
@@ -120,7 +152,7 @@ export class OpenAiTranscriptionSession {
     // a named WAV blob avoids filesystem temp files and works in packaged apps.
     form.append('file', new Blob([new Uint8Array(wav)], { type: 'audio/wav' }), 'dictation.wav')
 
-    const response = await fetch(OPENAI_TRANSCRIPTION_URL, {
+    const response = await postTranscription({
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.readApiKey()}`

@@ -65,3 +65,49 @@ describe('dictationLanguageCode', () => {
     expect(dictationLanguageCode(undefined)).toBeUndefined()
   })
 })
+
+describe('OpenAiTranscriptionSession network failures', () => {
+  function networkError(code: string): TypeError {
+    return new TypeError('fetch failed', { cause: Object.assign(new Error('socket'), { code }) })
+  }
+
+  async function finishWith(fetchMock: ReturnType<typeof vi.fn>): Promise<string> {
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const session = new OpenAiTranscriptionSession('openai-gpt-4o-transcribe', () => 'sk-test')
+      session.feedAudio(new Float32Array(1600), 16000)
+      return await session.finish()
+    } finally {
+      vi.unstubAllGlobals()
+      vi.restoreAllMocks()
+    }
+  }
+
+  it('retries once when the connection drops', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(networkError('UND_ERR_SOCKET'))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ text: 'готово' })))
+    await expect(finishWith(fetchMock)).resolves.toBe('готово')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('names the network cause when the retry fails too', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(networkError('ECONNRESET'))
+    await expect(finishWith(fetchMock)).rejects.toThrow(
+      'OpenAI transcription request failed: fetch failed (ECONNRESET)'
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not retry an HTTP error from OpenAI', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ error: { message: 'quota' } }), { status: 429 })
+      )
+    await expect(finishWith(fetchMock)).rejects.toThrow('OpenAI transcription failed: quota')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
