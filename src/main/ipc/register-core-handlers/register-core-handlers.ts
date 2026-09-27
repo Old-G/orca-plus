@@ -25,6 +25,7 @@ import { registerClickUpHandlers } from '../clickup'
 import { registerBitbucketHandlers } from '../source-control/bitbucket'
 import { registerFeedbackHandlers } from '../feedback/feedback'
 import { registerSlackHandlers } from '../slack'
+import { registerClaudeHandoffHandlers } from '../claude-handoff'
 import { registerCrashReportingHandlers } from '../crash-reporting/crash-reporting'
 import { registerExportHandlers } from '../export'
 import { registerStatsHandlers } from '../stats'
@@ -171,6 +172,7 @@ export async function registerCoreHandlers(
     registerJiraIssueSummaryGenerationHandlers(store, commitMessageAgentEnv)
     registerClickUpHandlers()
     registerSlackHandlers(store, runtime)
+    registerClaudeHandoffHandlers(store, runtime)
     registerBitbucketHandlers()
     registerFeedbackHandlers()
     if (crashReports) {

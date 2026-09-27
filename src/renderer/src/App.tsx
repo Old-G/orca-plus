@@ -41,6 +41,7 @@ import { useWindowVisibilityEffects } from './app-shell/chrome/use-window-visibi
 import { useCustomCss } from './app-shell/use-custom-css'
 import { useCustomAppearanceTheme } from './app-shell/use-custom-appearance-theme'
 import { useCustomAppearanceBackground } from './app-shell/use-custom-appearance-background'
+import { useClaudeHandoffOffers } from './app-shell/use-claude-handoff-offers'
 import { SpaceWindowStatePublisher } from './components/workspace-space/SpaceWindowStatePublisher'
 import { PlainSshTerminalPanels } from './components/plain-ssh-terminal/PlainSshTerminalPanels'
 import { PluginShotReplayMount } from './components/plugins/view/PluginShotReplayMount'
@@ -68,6 +69,7 @@ function App(): React.JSX.Element {
   useCustomCss()
   useCustomAppearanceBackground()
   useCustomAppearanceTheme()
+  useClaudeHandoffOffers()
   useWindowVisibilityEffects()
   useGlobalKeybindings({ layout, floatingWorkspace })
   // App owns active-selection removal; the Space window only mirrors selection.
