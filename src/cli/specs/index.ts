@@ -7,6 +7,7 @@ import { CORE_COMMAND_SPECS } from './core'
 import { CHAT_COMMAND_SPECS } from './chat'
 import { FILE_COMMAND_SPECS } from './file'
 import { PROJECT_COMMAND_SPECS } from './project'
+import { REPO_GROUPS_COMMAND_SPECS } from './repo-groups'
 import { ORCHESTRATION_COMMAND_SPECS } from './orchestration'
 import { withFullRecordFlag } from './orchestration-full-record-flag'
 import { COMPUTER_COMMAND_SPECS } from './computer'
@@ -38,6 +39,7 @@ import { PLUGIN_INSTALL_COMMAND_SPECS } from './plugin-install'
 export const COMMAND_SPECS: CommandSpec[] = [
   ...CORE_COMMAND_SPECS,
   ...REFERENCE_COMMAND_SPECS,
+  ...REPO_GROUPS_COMMAND_SPECS,
   ...ARTIFACT_COMMAND_SPECS,
   ...ACCOUNT_COMMAND_SPECS,
   ...PROJECT_COMMAND_SPECS,

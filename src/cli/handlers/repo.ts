@@ -1,6 +1,13 @@
+import type { ProjectGroup } from '../../shared/project-group-types'
 import type { RuntimeRepoList, RuntimeRepoSearchRefs } from '../../shared/runtime-types'
 import type { CommandHandler } from '../dispatch'
-import { formatRepoList, formatRepoRefs, formatRepoShow, printResult } from '../format'
+import {
+  formatRepoList,
+  formatRepoRefs,
+  formatRepoShow,
+  printResult,
+  formatProjectGroupList
+} from '../format'
 import {
   getOptionalPositiveIntegerFlag,
   getOptionalRepoKind,
@@ -14,6 +21,10 @@ export const REPO_HANDLERS: Record<string, CommandHandler> = {
   'repo list': async ({ client, json }) => {
     const result = await client.call<RuntimeRepoList>('repo.list')
     printResult(result, json, formatRepoList)
+  },
+  'repo groups': async ({ client, json }) => {
+    const result = await client.call<{ groups: ProjectGroup[] }>('projectGroup.list')
+    printResult(result, json, formatProjectGroupList)
   },
   'repo add': async ({ flags, client, cwd, json }) => {
     const repoPath = getRequiredStringFlag(flags, 'path')
