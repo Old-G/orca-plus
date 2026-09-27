@@ -3,6 +3,7 @@ import type {
   RuntimeRepoList,
   RuntimeRepoSearchRefs
 } from '../../shared/runtime-worktree-contracts'
+import type { ProjectGroup } from '../../shared/project-group-types'
 
 export function formatRepoList(result: RuntimeRepoList): string {
   if (result.repos.length === 0) {
@@ -13,6 +14,15 @@ export function formatRepoList(result: RuntimeRepoList): string {
       (repo) =>
         `${repo.id}  ${repo.displayName}  ${repo.path}${typeof repo.hiddenAt === 'number' ? '  (hidden)' : ''}`
     )
+    .join('\n')
+}
+
+export function formatProjectGroupList(result: { groups: ProjectGroup[] }): string {
+  if (result.groups.length === 0) {
+    return 'No project groups found.'
+  }
+  return result.groups
+    .map((group) => [group.id, group.name, group.parentPath].filter(Boolean).join('  '))
     .join('\n')
 }
 
