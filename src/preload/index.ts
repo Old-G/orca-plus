@@ -32,6 +32,7 @@ import { linearApi } from './api/linear-bridge'
 import { jiraApi } from './api/jira-bridge'
 import { clickupApi } from './api/clickup-bridge'
 import { slackApi } from './api/slack-bridge'
+import { claudeHandoffApi } from './api/claude-handoff-bridge'
 import { lspApi } from './api/lsp-bridge'
 import { claudeIdeApi } from './api/claude-ide-bridge'
 import { starNagApi } from './api/star-nag-bridge'
@@ -136,6 +137,7 @@ const api = {
   jira: jiraApi,
   clickup: clickupApi,
   slack: slackApi,
+  claudeHandoff: claudeHandoffApi,
   lsp: lspApi,
   claudeIde: claudeIdeApi,
   starNag: starNagApi,

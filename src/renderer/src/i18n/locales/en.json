@@ -18150,6 +18150,16 @@
           "deleteTable": "Delete table"
         }
       }
+    },
+    "claudeHandoff": {
+      "offer": {
+        "title": "Context is filling up — handoff saved, prompt ready",
+        "start": "New session",
+        "dismiss": "Not now",
+        "notPushed": "not pushed",
+        "pushed": "pushed",
+        "launchFailed": "Could not start the new session"
+      }
     }
   },
   "components": {

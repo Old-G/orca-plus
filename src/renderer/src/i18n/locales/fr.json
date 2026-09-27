@@ -17858,6 +17858,16 @@
           "deleteTable": "Supprimer le tableau"
         }
       }
+    },
+    "claudeHandoff": {
+      "offer": {
+        "title": "Le contexte se remplit — handoff enregistré, prompt prêt",
+        "start": "Nouvelle session",
+        "dismiss": "Pas maintenant",
+        "notPushed": "non poussé",
+        "pushed": "poussé",
+        "launchFailed": "Impossible de démarrer la nouvelle session"
+      }
     }
   },
   "components": {

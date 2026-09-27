@@ -17757,6 +17757,16 @@
           "deleteTable": "テーブルを削除"
         }
       }
+    },
+    "claudeHandoff": {
+      "offer": {
+        "title": "コンテキストが埋まりつつあります — ハンドオフを保存し、プロンプトを用意しました",
+        "start": "新しいセッション",
+        "dismiss": "今はしない",
+        "notPushed": "未プッシュ",
+        "pushed": "プッシュ済み",
+        "launchFailed": "新しいセッションを開始できませんでした"
+      }
     }
   },
   "components": {
