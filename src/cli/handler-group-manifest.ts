@@ -78,6 +78,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     name: 'repo',
     keys: [
       'repo list',
+      'repo groups',
       'repo add',
       'repo show',
       'repo set',
