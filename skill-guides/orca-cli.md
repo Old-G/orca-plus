@@ -132,7 +132,7 @@ ORCA worktree create --name task --run-hooks --json
 - `--activate` and `--run-hooks` reveal the new worktree. `--agent` alone stays in the background.
 - Let Orca choose setup terminal placement from repo settings, including tab vs split behavior.
 - If an older installed CLI rejects `--agent`, `--prompt`, or `--setup`, create the worktree normally, then run `ORCA terminal create --worktree <selector> --command "<requested-agent>"` and `ORCA terminal send` if a prompt is needed. This can leave a fallback shell when no default tabs are configured; close it only after confirming it is unused.
-- `worktree create` makes a new checkout. For a fresh agent in the **current** checkout, use `ORCA terminal create --worktree active --command "codex" --json`.
+- `worktree create` makes a new checkout. For a fresh agent in the **current** checkout, use `ORCA agent launch --worktree active --agent claude --prompt "<brief>" --json`: it opens what the Orca app would (a native chat when the user's agent tabs default to chat) and `receipt.mode` says which. Use `ORCA terminal create --worktree active --command "codex" --json` only when a terminal is required.
 
 ## Worktree Comments
 
@@ -197,7 +197,7 @@ Terminal rules:
 - `--wait-submit <seconds>` only observes the same accepted prompt. A timeout returns queued/input-accepted truth without resending; after an ambiguous transport failure, repeat the exact command with the reported `--retry-request <id>`. Both text and `--json` receipts carry the same `warnings`.
 - An older host reports a legacy `old-host` fallback for an ordinary send and refuses `--wait-submit` or `--retry-request` before input, because it cannot provide durable replay.
 - For structured coordination, invoke the `orchestration` skill; it uses `orca orchestration ...` commands for messages, handoffs, task DAGs, dispatches, inbox/reply flows, and coordinator loops. A receiving agent can run `orca orchestration check --peek --format --json` to render its unread mail in agent-readable form; this checks the caller's inbox and does not remotely deliver input to another terminal.
-- Use `terminal create --worktree active --command "<agent>"` for a fresh agent in the current worktree. Use `worktree create --agent <agent>` only for a separate checkout (agent in the first terminal — do not also `terminal create` the same agent).
+- Use `agent launch --worktree active --agent <agent>` for a fresh agent in the current worktree (it follows the user's chat/terminal default), or `terminal create --worktree active --command "<agent>"` when a terminal is required. Use `worktree create --agent <agent>` only for a separate checkout (agent in the first terminal — do not also `terminal create` the same agent).
 - Use `terminal wait --for tui-idle` for agent CLIs such as Claude Code, Gemini, Codex, OMP, Pi, and Grok; always pass `--timeout-ms`.
 - For long output, use cursor reads. After a limited tail preview, page from `oldestCursor`; after a cursor read, continue with `nextCursor` while `limited` is true and `nextCursor !== latestCursor`.
 - `--direction horizontal` splits left/right. `--direction vertical` splits top/bottom.
