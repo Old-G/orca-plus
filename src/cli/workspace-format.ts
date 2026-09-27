@@ -7,6 +7,7 @@ import type {
   RuntimeWorktreeRecord
 } from '../shared/runtime-types'
 import type { MemorySnapshot, WorktreeMemory } from '../shared/process-stats-types'
+import type { ProjectGroup } from '../shared/project-group-types'
 import { formatListingHostScope, type WithAnnotatedHostScope } from './omitted-host-scope-selectors'
 
 export function formatMemorySnapshot(snapshot: MemorySnapshot): string {
@@ -153,6 +154,15 @@ export function formatRepoList(result: RuntimeRepoList): string {
     return 'No repos found.'
   }
   return result.repos.map((repo) => `${repo.id}  ${repo.displayName}  ${repo.path}`).join('\n')
+}
+
+export function formatProjectGroupList(result: { groups: ProjectGroup[] }): string {
+  if (result.groups.length === 0) {
+    return 'No project groups found.'
+  }
+  return result.groups
+    .map((group) => [group.id, group.name, group.parentPath].filter(Boolean).join('  '))
+    .join('\n')
 }
 
 export function formatRepoShow(result: { repo: Record<string, unknown> }): string {
