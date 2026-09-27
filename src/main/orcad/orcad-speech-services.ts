@@ -9,5 +9,5 @@ export const orcadSpeechServiceFactories: SpeechServiceFactories = {
   createModelManager: (customModelsDir) =>
     // Headless key reads cannot open keychain prompts, so readiness may verify decryption.
     new ModelManager(customModelsDir, openNodeSpeechDownloadRequest, canReadOpenAiSpeechApiKey),
-  createSttService: (models) => new SttService(models)
+  createSttService: (models, readLanguage) => new SttService(models, readLanguage)
 }

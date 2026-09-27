@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { dictationLanguageCode } from '../../shared/speech-types'
 import {
   OpenAiTranscriptionSession,
   sanitizeOpenAiTranscriptionErrorMessage
@@ -77,5 +78,48 @@ describe('OpenAiTranscriptionSession', () => {
     expect(Array.from({ length: 13 }, (_, i) => wav.readInt16LE(44 + i * 2))).toEqual([
       -32768, -32768, -16384, 0, 0, 16384, 32767, 32767, 0, 32767, -32768, 0, 24575
     ])
+  })
+})
+
+describe('OpenAiTranscriptionSession language', () => {
+  async function sentForm(readLanguage?: () => string | undefined): Promise<FormData> {
+    const fetchMock = vi.fn(
+      async (_url: string, _init: RequestInit) => new Response(JSON.stringify({ text: 'привет' }))
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const session = new OpenAiTranscriptionSession(
+        'openai-gpt-4o-transcribe',
+        () => 'sk-test',
+        readLanguage
+      )
+      session.feedAudio(new Float32Array(1600), 16000)
+      await expect(session.finish()).resolves.toBe('привет')
+      const body = fetchMock.mock.calls[0]?.[1].body
+      if (!(body instanceof FormData)) {
+        throw new Error('expected a multipart body')
+      }
+      return body
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  }
+
+  it('sends the chosen language to OpenAI', async () => {
+    expect((await sentForm(() => 'ru')).get('language')).toBe('ru')
+  })
+
+  it('leaves the language out for auto-detect', async () => {
+    expect((await sentForm(() => undefined)).has('language')).toBe(false)
+    expect((await sentForm()).has('language')).toBe(false)
+  })
+})
+
+describe('dictationLanguageCode', () => {
+  it('maps only explicit choices to a code', () => {
+    expect(dictationLanguageCode('ru')).toBe('ru')
+    expect(dictationLanguageCode('en')).toBe('en')
+    expect(dictationLanguageCode('auto')).toBeUndefined()
+    expect(dictationLanguageCode(undefined)).toBeUndefined()
   })
 })

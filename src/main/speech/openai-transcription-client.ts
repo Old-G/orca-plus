@@ -82,7 +82,8 @@ export class OpenAiTranscriptionSession {
 
   constructor(
     private readonly modelId: string,
-    private readonly readApiKey: () => string
+    private readonly readApiKey: () => string,
+    private readonly readLanguage: () => string | undefined = () => undefined
   ) {}
 
   cancel(): void {
@@ -119,6 +120,10 @@ export class OpenAiTranscriptionSession {
     const form = new FormData()
     form.append('model', apiModel)
     form.append('response_format', 'json')
+    const language = this.readLanguage()
+    if (language) {
+      form.append('language', language)
+    }
     // A named WAV blob satisfies multipart uploads without temporary files.
     form.append('file', new Blob([wav], { type: 'audio/wav' }), 'dictation.wav')
 

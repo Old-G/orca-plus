@@ -14,6 +14,8 @@ export type SttSessionState = {
   cloudSession: OpenAiTranscriptionSession | null
   cloudStopInFlight: { session: OpenAiTranscriptionSession; promise: Promise<void> } | null
   modelManager: ModelManager
+  /** Custom build (dictation-language): ISO code for cloud transcription, undefined = detect. */
+  readLanguage: () => string | undefined
   activeModelId: string | null
   activeHotwordsFilePath: string | undefined
   activeOwner: string | null
@@ -28,12 +30,16 @@ export type SttSessionState = {
   cleanupWorkerLifecycleListeners: (() => void) | null
 }
 
-export function createSttSessionState(modelManager: ModelManager): SttSessionState {
+export function createSttSessionState(
+  modelManager: ModelManager,
+  readLanguage: () => string | undefined = () => undefined
+): SttSessionState {
   return {
     worker: null,
     cloudSession: null,
     cloudStopInFlight: null,
     modelManager,
+    readLanguage,
     activeModelId: null,
     activeHotwordsFilePath: undefined,
     activeOwner: null,
