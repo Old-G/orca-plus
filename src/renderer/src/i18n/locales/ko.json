@@ -17511,6 +17511,16 @@
           "deleteTable": "표 삭제"
         }
       }
+    },
+    "claudeHandoff": {
+      "offer": {
+        "title": "컨텍스트가 거의 찼습니다 — 핸드오프를 저장했고 프롬프트가 준비되었습니다",
+        "start": "새 세션",
+        "dismiss": "나중에",
+        "notPushed": "푸시 안 됨",
+        "pushed": "푸시됨",
+        "launchFailed": "새 세션을 시작하지 못했습니다"
+      }
     }
   },
   "components": {

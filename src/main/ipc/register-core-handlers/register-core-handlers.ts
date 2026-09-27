@@ -18,6 +18,7 @@ import { registerLinearHandlers } from '../linear'
 import { registerJiraHandlers } from '../jira'
 import { registerClickUpHandlers } from '../clickup'
 import { registerSlackHandlers } from '../slack'
+import { registerClaudeHandoffHandlers } from '../claude-handoff'
 import { registerBitbucketHandlers } from '../bitbucket'
 import { registerFeedbackHandlers } from '../feedback'
 import { registerCrashReportingHandlers } from '../crash-reporting'
@@ -169,6 +170,7 @@ export function registerCoreHandlers(
   registerJiraHandlers()
   registerClickUpHandlers()
   registerSlackHandlers(store, runtime)
+  registerClaudeHandoffHandlers(store, runtime)
   registerBitbucketHandlers()
   registerFeedbackHandlers()
   if (crashReports) {

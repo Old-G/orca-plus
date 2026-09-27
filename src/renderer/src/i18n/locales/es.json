@@ -15144,6 +15144,16 @@
           "deleteTable": "Eliminar tabla"
         }
       }
+    },
+    "claudeHandoff": {
+      "offer": {
+        "title": "El contexto se está llenando: handoff guardado, prompt listo",
+        "start": "Nueva sesión",
+        "dismiss": "Ahora no",
+        "notPushed": "sin push",
+        "pushed": "con push",
+        "launchFailed": "No se pudo iniciar la nueva sesión"
+      }
     }
   },
   "components": {

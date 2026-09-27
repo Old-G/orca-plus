@@ -17511,6 +17511,16 @@
           "deleteTable": "删除表格"
         }
       }
+    },
+    "claudeHandoff": {
+      "offer": {
+        "title": "上下文即将用满 — 已保存交接，提示词已就绪",
+        "start": "新会话",
+        "dismiss": "暂不",
+        "notPushed": "未推送",
+        "pushed": "已推送",
+        "launchFailed": "无法启动新会话"
+      }
     }
   },
   "components": {
