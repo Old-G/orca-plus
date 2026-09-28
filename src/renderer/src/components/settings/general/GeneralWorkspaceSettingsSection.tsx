@@ -6,6 +6,7 @@ import { OpenInMenuEditor, type useOpenInMenuDraft } from './OpenInMenuSetting'
 import { SearchableSetting } from '../section-layout/SearchableSetting'
 import { SettingsSwitchRow } from '../form-controls/SettingsFormControls'
 import { WorkspaceDirectorySetting } from './WorkspaceDirectorySetting'
+import { HqPathSetting } from './HqPathSetting'
 import { useTranslate } from '@/i18n/use-translate'
 import { GlobalWorktreeVisibilitySourcesSetting } from './GlobalWorktreeVisibilitySourcesSetting'
 import { GLOBAL_WORKTREE_VISIBILITY_SETTINGS_TARGET_ID } from '@/components/settings/navigation/settings-navigation-types'
@@ -36,6 +37,7 @@ export function GeneralWorkspaceSettingsSection({
       {page === 'folder' ? (
         <div>
           <WorkspaceDirectorySetting settings={settings} updateSettings={updateSettings} />
+          <HqPathSetting settings={settings} updateSettings={updateSettings} />
           <SearchableSetting
             id={GENERAL_SETTING_ANCHORS.nesting}
             title={t('settings.general.folder.perProject', 'Folder per project')}

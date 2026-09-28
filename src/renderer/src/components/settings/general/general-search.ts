@@ -23,6 +23,14 @@ export const getGeneralWorkspaceSearchDescriptors = createLocalizedCatalog(() =>
       ...translateSearchKeyword('auto.components.settings.general.search.fb4f338a3d', 'path'),
       ...translateSearchKeyword('auto.components.settings.general.search.df10666259', 'worktree')
     ]
+  },
+  {
+    title: translate('auto.hq.setting.title', 'HQ Folder'),
+    description: translate(
+      'auto.hq.setting.description',
+      'Meta-wiki over all your projects. Adding or removing a project updates its registry and pages.'
+    ),
+    keywords: ['hq', 'wiki', 'registry', 'strata']
   }),
   generalSetting(GENERAL_SETTING_ANCHORS.worktrees, {
     title: translate(
