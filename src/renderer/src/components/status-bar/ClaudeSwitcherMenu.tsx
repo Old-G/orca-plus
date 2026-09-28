@@ -47,6 +47,7 @@ import {
 import { ProviderDetailsMenu } from './ProviderDetailsMenu'
 import { getClaudeAccountSyncKey } from './provider-account-sync-key'
 import { signInToClaudeAccount } from '@/lib/claude-account-sign-in'
+import { ClaudeUsageForecastLine } from './ClaudeUsageForecastLine'
 
 // Retain account switch/reset drill-in even though the footer now opens UsageRosterPanel.
 export function ClaudeSwitcherMenu({
@@ -293,6 +294,7 @@ export function ClaudeSwitcherMenu({
       open={open}
       onOpenChange={handleOpenChange}
     >
+      <ClaudeUsageForecastLine />
       <DropdownMenuLabel>
         {translate('auto.components.status.bar.StatusBar.d450654fa2', 'Claude Account')}
       </DropdownMenuLabel>

@@ -36,6 +36,7 @@ import { useCustomAppearanceTheme } from './app-shell/use-custom-appearance-them
 import { useCustomAppearanceBackground } from './app-shell/use-custom-appearance-background'
 import { useClaudeHandoffOffers } from './app-shell/use-claude-handoff-offers'
 import { useStrataStatusRefresh } from './app-shell/use-strata-status-refresh'
+import { useClaudeLimitGuard } from './app-shell/use-claude-limit-guard'
 import { useFloatingWorkspacePanel } from './app-shell/use-floating-workspace-panel'
 import { useGlobalKeybindings } from './app-shell/use-global-keybindings'
 import { useOnboardingAndFeatureTips } from './app-shell/use-onboarding-and-feature-tips'
@@ -69,6 +70,7 @@ function App(): React.JSX.Element {
   useCustomAppearanceTheme()
   useClaudeHandoffOffers()
   useStrataStatusRefresh()
+  useClaudeLimitGuard()
   useWindowVisibilityEffects()
   useGlobalKeybindings({ layout, floatingWorkspace })
   // App owns active-selection removal; the Space window only mirrors selection.
