@@ -3,6 +3,7 @@
 // moves a removed project's page to projects/_archive/, hq_sync.py creates the new page — so Orca
 // only decides when to run them and commits the result.
 import { join } from 'node:path'
+import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
 
 export type HqCommandResult = { code: number | null; stdout: string; stderr: string }
 
@@ -62,9 +63,6 @@ export function hqRosterCommitMessage(report: RegistryReport): string {
 
 export function createHqRosterSync(deps: HqRosterSyncDeps) {
   const python = deps.platform === 'win32' ? 'python' : 'python3'
-  let timer: ReturnType<typeof setTimeout> | null = null
-  let running: Promise<HqRosterSyncOutcome> | null = null
-  let rerun = false
 
   const runOnce = async (): Promise<HqRosterSyncOutcome> => {
     const hq = deps.hqPath()?.trim()
@@ -117,62 +115,24 @@ export function createHqRosterSync(deps: HqRosterSyncDeps) {
     return 'committed'
   }
 
-  const drain = async (): Promise<HqRosterSyncOutcome> => {
-    let outcome: HqRosterSyncOutcome
-    do {
-      rerun = false
-      outcome = await runOnce().catch((error: unknown) => {
-        deps.log(`sync failed: ${String(error)}`)
-        return 'failed' as const
-      })
-    } while (rerun)
-    return outcome
-  }
+  const flight = createDebouncedSingleFlight<HqRosterSyncOutcome>(
+    runOnce,
+    (error) => {
+      deps.log(`sync failed: ${String(error)}`)
+      return 'failed'
+    },
+    deps.debounceMs ?? DEFAULT_DEBOUNCE_MS
+  )
 
   return {
     /** A project was added or removed; sync once the burst settles. */
-    schedule(): void {
-      if (timer) {
-        clearTimeout(timer)
-      }
-      timer = setTimeout(() => {
-        timer = null
-        if (running) {
-          // Why: the running pass may have read the project list before this change.
-          rerun = true
-          return
-        }
-        running = drain().finally(() => {
-          running = null
-        })
-      }, deps.debounceMs ?? DEFAULT_DEBOUNCE_MS)
-    },
-
+    schedule: flight.schedule,
     /** Sync now, sharing a pass already running — for callers that need group names fresh. */
-    syncNow(): Promise<HqRosterSyncOutcome> {
-      if (running) {
-        rerun = true
-        return running
-      }
-      running = drain().finally(() => {
-        running = null
-      })
-      return running
-    },
-
+    syncNow: flight.runNow,
     /** Resolves when no sync is pending or running (tests). */
-    async idle(): Promise<HqRosterSyncOutcome | null> {
-      return running ? running : null
-    },
-
-    runOnce: drain,
-
-    dispose(): void {
-      if (timer) {
-        clearTimeout(timer)
-        timer = null
-      }
-    }
+    idle: flight.idle,
+    runOnce: flight.runNow,
+    dispose: flight.dispose
   }
 }
 
