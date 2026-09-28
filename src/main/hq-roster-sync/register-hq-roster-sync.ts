@@ -1,14 +1,14 @@
 // Custom build (hq-roster-sync): wires the project add/remove event to HQ's registry scripts.
 import { existsSync } from 'node:fs'
 import { app } from 'electron'
-import type { Store } from '../persistence'
-import { runProcess } from '../../packages/process-host/src/run-process'
-import { createHqRosterSync } from './hq-roster-sync'
+import type { Store } from '../persistence/loading-store/store'
+import { createHqRosterSync, type HqRosterSync } from './hq-roster-sync'
+import { runProcess } from '@orca/process-host'
 import { onRepoRosterChanged } from './repo-roster-events'
 
 const SCRIPT_TIMEOUT_MS = 120_000
 
-export function registerHqRosterSync(store: Store): void {
+export function registerHqRosterSync(store: Store): HqRosterSync {
   const userDataPath = app.getPath('userData')
   // Why: hq_registry.py reads projects through the `orca-plus` CLI, which targets the installed
   // app's profile unless told otherwise — a dev build must feed its own project list.
@@ -28,4 +28,5 @@ export function registerHqRosterSync(store: Store): void {
     log: (message) => console.log('[hq-roster-sync]', message)
   })
   onRepoRosterChanged(() => sync.schedule())
+  return sync
 }
