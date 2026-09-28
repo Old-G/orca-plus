@@ -24,6 +24,7 @@ import { registerClickUpHandlers } from '../clickup'
 import { registerBitbucketHandlers } from '../source-control/bitbucket'
 import { registerSlackHandlers } from '../slack'
 import { registerClaudeHandoffHandlers } from '../claude-handoff'
+import { registerStrataHandlers } from '../strata'
 import { registerFeedbackHandlers } from '../feedback'
 import { registerCrashReportingHandlers } from '../crash-reporting/crash-reporting'
 import { registerExportHandlers } from '../export'
@@ -205,6 +206,7 @@ export function registerCoreHandlers(
   registerClickUpHandlers()
   registerSlackHandlers(store, runtime)
   registerClaudeHandoffHandlers(store, runtime)
+  registerStrataHandlers(store, runtime)
   registerBitbucketHandlers()
   registerFeedbackHandlers()
   if (crashReports) {
