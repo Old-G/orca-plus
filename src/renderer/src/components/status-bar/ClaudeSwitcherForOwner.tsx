@@ -43,6 +43,7 @@ import { AccountSwitchSection, AccountSwitchSignedOutHeading } from './AccountSw
 import { AccountSwitchRowItem } from './AccountSwitchRowItem'
 import { ProviderDetailsMenu } from './ProviderDetailsMenu'
 import { signInToClaudeAccount } from '@/lib/provider-accounts/claude-account-sign-in'
+import { ClaudeUsageForecastLine } from './ClaudeUsageForecastLine'
 
 // Retain account switch/reset drill-in even though the footer now opens UsageRosterPanel.
 export function ClaudeSwitcherForOwner({
@@ -318,6 +319,7 @@ export function ClaudeSwitcherForOwner({
       open={open}
       onOpenChange={handleOpenChange}
     >
+      <ClaudeUsageForecastLine />
       <AccountSwitchSection
         heading={t('auto.components.status.bar.StatusBar.d450654fa2', 'Claude Account')}
         targets={selectedGroup?.targets ?? []}

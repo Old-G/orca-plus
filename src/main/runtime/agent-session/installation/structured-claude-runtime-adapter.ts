@@ -6,6 +6,7 @@ import type { ClaudeStructuredSessionAdapterDeps } from '../../../claude/structu
 import type { ClaudeStructuredSessionEvent } from '../../../claude/structured/claude-structured-session-event'
 import { claudeProviderHandleLink } from '../../../claude/structured/claude-structured-owner-identity'
 import type { StructuredAgentSessionLifecycleEvent } from '../../../native-chat/agent-session-wire/providers/structured-agent-session-adapter'
+import { tapClaudeNativeFrame } from '../../../claude-limit-guard/claude-native-frame-tap'
 
 import {
   recordAgentSessionProviderHandle,
@@ -132,6 +133,7 @@ export function createStructuredClaudeRuntimeAdapter(
       )
     },
     onEvent: (event) => {
+      tapClaudeNativeFrame(event)
       const lifecycle = structuredClaudeLifecycleEvent(event)
       if (lifecycle) {
         deps.onLifecycleEvent(lifecycle)
