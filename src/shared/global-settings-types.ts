@@ -6,8 +6,7 @@ import type { GitLabProjectSettings } from './gitlab-types'
 import type { TaskProvider, TaskProviderRolloutFlags } from './task-providers'
 import type { KeybindingOverrides, TerminalShortcutPolicy } from './keybindings'
 import type { AppIconId } from './app-icon'
-import type { CustomAppearanceBackground } from './custom-appearance-background'
-import type { CustomAppearanceTheme } from './vscode-theme/custom-appearance-theme'
+import type { CustomBuildSettings } from './custom-build-settings'
 import type { SourceControlAiSettings } from './source-control-ai-types'
 import type { ClaudeAgentTeamsMode } from './claude-agent-teams-tmux-compat'
 import type { TerminalCustomTheme } from './terminal-custom-themes'
@@ -89,12 +88,6 @@ export type GlobalSettings = {
   appFontFamily: string
   /** Load `~/.orca/custom.css` on top of the built-in theme and reload it on save. */
   customCssEnabled?: boolean
-  /** Custom build (custom-appearance): master switch for custom.css, background and imported theme. */
-  customAppearanceEnabled?: boolean
-  /** Custom build (appearance-background): window background image, drawn only while the block is on. */
-  customAppearanceBackground?: CustomAppearanceBackground | null
-  /** Custom build (custom-appearance-theme): the imported VS Code theme in use, while the block is on. */
-  customAppearanceTheme?: CustomAppearanceTheme | null
   editorAutoSave: boolean
   editorAutoSaveDelayMs: number
   editorMinimapEnabled: boolean
@@ -537,7 +530,8 @@ export type GlobalSettings = {
   voice?: VoiceSettings
   /** Transcript full-text search consent + retention. Absent means off; nothing indexes until the user opts in. */
   aiVaultSearch?: AiVaultSearchSettings
-} & TaskProviderRolloutFlags
+} & TaskProviderRolloutFlags &
+  CustomBuildSettings
 
 export type OrcaWorkspaceLayout = {
   path: string

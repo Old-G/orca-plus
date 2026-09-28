@@ -17740,6 +17740,13 @@
         "session": "At this pace the 5-hour limit runs out at {{time}}",
         "weekly": "At this pace the weekly limit runs out at {{time}}"
       }
+    },
+    "hq": {
+      "setting": {
+        "title": "HQ Folder",
+        "description": "Meta-wiki over all your projects. Adding or removing a project updates its registry and pages.",
+        "placeholder": "Not set — sync is off"
+      }
     }
   },
   "components": {
