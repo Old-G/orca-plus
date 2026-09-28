@@ -22,6 +22,7 @@ import { registerClaudeLimitGuardHandlers } from '../claude-limit-guard'
 import { registerStrataHandlers } from '../strata'
 import { registerHqRosterSync } from '../../hq-roster-sync/register-hq-roster-sync'
 import { registerHqGroupChatHandlers } from '../../hq-group-chat/register-hq-group-chat'
+import { registerHqPulseMirror } from '../../hq-pulse-mirror/register-hq-pulse-mirror'
 import { registerLazyCrashReportingHandlers } from '../crash-reporting/lazy-crash-reporting-handlers'
 import { registerStatsHandlers } from '../stats'
 import { registerLazyRateLimitHandlers } from '../lazy-rate-limits-handlers'
@@ -138,6 +139,7 @@ export async function registerCoreHandlers(
     )
     registerStrataHandlers(store, runtime)
     registerHqGroupChatHandlers(store, registerHqRosterSync(store))
+    registerHqPulseMirror(store)
     if (crashReports) {
       registerLazyCrashReportingHandlers(crashReports)
     }
