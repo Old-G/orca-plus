@@ -18543,6 +18543,11 @@
         "launchFailed": "新しいセッションを開始できませんでした"
       }
     },
+    "hqGroupChat": {
+      "menu": "グループチャット",
+      "failed": "グループチャットを開けませんでした",
+      "workspaceName": "グループチャット"
+    },
     "strata": {
       "status": {
         "full": "Strata: Wiki と CLAUDE.md",
