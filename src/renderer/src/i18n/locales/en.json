@@ -18481,6 +18481,13 @@
         "weekly": "At this pace the weekly limit runs out at {{time}}"
       }
     },
+    "hq": {
+      "setting": {
+        "title": "HQ Folder",
+        "description": "Meta-wiki over all your projects. Adding or removing a project updates its registry and pages.",
+        "placeholder": "Not set — sync is off"
+      }
+    },
     "startup": {
       "webHostUnreachable": {
         "title": "Couldn't reach your Orca host",
