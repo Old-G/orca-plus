@@ -33,6 +33,7 @@ import {
 } from './indentation'
 import { FolderPathStatusIndicator } from './FolderPathStatusIndicator'
 import { RepoScanUnavailableIndicator } from './RepoScanUnavailableIndicator'
+import { StrataStatusIndicator } from './StrataStatusIndicator'
 import {
   ProjectGroupCreateWorkspaceButton,
   ProjectGroupHeaderMenu
@@ -346,6 +347,7 @@ export function renderWorktreeSectionHeaderRow(args: {
                 {hostContext ? <ProjectHeaderHostLabel context={hostContext} /> : null}
                 <RepoForkIndicator upstream={row.repo?.upstream} />
                 <FolderPathStatusIndicator status={projectGroupPathStatus} />
+                {isRepoHeader ? <StrataStatusIndicator repoId={row.repo!.id} /> : null}
                 {isRepoHeader ? <RepoScanUnavailableIndicator repo={row.repo!} /> : null}
               </div>
             </div>
