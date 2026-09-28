@@ -18,6 +18,7 @@ import { registerLazyJiraHandlers } from '../jira/lazy-jira-handlers'
 import { registerClickUpHandlers } from '../clickup'
 import { registerSlackHandlers } from '../slack'
 import { registerClaudeHandoffHandlers } from '../claude-handoff'
+import { registerStrataHandlers } from '../strata'
 import { registerLazyCrashReportingHandlers } from '../crash-reporting/lazy-crash-reporting-handlers'
 import { registerStatsHandlers } from '../stats'
 import { registerLazyRateLimitHandlers } from '../lazy-rate-limits-handlers'
@@ -132,6 +133,7 @@ export async function registerCoreHandlers(
     registerClickUpHandlers()
     registerSlackHandlers(store, runtime)
     registerClaudeHandoffHandlers(store, runtime)
+    registerStrataHandlers(store, runtime)
     if (crashReports) {
       registerLazyCrashReportingHandlers(crashReports)
     }
