@@ -6,6 +6,7 @@ import type { ProjectGroup } from '../../../../../../shared/project/groups/proje
 import type { ExecutionHostId } from '../../../../../../shared/execution-host/execution-host'
 import { getFolderProjectGroupRefreshHandler } from './project-group-folder-refresh'
 import { stopRepoHeaderMenuEvent } from './header-event-guards'
+import { HqGroupChatMenuItem } from './HqGroupChatMenuItem'
 
 export function ProjectGroupHeaderMenuContent({
   groupId,
@@ -45,6 +46,7 @@ export function ProjectGroupHeaderMenuContent({
           {t('auto.components.sidebar.WorktreeList.refreshProjectGroup', 'Refresh projects')}
         </DropdownMenuItem>
       ) : null}
+      <HqGroupChatMenuItem groupId={groupId} hostId={hostId} />
       <DropdownMenuItem onSelect={() => onRename(groupId, label, hostId)}>
         {t('auto.components.sidebar.WorktreeList.4d7b73658c', 'Rename group')}
       </DropdownMenuItem>
