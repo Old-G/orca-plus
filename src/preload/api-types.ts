@@ -47,6 +47,7 @@ import type { SlackApi } from './api/slack-api'
 import type { ClaudeHandoffApi } from './api/claude-handoff-api'
 import type { ClaudeLimitGuardApi } from './api/claude-limit-guard-api'
 import type { StrataApi } from './api/strata-api'
+import type { HqGroupChatApi } from './api/hq-group-chat-api'
 import type { LspApi } from './api/lsp-api'
 import type { ClaudeIdeApi } from './api/claude-ide-api'
 import type {
@@ -140,6 +141,7 @@ export type PreloadApi = {
   claudeHandoff: ClaudeHandoffApi
   claudeLimitGuard: ClaudeLimitGuardApi
   strata: StrataApi
+  hqGroupChat: HqGroupChatApi
   starNag: StarNagApi
   telemetryTrack: TelemetryApi['telemetryTrack']
   telemetrySetOptIn: TelemetryApi['telemetrySetOptIn']
