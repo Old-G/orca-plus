@@ -8,6 +8,7 @@ import { createRuntimeBrowserCommands } from '../browser/installation/runtime-br
 import { RuntimeJiraCommands } from '../integrations/jira/runtime-jira-commands'
 import type { RpcBinarySender } from '../rpc/rpc-binary-sender'
 import { RuntimeClickUpCommands } from '../integrations/clickup/runtime-clickup-commands'
+import { RuntimePulseCommands } from '../runtime-pulse-commands'
 
 type PublicMethods<T> = Pick<T, keyof T>
 type BrowserSurface = Omit<PublicMethods<RuntimeBrowserCommands>, 'browserScreencast'> & {
@@ -27,6 +28,7 @@ type BrowserSurface = Omit<PublicMethods<RuntimeBrowserCommands>, 'browserScreen
 export type RuntimeEdgeCommandSurface = BrowserSurface &
   PublicMethods<RuntimeJiraCommands> &
   PublicMethods<RuntimeClickUpCommands> &
+  PublicMethods<RuntimePulseCommands> &
   PublicMethods<RuntimeEmulatorCommands>
 
 type ScreencastDependencies = ConstructorParameters<typeof RuntimeBrowserScreencastController>[0]
@@ -148,6 +150,7 @@ function bindBrowserMethods<T extends object>(
 export class RuntimeEdgeCommandController {
   private readonly jira: RuntimeJiraCommands
   private readonly clickup = new RuntimeClickUpCommands()
+  private readonly pulse = new RuntimePulseCommands()
   private readonly browser: RuntimeBrowserCommands
   private readonly screencasts: RuntimeBrowserScreencastController
   private readonly emulator: RuntimeEmulatorCommands
@@ -171,6 +174,7 @@ export class RuntimeEdgeCommandController {
     this.surface = {
       ...bindPrefixedMethods(this.jira, 'jira'),
       ...bindPrefixedMethods(this.clickup, 'clickup'),
+      ...bindPrefixedMethods(this.pulse, 'pulse'),
       ...bindBrowserMethods(this.browser, BROWSER_COMMAND_NAMES),
       ...bindPrefixedMethods(this.emulator, 'emulator'),
       browserScreencast: (params, options) => this.screencasts.start(params, options)
