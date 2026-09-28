@@ -21,6 +21,7 @@ import { registerJiraIssueSummaryGenerationHandlers } from '../jira/issue-summar
 import { registerClickUpHandlers } from '../clickup'
 import { registerSlackHandlers } from '../slack'
 import { registerClaudeHandoffHandlers } from '../claude-handoff'
+import { registerClaudeLimitGuardHandlers } from '../claude-limit-guard'
 import { registerStrataHandlers } from '../strata'
 import { registerBitbucketHandlers } from '../bitbucket'
 import { registerFeedbackHandlers } from '../feedback'
@@ -212,7 +213,12 @@ export function registerCoreHandlers(
   registerJiraIssueSummaryGenerationHandlers(store, commitMessageAgentEnv)
   registerClickUpHandlers()
   registerSlackHandlers(store, runtime)
-  registerClaudeHandoffHandlers(store, runtime)
+  registerClaudeLimitGuardHandlers(
+    store,
+    runtime,
+    rateLimits,
+    registerClaudeHandoffHandlers(store, runtime)
+  )
   registerStrataHandlers(store, runtime)
   registerBitbucketHandlers()
   registerFeedbackHandlers()
