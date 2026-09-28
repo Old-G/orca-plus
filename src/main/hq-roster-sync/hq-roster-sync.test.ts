@@ -140,6 +140,32 @@ describe('createHqRosterSync', () => {
     await sync.idle()
     expect(registryRuns).toBe(2)
   })
+
+  it('syncs now, and joins a running pass with one more read', async () => {
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let registryRuns = 0
+    const { sync } = setup(respondWith(report({})), {
+      run: async (_program, args) => {
+        if (args[0]?.endsWith('hq_registry.py')) {
+          registryRuns += 1
+          if (registryRuns === 1) {
+            await gate
+          }
+          return ok(report({}))
+        }
+        return ok()
+      }
+    })
+    const first = sync.syncNow()
+    const joined = sync.syncNow()
+    release()
+    expect(await joined).toBe('unchanged')
+    expect(await first).toBe('unchanged')
+    expect(registryRuns).toBe(2)
+  })
 })
 
 describe('hqRosterCommitMessage', () => {

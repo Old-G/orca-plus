@@ -15162,6 +15162,11 @@
         "launchFailed": "No se pudo iniciar la nueva sesión"
       }
     },
+    "hqGroupChat": {
+      "menu": "Chat del grupo",
+      "failed": "No se pudo abrir el chat del grupo",
+      "workspaceName": "Chat del grupo"
+    },
     "strata": {
       "status": {
         "full": "Strata: wiki y CLAUDE.md",

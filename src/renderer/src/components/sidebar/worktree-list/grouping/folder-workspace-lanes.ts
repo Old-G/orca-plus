@@ -32,7 +32,9 @@ export function getRenderableFolderWorkspaces(
   for (const folderWorkspace of folderWorkspaces) {
     const projectGroup = projectGroupsById.get(folderWorkspace.projectGroupId)
     // A group filtered out for host visibility legitimately hides its workspaces.
-    if (!projectGroup?.parentPath) {
+    // Custom build (hq-group-chat): a manual group's workspace has its own folder (the HQ group
+    // chat), so a group without parentPath still shows its workspaces.
+    if (!projectGroup) {
       continue
     }
     renderable.push({ folderWorkspace, projectGroup })

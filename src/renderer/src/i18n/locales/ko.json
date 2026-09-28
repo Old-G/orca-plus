@@ -17529,6 +17529,11 @@
         "launchFailed": "새 세션을 시작하지 못했습니다"
       }
     },
+    "hqGroupChat": {
+      "menu": "그룹 채팅",
+      "failed": "그룹 채팅을 열 수 없습니다",
+      "workspaceName": "그룹 채팅"
+    },
     "strata": {
       "status": {
         "full": "Strata: 위키와 CLAUDE.md",
