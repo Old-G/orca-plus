@@ -21,6 +21,7 @@ import {
   stopRepoHeaderKeyboardToggle,
   stopRepoHeaderMenuEvent
 } from './header-event-guards'
+import { HqGroupChatMenuItem } from './HqGroupChatMenuItem'
 
 export function ProjectGroupHeaderMenu({
   groupId,
@@ -81,6 +82,7 @@ export function ProjectGroupHeaderMenu({
             {t('auto.components.sidebar.WorktreeList.refreshProjectGroup', 'Refresh projects')}
           </DropdownMenuItem>
         ) : null}
+        <HqGroupChatMenuItem groupId={groupId} hostId={hostId} />
         <DropdownMenuItem onSelect={() => onRename(groupId, label, hostId)}>
           {t('auto.components.sidebar.WorktreeList.4d7b73658c', 'Rename group')}
         </DropdownMenuItem>
