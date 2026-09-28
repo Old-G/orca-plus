@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 import { getRepositoryIconSectionId } from '@/components/settings/repository/repository-settings-targets'
 import { WslMoveProjectMenuItem } from '@/components/wsl-move/WslMoveProjectMenuItem'
+import { StrataAdoptMenuItem } from './StrataAdoptMenuItem'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import type { Repo } from '../../../../../../shared/repo-types'
 import type { WorktreeVisibilityDefaults } from '../../../../../../shared/global-settings-types'
@@ -150,6 +151,7 @@ export const RepoHeaderProjectActionsMenu = React.memo(function RepoHeaderProjec
             {getWorktreeVisibilityMenuLabel(repo, actions.getWorktreeVisibilityDefaults(repo))}
           </DropdownMenuItem>
         ) : null}
+        <StrataAdoptMenuItem repo={repo} />
         <DropdownMenuItem onSelect={() => actions.onCreateGroupFromRepo(repo)}>
           {/* Not FolderPlus: that now means "Add project" in the sidebar header above. */}
           <FolderTree className="size-3.5" />
