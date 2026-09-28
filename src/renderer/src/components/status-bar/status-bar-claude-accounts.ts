@@ -1,5 +1,6 @@
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { ClaudeRateLimitAccountsState } from '../../../../shared/managed-account-types'
+import { describeClaudeAccount } from '../../../../shared/claude-limit-guard'
 import { translate } from '@/i18n/i18n'
 import {
   getCodexStatusRuntimeKey,
@@ -92,7 +93,7 @@ export function buildClaudeStatusSwitchGroups(
         },
         ...accountsForTarget.map((account) => ({
           id: account.id,
-          label: account.email,
+          label: describeClaudeAccount(state.accounts, account),
           active: account.id === activeId,
           runtimeTarget: target
         }))

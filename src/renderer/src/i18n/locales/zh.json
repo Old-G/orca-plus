@@ -17538,6 +17538,26 @@
         "menu": "启用 Strata",
         "failed": "无法开始接入 Strata"
       }
+    },
+    "claudeLimit": {
+      "switchFailed": "无法切换 Claude 账户",
+      "window": {
+        "session": "5 小时限额",
+        "weekly": "每周限额"
+      },
+      "card": {
+        "title": "{{account}}：已用{{window}}的 {{percent}}%，{{time}} 重置",
+        "targetUnknown": "无法读取 {{account}} 的用量，可能仍有余量。",
+        "target": "{{account}} 还有 {{free}}% 可用。",
+        "stopped": "因限额停止的代理：{{count}} 个——切换后会继续。",
+        "running": "运行中的代理会自动使用新账户。",
+        "switch": "切换账户",
+        "dismiss": "暂不"
+      },
+      "forecast": {
+        "session": "按当前速度，5 小时限额将在 {{time}} 用完",
+        "weekly": "按当前速度，每周限额将在 {{time}} 用完"
+      }
     }
   },
   "components": {

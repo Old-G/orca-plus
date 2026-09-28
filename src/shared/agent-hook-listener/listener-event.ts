@@ -35,6 +35,8 @@ export type AgentHookEventPayload = {
   toolAgentId?: string
   /** Claude teammate name carried by TeammateIdle. */
   teammateName?: string
+  /** Claude StopFailure `error` (`rate_limit`, `server_error`, …) for the lead's turn. */
+  stopFailureError?: string
   /** Agent/subagent type from the source hook payload, when present. */
   toolAgentType?: string
   /** Provider-owned conversation/session id needed to resume a sleeping agent. */

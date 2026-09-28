@@ -17538,6 +17538,26 @@
         "menu": "Strata を有効にする",
         "failed": "Strata の導入を開始できませんでした"
       }
+    },
+    "claudeLimit": {
+      "switchFailed": "Claude アカウントを切り替えられませんでした",
+      "window": {
+        "session": "5 時間の上限",
+        "weekly": "週間の上限"
+      },
+      "card": {
+        "title": "{{account}}: {{window}}の {{percent}}% を使用、{{time}} にリセット",
+        "targetUnknown": "{{account}} の使用量を読み取れませんでした。まだ余裕があるかもしれません。",
+        "target": "{{account}} は {{free}}% 空いています。",
+        "stopped": "上限で停止した Agent: {{count}} 件 — 切り替え後に再開します。",
+        "running": "実行中の Agent は自動的に新規アカウントを使います。",
+        "switch": "アカウントを切り替え",
+        "dismiss": "後で"
+      },
+      "forecast": {
+        "session": "このペースだと 5 時間の上限に {{time}} に達します",
+        "weekly": "このペースだと週間の上限に {{time}} に達します"
+      }
     }
   },
   "components": {
