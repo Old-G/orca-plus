@@ -50,6 +50,7 @@ export const CLI_COMMAND_NAMES = [
   'pdf',
   'profile',
   'project',
+  'pulse',
   'reload',
   'repo',
   'screenshot',

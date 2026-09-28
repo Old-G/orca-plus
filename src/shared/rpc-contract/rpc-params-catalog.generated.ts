@@ -430,6 +430,21 @@ import {
   ProjectUpdate
 } from './project-runtime-params'
 import {
+  PulseAddDraftParams,
+  PulseAddInboxItemParams,
+  PulseAddWaitingParams,
+  PulseCloseWaitingParams,
+  PulseEventsParams,
+  PulseInboxItemRef,
+  PulseListDecisionsParams,
+  PulseListDraftsParams,
+  PulseListInboxParams,
+  PulseListPeopleParams,
+  PulseListWaitingsParams,
+  PulseLogDecisionParams,
+  PulseUpsertPersonParams
+} from './pulse-params'
+import {
   ProjectGroupCreate,
   ProjectGroupImportNested,
   ProjectGroupMoveProject,
@@ -1079,6 +1094,21 @@ export const RPC_PARAMS_BY_METHOD = {
   'projectHostSetup.list': null,
   'projectHostSetup.setupExistingFolder': ProjectHostSetupExistingFolder,
   'projectHostSetup.update': ProjectHostSetupUpdate,
+  'pulse.addDraft': PulseAddDraftParams,
+  'pulse.addInboxItem': PulseAddInboxItemParams,
+  'pulse.addWaiting': PulseAddWaitingParams,
+  'pulse.closeWaiting': PulseCloseWaitingParams,
+  'pulse.events': PulseEventsParams,
+  'pulse.listDecisions': PulseListDecisionsParams,
+  'pulse.listDrafts': PulseListDraftsParams,
+  'pulse.listInbox': PulseListInboxParams,
+  'pulse.listPeople': PulseListPeopleParams,
+  'pulse.listWaitings': PulseListWaitingsParams,
+  'pulse.logDecision': PulseLogDecisionParams,
+  'pulse.markInboxDone': PulseInboxItemRef,
+  'pulse.markInboxRead': PulseInboxItemRef,
+  'pulse.snapshot': null,
+  'pulse.upsertPerson': PulseUpsertPersonParams,
   'repo.add': RepoPath,
   'repo.baseRefDefault': RepoSelector,
   'repo.clone': RepoClone,
