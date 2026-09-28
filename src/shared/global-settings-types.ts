@@ -10,9 +10,8 @@ import type { AiVaultSearchSettings } from './ai-vault/search/ai-vault-search-se
 import type { GitLabProjectSettings } from './gitlab-types'
 import type { TaskProvider, TaskProviderRolloutFlags } from './work-items/task-providers'
 import type { AppIconId } from './app-icon'
-import type { CustomAppearanceBackground } from './custom-appearance-background'
-import type { CustomAppearanceTheme } from './vscode-theme/custom-appearance-theme'
 import type { SourceControlAiSettings } from './source-control/ai/settings/source-control-ai-settings-types'
+import type { CustomBuildSettings } from './custom-build-settings'
 import type { ClaudeAgentTeamsMode } from './claude-agent-teams-tmux-compat'
 import type { TerminalCustomTheme } from './terminal-themes/terminal-custom-themes'
 import type { UiLanguage } from './ui-language'
@@ -83,12 +82,6 @@ export type GlobalSettings = GlobalSettingsBase & {
   appFontFamily: string
   /** Load `~/.orca/custom.css` on top of the built-in theme and reload it on save. */
   customCssEnabled?: boolean
-  /** Custom build (custom-appearance): master switch for custom.css, background and imported theme. */
-  customAppearanceEnabled?: boolean
-  /** Custom build (appearance-background): window background image, drawn only while the block is on. */
-  customAppearanceBackground?: CustomAppearanceBackground | null
-  /** Custom build (custom-appearance-theme): the imported VS Code theme in use, while the block is on. */
-  customAppearanceTheme?: CustomAppearanceTheme | null
   editorAutoSave: boolean
   /** Days a release must be public before Orca offers it; absent/0 offers releases immediately. */
   updateDelayDays?: number
@@ -507,6 +500,7 @@ export type GlobalSettings = GlobalSettingsBase & {
   voiceDictationModeDefaultedToAuto?: boolean
   /** Transcript full-text search consent + retention. Absent means off; nothing indexes until the user opts in. */
   aiVaultSearch?: AiVaultSearchSettings
-} & TaskProviderRolloutFlags
+} & TaskProviderRolloutFlags &
+  CustomBuildSettings
 
 export type { OrcaWorkspaceLayout } from './orca-workspace-layout'
