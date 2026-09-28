@@ -56,6 +56,7 @@ const {
   registerSlackHandlersMock,
   registerClaudeHandoffHandlersMock,
   registerStrataHandlersMock,
+  registerClaudeLimitGuardHandlersMock,
   registerBitbucketHandlersMock,
   registerGitLabHandlersMock,
   registerHostedReviewHandlersMock,
@@ -131,6 +132,7 @@ const {
   registerSlackHandlersMock: vi.fn(),
   registerClaudeHandoffHandlersMock: vi.fn(),
   registerStrataHandlersMock: vi.fn(),
+  registerClaudeLimitGuardHandlersMock: vi.fn(),
   registerBitbucketHandlersMock: vi.fn(),
   registerGitLabHandlersMock: vi.fn(),
   registerHostedReviewHandlersMock: vi.fn(),
@@ -443,6 +445,10 @@ vi.mock('../claude-handoff', () => ({
   registerClaudeHandoffHandlers: registerClaudeHandoffHandlersMock
 }))
 
+vi.mock('../claude-limit-guard', () => ({
+  registerClaudeLimitGuardHandlers: registerClaudeLimitGuardHandlersMock
+}))
+
 vi.mock('../strata', () => ({
   registerStrataHandlers: registerStrataHandlersMock
 }))
@@ -542,6 +548,7 @@ describe('registerCoreHandlers', () => {
     registerSlackHandlersMock.mockReset()
     registerClaudeHandoffHandlersMock.mockReset()
     registerStrataHandlersMock.mockReset()
+    registerClaudeLimitGuardHandlersMock.mockReset()
     registerBitbucketHandlersMock.mockReset()
     registerGitLabHandlersMock.mockReset()
     registerHostedReviewHandlersMock.mockReset()
@@ -652,6 +659,12 @@ describe('registerCoreHandlers', () => {
     expect(registerSlackHandlersMock).toHaveBeenCalled()
     expect(registerClaudeHandoffHandlersMock).toHaveBeenCalledWith(store, expect.anything())
     expect(registerStrataHandlersMock).toHaveBeenCalledWith(store, expect.anything())
+    expect(registerClaudeLimitGuardHandlersMock).toHaveBeenCalledWith(
+      store,
+      expect.anything(),
+      expect.anything(),
+      registerClaudeHandoffHandlersMock.mock.results[0]?.value
+    )
     expect(registerBitbucketHandlersMock).toHaveBeenCalled()
     expect(registerGitLabHandlersMock).toHaveBeenCalledWith(store)
     expect(registerHostedReviewHandlersMock).toHaveBeenCalledWith(store, stats)
