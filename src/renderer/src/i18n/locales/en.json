@@ -18167,6 +18167,16 @@
         "pushed": "pushed",
         "launchFailed": "Could not start the new session"
       }
+    },
+    "strata": {
+      "status": {
+        "full": "Strata: wiki and CLAUDE.md",
+        "claudeMd": "Strata: CLAUDE.md only, no wiki yet"
+      },
+      "adopt": {
+        "menu": "Enable Strata",
+        "failed": "Could not start Strata adoption"
+      }
     }
   },
   "components": {

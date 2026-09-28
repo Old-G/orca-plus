@@ -17774,6 +17774,16 @@
         "pushed": "プッシュ済み",
         "launchFailed": "新しいセッションを開始できませんでした"
       }
+    },
+    "strata": {
+      "status": {
+        "full": "Strata: Wiki と CLAUDE.md",
+        "claudeMd": "Strata: CLAUDE.md のみ（Wiki はまだありません）"
+      },
+      "adopt": {
+        "menu": "Strata を有効にする",
+        "failed": "Strata の導入を開始できませんでした"
+      }
     }
   },
   "components": {
