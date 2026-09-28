@@ -24,6 +24,14 @@ export const getGeneralWorkspaceSearchEntries = createLocalizedCatalog(() => [
     ]
   },
   {
+    title: translate('auto.hq.setting.title', 'HQ Folder'),
+    description: translate(
+      'auto.hq.setting.description',
+      'Meta-wiki over all your projects. Adding or removing a project updates its registry and pages.'
+    ),
+    keywords: ['hq', 'wiki', 'registry', 'strata']
+  },
+  {
     title: translate(
       'auto.components.settings.general.search.externalWorktrees',
       'External worktrees'

@@ -21,6 +21,7 @@ import { registerSlackHandlers } from '../slack'
 import { registerClaudeHandoffHandlers } from '../claude-handoff'
 import { registerClaudeLimitGuardHandlers } from '../claude-limit-guard'
 import { registerStrataHandlers } from '../strata'
+import { registerHqRosterSync } from '../../hq-roster-sync/register-hq-roster-sync'
 import { registerBitbucketHandlers } from '../bitbucket'
 import { registerFeedbackHandlers } from '../feedback'
 import { registerCrashReportingHandlers } from '../crash-reporting'
@@ -183,6 +184,7 @@ export function registerCoreHandlers(
     registerClaudeHandoffHandlers(store, runtime)
   )
   registerStrataHandlers(store, runtime)
+  registerHqRosterSync(store)
   registerBitbucketHandlers()
   registerFeedbackHandlers()
   if (crashReports) {

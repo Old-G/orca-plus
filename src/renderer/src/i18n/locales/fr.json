@@ -17905,6 +17905,13 @@
         "session": "À ce rythme, la limite de 5 heures sera atteinte à {{time}}",
         "weekly": "À ce rythme, la limite hebdomadaire sera atteinte à {{time}}"
       }
+    },
+    "hq": {
+      "setting": {
+        "title": "Dossier HQ",
+        "description": "Méta-wiki de tous vos projets. Ajouter ou retirer un projet met à jour son registre et ses pages.",
+        "placeholder": "Non défini — synchronisation désactivée"
+      }
     }
   },
   "components": {

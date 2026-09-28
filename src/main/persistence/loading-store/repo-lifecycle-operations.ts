@@ -27,6 +27,7 @@ import type { StoreRuntimeState } from './store-runtime-state'
 import type { WriteSchedulingOperations } from './write-scheduling'
 import { scheduleSave } from './write-scheduling'
 import { pruneDeregisteredRepoUiResidue } from './repo-lifecycle-ui-residue'
+import { emitRepoRosterChanged } from '../../hq-roster-sync/repo-roster-events'
 type RepoLifecycleOperationsRuntime = Pick<
   StoreRuntimeState,
   | 'gitUsernameCache'
@@ -52,6 +53,7 @@ export class RepoLifecycleOperations {
   addRepo(repo: Repo): void {
     bumpLocalWorktreeScanGeneration(repo.id)
     getRepoOrderOperations(this).addRepo(repo)
+    emitRepoRosterChanged()
   }
 
   reorderRepos(orderedIds: string[]): boolean {
@@ -71,6 +73,7 @@ export class RepoLifecycleOperations {
     ].runtime.state.repos.filter((r) => r.id !== id)
     if (repoRemoved) {
       retireLocalWorktreeScanGeneration(id)
+      emitRepoRosterChanged()
     }
     syncProjectHostSetupCompatibilityState(this)
     delete this[repoLifecycleOperationsContext].runtime.state.sparsePresetsByRepo[id]
@@ -98,6 +101,7 @@ export class RepoLifecycleOperations {
     ].runtime.state.repos.filter((r) => !(r.id === id && getRepoExecutionHostId(r) === hostId))
     if (repoRemoved) {
       bumpLocalWorktreeScanGeneration(id)
+      emitRepoRosterChanged()
     }
     const idStillPresent = this[repoLifecycleOperationsContext].runtime.state.repos.some(
       (r) => r.id === id

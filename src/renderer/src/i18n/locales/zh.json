@@ -17804,6 +17804,13 @@
         "session": "按当前速度，5 小时限额将在 {{time}} 用完",
         "weekly": "按当前速度，每周限额将在 {{time}} 用完"
       }
+    },
+    "hq": {
+      "setting": {
+        "title": "HQ 文件夹",
+        "description": "汇总所有项目的元 wiki。添加或移除项目时会更新其注册表和页面。",
+        "placeholder": "未设置 — 同步已关闭"
+      }
     }
   },
   "components": {

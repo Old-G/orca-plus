@@ -17803,6 +17803,13 @@
         "session": "A este ritmo, el límite de 5 horas se agota a las {{time}}",
         "weekly": "A este ritmo, el límite semanal se agota a las {{time}}"
       }
+    },
+    "hq": {
+      "setting": {
+        "title": "Carpeta HQ",
+        "description": "Metawiki de todos tus proyectos. Al añadir o quitar un proyecto se actualizan su registro y sus páginas.",
+        "placeholder": "Sin configurar — sincronización desactivada"
+      }
     }
   },
   "components": {
