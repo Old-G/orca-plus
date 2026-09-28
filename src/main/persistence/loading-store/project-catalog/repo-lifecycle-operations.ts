@@ -34,6 +34,7 @@ import { isWslMoveProjectSessionFrozen } from '../../moving-wsl-projects/quiesce
 import { dropOrcadTerminalRestoreHintsForWorktrees } from '../../migrating-orcad-catalog/terminal-history/orcad-terminal-restore-hint-store'
 import { getRepoIdFromWorktreeId } from '../../../../shared/worktree/id'
 import { applyNewWindowsDriveProjectDefault } from '../../../wsl/filesystem/wsl-drive-project-new-default'
+import { emitRepoRosterChanged } from '../../../hq-roster-sync/repo-roster-events'
 
 // A paused WSL move keeps its local rows for a downgrade.
 function removeLocalRepoSession(
@@ -82,6 +83,7 @@ export class RepoLifecycleOperations {
     if (applyNewWindowsDriveProjectDefault(context.runtime.state, repo)) {
       scheduleSave(context.scheduling, ['projects'])
     }
+    emitRepoRosterChanged()
   }
 
   reorderRepos(orderedIds: string[]): boolean {
@@ -103,6 +105,7 @@ export class RepoLifecycleOperations {
     ].runtime.state.repos.filter((r) => !(r.id === id && getRepoExecutionHostId(r) === hostId))
     if (repoRemoved) {
       bumpLocalWorktreeScanGeneration(id)
+      emitRepoRosterChanged()
     }
     const idStillPresent = this[repoLifecycleOperationsContext].runtime.state.repos.some(
       (r) => r.id === id
