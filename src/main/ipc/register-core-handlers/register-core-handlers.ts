@@ -29,6 +29,7 @@ import { registerClaudeHandoffHandlers } from '../claude-handoff'
 import { registerClaudeLimitGuardHandlers } from '../claude-limit-guard'
 import { registerStrataHandlers } from '../strata'
 import { registerHqRosterSync } from '../../hq-roster-sync/register-hq-roster-sync'
+import { registerHqGroupChatHandlers } from '../../hq-group-chat/register-hq-group-chat'
 import { registerCrashReportingHandlers } from '../crash-reporting/crash-reporting'
 import { registerExportHandlers } from '../export'
 import { registerStatsHandlers } from '../stats'
@@ -182,7 +183,7 @@ export async function registerCoreHandlers(
       registerClaudeHandoffHandlers(store, runtime)
     )
     registerStrataHandlers(store, runtime)
-    registerHqRosterSync(store)
+    registerHqGroupChatHandlers(store, registerHqRosterSync(store))
     registerBitbucketHandlers()
     registerFeedbackHandlers()
     if (crashReports) {
