@@ -17775,6 +17775,11 @@
         "launchFailed": "无法启动新会话"
       }
     },
+    "hqGroupChat": {
+      "menu": "群组聊天",
+      "failed": "无法打开群组聊天",
+      "workspaceName": "群组聊天"
+    },
     "strata": {
       "status": {
         "full": "Strata：wiki 和 CLAUDE.md",

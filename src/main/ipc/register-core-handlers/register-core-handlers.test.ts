@@ -57,6 +57,7 @@ const {
   registerStrataHandlersMock,
   registerClaudeLimitGuardHandlersMock,
   registerHqRosterSyncMock,
+  registerHqGroupChatHandlersMock,
   registerBitbucketHandlersMock,
   registerGitLabHandlersMock,
   registerHostedReviewHandlersMock,
@@ -131,7 +132,8 @@ const {
   registerClaudeHandoffHandlersMock: vi.fn(),
   registerStrataHandlersMock: vi.fn(),
   registerClaudeLimitGuardHandlersMock: vi.fn(),
-  registerHqRosterSyncMock: vi.fn(),
+  registerHqRosterSyncMock: vi.fn(() => ({ syncNow: vi.fn() })),
+  registerHqGroupChatHandlersMock: vi.fn(),
   registerBitbucketHandlersMock: vi.fn(),
   registerGitLabHandlersMock: vi.fn(),
   registerHostedReviewHandlersMock: vi.fn(),
@@ -438,6 +440,10 @@ vi.mock('../../hq-roster-sync/register-hq-roster-sync', () => ({
   registerHqRosterSync: registerHqRosterSyncMock
 }))
 
+vi.mock('../../hq-group-chat/register-hq-group-chat', () => ({
+  registerHqGroupChatHandlers: registerHqGroupChatHandlersMock
+}))
+
 vi.mock('../bitbucket', () => ({
   registerBitbucketHandlers: registerBitbucketHandlersMock
 }))
@@ -528,6 +534,7 @@ describe('registerCoreHandlers', () => {
     registerStrataHandlersMock.mockReset()
     registerClaudeLimitGuardHandlersMock.mockReset()
     registerHqRosterSyncMock.mockReset()
+    registerHqGroupChatHandlersMock.mockReset()
     registerBitbucketHandlersMock.mockReset()
     registerGitLabHandlersMock.mockReset()
     registerHostedReviewHandlersMock.mockReset()
@@ -629,6 +636,10 @@ describe('registerCoreHandlers', () => {
     expect(registerClaudeHandoffHandlersMock).toHaveBeenCalledWith(store, expect.anything())
     expect(registerStrataHandlersMock).toHaveBeenCalledWith(store, expect.anything())
     expect(registerHqRosterSyncMock).toHaveBeenCalledWith(store)
+    expect(registerHqGroupChatHandlersMock).toHaveBeenCalledWith(
+      store,
+      registerHqRosterSyncMock.mock.results[0]?.value
+    )
     expect(registerClaudeLimitGuardHandlersMock).toHaveBeenCalledWith(
       store,
       expect.anything(),

@@ -147,13 +147,14 @@ describe('getUnreadBadgeCount', () => {
     expect(count({ ...remoteFolderInLocalGroup, ...localOnly })).toBe(0)
     expect(count(localFolderInRemoteGroup)).toBe(1)
     expect(count({ ...localFolderInRemoteGroup, ...localOnly })).toBe(0)
-    // A group with no folder on disk renders no rows.
+    // Custom build (hq-group-chat): a manual group with no folder on disk still renders its
+    // workspace row (the HQ group chat), so its unread counts.
     expect(
       count({
         folderWorkspaces: [makeFolderWorkspace({ isUnread: true })],
         projectGroups: [projectGroup({ parentPath: null })]
       })
-    ).toBe(0)
+    ).toBe(1)
   })
 
   it('skips a folder workspace from another device while the sidebar hides those', () => {

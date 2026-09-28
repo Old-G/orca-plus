@@ -17876,6 +17876,11 @@
         "launchFailed": "Impossible de démarrer la nouvelle session"
       }
     },
+    "hqGroupChat": {
+      "menu": "Discussion du groupe",
+      "failed": "Impossible d’ouvrir la discussion du groupe",
+      "workspaceName": "Discussion du groupe"
+    },
     "strata": {
       "status": {
         "full": "Strata : wiki et CLAUDE.md",

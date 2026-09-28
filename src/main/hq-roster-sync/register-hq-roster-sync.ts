@@ -3,12 +3,12 @@ import { existsSync } from 'node:fs'
 import { app } from 'electron'
 import type { Store } from '../persistence'
 import { runProcess } from '../../shared/child-process/run-process'
-import { createHqRosterSync } from './hq-roster-sync'
+import { createHqRosterSync, type HqRosterSync } from './hq-roster-sync'
 import { onRepoRosterChanged } from './repo-roster-events'
 
 const SCRIPT_TIMEOUT_MS = 120_000
 
-export function registerHqRosterSync(store: Store): void {
+export function registerHqRosterSync(store: Store): HqRosterSync {
   const userDataPath = app.getPath('userData')
   // Why: hq_registry.py reads projects through the `orca-plus` CLI, which targets the installed
   // app's profile unless told otherwise — a dev build must feed its own project list.
@@ -28,4 +28,5 @@ export function registerHqRosterSync(store: Store): void {
     log: (message) => console.log('[hq-roster-sync]', message)
   })
   onRepoRosterChanged(() => sync.schedule())
+  return sync
 }
