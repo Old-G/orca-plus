@@ -17784,6 +17784,26 @@
         "menu": "Strata 사용",
         "failed": "Strata 도입을 시작할 수 없습니다"
       }
+    },
+    "claudeLimit": {
+      "switchFailed": "Claude 계정을 전환하지 못했습니다",
+      "window": {
+        "session": "5시간 한도",
+        "weekly": "주간 한도"
+      },
+      "card": {
+        "title": "{{account}}: {{window}}의 {{percent}}% 사용, {{time}}에 초기화",
+        "targetUnknown": "{{account}}의 사용량을 읽지 못했습니다. 아직 여유가 있을 수 있습니다.",
+        "target": "{{account}}에 {{free}}% 여유가 있습니다.",
+        "stopped": "한도로 멈춘 에이전트: {{count}}개 — 전환 후 이어서 진행합니다.",
+        "running": "실행 중인 에이전트는 새 계정을 자동으로 사용합니다.",
+        "switch": "계정 전환",
+        "dismiss": "나중에"
+      },
+      "forecast": {
+        "session": "이 속도라면 5시간 한도가 {{time}}에 소진됩니다",
+        "weekly": "이 속도라면 주간 한도가 {{time}}에 소진됩니다"
+      }
     }
   },
   "components": {

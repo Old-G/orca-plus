@@ -18177,6 +18177,26 @@
         "menu": "Enable Strata",
         "failed": "Could not start Strata adoption"
       }
+    },
+    "claudeLimit": {
+      "switchFailed": "Could not switch the Claude account",
+      "window": {
+        "session": "5-hour limit",
+        "weekly": "weekly limit"
+      },
+      "card": {
+        "title": "{{account}}: {{percent}}% of the {{window}}, resets at {{time}}",
+        "targetUnknown": "{{account}}'s usage could not be read; it may still have room.",
+        "target": "{{account}} has {{free}}% free.",
+        "stopped": "Agents stopped on the limit: {{count}} — they continue after the switch.",
+        "running": "Running agents pick up the new account on their own.",
+        "switch": "Switch account",
+        "dismiss": "Not now"
+      },
+      "forecast": {
+        "session": "At this pace the 5-hour limit runs out at {{time}}",
+        "weekly": "At this pace the weekly limit runs out at {{time}}"
+      }
     }
   },
   "components": {

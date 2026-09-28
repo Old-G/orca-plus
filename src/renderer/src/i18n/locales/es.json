@@ -17783,6 +17783,26 @@
         "menu": "Activar Strata",
         "failed": "No se pudo iniciar la adopción de Strata"
       }
+    },
+    "claudeLimit": {
+      "switchFailed": "No se pudo cambiar la cuenta de Claude",
+      "window": {
+        "session": "límite de 5 horas",
+        "weekly": "límite semanal"
+      },
+      "card": {
+        "title": "{{account}}: {{percent}}% del {{window}}, se restablece a las {{time}}",
+        "targetUnknown": "No se pudo leer el uso de {{account}}; puede que aún tenga margen.",
+        "target": "{{account}} tiene {{free}}% libre.",
+        "stopped": "Agentes detenidos por el límite: {{count}}; continuarán tras el cambio.",
+        "running": "Los agentes en ejecución usarán la nueva cuenta por sí solos.",
+        "switch": "Cambiar cuenta",
+        "dismiss": "Ahora no"
+      },
+      "forecast": {
+        "session": "A este ritmo, el límite de 5 horas se agota a las {{time}}",
+        "weekly": "A este ritmo, el límite semanal se agota a las {{time}}"
+      }
     }
   },
   "components": {

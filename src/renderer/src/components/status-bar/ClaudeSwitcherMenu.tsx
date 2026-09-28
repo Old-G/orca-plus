@@ -35,6 +35,7 @@ import { AccountRuntimeToggle } from './StatusBarAccountControls'
 import { InlineUsageBars, InlineUsageSkeleton } from './InlineProviderUsage'
 import { ProviderDetailsMenu } from './ProviderDetailsMenu'
 import { getClaudeAccountSyncKey } from './provider-account-sync-key'
+import { ClaudeUsageForecastLine } from './ClaudeUsageForecastLine'
 
 // Exported so its account-switch/reset logic is preserved for row drill-in even
 // though the footer now opens the consolidated UsageRosterPanel first.
@@ -224,6 +225,7 @@ export function ClaudeSwitcherMenu({
       open={open}
       onOpenChange={handleOpenChange}
     >
+      <ClaudeUsageForecastLine />
       <DropdownMenuLabel>
         {translate('auto.components.status.bar.StatusBar.d450654fa2', 'Claude Account')}
       </DropdownMenuLabel>
