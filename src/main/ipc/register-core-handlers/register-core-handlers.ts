@@ -20,6 +20,7 @@ import { registerSlackHandlers } from '../slack'
 import { registerClaudeHandoffHandlers } from '../claude-handoff'
 import { registerClaudeLimitGuardHandlers } from '../claude-limit-guard'
 import { registerStrataHandlers } from '../strata'
+import { registerHqRosterSync } from '../../hq-roster-sync/register-hq-roster-sync'
 import { registerLazyCrashReportingHandlers } from '../crash-reporting/lazy-crash-reporting-handlers'
 import { registerStatsHandlers } from '../stats'
 import { registerLazyRateLimitHandlers } from '../lazy-rate-limits-handlers'
@@ -135,6 +136,7 @@ export async function registerCoreHandlers(
       registerClaudeHandoffHandlers(store, runtime)
     )
     registerStrataHandlers(store, runtime)
+    registerHqRosterSync(store)
     if (crashReports) {
       registerLazyCrashReportingHandlers(crashReports)
     }
