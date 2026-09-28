@@ -15161,6 +15161,16 @@
         "pushed": "con push",
         "launchFailed": "No se pudo iniciar la nueva sesión"
       }
+    },
+    "strata": {
+      "status": {
+        "full": "Strata: wiki y CLAUDE.md",
+        "claudeMd": "Strata: solo CLAUDE.md, aún sin wiki"
+      },
+      "adopt": {
+        "menu": "Activar Strata",
+        "failed": "No se pudo iniciar la adopción de Strata"
+      }
     }
   },
   "components": {

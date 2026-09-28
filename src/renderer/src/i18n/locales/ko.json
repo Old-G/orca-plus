@@ -17528,6 +17528,16 @@
         "pushed": "푸시됨",
         "launchFailed": "새 세션을 시작하지 못했습니다"
       }
+    },
+    "strata": {
+      "status": {
+        "full": "Strata: 위키와 CLAUDE.md",
+        "claudeMd": "Strata: CLAUDE.md만 있음, 아직 위키 없음"
+      },
+      "adopt": {
+        "menu": "Strata 사용",
+        "failed": "Strata 도입을 시작할 수 없습니다"
+      }
     }
   },
   "components": {

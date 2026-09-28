@@ -17528,6 +17528,16 @@
         "pushed": "已推送",
         "launchFailed": "无法启动新会话"
       }
+    },
+    "strata": {
+      "status": {
+        "full": "Strata：wiki 和 CLAUDE.md",
+        "claudeMd": "Strata：只有 CLAUDE.md，还没有 wiki"
+      },
+      "adopt": {
+        "menu": "启用 Strata",
+        "failed": "无法开始接入 Strata"
+      }
     }
   },
   "components": {
