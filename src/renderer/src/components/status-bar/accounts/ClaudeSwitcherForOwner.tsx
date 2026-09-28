@@ -50,6 +50,7 @@ import { AccountSwitchRowItem } from './AccountSwitchRowItem'
 import { ProviderDetailsMenu } from '../usage/ProviderDetailsMenu'
 import { claudeInactiveUsageId } from '../../../../../shared/agent-accounts/claude/claude-system-default-usage'
 import { claudeSwitcherScope } from './claude-switcher-scope'
+import { ClaudeUsageForecastLine } from '../ClaudeUsageForecastLine'
 import { getOwnerAccountRows } from './owner-account-rows'
 import {
   claudeAccountCardSignIn,
@@ -396,6 +397,7 @@ export function ClaudeSwitcherForOwner({
       open={open}
       onOpenChange={handleOpenChange}
     >
+      <ClaudeUsageForecastLine />
       {/* Why: until the host lists its accounts, the empty roster's only row would claim "System default". */}
       {rosterKnown ? (
         <AccountSwitchSection
