@@ -148,6 +148,18 @@ export function createHqRosterSync(deps: HqRosterSyncDeps) {
       }, deps.debounceMs ?? DEFAULT_DEBOUNCE_MS)
     },
 
+    /** Sync now, sharing a pass already running — for callers that need group names fresh. */
+    syncNow(): Promise<HqRosterSyncOutcome> {
+      if (running) {
+        rerun = true
+        return running
+      }
+      running = drain().finally(() => {
+        running = null
+      })
+      return running
+    },
+
     /** Resolves when no sync is pending or running (tests). */
     async idle(): Promise<HqRosterSyncOutcome | null> {
       return running ? running : null
