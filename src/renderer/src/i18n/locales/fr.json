@@ -18935,6 +18935,16 @@
         "launchFailed": "Impossible de démarrer la nouvelle session"
       }
     },
+    "strata": {
+      "status": {
+        "full": "Strata : wiki et CLAUDE.md",
+        "claudeMd": "Strata : CLAUDE.md seulement, pas encore de wiki"
+      },
+      "adopt": {
+        "menu": "Activer Strata",
+        "failed": "Impossible de démarrer l'adoption de Strata"
+      }
+    },
     "startup": {
       "webHostUnreachable": {
         "title": "Impossible de joindre votre hôte Orca",

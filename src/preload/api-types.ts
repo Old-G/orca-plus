@@ -39,6 +39,7 @@ import type { JiraApi } from './api/jira-api'
 import type { ClickUpApi } from './api/clickup-api'
 import type { SlackApi } from './api/slack-api'
 import type { ClaudeHandoffApi } from './api/claude-handoff-api'
+import type { StrataApi } from './api/strata-api'
 import type { LinearApi } from './api/linear-api'
 import type { LspApi } from './api/lsp-api'
 import type { ClaudeIdeApi } from './api/claude-ide-api'
@@ -110,6 +111,7 @@ export type PreloadApi = {
   clickup: ClickUpApi
   slack: SlackApi
   claudeHandoff: ClaudeHandoffApi
+  strata: StrataApi
   starNag: StarNagApi
   telemetryTrack: TelemetryApi['telemetryTrack']
   telemetrySetOptIn: TelemetryApi['telemetrySetOptIn']
