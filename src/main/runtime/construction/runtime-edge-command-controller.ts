@@ -14,6 +14,7 @@ import {
   JIRA_ASYNC_COMMAND_NAMES
 } from './lazy-edge-command-bindings'
 import { RuntimeClickUpCommands } from '../integrations/clickup/runtime-clickup-commands'
+import { RuntimePulseCommands } from '../runtime-pulse-commands'
 
 type PublicMethods<T> = Pick<T, keyof T>
 type BrowserSurface = Omit<PublicMethods<RuntimeBrowserCommands>, 'browserScreencast'> & {
@@ -33,6 +34,7 @@ type BrowserSurface = Omit<PublicMethods<RuntimeBrowserCommands>, 'browserScreen
 export type RuntimeEdgeCommandSurface = BrowserSurface &
   PublicMethods<RuntimeJiraCommands> &
   PublicMethods<RuntimeClickUpCommands> &
+  PublicMethods<RuntimePulseCommands> &
   PublicMethods<RuntimeEmulatorCommands>
 
 type ScreencastDependencies = ConstructorParameters<typeof RuntimeBrowserScreencastController>[0]
@@ -183,6 +185,7 @@ export class RuntimeEdgeCommandController {
   private emulatorPromise: Promise<RuntimeEmulatorCommands> | null = null
   private readonly emulatorHost: EmulatorHost
   private readonly clickup = new RuntimeClickUpCommands()
+  private readonly pulse = new RuntimePulseCommands()
   private readonly browser: RuntimeBrowserCommands
   private screencasts: RuntimeBrowserScreencastController | null = null
   private screencastsPromise: Promise<RuntimeBrowserScreencastController> | null = null
@@ -211,6 +214,7 @@ export class RuntimeEdgeCommandController {
           ? this.jiraInstance.jiraCancelGenerateIssueSummary(cancelArgs, owner)
           : { ok: true },
       ...bindPrefixedMethods(this.clickup, 'clickup'),
+      ...bindPrefixedMethods(this.pulse, 'pulse'),
       ...bindBrowserMethods(this.browser, BROWSER_COMMAND_NAMES),
       ...bindLazyAsyncMethods(() => this.loadEmulator(), EMULATOR_COMMAND_NAMES),
       browserScreencast: async (params, options) =>
