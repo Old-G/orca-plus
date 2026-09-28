@@ -44,6 +44,7 @@ import { AccountSwitchSection, AccountSwitchSignedOutHeading } from './AccountSw
 import { AccountSwitchRowItem } from './AccountSwitchRowItem'
 import { ProviderDetailsMenu } from '../usage/ProviderDetailsMenu'
 import { signInToClaudeAccount } from '@/lib/provider-accounts/claude-account-sign-in'
+import { ClaudeUsageForecastLine } from '../ClaudeUsageForecastLine'
 import { getOwnerAccountRows } from './owner-account-rows'
 
 const EMPTY_CLAUDE_ACCOUNTS = emptyClaudeAccountsState()
@@ -377,6 +378,7 @@ export function ClaudeSwitcherForOwner({
       open={open}
       onOpenChange={handleOpenChange}
     >
+      <ClaudeUsageForecastLine />
       <AccountSwitchSection
         heading={t('auto.components.status.bar.AccountSwitchList.accounts', 'Accounts')}
         targets={selectedGroup?.targets ?? []}

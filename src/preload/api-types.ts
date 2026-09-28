@@ -45,6 +45,7 @@ import type { OrcaProfileApi } from './api/profiles/orca-profile-api'
 import type { ClickUpApi } from './api/clickup-api'
 import type { SlackApi } from './api/slack-api'
 import type { ClaudeHandoffApi } from './api/claude-handoff-api'
+import type { ClaudeLimitGuardApi } from './api/claude-limit-guard-api'
 import type { StrataApi } from './api/strata-api'
 import type { LspApi } from './api/lsp-api'
 import type { ClaudeIdeApi } from './api/claude-ide-api'
@@ -135,6 +136,7 @@ export type PreloadApi = {
   clickup: ClickUpApi
   slack: SlackApi
   claudeHandoff: ClaudeHandoffApi
+  claudeLimitGuard: ClaudeLimitGuardApi
   strata: StrataApi
   starNag: StarNagApi
   telemetryTrack: TelemetryApi['telemetryTrack']

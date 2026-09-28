@@ -4,6 +4,7 @@ import {
 } from '../../../../../shared/agent-accounts/managed-account-display-names'
 import type { GlobalSettings } from '../../../../../shared/settings/global-settings-types'
 import type { ClaudeRateLimitAccountsState } from '../../../../../shared/agent-accounts/managed-account-types'
+import { describeClaudeAccount } from '../../../../../shared/claude-limit-guard'
 import { translate } from '@/i18n/i18n'
 import {
   getCodexStatusRuntimeKey,
@@ -96,7 +97,10 @@ export function buildClaudeStatusSwitchGroups(
         },
         ...accountsForTarget.map((account) => ({
           id: account.id,
-          label: getManagedAccountInlineLabel(account),
+          // Custom build: a named account keeps upstream's label; otherwise ours tells same-email subscriptions apart by organization.
+          label: account.displayName?.trim()
+            ? getManagedAccountInlineLabel(account)
+            : describeClaudeAccount(state.accounts, account),
           active: account.id === activeId,
           runtimeTarget: target,
           ...(account.needsSignIn
