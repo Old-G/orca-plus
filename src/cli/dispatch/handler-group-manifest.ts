@@ -42,6 +42,20 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     load: async () => (await import('../accounts/account.js')).ACCOUNT_HANDLERS
   },
   {
+    // Custom build (pulse)
+    name: 'pulse',
+    keys: [
+      'pulse wait add',
+      'pulse wait resolve',
+      'pulse wait list',
+      'pulse decision log',
+      'pulse draft add',
+      'pulse draft list',
+      'pulse person show'
+    ],
+    load: async () => (await import('../hq/pulse.js')).PULSE_HANDLERS
+  },
+  {
     name: 'artifacts',
     keys: [
       'artifacts list',
