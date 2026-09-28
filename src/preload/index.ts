@@ -65,6 +65,7 @@ import { browserPasswordsApi } from './api/browser/browser-passwords-bridge'
 import { clickupApi } from './api/clickup-bridge'
 import { slackApi } from './api/slack-bridge'
 import { claudeHandoffApi } from './api/claude-handoff-bridge'
+import { strataApi } from './api/strata-bridge'
 import { lspApi } from './api/lsp-bridge'
 import { claudeIdeApi } from './api/claude-ide-bridge'
 import { customCssApi } from './api/custom-css-bridge'
@@ -154,6 +155,7 @@ const api = {
   clickup: clickupApi,
   slack: slackApi,
   claudeHandoff: claudeHandoffApi,
+  strata: strataApi,
   lsp: lspApi,
   claudeIde: claudeIdeApi,
   starNag: starNagApi,
