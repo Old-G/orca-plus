@@ -215,12 +215,14 @@ export function VaultViewMenu({
   agents,
   group,
   hideEmptySessions,
+  hideAutomatedSessions,
   sessionLimit,
   adjustmentCount,
   onAgentEnabledChange,
   onAllAgentsEnabledChange,
   onGroupChange,
   onHideEmptySessionsChange,
+  onHideAutomatedSessionsChange,
   onSessionLimitChange,
   onReset
 }: {
@@ -228,12 +230,14 @@ export function VaultViewMenu({
   agents: readonly AiVaultAgent[]
   group: AiVaultGroup
   hideEmptySessions: boolean
+  hideAutomatedSessions?: boolean
   sessionLimit: AiVaultSessionLimit
   adjustmentCount: number
   onAgentEnabledChange: (agent: AiVaultAgent, enabled: boolean) => void
   onAllAgentsEnabledChange: (enabled: boolean) => void
   onGroupChange: (group: AiVaultGroup) => void
   onHideEmptySessionsChange: (hideEmptySessions: boolean) => void
+  onHideAutomatedSessionsChange?: (hideAutomatedSessions: boolean) => void
   onSessionLimitChange: (limit: AiVaultSessionLimit) => void
   onReset: () => void
 }): React.JSX.Element {
@@ -351,6 +355,18 @@ export function VaultViewMenu({
                 'Hide empty sessions'
               )}
             </DropdownMenuCheckboxItem>
+            {onHideAutomatedSessionsChange ? (
+              <DropdownMenuCheckboxItem
+                checked={hideAutomatedSessions ?? true}
+                onCheckedChange={(checked) => onHideAutomatedSessionsChange(checked === true)}
+                onSelect={(event) => event.preventDefault()}
+              >
+                {translate(
+                  'auto.components.right.sidebar.AiVaultPanelControls.hideAutomatedSessions',
+                  'Hide automated sessions'
+                )}
+              </DropdownMenuCheckboxItem>
+            ) : null}
             <AiVaultSessionLimitMenu
               sessionLimit={sessionLimit}
               onSessionLimitChange={onSessionLimitChange}

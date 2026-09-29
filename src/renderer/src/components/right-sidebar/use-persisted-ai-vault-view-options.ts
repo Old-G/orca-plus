@@ -14,6 +14,7 @@ import {
   type AiVaultViewOptions
 } from './ai-vault-view-options-persistence'
 import type { AiVaultSessionLimit } from './ai-vault-session-limit'
+import type { AiVaultAutomatedSessionsOption } from './ai-vault-view-defaults'
 
 type AiVaultViewOptionsUpdate = (current: AiVaultViewOptions) => AiVaultViewOptions
 
@@ -83,6 +84,7 @@ export function usePersistedAiVaultViewOptions(localAgents?: readonly AiVaultAge
   searchSort: AiVaultSearchSort
   group: AiVaultGroup
   hideEmptySessions: boolean
+  automatedSessions: AiVaultAutomatedSessionsOption
   sessionLimit: AiVaultSessionLimit
   setSort: (sort: AiVaultSort) => void
   setSearchSort: (sort: AiVaultSearchSort) => void
@@ -119,6 +121,15 @@ export function usePersistedAiVaultViewOptions(localAgents?: readonly AiVaultAge
         current.hideEmptySessions === hideEmptySessions
           ? current
           : { ...current, hideEmptySessions }
+      ),
+    []
+  )
+  const setHideAutomatedSessions = useCallback(
+    (hideAutomatedSessions: boolean) =>
+      updateOptions((current) =>
+        current.hideAutomatedSessions === hideAutomatedSessions
+          ? current
+          : { ...current, hideAutomatedSessions }
       ),
     []
   )
@@ -159,6 +170,10 @@ export function usePersistedAiVaultViewOptions(localAgents?: readonly AiVaultAge
     }
   }, [local])
 
+  const automatedSessions = useMemo(
+    () => ({ hide: options.hideAutomatedSessions, setHide: setHideAutomatedSessions }),
+    [options.hideAutomatedSessions, setHideAutomatedSessions]
+  )
   const disabledAgents = localDisabledAgents ?? options.disabledAgents
   const agents = useMemo(() => enabledAiVaultAgents(disabledAgents), [disabledAgents])
   return {
@@ -167,6 +182,7 @@ export function usePersistedAiVaultViewOptions(localAgents?: readonly AiVaultAge
     searchSort: options.searchSort,
     group: options.group,
     hideEmptySessions: options.hideEmptySessions,
+    automatedSessions,
     sessionLimit: options.sessionLimit,
     setSort,
     setSearchSort,
