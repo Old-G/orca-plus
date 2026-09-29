@@ -12,6 +12,7 @@ export type AiVaultTitleRequestInputs = Pick<
   | 'agentConversationsByPaneKey'
   | 'sleepingAgentSessionsByPaneKey'
   | 'tabsByWorktree'
+  | 'unifiedTabsByWorktree'
   | 'terminalLayoutsByTabId'
   | 'repos'
   | 'worktreesByRepo'
@@ -33,6 +34,8 @@ export function aiVaultTitleRequestInputs(state: AppState): AiVaultTitleRequestI
     agentConversationsByPaneKey: state.agentConversationsByPaneKey,
     sleepingAgentSessionsByPaneKey: state.sleepingAgentSessionsByPaneKey,
     tabsByWorktree: state.tabsByWorktree,
+    // Custom build (native-chat-titles): native-chat tabs are title owners too.
+    unifiedTabsByWorktree: state.unifiedTabsByWorktree,
     terminalLayoutsByTabId: state.terminalLayoutsByTabId,
     repos: state.repos,
     worktreesByRepo: selectWorktreesByRepo(state),
