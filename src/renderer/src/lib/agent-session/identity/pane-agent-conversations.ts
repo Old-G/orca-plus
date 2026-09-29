@@ -5,7 +5,6 @@ import type {
 } from '../../../../../shared/agent-status/contracts/agent-status-types'
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
 import { parsePaneKey } from '../../../../../shared/workspace-layout/stable-pane-id'
-import type { TerminalTab } from '../../../../../shared/workspace-layout/terminal-tab-types'
 import { getExecutionHostIdForWorktree } from '@/lib/workspace/ownership/worktree-runtime-owner'
 import type { AppState } from '@/store/types'
 import type { AgentPaneConversationIdentity } from '@/store/slices/agent-status/agent-pane-conversation'
@@ -14,6 +13,10 @@ import { collectLayoutLeafIdsInOrder } from '../../../../../shared/workspace-lay
 import { getIndexedRepoMap } from '@/store/repos/repository-catalog-index'
 import { getIndexedWorktreeMap } from '@/store/slices/worktrees/listing/worktree-catalog-index'
 import { selectWorktreesByRepo } from '@/store/workspaces/catalog/workspace-record-fields'
+import {
+  collectAgentSessionTitleOwners,
+  type AiVaultTitleOwner
+} from '../history/title-sync/ai-vault-title-owners'
 
 export type AgentPaneConversation<Agent extends AgentType> = {
   agent: Agent
@@ -25,7 +28,7 @@ export type AgentPaneConversation<Agent extends AgentType> = {
   worktreeId: string
 }
 
-type ConversationTab = TerminalTab & { worktreeId: string; leafIds?: ReadonlySet<string> }
+type ConversationTab = AiVaultTitleOwner & { leafIds?: ReadonlySet<string> }
 
 type RequestCandidate<Agent extends AgentType> = AgentPaneConversation<Agent> & {
   priority: number
@@ -139,6 +142,7 @@ export function collectAgentPaneConversations<Agent extends AgentType>(
     tab?: { worktreeId: string; tabId: string }
     /** A paired host that publishes a tab's session name is its only writer; an in-flight result rechecks this. */
     skipHostNamedTabs?: boolean
+    includeChatTabs?: boolean
   } = {}
 ): AgentPaneConversation<Agent>[] {
   const addressed = options.pane
@@ -171,6 +175,14 @@ export function collectAgentPaneConversations<Agent extends AgentType>(
         worktreeId,
         ...(root ? { leafIds: new Set(collectLayoutLeafIdsInOrder(root)) } : {})
       })
+    }
+  }
+  // Custom build (native-chat-titles): native-chat tabs have no terminal tab but carry a title too.
+  if (options.includeChatTabs) {
+    for (const [id, owner] of collectAgentSessionTitleOwners(state)) {
+      if (!tabsById.has(id)) {
+        tabsById.set(id, owner)
+      }
     }
   }
   const records = <T>(record: Record<string, T> | undefined) =>

@@ -7,6 +7,7 @@ import { isAiVaultTitleAgent } from '../../../../../../shared/ai-vault/contracts
 import type { AppState } from '@/store/types'
 import type { AiVaultTitleRequest } from './ai-vault-tab-title-requests'
 import { collectAgentPaneConversations } from '../../identity/pane-agent-conversations'
+import { collectAiVaultTitleOwners } from './ai-vault-title-owners'
 
 export function aiVaultTitleRequestKey(request: AiVaultTitleRequest): string {
   return `${request.tabId}\0${request.paneKey}\0${request.executionHostId}\0${request.agent}\0${request.providerSession.id}\0${request.providerSession.transcriptPath ?? ''}`
@@ -53,8 +54,10 @@ export function changedTitleRefreshHosts(state: AppState, previous: AppState): S
 }
 
 export function titleRefreshInterval(state: AppState, request: AiVaultTitleRequest): number {
-  const stored = state.tabsByWorktree[request.worktreeId]?.find(
-    (tab) => tab.id === request.tabId
+  // Custom build (native-chat-titles): a native-chat tab keeps its title outside tabsByWorktree.
+  const stored = (
+    state.tabsByWorktree[request.worktreeId]?.find((tab) => tab.id === request.tabId) ??
+    collectAiVaultTitleOwners(state).get(request.tabId)
   )?.aiVaultTitle
   const missing =
     stored?.agent !== request.agent ||

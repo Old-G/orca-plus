@@ -10,6 +10,7 @@ import {
 } from './ai-vault-tab-title-requests'
 import { settleAiVaultTitleRequestBatches } from './ai-vault-tab-title-batches'
 import { aiVaultTitleSyncInputsChanged } from './ai-vault-tab-title-sync-inputs'
+import { collectAiVaultTitleOwners } from './ai-vault-title-owners'
 
 import {
   aiVaultTitleRequestKey,
@@ -136,11 +137,7 @@ export function startAiVaultTabTitleSync(dependencies: SyncDependencies): () => 
     }
 
     const state = dependencies.getState()
-    const tabsById = new Map(
-      Object.values(state.tabsByWorktree)
-        .flat()
-        .map((tab) => [tab.id, tab] as const)
-    )
+    const tabsById = collectAiVaultTitleOwners(state)
     const requests = collectAiVaultTitleRequests(state)
     const currentKeys = new Set(requests.map(aiVaultTitleRequestKey))
     for (const key of lastSettledAttemptAt.keys()) {

@@ -50,6 +50,10 @@ import { preModeChatGetsFullAccess } from '../../../../shared/agent-launch/permi
 import { isTuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent-config'
 import { claudeCliFlagSupport } from '../../../claude/cli-capabilities/claude-cli-flag-support'
 import {
+  createClaudeTranscriptChatNamer,
+  readClaudeConversationTitle
+} from '../../../native-chat/claude-transcript-chat-name'
+import {
   runtimeHiddenHostIds,
   runtimeHiddenRepos,
   runtimeVisibleRepos,
@@ -239,26 +243,32 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends RuntimeChatWorkerEven
   /** Defer host creation until profile paths are final and chat is used; reuse an admission-opened record store. */
   async ensureStructuredAgentSessionHost(): Promise<void> {
     const logger = createStructuredAgentSessionLogger()
-    const nameChat = createStructuredChatNamingHandler(
-      structuredChatNamingDeps(
-        () => this.requireStore(),
-        {
-          resolveWorkspace: async (workspaceId) => {
-            const target = await this.resolveRuntimeFileTarget(`id:${workspaceId}`)
-            return { path: target.worktree.path, executionHostId: target.executionHostId }
-          },
-          getAgentEnvResolvers: () => this.getCommitMessageAgentEnvironmentResolvers(),
-          resolveNamingEnvironment: (agent) =>
-            resolveHostStructuredAgentLaunchEnvironment(agent, this.requireStore().getSettings()),
-          workerTaskTitle: (record) =>
-            structuredWorkerOpenTaskTitle(this.getOrchestrationDbIfAvailable?.() ?? null, record),
-          retitleOpenTab: (workspaceId, sessionId) =>
-            this.refreshStructuredConversationTabTitle(workspaceId, sessionId)
+    const namingDeps = structuredChatNamingDeps(
+      () => this.requireStore(),
+      {
+        resolveWorkspace: async (workspaceId) => {
+          const target = await this.resolveRuntimeFileTarget(`id:${workspaceId}`)
+          return { path: target.worktree.path, executionHostId: target.executionHostId }
         },
-        logger
-      )
+        getAgentEnvResolvers: () => this.getCommitMessageAgentEnvironmentResolvers(),
+        resolveNamingEnvironment: (agent) =>
+          resolveHostStructuredAgentLaunchEnvironment(agent, this.requireStore().getSettings()),
+        workerTaskTitle: (record) =>
+          structuredWorkerOpenTaskTitle(this.getOrchestrationDbIfAvailable?.() ?? null, record),
+        retitleOpenTab: (workspaceId, sessionId) =>
+          this.refreshStructuredConversationTabTitle(workspaceId, sessionId)
+      },
+      logger
     )
     const { stateDirectory, ...catalogDeps } = this.structuredAgentCatalogDependencies()
+    const nameChat = createStructuredChatNamingHandler(namingDeps)
+    // Custom build (native-chat-titles): Claude's own transcript title names the chat.
+    const nameChatFromClaudeTitle = createClaudeTranscriptChatNamer({
+      getStore: namingDeps.getStore,
+      readTitle: readClaudeConversationTitle,
+      onNamed: namingDeps.onNamed,
+      warn: (message, error) => console.warn(message, error)
+    })
     await installStructuredAgentSessionHost({
       stateDirectory,
       legacySessionTabIds: this.legacyStructuredSessionTabIds,
@@ -286,6 +296,7 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends RuntimeChatWorkerEven
         this.onStructuredSessionStatusForMail(summary)
         this.workerAutoReleaseActivity.observeChat(summary)
         nameChat(summary, options)
+        nameChatFromClaudeTitle(summary)
         void maybeAutoRenameWorkspaceOnFirstStructuredTurn(
           summary,
           options,
