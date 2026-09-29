@@ -94,7 +94,9 @@ const CLAUDE_RECORD_FIELDS: ReadonlySet<string> = new Set([
   'content',
   'lastPrompt',
   'isMeta',
-  'message'
+  'message',
+  // Custom build (ai-vault-automated-sessions): marks SDK-script and `claude -p` sessions.
+  'entrypoint'
 ])
 
 // Tool results and attachments can parse to ~20x their size; listing never reads them (#42921).
@@ -129,6 +131,11 @@ export function consumeClaudeSessionRecord(
 
   if (typeof record.sessionId === 'string' && record.sessionId.trim()) {
     accumulator.sessionId = record.sessionId.trim()
+  }
+  // Custom build (ai-vault-automated-sessions): the Python Agent SDK and headless `claude -p` runs
+  // (Orca+'s own text generation, scripts) stamp every record; chats are `sdk-ts` or `cli`.
+  if (record.entrypoint === 'sdk-py' || record.entrypoint === 'sdk-cli') {
+    accumulator.automated = true
   }
   updateTimeline(accumulator, extractString(record.timestamp))
   updateLatestLocation(accumulator, record)
