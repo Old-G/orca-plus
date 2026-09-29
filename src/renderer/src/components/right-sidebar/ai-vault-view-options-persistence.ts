@@ -8,6 +8,7 @@ import {
 } from '../../../../shared/ai-vault-types'
 import {
   DEFAULT_AI_VAULT_GROUP,
+  DEFAULT_AI_VAULT_HIDE_AUTOMATED_SESSIONS,
   DEFAULT_AI_VAULT_HIDE_EMPTY_SESSIONS,
   DEFAULT_AI_VAULT_SEARCH_SORT,
   DEFAULT_AI_VAULT_SORT
@@ -26,6 +27,7 @@ export type AiVaultViewOptions = {
   searchSort: AiVaultSearchSort
   group: AiVaultGroup
   hideEmptySessions: boolean
+  hideAutomatedSessions: boolean
   sessionLimit: AiVaultSessionLimit
 }
 
@@ -41,6 +43,7 @@ export function createDefaultAiVaultViewOptions(): AiVaultViewOptions {
     searchSort: DEFAULT_AI_VAULT_SEARCH_SORT,
     group: DEFAULT_AI_VAULT_GROUP,
     hideEmptySessions: DEFAULT_AI_VAULT_HIDE_EMPTY_SESSIONS,
+    hideAutomatedSessions: DEFAULT_AI_VAULT_HIDE_AUTOMATED_SESSIONS,
     sessionLimit: DEFAULT_AI_VAULT_SESSION_LIMIT
   }
 }
@@ -83,6 +86,10 @@ export function normalizeAiVaultViewOptions(value: unknown): AiVaultViewOptions 
       typeof record.hideEmptySessions === 'boolean'
         ? record.hideEmptySessions
         : DEFAULT_AI_VAULT_HIDE_EMPTY_SESSIONS,
+    hideAutomatedSessions:
+      typeof record.hideAutomatedSessions === 'boolean'
+        ? record.hideAutomatedSessions
+        : DEFAULT_AI_VAULT_HIDE_AUTOMATED_SESSIONS,
     sessionLimit: normalizeAiVaultSessionLimit(record.sessionLimit)
   }
 }

@@ -45,7 +45,8 @@ export function useAiVaultPanelSessions(
     activeProjectKey,
     sessionProjectById,
     projectLabelByKey,
-    hideEmptySessions
+    hideEmptySessions,
+    hideAutomatedSessions
   }: AiVaultSessionFilterState
 ) {
   const filteredSessions = useMemo(
@@ -61,7 +62,8 @@ export function useAiVaultPanelSessions(
             activeProjectKey,
             sessionProjectById,
             projectLabelByKey,
-            hideEmptySessions
+            hideEmptySessions,
+            hideAutomatedSessions
           }),
     [
       searching,
@@ -74,7 +76,8 @@ export function useAiVaultPanelSessions(
       activeProjectKey,
       sessionProjectById,
       projectLabelByKey,
-      hideEmptySessions
+      hideEmptySessions,
+      hideAutomatedSessions
     ]
   )
   const groups = useMemo<AiVaultSessionListGroup[]>(
