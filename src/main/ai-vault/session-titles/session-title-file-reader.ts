@@ -12,6 +12,7 @@ import {
   readCodexSessionIndexTitles,
   withCodexSessionIndexTitles
 } from '../scanners/codex/session-scanner-codex-title-index'
+import { resolveTitleTranscriptPath } from '../session-title-transcript-path'
 
 const TITLE_PARSE_CONCURRENCY = 4
 
@@ -31,7 +32,9 @@ async function readOneTitle(
   if (signal?.aborted) {
     return null
   }
-  const transcriptPath = request.transcriptPath?.trim()
+  // Custom build (native-chat-titles): native chats report no transcript path; find it by session id.
+  const transcriptPath =
+    request.transcriptPath?.trim() || (await resolveTitleTranscriptPath(request, signal))
   if (!transcriptPath) {
     const cached = cache?.get(request)
     if (!cached) {

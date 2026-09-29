@@ -8,6 +8,7 @@ import type { AppState } from '@/store/types'
 import type { TerminalTab } from '../../../../../../shared/workspace-layout/terminal-tab-types'
 import type { AiVaultTitleRequest } from './ai-vault-tab-title-requests'
 import { collectAgentPaneConversations } from '../../identity/pane-agent-conversations'
+import { collectAiVaultTitleOwners } from './ai-vault-title-owners'
 
 export function aiVaultTitleRequestKey(request: AiVaultTitleRequest): string {
   return `${request.tabId}\0${request.paneKey}\0${request.executionHostId}\0${request.agent}\0${request.providerSession.id}\0${request.providerSession.transcriptPath ?? ''}`
@@ -73,7 +74,16 @@ export function storedAiVaultTitles(
       }
     }
   }
-  return (request) => stored.get(storedTitleKey(request.worktreeId, request.tabId))
+  // Custom build (native-chat-titles): a native-chat tab keeps its title outside tabsByWorktree.
+  let chatOwners: ReturnType<typeof collectAiVaultTitleOwners> | null = null
+  return (request) => {
+    const key = storedTitleKey(request.worktreeId, request.tabId)
+    if (stored.has(key)) {
+      return stored.get(key)
+    }
+    chatOwners ??= collectAiVaultTitleOwners(state)
+    return chatOwners.get(request.tabId)?.aiVaultTitle
+  }
 }
 
 export function titleRefreshInterval(

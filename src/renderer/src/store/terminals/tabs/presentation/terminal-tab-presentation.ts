@@ -16,6 +16,7 @@ import {
 import { getTabIdFromPaneKey } from '../../pty/terminal-pty-identities'
 import type { TerminalSlice, TerminalStoreGet, TerminalStoreSet } from '../../terminal-state'
 import { sameAiVaultSessionTitle } from '../../../../../../shared/ai-vault/contracts/ai-vault-session-title'
+import { patchAgentSessionTabAiVaultTitle } from '../../agent-session-tab-ai-vault-title'
 
 export function createTerminalTabPresentationActions(
   set: TerminalStoreSet,
@@ -57,7 +58,16 @@ export function createTerminalTabPresentationActions(
       set((s) => {
         const ownerWorktreeId = getTerminalTabOwnerWorktreeId(s.tabsByWorktree, tabId)
         if (!ownerWorktreeId) {
-          return s
+          // Custom build (native-chat-titles): a native chat has only its unified tab.
+          const patch = patchAgentSessionTabAiVaultTitle(
+            s.unifiedTabsByWorktree,
+            tabId,
+            aiVaultTitle
+          )
+          if (patch) {
+            scheduleRuntimeGraphSync()
+          }
+          return patch ? { unifiedTabsByWorktree: patch } : s
         }
         const tabs = s.tabsByWorktree[ownerWorktreeId] ?? []
         const current = tabs.find((tab) => tab.id === tabId)
