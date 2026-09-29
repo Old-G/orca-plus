@@ -51,6 +51,16 @@ describe('buildMirroredAgentTabs', () => {
     expect(build(snapshot, [existing]).customLabel).toBe('My rename')
   })
 
+  // Custom build (native-chat-titles): dropping it made the title sync rewrite it on every snapshot.
+  it('keeps the conversation name the title sync stored across host snapshots', () => {
+    const snapshot = snapshotWith('claude', 'Claude Chat')
+    const titled: Tab = {
+      ...build(snapshot),
+      aiVaultTitle: { title: 'Fix login flow', sessionId: 'claude-1', agent: 'claude' }
+    }
+    expect(build(snapshot, [titled]).aiVaultTitle).toEqual(titled.aiVaultTitle)
+  })
+
   it('records the publishing host on a tab restored from before tabs carried one', () => {
     const snapshot = snapshotWith('codex', 'Codex Chat')
     const { executionHostId: _recorded, ...unrecorded } = build(snapshot)

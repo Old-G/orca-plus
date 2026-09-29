@@ -146,6 +146,8 @@ export function buildMirroredAgentTabs(
         label: tab.title?.trim() || defaultAgentChatLabel(tab.agent),
         // Manual rename is client-owned; host snapshots must not null it.
         customLabel: existing?.customLabel ?? null,
+        // Custom build (native-chat-titles): the title sync's conversation name is client-side too.
+        ...(existing?.aiVaultTitle ? { aiVaultTitle: existing.aiVaultTitle } : {}),
         color: tab.color !== undefined ? tab.color : (existing?.color ?? null),
         sortOrder: sortOffset + index,
         createdAt: existing?.createdAt ?? now + sortOffset + index,

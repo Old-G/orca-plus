@@ -4,13 +4,13 @@ import type { AiVaultSessionTitle } from '../../../shared/ai-vault-session-title
 import { isAiVaultTitleAgent } from '../../../shared/ai-vault-session-title'
 import type { ExecutionHostId } from '../../../shared/execution-host'
 import { parsePaneKey } from '../../../shared/stable-pane-id'
-import type { TerminalTab } from '../../../shared/terminal-tab-types'
 import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
 import type { AppState } from '@/store/types'
 import type { AgentPaneConversationIdentity } from '@/store/slices/agent-pane-conversation'
 import { collectLeafIdsInOrder } from '@/components/terminal-pane/terminal-layout-leaf-ids'
 import { getIndexedRepoMap, getIndexedWorktreeMap } from '@/store/worktree-repo-index'
 import { selectWorktreesByRepo } from '@/store/workspace-record-selectors'
+import { collectAgentSessionTitleOwners, type AiVaultTitleOwner } from './ai-vault-title-owners'
 
 export type AgentPaneConversation<Agent extends AgentType> = {
   agent: Agent
@@ -27,7 +27,7 @@ export type AiVaultTitleRequest = Omit<
   'paneKey'
 >
 
-type ConversationTab = TerminalTab & { worktreeId: string; leafIds?: ReadonlySet<string> }
+type ConversationTab = AiVaultTitleOwner & { leafIds?: ReadonlySet<string> }
 
 type RequestCandidate<Agent extends AgentType> = AgentPaneConversation<Agent> & {
   priority: number
@@ -130,7 +130,8 @@ function conversationRecords<T>(records: Record<string, T> | undefined, paneKey?
 }
 
 export function collectAiVaultTitleRequests(state: AppState): AiVaultTitleRequest[] {
-  return collectAgentPaneConversations(state, isAiVaultTitleAgent).map(
+  // Custom build (native-chat-titles): native-chat tabs carry a conversation title too.
+  return collectAgentPaneConversations(state, isAiVaultTitleAgent, { includeChatTabs: true }).map(
     ({ paneKey: _paneKey, ...request }) => request
   )
 }
@@ -145,6 +146,7 @@ export function collectAgentPaneConversations<Agent extends AgentType>(
     includeLastReported?: boolean
     pane?: { worktreeId: string; paneKey: string }
     tab?: { worktreeId: string; tabId: string }
+    includeChatTabs?: boolean
   } = {}
 ): AgentPaneConversation<Agent>[] {
   const addressed = options.pane
@@ -177,6 +179,14 @@ export function collectAgentPaneConversations<Agent extends AgentType>(
         worktreeId,
         ...(root ? { leafIds: new Set(collectLeafIdsInOrder(root)) } : {})
       })
+    }
+  }
+  // Custom build (native-chat-titles): native-chat tabs have no terminal tab but carry a title too.
+  if (options.includeChatTabs) {
+    for (const [id, owner] of collectAgentSessionTitleOwners(state)) {
+      if (!tabsById.has(id)) {
+        tabsById.set(id, owner)
+      }
     }
   }
   const records = <T>(record: Record<string, T> | undefined) =>

@@ -22,6 +22,7 @@ import {
 import { structuredChildWorkLegacySubagents } from '../../../../shared/structured-agent-session-child-work-legacy'
 import { structuredAgentSessionPaneKey } from '../../../../shared/structured-agent-session-projection'
 import { structuredAgentSessionAgentStatus } from '../../../../shared/structured-agent-session-agent-status'
+import { resolveUnifiedTabLabel } from '../../../../shared/tab-title-resolution'
 import {
   structuredAgentSessionDatedMainAgent,
   structuredAgentSessionRowStateStartedAt
@@ -100,6 +101,8 @@ export function projectStatus(
 ): void {
   const paneKey = structuredAgentSessionPaneKey(tab.id, tab.entityId)
   const store = transaction.getState()
+  // Custom build (native-chat-titles): rows show the tab's rename or Claude's title, not "Claude Chat".
+  const rowTitle = resolveUnifiedTabLabel(tab, false, tab.label)
   if (!summary?.status) {
     if (launchFailedAt !== null) {
       projectFailedStart(transaction, tab, paneKey, launchFailedAt)
@@ -157,7 +160,7 @@ export function projectStatus(
     current.subagentObservation === desired.subagentObservation &&
     current.sessionBoundary === desired.sessionBoundary &&
     current.updatedAt === summary.updatedAt &&
-    current.terminalTitle === tab.label &&
+    current.terminalTitle === rowTitle &&
     current.tabId === tab.id &&
     current.worktreeId === tab.worktreeId &&
     current.terminalResumeEligible === false &&
@@ -173,7 +176,7 @@ export function projectStatus(
   transaction.apply({
     paneKey,
     payload: desired,
-    terminalTitle: tab.label,
+    terminalTitle: rowTitle,
     timing: {
       updatedAt: summary.updatedAt,
       // This ordered host feed can correct a legacy publication clock after upgrade.
