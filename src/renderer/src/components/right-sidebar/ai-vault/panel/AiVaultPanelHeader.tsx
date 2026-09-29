@@ -12,6 +12,10 @@ import type { ExecutionHostScope } from '../../../../../../shared/execution-host
 import { VaultHostScopeMenu, VaultScopeSwitch, VaultViewMenu } from './AiVaultPanelControls'
 import type { AiVaultHostScopeOption } from '../scope/ai-vault-host-scope'
 import type { AiVaultSessionLimit } from '../session-list/ai-vault-session-limit'
+import {
+  DEFAULT_AI_VAULT_HIDE_AUTOMATED_SESSIONS,
+  type AiVaultAutomatedSessionsOption
+} from '../scope/ai-vault-view-defaults'
 
 type AiVaultPanelHeaderProps = {
   searching?: boolean
@@ -26,6 +30,8 @@ type AiVaultPanelHeaderProps = {
   agents: readonly AiVaultAgent[]
   group: AiVaultGroup
   hideEmptySessions: boolean
+  /** Custom build (ai-vault-automated-sessions). */
+  automatedSessions?: AiVaultAutomatedSessionsOption
   sessionLimit: AiVaultSessionLimit
   adjustmentCount: number
   searchInputRef?: Ref<HTMLInputElement>
@@ -57,6 +63,7 @@ export function AiVaultPanelHeader({
   agents,
   group,
   hideEmptySessions,
+  automatedSessions,
   sessionLimit,
   adjustmentCount,
   searchInputRef,
@@ -110,12 +117,20 @@ export function AiVaultPanelHeader({
             agents={agents}
             group={group}
             hideEmptySessions={hideEmptySessions}
+            hideAutomatedSessions={automatedSessions?.hide}
             sessionLimit={sessionLimit}
-            adjustmentCount={adjustmentCount}
+            adjustmentCount={
+              adjustmentCount +
+              (automatedSessions &&
+              automatedSessions.hide !== DEFAULT_AI_VAULT_HIDE_AUTOMATED_SESSIONS
+                ? 1
+                : 0)
+            }
             onAgentEnabledChange={onAgentEnabledChange}
             onAllAgentsEnabledChange={onAllAgentsEnabledChange}
             onGroupChange={onGroupChange}
             onHideEmptySessionsChange={onHideEmptySessionsChange}
+            onHideAutomatedSessionsChange={automatedSessions?.setHide}
             onSessionLimitChange={onSessionLimitChange}
             onReset={onReset}
           />
