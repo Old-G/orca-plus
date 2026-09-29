@@ -2,7 +2,10 @@ import type { BrowserTab as BrowserTabState } from '../../../../shared/browser-w
 import type { GitFileStatus } from '../../../../shared/git-status-types'
 import type { Tab, WorkspaceVisibleTabType } from '../../../../shared/tab-types'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
-import { resolveTerminalTabTitle } from '../../../../shared/tab-title-resolution'
+import {
+  resolveTerminalTabTitle,
+  resolveUnifiedTabLabel
+} from '../../../../shared/tab-title-resolution'
 import type { OpenFile } from '../../store/slices/editor'
 import { getEditorDisplayLabel } from '@/components/editor/editor-labels'
 import { normalizeRelativePath } from '@/lib/path'
@@ -67,6 +70,20 @@ export function resolveEditorTabGitStatus(
   return statusByRelativePath.get(normalizeRelativePath(relativePath)) ?? null
 }
 
+/** Custom build (native-chat-titles): a chat tab shows the conversation's own title; upstream's
+ *  saved name only replaces the generic "Claude Chat" label. */
+export function resolveAgentSessionTabTitle(
+  tab: Tab,
+  conversationName: string | null,
+  generatedTitlesEnabled: boolean
+): string {
+  return resolveUnifiedTabLabel(
+    { ...tab, label: conversationName ?? tab.label },
+    generatedTitlesEnabled,
+    tab.label
+  )
+}
+
 export function getTabDragLabel(item: TabBarItem, generatedTitlesEnabled: boolean): string {
   if (item.type === 'terminal') {
     return resolveTerminalTabTitle(item.data, generatedTitlesEnabled, item.data.title)
@@ -74,7 +91,10 @@ export function getTabDragLabel(item: TabBarItem, generatedTitlesEnabled: boolea
   if (item.type === 'browser') {
     return getBrowserTabLabel(item.data)
   }
-  if (item.type === 'simulator' || item.type === 'agent-session') {
+  if (item.type === 'agent-session') {
+    return resolveUnifiedTabLabel(item.data, generatedTitlesEnabled, item.data.label)
+  }
+  if (item.type === 'simulator') {
     return item.data.label || 'Mobile Emulator'
   }
   return getEditorDisplayLabel(item.data)
