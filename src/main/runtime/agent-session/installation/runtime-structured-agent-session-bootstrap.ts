@@ -22,6 +22,10 @@ import {
 } from '../../orchestration/terminal-authority/structured-sessions/structured-worker-custody'
 import { structuredAgentSettingGates } from '../launch/structured-agent-setting-gates'
 import { claudeCliFlagSupport } from '../../../claude/cli-capabilities/claude-cli-flag-support'
+import {
+  createClaudeTranscriptChatNamer,
+  readClaudeConversationTitle
+} from '../../../native-chat/claude-transcript-chat-name'
 import { nativeChatIdleStopMs } from '../../../../shared/native-chat/settings/native-chat-idle-stop'
 import { prWatchWorkspaceSources } from '../lifecycle/pr-watch-workspace-sources'
 import { startPRWatchRuntime } from '../lifecycle/pr-watch-runtime'
@@ -119,28 +123,31 @@ export async function ensureRuntimeStructuredAgentSessionHost(
   // Built only when this call installs: deps run install-time work such as each bot's tool-secret sweep.
   await installStructuredAgentSessionHost(() => {
     const logger = createStructuredAgentSessionLogger()
-    const nameChat = createStructuredChatNamingHandler(
-      structuredChatNamingDeps(
-        () => context.requireStore(),
-        {
-          resolveWorkspace: async (workspaceId) => {
-            const target = await context.resolveRuntimeFileTarget(`id:${workspaceId}`)
-            return { path: target.worktree.path, executionHostId: target.executionHostId }
-          },
-          getAgentEnvResolvers: () => context.getCommitMessageAgentEnvironmentResolvers(),
-          resolveNamingEnvironment: (agent) =>
-            resolveHostStructuredAgentLaunchEnvironment(
-              agent,
-              context.requireStore().getSettings()
-            ),
-          workerTaskTitle: (record) =>
-            structuredWorkerOpenTaskTitle(context.getOrchestrationDbIfAvailable(), record),
-          retitleOpenTab: (workspaceId, sessionId) =>
-            context.refreshStructuredConversationTabTitle(workspaceId, sessionId)
+    const namingDeps = structuredChatNamingDeps(
+      () => context.requireStore(),
+      {
+        resolveWorkspace: async (workspaceId) => {
+          const target = await context.resolveRuntimeFileTarget(`id:${workspaceId}`)
+          return { path: target.worktree.path, executionHostId: target.executionHostId }
         },
-        logger
-      )
+        getAgentEnvResolvers: () => context.getCommitMessageAgentEnvironmentResolvers(),
+        resolveNamingEnvironment: (agent) =>
+          resolveHostStructuredAgentLaunchEnvironment(agent, context.requireStore().getSettings()),
+        workerTaskTitle: (record) =>
+          structuredWorkerOpenTaskTitle(context.getOrchestrationDbIfAvailable(), record),
+        retitleOpenTab: (workspaceId, sessionId) =>
+          context.refreshStructuredConversationTabTitle(workspaceId, sessionId)
+      },
+      logger
     )
+    const nameChat = createStructuredChatNamingHandler(namingDeps)
+    // Custom build (native-chat-titles): Claude's own transcript title names the chat.
+    const nameChatFromClaudeTitle = createClaudeTranscriptChatNamer({
+      getStore: namingDeps.getStore,
+      readTitle: readClaudeConversationTitle,
+      onNamed: namingDeps.onNamed,
+      warn: (message, error) => console.warn(message, error)
+    })
     return {
       legacySessionTabIds: context.legacySessionTabIds,
       hostId: LOCAL_EXECUTION_HOST_ID,
@@ -169,6 +176,7 @@ export async function ensureRuntimeStructuredAgentSessionHost(
         context.onStructuredSessionStatusForMail(summary)
         context.observeWorkerAutoReleaseChat(summary)
         nameChat(summary, options)
+        nameChatFromClaudeTitle(summary)
         void maybeAutoRenameWorkspaceOnFirstStructuredTurn(
           summary,
           options,
