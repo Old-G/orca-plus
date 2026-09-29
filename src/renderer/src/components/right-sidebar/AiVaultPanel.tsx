@@ -79,6 +79,7 @@ export default function AiVaultPanel(): React.JSX.Element {
     searchSort,
     group,
     hideEmptySessions,
+    automatedSessions,
     sessionLimit,
     setSort,
     setSearchSort,
@@ -207,7 +208,8 @@ export default function AiVaultPanel(): React.JSX.Element {
     activeProjectKey,
     sessionProjectById,
     projectLabelByKey,
-    hideEmptySessions
+    hideEmptySessions,
+    hideAutomatedSessions: automatedSessions.hide
   })
 
   const copyText = useCallback(async (text: string, label: string): Promise<void> => {
@@ -256,6 +258,7 @@ export default function AiVaultPanel(): React.JSX.Element {
         agents={agents}
         group={group}
         hideEmptySessions={hideEmptySessions}
+        automatedSessions={automatedSessions}
         sessionLimit={sessionLimit}
         adjustmentCount={viewAdjustmentCount}
         focusSearchRequestId={focusSearchRequestId}
