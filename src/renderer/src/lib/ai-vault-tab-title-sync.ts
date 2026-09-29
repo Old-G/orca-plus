@@ -9,6 +9,7 @@ import {
 } from './ai-vault-tab-title-requests'
 import { settleAiVaultTitleRequestBatches } from './ai-vault-tab-title-batches'
 import { aiVaultTitleSyncInputsChanged } from './ai-vault-tab-title-sync-inputs'
+import { collectAiVaultTitleOwners } from './ai-vault-title-owners'
 
 const MISSING_TITLE_REFRESH_MS = 20_000
 const LIVE_TITLE_REFRESH_MS = 5 * 60_000
@@ -43,11 +44,7 @@ function nextLiveRefreshDelay(state: AppState, requests: AiVaultTitleRequest[]):
   if (liveRequests.length === 0) {
     return null
   }
-  const tabsById = new Map(
-    Object.values(state.tabsByWorktree)
-      .flat()
-      .map((tab) => [tab.id, tab] as const)
-  )
+  const tabsById = collectAiVaultTitleOwners(state)
   const hasMissingTitle = liveRequests.some((request) => {
     const stored = tabsById.get(request.tabId)?.aiVaultTitle
     return (
@@ -141,11 +138,7 @@ export function startAiVaultTabTitleSync(dependencies: SyncDependencies): () => 
     }
 
     const state = dependencies.getState()
-    const tabsById = new Map(
-      Object.values(state.tabsByWorktree)
-        .flat()
-        .map((tab) => [tab.id, tab] as const)
-    )
+    const tabsById = collectAiVaultTitleOwners(state)
     const requests = collectAiVaultTitleRequests(state)
     const requestsToScan = requests.filter((request) => {
       const stored = tabsById.get(request.tabId)?.aiVaultTitle
