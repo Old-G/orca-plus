@@ -5,6 +5,7 @@ import { parsePaneKey } from '../../../../../../shared/workspace-layout/stable-p
 import { findRegisteredTerminalTab } from '@/runtime/hosted-terminals/mounted-surfaces/mounted-terminal-tab-registry'
 import { isAiVaultTitleAgent } from '../../../../../../shared/ai-vault/contracts/ai-vault-session-title'
 import type { AppState } from '@/store/types'
+import { collectAiVaultTitleOwners } from './ai-vault-title-owners'
 import {
   collectAgentPaneConversations,
   type AiVaultTitleRequest
@@ -55,8 +56,10 @@ export function changedTitleRefreshHosts(state: AppState, previous: AppState): S
 }
 
 export function titleRefreshInterval(state: AppState, request: AiVaultTitleRequest): number {
-  const stored = state.tabsByWorktree[request.worktreeId]?.find(
-    (tab) => tab.id === request.tabId
+  // Custom build (native-chat-titles): a native-chat tab keeps its title outside tabsByWorktree.
+  const stored = (
+    state.tabsByWorktree[request.worktreeId]?.find((tab) => tab.id === request.tabId) ??
+    collectAiVaultTitleOwners(state).get(request.tabId)
   )?.aiVaultTitle
   const missing =
     stored?.agent !== request.agent ||

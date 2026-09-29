@@ -9,7 +9,6 @@ import {
 } from '../../../../../../shared/ai-vault/contracts/ai-vault-session-title'
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { parsePaneKey } from '../../../../../../shared/workspace-layout/stable-pane-id'
-import type { TerminalTab } from '../../../../../../shared/workspace-layout/terminal-tab-types'
 import { getExecutionHostIdForWorktree } from '@/lib/workspace/ownership/worktree-runtime-owner'
 import type { AppState } from '@/store/types'
 import type { AgentPaneConversationIdentity } from '@/store/slices/agent-status/agent-pane-conversation'
@@ -17,6 +16,7 @@ import { collectLeafIdsInOrder } from '../../../../components/terminal-pane/layo
 import { getIndexedRepoMap } from '@/store/repos/repository-catalog-index'
 import { getIndexedWorktreeMap } from '@/store/slices/worktrees/listing/worktree-catalog-index'
 import { selectWorktreesByRepo } from '@/store/workspaces/catalog/workspace-record-fields'
+import { collectAgentSessionTitleOwners, type AiVaultTitleOwner } from './ai-vault-title-owners'
 
 export type AgentPaneConversation<Agent extends AgentType> = {
   agent: Agent
@@ -30,7 +30,7 @@ export type AgentPaneConversation<Agent extends AgentType> = {
 
 export type AiVaultTitleRequest = AgentPaneConversation<AiVaultSessionTitle['agent']>
 
-type ConversationTab = TerminalTab & { worktreeId: string; leafIds?: ReadonlySet<string> }
+type ConversationTab = AiVaultTitleOwner & { leafIds?: ReadonlySet<string> }
 
 type RequestCandidate<Agent extends AgentType> = AgentPaneConversation<Agent> & {
   priority: number
@@ -133,7 +133,11 @@ function conversationRecords<T>(records: Record<string, T> | undefined, paneKey?
 }
 
 export function collectAiVaultTitleRequests(state: AppState): AiVaultTitleRequest[] {
-  return collectAgentPaneConversations(state, isAiVaultTitleAgent, { skipHostNamedTabs: true })
+  // Custom build (native-chat-titles): native-chat tabs carry a conversation title too.
+  return collectAgentPaneConversations(state, isAiVaultTitleAgent, {
+    skipHostNamedTabs: true,
+    includeChatTabs: true
+  })
 }
 
 /** Each tab's conversation: live, sleeping, retained, then its last reported identity. */
@@ -148,6 +152,7 @@ export function collectAgentPaneConversations<Agent extends AgentType>(
     tab?: { worktreeId: string; tabId: string }
     /** A paired host that publishes a tab's session name is its only writer; an in-flight result rechecks this. */
     skipHostNamedTabs?: boolean
+    includeChatTabs?: boolean
   } = {}
 ): AgentPaneConversation<Agent>[] {
   const addressed = options.pane
@@ -180,6 +185,14 @@ export function collectAgentPaneConversations<Agent extends AgentType>(
         worktreeId,
         ...(root ? { leafIds: new Set(collectLeafIdsInOrder(root)) } : {})
       })
+    }
+  }
+  // Custom build (native-chat-titles): native-chat tabs have no terminal tab but carry a title too.
+  if (options.includeChatTabs) {
+    for (const [id, owner] of collectAgentSessionTitleOwners(state)) {
+      if (!tabsById.has(id)) {
+        tabsById.set(id, owner)
+      }
     }
   }
   const records = <T>(record: Record<string, T> | undefined) =>
