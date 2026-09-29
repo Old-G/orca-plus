@@ -15,6 +15,7 @@ import { normalizeRelativePath } from '../../../../../shared/file-access/cross-p
 import { getPathDecoration } from '../../../../../shared/git/status/git-path-decoration'
 import { isVirtualEditorFile } from '@/store/slices/editor/tabs/editor-tab-content-type'
 import { tabItemLabel } from './tab-bar-item-label'
+export { resolveAgentSessionTabTitle } from './tab-bar-item-label'
 import type { DropIndicator } from '../strip/drop-indicator'
 import { reconcileTabOrder } from '../../../lib/workspace/tabs/order/reconcile-tab-order'
 import { resolveTabIndicatorEdges } from '../../tab-group/drag/tab-insertion'
