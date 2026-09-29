@@ -141,6 +141,8 @@ export type AiVaultSession = {
   antigravityOpeningPrompt?: { hash: string; timestamp: string | null }
   /** One top-level artifact file in the agy conversation folder; revealing it opens that folder. */
   antigravityArtifactPath?: string
+  /** Custom build (ai-vault-automated-sessions): started by an SDK script (Claude `entrypoint: sdk-py`), not a person. */
+  automated?: boolean
   /** Full first non-injected prompt only on on-demand getFirstUserPrompt reparses; list scans omit it for payload/cost. */
   firstUserPrompt?: string | null
   /** Latest provider-authenticated user prompt; absent when the transcript has no trustworthy signal. */

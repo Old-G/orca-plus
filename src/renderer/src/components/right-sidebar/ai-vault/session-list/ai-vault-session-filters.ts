@@ -43,7 +43,8 @@ export function useAiVaultPanelSessions(
     sessionProjectById,
     projectLabelByKey,
     hideEmptySessions,
-    roomRows = KEEP_ROWS
+    roomRows = KEEP_ROWS,
+    hideAutomatedSessions
   }: AiVaultSessionFilterState & { roomRows?: AiVaultRoomRows }
 ) {
   const filteredSessions = useMemo(() => {
@@ -60,7 +61,8 @@ export function useAiVaultPanelSessions(
             activeProjectKey,
             sessionProjectById,
             projectLabelByKey,
-            hideEmptySessions
+            hideEmptySessions,
+            hideAutomatedSessions
           })
     )
   }, [
@@ -75,7 +77,8 @@ export function useAiVaultPanelSessions(
     sessionProjectById,
     projectLabelByKey,
     hideEmptySessions,
-    roomRows
+    roomRows,
+    hideAutomatedSessions
   ])
   const groups = useMemo<AiVaultSessionListGroup[]>(
     () =>

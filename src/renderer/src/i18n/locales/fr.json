@@ -14782,6 +14782,7 @@
             "agent": "Agent",
             "resetView": "Réinitialiser la vue",
             "hideEmptySessions": "Masquer les sessions vides",
+            "hideAutomatedSessions": "Masquer les sessions automatisées",
             "workspaceScope": "Espace de travail",
             "projectScope": "Projet",
             "currentProjectLower": "projet actuel",

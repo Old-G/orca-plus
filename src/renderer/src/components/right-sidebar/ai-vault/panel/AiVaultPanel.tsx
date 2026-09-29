@@ -98,6 +98,7 @@ export default function AiVaultPanel({
     searchSort,
     group,
     hideEmptySessions,
+    automatedSessions,
     sessionLimit,
     setSort,
     setSearchSort,
@@ -234,7 +235,8 @@ export default function AiVaultPanel({
     projectLabelByKey,
     hideEmptySessions,
     // A group room's member rows list once, in the group's home.
-    roomRows: useAiVaultGroupRoomRows()
+    roomRows: useAiVaultGroupRoomRows(),
+    hideAutomatedSessions: automatedSessions.hide
   })
   const searchHitHostLabels = useMemo(
     () => (searching ? aiVaultSearchHitHostLabels(filteredSessions, hostScopeOptions, t) : null),
@@ -277,6 +279,7 @@ export default function AiVaultPanel({
         agents={agents}
         group={group}
         hideEmptySessions={hideEmptySessions}
+        automatedSessions={automatedSessions}
         sessionLimit={sessionLimit}
         adjustmentCount={viewAdjustmentCount}
         searchInputRef={searchInputRef}

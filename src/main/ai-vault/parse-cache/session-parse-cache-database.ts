@@ -25,7 +25,9 @@ import {
 } from '../transcripts/session-transcript-record-budget'
 
 // Bump for row-layout or cached-semantic changes; mismatched databases are discarded.
-export const SESSION_PARSE_CACHE_SCHEMA_VERSION = 9
+// Custom build (ai-vault-automated-sessions): 11, past upstream's 9 and our installed 10 (`automated`
+// with `sdk-cli`, parsed before upstream's 9), so caches without any of them re-parse.
+export const SESSION_PARSE_CACHE_SCHEMA_VERSION = 11
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
