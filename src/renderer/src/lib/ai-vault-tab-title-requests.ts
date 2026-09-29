@@ -4,9 +4,9 @@ import type { AiVaultSessionTitle } from '../../../shared/ai-vault-session-title
 import { isAiVaultTitleAgent } from '../../../shared/ai-vault-session-title'
 import type { ExecutionHostId } from '../../../shared/execution-host'
 import { parsePaneKey } from '../../../shared/stable-pane-id'
-import type { TerminalTab } from '../../../shared/terminal-tab-types'
 import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
 import type { AppState } from '@/store/types'
+import { collectAiVaultTitleOwners, type AiVaultTitleOwner } from './ai-vault-title-owners'
 
 /** The conversation a tab's pane runs, for an agent `isAgent` accepts. */
 export type AgentPaneConversation<Agent extends AgentType> = {
@@ -35,7 +35,7 @@ function activePaneKey(state: AppState, tabId: string): string | null {
 
 function registerCandidate<Agent extends AgentType>(
   state: AppState,
-  tabsById: ReadonlyMap<string, TerminalTab>,
+  tabsById: ReadonlyMap<string, AiVaultTitleOwner>,
   candidates: Map<string, RequestCandidate<Agent>>,
   isAgent: (agent: AgentType | null | undefined) => agent is Agent,
   args: {
@@ -86,7 +86,8 @@ function liveCandidate(entry: AgentStatusEntry): Parameters<typeof registerCandi
 }
 
 export function collectAiVaultTitleRequests(state: AppState): AiVaultTitleRequest[] {
-  return collectAgentPaneConversations(state, isAiVaultTitleAgent)
+  // Custom build (native-chat-titles): native-chat tabs carry a conversation title too.
+  return collectAgentPaneConversations(state, isAiVaultTitleAgent, { includeChatTabs: true })
 }
 
 /** Each tab's conversation of an agent `isAgent` accepts: live agent, then sleeping, then retained. */
@@ -96,13 +97,16 @@ export function collectAgentPaneConversations<Agent extends AgentType>(
   options: {
     /** Skip retained and sleeping records: those remember a conversation after its agent exited. */
     runningAgentsOnly?: boolean
+    includeChatTabs?: boolean
   } = {}
 ): AgentPaneConversation<Agent>[] {
-  const tabsById = new Map(
-    Object.values(state.tabsByWorktree)
-      .flat()
-      .map((tab) => [tab.id, tab] as const)
-  )
+  const tabsById: ReadonlyMap<string, AiVaultTitleOwner> = options.includeChatTabs
+    ? collectAiVaultTitleOwners(state)
+    : new Map(
+        Object.values(state.tabsByWorktree)
+          .flat()
+          .map((tab) => [tab.id, tab] as const)
+      )
   const candidates = new Map<string, RequestCandidate<Agent>>()
   const retained = options.runningAgentsOnly ? [] : Object.values(state.retainedAgentsByPaneKey)
   const sleeping = options.runningAgentsOnly

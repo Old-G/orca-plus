@@ -53,6 +53,7 @@ import { useAppStore } from '@/store'
 import { getNotificationWorkspaceLabels } from '../terminal-pane/terminal-notification-state'
 import { createStructuredAttentionSurface } from './structured-attention-surface'
 import type { StructuredTab } from './structured-agent-session-tabs'
+import { resolveUnifiedTabLabel } from '../../../../shared/tab-title-resolution'
 
 export function dispatchStructuredTurnCompletionAttention(
   tab: StructuredTab,
@@ -152,7 +153,8 @@ function dispatchStructuredAttention(
           paneKey: request.subjectKey ?? undefined,
           ...getNotificationWorkspaceLabels(state, request.workspaceId, tab.label),
           notificationSourceId: notificationSourceForOwner(owner, state),
-          terminalTitle: tab.label,
+          // Custom build (native-chat-titles): the chat's title, not the generic "Claude Chat".
+          terminalTitle: resolveUnifiedTabLabel(tab, false, tab.label),
           isActiveWorktree: request.workspaceIsActive,
           ...(row?.agentType ? { agentType: row.agentType } : {}),
           agentState: news.agentState,

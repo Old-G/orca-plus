@@ -4,6 +4,7 @@ import type { TerminalTab } from '../../../shared/terminal-tab-types'
 import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
 import type { AppState } from '@/store/types'
 import { collectAiVaultTitleRequests } from './ai-vault-tab-title-requests'
+import { agentSessionTitleOwnersEqual } from './ai-vault-title-owners'
 
 function providerSessionEqual(
   left: AgentProviderSessionMetadata | undefined,
@@ -170,6 +171,12 @@ export function aiVaultTitleSyncInputsChanged(current: AppState, previous: AppSt
     return true
   }
   if (current.tabsByWorktree !== previous.tabsByWorktree && !terminalTabsEqual(current, previous)) {
+    return true
+  }
+  if (
+    current.unifiedTabsByWorktree !== previous.unifiedTabsByWorktree &&
+    !agentSessionTitleOwnersEqual(current, previous)
+  ) {
     return true
   }
   if (
