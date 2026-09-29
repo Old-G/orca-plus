@@ -16,6 +16,7 @@ import {
   selectFolderWorkspaces,
   selectWorktreesByRepo
 } from '@/store/workspaces/catalog/workspace-record-fields'
+import { agentSessionTitleOwnersEqual } from './ai-vault-title-owners'
 
 function providerSessionEqual(
   left: AgentProviderSessionMetadata | undefined,
@@ -158,6 +159,7 @@ type RequestWorktreeIdsInputs = Pick<
   | 'agentConversationsByPaneKey'
   | 'sleepingAgentSessionsByPaneKey'
   | 'tabsByWorktree'
+  | 'unifiedTabsByWorktree'
   | 'terminalLayoutsByTabId'
 >
 let cachedRequestWorktreeIds: { inputs: RequestWorktreeIdsInputs; worktreeIds: string[] } | null =
@@ -170,6 +172,9 @@ function requestInputsMatch(inputs: RequestWorktreeIdsInputs, state: AppState): 
     inputs.agentConversationsByPaneKey === state.agentConversationsByPaneKey &&
     inputs.sleepingAgentSessionsByPaneKey === state.sleepingAgentSessionsByPaneKey &&
     inputs.tabsByWorktree === state.tabsByWorktree &&
+    // Custom build (native-chat-titles): native-chat tabs are title owners too.
+    (inputs.unifiedTabsByWorktree === state.unifiedTabsByWorktree ||
+      agentSessionTitleOwnersEqual(inputs, state)) &&
     inputs.terminalLayoutsByTabId === state.terminalLayoutsByTabId
   )
 }
@@ -189,6 +194,7 @@ function requestWorktreeIds(state: AppState): string[] {
       agentConversationsByPaneKey: state.agentConversationsByPaneKey,
       sleepingAgentSessionsByPaneKey: state.sleepingAgentSessionsByPaneKey,
       tabsByWorktree: state.tabsByWorktree,
+      unifiedTabsByWorktree: state.unifiedTabsByWorktree,
       terminalLayoutsByTabId: state.terminalLayoutsByTabId
     },
     worktreeIds
@@ -229,6 +235,13 @@ function requestFactsChanged(
     current.agentConversationsByPaneKey !== previous.agentConversationsByPaneKey ||
     current.sleepingAgentSessionsByPaneKey !== previous.sleepingAgentSessionsByPaneKey
   if (agentRecordsChanged && !agentRecordsEqual(current, previous)) {
+    return true
+  }
+  if (
+    // Custom build (native-chat-titles): a native-chat tab's title owner changed.
+    current.unifiedTabsByWorktree !== previous.unifiedTabsByWorktree &&
+    !agentSessionTitleOwnersEqual(current, previous)
+  ) {
     return true
   }
   if (
