@@ -7,6 +7,10 @@ import type { ExecutionHostScope } from '../../../../shared/execution-host'
 import { VaultHostScopeMenu, VaultScopeSwitch, VaultViewMenu } from './AiVaultPanelControls'
 import type { AiVaultHostScopeOption } from './ai-vault-host-scope'
 import type { AiVaultSessionLimit } from './ai-vault-session-limit'
+import {
+  DEFAULT_AI_VAULT_HIDE_AUTOMATED_SESSIONS,
+  type AiVaultAutomatedSessionsOption
+} from './ai-vault-view-defaults'
 
 type AiVaultPanelHeaderProps = {
   searching?: boolean
@@ -21,6 +25,8 @@ type AiVaultPanelHeaderProps = {
   agents: readonly AiVaultAgent[]
   group: AiVaultGroup
   hideEmptySessions: boolean
+  /** Custom build (ai-vault-automated-sessions). */
+  automatedSessions?: AiVaultAutomatedSessionsOption
   sessionLimit: AiVaultSessionLimit
   adjustmentCount: number
   /** Bumped by a caller that sent the user here, e.g. Settings; focuses the search box once. */
@@ -50,6 +56,7 @@ export function AiVaultPanelHeader({
   agents,
   group,
   hideEmptySessions,
+  automatedSessions,
   sessionLimit,
   adjustmentCount,
   focusSearchRequestId = 0,
@@ -107,12 +114,20 @@ export function AiVaultPanelHeader({
             agents={agents}
             group={group}
             hideEmptySessions={hideEmptySessions}
+            hideAutomatedSessions={automatedSessions?.hide}
             sessionLimit={sessionLimit}
-            adjustmentCount={adjustmentCount}
+            adjustmentCount={
+              adjustmentCount +
+              (automatedSessions &&
+              automatedSessions.hide !== DEFAULT_AI_VAULT_HIDE_AUTOMATED_SESSIONS
+                ? 1
+                : 0)
+            }
             onAgentEnabledChange={onAgentEnabledChange}
             onAllAgentsEnabledChange={onAllAgentsEnabledChange}
             onGroupChange={onGroupChange}
             onHideEmptySessionsChange={onHideEmptySessionsChange}
+            onHideAutomatedSessionsChange={automatedSessions?.setHide}
             onSessionLimitChange={onSessionLimitChange}
             onReset={onReset}
           />

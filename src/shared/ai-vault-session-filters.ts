@@ -47,6 +47,8 @@ export type AiVaultSessionFilterState = {
   sessionProjectById?: ReadonlyMap<string, AiVaultSessionProject>
   projectLabelByKey?: ReadonlyMap<string, string>
   hideEmptySessions: boolean
+  /** Custom build (ai-vault-automated-sessions): hide SDK-script sessions; unset means hide. */
+  hideAutomatedSessions?: boolean
 }
 
 export type AiVaultSessionGroup = {
@@ -98,6 +100,9 @@ export function filterAiVaultSessions(
       !isAiVaultSessionResumableContent(session) &&
       !isAiVaultSessionRecoverableEmpty(session)
     ) {
+      return false
+    }
+    if (session.automated && filters.hideAutomatedSessions !== false) {
       return false
     }
     if (filters.scope === 'workspace') {

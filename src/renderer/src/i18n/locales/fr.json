@@ -13529,6 +13529,7 @@
             "agent": "Agent",
             "resetView": "Réinitialiser la vue",
             "hideEmptySessions": "Masquer les sessions vides",
+            "hideAutomatedSessions": "Masquer les sessions automatisées",
             "workspaceScope": "Espace de travail",
             "worktreeScope": "Worktree",
             "globalScope": "Global",

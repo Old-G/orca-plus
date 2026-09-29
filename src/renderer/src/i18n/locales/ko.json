@@ -13426,6 +13426,7 @@
             "agent": "에이전트",
             "resetView": "보기 재설정",
             "hideEmptySessions": "빈 세션 숨기기",
+            "hideAutomatedSessions": "자동 세션 숨기기",
             "workspaceScope": "워크스페이스",
             "worktreeScope": "워크트리",
             "globalScope": "전역",

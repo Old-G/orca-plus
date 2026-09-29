@@ -10,6 +10,10 @@ import { DEFAULT_AI_VAULT_SESSION_LIMIT, type AiVaultSessionLimit } from './ai-v
 // Why: hide-empty used to default true; keep initial state, badge count, and Reset view
 // on one constant so a default flip cannot leave Reset pointing at the old value.
 export const DEFAULT_AI_VAULT_HIDE_EMPTY_SESSIONS = false
+// Custom build (ai-vault-automated-sessions): SDK-script sessions (security reviews) are noise by default.
+export const DEFAULT_AI_VAULT_HIDE_AUTOMATED_SESSIONS = true
+
+export type AiVaultAutomatedSessionsOption = { hide: boolean; setHide: (hide: boolean) => void }
 export const DEFAULT_AI_VAULT_SORT: AiVaultSort = 'updated'
 export const DEFAULT_AI_VAULT_SEARCH_SORT: AiVaultSearchSort = 'relevance'
 export const DEFAULT_AI_VAULT_GROUP: AiVaultGroup = 'project'

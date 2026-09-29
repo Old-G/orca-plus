@@ -11740,6 +11740,7 @@
             "agent": "Agente",
             "resetView": "Restablecer vista",
             "hideEmptySessions": "Ocultar sesiones vacías",
+            "hideAutomatedSessions": "Ocultar sesiones automáticas",
             "workspaceScope": "Workspace",
             "worktreeScope": "Worktree",
             "globalScope": "Global",

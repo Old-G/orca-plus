@@ -13625,6 +13625,7 @@
             "agent": "Agent",
             "resetView": "Reset view",
             "hideEmptySessions": "Hide empty sessions",
+            "hideAutomatedSessions": "Hide automated sessions",
             "workspaceScope": "Workspace",
             "worktreeScope": "Worktree",
             "globalScope": "Global",

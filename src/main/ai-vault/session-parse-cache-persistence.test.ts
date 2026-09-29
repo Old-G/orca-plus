@@ -162,6 +162,7 @@ const CACHED_SESSION_FIELDS = {
   totalTokens: true,
   previewMessages: true,
   previewMessagesTruncated: true,
+  automated: true,
   firstUserPrompt: true,
   lastUserPrompt: true,
   queuedMessageCount: true,

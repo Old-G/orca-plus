@@ -27,6 +27,7 @@ describe('AI Vault view option persistence', () => {
         sort: 'invalid',
         group: 'agent',
         hideEmptySessions: 'yes',
+        hideAutomatedSessions: 'no',
         sessionLimit: 999
       })
     ).toEqual({
@@ -35,6 +36,7 @@ describe('AI Vault view option persistence', () => {
       searchSort: 'relevance',
       group: 'agent',
       hideEmptySessions: false,
+      hideAutomatedSessions: true,
       sessionLimit: 250
     })
   })
@@ -54,6 +56,7 @@ describe('AI Vault view option persistence', () => {
       searchSort: 'relevance',
       group: 'project',
       hideEmptySessions: false,
+      hideAutomatedSessions: true,
       sessionLimit: 250
     })
     expect(
@@ -63,6 +66,7 @@ describe('AI Vault view option persistence', () => {
         searchSort: 'newest',
         group: 'folder',
         hideEmptySessions: true,
+        hideAutomatedSessions: false,
         sessionLimit: 1000
       })
     ).toEqual({
@@ -71,6 +75,7 @@ describe('AI Vault view option persistence', () => {
       searchSort: 'newest',
       group: 'folder',
       hideEmptySessions: true,
+      hideAutomatedSessions: false,
       sessionLimit: 1000
     })
     expect(normalizeAiVaultViewOptions({ group: 'agent' }).group).toBe('agent')
@@ -130,6 +135,7 @@ describe('AI Vault view option persistence', () => {
           searchSort: 'newest',
           group: 'folder',
           hideEmptySessions: true,
+          hideAutomatedSessions: false,
           sessionLimit: 500
         },
         storage
@@ -143,6 +149,7 @@ describe('AI Vault view option persistence', () => {
         searchSort: 'newest',
         group: 'folder',
         hideEmptySessions: true,
+        hideAutomatedSessions: false,
         sessionLimit: 500
       })
     )

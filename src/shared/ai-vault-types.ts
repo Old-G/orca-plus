@@ -114,6 +114,8 @@ export type AiVaultSession = {
   /** Older messages fell out of the newest-N window: the earliest preview turn
    * is NOT the opening ask, so first-prompt consumers must not scan it. */
   previewMessagesTruncated?: boolean
+  /** Custom build (ai-vault-automated-sessions): started by an SDK script (Claude `entrypoint: sdk-py`), not a person. */
+  automated?: boolean
   /**
    * Full first non-injected user prompt. List scans omit this (payload/perf);
    * populated only by on-demand `aiVault.getFirstUserPrompt` re-parses for copy.
