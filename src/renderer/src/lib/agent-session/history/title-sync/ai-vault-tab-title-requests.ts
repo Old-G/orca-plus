@@ -11,5 +11,9 @@ import {
 export type AiVaultTitleRequest = AgentPaneConversation<AiVaultSessionTitle['agent']>
 
 export function collectAiVaultTitleRequests(state: AppState): AiVaultTitleRequest[] {
-  return collectAgentPaneConversations(state, isAiVaultTitleAgent, { skipHostNamedTabs: true })
+  // Custom build (native-chat-titles): native-chat tabs carry a conversation title too.
+  return collectAgentPaneConversations(state, isAiVaultTitleAgent, {
+    skipHostNamedTabs: true,
+    includeChatTabs: true
+  })
 }
