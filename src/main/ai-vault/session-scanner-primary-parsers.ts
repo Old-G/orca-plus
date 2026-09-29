@@ -88,6 +88,10 @@ export function consumeClaudeSessionLine(state: ClaudeSessionParseState, line: s
   if (typeof record.sessionId === 'string' && record.sessionId.trim()) {
     accumulator.sessionId = record.sessionId.trim()
   }
+  // Custom build (ai-vault-automated-sessions): the Python Agent SDK stamps every record it runs.
+  if (record.entrypoint === 'sdk-py') {
+    accumulator.automated = true
+  }
   updateTimeline(accumulator, extractString(record.timestamp))
   updateLatestLocation(accumulator, record)
 

@@ -23,7 +23,8 @@ import { parsePersistedSidecar } from './session-sidecar-stat'
 
 // Bump when the row layout or cached session semantics change; a mismatched
 // database is dropped whole.
-export const SESSION_PARSE_CACHE_SCHEMA_VERSION = 4
+// Custom build (ai-vault-automated-sessions): 5, past upstream's 4, so caches without `automated` re-parse.
+export const SESSION_PARSE_CACHE_SCHEMA_VERSION = 5
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
