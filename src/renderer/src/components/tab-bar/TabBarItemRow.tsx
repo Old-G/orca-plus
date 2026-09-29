@@ -9,7 +9,12 @@ import EditorFileTab from './EditorFileTab'
 import BrowserTab from './BrowserTab'
 import type { DropIndicator } from './drop-indicator'
 import type { TabDragItemData } from '../tab-group/useTabDragSplit'
-import { getTabDragLabel, resolveTerminalItemTab, type TabBarItem } from './tab-bar-item-model'
+import {
+  getTabDragLabel,
+  resolveAgentSessionTabTitle,
+  resolveTerminalItemTab,
+  type TabBarItem
+} from './tab-bar-item-model'
 import type { TabBarItemActions } from './use-tab-bar-item-actions'
 import {
   useStructuredChatTabConversationName,
@@ -125,7 +130,8 @@ function TabBarItemRow({
         tab={{
           id: item.id,
           worktreeId,
-          title: conversationName ?? item.data.label,
+          // Custom build (native-chat-titles): a manual rename, then the conversation's name.
+          title: resolveAgentSessionTabTitle(item.data, conversationName, generatedTabTitlesEnabled),
           customTitle: item.data.customLabel,
           color: item.data.color
         }}
