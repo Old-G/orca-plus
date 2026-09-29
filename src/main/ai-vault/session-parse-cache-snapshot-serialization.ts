@@ -11,7 +11,8 @@ import {
 } from '../../shared/node-bounded-json-stringify'
 import type { PersistedSessionParseCacheEntry } from './session-parse-cache-store'
 
-export const SESSION_PARSE_CACHE_SCHEMA_VERSION = 4
+// Custom build (ai-vault-automated-sessions): 5, past upstream's 4, so caches without `automated` re-parse.
+export const SESSION_PARSE_CACHE_SCHEMA_VERSION = 5
 export const SESSION_PARSE_CACHE_MAX_BYTES = 64 * 1024 * 1024
 export const SESSION_PARSE_CACHE_JSON_LIMITS = {
   structuralTokens: 1_000_000,

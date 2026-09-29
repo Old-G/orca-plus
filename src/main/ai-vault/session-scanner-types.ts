@@ -161,6 +161,8 @@ export type SessionAccumulator = {
   subagentTranscriptCount: number
   earliestTimestampMs: number
   latestTimestampMs: number
+  // Custom build (ai-vault-automated-sessions): started by an SDK script, not a person.
+  automated?: boolean
 }
 
 export type CodexUsageSnapshot = {

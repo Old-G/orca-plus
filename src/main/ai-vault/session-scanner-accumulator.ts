@@ -164,6 +164,7 @@ export function finalizeSession(
     ...(accumulator.antigravityOpeningPrompt
       ? { antigravityOpeningPrompt: accumulator.antigravityOpeningPrompt }
       : {}),
+    ...(accumulator.automated ? { automated: true } : {}),
     ...(accumulator.firstUserPrompt ? { firstUserPrompt: accumulator.firstUserPrompt } : {}),
     ...(accumulator.lastUserPrompt ? { lastUserPrompt: accumulator.lastUserPrompt } : {}),
     queuedMessageCount: accumulator.queuedMessageCount,

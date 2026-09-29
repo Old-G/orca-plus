@@ -13659,6 +13659,7 @@
             "agent": "Agent",
             "resetView": "表示をリセット",
             "hideEmptySessions": "空のセッションを非表示",
+            "hideAutomatedSessions": "自動セッションを非表示",
             "workspaceScope": "ワークスペース",
             "worktreeScope": "ワークツリー",
             "globalScope": "グローバル",
