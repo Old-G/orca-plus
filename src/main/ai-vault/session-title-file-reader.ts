@@ -6,6 +6,7 @@ import {
   type AiVaultSessionTitlesResult
 } from '../../shared/ai-vault-session-title'
 import { parseAgentSessionFileCached } from './session-scanner-parse-cache'
+import { resolveTitleTranscriptPath } from './session-title-transcript-path'
 
 const TITLE_PARSE_CONCURRENCY = 4
 
@@ -22,7 +23,9 @@ async function readOneTitle(
   if (signal?.aborted) {
     return null
   }
-  const transcriptPath = request.transcriptPath?.trim()
+  // Custom build (native-chat-titles): native chats report no transcript path; find it by session id.
+  const transcriptPath =
+    request.transcriptPath?.trim() || (await resolveTitleTranscriptPath(request, signal))
   if (!transcriptPath) {
     return cache?.get(request) ?? null
   }

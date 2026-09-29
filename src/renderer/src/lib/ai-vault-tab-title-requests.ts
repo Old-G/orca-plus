@@ -4,9 +4,9 @@ import type { AiVaultSessionTitle } from '../../../shared/ai-vault-session-title
 import { isAiVaultTitleAgent } from '../../../shared/ai-vault-session-title'
 import type { ExecutionHostId } from '../../../shared/execution-host'
 import { parsePaneKey } from '../../../shared/stable-pane-id'
-import type { TerminalTab } from '../../../shared/terminal-tab-types'
 import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
 import type { AppState } from '@/store/types'
+import { collectAiVaultTitleOwners, type AiVaultTitleOwner } from './ai-vault-title-owners'
 
 export type AiVaultTitleRequest = {
   agent: AiVaultSessionTitle['agent']
@@ -30,7 +30,7 @@ function activePaneKey(state: AppState, tabId: string): string | null {
 
 function registerCandidate(
   state: AppState,
-  tabsById: ReadonlyMap<string, TerminalTab>,
+  tabsById: ReadonlyMap<string, AiVaultTitleOwner>,
   candidates: Map<string, RequestCandidate>,
   args: {
     agent: AgentType | null | undefined
@@ -68,11 +68,7 @@ function registerCandidate(
 }
 
 export function collectAiVaultTitleRequests(state: AppState): AiVaultTitleRequest[] {
-  const tabsById = new Map(
-    Object.values(state.tabsByWorktree)
-      .flat()
-      .map((tab) => [tab.id, tab] as const)
-  )
+  const tabsById = collectAiVaultTitleOwners(state)
   const candidates = new Map<string, RequestCandidate>()
 
   for (const entry of Object.values(state.retainedAgentsByPaneKey)) {
