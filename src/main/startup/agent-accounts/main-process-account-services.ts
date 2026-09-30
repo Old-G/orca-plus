@@ -15,8 +15,11 @@ import { createDesktopOrcaAccountService } from '../desktop-orca-account-service
 import { installOrcaServerSignIn, OrcaServerSignIn } from '../../orca-profiles/orca-server-sign-in'
 import { GoogleConnect, installGoogleConnect } from '../../google/google-connect'
 import { setBotToolSignInBrowser } from '../../bots/tool-oauth/bot-tool-sign-in-flows'
+import { installAccountLogFile } from '../../orca-plus/account-log/account-log-file'
 
 export function initializeMainProcessAccountServices(): void {
+  // Custom build (claude-account-restart): before the runtime-auth service's first sync logs anything.
+  installAccountLogFile()
   const store = state.store
   if (!store || !state.claudeUsage || !state.codexUsage) {
     throw new Error('Usage stores must be initialized before account services')
