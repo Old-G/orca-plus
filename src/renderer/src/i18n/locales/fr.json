@@ -17912,6 +17912,29 @@
         "weekly": "À ce rythme, la limite hebdomadaire sera atteinte à {{time}}"
       }
     },
+    "pulseBell": {
+      "title": "Boîte de réception",
+      "empty": "Rien ne requiert votre attention pour l'instant.",
+      "kind": {
+        "handoff": {
+          "normal": "Handoff enregistré, nouvelle session prête"
+        },
+        "agent-waiting": {
+          "normal": "Un agent vous attend",
+          "urgent": "Un agent a besoin de votre autorisation"
+        },
+        "agent-finished": {
+          "normal": "Un agent a terminé"
+        }
+      },
+      "action": {
+        "launch": "Nouvelle session",
+        "open": "Ouvrir",
+        "switch": "Changer de compte",
+        "dismiss": "Pas maintenant",
+        "done": "Terminé"
+      }
+    },
     "hq": {
       "setting": {
         "title": "Dossier HQ",

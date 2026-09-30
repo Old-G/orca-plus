@@ -1,3 +1,7 @@
+import {
+  clearAgentFinished,
+  recordAgentFinished
+} from '../orca-plus/pulse-bell/pulse-bell-agent-finished'
 import { BrowserWindow, Notification, ipcMain, powerMonitor } from 'electron'
 import { readDesktopAwayState } from '../notifications/desktop-away-state'
 import type { Store } from '../persistence'
@@ -128,6 +132,13 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
           }
         }
       }
+      // Custom build (pulse-bell): the user acknowledged these panes, so their finished items are seen.
+      clearAgentFinished(
+        (Array.isArray(paneKeys) ? paneKeys : []).filter(
+          (key): key is string => typeof key === 'string'
+        ),
+        'seen'
+      )
       let dismissed = 0
       for (const id of uniqueIds) {
         const entry = activeNotificationsById.get(id)
@@ -192,8 +203,11 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
     (
       _event,
       args: NotificationDispatchRequest
-    ): NotificationDispatchResult | Promise<NotificationDispatchResult> =>
-      deliveryService.dispatch(args)
+    ): NotificationDispatchResult | Promise<NotificationDispatchResult> => {
+      // Custom build (pulse-bell): the Inbox names which agent finished, whatever the banner gates decide.
+      recordAgentFinished(args)
+      return deliveryService.dispatch(args)
+    }
   )
 
   registerNotificationSoundHandlers(store)

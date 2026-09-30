@@ -59,6 +59,7 @@ const {
   registerHqRosterSyncMock,
   registerHqGroupChatHandlersMock,
   registerHqPulseMirrorMock,
+  registerPulseBellMock,
   registerBitbucketHandlersMock,
   registerGitLabHandlersMock,
   registerHostedReviewHandlersMock,
@@ -136,6 +137,7 @@ const {
   registerHqRosterSyncMock: vi.fn(() => ({ syncNow: vi.fn() })),
   registerHqGroupChatHandlersMock: vi.fn(),
   registerHqPulseMirrorMock: vi.fn(),
+  registerPulseBellMock: vi.fn(),
   registerBitbucketHandlersMock: vi.fn(),
   registerGitLabHandlersMock: vi.fn(),
   registerHostedReviewHandlersMock: vi.fn(),
@@ -450,6 +452,10 @@ vi.mock('../../hq-pulse-mirror/register-hq-pulse-mirror', () => ({
   registerHqPulseMirror: registerHqPulseMirrorMock
 }))
 
+vi.mock('../../orca-plus/pulse-bell/register-pulse-bell', () => ({
+  registerPulseBell: registerPulseBellMock
+}))
+
 vi.mock('../bitbucket', () => ({
   registerBitbucketHandlers: registerBitbucketHandlersMock
 }))
@@ -542,6 +548,7 @@ describe('registerCoreHandlers', () => {
     registerHqRosterSyncMock.mockReset()
     registerHqGroupChatHandlersMock.mockReset()
     registerHqPulseMirrorMock.mockReset()
+    registerPulseBellMock.mockReset()
     registerBitbucketHandlersMock.mockReset()
     registerGitLabHandlersMock.mockReset()
     registerHostedReviewHandlersMock.mockReset()
@@ -644,6 +651,7 @@ describe('registerCoreHandlers', () => {
     expect(registerStrataHandlersMock).toHaveBeenCalledWith(store, expect.anything())
     expect(registerHqRosterSyncMock).toHaveBeenCalledWith(store)
     expect(registerHqPulseMirrorMock).toHaveBeenCalledWith(store)
+    expect(registerPulseBellMock).toHaveBeenCalledWith(store, expect.anything())
     expect(registerHqGroupChatHandlersMock).toHaveBeenCalledWith(
       store,
       registerHqRosterSyncMock.mock.results[0]?.value

@@ -17810,6 +17810,29 @@
         "weekly": "A este ritmo, el límite semanal se agota a las {{time}}"
       }
     },
+    "pulseBell": {
+      "title": "Bandeja de entrada",
+      "empty": "Nada requiere tu atención ahora.",
+      "kind": {
+        "handoff": {
+          "normal": "Handoff guardado, nueva sesión lista"
+        },
+        "agent-waiting": {
+          "normal": "Un agente te está esperando",
+          "urgent": "Un agente necesita tu permiso"
+        },
+        "agent-finished": {
+          "normal": "Un agente terminó"
+        }
+      },
+      "action": {
+        "launch": "Nueva sesión",
+        "open": "Abrir",
+        "switch": "Cambiar de cuenta",
+        "dismiss": "Ahora no",
+        "done": "Hecho"
+      }
+    },
     "hq": {
       "setting": {
         "title": "Carpeta HQ",

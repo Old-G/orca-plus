@@ -77,6 +77,11 @@ vi.mock('../contextual-tours/workspace-creation-tour-handoff', () => ({
 
 vi.mock('sonner', () => ({ toast: mocks.toast }))
 
+// Custom build (pulse-bell): the bell has its own tests; keep this header's popover mock minimal.
+vi.mock('@/components/orca-plus/pulse-bell/PulseBellButton', () => ({
+  PulseBellButton: () => null
+}))
+
 // Deterministic popover: expose the open flag instead of relying on radix portals.
 vi.mock('@/components/ui/popover', () => ({
   Popover: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (

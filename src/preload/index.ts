@@ -33,6 +33,7 @@ import { jiraApi } from './api/jira-bridge'
 import { clickupApi } from './api/clickup-bridge'
 import { slackApi } from './api/slack-bridge'
 import { claudeHandoffApi } from './api/claude-handoff-bridge'
+import { pulseBellApi } from './api/pulse-bell-bridge'
 import { claudeLimitGuardApi } from './api/claude-limit-guard-bridge'
 import { strataApi } from './api/strata-bridge'
 import { hqGroupChatApi } from './api/hq-group-chat-bridge'
@@ -141,6 +142,7 @@ const api = {
   clickup: clickupApi,
   slack: slackApi,
   claudeHandoff: claudeHandoffApi,
+  pulseBell: pulseBellApi,
   claudeLimitGuard: claudeLimitGuardApi,
   strata: strataApi,
   hqGroupChat: hqGroupChatApi,

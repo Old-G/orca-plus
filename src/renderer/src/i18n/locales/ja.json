@@ -17811,6 +17811,29 @@
         "weekly": "このペースだと週間の上限に {{time}} に達します"
       }
     },
+    "pulseBell": {
+      "title": "受信トレイ",
+      "empty": "今対応が必要なものはありません。",
+      "kind": {
+        "handoff": {
+          "normal": "ハンドオフを保存しました — 新しいセッションの準備ができています"
+        },
+        "agent-waiting": {
+          "normal": "Agent が待っています",
+          "urgent": "Agent が許可を求めています"
+        },
+        "agent-finished": {
+          "normal": "Agent が完了しました"
+        }
+      },
+      "action": {
+        "launch": "新しいセッション",
+        "open": "開く",
+        "switch": "アカウントを切り替え",
+        "dismiss": "今はしない",
+        "done": "完了"
+      }
+    },
     "hq": {
       "setting": {
         "title": "HQ フォルダー",
