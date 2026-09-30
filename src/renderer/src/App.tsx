@@ -44,6 +44,7 @@ import { useCustomAppearanceBackground } from './app-shell/use-custom-appearance
 import { useClaudeHandoffOffers } from './app-shell/use-claude-handoff-offers'
 import { useStrataStatusRefresh } from './app-shell/use-strata-status-refresh'
 import { useClaudeLimitGuard } from './app-shell/use-claude-limit-guard'
+import { useAgentFinishedToasts } from './components/orca-plus/pulse-bell/use-agent-finished-toasts'
 import { SpaceWindowStatePublisher } from './components/workspace-space/SpaceWindowStatePublisher'
 import { PlainSshTerminalPanels } from './components/plain-ssh-terminal/PlainSshTerminalPanels'
 import { PluginShotReplayMount } from './components/plugins/view/PluginShotReplayMount'
@@ -74,6 +75,7 @@ function App(): React.JSX.Element {
   useClaudeHandoffOffers()
   useStrataStatusRefresh()
   useClaudeLimitGuard()
+  useAgentFinishedToasts()
   useWindowVisibilityEffects()
   useGlobalKeybindings({ layout, floatingWorkspace })
   // App owns active-selection removal; the Space window only mirrors selection.

@@ -45,6 +45,7 @@ import type { OrcaProfileApi } from './api/profiles/orca-profile-api'
 import type { ClickUpApi } from './api/clickup-api'
 import type { SlackApi } from './api/slack-api'
 import type { ClaudeHandoffApi } from './api/claude-handoff-api'
+import type { PulseBellApi } from './api/pulse-bell-api'
 import type { ClaudeLimitGuardApi } from './api/claude-limit-guard-api'
 import type { StrataApi } from './api/strata-api'
 import type { HqGroupChatApi } from './api/hq-group-chat-api'
@@ -137,6 +138,7 @@ export type PreloadApi = {
   clickup: ClickUpApi
   slack: SlackApi
   claudeHandoff: ClaudeHandoffApi
+  pulseBell: PulseBellApi
   claudeLimitGuard: ClaudeLimitGuardApi
   strata: StrataApi
   hqGroupChat: HqGroupChatApi

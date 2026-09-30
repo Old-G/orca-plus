@@ -17,7 +17,7 @@ import type {
   PulseWaitingInput,
   PulseWaitingStatus
 } from '../../shared/pulse-types'
-import { getAppEnvironment } from '../../shared/app-environment'
+import { getAppEnvironment } from '../../shared/app-lifecycle/app-environment'
 import { PulseDb, pulseDbPath } from '../orca-plus/pulse/pulse-db'
 
 export type PulseSnapshot = {
@@ -117,5 +117,13 @@ export class RuntimePulseCommands {
 
   pulseMarkInboxDone(id: string, action?: string): PulseInboxItem {
     return this.db().markInboxDone(id, action)
+  }
+
+  /** Custom build (pulse-bell): see syncInboxKind. */
+  pulseSyncInboxKind(
+    kind: string,
+    desired: readonly (PulseInboxInput & { dedupeKey: string })[]
+  ): { raised: number; closed: number } {
+    return this.db().syncInboxKind(kind, desired)
   }
 }
