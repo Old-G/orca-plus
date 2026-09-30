@@ -26,7 +26,23 @@ import type {
 import { getRuntimePathBasename } from '../../shared/cross-platform-path'
 import { splitWorktreeId } from '../../shared/worktree/id'
 
+type OffersListener = (offers: ClaudeHandoffOffer[]) => void
+const offersListeners = new Set<OffersListener>()
+
+/** Custom build (pulse-bell): lets the bell mirror the offers the toast shows. */
+export function onClaudeHandoffOffersChanged(listener: OffersListener): () => void {
+  offersListeners.add(listener)
+  return () => offersListeners.delete(listener)
+}
+
 function broadcastOffers(offers: ClaudeHandoffOffer[]): void {
+  for (const listener of offersListeners) {
+    try {
+      listener(offers)
+    } catch (error) {
+      console.warn('[claude-handoff] offers listener failed:', error)
+    }
+  }
   for (const window of BrowserWindow.getAllWindows()) {
     if (!window.isDestroyed()) {
       window.webContents.send('claudeHandoff:offersChanged', offers)
@@ -59,7 +75,7 @@ async function readWorktreeFile(
   }
 }
 
-function describeWorktree(store: Store, worktreeId: string): string {
+export function describeWorktree(store: Store, worktreeId: string): string {
   const parsed = splitWorktreeId(worktreeId)
   const repo = parsed ? store.getRepo(parsed.repoId) : undefined
   const name =
