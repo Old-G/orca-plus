@@ -1,3 +1,8 @@
+import {
+  clearAgentFinished,
+  recordAgentFinished
+} from '../../orca-plus/pulse-bell/pulse-bell-agent-finished'
+import { isOrcaPlusQuietHour, orcaPlusQuietHours } from '../../../shared/orca-plus-quiet-hours'
 import { BrowserWindow, Notification, ipcMain, powerMonitor } from 'electron'
 import { readDesktopAwayState } from '../../notifications/desktop-away-state'
 import { closeDesktopNotification } from '../../notifications/desktop-notification'
@@ -215,6 +220,13 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
           runtime?.retireNotificationAttention?.({ reads: [read] }, read.executionHost)
         }
       }
+      // Custom build (pulse-bell): the user acknowledged these panes, so their finished items are seen.
+      clearAgentFinished(
+        (Array.isArray(paneKeys) ? paneKeys : []).filter(
+          (key): key is string => typeof key === 'string'
+        ),
+        'seen'
+      )
       return {
         dismissed: retireAnnouncements(
           [...retired.values()],
@@ -232,8 +244,13 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
     isWindowVisible: isMainWindowVisible,
     setTrayAttention,
     isNotificationSupported: () => Notification.isSupported(),
+    // Custom build (quiet-hours): the phone and Slack stay silent in the owner's quiet hours.
     dispatchMobileNotification: runtime
-      ? (payload) => runtime.dispatchMobileNotification(payload)
+      ? (payload) => {
+          if (!isOrcaPlusQuietHour(orcaPlusQuietHours(store.getSettings()), new Date())) {
+            runtime.dispatchMobileNotification(payload)
+          }
+        }
       : null,
     readAuthorizationStatus: readNotificationAuthorizationStatus,
     recordDeliveryOutcome: recordNotificationDeliveryOutcome,
@@ -277,7 +294,15 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
         )
       }
     },
-    dispatchSlackNotification: (request) => void slackChannel.notify(request),
+    dispatchSlackNotification: (request) => {
+      // Custom build (slack-notifications, owner 03.11): opt-in; the bot alone sends nothing.
+      if (store.getSettings().slackAgentUpdates !== true) {
+        return
+      }
+      if (!isOrcaPlusQuietHour(orcaPlusQuietHours(store.getSettings()), new Date())) {
+        void slackChannel.notify(request)
+      }
+    },
     isDesktopAway: () => {
       try {
         return readDesktopAwayState(powerMonitor)
@@ -314,8 +339,11 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
     (
       _event,
       args: NotificationDispatchRequest
-    ): NotificationDispatchResult | Promise<NotificationDispatchResult> =>
-      deliveryService.dispatch(args)
+    ): NotificationDispatchResult | Promise<NotificationDispatchResult> => {
+      // Custom build (pulse-bell): the Inbox names which agent finished, whatever the banner gates decide.
+      recordAgentFinished(args)
+      return deliveryService.dispatch(args)
+    }
   )
 
   registerNotificationSoundHandlers(store)
