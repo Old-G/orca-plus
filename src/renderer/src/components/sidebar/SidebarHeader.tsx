@@ -8,6 +8,7 @@ import { Popover, PopoverAnchor, PopoverArrow, PopoverContent } from '@/componen
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Sparkles, Bell } from 'lucide-react'
 import { cn } from '@/lib/class-names'
+import { PulseBellButton } from '@/components/orca-plus/pulse-bell/PulseBellButton'
 
 type SidebarHeaderProps = {
   activityBadgeTarget?: React.Ref<HTMLSpanElement>
@@ -68,6 +69,7 @@ const SidebarHeader = React.memo(function SidebarHeader({
         <div ref={projectsCollapseTarget} className="flex shrink-0 items-center empty:hidden" />
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        <PulseBellButton />
         <Popover
           open={introOpen}
           onOpenChange={(open) => {
