@@ -8,6 +8,7 @@ import { Popover, PopoverAnchor, PopoverArrow, PopoverContent } from '@/componen
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Sparkles, Bell } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PulseBellButton } from '@/components/orca-plus/pulse-bell/PulseBellButton'
 
 type SidebarHeaderProps = {
   onWorkspaceBoardMenuOpenChange: (open: boolean) => void
@@ -58,6 +59,7 @@ const SidebarHeader = React.memo(function SidebarHeader({
         </span>
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        <PulseBellButton />
         <Popover
           open={introOpen}
           onOpenChange={(open) => {
