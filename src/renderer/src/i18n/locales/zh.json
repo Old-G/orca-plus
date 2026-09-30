@@ -17565,6 +17565,29 @@
         "weekly": "按当前速度，每周限额将在 {{time}} 用完"
       }
     },
+    "pulseBell": {
+      "title": "收件箱",
+      "empty": "目前没有需要你处理的事项。",
+      "kind": {
+        "handoff": {
+          "normal": "已保存交接，新会话已就绪"
+        },
+        "agent-waiting": {
+          "normal": "有智能体在等你",
+          "urgent": "有智能体需要你的授权"
+        },
+        "agent-finished": {
+          "normal": "有智能体已完成"
+        }
+      },
+      "action": {
+        "launch": "新会话",
+        "open": "打开",
+        "switch": "切换账户",
+        "dismiss": "暂不",
+        "done": "完成"
+      }
+    },
     "hq": {
       "setting": {
         "title": "HQ 文件夹",

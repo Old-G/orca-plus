@@ -11,6 +11,7 @@ import {
 } from '../../../shared/claude-limit-guard'
 import type { GlobalSettings } from '../../../shared/global-settings-types'
 import { translate } from '@/i18n/i18n'
+import { PULSE_BELL_ACTION, PULSE_BELL_KIND, type PulseBellInput } from '../../../shared/pulse-bell'
 import { recordClaudeUsageSample } from '@/lib/claude-usage-pace-store'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import { selectClaudeProviderAccount } from '@/runtime/runtime-provider-accounts-client'
@@ -35,10 +36,15 @@ function formatTime(at: number | null): string {
 }
 
 async function switchAccount(suggestion: ClaudeLimitSwitchSuggestion): Promise<void> {
+  await switchClaudeAccountTo(suggestion.toAccountId)
+}
+
+/** Custom build (pulse-bell): the bell's "Switch account" runs the same switch as the card. */
+export async function switchClaudeAccountTo(accountId: string): Promise<void> {
   const { settings, fetchSettings, recordFeatureInteraction } = useAppStore.getState()
   try {
     await selectClaudeProviderAccount(settings, {
-      accountId: suggestion.toAccountId,
+      accountId,
       runtime: 'host',
       wslDistro: null
     })
@@ -49,6 +55,16 @@ async function switchAccount(suggestion: ClaudeLimitSwitchSuggestion): Promise<v
       description: error instanceof Error ? error.message : String(error)
     })
   }
+}
+
+// Custom build (pulse-bell): the bell mirrors the card; closing the card closes the item.
+function syncLimitBell(items: PulseBellInput[]): void {
+  if (isWebClientLocation()) {
+    return
+  }
+  void window.api.pulseBell
+    .syncKind(PULSE_BELL_KIND.claudeLimit, items)
+    .catch((error: unknown) => console.warn('[pulse-bell] limit sync failed:', error))
 }
 
 /**
@@ -128,6 +144,7 @@ export function useClaudeLimitGuard(): void {
   useEffect(() => {
     const key = suggestion ? claudeLimitSwitchSuggestionKey(suggestion) : null
     if (!suggestion || !key || dismissedKeys.current.has(key)) {
+      syncLimitBell([])
       if (shownKey.current) {
         toast.dismiss(TOAST_ID)
         shownKey.current = null
@@ -161,36 +178,55 @@ export function useClaudeLimitGuard(): void {
             'Running agents pick up the new account on their own.'
           )
     ].join(' ')
-    toast.warning(
-      translate(
-        'auto.claudeLimit.card.title',
-        '{{account}}: {{percent}}% of the {{window}}, resets at {{time}}',
-        {
-          account: accountLabel(settings, suggestion.fromAccountId),
-          percent: suggestion.usedPercent,
-          window: windowLabel,
-          time: formatTime(suggestion.resetsAt)
-        }
-      ),
+    const title = translate(
+      'auto.claudeLimit.card.title',
+      '{{account}}: {{percent}}% of the {{window}}, resets at {{time}}',
       {
-        id: TOAST_ID,
-        description,
-        duration: Number.POSITIVE_INFINITY,
-        action: {
-          label: translate('auto.claudeLimit.card.switch', 'Switch account'),
-          onClick: () => {
-            shownKey.current = null
-            void switchAccount(suggestion)
-          }
-        },
-        cancel: {
-          label: translate('auto.claudeLimit.card.dismiss', 'Not now'),
-          onClick: () => {
-            dismissedKeys.current.add(key)
-            shownKey.current = null
-          }
-        }
+        account: accountLabel(settings, suggestion.fromAccountId),
+        percent: suggestion.usedPercent,
+        window: windowLabel,
+        time: formatTime(suggestion.resetsAt)
       }
     )
+    syncLimitBell([
+      {
+        kind: PULSE_BELL_KIND.claudeLimit,
+        title,
+        body: description,
+        urgency: stoppedOnActive > 0 ? 'urgent' : 'normal',
+        refKind: 'claude-account',
+        refId: suggestion.toAccountId,
+        actions: [
+          {
+            id: PULSE_BELL_ACTION.switchAccount,
+            label: translate('auto.claudeLimit.card.switch', 'Switch account')
+          },
+          {
+            id: PULSE_BELL_ACTION.dismiss,
+            label: translate('auto.claudeLimit.card.dismiss', 'Not now')
+          }
+        ],
+        dedupeKey: `claude-limit:${key}`
+      }
+    ])
+    toast.warning(title, {
+      id: TOAST_ID,
+      description,
+      duration: Number.POSITIVE_INFINITY,
+      action: {
+        label: translate('auto.claudeLimit.card.switch', 'Switch account'),
+        onClick: () => {
+          shownKey.current = null
+          void switchAccount(suggestion)
+        }
+      },
+      cancel: {
+        label: translate('auto.claudeLimit.card.dismiss', 'Not now'),
+        onClick: () => {
+          dismissedKeys.current.add(key)
+          shownKey.current = null
+        }
+      }
+    })
   }, [suggestion, settings, stoppedOnActive])
 }

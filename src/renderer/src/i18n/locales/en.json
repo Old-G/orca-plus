@@ -17747,6 +17747,29 @@
         "weekly": "At this pace the weekly limit runs out at {{time}}"
       }
     },
+    "pulseBell": {
+      "title": "Inbox",
+      "empty": "Nothing needs you right now.",
+      "kind": {
+        "handoff": {
+          "normal": "Handoff saved, new session ready"
+        },
+        "agent-waiting": {
+          "normal": "An agent is waiting for you",
+          "urgent": "An agent needs your permission"
+        },
+        "agent-finished": {
+          "normal": "An agent finished"
+        }
+      },
+      "action": {
+        "launch": "New session",
+        "open": "Open",
+        "switch": "Switch account",
+        "dismiss": "Not now",
+        "done": "Done"
+      }
+    },
     "hq": {
       "setting": {
         "title": "HQ Folder",

@@ -17565,6 +17565,29 @@
         "weekly": "이 속도라면 주간 한도가 {{time}}에 소진됩니다"
       }
     },
+    "pulseBell": {
+      "title": "받은 편지함",
+      "empty": "지금 처리할 항목이 없습니다.",
+      "kind": {
+        "handoff": {
+          "normal": "핸드오프를 저장했습니다 — 새 세션이 준비되었습니다"
+        },
+        "agent-waiting": {
+          "normal": "에이전트가 기다리고 있습니다",
+          "urgent": "에이전트에게 권한이 필요합니다"
+        },
+        "agent-finished": {
+          "normal": "에이전트가 작업을 마쳤습니다"
+        }
+      },
+      "action": {
+        "launch": "새 세션",
+        "open": "열기",
+        "switch": "계정 전환",
+        "dismiss": "나중에",
+        "done": "완료"
+      }
+    },
     "hq": {
       "setting": {
         "title": "HQ 폴더",
