@@ -15,6 +15,7 @@ import { createDesktopOrcaAccountService } from '../desktop-orca-account-service
 import { installOrcaServerSignIn, OrcaServerSignIn } from '../../orca-profiles/orca-server-sign-in'
 import { GoogleConnect, installGoogleConnect } from '../../google/google-connect'
 import { setBotToolSignInBrowser } from '../../bots/tool-oauth/bot-tool-sign-in-flows'
+import { installAccountLogFile } from '../../orca-plus/account-log/account-log-file'
 
 export type DesktopAccountServiceDeps = {
   store: Store
@@ -27,6 +28,8 @@ export async function initializeMainProcessAccountServices(
   core: DesktopCore,
   { store, homePath, isQuitting, openExternal }: DesktopAccountServiceDeps
 ): Promise<void> {
+  // Custom build (claude-account-restart): before the runtime-auth service's first sync logs anything.
+  installAccountLogFile()
   if (!core.claudeUsage || !core.codexUsage) {
     throw new Error('Usage stores must be initialized before account services')
   }
