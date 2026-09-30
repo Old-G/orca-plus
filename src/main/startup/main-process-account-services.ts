@@ -16,6 +16,7 @@ import { resolveHostCodexSessionSourceHome } from '../codex/codex-session-source
 import { browserManager } from '../browser/browser-manager'
 import { prewarmStructuredAgentModelCatalogs } from '../runtime/structured-agent-model-catalog-wiring'
 import { mainProcessState as state } from './main-process-state'
+import { installAccountLogFile } from '../orca-plus/account-log/account-log-file'
 
 // Settings that change which account or binary a new chat's agent runs under.
 const MODEL_CATALOG_ACCOUNT_SETTINGS = [
@@ -30,6 +31,8 @@ const MODEL_CATALOG_ACCOUNT_SETTINGS = [
 ] as const
 
 export function initializeMainProcessAccountServices(): void {
+  // Custom build (claude-account-restart): before the runtime-auth service's first sync logs anything.
+  installAccountLogFile()
   const store = state.store
   if (
     !store ||
