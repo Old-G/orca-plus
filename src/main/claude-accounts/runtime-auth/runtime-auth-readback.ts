@@ -10,7 +10,7 @@ import type {
 export class ClaudeRuntimeAuthReadback extends ClaudeRuntimeAuthCredentialMatching {
   protected async readBackRefreshedTokens(
     baselineCredentialsJson: string,
-    options: { updateLastWrittenCredentialsJson: boolean }
+    options: { updateLastWrittenCredentialsJson: boolean; activeAccountId?: string }
   ): Promise<ClaudeReadBackResult> {
     try {
       const candidates =
@@ -35,6 +35,7 @@ export class ClaudeRuntimeAuthReadback extends ClaudeRuntimeAuthCredentialMatchi
       const ambiguousCandidates: string[] = []
       let sawAmbiguousCandidate = false
       let sawValidChangedCandidate = false
+      let everyValidCandidateIsAnotherAccount = true
       for (const runtimeContents of changedCandidates) {
         if (!this.isValidCredentialsJsonObject(runtimeContents.credentialsJson)) {
           continue
@@ -44,6 +45,9 @@ export class ClaudeRuntimeAuthReadback extends ClaudeRuntimeAuthCredentialMatchi
           runtimeContents.credentialsJson,
           runtimeContents.runtimeOauthAccount
         )
+        if (match.kind !== 'matched' || match.account.id === options.activeAccountId) {
+          everyValidCandidateIsAnotherAccount = false
+        }
         if (match.kind === 'ambiguous') {
           sawAmbiguousCandidate = true
           ambiguousCandidates.push(runtimeContents.credentialsJson)
@@ -89,7 +93,11 @@ export class ClaudeRuntimeAuthReadback extends ClaudeRuntimeAuthCredentialMatchi
           runtimeCredentialsChanged: true,
           hasValidChangedRuntimeCredentials: sawValidChangedCandidate,
           runtimeCredentialsJson:
-            ambiguousCandidates.length === 1 ? ambiguousCandidates[0] : undefined
+            ambiguousCandidates.length === 1 ? ambiguousCandidates[0] : undefined,
+          runtimeHeldByAnotherAccount:
+            options.activeAccountId !== undefined &&
+            sawValidChangedCandidate &&
+            everyValidCandidateIsAnotherAccount
         }
       }
       const { credentialsJson: runtimeContents, match } =

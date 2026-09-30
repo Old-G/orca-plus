@@ -198,7 +198,8 @@ export class ClaudeRuntimeAuthSync extends ClaudeRuntimeAuthPreparationService {
         this.skipNextReadBackForAccountId = null
       } else {
         const readBackResult = await this.readBackRefreshedTokens(credentialsJson, {
-          updateLastWrittenCredentialsJson: true
+          updateLastWrittenCredentialsJson: true,
+          activeAccountId: activeAccount.id
         })
         if (readBackResult.status === 'persisted') {
           const updatedCredentialsJson = await this.readManagedCredentials(activeAccount)
@@ -210,6 +211,9 @@ export class ClaudeRuntimeAuthSync extends ClaudeRuntimeAuthPreparationService {
           readBackResult.runtimeCredentialsChanged &&
           // Why: a live Claude that lost a refresh race can wipe its runtime blob (empty tokens); preserving that would log out every new session.
           readBackResult.hasValidChangedRuntimeCredentials &&
+          // Custom build (claude-account-restart): another managed account's login is not a refresh of
+          // this one to protect — after a restart it would pin the CLI to the wrong account for good.
+          !readBackResult.runtimeHeldByAnotherAccount &&
           hasLiveClaudePtys()
         ) {
           if (

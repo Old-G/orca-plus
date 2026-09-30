@@ -5,6 +5,7 @@ import {
 } from './runtime-selection'
 import { ClaudeRuntimeAuthSync } from './runtime-auth/runtime-auth-sync'
 import type { ClaudeRuntimeAuthPreparation } from './runtime-auth/runtime-auth-types'
+import { syncWithStartupRetry } from './runtime-auth-startup-retry'
 
 export type { ClaudeRuntimeAuthPreparation } from './runtime-auth/runtime-auth-types'
 
@@ -66,11 +67,8 @@ export class ClaudeRuntimeAuthService extends ClaudeRuntimeAuthSync {
   }
 
   private async safeSyncForCurrentSelection(): Promise<void> {
-    try {
-      await this.syncForCurrentSelection()
-    } catch (error) {
-      console.warn('[claude-runtime-auth] Failed to sync runtime auth state:', error)
-    }
+    // Custom build (claude-account-restart): a startup Keychain timeout is retried, not dropped.
+    await syncWithStartupRetry(() => this.syncForCurrentSelection())
   }
 
   private serializeMutation<T>(fn: () => Promise<T>): Promise<T> {

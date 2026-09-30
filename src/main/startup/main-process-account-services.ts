@@ -27,8 +27,11 @@ import { isAgentStatusHooksEnabledForAgent } from '../agent-hooks/managed-agent-
 import { resolveHostCodexSessionSourceHome } from '../codex/codex-session-source-home'
 import { browserManager } from '../browser/browser-manager'
 import { mainProcessState as state } from './main-process-state'
+import { installAccountLogFile } from '../orca-plus/account-log/account-log-file'
 
 export function initializeMainProcessAccountServices(): void {
+  // Custom build (claude-account-restart): before the runtime-auth service's first sync logs anything.
+  installAccountLogFile()
   const store = state.store
   if (
     !store ||
