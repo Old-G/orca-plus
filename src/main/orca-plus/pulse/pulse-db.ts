@@ -22,7 +22,14 @@ import {
 } from './pulse-decisions'
 import { addDraft, getDraft, listDrafts, markDraftDelivery } from './pulse-drafts'
 import { latestEventSeq, listEventsSince, pruneEvents } from './pulse-events'
-import { addInboxItem, getInboxItem, listInbox, markInboxDone, markInboxRead } from './pulse-inbox'
+import {
+  addInboxItem,
+  getInboxItem,
+  listInbox,
+  markInboxDone,
+  markInboxRead,
+  syncInboxKind
+} from './pulse-inbox'
 import { getPerson, listPeople, upsertPerson } from './pulse-people'
 import { addWaiting, closeWaiting, getWaiting, listWaitings } from './pulse-waitings'
 
@@ -102,6 +109,9 @@ export class PulseDb {
   }
   markInboxDone(id: string, action?: string) {
     return markInboxDone(this.core, id, action)
+  }
+  syncInboxKind(kind: string, desired: readonly (PulseInboxInput & { dedupeKey: string })[]) {
+    return syncInboxKind(this.core, kind, desired)
   }
 
   listEventsSince(afterSeq: number, limit?: number) {
