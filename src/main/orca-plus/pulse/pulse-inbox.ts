@@ -55,77 +55,89 @@ export function addInboxItem(
   core: PulseCore,
   input: PulseInboxInput
 ): PulseAddResult<PulseInboxItem> {
-  return core.transaction(() => {
-    if (input.dedupeKey) {
-      const row = core.db
-        .prepare('SELECT * FROM inbox WHERE dedupe_key = ? AND done_at IS NULL')
-        .get(input.dedupeKey)
-      if (row) {
-        return { record: toItem(row), created: false }
-      }
+  return core.transaction(() => addInboxItemInTransaction(core, input))
+}
+
+function addInboxItemInTransaction(
+  core: PulseCore,
+  input: PulseInboxInput
+): PulseAddResult<PulseInboxItem> {
+  if (input.dedupeKey) {
+    const row = core.db
+      .prepare('SELECT * FROM inbox WHERE dedupe_key = ? AND done_at IS NULL')
+      .get(input.dedupeKey)
+    if (row) {
+      return { record: toItem(row), created: false }
     }
-    const item: PulseInboxItem = {
-      id: core.clock.newId(),
-      kind: input.kind,
-      title: input.title,
-      body: input.body ?? null,
-      urgency: input.urgency ?? 'normal',
-      refKind: input.refKind ?? null,
-      refId: input.refId ?? null,
-      actions: input.actions ?? [],
-      dedupeKey: input.dedupeKey ?? null,
-      createdAt: core.clock.now(),
-      readAt: null,
-      doneAt: null,
-      doneAction: null
-    }
-    core.db
-      .prepare(
-        'INSERT INTO inbox (id, kind, title, body, urgency, ref_kind, ref_id, actions, ' +
-          'dedupe_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-      )
-      .run(
-        item.id,
-        item.kind,
-        item.title,
-        item.body,
-        item.urgency,
-        item.refKind,
-        item.refId,
-        JSON.stringify(item.actions),
-        item.dedupeKey,
-        item.createdAt
-      )
-    core.emit('inbox.added', 'inbox', item.id, item)
-    return { record: item, created: true }
-  })
+  }
+  const item: PulseInboxItem = {
+    id: core.clock.newId(),
+    kind: input.kind,
+    title: input.title,
+    body: input.body ?? null,
+    urgency: input.urgency ?? 'normal',
+    refKind: input.refKind ?? null,
+    refId: input.refId ?? null,
+    actions: input.actions ?? [],
+    dedupeKey: input.dedupeKey ?? null,
+    createdAt: core.clock.now(),
+    readAt: null,
+    doneAt: null,
+    doneAction: null
+  }
+  core.db
+    .prepare(
+      'INSERT INTO inbox (id, kind, title, body, urgency, ref_kind, ref_id, actions, ' +
+        'dedupe_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    )
+    .run(
+      item.id,
+      item.kind,
+      item.title,
+      item.body,
+      item.urgency,
+      item.refKind,
+      item.refId,
+      JSON.stringify(item.actions),
+      item.dedupeKey,
+      item.createdAt
+    )
+  core.emit('inbox.added', 'inbox', item.id, item)
+  return { record: item, created: true }
 }
 
 function update(core: PulseCore, id: string, change: 'read' | 'done', action?: string) {
-  return core.transaction(() => {
-    const existing = getInboxItem(core, id)
-    if (!existing) {
-      throw new Error(`pulse: no inbox item ${id}`)
-    }
-    const now = core.clock.now()
-    const next: PulseInboxItem =
-      change === 'read'
-        ? { ...existing, readAt: existing.readAt ?? now }
-        : {
-            ...existing,
-            readAt: existing.readAt ?? now,
-            doneAt: existing.doneAt ?? now,
-            doneAction: existing.doneAt ? existing.doneAction : (action ?? null)
-          }
-    if (next.readAt === existing.readAt && next.doneAt === existing.doneAt) {
-      return existing
-    }
-    core.db
-      .prepare('UPDATE inbox SET read_at = ?, done_at = ?, done_action = ? WHERE id = ?')
-      .run(next.readAt, next.doneAt, next.doneAction, id)
-    core.emit(`inbox.${change}`, 'inbox', id, next)
-    return next
-  })
+  return core.transaction(() => updateInTransaction(core, id, change, action))
+}
+
+function updateInTransaction(
+  core: PulseCore,
+  id: string,
+  change: 'read' | 'done',
+  action?: string
+): PulseInboxItem {
+  const existing = getInboxItem(core, id)
+  if (!existing) {
+    throw new Error(`pulse: no inbox item ${id}`)
+  }
+  const now = core.clock.now()
+  const next: PulseInboxItem =
+    change === 'read'
+      ? { ...existing, readAt: existing.readAt ?? now }
+      : {
+          ...existing,
+          readAt: existing.readAt ?? now,
+          doneAt: existing.doneAt ?? now,
+          doneAction: existing.doneAt ? existing.doneAction : (action ?? null)
+        }
+  if (next.readAt === existing.readAt && next.doneAt === existing.doneAt) {
+    return existing
+  }
+  core.db
+    .prepare('UPDATE inbox SET read_at = ?, done_at = ?, done_action = ? WHERE id = ?')
+    .run(next.readAt, next.doneAt, next.doneAction, id)
+  core.emit(`inbox.${change}`, 'inbox', id, next)
+  return next
 }
 
 export function markInboxRead(core: PulseCore, id: string): PulseInboxItem {
@@ -142,4 +154,41 @@ export function listInbox(core: PulseCore, options: { includeDone?: boolean } = 
   const whereSql = options.includeDone ? '' : ' WHERE done_at IS NULL'
   const sql = `SELECT * FROM inbox${whereSql} ORDER BY urgency = 'urgent' DESC, created_at DESC, rowid DESC`
   return core.db.prepare(sql).all().map(toItem)
+}
+
+// Custom build (pulse-bell): closing reason for an item whose source no longer reports it.
+export const INBOX_GONE_ACTION = 'gone'
+
+/**
+ * Makes the open items of `kind` match what a producer reports now: raises the missing ones,
+ * closes those it no longer reports. One the user already answered stays closed for its key.
+ */
+export function syncInboxKind(
+  core: PulseCore,
+  kind: string,
+  desired: readonly (PulseInboxInput & { dedupeKey: string })[]
+): { raised: number; closed: number } {
+  return core.transaction(() => {
+    const wanted = new Map(desired.map((input) => [input.dedupeKey, input]))
+    let closed = 0
+    for (const item of listInbox(core).filter((entry) => entry.kind === kind)) {
+      if (!item.dedupeKey || !wanted.has(item.dedupeKey)) {
+        updateInTransaction(core, item.id, 'done', INBOX_GONE_ACTION)
+        closed += 1
+      }
+    }
+    let raised = 0
+    for (const input of wanted.values()) {
+      const answered = core.db
+        .prepare(
+          'SELECT 1 FROM inbox WHERE dedupe_key = ? AND done_at IS NOT NULL AND ' +
+            '(done_action IS NULL OR done_action != ?) LIMIT 1'
+        )
+        .get(input.dedupeKey, INBOX_GONE_ACTION)
+      if (!answered && addInboxItemInTransaction(core, { ...input, kind }).created) {
+        raised += 1
+      }
+    }
+    return { raised, closed }
+  })
 }

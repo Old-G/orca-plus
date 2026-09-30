@@ -10,6 +10,7 @@ import { Sparkles, Bell } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AgentQuestionIcon } from '@/components/AgentQuestionIcon'
 import { useAgentBucketCounts } from '@/components/dashboard/useAgentBucketCounts'
+import { PulseBellButton } from '@/components/orca-plus/pulse-bell/PulseBellButton'
 
 type SidebarHeaderProps = {
   onWorkspaceBoardMenuOpenChange: (open: boolean) => void
@@ -68,6 +69,7 @@ const SidebarHeader = React.memo(function SidebarHeader({
         </span>
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        <PulseBellButton />
         <Popover
           open={introOpen}
           onOpenChange={(open) => {
