@@ -36,6 +36,8 @@ export type ClaudeReadBackResult =
       runtimeCredentialsChanged: boolean
       hasValidChangedRuntimeCredentials: boolean
       runtimeCredentialsJson?: string
+      /** Custom build (claude-account-restart): every changed runtime login is another managed account's. */
+      runtimeHeldByAnotherAccount?: boolean
     }
 export type ClaudeReadBackMatch =
   | { kind: 'matched'; account: ClaudeManagedAccount; managedCredentialsJson: string }

@@ -13,6 +13,7 @@ import {
 } from './runtime-selection'
 import { ClaudeRuntimeAuthSync } from './runtime-auth/runtime-auth-sync'
 import type { ClaudeRuntimeAuthPreparation } from './runtime-auth/runtime-auth-types'
+import { syncWithStartupRetry } from './runtime-auth-startup-retry'
 
 export type { ClaudeRuntimeAuthPreparation } from './runtime-auth/runtime-auth-types'
 
@@ -145,12 +146,13 @@ export class ClaudeRuntimeAuthService extends ClaudeRuntimeAuthSync {
   }
 
   private async safeSyncForCurrentSelection(): Promise<void> {
+    const router = getClaudeProfileRouter()
+    if (!router) {
+      // Custom build (claude-account-restart): a startup Keychain timeout is retried, not dropped.
+      await syncWithStartupRetry(() => this.syncForCurrentSelection())
+      return
+    }
     try {
-      const router = getClaudeProfileRouter()
-      if (!router) {
-        await this.syncForCurrentSelection()
-        return
-      }
       // Why serialized: an account change during startup must not be overwritten by this older read.
       await this.serializeMutation(async () => {
         router.publish()

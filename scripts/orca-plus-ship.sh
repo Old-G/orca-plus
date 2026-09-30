@@ -37,6 +37,12 @@ state_files=(
 )
 
 step() { echo "[$(date +%T)] $*"; }
+# Why: `open` hands this shell's env to Orca+; started from an agent chat that env names the chat's
+# Claude subscription dir, and Orca+ then treated it as the base login and overwrote that sign-in.
+launch_orca_plus() {
+  env $(env | sed -nE 's/^((ORCA|CLAUDE|ANTHROPIC)_[A-Z0-9_]*|CODEX_HOME)=.*/-u \1/p') \
+    open -b "$bundle_id"
+}
 run() { if [ "$dry" = 1 ]; then echo "  would run: $*"; else "$@"; fi; }
 # Why: anchored — the terminal daemon outlives the app by design and carries this path in its
 # --spawner-exec-path argument, so a plain substring match waits on it forever. `-a`: pgrep skips
@@ -48,8 +54,34 @@ orca_plus_cli() { env -u ORCA_USER_DATA_PATH -u ORCA_PLUS_USER_DATA_PATH /usr/lo
 repo_count() {
   orca_plus_cli repo list --json | python3 -c "import json,sys;print(len(json.load(sys.stdin)['result']['repos']))"
 }
+# Why: the selection survives a restart but the CLI login may not (plan 10.4); a mismatch means new
+# chats run under another org and lose its connectors. Empty output = nothing selected, skip.
+selected_claude_org() {
+  orca_plus_cli account list --json | python3 -c "
+import json, sys
+c = json.load(sys.stdin)['result']['claude']
+active = c['activeAccountIdsByRuntime'].get('host')
+print(next((a.get('organizationUuid') or '' for a in c['accounts'] if a['id'] == active), ''))"
+}
+cli_claude_org() {
+  env -u CLAUDE_CONFIG_DIR "$HOME/.local/bin/claude" auth status --json 2>/dev/null |
+    python3 -c "import json,sys;print(json.load(sys.stdin).get('orgId') or '')"
+}
+claude_org_matches() {
+  local want
+  want=$(selected_claude_org) || return 1
+  [ -z "$want" ] && return 0
+  # Why: the runtime-auth sync runs asynchronously after startup.
+  for _ in $(seq 1 15); do
+    [ "$(cli_claude_org)" = "$want" ] && return 0
+    sleep 2
+  done
+  echo "claude CLI org $(cli_claude_org) != selected account org $want"
+  return 1
+}
+# Why: 15 minutes — a first launch can sit on the macOS Keychain prompt until the owner answers it.
 wait_runtime_ready() {
-  for _ in $(seq 1 90); do
+  for _ in $(seq 1 450); do
     orca_plus_cli status --json 2>/dev/null | grep -q '"state": "ready"' && return 0
     sleep 2
   done
@@ -113,21 +145,22 @@ run mv "$app" "$backup/Orca Plus.app.old"
 if [ "$dry" = 0 ] && ! ditto "$new" "$app"; then
   step "copy failed — restoring the old app"
   mv "$backup/Orca Plus.app.old" "$app"
-  env -u ORCA_PLUS_SHIP_DETACHED open -b "$bundle_id"
+  launch_orca_plus
   exit 1
 fi
 [ "$dry" = 1 ] && echo "  would run: ditto $new $app"
 
 step "launch"
-run env -u ORCA_PLUS_SHIP_DETACHED open -b "$bundle_id"
+run launch_orca_plus
 
 step "verify profile"
 if [ "$dry" = 0 ]; then
   ok=1
-  wait_runtime_ready || { echo "runtime not ready after 3 minutes"; ok=0; }
+  wait_runtime_ready || { echo "runtime not ready after 15 minutes"; ok=0; }
   shasum -c "$backup/state.sha" || ok=0
   [ "$(repo_count)" = "$(cat "$backup/repos.count")" ] || { echo "repo count changed"; ok=0; }
   "$repo/scripts/orca-plus-shared-config-snapshot.sh" check "$backup/shared" || ok=0
+  claude_org_matches || ok=0
   version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")
   if [ "$ok" = 1 ]; then
     step "OK — Orca+ $version installed, profile intact. Backup: $backup"
