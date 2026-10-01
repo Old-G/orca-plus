@@ -1,6 +1,7 @@
 import type { AgentSessionFastModeState } from '../../shared/agent-session-wire'
 import {
   currentModelId,
+  findListedModel,
   listedModels,
   matchListedModel,
   record,
@@ -152,9 +153,7 @@ export function claudeModelEffortLevels(
   models: readonly ListedModel[]
 ): { modelId: string | undefined; levels: ReadonlySet<string> | null } {
   const modelId = readClaudeCurrentModel(session).id
-  const matched = modelId
-    ? models.find((model) => model.id === modelId || model.resolvedModel === modelId)
-    : undefined
+  const matched = modelId ? findListedModel(models, modelId) : undefined
   return {
     modelId: matched?.id ?? modelId,
     levels: matched ? new Set(matched.efforts.map((choice) => choice.value)) : null
@@ -201,10 +200,7 @@ export function claudeCatalogAdmitsModel(models: readonly ListedModel[], modelId
   // An empty list identifies no model, so it is not evidence against one — a live
   // CLI predating `list_models` would otherwise have every model refused under it.
   // Do not turn this into a refusal.
-  return (
-    models.length === 0 ||
-    models.some((model) => model.id === modelId || model.resolvedModel === modelId)
-  )
+  return models.length === 0 || findListedModel(models, modelId) !== undefined
 }
 
 /** The built-in models a running child lists when the CLI gives it none; a chat at rest with no

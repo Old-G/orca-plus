@@ -8,7 +8,7 @@ import type {
   AgentModelCatalogConfiguredChoice,
   AgentModelCatalogLiveListing
 } from '../native-chat/agent-model-catalog/agent-model-catalog-entry'
-import type { ListedModel } from './claude-structured-model-catalog'
+import { findListedModel, type ListedModel } from './claude-structured-model-catalog'
 import type { ClaudeSession } from './claude-structured-session-state'
 
 const TRANSIENT_FAST_MODE_REASONS = new Set(['network_error', 'unknown', 'pending'])
@@ -93,11 +93,8 @@ function configuredClaudeDefault(
   if (session.launchedModel !== null || session.options.has('model') || !applied) {
     return undefined
   }
-  const row = applied.model
-    ? discovered.find(
-        (entry) => entry.id === applied.model || entry.resolvedModel === applied.model
-      )
-    : undefined
+  // Custom build (native-chat-model-window-suffix): `opus[1m]` names the `opus` row.
+  const row = applied.model ? findListedModel(discovered, applied.model) : undefined
   if (!row) {
     return null
   }
