@@ -1,4 +1,5 @@
 import { cliWriterExecutionMatcher, type CliWriterExecutionMatches } from './cli-writer-observation'
+import type { OutgoingGateRequestHandler } from '../../orca-plus/outgoing-approval/outgoing-gate-http'
 import type {
   AgentStatusClearIpcPayload,
   AgentStatusIpcPayload
@@ -116,6 +117,10 @@ export abstract class AgentHookServerListeners extends AgentHookServerAgentIdent
     listener: ((event: ClaudeStatusLineRateLimits) => void) | null
   ): void {
     this.onClaudeStatusLine = listener
+  }
+
+  setOutgoingGateHandler(handler: OutgoingGateRequestHandler | null): void {
+    this.onOutgoingGate = handler
   }
 
   subscribeStatusChanges(listener: (statuses: AgentHookStatusChangeEntry[]) => void): () => void {
