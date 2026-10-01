@@ -12,7 +12,10 @@ import {
 import { AgentIcon } from '@/components/agent/icons/AgentIcon'
 import { useOptionalShortcutLabel } from '@/lib/keyboard/useShortcutLabel'
 import { useAgentMenuShortcutLabels } from './agent-menu-shortcut-labels'
-import type { AgentPickerEntry } from '../../../../../shared/agent-launch/picker/agent-launch-picker'
+import type {
+  AgentPickerDraft,
+  AgentPickerEntry
+} from '../../../../../shared/agent-launch/picker/agent-launch-picker'
 import type { TuiAgent } from '../../../../../shared/agent-launch/catalog/tui-agent'
 import type { NewTabAgentMenuRow } from '../../../../../shared/agent-launch/picker/agent-launch-picker-rows'
 import type { AgentPickerInventorySource } from '../agent-picker-inventory-source'
@@ -34,6 +37,7 @@ import {
   useTabAgentMenuLaunch,
   type QuickLaunchAgentMenuItemsProps
 } from './use-tab-agent-menu-launch'
+import { useClaudeSubscriptionMenuChoices } from '../../tab-bar/use-claude-subscription-menu-choices'
 
 export { useTabAgentMenuLaunch, type QuickLaunchAgentMenuItemsProps }
 
@@ -44,7 +48,14 @@ function QuickLaunchAgentMenuItemsInner(props: QuickLaunchAgentMenuItemsProps): 
   const detectionTarget = useAgentDetectionTargetForWorktree(props.worktreeId)
   const model = useNewTabAgentMenuRows(props.worktreeId, true, detectionTarget)
   const runLaunch = useTabAgentMenuLaunch(props)
-  return <ProjectedAgentMenuItems {...props} model={model} runLaunch={runLaunch} />
+  return (
+    <ProjectedAgentMenuItems
+      {...props}
+      model={model}
+      runLaunch={runLaunch}
+      worktreeId={props.worktreeId}
+    />
+  )
 }
 
 export function ProjectedAgentMenuItems({
@@ -53,15 +64,24 @@ export function ProjectedAgentMenuItems({
   runLaunch,
   pickerInventory,
   onSelectPickerAgent,
-  hidePickerSearch
+  hidePickerSearch,
+  worktreeId
 }: {
   disabled?: boolean
   model: NewTabAgentMenuModel
-  runLaunch: React.ComponentProps<typeof SubscribedAgentLaunchPickerMenu>['runLaunch']
+  runLaunch: (
+    row: NewTabAgentMenuRow,
+    draft?: AgentPickerDraft,
+    pickerEntry?: AgentPickerEntry,
+    claudeSubscriptionId?: string
+  ) => ReturnType<React.ComponentProps<typeof SubscribedAgentLaunchPickerMenu>['runLaunch']>
   pickerInventory?: AgentPickerInventorySource
   onSelectPickerAgent?: (agent: AgentPickerEntry['agent']) => void
   hidePickerSearch?: boolean
+  /** Custom build (claude-subscriptions): lets Claude rows offer the other subscriptions. */
+  worktreeId?: string
 }): React.JSX.Element {
+  const claudeSubscriptionChoices = useClaudeSubscriptionMenuChoices(worktreeId)
   const t = useTranslate()
   const desktopDefaultAgent = useAppStateValue((s) => s.settings?.defaultTuiAgent)
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
@@ -144,6 +164,7 @@ export function ProjectedAgentMenuItems({
           const showsDefaultAgentShortcut =
             newAgentShortcut !== null && defaultAgent !== 'blank' && agent === defaultAgent
           const pendingReason = terminalPendingReason(model.terminalPending, row, t)
+          const subscriptionChoices = agent === 'claude' ? claudeSubscriptionChoices : null
           const rowContent = (
             <>
               <AgentIcon agent={agent} size={14} />
@@ -154,6 +175,11 @@ export function ProjectedAgentMenuItems({
                 </span>
               ) : rowStatusLabel(row, t) ? (
                 <span className="text-xs text-muted-foreground">{rowStatusLabel(row, t)}</span>
+              ) : null}
+              {subscriptionChoices ? (
+                <span className="truncate text-muted-foreground">
+                  {subscriptionChoices.defaultChoice.label}
+                </span>
               ) : null}
               {showsDefaultAgentShortcut ? (
                 <DropdownMenuShortcut>{newAgentShortcut}</DropdownMenuShortcut>
@@ -190,6 +216,18 @@ export function ProjectedAgentMenuItems({
                   {rowContent}
                 </DropdownMenuItem>
               )}
+              {subscriptionChoices?.others.map((choice) => (
+                <DropdownMenuItem
+                  key={`${rowId(row)}:${choice.id}`}
+                  variant="launch"
+                  disabled={disabled}
+                  onSelect={() => runLaunch(row, undefined, undefined, choice.id)}
+                  title={rowTitle(row, label)}
+                >
+                  <AgentIcon agent={agent} size={14} />
+                  <span className="flex-1 truncate">{`${rowLabel(row)} · ${choice.label}`}</span>
+                </DropdownMenuItem>
+              ))}
             </React.Fragment>
           )
         })

@@ -35,6 +35,7 @@ import {
   collectAgentSessionRestartProbes,
   type AgentSessionRestartProbeArgs
 } from '../ownership/agent-session-restart-reconciliation'
+import type { AgentSessionAccountHomeReplacement } from '../../agent-session-record-account-home'
 import type { AgentSessionRecordCommand } from './agent-session-record-command'
 import type { DeletedChat } from '../../../native-chat/chat-deletion/deleted-chats'
 import { AgentSessionRecordForgets } from './agent-session-record-forgets'
@@ -374,4 +375,9 @@ export class AgentSessionRecordStore extends AgentSessionRecordForgets {
 
   replaceSessionOptions = (args: AgentSessionOptionsReplacement): Promise<AgentSessionRecord> =>
     this.updateRecord(args.sessionId, { kind: 'options', args })
+
+  // Custom build (claude-subscriptions): see `replaceAgentSessionRecordAccountHome`.
+  replaceSessionAccountHome = (
+    args: AgentSessionAccountHomeReplacement
+  ): Promise<AgentSessionRecord> => this.updateRecord(args.sessionId, { kind: 'account-home', args })
 }

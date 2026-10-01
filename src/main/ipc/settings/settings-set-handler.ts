@@ -19,6 +19,7 @@ import {
   normalizeComputerAwakeMode
 } from '../../../shared/app-lifecycle/computer-awake-mode'
 import { resolveAiVaultSearchSettings } from '../../../shared/ai-vault/search/ai-vault-search-settings'
+import { normalizeClaudeSubscriptionSettingsUpdate } from '../../claude-subscriptions/claude-subscription-settings'
 
 export async function handleSettingsSet(
   store: Store,
@@ -74,6 +75,12 @@ export async function handleSettingsSet(
   }
   if ('terminalLineHeight' in args) {
     sanitizedArgs.terminalLineHeight = normalizeTerminalLineHeight(args.terminalLineHeight)
+  }
+  if ('claudeSubscriptions' in args || 'defaultClaudeSubscriptionId' in args) {
+    Object.assign(
+      sanitizedArgs,
+      normalizeClaudeSubscriptionSettingsUpdate(args, store.getSettings())
+    )
   }
   if ('uiLanguage' in args) {
     sanitizedArgs.uiLanguage = normalizeUiLanguage(args.uiLanguage)
