@@ -2,6 +2,8 @@ import type { StructuredAgentId } from '../../../shared/agent-session-provider-h
 import { structuredAgentRuntimeMetadata } from '../structured-agent-runtime-metadata'
 import { getProfileUserDataPath } from '../../orca-profiles/profile-storage-paths'
 import { OrcaRuntimeWithStructuredSessionCliWriterHost } from './structured-session-cli-writer-host'
+import { resolveClaudeSubscriptionLaunchConfigDir } from '../../claude-subscriptions/claude-subscription-launch'
+import { getAssignedClaudeSubscription } from '../../claude-subscriptions/claude-subscription-session-assignments'
 
 export abstract class OrcaRuntimeWithStructuredSessionAccountHome extends OrcaRuntimeWithStructuredSessionCliWriterHost {
   /** Where a launch of `agent` finds its account, resolved on this host by the agent's own
@@ -10,7 +12,8 @@ export abstract class OrcaRuntimeWithStructuredSessionAccountHome extends OrcaRu
     agent: StructuredAgentId,
     worktree: string,
     purpose: 'launch' | 'read',
-    hostLaunchDirectory?: string
+    hostLaunchDirectory?: string,
+    sessionId?: string
   ) {
     const registration = structuredAgentRuntimeMetadata(agent)
     if (!registration) {
@@ -35,7 +38,19 @@ export abstract class OrcaRuntimeWithStructuredSessionAccountHome extends OrcaRu
           readCodexLaunchHome: this.resolveCodexStructuredLaunchHomeFn,
           workspaceTrustSettings: () => this.requireStore().getSettings(),
           // The chat host's own state root (ensureStructuredAgentSessionHost).
-          stateDirectory: getProfileUserDataPath()
+          stateDirectory: getProfileUserDataPath(),
+          claudeSubscriptionConfigDir: ({ launchEnv, wslDistro, purpose: homePurpose }) =>
+            resolveClaudeSubscriptionLaunchConfigDir({
+              settings: this.requireStore().getSettings(),
+              env: launchEnv,
+              runtime: wslDistro ? 'wsl' : 'host',
+              // A read names the default subscription's dir without touching it.
+              ...(homePurpose === 'read'
+                ? { prepareHome: () => {} }
+                : sessionId
+                  ? { subscriptionId: getAssignedClaudeSubscription(sessionId) }
+                  : {})
+            })
         }
       )
   }

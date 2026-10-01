@@ -37,6 +37,10 @@ import { persistClaudeTurnResumePoint } from './claude-structured-resume-point'
 import { withAgentSessionCreatePhase } from '../observability/agent-session-instrumentation'
 import { resolveClaudeAcquisitionLaunch } from './claude-structured-acquisition-launch'
 import {
+  forgetClaudeChatLaunchHome,
+  noteClaudeChatLaunchHome
+} from '../claude-limit-guard/claude-chat-launch-homes'
+import {
   bindClaudeConnectionJournalControls,
   createClaudeSessionJournalTranslator
 } from './claude-structured-session-journal-control'
@@ -215,6 +219,7 @@ export async function acquireClaudeSession({
             initProof.reject(error)
           },
           onExit: (error, exit) => {
+            forgetClaudeChatLaunchHome(sessionId, attempt)
             if (exit?.expected) {
               // The end of a close Orca began; that close settles it, or finishes it now.
               callbacks.finishClose(sessionId, attempt)
@@ -230,6 +235,7 @@ export async function acquireClaudeSession({
       )
     )
     attempt.connection = connection
+    noteClaudeChatLaunchHome(sessionId, launch.claudeConfigDir, attempt)
     unbindReadingControl = bindClaudeConnectionJournalControls(
       input.events,
       connection,

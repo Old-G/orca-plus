@@ -48,7 +48,15 @@ export type AiVaultResumeStartup = {
 }
 
 export type AiVaultResumeLaunchSettings = Partial<
-  Pick<GlobalSettings, 'agentCmdOverrides' | 'agentDefaultArgs' | 'agentDefaultEnv'>
+  Pick<
+    GlobalSettings,
+    | 'agentCmdOverrides'
+    | 'agentDefaultArgs'
+    | 'agentDefaultEnv'
+    // Custom build (claude-subscriptions): a resumed Claude pane keeps the default subscription.
+    | 'claudeSubscriptions'
+    | 'defaultClaudeSubscriptionId'
+  >
 >
 
 /** The platform and live shell a resume line is written for, and the Codex home it pins. */
@@ -135,7 +143,7 @@ export function buildAiVaultLocalResumeStartup(
       shell: liveShell,
       agentArgs:
         args.agentArgs ?? resolveTuiAgentLaunchArgs(session.agent, settings?.agentDefaultArgs),
-      agentEnv: resolveTuiAgentLaunchEnv(session.agent, settings?.agentDefaultEnv),
+      agentEnv: resolveTuiAgentLaunchEnv(session.agent, settings?.agentDefaultEnv, settings),
       resumeInLaunchCwd: true,
       ...(session.agent === 'omp' && resumeFilePath ? { ompResumeFilePath: resumeFilePath } : {})
     })

@@ -10,7 +10,12 @@ import { resolveLocalWindowsAgentStartupShell } from './windows-terminal-shell'
 export type AgentStartupSettings = Partial<
   Pick<
     GlobalSettings,
-    'agentCmdOverrides' | 'agentDefaultArgs' | 'agentDefaultEnv' | 'terminalWindowsShell'
+    | 'agentCmdOverrides'
+    | 'agentDefaultArgs'
+    | 'agentDefaultEnv'
+    | 'terminalWindowsShell'
+    | 'claudeSubscriptions'
+    | 'defaultClaudeSubscriptionId'
   >
 >
 
@@ -81,7 +86,7 @@ export function resolveAgentStartupPlanInputs(args: {
     agent,
     cmdOverrides: settings.agentCmdOverrides ?? {},
     agentArgs,
-    agentEnv: resolveTuiAgentLaunchEnv(agent, settings.agentDefaultEnv),
+    agentEnv: resolveTuiAgentLaunchEnv(agent, settings.agentDefaultEnv, settings),
     platform,
     shell,
     isRemote,

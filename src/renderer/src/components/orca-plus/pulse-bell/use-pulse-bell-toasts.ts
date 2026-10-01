@@ -1,5 +1,6 @@
 // Custom build (pulse-bell): an agent that finishes while Orca+ is in front pops a toast naming it,
-// with Open — the desktop banner only shows while Orca+ is in the background.
+// with Open — the desktop banner only shows while Orca+ is in the background. A chat stopped on its
+// Claude limit pops one too, with the item's own buttons (continue on another subscription).
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import {
@@ -13,7 +14,13 @@ import { usePulseBellInbox } from './use-pulse-bell-inbox'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 
-const toastId = (item: PulseInboxItem): string => `agent-finished-${item.id}`
+const TOASTED_KINDS: ReadonlySet<string> = new Set([
+  PULSE_BELL_KIND.agentFinished,
+  PULSE_BELL_KIND.claudeChatLimit,
+  PULSE_BELL_KIND.claudeAuthStop
+])
+
+const toastId = (item: PulseInboxItem): string => `pulse-bell-toast-${item.id}`
 
 /** The user is already looking at the pane that finished, so a toast would only cover it. */
 function isWatching(item: PulseInboxItem): boolean {
@@ -32,22 +39,22 @@ function isWatching(item: PulseInboxItem): boolean {
 
 function act(item: PulseInboxItem, actionId: string): void {
   void runPulseBellAction(item, actionId).catch((error: unknown) =>
-    console.warn('[pulse-bell] agent-finished toast action failed:', error)
+    console.warn('[pulse-bell] toast action failed:', error)
   )
 }
 
-export function useAgentFinishedToasts(): void {
+export function usePulseBellToasts(): void {
   const items = usePulseBellInbox()
   // Why: null until the first list lands — items already open at launch stay in the Inbox only.
   const known = useRef<Set<string> | null>(null)
   const shown = useRef(new Set<string>())
 
   useEffect(() => {
-    const finished = items.filter((item) => item.kind === PULSE_BELL_KIND.agentFinished)
+    const finished = items.filter((item) => TOASTED_KINDS.has(item.kind))
     const open = new Set(finished.map((item) => item.id))
     for (const id of shown.current) {
       if (!open.has(id)) {
-        toast.dismiss(`agent-finished-${id}`)
+        toast.dismiss(`pulse-bell-toast-${id}`)
         shown.current.delete(id)
       }
     }
@@ -60,18 +67,22 @@ export function useAgentFinishedToasts(): void {
         continue
       }
       known.current.add(item.id)
-      if (isWatching(item)) {
+      // Why: a limit stop needs a choice the chat itself does not offer, so it toasts even in view.
+      if (item.kind === PULSE_BELL_KIND.agentFinished && isWatching(item)) {
         continue
       }
       shown.current.add(item.id)
+      const primary =
+        item.kind === PULSE_BELL_KIND.agentFinished
+          ? { id: PULSE_BELL_ACTION.open, label: translate('auto.pulseBell.action.open', 'Open') }
+          : item.actions.find((action) => action.id !== PULSE_BELL_ACTION.dismiss)
       toast.info(translate(`auto.pulseBell.kind.${item.kind}.${item.urgency}`, item.title), {
         id: toastId(item),
         description: item.body ?? undefined,
         duration: Number.POSITIVE_INFINITY,
-        action: {
-          label: translate('auto.pulseBell.action.open', 'Open'),
-          onClick: () => act(item, PULSE_BELL_ACTION.open)
-        },
+        ...(primary
+          ? { action: { label: primary.label, onClick: () => act(item, primary.id) } }
+          : {}),
         cancel: {
           label: translate('auto.pulseBell.action.dismiss', 'Not now'),
           onClick: () => act(item, PULSE_BELL_ACTION.dismiss)

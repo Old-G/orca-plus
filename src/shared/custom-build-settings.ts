@@ -1,8 +1,10 @@
 // Custom build: Orca+ settings, kept apart so upstream edits to GlobalSettings do not collide.
 import type { CustomAppearanceBackground } from './custom-appearance-background'
 import type { CustomAppearanceTheme } from './vscode-theme/custom-appearance-theme'
+import type { ClaudeSubscriptionSettings } from './claude-subscriptions'
 
-export type CustomBuildSettings = {
+/** Custom build (claude-subscriptions): Claude sign-ins a session can run on. */
+export type CustomBuildSettings = ClaudeSubscriptionSettings & {
   /** Custom build (custom-appearance): master switch for custom.css, background and imported theme. */
   customAppearanceEnabled?: boolean
   /** Custom build (appearance-background): window background image, drawn only while the block is on. */

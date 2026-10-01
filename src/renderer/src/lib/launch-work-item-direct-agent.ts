@@ -16,6 +16,7 @@ import {
   resolveTuiAgentLaunchEnv
 } from '../../../shared/tui-agent-launch-defaults'
 import { translate } from '@/i18n/i18n'
+import type { ClaudeSubscriptionSettings } from '../../../shared/claude-subscriptions'
 
 export function buildDirectWorkItemAgentStartupPlan(args: {
   agent: TuiAgent | null
@@ -23,11 +24,11 @@ export function buildDirectWorkItemAgentStartupPlan(args: {
   draftContent: string
   promptDelivery: 'draft' | 'submit-after-ready'
   settings:
-    | {
+    | ({
         agentCmdOverrides?: Partial<Record<TuiAgent, string>>
         agentDefaultArgs?: Partial<Record<TuiAgent, string>>
         agentDefaultEnv?: Partial<Record<TuiAgent, Record<string, string>>>
-      }
+      } & ClaudeSubscriptionSettings)
     | null
     | undefined
   launchPlatform: NodeJS.Platform
@@ -49,7 +50,11 @@ export function buildDirectWorkItemAgentStartupPlan(args: {
     args.agentArgs === undefined
       ? resolveTuiAgentLaunchArgs(args.agent, args.settings?.agentDefaultArgs)
       : args.agentArgs
-  const effectiveAgentEnv = resolveTuiAgentLaunchEnv(args.agent, args.settings?.agentDefaultEnv)
+  const effectiveAgentEnv = resolveTuiAgentLaunchEnv(
+    args.agent,
+    args.settings?.agentDefaultEnv,
+    args.settings
+  )
   const draftLaunchPlan =
     args.promptDelivery === 'submit-after-ready'
       ? null
