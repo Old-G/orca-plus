@@ -65,6 +65,8 @@ import { renderOpenCodeAccountsSection } from './providers/accounts-pane-opencod
 import { MiniMaxAccountsSection } from './usage/MiniMaxAccountsSection'
 import { useUsageHostSettings } from './usage/use-usage-host-settings'
 import { ManagedDataAccountsSection } from './providers/ManagedDataAccountsSection'
+import { ClaudeSubscriptionsSection } from '../ClaudeSubscriptionsSection'
+import { CLAUDE_SUBSCRIPTIONS_ENABLED } from '../../../../../shared/claude-subscriptions-switch'
 import { renderAccountsRemovalDialogs } from './accounts-pane-removal-dialogs'
 
 export function AccountsPane({
@@ -335,6 +337,16 @@ export function AccountsPane({
     matchesSettingsSearch(searchQuery, getAccountsClaudeSearchEntries())
       ? renderClaudeAccountsSection(model, t, intlLocale)
       : null,
+    // Subscription dirs live on this machine; a remote server keeps its own.
+    CLAUDE_SUBSCRIPTIONS_ENABLED &&
+    !isRemoteAccountScope &&
+    matchesSettingsSearch(searchQuery, getAccountsClaudeSearchEntries()) ? (
+      <ClaudeSubscriptionsSection
+        key="claude-subscriptions"
+        settings={settings}
+        updateSettings={updateSettings}
+      />
+    ) : null,
     matchesSettingsSearch(searchQuery, getAccountsCodexSearchEntries())
       ? renderCodexAccountsSection(model, t, intlLocale)
       : null,

@@ -41,6 +41,7 @@ import type { NewTabAgentMenuRow } from '../../../../shared/agent-launch/picker/
 import { useNewTabAgentMenuRows, type NewTabAgentMenuModel } from './use-new-tab-agent-menu-rows'
 import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
 import { chatUnavailableLabel, rowTitle, rowLabel, rowId } from './tab-agent-row-presentation'
+import { useClaudeSubscriptionMenuChoices } from './use-claude-subscription-menu-choices'
 
 export type QuickLaunchAgentMenuItemsProps = {
   worktreeId: string
@@ -85,7 +86,12 @@ export function useTabAgentMenuLaunch({
   onFocusChat?: (tabId: string) => void
 }) {
   const runLaunch = useCallback(
-    (row: NewTabAgentMenuRow, draft?: AgentPickerDraft, pickerEntry?: AgentPickerEntry) => {
+    (
+      row: NewTabAgentMenuRow,
+      draft?: AgentPickerDraft,
+      pickerEntry?: AgentPickerEntry,
+      claudeSubscriptionId?: string
+    ) => {
       if (
         disabled ||
         row.kind === 'chat-unavailable' ||
@@ -119,6 +125,7 @@ export function useTabAgentMenuLaunch({
           : {}),
         worktreeId,
         groupId,
+        ...(claudeSubscriptionId ? { claudeSubscriptionId } : {}),
         // A caller's prompt (notes) owns the launch; otherwise the picker panel's typed one.
         ...(prompt !== undefined ? { prompt } : draft?.prompt ? { prompt: draft.prompt } : {}),
         ...(promptDelivery !== undefined ? { promptDelivery } : {}),
@@ -183,7 +190,14 @@ function QuickLaunchAgentMenuItemsInner(props: QuickLaunchAgentMenuItemsProps): 
   const detectionTarget = useAgentDetectionTargetForWorktree(props.worktreeId)
   const model = useNewTabAgentMenuRows(props.worktreeId, true, detectionTarget)
   const runLaunch = useTabAgentMenuLaunch(props)
-  return <ProjectedAgentMenuItems {...props} model={model} runLaunch={runLaunch} />
+  return (
+    <ProjectedAgentMenuItems
+      {...props}
+      model={model}
+      runLaunch={runLaunch}
+      worktreeId={props.worktreeId}
+    />
+  )
 }
 
 export function ProjectedAgentMenuItems({
@@ -192,15 +206,24 @@ export function ProjectedAgentMenuItems({
   runLaunch,
   pickerInventory,
   onSelectPickerAgent,
-  hidePickerSearch
+  hidePickerSearch,
+  worktreeId
 }: {
   disabled?: boolean
   model: NewTabAgentMenuModel
-  runLaunch: React.ComponentProps<typeof SubscribedAgentLaunchPickerMenu>['runLaunch']
+  runLaunch: (
+    row: NewTabAgentMenuRow,
+    draft?: AgentPickerDraft,
+    pickerEntry?: AgentPickerEntry,
+    claudeSubscriptionId?: string
+  ) => ReturnType<React.ComponentProps<typeof SubscribedAgentLaunchPickerMenu>['runLaunch']>
   pickerInventory?: AgentPickerInventorySource
   onSelectPickerAgent?: (agent: AgentPickerEntry['agent']) => void
   hidePickerSearch?: boolean
+  /** Custom build (claude-subscriptions): lets Claude rows offer the other subscriptions. */
+  worktreeId?: string
 }): React.JSX.Element {
+  const claudeSubscriptionChoices = useClaudeSubscriptionMenuChoices(worktreeId)
   const t = useTranslate()
   const desktopDefaultAgent = useAppStateValue((s) => s.settings?.defaultTuiAgent)
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
@@ -288,6 +311,7 @@ export function ProjectedAgentMenuItems({
           const showsDefaultAgentShortcut =
             newAgentShortcut !== null && defaultAgent !== 'blank' && agent === defaultAgent
           const pendingReason = terminalPendingReason(model.terminalPending, row, t)
+          const subscriptionChoices = agent === 'claude' ? claudeSubscriptionChoices : null
           const rowContent = (
             <>
               <AgentIcon agent={agent} size={14} />
@@ -295,6 +319,11 @@ export function ProjectedAgentMenuItems({
               {pendingReason ? (
                 <span className="min-w-0 shrink truncate text-xs text-muted-foreground">
                   {pendingReason}
+                </span>
+              ) : null}
+              {subscriptionChoices ? (
+                <span className="truncate text-muted-foreground">
+                  {subscriptionChoices.defaultChoice.label}
                 </span>
               ) : null}
               {showsDefaultAgentShortcut ? (
@@ -332,6 +361,18 @@ export function ProjectedAgentMenuItems({
                   {rowContent}
                 </DropdownMenuItem>
               )}
+              {subscriptionChoices?.others.map((choice) => (
+                <DropdownMenuItem
+                  key={`${rowId(row)}:${choice.id}`}
+                  variant="launch"
+                  disabled={disabled}
+                  onSelect={() => runLaunch(row, undefined, undefined, choice.id)}
+                  title={rowTitle(row, label)}
+                >
+                  <AgentIcon agent={agent} size={14} />
+                  <span className="flex-1 truncate">{`${rowLabel(row)} · ${choice.label}`}</span>
+                </DropdownMenuItem>
+              ))}
             </React.Fragment>
           )
         })

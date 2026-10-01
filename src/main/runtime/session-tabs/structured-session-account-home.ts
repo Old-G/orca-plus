@@ -6,6 +6,8 @@ import { agentWorkspaceTrustDecisionForWorkspace } from '../../agent-launch/trus
 import { OrcaRuntimeWithStructuredSessionCliWriterHost } from './structured-session-cli-writer-host'
 import type { AgentSessionAccountHome } from '../../../shared/agent-session/lifecycle/agent-session-account-home'
 import type { AgentSessionRecord } from '../../../shared/agent-session/lifecycle/agent-session-record'
+import { resolveClaudeSubscriptionLaunchConfigDir } from '../../claude-subscriptions/claude-subscription-launch'
+import { getAssignedClaudeSubscription } from '../../claude-subscriptions/claude-subscription-session-assignments'
 
 export abstract class OrcaRuntimeWithStructuredSessionAccountHome extends OrcaRuntimeWithStructuredSessionCliWriterHost {
   /** Resolve account home through this host's agent registration; null means unregistered and create refuses. */
@@ -13,7 +15,8 @@ export abstract class OrcaRuntimeWithStructuredSessionAccountHome extends OrcaRu
     agent: StructuredAgentId,
     worktree: string,
     purpose: 'launch' | 'read' | 'identity',
-    hostLaunchDirectory?: string
+    hostLaunchDirectory?: string,
+    sessionId?: string
   ) {
     const registration = structuredAgentRuntimeMetadata(agent)
     if (!registration) {
@@ -49,7 +52,19 @@ export abstract class OrcaRuntimeWithStructuredSessionAccountHome extends OrcaRu
           stateDirectory: getProfileUserDataPath(),
           hostLaunchEnvironment: (agent) =>
             resolveHostStructuredAgentLaunchEnvironment(agent, this.requireStore().getSettings()),
-          hostSettings: () => this.requireStore().getSettings()
+          hostSettings: () => this.requireStore().getSettings(),
+          claudeSubscriptionConfigDir: ({ launchEnv, wslDistro, purpose: homePurpose }) =>
+            resolveClaudeSubscriptionLaunchConfigDir({
+              settings: this.requireStore().getSettings(),
+              env: launchEnv,
+              runtime: wslDistro ? 'wsl' : 'host',
+              // A read names the default subscription's dir without touching it.
+              ...(homePurpose !== 'launch'
+                ? { prepareHome: () => {} }
+                : sessionId
+                  ? { subscriptionId: getAssignedClaudeSubscription(sessionId) }
+                  : {})
+            })
         }
       )
   }

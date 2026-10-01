@@ -71,6 +71,12 @@ export type StructuredAgentAccountHomeServices = {
   hostLaunchEnvironment: (agent: string) => Promise<Record<string, string>>
   /** This host's saved settings, read per launch. */
   hostSettings: () => AcpHostBackendSettings
+  /** Custom build (claude-subscriptions): the dir of the Claude subscription this chat runs on. */
+  claudeSubscriptionConfigDir?: (input: {
+    launchEnv: NodeJS.ProcessEnv
+    wslDistro: string | null
+    purpose: 'launch' | 'read'
+  }) => string | null
 }
 
 /** What a catalog probe is built from: the same runtime resolvers its sessions launch through. */

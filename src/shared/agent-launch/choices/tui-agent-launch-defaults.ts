@@ -23,6 +23,10 @@ import {
 } from '../startup/tui-agent-startup-shell'
 import type { TuiAgent } from '../catalog/tui-agent'
 import { resolveLocalWindowsAgentStartupShell } from '../../windows-terminal-shell'
+import {
+  withClaudeSubscriptionLaunchEnv,
+  type ClaudeSubscriptionSettings
+} from '../../claude-subscriptions'
 
 const UNSUPPORTED_TUI_AGENT_ARGS: Partial<Record<TuiAgent, readonly string[]>> = {
   opencode: ['--dangerously-skip-permissions'],
@@ -258,6 +262,16 @@ export function resolveTuiAgentLaunchEnv(
     agentPermissionEnv(agent, resolveAgentPermission(agent, settings).choice)
   ).filter(([name]) => !own?.some(([key]) => permissionEnvNameMatches(key, name, platform)))
   return Object.fromEntries(added.length ? [...added, ...(own ?? [])] : (own ?? []))
+}
+
+/** Custom build (claude-subscriptions): launch paths stamp a Claude pane's saved env with its subscription. */
+export function resolveTuiAgentLaunchEnvWithSubscription(
+  agent: string,
+  settings: (AgentLaunchProfileSettings & ClaudeSubscriptionSettings) | null | undefined,
+  platform?: NodeJS.Platform | null
+): Record<string, string> {
+  const env = resolveTuiAgentLaunchEnv(agent, settings, platform)
+  return settings ? withClaudeSubscriptionLaunchEnv(agent, env, settings, undefined) : env
 }
 
 /** Publish composed args/env for older clients that infer permission from text; explicit keys prevent fallback to their built-in defaults. */
