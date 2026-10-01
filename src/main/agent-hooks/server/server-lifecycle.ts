@@ -3,6 +3,7 @@ import {
   listenForAgentHooks
 } from '../../../shared/agent-hook-listener/transport/agent-hook-startup'
 import { parsePaneKey } from '../../../shared/workspace-layout/stable-pane-id'
+import { OUTGOING_GATE_PATH_PREFIX } from '../../orca-plus/outgoing-approval/outgoing-gate-http'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { randomUUID } from 'node:crypto'
 
@@ -23,7 +24,6 @@ import { OPENCODE_STARTUP_PROMPT_CLAIM_PATH } from '../../../shared/agent-launch
 import { CLAUDE_AGENT_VIEW_PATH } from '../../../shared/claude-agent-view'
 import { recordClaudeContextWindow } from './server-claude-context-window'
 import { isValidPaneKey } from './server-status-identity'
-import { AgentHookServerRuntimeEnv } from './server-runtime-env'
 
 import type { HookServerStartOptions } from './server-types'
 
@@ -132,6 +132,20 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerStatusHook
           }
           res.writeHead(204)
           res.end()
+          return
+        }
+        if (pathname.startsWith(OUTGOING_GATE_PATH_PREFIX)) {
+          // Why: a held call long-polls here; the body is read, so the slowloris cap no longer applies.
+          req.setTimeout(0)
+          // Why: 503 until the gate is wired at startup, so the hook retries instead of passing a send.
+          if (!this.onOutgoingGate) {
+            res.writeHead(503)
+            res.end()
+            return
+          }
+          const reply = await this.onOutgoingGate(pathname, body, req.headers)
+          res.writeHead(reply === null ? 404 : 200, { 'Content-Type': 'text/plain; charset=utf-8' })
+          res.end(reply ?? '')
           return
         }
         const source = resolveHookSource(pathname)
@@ -275,6 +289,7 @@ export abstract class AgentHookServerLifecycle extends AgentHookServerStatusHook
     this.clearStartupPromptClaims?.()
     this.clearStartupPromptClaims = null
     this.onStartupPromptClaim = null
+    this.onOutgoingGate = null
     this.onPaneStatusCleared = null
     this.onTransportInterference = null
     this.transportInterference.reset()

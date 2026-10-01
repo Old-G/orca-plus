@@ -18,6 +18,7 @@ import { withCliRuntimeOnPath } from '../../../../shared/node-cli-command-resolu
 import { prependOrcaCliDirToChildPath } from '../../../cli/launchers/orca-cli-child-path'
 import { AGENT_HOOK_RUNTIME_ENV_KEYS } from '../../../ipc/pty/host-env/spawn-env-keys'
 import { resolveStructuredWorkerIdentityForSession } from '../../orchestration/terminal-authority/structured-sessions/structured-worker-authority'
+import { outgoingGateChildEnv } from '../../../orca-plus/outgoing-approval/outgoing-gate-endpoint'
 
 /** Remove inherited pane identity so hooks and the CLI cannot attribute the chat to the host's launching pane; the seal keeps a worker's own handle. */
 export const STRUCTURED_CHILD_ENV_TO_DELETE: readonly string[] = [
@@ -69,7 +70,9 @@ function childIdentity(
   const named: Record<string, string> = {
     ...(identity ? { ORCA_TERMINAL_HANDLE: identity.handle } : {}),
     [ORCA_AGENT_SESSION_ID_ENV]: sessionId,
-    [ORCA_STRUCTURED_SESSION_ENV]: '1'
+    [ORCA_STRUCTURED_SESSION_ENV]: '1',
+    // Custom build (outgoing-approval): lets the gate hook reach this Orca from a pane-less chat.
+    ...outgoingGateChildEnv()
   }
   const env = { ...childEnv, ...named }
   return { env, commandEnv: { ...named, ...applyThisAppCli(env) } }

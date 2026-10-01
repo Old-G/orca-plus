@@ -31,6 +31,7 @@ import { registerHqRosterSync } from '../../hq-roster-sync/register-hq-roster-sy
 import { registerHqGroupChatHandlers } from '../../hq-group-chat/register-hq-group-chat'
 import { registerHqPulseMirror } from '../../hq-pulse-mirror/register-hq-pulse-mirror'
 import { registerPulseBell } from '../../orca-plus/pulse-bell/register-pulse-bell'
+import { registerOutgoingApproval } from '../../orca-plus/outgoing-approval/register-outgoing-approval'
 import { registerFeedbackHandlers } from '../feedback'
 import { registerCrashReportingHandlers } from '../crash-reporting/crash-reporting'
 import { registerExportHandlers } from '../export'
@@ -222,6 +223,7 @@ export function registerCoreHandlers(
   registerHqGroupChatHandlers(store, registerHqRosterSync(store))
   registerHqPulseMirror(store)
   registerPulseBell(store, runtime)
+  registerOutgoingApproval(runtime)
   registerBitbucketHandlers()
   registerFeedbackHandlers()
   if (crashReports) {

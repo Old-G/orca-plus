@@ -10,6 +10,8 @@ import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import { PULSE_BELL_ACTION } from '../../../../../shared/pulse-bell'
+import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../../shared/outgoing-approval/outgoing-approval-bell'
+import { OutgoingApprovalCard } from '../outgoing-approval/OutgoingApprovalCard'
 import { runPulseBellAction } from './pulse-bell-actions'
 import { usePulseBellInbox } from './use-pulse-bell-inbox'
 
@@ -133,9 +135,13 @@ export function PulseBellButton(): React.JSX.Element | null {
             </p>
           ) : (
             <ul className="scrollbar-sleek flex max-h-96 flex-col gap-0.5 overflow-y-auto">
-              {items.map((item) => (
-                <PulseBellRow key={item.id} item={item} onNavigate={() => setOpen(false)} />
-              ))}
+              {items.map((item) =>
+                item.kind === OUTGOING_APPROVAL_BELL_KIND ? (
+                  <OutgoingApprovalCard key={item.id} item={item} />
+                ) : (
+                  <PulseBellRow key={item.id} item={item} onNavigate={() => setOpen(false)} />
+                )
+              )}
             </ul>
           )}
         </div>
