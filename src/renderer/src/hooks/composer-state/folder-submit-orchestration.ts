@@ -36,7 +36,7 @@ import { getFolderWorkspaceAgentLaunchFact } from '@/components/sidebar/folder-w
 import { submitFolderWorkspaceCreate } from '@/components/sidebar/folder-workspace-composer-submit'
 import {
   resolveTuiAgentLaunchArgs,
-  resolveTuiAgentLaunchEnv
+  resolveTuiAgentLaunchEnvWithSubscription
 } from '../../../../shared/tui-agent-launch-defaults'
 import { translate } from '@/i18n/i18n'
 import {
@@ -120,7 +120,7 @@ export function useFolderSubmitOrchestration(input: FolderSubmitOrchestrationInp
           agentCmdOverrides: settings?.agentCmdOverrides,
           agentArgs: agent ? resolveTuiAgentLaunchArgs(agent, settings) : undefined,
           agentEnv: agent
-            ? resolveTuiAgentLaunchEnv(
+            ? resolveTuiAgentLaunchEnvWithSubscription(
                 agent,
                 settings,
                 launchHost.kind === 'known' ? launchHost.platform : null

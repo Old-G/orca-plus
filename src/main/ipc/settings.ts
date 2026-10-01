@@ -41,6 +41,7 @@ import {
 } from '../../shared/computer-awake-mode'
 import { resolveAiVaultSearchSettings } from '../../shared/ai-vault-search-settings'
 import { applySessionSearchSettingsChange } from '../ai-vault-search/session-search-enablement'
+import { normalizeClaudeSubscriptionSettingsUpdate } from '../claude-subscriptions/claude-subscription-settings'
 
 const SETTINGS_CHANGED_WHITELIST_SET = new Set<string>(SETTINGS_CHANGED_WHITELIST)
 
@@ -159,6 +160,12 @@ export function registerSettingsHandlers(
     }
     if ('terminalLineHeight' in args) {
       sanitizedArgs.terminalLineHeight = normalizeTerminalLineHeight(args.terminalLineHeight)
+    }
+    if ('claudeSubscriptions' in args || 'defaultClaudeSubscriptionId' in args) {
+      Object.assign(
+        sanitizedArgs,
+        normalizeClaudeSubscriptionSettingsUpdate(args, store.getSettings())
+      )
     }
     if ('uiLanguage' in args) {
       sanitizedArgs.uiLanguage = normalizeUiLanguage(args.uiLanguage)

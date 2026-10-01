@@ -7,7 +7,7 @@ import type { AgentStartupPlan } from '@/lib/tui-agent-startup'
 import { buildAgentDraftLaunchPlan, buildAgentStartupPlan } from '@/lib/tui-agent-startup'
 import {
   resolveTuiAgentLaunchArgs,
-  resolveTuiAgentLaunchEnv
+  resolveTuiAgentLaunchEnvWithSubscription
 } from '../../../../shared/tui-agent-launch-defaults'
 import { tuiAgentToAgentKind } from '@/lib/telemetry'
 import {
@@ -43,7 +43,7 @@ export function buildQuickComposerStartup(input: QuickComposerStartupInput): Qui
           draft: draftPrompt,
           cmdOverrides: settings?.agentCmdOverrides ?? {},
           agentArgs: resolveTuiAgentLaunchArgs(agent, settings),
-          agentEnv: resolveTuiAgentLaunchEnv(
+          agentEnv: resolveTuiAgentLaunchEnvWithSubscription(
             agent,
             settings,
             requireExecutionHostPlatform(input.launchHost)
@@ -71,7 +71,7 @@ export function buildQuickComposerStartup(input: QuickComposerStartupInput): Qui
       prompt,
       cmdOverrides: settings?.agentCmdOverrides ?? {},
       agentArgs: resolveTuiAgentLaunchArgs(agent, settings),
-      agentEnv: resolveTuiAgentLaunchEnv(
+      agentEnv: resolveTuiAgentLaunchEnvWithSubscription(
         agent,
         settings,
         requireExecutionHostPlatform(input.launchHost)

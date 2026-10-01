@@ -3,7 +3,7 @@ import { tuiAgentToAgentKind } from '@/lib/telemetry'
 import { isTuiAgentEnabled } from '../../../shared/tui-agent-selection'
 import {
   resolveTuiAgentLaunchArgs,
-  resolveTuiAgentLaunchEnv
+  resolveTuiAgentLaunchEnvWithSubscription
 } from '../../../shared/tui-agent-launch-defaults'
 import type { AgentStartedTelemetry } from '@/lib/worktree-startup-payload'
 import type { StartupCommandDelivery } from '../../../shared/codex-startup-delivery'
@@ -49,7 +49,7 @@ export function buildOnboardingFolderAgentStartup(
     prompt: '',
     cmdOverrides: settings.agentCmdOverrides ?? {},
     agentArgs: resolveTuiAgentLaunchArgs(agent, settings),
-    agentEnv: resolveTuiAgentLaunchEnv(agent, settings, host.platform),
+    agentEnv: resolveTuiAgentLaunchEnvWithSubscription(agent, settings, host.platform),
     ...host,
     allowEmptyPromptLaunch: true
   })

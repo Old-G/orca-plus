@@ -1,7 +1,7 @@
 import type { GlobalSettings } from './global-settings-types'
 import type { SessionOptionValue } from './native-chat-session-options'
 import type { TuiAgent } from './tui-agent'
-import { resolveTuiAgentLaunchArgs, resolveTuiAgentLaunchEnv } from './tui-agent-launch-defaults'
+import { resolveTuiAgentLaunchArgs, resolveTuiAgentLaunchEnvWithSubscription } from './tui-agent-launch-defaults'
 import { resolveStartupShell, type AgentStartupShell } from './tui-agent-startup-shell'
 import { hasExtraAgentArgs, mergeExtraAgentArgs } from './automation-extra-agent-args'
 import { resolveLocalWindowsAgentStartupShell } from './windows-terminal-shell'
@@ -16,6 +16,8 @@ export type AgentStartupSettings = Partial<
     | 'agentPermissionDefault'
     | 'agentPermissionOverrides'
     | 'terminalWindowsShell'
+    | 'claudeSubscriptions'
+    | 'defaultClaudeSubscriptionId'
   >
 >
 
@@ -84,7 +86,7 @@ export function resolveAgentStartupPlanInputs(args: {
     agent,
     cmdOverrides: settings.agentCmdOverrides ?? {},
     agentArgs,
-    agentEnv: resolveTuiAgentLaunchEnv(agent, settings, platform),
+    agentEnv: resolveTuiAgentLaunchEnvWithSubscription(agent, settings, platform),
     platform,
     shell,
     isRemote,

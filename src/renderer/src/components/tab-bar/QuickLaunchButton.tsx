@@ -23,6 +23,7 @@ import type { NewTabAgentMenuRow } from '@/lib/new-tab-agent-menu-rows'
 import { useNewTabAgentMenuRows, type NewTabAgentMenuModel } from './use-new-tab-agent-menu-rows'
 import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
 import { chatUnavailableLabel, rowTitle, rowLabel, rowId } from './tab-agent-row-presentation'
+import { useClaudeSubscriptionMenuChoices } from './use-claude-subscription-menu-choices'
 
 export type QuickLaunchAgentMenuItemsProps = {
   worktreeId: string
@@ -75,7 +76,7 @@ export function useTabAgentMenuLaunch({
   onFocusChat?: (tabId: string) => void
 }) {
   const runLaunch = useCallback(
-    (row: NewTabAgentMenuRow) => {
+    (row: NewTabAgentMenuRow, claudeSubscriptionId?: string) => {
       if (disabled || row.kind === 'chat-unavailable') {
         return
       }
@@ -94,6 +95,7 @@ export function useTabAgentMenuLaunch({
         agent,
         worktreeId,
         groupId,
+        ...(claudeSubscriptionId ? { claudeSubscriptionId } : {}),
         ...(prompt !== undefined ? { prompt } : {}),
         ...(promptDelivery !== undefined ? { promptDelivery } : {}),
         ...(launchSource !== undefined ? { launchSource } : {}),
@@ -163,18 +165,29 @@ function QuickLaunchAgentMenuItemsInner(props: QuickLaunchAgentMenuItemsProps): 
   const detectionTarget = useAgentDetectionTargetForWorktree(props.worktreeId)
   const model = useNewTabAgentMenuRows(props.worktreeId, true, detectionTarget)
   const runLaunch = useTabAgentMenuLaunch(props)
-  return <ProjectedAgentMenuItems {...props} model={model} runLaunch={runLaunch} />
+  return (
+    <ProjectedAgentMenuItems
+      {...props}
+      model={model}
+      runLaunch={runLaunch}
+      worktreeId={props.worktreeId}
+    />
+  )
 }
 
 export function ProjectedAgentMenuItems({
   disabled = false,
   model,
-  runLaunch
+  runLaunch,
+  worktreeId
 }: {
   disabled?: boolean
   model: NewTabAgentMenuModel
-  runLaunch: (row: NewTabAgentMenuRow) => void
+  runLaunch: (row: NewTabAgentMenuRow, claudeSubscriptionId?: string) => void
+  /** Custom build (claude-subscriptions): lets Claude rows offer the other subscriptions. */
+  worktreeId?: string
 }): React.JSX.Element {
+  const claudeSubscriptionChoices = useClaudeSubscriptionMenuChoices(worktreeId)
   const desktopDefaultAgent = useAppStore((s) => s.settings?.defaultTuiAgent)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
@@ -257,10 +270,16 @@ export function ProjectedAgentMenuItems({
         }
         const showsDefaultAgentShortcut =
           newAgentShortcut !== null && defaultAgent !== 'blank' && agent === defaultAgent
+        const subscriptionChoices = agent === 'claude' ? claudeSubscriptionChoices : null
         const rowContent = (
           <>
             <AgentIcon agent={agent} size={14} />
             <span className="flex-1">{rowLabel(row)}</span>
+            {subscriptionChoices ? (
+              <span className="truncate text-muted-foreground">
+                {subscriptionChoices.defaultChoice.label}
+              </span>
+            ) : null}
             {showsDefaultAgentShortcut ? (
               <DropdownMenuShortcut>{newAgentShortcut}</DropdownMenuShortcut>
             ) : null}
@@ -283,6 +302,18 @@ export function ProjectedAgentMenuItems({
                 {rowContent}
               </DropdownMenuItem>
             )}
+            {subscriptionChoices?.others.map((choice) => (
+              <DropdownMenuItem
+                key={`${rowId(row)}:${choice.id}`}
+                variant="launch"
+                disabled={disabled}
+                onSelect={() => runLaunch(row, choice.id)}
+                title={rowTitle(row, label)}
+              >
+                <AgentIcon agent={agent} size={14} />
+                <span className="flex-1 truncate">{`${rowLabel(row)} · ${choice.label}`}</span>
+              </DropdownMenuItem>
+            ))}
           </React.Fragment>
         )
       })}

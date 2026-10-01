@@ -63,6 +63,8 @@ import {
 } from './accounts-pane-account-actions'
 import { renderAccountsLocationSection } from './accounts-pane-location-section'
 import { renderClaudeAccountsSection } from './accounts-pane-claude-section'
+import { ClaudeSubscriptionsSection } from './ClaudeSubscriptionsSection'
+import { CLAUDE_SUBSCRIPTIONS_ENABLED } from '../../../../shared/claude-subscriptions-switch'
 import { renderCodexAccountsSection } from './accounts-pane-codex-section'
 import {
   renderGeminiAccountsSection,
@@ -361,6 +363,16 @@ export function AccountsPane({
     matchesSettingsSearch(searchQuery, getAccountsClaudeSearchEntries())
       ? renderClaudeAccountsSection(model)
       : null,
+    // Subscription dirs live on this machine; a remote server keeps its own.
+    CLAUDE_SUBSCRIPTIONS_ENABLED &&
+    !isRemoteAccountScope &&
+    matchesSettingsSearch(searchQuery, getAccountsClaudeSearchEntries()) ? (
+      <ClaudeSubscriptionsSection
+        key="claude-subscriptions"
+        settings={settings}
+        updateSettings={updateSettings}
+      />
+    ) : null,
     matchesSettingsSearch(searchQuery, getAccountsCodexSearchEntries())
       ? renderCodexAccountsSection(model)
       : null,

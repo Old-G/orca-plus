@@ -36,6 +36,7 @@ import { resolveQoderTerminalCommand } from './qoder-terminal-command-resolution
 import { resolveStartupShell } from '../../shared/tui-agent-startup-shell'
 import { resolveWslSessionContext } from '../daemon/wsl-session-context'
 import { isTuiAgentEnabled } from '../../shared/tui-agent-selection'
+import { withClaudeSubscriptionLaunchEnv } from '../../shared/claude-subscriptions'
 
 /** No launch command could be built for a requested `startupAgent`. */
 export class AgentLaunchUnbuildableError extends Error {}
@@ -179,16 +180,26 @@ async function buildRuntimeAgentTerminalStartupOptions(
   if (opts.startupPrompt && !forceLine && !agentPromptRidesLaunchCommand(agent)) {
     throw new Error(`Agent ${agent} does not take a startup prompt on its launch command.`)
   }
+  const planInputs = resolveAgentStartupPlanInputs({
+    agent,
+    settings,
+    platform: runtime.platform,
+    isRemote,
+    ...(opts.agentArgs !== undefined ? { agentArgs: opts.agentArgs } : {}),
+    shell: agentLaunchQuotingShell(runtime),
+    sessionOptions: host.toSessionOptions(opts.launchPreferences)
+  })
   const scope = {
-    inputs: resolveAgentStartupPlanInputs({
-      agent,
-      settings,
-      platform: runtime.platform,
-      isRemote,
-      ...(opts.agentArgs !== undefined ? { agentArgs: opts.agentArgs } : {}),
-      shell: agentLaunchQuotingShell(runtime),
-      sessionOptions: host.toSessionOptions(opts.launchPreferences)
-    }),
+    inputs: {
+      ...planInputs,
+      // Custom build (claude-subscriptions): in the launch env, so a resumed pane keeps its subscription.
+      agentEnv: withClaudeSubscriptionLaunchEnv(
+        agent,
+        planInputs.agentEnv,
+        settings,
+        opts.claudeSubscriptionId
+      )
+    },
     prompt: opts.startupPrompt ?? '',
     cwd: resolveTerminalStartupCwd(workspace.path, opts.cwd) ?? workspace.path,
     hostIdentity: host.hostIdentity,

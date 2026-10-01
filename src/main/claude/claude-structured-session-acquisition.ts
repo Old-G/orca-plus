@@ -37,6 +37,10 @@ import { claudeTurnResumePointWriter } from './claude-structured-resume-point'
 import { withAgentSessionCreatePhase } from '../observability/agent-session-instrumentation'
 import { resolveClaudeAcquisitionLaunch } from './claude-structured-acquisition-launch'
 import {
+  forgetClaudeChatLaunchHome,
+  noteClaudeChatLaunchHome
+} from '../claude-limit-guard/claude-chat-launch-homes'
+import {
   bindClaudeConnectionJournalControls,
   createClaudeSessionJournalTranslator
 } from './claude-structured-session-journal-control'
@@ -208,6 +212,7 @@ export async function acquireClaudeSession({
             initProof.reject(error)
           },
           onExit: (error, exit) => {
+            forgetClaudeChatLaunchHome(sessionId, attempt)
             if (exit?.expected) {
               callbacks.finishClose(sessionId, attempt)
               return
@@ -222,6 +227,7 @@ export async function acquireClaudeSession({
       )
     )
     attempt.connection = connection
+    noteClaudeChatLaunchHome(sessionId, launch.claudeConfigDir, attempt)
     unbindReadingControl = bindClaudeConnectionJournalControls(
       input.events,
       connection,

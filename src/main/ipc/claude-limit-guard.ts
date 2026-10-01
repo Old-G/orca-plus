@@ -12,22 +12,33 @@ import { createClaudeLimitStops } from '../claude-limit-guard/claude-limit-stops
 import { setClaudeNativeFrameListener } from '../claude-limit-guard/claude-native-frame-tap'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import { readStructuredSessionGateFacts } from '../runtime/orchestration/structured-mailbox-pointer-host'
-import {
-  mintAgentSessionOperationId,
-  structuredPointerPayloadFingerprint
-} from '../runtime/orchestration/structured-pointer-operation-id'
+import { mintAgentSessionOperationId } from '../runtime/orchestration/structured-pointer-operation-id'
+import { sendAgentTurn } from '../runtime/orchestration/send-agent-turn'
 import { mainProcessState } from '../startup/main-process-state'
 import {
   CLAUDE_LIMIT_CONTINUE_PROMPT,
+  claudeLimitStopIsAuth,
   claudeLimitsAccountId,
   type ClaudeLimitStoppedAgent
 } from '../../shared/claude-limit-guard'
 import type { AgentJournalMessageItem } from '../../shared/agent-session-journal-types'
+import { claudeAuthStopBellItem, PULSE_BELL_KIND } from '../../shared/pulse-bell'
+import {
+  claudeChatSubscriptionIdOf,
+  continueChatOnSubscription,
+  limitStoppedChatItems,
+  type ClaudeChatLimitContinueDeps
+} from '../claude-limit-guard/claude-chat-limit-continue'
+import { prepareClaudeSubscriptionHome } from '../claude-subscriptions/claude-subscription-home'
+import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
+import { moveClaudeChatToRoutedAccount } from '../claude-limit-guard/claude-chat-account-follow'
+import { claudeChatLaunchHome } from '../claude-limit-guard/claude-chat-launch-homes'
+import { claudeAccountIdOfHome } from '../claude-limit-guard/claude-chat-home-account'
 
 const ESCAPE = '\x1b'
 // Why: the TUI must settle the Esc before the prompt arrives, or both land in one input event.
 const ESC_SETTLE_MS = 400
-// Why: switching rewrites the shared Claude credentials; a nudge sent first would run on the old account.
+// Why: a switch republishes the account pointer; a nudge sent first would run on the old account.
 const SWITCH_SETTLE_MS = 3_000
 
 function delay(ms: number): Promise<void> {
@@ -70,19 +81,59 @@ async function resumeNativeChat(sessionId: string): Promise<boolean> {
     role: 'user',
     blocks: [{ type: 'text', text: CLAUDE_LIMIT_CONTINUE_PROMPT }]
   }
-  const result = await host.send(
-    { callerKey: `trusted-local:claude-limit-guard:${sessionId}` },
-    {
-      envelope: {
-        sessionId,
-        clientOperationId: mintAgentSessionOperationId(Date.now()),
-        expectedRuntimeFence: fence,
-        payloadFingerprint: structuredPointerPayloadFingerprint(sessionId, body)
-      },
-      body
+  const outcome = await sendAgentTurn({
+    kind: 'structured-session',
+    host,
+    sessionId,
+    callerKey: `trusted-local:claude-limit-guard:${sessionId}`,
+    turn: {
+      body,
+      operationId: mintAgentSessionOperationId(Date.now()),
+      expectedRuntimeFence: fence,
+      delivery: 'now'
     }
+  })
+  return outcome.kind !== 'refused'
+}
+
+async function hasClaudeTranscript(input: {
+  providerSessionId: string
+  claudeProjectsDir: string
+}): Promise<boolean> {
+  return (
+    (await resolveSessionFilePath('claude', input.providerSessionId, {
+      claudeProjectsDir: input.claudeProjectsDir
+    })) !== null
   )
-  return result.ok
+}
+
+async function routedClaudeConfigDir(): Promise<string | null> {
+  return (await mainProcessState.claudeRuntimeAuth?.prepareForClaudeLaunch())?.configDir ?? null
+}
+
+async function nativeChatOnOtherAccount(sessionId: string): Promise<boolean> {
+  const live = claudeChatLaunchHome(sessionId)
+  const routed = live === undefined ? null : await routedClaudeConfigDir()
+  return routed !== null && live !== routed
+}
+
+/** Moves the chat to the account launches run in now, then sends the continue prompt. */
+async function resumeNativeChatOnRoutedAccount(sessionId: string): Promise<boolean> {
+  const host = getStructuredAgentSessionHost()
+  if (host) {
+    await moveClaudeChatToRoutedAccount(
+      {
+        getRecord: (id) => host.deps.store.getRecord(id),
+        routedConfigDir: routedClaudeConfigDir,
+        launchHome: claudeChatLaunchHome,
+        switchAccountHome: host.lifetime.switchAccountHome,
+        hasTranscript: hasClaudeTranscript,
+        log: (message) => console.log('[claude-limit-guard]', message)
+      },
+      sessionId
+    )
+  }
+  return resumeNativeChat(sessionId)
 }
 
 function nativeChatWorktreeId(sessionId: string): string | null {
@@ -98,12 +149,44 @@ export function registerClaudeLimitGuardHandlers(
 ): void {
   const activeAccountId = (): string | null =>
     normalizeClaudeRuntimeSelection(store.getSettings()).host
+  // Custom build (claude-subscriptions): a stopped chat can continue on another subscription.
+  const chats: ClaudeChatLimitContinueDeps = {
+    settings: () => store.getSettings(),
+    baseConfigDir: () =>
+      mainProcessState.claudeAccounts?.getRuntimeConfigDir({ runtime: 'host' }) ?? null,
+    getRecord: (sessionId) =>
+      getStructuredAgentSessionHost()?.deps.store.getRecord(sessionId) ?? null
+  }
+  const syncChatBell = (current: ClaudeLimitStoppedAgent[]): void => {
+    const authStops = current.filter(claudeLimitStopIsAuth)
+    try {
+      runtime.pulseSyncInboxKind(
+        PULSE_BELL_KIND.claudeChatLimit,
+        limitStoppedChatItems(chats, current)
+      )
+      runtime.pulseSyncInboxKind(
+        PULSE_BELL_KIND.claudeAuthStop,
+        authStops.length > 0 ? [claudeAuthStopBellItem(authStops)] : []
+      )
+    } catch (error) {
+      console.warn('[claude-limit-guard] chat limit bell sync failed:', error)
+    }
+  }
   const stops = createClaudeLimitStops({
     now: Date.now,
     activeAccountId,
     resumeTerminal: (paneKey) => resumeTerminal(runtime, paneKey),
-    resumeNativeChat,
-    onChanged: broadcast,
+    resumeNativeChat: resumeNativeChatOnRoutedAccount,
+    nativeChatSubscription: (sessionId) => claudeChatSubscriptionIdOf(chats, sessionId),
+    nativeChatOnOtherAccount,
+    nativeChatAccountId: (sessionId) => {
+      const home = claudeChatLaunchHome(sessionId)
+      return home === undefined ? undefined : claudeAccountIdOfHome(home, chats.baseConfigDir())
+    },
+    onChanged: (current) => {
+      broadcast(current)
+      syncChatBell(current)
+    },
     checkHandoff: async (stop) => {
       const sessionId = stop.kind === 'native-chat' ? stop.key : stop.sessionId
       // Why: a native chat's tab may have been unknown at the stop and restored since.
@@ -131,6 +214,7 @@ export function registerClaudeLimitGuardHandlers(
       await delay(SWITCH_SETTLE_MS)
       await mainProcessState.claudeRuntimeAuth?.syncForCurrentSelection()
       if (activeAccountId() === next) {
+        console.log('[claude-limit-guard]', `active account → ${next ?? 'system default'}`)
         await stops.onAccountChanged(next)
       }
     })().catch((error: unknown) => console.warn('[claude-limit-guard] resume failed:', error))
@@ -146,4 +230,36 @@ export function registerClaudeLimitGuardHandlers(
   })
 
   ipcMain.handle('claudeLimitGuard:list', () => stops.list())
+  ipcMain.handle('claudeLimitGuard:continueAuthStops', async () => {
+    // Why: rewrites the CLI sign-in from the selected account, in case it was the stale one.
+    await mainProcessState.claudeRuntimeAuth
+      ?.syncForCurrentSelection()
+      .catch((error: unknown) => console.warn('[claude-limit-guard] re-sync failed:', error))
+    const resumed = await stops.resumeAuthStops()
+    console.log('[claude-limit-guard]', `continue after sign-in fix: ${resumed} agent(s)`)
+    return { resumed }
+  })
+  // Why: stops live in memory, so items the last run left open are stale.
+  syncChatBell([])
+  ipcMain.handle(
+    'claudeLimitGuard:continueOnSubscription',
+    async (_event, args: { sessionId?: unknown; subscriptionId?: unknown }) => {
+      const host = getStructuredAgentSessionHost()
+      if (!host || typeof args?.sessionId !== 'string' || typeof args.subscriptionId !== 'string') {
+        return { ok: false, reason: 'missing' }
+      }
+      return continueChatOnSubscription(
+        {
+          ...chats,
+          switchAccountHome: host.lifetime.switchAccountHome,
+          prepareHome: prepareClaudeSubscriptionHome,
+          hasTranscript: hasClaudeTranscript,
+          forgetStop: (sessionId) => stops.forgetNativeChat(sessionId),
+          resume: resumeNativeChat
+        },
+        args.sessionId,
+        args.subscriptionId
+      )
+    }
+  )
 }
