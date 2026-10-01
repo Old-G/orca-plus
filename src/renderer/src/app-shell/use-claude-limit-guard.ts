@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
+  claudeLimitStopOnBaseSignIn,
   claudeLimitsAccountId,
   claudeLimitSwitchSuggestionKey,
   describeClaudeAccount,
@@ -104,7 +105,10 @@ export function useClaudeLimitGuard(): void {
     }
   }, [activeLimits, activeAccountId])
 
-  const stopsOnActive = stops.filter((stop) => stop.accountId === activeAccountId)
+  // Why: a chat on another subscription gets its own continue item; switching here would not help it.
+  const stopsOnActive = stops.filter(
+    (stop) => stop.accountId === activeAccountId && claudeLimitStopOnBaseSignIn(stop)
+  )
   const stoppedOnActive = stopsOnActive.length
   const lastStopAt = stopsOnActive.reduce((latest, stop) => Math.max(latest, stop.stoppedAt), 0)
   const hot =

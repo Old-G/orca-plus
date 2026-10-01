@@ -2,6 +2,7 @@
 // nudge (Esc + a continue prompt) each gets once another account is active or the limit lifted.
 import {
   CLAUDE_LIMIT_SWITCH_THRESHOLD_PERCENT,
+  claudeLimitStopOnBaseSignIn,
   type ClaudeLimitStoppedAgent
 } from '../../shared/claude-limit-guard'
 import type { ProviderRateLimits } from '../../shared/rate-limit-types'
@@ -24,6 +25,8 @@ export type ClaudeLimitStopsDeps = {
   activeAccountId: () => string | null
   resumeTerminal: (paneKey: string) => Promise<boolean>
   resumeNativeChat: (sessionId: string) => Promise<boolean>
+  /** The subscription a native chat runs on; null for the base sign-in. */
+  nativeChatSubscription?: (sessionId: string) => string | null
   onChanged: (stops: ClaudeLimitStoppedAgent[]) => void
   /** True when the stopped turn had written a handoff: that session moves on, it is not continued. */
   checkHandoff?: (stop: ClaudeLimitStoppedAgent) => Promise<boolean>
@@ -166,7 +169,8 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
             accountId: deps.activeAccountId(),
             stoppedAt: deps.now(),
             resetsAt: null,
-            sessionId
+            sessionId,
+            subscriptionId: deps.nativeChatSubscription?.(sessionId) ?? null
           })
         }
         return
@@ -186,7 +190,9 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
 
     /** Another account became active: every agent stopped on a different account continues. */
     async onAccountChanged(activeAccountId: string | null): Promise<void> {
-      const due = [...stops.values()].filter((stop) => stop.accountId !== activeAccountId)
+      const due = [...stops.values()].filter(
+        (stop) => stop.accountId !== activeAccountId && claudeLimitStopOnBaseSignIn(stop)
+      )
       await Promise.all(due.map(resume))
     },
 
@@ -200,6 +206,7 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
         const id = stopId(stop.kind, stop.key)
         return (
           stop.accountId === activeAccountId &&
+          claudeLimitStopOnBaseSignIn(stop) &&
           now - stop.stoppedAt >= MIN_STOP_AGE_FOR_RELIEF_MS &&
           now - (lastReliefResumeAt.get(id) ?? 0) >= RELIEF_RETRY_COOLDOWN_MS
         )

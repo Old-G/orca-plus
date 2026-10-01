@@ -89,7 +89,8 @@ export class StructuredAgentSessionHost {
     sessionId: string
   ) => Promise<SessionWire.AgentSessionWireRefusal | null>
   private readonly restore: ReturnType<typeof createStructuredAgentSessionHostRestore>
-  private readonly lifetime: StructuredAgentSessionConversationLifetime
+  // Custom build (claude-subscriptions): public for `lifetime.switchAccountHome`; tests already reach it.
+  readonly lifetime: StructuredAgentSessionConversationLifetime
   private readonly conversationDelivery: ReturnType<
     typeof createStructuredAgentSessionConversationDelivery
   >

@@ -5,6 +5,7 @@ import { RuntimeClientError } from '../runtime-client'
 import { getRequiredWorktreeSelector } from '../selectors'
 import { isTuiAgent } from '../../shared/tui-agent-config'
 import type { AgentLaunchResult } from '../../shared/agent-launch-intent'
+import { CLAUDE_SUBSCRIPTION_SESSION_OPTION } from '../../shared/claude-subscriptions'
 
 // A structured chat can take a while to start its SDK session; the 60 s default is too tight.
 const AGENT_LAUNCH_TIMEOUT_MS = 120_000
@@ -36,13 +37,17 @@ export const AGENT_LAUNCH_HANDLERS: Record<string, CommandHandler> = {
     }
     const worktree = await getRequiredWorktreeSelector(flags, 'worktree', cwd, client)
     const prompt = getOptionalStringFlag(flags, 'prompt')
+    const subscription = getOptionalStringFlag(flags, 'subscription')
     try {
       const result = await client.call<AgentLaunchResult>(
         'agent.launch',
         {
           agent,
           target: { kind: 'existing', worktree },
-          ...(prompt ? { prompt: { text: prompt, delivery: 'submit' } } : {})
+          ...(prompt ? { prompt: { text: prompt, delivery: 'submit' } } : {}),
+          ...(subscription
+            ? { sessionOptions: { [CLAUDE_SUBSCRIPTION_SESSION_OPTION]: subscription } }
+            : {})
         },
         { timeoutMs: AGENT_LAUNCH_TIMEOUT_MS }
       )

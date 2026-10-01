@@ -57,7 +57,9 @@ async function openHqGroupChat(groupId: string): Promise<void> {
       autoRenameBranchFromWork: false,
       agentCmdOverrides: settings?.agentCmdOverrides,
       agentArgs: agent ? resolveTuiAgentLaunchArgs(agent, settings?.agentDefaultArgs) : undefined,
-      agentEnv: agent ? resolveTuiAgentLaunchEnv(agent, settings?.agentDefaultEnv) : undefined,
+      agentEnv: agent
+        ? resolveTuiAgentLaunchEnv(agent, settings?.agentDefaultEnv, settings)
+        : undefined,
       sessionOptions: agent
         ? resolveInitialNativeChatSessionOptions(
             {

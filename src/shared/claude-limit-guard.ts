@@ -203,6 +203,13 @@ export type ClaudeLimitStoppedAgent = {
   resetsAt: number | null
   /** Claude session id, when known; for native chats it is the key. */
   sessionId?: string | null
+  /** Custom build (claude-subscriptions): the subscription a native chat ran on; null = the base sign-in. */
+  subscriptionId?: string | null
+}
+
+/** Managed-account switching rewrites only the base `~/.claude` sign-in, so it helps only stops made there. */
+export function claudeLimitStopOnBaseSignIn(stop: ClaudeLimitStoppedAgent): boolean {
+  return !stop.subscriptionId || stop.subscriptionId === 'base'
 }
 
 export const CLAUDE_LIMIT_CONTINUE_PROMPT = 'продолжай'

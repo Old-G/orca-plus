@@ -41,6 +41,8 @@ export type TerminalCreateOptions = {
   launchToken?: string
   launchAgent?: TuiAgent
   startupAgent?: TuiAgent
+  /** Claude only: the subscription (own CLAUDE_CONFIG_DIR) the startup agent runs on; absent = default. */
+  claudeSubscriptionId?: string
   /**
    * Initial text folded into `startupAgent`'s launch command, for an agent whose CLI takes a prompt
    * argument. Not a general prompt channel: an agent that takes its text only after start has no

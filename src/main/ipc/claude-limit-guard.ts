@@ -23,6 +23,15 @@ import {
   type ClaudeLimitStoppedAgent
 } from '../../shared/claude-limit-guard'
 import type { AgentJournalMessageItem } from '../../shared/agent-session-journal-types'
+import { PULSE_BELL_KIND } from '../../shared/pulse-bell'
+import {
+  claudeChatSubscriptionIdOf,
+  continueChatOnSubscription,
+  limitStoppedChatItems,
+  type ClaudeChatLimitContinueDeps
+} from '../claude-limit-guard/claude-chat-limit-continue'
+import { prepareClaudeSubscriptionHome } from '../claude-subscriptions/claude-subscription-home'
+import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
 
 const ESCAPE = '\x1b'
 // Why: the TUI must settle the Esc before the prompt arrives, or both land in one input event.
@@ -98,12 +107,34 @@ export function registerClaudeLimitGuardHandlers(
 ): void {
   const activeAccountId = (): string | null =>
     normalizeClaudeRuntimeSelection(store.getSettings()).host
+  // Custom build (claude-subscriptions): a stopped chat can continue on another subscription.
+  const chats: ClaudeChatLimitContinueDeps = {
+    settings: () => store.getSettings(),
+    baseConfigDir: () =>
+      mainProcessState.claudeAccounts?.getRuntimeConfigDir({ runtime: 'host' }) ?? null,
+    getRecord: (sessionId) =>
+      getStructuredAgentSessionHost()?.deps.store.getRecord(sessionId) ?? null
+  }
+  const syncChatBell = (current: ClaudeLimitStoppedAgent[]): void => {
+    try {
+      runtime.pulseSyncInboxKind(
+        PULSE_BELL_KIND.claudeChatLimit,
+        limitStoppedChatItems(chats, current)
+      )
+    } catch (error) {
+      console.warn('[claude-limit-guard] chat limit bell sync failed:', error)
+    }
+  }
   const stops = createClaudeLimitStops({
     now: Date.now,
     activeAccountId,
     resumeTerminal: (paneKey) => resumeTerminal(runtime, paneKey),
     resumeNativeChat,
-    onChanged: broadcast,
+    nativeChatSubscription: (sessionId) => claudeChatSubscriptionIdOf(chats, sessionId),
+    onChanged: (current) => {
+      broadcast(current)
+      syncChatBell(current)
+    },
     checkHandoff: async (stop) => {
       const sessionId = stop.kind === 'native-chat' ? stop.key : stop.sessionId
       // Why: a native chat's tab may have been unknown at the stop and restored since.
@@ -146,4 +177,29 @@ export function registerClaudeLimitGuardHandlers(
   })
 
   ipcMain.handle('claudeLimitGuard:list', () => stops.list())
+  // Why: stops live in memory, so items the last run left open are stale.
+  syncChatBell([])
+  ipcMain.handle(
+    'claudeLimitGuard:continueOnSubscription',
+    async (_event, args: { sessionId?: unknown; subscriptionId?: unknown }) => {
+      const host = getStructuredAgentSessionHost()
+      if (!host || typeof args?.sessionId !== 'string' || typeof args.subscriptionId !== 'string') {
+        return { ok: false, reason: 'missing' }
+      }
+      return continueChatOnSubscription(
+        {
+          ...chats,
+          switchAccountHome: host.lifetime.switchAccountHome,
+          prepareHome: prepareClaudeSubscriptionHome,
+          hasTranscript: async ({ providerSessionId, claudeProjectsDir }) =>
+            (await resolveSessionFilePath('claude', providerSessionId, { claudeProjectsDir })) !==
+            null,
+          forgetStop: (sessionId) => stops.forgetNativeChat(sessionId),
+          resume: resumeNativeChat
+        },
+        args.sessionId,
+        args.subscriptionId
+      )
+    }
+  )
 }

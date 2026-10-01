@@ -36,6 +36,35 @@ import {
   trackTerminalSpawnDispatch,
   type TerminalSpawnDispatch
 } from '../../../agent-launch/agent-launch-not-started'
+import {
+  BASE_CLAUDE_SUBSCRIPTION_ID,
+  CLAUDE_SUBSCRIPTION_SESSION_OPTION
+} from '../../../../shared/claude-subscriptions'
+import { readClaudeSubscriptionSettings } from '../../../claude-subscriptions/claude-subscription-settings-source'
+import { assignClaudeSubscriptionToSession } from '../../../claude-subscriptions/claude-subscription-session-assignments'
+
+/** `--subscription` for a Claude launch; an id this host has no subscription for is refused, not
+ *  silently run on the base sign-in. */
+function readClaudeSubscriptionOption(
+  agent: string,
+  options: Readonly<Record<string, unknown>> | undefined
+): string | null {
+  const value = agent === 'claude' ? options?.[CLAUDE_SUBSCRIPTION_SESSION_OPTION] : undefined
+  const id = typeof value === 'string' ? value.trim() : ''
+  if (!id) {
+    return null
+  }
+  const settings = readClaudeSubscriptionSettings()
+  const subscriptions = settings ? (settings.claudeSubscriptions ?? []) : null
+  if (
+    subscriptions &&
+    id !== BASE_CLAUDE_SUBSCRIPTION_ID &&
+    !subscriptions.some((subscription) => subscription.id === id)
+  ) {
+    throw new Error(`Unknown Claude subscription: ${id}`)
+  }
+  return id
+}
 
 /** Replay-safe launches keep the nested attach in the same stable caller namespace as the launch. */
 export function agentLaunchSurfaceFactory(
@@ -55,6 +84,10 @@ export function agentLaunchSurfaceFactory(
       tabId
     }) => {
       const sessionId = requested ?? createStructuredAgentSessionId(agent, randomUUID)
+      const subscriptionId = readClaudeSubscriptionOption(agent, options)
+      if (subscriptionId) {
+        assignClaudeSubscriptionToSession(sessionId, subscriptionId)
+      }
       const seeded = narrowStructuredLaunchSeedOptions(options)
       const created = await createStructuredAgentSessionForWorktree({
         runtime: context.runtime,
@@ -121,7 +154,9 @@ export function agentLaunchSurfaceFactory(
       options
     }) => {
       const launchPreferences = toAgentLaunchPreferences(options)
+      const subscriptionId = readClaudeSubscriptionOption(agent, options)
       const created = context.runtime.createTerminal(`id:${worktreeId}`, {
+        ...(subscriptionId ? { claudeSubscriptionId: subscriptionId } : {}),
         // The agent id is not a shell command — `cursor` is the desktop app, its CLI is
         // `cursor-agent` — so the runtime builds the configured launcher.
         startupAgent: agent,

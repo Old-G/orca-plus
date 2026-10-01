@@ -124,7 +124,9 @@ export function useFolderSubmitOrchestration(input: FolderSubmitOrchestrationInp
           agentArgs: agent
             ? resolveTuiAgentLaunchArgs(agent, settings?.agentDefaultArgs)
             : undefined,
-          agentEnv: agent ? resolveTuiAgentLaunchEnv(agent, settings?.agentDefaultEnv) : undefined,
+          agentEnv: agent
+            ? resolveTuiAgentLaunchEnv(agent, settings?.agentDefaultEnv, settings)
+            : undefined,
           sessionOptions: agent
             ? resolveInitialNativeChatSessionOptions(
                 {

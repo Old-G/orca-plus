@@ -25,6 +25,8 @@ import { resolveAgentLaunchExecutionContext } from '@/lib/launch-agent-execution
 import { resolveInitialNativeChatSessionOptions } from '@/components/native-chat/native-chat-launch-session-options'
 import { seedNativeChatAppliedSessionOptions } from '@/components/native-chat/native-chat-session-option-cache'
 import { launchAgentInStructuredNewTab } from '@/lib/launch-agent-in-new-tab-structured'
+import { rememberClaudeSubscriptionForSession } from '@/lib/claude-subscription-choice'
+import { withClaudeSubscriptionLaunchEnv } from '../../../shared/claude-subscriptions'
 import type { StructuredAgentLaunchSettlement } from '@/lib/structured-agent-launch-settlement'
 import { workspaceKindForWorktreeId } from '@/lib/agent-launch-route-input'
 import {
@@ -62,6 +64,8 @@ export type LaunchAgentInNewTabArgs = {
   agentSessionLaunchPlan?: AgentSessionLaunchPlan
   /** The launch seeds a workspace being opened, so its PTY spawn must not reshuffle Recent. */
   pendingActivationSpawn?: boolean
+  /** Claude only: the subscription (its own sign-in) this session runs on; absent = the default. */
+  claudeSubscriptionId?: string
   /** Lets a workspace reveal itself before the selected surface opens. */
   beforeSurfaceOpen?: (
     surface:
@@ -117,7 +121,8 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
     onPromptDeliveryUnconfirmed,
     agentSessionLaunchPlan,
     pendingActivationSpawn,
-    beforeSurfaceOpen
+    beforeSurfaceOpen,
+    claudeSubscriptionId
   } = args
   const store = useAppStore.getState()
   const { worktreeSshConnectionId, resolvedLaunchPlatform, isRemote, queuedShell } =
@@ -130,7 +135,12 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
     agentArgs !== undefined
       ? agentArgs
       : resolveTuiAgentLaunchArgs(agent, store.settings?.agentDefaultArgs)
-  const agentEnv = resolveTuiAgentLaunchEnv(agent, store.settings?.agentDefaultEnv)
+  const agentEnv = withClaudeSubscriptionLaunchEnv(
+    agent,
+    resolveTuiAgentLaunchEnv(agent, store.settings?.agentDefaultEnv),
+    store.settings,
+    claudeSubscriptionId
+  )
   const trimmedPrompt = prompt?.trim() ?? ''
   const hasPrompt = trimmedPrompt.length > 0
   const isFollowupPath = TUI_AGENT_CONFIG[agent].promptInjectionMode === 'stdin-after-start'
@@ -214,10 +224,15 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
   if (plan?.route === 'structured-native-chat') {
     const structured = launchAgentInStructuredNewTab({
       plan,
-      ...(beforeSurfaceOpen
+      ...(beforeSurfaceOpen || (agent === 'claude' && claudeSubscriptionId)
         ? {
-            beforeOpen: (sessionId: string) =>
-              beforeSurfaceOpen({ kind: 'local-agent-session', sessionId })
+            beforeOpen: (sessionId: string) => {
+              // Before the create can run, so the host resolves this chat's home from the pick.
+              if (agent === 'claude' && claudeSubscriptionId) {
+                rememberClaudeSubscriptionForSession(sessionId, claudeSubscriptionId)
+              }
+              return beforeSurfaceOpen?.({ kind: 'local-agent-session', sessionId })
+            }
           }
         : {}),
       ...(groupId ? { targetGroupId: groupId } : {})

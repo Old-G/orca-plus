@@ -1,5 +1,6 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
 import { OrcaRuntimeWithRemoveManagedWorktree } from './orca-runtime-remove-managed-worktree'
+import { withClaudeSubscriptionLaunchEnv } from '../../shared/claude-subscriptions'
 import type { ExecutionHostId } from '../../shared/execution-host'
 import type { RuntimeWorktreeRemovalTarget } from './runtime-worktree-selection'
 import { resolveRuntimeWorktreeRemovalTarget } from './runtime-worktree-removal-target'
@@ -254,17 +255,25 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
       return opts
     }
 
+    const planInputs = resolveAgentStartupPlanInputs({
+      agent,
+      settings,
+      platform,
+      isRemote,
+      ...(opts.agentArgs !== undefined ? { agentArgs: opts.agentArgs } : {}),
+      // A requested shell is the one this PTY will actually be, so it owns the quoting family.
+      windowsShellOverride: opts.shellOverride,
+      sessionOptions: this.toAgentSessionOptions(opts.launchPreferences)
+    })
     const startupPlan = buildAgentStartupPlan({
-      ...resolveAgentStartupPlanInputs({
+      ...planInputs,
+      // In the launch env, so a resumed pane keeps the subscription it started on.
+      agentEnv: withClaudeSubscriptionLaunchEnv(
         agent,
+        planInputs.agentEnv,
         settings,
-        platform,
-        isRemote,
-        ...(opts.agentArgs !== undefined ? { agentArgs: opts.agentArgs } : {}),
-        // A requested shell is the one this PTY will actually be, so it owns the quoting family.
-        windowsShellOverride: opts.shellOverride,
-        sessionOptions: this.toAgentSessionOptions(opts.launchPreferences)
-      }),
+        opts.claudeSubscriptionId
+      ),
       prompt: opts.startupPrompt ?? '',
       allowEmptyPromptLaunch: true
     })

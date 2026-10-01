@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { Loader2, Settings as SettingsIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { DropdownMenuItem, DropdownMenuShortcut } from '@/components/ui/dropdown-menu'
@@ -17,6 +17,9 @@ import {
 } from '../../../../shared/tui-agent-selection'
 import { translate } from '@/i18n/i18n'
 import { useStructuredAgentLaunchStatus } from '@/lib/structured-agent-session-launch'
+import { listClaudeSubscriptionChoices } from '@/lib/claude-subscription-choice'
+import { findWorktreeById } from '@/store/slices/worktree-helpers'
+import { parseWslUncPath } from '../../../../shared/wsl-paths'
 
 export type QuickLaunchAgentMenuItemsProps = {
   worktreeId: string
@@ -118,6 +121,28 @@ function QuickLaunchAgentMenuItemsInner({
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
+  const claudeSubscriptions = useAppStore((s) => s.settings?.claudeSubscriptions)
+  const defaultClaudeSubscriptionId = useAppStore((s) => s.settings?.defaultClaudeSubscriptionId)
+  // Subscription dirs exist on this machine only: an SSH, paired-host or WSL launch runs elsewhere.
+  const isHostLocalWorktree = useAppStore((s) => {
+    const path = findWorktreeById(s.worktreesByRepo, worktreeId)?.path
+    return path !== undefined && parseWslUncPath(path) === null
+  })
+  const claudeSubscriptionChoices = useMemo(
+    () =>
+      agentDetectionTarget?.kind !== 'local' || !isHostLocalWorktree
+        ? null
+        : listClaudeSubscriptionChoices(
+            { claudeSubscriptions, defaultClaudeSubscriptionId },
+            translate('auto.claudeSubscriptions.baseLabel', 'Main sign-in')
+          ),
+    [
+      agentDetectionTarget?.kind,
+      claudeSubscriptions,
+      defaultClaudeSubscriptionId,
+      isHostLocalWorktree
+    ]
+  )
   // One hook per structured provider: the launch registry is keyed by agent, and hooks cannot run
   // inside the agent list's render loop.
   const structuredLaunchStatusByAgent = {
@@ -131,13 +156,14 @@ function QuickLaunchAgentMenuItemsInner({
   }, [openSettingsPage, openSettingsTarget])
 
   const runLaunch = useCallback(
-    (agent: TuiAgent) => {
+    (agent: TuiAgent, claudeSubscriptionId?: string) => {
       const entry = getCatalogEntry(agent)
       const label = entry?.label ?? agent
       const result = launchAgentInNewTab({
         agent,
         worktreeId,
         groupId,
+        ...(claudeSubscriptionId ? { claudeSubscriptionId } : {}),
         ...(prompt !== undefined ? { prompt } : {}),
         ...(promptDelivery !== undefined ? { promptDelivery } : {}),
         ...(launchSource !== undefined ? { launchSource } : {}),
@@ -207,28 +233,46 @@ function QuickLaunchAgentMenuItemsInner({
           isAgentSessionHandleProvider(agent) && structuredLaunchStatusByAgent[agent] === 'pending'
         const showsDefaultAgentShortcut =
           newAgentShortcut !== null && defaultAgent !== 'blank' && agent === defaultAgent
+        const subscriptionChoices = agent === 'claude' ? claudeSubscriptionChoices : null
         return (
-          <DropdownMenuItem
-            key={agent}
-            disabled={isStructuredLaunchPending}
-            onSelect={() => runLaunch(agent)}
-            className="gap-2 rounded-[7px] px-2 py-1.5 text-[12px] leading-5 font-medium"
-            title={translate(
-              'auto.components.tab.bar.QuickLaunchButton.ec2adf093e',
-              'Launch {{value0}} in a new terminal',
-              { value0: label }
-            )}
-          >
-            {isStructuredLaunchPending ? (
-              <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden="true" />
-            ) : (
-              <AgentIcon agent={agent} size={14} />
-            )}
-            <span className="flex-1">{label}</span>
-            {showsDefaultAgentShortcut ? (
-              <DropdownMenuShortcut>{newAgentShortcut}</DropdownMenuShortcut>
-            ) : null}
-          </DropdownMenuItem>
+          <React.Fragment key={agent}>
+            <DropdownMenuItem
+              disabled={isStructuredLaunchPending}
+              onSelect={() => runLaunch(agent)}
+              className="gap-2 rounded-[7px] px-2 py-1.5 text-[12px] leading-5 font-medium"
+              title={translate(
+                'auto.components.tab.bar.QuickLaunchButton.ec2adf093e',
+                'Launch {{value0}} in a new terminal',
+                { value0: label }
+              )}
+            >
+              {isStructuredLaunchPending ? (
+                <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden="true" />
+              ) : (
+                <AgentIcon agent={agent} size={14} />
+              )}
+              <span className="flex-1">{label}</span>
+              {subscriptionChoices ? (
+                <span className="truncate text-muted-foreground">
+                  {subscriptionChoices.defaultChoice.label}
+                </span>
+              ) : null}
+              {showsDefaultAgentShortcut ? (
+                <DropdownMenuShortcut>{newAgentShortcut}</DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
+            {subscriptionChoices?.others.map((choice) => (
+              <DropdownMenuItem
+                key={`${agent}:${choice.id}`}
+                disabled={isStructuredLaunchPending}
+                onSelect={() => runLaunch(agent, choice.id)}
+                className="gap-2 rounded-[7px] px-2 py-1.5 text-[12px] leading-5 font-medium"
+              >
+                <AgentIcon agent={agent} size={14} />
+                <span className="flex-1 truncate">{`${label} · ${choice.label}`}</span>
+              </DropdownMenuItem>
+            ))}
+          </React.Fragment>
         )
       })}
       <DropdownMenuItem

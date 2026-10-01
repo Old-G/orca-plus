@@ -24,6 +24,8 @@ import { getProfileUserDataPath } from '../orca-profiles/profile-storage-paths'
 import { parseWslUncPath } from '../../shared/wsl-paths'
 import { parseWorkspaceKey } from '../../shared/workspace-scope'
 import { applyStructuredCodexWorkspaceTrust } from '../agent-workspace-trust-spawn'
+import { resolveClaudeSubscriptionLaunchConfigDir } from '../claude-subscriptions/claude-subscription-launch'
+import { getAssignedClaudeSubscription } from '../claude-subscriptions/claude-subscription-session-assignments'
 
 export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaRuntimeWithGetWorktreePs {
   async getStructuredAgentSessionCreateSupport(
@@ -91,6 +93,12 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
         resolveStructuredClaudeAccountHomePath({
           launchEnv,
           wslDistro: location.wslDistro,
+          subscriptionConfigDir: resolveClaudeSubscriptionLaunchConfigDir({
+            settings: this.requireStore().getSettings(),
+            env: launchEnv,
+            runtime: location.wslDistro ? 'wsl' : 'host',
+            subscriptionId: getAssignedClaudeSubscription(input.envelope.sessionId)
+          }),
           getClaudeConfigDirectory: (target) => this.accounts.getClaudeConfigDirectory(target)
         })
       )
@@ -126,6 +134,13 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
         path: resolveStructuredClaudeAccountHomePath({
           launchEnv,
           wslDistro: null,
+          // A read: name the default subscription's dir without touching it.
+          subscriptionConfigDir: resolveClaudeSubscriptionLaunchConfigDir({
+            settings: this.requireStore().getSettings(),
+            env: launchEnv,
+            runtime: 'host',
+            prepareHome: () => {}
+          }),
           getClaudeConfigDirectory: (target) => this.accounts.getClaudeConfigDirectory(target)
         })
       }

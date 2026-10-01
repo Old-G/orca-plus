@@ -27,6 +27,7 @@ import {
 } from '@/runtime/web-session-focus-intent'
 import { LOCAL_STRUCTURED_SESSION_OWNER } from '@/runtime/local-structured-session-owner'
 import { createBrowserUuid } from '@/lib/browser-uuid'
+import { sendPendingClaudeSubscriptionChoice } from '@/lib/claude-subscription-choice'
 
 export type StructuredAgentSessionLaunchIntent = {
   sessionId: string
@@ -286,6 +287,9 @@ export async function launchStructuredAgentSession(
   intent: StructuredAgentSessionLaunchIntent
 ): Promise<Pick<AgentSessionAttachResult, 'sessionId' | 'fence'>> {
   await requireHostCreateSupport(intent)
+  if (intent.agent === 'claude') {
+    await sendPendingClaudeSubscriptionChoice(intent.sessionId)
+  }
   let result: AgentSessionMutationResult<AgentSessionAttachResult>
   try {
     result = await callStructuredAgentSession<AgentSessionMutationResult<AgentSessionAttachResult>>(

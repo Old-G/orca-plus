@@ -42,6 +42,7 @@ import { stampWslOrchestrationCompatibilityHost } from '../../../pty/wsl-orca-en
 import { ensureCodexStateDbBackfillRecoveryStarted } from '../../../codex/codex-state-db-backfill-recovery'
 import { clearProviderPtyState } from '../provider/state-cleanup'
 import { awaitExplicitPiOmpGuestReadiness } from '../../../agent-hooks/wsl-pi-omp-guest-readiness'
+import { applyClaudeSubscriptionToLaunchAuth } from '../../../claude-subscriptions/claude-subscription-launch'
 import type { RuntimePtySpawnState } from './spawn-state'
 
 export async function prepareRuntimePtySpawn(
@@ -145,10 +146,12 @@ export async function prepareRuntimePtySpawn(
   // Why: the drop still applies here, but this controller's result has no field for
   // notifyResumeUnavailable — runtime/relay panes start fresh without the notice.
   ctx.launchCommand = codexResumeLaunch.command
-  ctx.claudeAuth =
+  ctx.claudeAuth = applyClaudeSubscriptionToLaunchAuth(
     ctx.isClaudeLaunch && ctx.deps.prepareClaudeAuth
       ? await ctx.deps.prepareClaudeAuth(ctx.codexSelectionTarget)
-      : null
+      : null,
+    { settings: ctx.deps.getSettings?.(), env: args.env, runtime: ctx.codexSelectionTarget.runtime }
+  )
   if (ctx.isClaudeLaunch && isClaudeAuthSwitchInProgress()) {
     throw new Error(CLAUDE_AUTH_SWITCH_IN_PROGRESS_MESSAGE)
   }

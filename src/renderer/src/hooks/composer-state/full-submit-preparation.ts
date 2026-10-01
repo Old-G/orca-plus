@@ -183,7 +183,7 @@ export function useFullSubmitPreparation(input: FullSubmitPreparationInput) {
         prompt: submitStartupPrompt,
         cmdOverrides: settings?.agentCmdOverrides ?? {},
         agentArgs: resolveTuiAgentLaunchArgs(tuiAgent, settings?.agentDefaultArgs),
-        agentEnv: resolveTuiAgentLaunchEnv(tuiAgent, settings?.agentDefaultEnv),
+        agentEnv: resolveTuiAgentLaunchEnv(tuiAgent, settings?.agentDefaultEnv, settings),
         sessionOptions: resolveInitialNativeChatSessionOptions(
           {
             experimentalNativeChat: settings?.experimentalNativeChat,

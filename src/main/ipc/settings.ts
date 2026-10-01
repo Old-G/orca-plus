@@ -39,6 +39,7 @@ import {
 } from '../../shared/computer-awake-mode'
 import { resolveAiVaultSearchSettings } from '../../shared/ai-vault-search-settings'
 import { applySessionSearchSettingsChange } from '../ai-vault-search/session-search-enablement'
+import { normalizeClaudeSubscriptionSettingsUpdate } from '../claude-subscriptions/claude-subscription-settings'
 
 // Why: the whitelist is the source-of-truth for which keys we emit on. Casting
 // to a Set once at module load lets the IPC handler's per-key membership
@@ -176,6 +177,12 @@ export function registerSettingsHandlers(
     }
     if ('terminalLineHeight' in args) {
       sanitizedArgs.terminalLineHeight = normalizeTerminalLineHeight(args.terminalLineHeight)
+    }
+    if ('claudeSubscriptions' in args || 'defaultClaudeSubscriptionId' in args) {
+      Object.assign(
+        sanitizedArgs,
+        normalizeClaudeSubscriptionSettingsUpdate(args, store.getSettings())
+      )
     }
     if ('uiLanguage' in args) {
       sanitizedArgs.uiLanguage = normalizeUiLanguage(args.uiLanguage)

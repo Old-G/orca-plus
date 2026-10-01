@@ -54,6 +54,7 @@ const {
   registerClaudeHandoffHandlersMock,
   registerStrataHandlersMock,
   registerClaudeLimitGuardHandlersMock,
+  registerClaudeSubscriptionHandlersMock,
   registerHqRosterSyncMock,
   registerHqGroupChatHandlersMock,
   registerHqPulseMirrorMock,
@@ -130,6 +131,7 @@ const {
   registerClaudeHandoffHandlersMock: vi.fn(),
   registerStrataHandlersMock: vi.fn(),
   registerClaudeLimitGuardHandlersMock: vi.fn(),
+  registerClaudeSubscriptionHandlersMock: vi.fn(),
   registerHqRosterSyncMock: vi.fn(() => ({ syncNow: vi.fn() })),
   registerHqGroupChatHandlersMock: vi.fn(),
   registerHqPulseMirrorMock: vi.fn(),
@@ -424,6 +426,10 @@ vi.mock('../claude-limit-guard', () => ({
   registerClaudeLimitGuardHandlers: registerClaudeLimitGuardHandlersMock
 }))
 
+vi.mock('../claude-subscriptions', () => ({
+  registerClaudeSubscriptionHandlers: registerClaudeSubscriptionHandlersMock
+}))
+
 vi.mock('../strata', () => ({
   registerStrataHandlers: registerStrataHandlersMock
 }))
@@ -531,6 +537,7 @@ describe('registerCoreHandlers', () => {
     registerClaudeHandoffHandlersMock.mockReset()
     registerStrataHandlersMock.mockReset()
     registerClaudeLimitGuardHandlersMock.mockReset()
+    registerClaudeSubscriptionHandlersMock.mockReset()
     registerHqRosterSyncMock.mockReset()
     registerHqGroupChatHandlersMock.mockReset()
     registerHqPulseMirrorMock.mockReset()
@@ -646,6 +653,7 @@ describe('registerCoreHandlers', () => {
       expect.anything(),
       registerClaudeHandoffHandlersMock.mock.results[0]?.value
     )
+    expect(registerClaudeSubscriptionHandlersMock).toHaveBeenCalledWith(store)
     expect(registerBitbucketHandlersMock).toHaveBeenCalled()
     expect(registerGitLabHandlersMock).toHaveBeenCalledWith(store)
     expect(registerHostedReviewHandlersMock).toHaveBeenCalledWith(store, stats)

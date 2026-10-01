@@ -7,7 +7,8 @@ const PANE = 'tab-1:leaf-1'
 
 function setup(
   active: { id: string | null } = { id: 'lh' },
-  handedOff: (stop: ClaudeLimitStoppedAgent) => boolean = () => false
+  handedOff: (stop: ClaudeLimitStoppedAgent) => boolean = () => false,
+  subscriptionOf: (sessionId: string) => string | null = () => null
 ) {
   let now = 1_000_000
   const resumeTerminal = vi.fn(async () => true)
@@ -20,7 +21,8 @@ function setup(
     resumeTerminal,
     resumeNativeChat,
     onChanged,
-    checkHandoff
+    checkHandoff,
+    nativeChatSubscription: subscriptionOf
   })
   return {
     stops,
@@ -132,6 +134,24 @@ describe('claude limit stops', () => {
       isClaudeLimitStopFrame({ type: 'assistant', error: 'rate_limit', parent_tool_use_id: 'tu' })
     ).toBe(false)
     expect(isClaudeLimitStopFrame({ type: 'assistant', error: 'server_error' })).toBe(false)
+  })
+
+  it('records the subscription a chat ran on and leaves it out of managed-account nudges', async () => {
+    const active: { id: string | null } = { id: 'lh' }
+    const { stops, resumeNativeChat } = setup(
+      active,
+      () => false,
+      (sessionId) => (sessionId === 'on-work' ? 'work' : null)
+    )
+    stops.onNativeFrame('on-work', null, { type: 'assistant', error: 'rate_limit' })
+    stops.onNativeFrame('on-base', null, { type: 'assistant', error: 'rate_limit' })
+    expect(stops.list().map((stop) => [stop.key, stop.subscriptionId])).toEqual([
+      ['on-work', 'work'],
+      ['on-base', null]
+    ])
+    active.id = 'personal'
+    await stops.onAccountChanged('personal')
+    expect(resumeNativeChat.mock.calls).toEqual([['on-base']])
   })
 
   it('forgets a native chat that produces output again', () => {
