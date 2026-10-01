@@ -192,9 +192,14 @@ export function claudeLimitSwitchSuggestionKey(suggestion: ClaudeLimitSwitchSugg
   return `${suggestion.fromAccountId ?? 'system'}:${suggestion.window}:${resetBucket}`
 }
 
-/** A Claude turn that ended on a usage limit, awaiting a nudge after the account switches. */
+/** `auth`: the API rejected the sign-in ("Please run /login · 403"), not a limit. */
+export type ClaudeLimitStopReason = 'limit' | 'auth'
+
+/** A Claude turn that ended on a usage limit or a rejected sign-in, awaiting a nudge. */
 export type ClaudeLimitStoppedAgent = {
   kind: 'terminal' | 'native-chat'
+  /** Absent on stops recorded before reasons existed: a limit. */
+  reason?: ClaudeLimitStopReason
   /** Hook pane key for terminals; structured session id for native chats. */
   key: string
   worktreeId: string | null
@@ -203,9 +208,44 @@ export type ClaudeLimitStoppedAgent = {
   resetsAt: number | null
   /** Claude session id, when known; for native chats it is the key. */
   sessionId?: string | null
+  /** Custom build (claude-subscriptions): the subscription a native chat ran on; null = the base sign-in. */
+  subscriptionId?: string | null
+}
+
+/** Managed-account switching rewrites only the base `~/.claude` sign-in, so it helps only stops made there. */
+export function claudeLimitStopOnBaseSignIn(stop: ClaudeLimitStoppedAgent): boolean {
+  return !stop.subscriptionId || stop.subscriptionId === 'base'
+}
+
+export function claudeLimitStopIsAuth(stop: ClaudeLimitStoppedAgent): boolean {
+  return stop.reason === 'auth'
 }
 
 export const CLAUDE_LIMIT_CONTINUE_PROMPT = 'продолжай'
+
+// Why: a guard against flip-flopping between two accounts that both run dry.
+export const CLAUDE_LIMIT_AUTO_SWITCH_COOLDOWN_MS = 10 * 60_000
+
+/**
+ * Custom build (claude-limit-guard): agents already stopped on the active account's limit and
+ * another account is read as having room — switch without asking. An unread target stays a card:
+ * switching blind could land the agents on a spent account.
+ */
+export function shouldAutoSwitchClaudeAccount(input: {
+  suggestion: ClaudeLimitSwitchSuggestion | null
+  stoppedOnLimit: number
+  lastAutoSwitchAt: number | null
+  now: number
+}): boolean {
+  return (
+    input.suggestion !== null &&
+    input.stoppedOnLimit > 0 &&
+    input.suggestion.targetFreePercent !== null &&
+    input.suggestion.targetFreePercent > 0 &&
+    (input.lastAutoSwitchAt === null ||
+      input.now - input.lastAutoSwitchAt >= CLAUDE_LIMIT_AUTO_SWITCH_COOLDOWN_MS)
+  )
+}
 
 /** The account a usage reading came from: an id, null for the system default, undefined if unknown. */
 export function claudeLimitsAccountId(limits: ProviderRateLimits): string | null | undefined {

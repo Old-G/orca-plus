@@ -5,6 +5,7 @@ import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import type { StructuredLaunchTerminal } from '@/lib/agent-session/launch/structured-agent-session-launch-admission'
 import type { LaunchAgentInNewTabRequest } from '@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab-host-agents'
 import type { NativeChatComposerFocusIntent } from '@/components/native-chat/composer/focus/native-chat-composer-focus-intent'
+import type * as claudeSubscription from '@/lib/launch-agent-claude-subscription'
 
 export type LaunchAgentInNewTabArgs = LaunchAgentInNewTabRequest & {
   requestedSurface?: AgentSessionLaunchRequest['requestedSurface']
@@ -62,7 +63,7 @@ export type LaunchAgentInNewTabArgs = LaunchAgentInNewTabRequest & {
   ) => boolean | void
   /** Opens instead of this agent's terminal when the host declines its structured chat. */
   onStructuredHostDeclined?: () => StructuredLaunchTerminal
-}
+} & claudeSubscription.LaunchArgs
 
 export function snapshotAgentTabLaunchArgs(args: LaunchAgentInNewTabArgs): LaunchAgentInNewTabArgs {
   return {

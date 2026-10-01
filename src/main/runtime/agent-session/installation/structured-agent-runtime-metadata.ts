@@ -173,6 +173,13 @@ export const STRUCTURED_AGENT_RUNTIME_CATALOG: readonly StructuredAgentRuntimeCa
             launchEnv,
             wslDistro: location?.wslDistro ?? null,
             ...(purpose !== 'read' ? { purpose: 'identity' } : {}),
+            // Custom build (claude-subscriptions): a chat on a subscription pins that subscription's dir.
+            subscriptionConfigDir: services.claudeSubscriptionConfigDir?.({
+              launchEnv,
+              wslDistro: location?.wslDistro ?? null,
+              // Why: upstream's 'identity' reads like 'read' — no subscription home is prepared for it.
+              purpose: purpose === 'launch' ? 'launch' : 'read'
+            }),
             getClaudeConfigDirectory: services.getClaudeConfigDirectory
           })
         )

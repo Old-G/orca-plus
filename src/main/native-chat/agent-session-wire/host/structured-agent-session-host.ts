@@ -59,7 +59,8 @@ export class StructuredAgentSessionHost {
   private readonly runtimeState: StructuredAgentSessionHostRuntimeState
   private readonly startup: ReturnType<typeof createStartupRecovery>
   readonly reconcileRestartLeases = () => this.startup.reconcileRestartLeases()
-  private readonly lifetime: HostTypes.StructuredAgentSessionConversationLifetime
+  // Custom build (claude-subscriptions): public for `lifetime.switchAccountHome`; tests already reach it.
+  readonly lifetime: HostTypes.StructuredAgentSessionConversationLifetime
   private readonly conversationDelivery: conversation.StructuredAgentSessionConversationDelivery
   private readonly eventRecovery: StructuredAgentSessionEventRecovery
   private readonly backgroundTasks: BackgroundTasks

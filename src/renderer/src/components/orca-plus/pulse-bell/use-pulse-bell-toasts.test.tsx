@@ -34,7 +34,7 @@ vi.mock('./pulse-bell-actions', () => ({ runPulseBellAction: mocks.run }))
 vi.mock('@/store', () => ({ useAppStore: { getState: () => mocks.state } }))
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 
-import { useAgentFinishedToasts } from './use-agent-finished-toasts'
+import { usePulseBellToasts } from './use-pulse-bell-toasts'
 
 function finished(id: string, tabId = 'tab-1'): PulseInboxItem {
   return {
@@ -54,7 +54,7 @@ function finished(id: string, tabId = 'tab-1'): PulseInboxItem {
   }
 }
 
-describe('useAgentFinishedToasts', () => {
+describe('usePulseBellToasts', () => {
   beforeEach(() => {
     mocks.items = []
     mocks.info.mockReset()
@@ -76,7 +76,7 @@ describe('useAgentFinishedToasts', () => {
 
   it('toasts an agent that finishes after launch and opens it from the toast', () => {
     mocks.items = [finished('old')]
-    const { rerender } = renderHook(() => useAgentFinishedToasts())
+    const { rerender } = renderHook(() => usePulseBellToasts())
     expect(mocks.info).not.toHaveBeenCalled()
 
     mocks.items = [finished('old'), finished('new', 'tab-2')]
@@ -86,7 +86,7 @@ describe('useAgentFinishedToasts', () => {
     const [title, options] = mocks.info.mock.calls[0]!
     expect(title).toBe('An agent finished')
     expect(options).toMatchObject({
-      id: 'agent-finished-new',
+      id: 'pulse-bell-toast-new',
       description: 'Claude · shop / main — Done',
       duration: Number.POSITIVE_INFINITY
     })
@@ -95,13 +95,13 @@ describe('useAgentFinishedToasts', () => {
   })
 
   it('closes the toast once the Inbox item is done', () => {
-    const { rerender } = renderHook(() => useAgentFinishedToasts())
+    const { rerender } = renderHook(() => usePulseBellToasts())
     mocks.items = [finished('new')]
     rerender()
     mocks.items = []
     rerender()
 
-    expect(mocks.dismiss).toHaveBeenCalledWith('agent-finished-new')
+    expect(mocks.dismiss).toHaveBeenCalledWith('pulse-bell-toast-new')
   })
 
   it('stays quiet when the user is looking at that pane', () => {
@@ -110,7 +110,7 @@ describe('useAgentFinishedToasts', () => {
       activeGroupIdByWorktree: { 'wt-1': 'g-1' },
       groupsByWorktree: { 'wt-1': [{ id: 'g-1', activeTabId: 'tab-1' }] }
     })
-    const { rerender } = renderHook(() => useAgentFinishedToasts())
+    const { rerender } = renderHook(() => usePulseBellToasts())
     mocks.items = [finished('new')]
     rerender()
 
@@ -120,10 +120,36 @@ describe('useAgentFinishedToasts', () => {
   it('still toasts that pane while Orca+ is not in front', () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(false)
     Object.assign(mocks.state, { activeWorktreeId: 'wt-1', activeTabId: 'tab-1' })
-    const { rerender } = renderHook(() => useAgentFinishedToasts())
+    const { rerender } = renderHook(() => usePulseBellToasts())
     mocks.items = [finished('new')]
     rerender()
 
     expect(mocks.info).toHaveBeenCalledTimes(1)
+  })
+
+  it('toasts a limit-stopped chat in view with its continue button', () => {
+    Object.assign(mocks.state, { activeWorktreeId: 'wt-1', activeTabId: 'tab-1' })
+    const { rerender } = renderHook(() => usePulseBellToasts())
+    mocks.items = [
+      {
+        ...finished('limit'),
+        kind: 'claude-chat-limit',
+        title: 'A chat stopped on its Claude limit',
+        urgency: 'urgent',
+        actions: [
+          { id: 'continue-on:work', label: 'Continue on Work' },
+          { id: 'dismiss', label: 'Not now' }
+        ]
+      }
+    ]
+    rerender()
+
+    const [, options] = mocks.info.mock.calls[0]!
+    expect(options.action.label).toBe('Continue on Work')
+    options.action.onClick()
+    expect(mocks.run).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'limit' }),
+      'continue-on:work'
+    )
   })
 })

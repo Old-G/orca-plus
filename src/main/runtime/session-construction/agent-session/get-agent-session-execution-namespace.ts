@@ -24,7 +24,7 @@ import { resolveSavedRestoreLaunchRecipe } from './saved-restore-launch-recipe'
 import { worktreeIdsEqual } from '../../../../shared/worktree/id'
 import {
   resolveTuiAgentLaunchRawArgs,
-  resolveTuiAgentLaunchEnv
+  resolveTuiAgentLaunchEnvWithSubscription
 } from '../../../../shared/agent-launch/choices/tui-agent-launch-defaults'
 
 export abstract class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntimeWithResolveWorktreeRemovalTarget {
@@ -178,7 +178,7 @@ export abstract class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends O
             request.agentArgs !== undefined
               ? request.agentArgs
               : resolveTuiAgentLaunchRawArgs(request.agent, settings, undefined, shell),
-          agentEnv: resolveTuiAgentLaunchEnv(request.agent, settings)
+          agentEnv: resolveTuiAgentLaunchEnvWithSubscription(request.agent, settings)
         }),
         ompResumeFilePath: restored?.ompResumeFilePath ?? request.ompResumeFilePath,
         sessionOptions: this.toAgentSessionOptions(request.launchPreferences),
