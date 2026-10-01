@@ -30,6 +30,9 @@ export const SQLITE_RUNTIME_INCLUDE = [
   'src/main/acp/acp-structured-child-work.test.ts',
   'src/main/acp/acp-structured-host-subagent-stop.test.ts',
   'src/main/acp/acp-timeline-grok-subagent-retention.test.ts',
+  // Custom build: Orca+ suites on a real SQLite file (pulse inbox, chat account-home records).
+  'src/main/orca-plus/pulse/pulse-db.test.ts',
+  'src/main/runtime/agent-session-record-account-home.test.ts',
   'src/main/active-view-persistence-boundary.test.ts',
   'src/main/automations/automation-dispatch-host-fence.test.ts',
   'src/main/automations/automation-owner-fencing.test.ts',

@@ -86,6 +86,19 @@ export function syncSystemCodexResourcesIntoManagedHome(managedHomePath?: string
   }
 }
 
+/** Links named entries of another tool's home (e.g. `~/.claude`) the same way. Present targets
+ *  that are not Orca's are left alone. No copy fallback: a copy of a file the tool writes would be
+ *  overwritten from the source on the next sync, losing what was written there. */
+export function linkSystemResourcesIntoHome(
+  systemHomePath: string,
+  targetHomePath: string,
+  entryNames: readonly string[]
+): void {
+  for (const entryName of entryNames) {
+    linkSystemCodexResource(systemHomePath, targetHomePath, entryName, { copyFallback: false })
+  }
+}
+
 export function syncCodexGlobalInstructionsIntoManagedHome({
   systemHomePath,
   managedHomePath
@@ -107,7 +120,7 @@ function linkSystemCodexResource(
   systemHomePath: string,
   managedHomePath: string,
   entryName: string,
-  { preferCopy = false }: { preferCopy?: boolean } = {}
+  { preferCopy = false, copyFallback = true }: { preferCopy?: boolean; copyFallback?: boolean } = {}
 ): void {
   const sourcePath = join(systemHomePath, entryName)
   const targetPath = join(managedHomePath, entryName)
@@ -176,6 +189,10 @@ function linkSystemCodexResource(
     )
     clearCopiedResourceMarker(managedHomePath, entryName)
   } catch (error) {
+    if (!copyFallback) {
+      console.warn('[codex-home] Could not link resource, leaving it unshared:', entryName, error)
+      return
+    }
     // Why: Windows can reject file symlinks outside developer mode. Copy is
     // a fallback for launch-time resources; mark ownership so later syncs can
     // refresh the copy without touching user-created runtime resources.
@@ -243,7 +260,7 @@ function copiedFileContentsMatch(
   }
 }
 
-function targetAlreadyPointsToSource(targetPath: string, sourcePath: string): boolean {
+export function targetAlreadyPointsToSource(targetPath: string, sourcePath: string): boolean {
   try {
     return (
       lstatSync(targetPath).isSymbolicLink() &&

@@ -36,6 +36,8 @@ import {
 } from './structured-agent-session-failure-text'
 import { recordStructuredAgentSessionStartFailure } from './structured-agent-session-start-failure-row'
 import { structuredAgentSessionFailureWordsContext } from './structured-agent-session-send-preparation'
+import { switchStructuredAgentSessionAccountHome } from './structured-agent-session-account-home-switch'
+import type { AgentSessionRecord } from '../../../shared/agent-session-record'
 
 export type StructuredAgentSessionConversationLifetime = ReturnType<
   typeof createStructuredAgentSessionConversationLifetime
@@ -194,6 +196,22 @@ export function createStructuredAgentSessionConversationLifetime(host: {
         hasOpenDispatch(sessionId)
           ? null
           : await task()
+      ),
+    /** Custom build (claude-subscriptions): the same chat continues under another Claude config dir. */
+    switchAccountHome: (sessionId: string, accountHome: AgentSessionRecord['accountHome']) =>
+      switchStructuredAgentSessionAccountHome(
+        {
+          deps: deps(),
+          sessions,
+          serialize,
+          deliveryActive: host.deliveryActive,
+          readChildWork: host.readChildWork,
+          stopAgent: (id) => stopAgent(id, { cause: 'evict' }),
+          publishStatus: (id) => host.context().publishStatus?.(id),
+          now: () => host.context().now()
+        },
+        sessionId,
+        accountHome
       ),
     /** Quit has begun: nothing opens a conversation or sweeps one after this. */
     dispose: (): void => {

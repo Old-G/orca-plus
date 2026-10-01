@@ -28,6 +28,9 @@ export function launchStructuredAgentFromNewTab(args: {
   focusIntent?: NativeChatComposerFocusIntent
   beforeSurfaceOpen?: LaunchAgentInNewTabArgs['beforeSurfaceOpen']
   onHostDeclined?: () => StructuredLaunchTerminal
+  /** Custom build (claude-subscriptions): a Claude chat's picked subscription; unused while the
+   *  feature is off (chats now launch through the host's agent.launch). */
+  claudeSubscriptionId?: string
   openTerminal: (terminalPlan: AgentSessionLaunchPlan) => {
     promptDeliveryResult?: Promise<StructuredPromptDeliveryResult>
   } | null

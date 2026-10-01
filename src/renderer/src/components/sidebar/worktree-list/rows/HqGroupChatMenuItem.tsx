@@ -4,8 +4,6 @@ import { toast } from 'sonner'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { translate } from '@/i18n/i18n'
 import { activateAndRevealFolderWorkspace } from '@/lib/worktree-activation'
-import { resolveInitialNativeChatSessionOptions } from '@/components/native-chat/native-chat-launch-session-options'
-import { isNativeChatTranscriptLocalReadable } from '@/lib/native-chat-transcript-readability'
 import { submitFolderWorkspaceCreate } from '@/components/sidebar/folder-workspace-composer-submit'
 import { useAppStore } from '@/store'
 import { getProjectGroupHostId } from '@/store/slices/project-group-owner-routing'
@@ -57,19 +55,8 @@ async function openHqGroupChat(groupId: string): Promise<void> {
       autoRenameBranchFromWork: false,
       agentCmdOverrides: settings?.agentCmdOverrides,
       agentArgs: agent ? resolveTuiAgentLaunchArgs(agent, settings?.agentDefaultArgs) : undefined,
-      agentEnv: agent ? resolveTuiAgentLaunchEnv(agent, settings?.agentDefaultEnv) : undefined,
-      sessionOptions: agent
-        ? resolveInitialNativeChatSessionOptions(
-            {
-              experimentalNativeChat: settings?.experimentalNativeChat,
-              openAgentTabsInChatByDefault: settings?.openAgentTabsInChatByDefault,
-              nativeChatSessionOptions: settings?.nativeChatSessionOptions
-            },
-            {
-              agent,
-              nativeChatTranscriptIsLocalReadable: isNativeChatTranscriptLocalReadable(null)
-            }
-          )
+      agentEnv: agent
+        ? resolveTuiAgentLaunchEnv(agent, settings?.agentDefaultEnv, settings)
         : undefined,
       terminalWindowsShell: settings?.terminalWindowsShell,
       launchSource: 'sidebar',

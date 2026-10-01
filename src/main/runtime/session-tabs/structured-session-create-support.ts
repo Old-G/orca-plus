@@ -27,6 +27,8 @@ import { parseWorkspaceKey } from '../../../shared/workspace-scope'
 import type { AgentSessionAccountHome } from '../../../shared/agent-session-account-home'
 import type { StructuredAgentId } from '../../../shared/agent-session-provider-handle'
 import { readPiSessionHeader, samePiDirectory } from '../../pi/rpc-launch-resolution'
+import { resolveClaudeSubscriptionLaunchConfigDir } from '../../claude-subscriptions/claude-subscription-launch'
+import { getAssignedClaudeSubscription } from '../../claude-subscriptions/claude-subscription-session-assignments'
 
 export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaRuntimeWithGetWorktreePs {
   protected abstract restoreStructuredAgentSessionTabsOnce(
@@ -55,7 +57,8 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
     agent: StructuredAgentId,
     worktree: string,
     purpose: 'launch' | 'read',
-    hostLaunchDirectory?: string
+    hostLaunchDirectory?: string,
+    sessionId?: string
   ) {
     const registration = structuredAgentRuntimeMetadata(agent)
     if (!registration) {
@@ -65,7 +68,19 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
       getClaudeConfigDirectory: (target) => this.accounts.getClaudeConfigDirectory(target),
       prepareCodexLaunchHome: this.prepareCodexStructuredLaunchFn,
       readCodexLaunchHome: this.resolveCodexStructuredLaunchHomeFn,
-      workspaceTrustSettings: () => this.requireStore().getSettings()
+      workspaceTrustSettings: () => this.requireStore().getSettings(),
+      claudeSubscriptionConfigDir: ({ launchEnv, wslDistro, purpose: homePurpose }) =>
+        resolveClaudeSubscriptionLaunchConfigDir({
+          settings: this.requireStore().getSettings(),
+          env: launchEnv,
+          runtime: wslDistro ? 'wsl' : 'host',
+          // A read names the default subscription's dir without touching it.
+          ...(homePurpose === 'read'
+            ? { prepareHome: () => {} }
+            : sessionId
+              ? { subscriptionId: getAssignedClaudeSubscription(sessionId) }
+              : {})
+        })
     }
     return async ({ launchEnv, location }) =>
       registration.resolveAccountHome(
@@ -158,7 +173,8 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
       input.agent,
       input.worktree,
       'launch',
-      hostLaunchDirectory
+      hostLaunchDirectory,
+      input.envelope.sessionId
     )
     if (!resolveAccountHome) {
       throw agentSessionRefusalError('structured_agent_session_unsupported', {

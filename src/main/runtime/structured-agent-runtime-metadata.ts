@@ -102,12 +102,18 @@ export const STRUCTURED_AGENT_RUNTIME_CATALOG: readonly StructuredAgentRuntimeCa
       modelCatalog: claudeModelCatalogDiscovery,
       ...CLAUDE_CLI_CONVERSATIONS,
       supportsLocation: supportsClaudeStructuredLocation,
-      resolveAccountHome: async ({ launchEnv, location }, services) =>
+      resolveAccountHome: async ({ launchEnv, location, purpose }, services) =>
         agentSessionAccountHome(
           CLAUDE_STRUCTURED_AGENT,
           resolveStructuredClaudeAccountHomePath({
             launchEnv,
             wslDistro: location?.wslDistro ?? null,
+            // Custom build (claude-subscriptions): a chat on a subscription pins that subscription's dir.
+            subscriptionConfigDir: services.claudeSubscriptionConfigDir?.({
+              launchEnv,
+              wslDistro: location?.wslDistro ?? null,
+              purpose
+            }),
             getClaudeConfigDirectory: services.getClaudeConfigDirectory
           })
         )

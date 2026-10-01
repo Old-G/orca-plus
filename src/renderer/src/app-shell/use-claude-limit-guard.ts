@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
+  claudeLimitStopIsAuth,
+  claudeLimitStopOnBaseSignIn,
   claudeLimitsAccountId,
   claudeLimitSwitchSuggestionKey,
   describeClaudeAccount,
+  shouldAutoSwitchClaudeAccount,
   suggestClaudeAccountSwitch,
   CLAUDE_LIMIT_SWITCH_THRESHOLD_PERCENT,
   type ClaudeLimitStoppedAgent,
@@ -15,10 +18,12 @@ import { PULSE_BELL_ACTION, PULSE_BELL_KIND, type PulseBellInput } from '../../.
 import { recordClaudeUsageSample } from '@/lib/claude-usage-pace-store'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import { selectClaudeProviderAccount } from '@/runtime/runtime-provider-accounts-client'
+import { defaultScopeHost } from '@/lib/default-creation-host'
 import { useAppStore } from '@/store'
 
 const TOAST_ID = 'claude-limit-switch'
 const INACTIVE_REFRESH_MS = 3 * 60_000
+const AUTO_SWITCH_SETTLE_MS = 60_000
 
 function accountLabel(settings: GlobalSettings | null, accountId: string | null): string {
   if (accountId === null) {
@@ -39,11 +44,31 @@ async function switchAccount(suggestion: ClaudeLimitSwitchSuggestion): Promise<v
   await switchClaudeAccountTo(suggestion.toAccountId)
 }
 
+async function autoSwitchAccount(
+  settings: GlobalSettings | null,
+  suggestion: ClaudeLimitSwitchSuggestion,
+  stopped: number
+): Promise<void> {
+  await switchAccount(suggestion)
+  toast.success(
+    translate('auto.claudeLimit.auto.title', 'Claude switched to {{account}}', {
+      account: accountLabel(settings, suggestion.toAccountId)
+    }),
+    {
+      description: translate(
+        'auto.claudeLimit.auto.body',
+        '{{account}} hit its limit. Agents stopped on it: {{count}} — they continue now.',
+        { account: accountLabel(settings, suggestion.fromAccountId), count: stopped }
+      )
+    }
+  )
+}
+
 /** Custom build (pulse-bell): the bell's "Switch account" runs the same switch as the card. */
 export async function switchClaudeAccountTo(accountId: string): Promise<void> {
   const { settings, fetchSettings, recordFeatureInteraction } = useAppStore.getState()
   try {
-    await selectClaudeProviderAccount(settings, {
+    await selectClaudeProviderAccount(defaultScopeHost(settings), {
       accountId,
       runtime: 'host',
       wslDistro: null
@@ -84,6 +109,7 @@ export function useClaudeLimitGuard(): void {
   const [stops, setStops] = useState<ClaudeLimitStoppedAgent[]>([])
   const dismissedKeys = useRef(new Set<string>())
   const shownKey = useRef<string | null>(null)
+  const lastAutoSwitchAt = useRef<number | null>(null)
   const enabled = !isWebClientLocation() && (settings?.claudeManagedAccounts.length ?? 0) > 0
 
   useEffect(() => {
@@ -104,7 +130,14 @@ export function useClaudeLimitGuard(): void {
     }
   }, [activeLimits, activeAccountId])
 
-  const stopsOnActive = stops.filter((stop) => stop.accountId === activeAccountId)
+  // Why: a chat on another subscription gets its own continue item; switching here would not help it.
+  // A rejected sign-in is not a limit: it has its own bell item.
+  const stopsOnActive = stops.filter(
+    (stop) =>
+      stop.accountId === activeAccountId &&
+      claudeLimitStopOnBaseSignIn(stop) &&
+      !claudeLimitStopIsAuth(stop)
+  )
   const stoppedOnActive = stopsOnActive.length
   const lastStopAt = stopsOnActive.reduce((latest, stop) => Math.max(latest, stop.stoppedAt), 0)
   const hot =
@@ -142,8 +175,29 @@ export function useClaudeLimitGuard(): void {
   )
 
   useEffect(() => {
+    // Custom build (claude-limit-guard): agents already stopped and the other account has room — no
+    // reason to wait for a click. Main nudges the stopped agents once the switch lands.
+    const now = Date.now()
+    if (
+      suggestion &&
+      shouldAutoSwitchClaudeAccount({
+        suggestion,
+        stoppedOnLimit: stoppedOnActive,
+        lastAutoSwitchAt: lastAutoSwitchAt.current,
+        now
+      })
+    ) {
+      lastAutoSwitchAt.current = now
+      syncLimitBell([])
+      toast.dismiss(TOAST_ID)
+      shownKey.current = null
+      void autoSwitchAccount(settings, suggestion, stoppedOnActive)
+      return
+    }
     const key = suggestion ? claudeLimitSwitchSuggestionKey(suggestion) : null
-    if (!suggestion || !key || dismissedKeys.current.has(key)) {
+    // Why: until the switch lands, the old account's suggestion is still computed.
+    const switching = now - (lastAutoSwitchAt.current ?? 0) < AUTO_SWITCH_SETTLE_MS
+    if (!suggestion || !key || switching || dismissedKeys.current.has(key)) {
       syncLimitBell([])
       if (shownKey.current) {
         toast.dismiss(TOAST_ID)
