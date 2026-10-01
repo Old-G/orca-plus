@@ -27,6 +27,7 @@ import { registerFeedbackHandlers } from '../feedback/feedback'
 import { registerSlackHandlers } from '../slack'
 import { registerClaudeHandoffHandlers } from '../claude-handoff'
 import { registerClaudeLimitGuardHandlers } from '../claude-limit-guard'
+import { registerClaudeSubscriptionHandlers } from '../claude-subscriptions'
 import { registerStrataHandlers } from '../strata'
 import { registerHqRosterSync } from '../../hq-roster-sync/register-hq-roster-sync'
 import { registerHqGroupChatHandlers } from '../../hq-group-chat/register-hq-group-chat'
@@ -184,6 +185,7 @@ export async function registerCoreHandlers(
       rateLimits,
       registerClaudeHandoffHandlers(store, runtime)
     )
+    registerClaudeSubscriptionHandlers(store)
     registerStrataHandlers(store, runtime)
     registerHqGroupChatHandlers(store, registerHqRosterSync(store))
     registerHqPulseMirror(store)
