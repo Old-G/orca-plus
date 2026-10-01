@@ -1,4 +1,5 @@
 import { independentAgentModelCatalog } from './agent-model-catalog-discovery'
+import { findModelRowByIdentity } from './agent-model-row-identity'
 import type { AgentSessionUnavailable } from '../../../shared/agent-session-availability'
 import type {
   AgentSessionFastModeSupport,
@@ -222,10 +223,9 @@ export function agentModelCatalogEntryWithSuccess(
       return previous
     }
     const configuredModel = success.complete === true ? success.configured?.model : undefined
+    // Custom build (native-chat-model-window-suffix): `opus[1m]` names the `opus` row.
     const configuredRow = configuredModel
-      ? success.models.find(
-          (row) => row.id === configuredModel || row.resolvedModel === configuredModel
-        )
+      ? findModelRowByIdentity(success.models, configuredModel)
       : undefined
     return agentModelCatalogEntry(
       identity.agent,

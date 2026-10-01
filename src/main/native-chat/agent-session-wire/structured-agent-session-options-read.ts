@@ -22,6 +22,7 @@ import {
 import { structuredAgentSessionLaunchPermission } from './structured-agent-session-launch-permission'
 import type { StructuredAgentSessionMutationContext } from './structured-agent-session-host-mutations'
 import { structuredAgentSessionNeverSent } from './structured-agent-session-never-sent'
+import { findModelRowByIdentity } from '../agent-model-catalog/agent-model-row-identity'
 
 export {
   recordStructuredAgentSessionOptionIntent,
@@ -256,10 +257,8 @@ export async function readStructuredAgentSessionOptions(
   if (independent) {
     const { inventory, fallback, listedModelIds } = await atRest()
     if (saved.model === undefined && current.model && inventory.origin !== 'unknown') {
-      current.model =
-        inventory.models.find(
-          (row) => row.id === current.model || row.resolvedModel === current.model
-        )?.id ?? current.model
+      // Custom build (native-chat-model-window-suffix): `claude-opus-5-5[1m]` shows the row it runs.
+      current.model = findModelRowByIdentity(inventory.models, current.model)?.id ?? current.model
     }
     const { listedServiceTiers: _tiers, ...view } = structuredAgentSessionCapabilityView(
       inventory,
