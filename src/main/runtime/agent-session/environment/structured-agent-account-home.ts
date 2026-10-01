@@ -19,6 +19,8 @@ export type StructuredClaudeAccountHomeDeps = {
   wslDistro: string | null
   /** `identity` names the selected account before its folder exists; the default checks availability. */
   purpose?: 'identity'
+  /** The session's Claude subscription dir, when it runs on one (see claude-subscriptions). */
+  subscriptionConfigDir?: string | null
   getClaudeConfigDirectory: (
     target: { runtime: 'host' } | { runtime: 'wsl'; wslDistro: string }
   ) => string | null | undefined
@@ -37,6 +39,7 @@ export async function resolveStructuredClaudeAccountHomePath(
   }
   return (
     deps.launchEnv.CLAUDE_CONFIG_DIR?.trim() ||
+    deps.subscriptionConfigDir?.trim() ||
     deps
       .getClaudeConfigDirectory(
         deps.wslDistro ? { runtime: 'wsl', wslDistro: deps.wslDistro } : { runtime: 'host' }
