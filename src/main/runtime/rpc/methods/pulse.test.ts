@@ -43,7 +43,7 @@ function setup() {
     }
     return response.result
   }
-  return { call, dispatcher }
+  return { call, dispatcher, commands }
 }
 
 afterEach(() => {
@@ -106,6 +106,33 @@ describe('pulse RPC methods', () => {
     await expect(call('pulse.addDraft', { kind: 'message', source: 'agent' })).rejects.toThrow(
       /Draft body is required/
     )
+  })
+
+  it('refuses a forged approval card, which only the outgoing gate may raise', async () => {
+    const { call } = setup()
+    await expect(
+      call('pulse.addInboxItem', {
+        kind: 'outgoing-approval',
+        title: 'Approve an outgoing action',
+        body: 'Slack · send message\nhi',
+        refKind: 'draft',
+        refId: 'real-draft-with-other-text'
+      })
+    ).rejects.toThrow(/only from the outgoing gate/)
+    expect(await call('pulse.listInbox')).toEqual([])
+  })
+
+  it("will not close an approval card the gate raised, which only the owner's decision closes", async () => {
+    const { call, commands } = setup()
+    const { record: item } = commands.pulseAddInboxItem({
+      kind: 'outgoing-approval',
+      title: 'Approve an outgoing action',
+      body: 'Slack · send message\nhi',
+      refKind: 'draft',
+      refId: 'held-draft'
+    })
+    await expect(call('pulse.markInboxDone', { id: item.id })).rejects.toThrow(/owner decides/)
+    expect(await call('pulse.listInbox')).toMatchObject([{ id: item.id, doneAt: null }])
   })
 
   it('offers no way to approve a draft or report its delivery', async () => {

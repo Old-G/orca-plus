@@ -20,7 +20,7 @@ import {
   setDecisionMirror,
   type PulseDecisionListOptions
 } from './pulse-decisions'
-import { addDraft, getDraft, listDrafts, markDraftDelivery } from './pulse-drafts'
+import { abandonDraft, addDraft, getDraft, listDrafts, markDraftDelivery } from './pulse-drafts'
 import { latestEventSeq, listEventsSince, pruneEvents } from './pulse-events'
 import {
   addInboxItem,
@@ -83,6 +83,9 @@ export class PulseDb {
   }
   markDraftDelivery(id: string, status: 'sent' | 'failed') {
     return markDraftDelivery(this.core, id, status)
+  }
+  abandonDraft(id: string) {
+    return abandonDraft(this.core, id)
   }
 
   logDecision(input: PulseDecisionInput) {

@@ -97,7 +97,10 @@ CREATE TABLE events (
 );
 `
 
-const STEPS: readonly string[] = [V1]
+// Custom build (outgoing-approval): the held agent tool call behind a gate draft, as JSON.
+const V2 = `ALTER TABLE drafts ADD COLUMN payload TEXT;`
+
+const STEPS: readonly string[] = [V1, V2]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 
