@@ -1,6 +1,7 @@
 // Custom build (pulse): the records behind Orca+'s headquarters view — who waits on whom, what was decided,
 // what an agent wants to send, and what the bell shows. Shared by main, RPC and the renderer;
 // fields added later must stay optional (docs/reference/remote-wire-compatibility.md).
+import type { OutgoingDraftCall } from './outgoing-approval/outgoing-action'
 
 export type PulsePerson = {
   id: string
@@ -82,6 +83,8 @@ export type PulseDraft = {
   status: PulseDraftStatus
   createdAt: number
   updatedAt: number
+  /** Custom build (outgoing-approval): the agent tool call a gate draft holds. */
+  call?: OutgoingDraftCall | null
 }
 
 export type PulseDraftInput = {
@@ -94,6 +97,7 @@ export type PulseDraftInput = {
   source: string
   sourceRef?: string | null
   fingerprint?: string | null
+  call?: OutgoingDraftCall | null
 }
 
 export type PulseDecisionKind = 'decision' | 'approval'
