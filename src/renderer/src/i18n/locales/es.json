@@ -19140,6 +19140,11 @@
         "weekly": "A este ritmo, el límite semanal se agota a las {{time}}"
       }
     },
+    "outgoingApproval": {
+      "editLabel": "Texto a enviar",
+      "sendEdited": "Enviar editado",
+      "cancelEdit": "Cancelar"
+    },
     "pulseBell": {
       "title": "Bandeja de entrada",
       "empty": "Nada requiere tu atención ahora.",
@@ -19153,6 +19158,9 @@
         },
         "agent-finished": {
           "normal": "Un agente terminó"
+        },
+        "outgoing-approval": {
+          "urgent": "Aprueba una acción saliente"
         }
       },
       "action": {
@@ -19160,6 +19168,9 @@
         "open": "Abrir",
         "switch": "Cambiar de cuenta",
         "dismiss": "Ahora no",
+        "approve": "Aprobar",
+        "edit": "Editar",
+        "reject": "Rechazar",
         "done": "Hecho"
       }
     },
