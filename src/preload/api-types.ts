@@ -39,6 +39,7 @@ import type { ClickUpApi } from './api/clickup-api'
 import type { SlackApi } from './api/slack-api'
 import type { ClaudeHandoffApi } from './api/claude-handoff-api'
 import type { PulseBellApi } from './api/pulse-bell-api'
+import type { OutgoingApprovalApi } from './api/outgoing-approval-api'
 import type { ClaudeLimitGuardApi } from './api/claude-limit-guard-api'
 import type { ClaudeSubscriptionsApi } from './api/claude-subscriptions-api'
 import type { StrataApi } from './api/strata-api'
@@ -112,6 +113,7 @@ export type PreloadApi = {
   slack: SlackApi
   claudeHandoff: ClaudeHandoffApi
   pulseBell: PulseBellApi
+  outgoingApproval: OutgoingApprovalApi
   claudeLimitGuard: ClaudeLimitGuardApi
   claudeSubscriptions: ClaudeSubscriptionsApi
   strata: StrataApi

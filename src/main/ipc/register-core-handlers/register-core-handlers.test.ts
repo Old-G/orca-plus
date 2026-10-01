@@ -59,6 +59,7 @@ const {
   registerHqGroupChatHandlersMock,
   registerHqPulseMirrorMock,
   registerPulseBellMock,
+  registerOutgoingApprovalMock,
   registerBitbucketHandlersMock,
   registerGitLabHandlersMock,
   registerHostedReviewHandlersMock,
@@ -136,6 +137,7 @@ const {
   registerHqGroupChatHandlersMock: vi.fn(),
   registerHqPulseMirrorMock: vi.fn(),
   registerPulseBellMock: vi.fn(),
+  registerOutgoingApprovalMock: vi.fn(),
   registerBitbucketHandlersMock: vi.fn(),
   registerGitLabHandlersMock: vi.fn(),
   registerHostedReviewHandlersMock: vi.fn(),
@@ -450,6 +452,10 @@ vi.mock('../../orca-plus/pulse-bell/register-pulse-bell', () => ({
   registerPulseBell: registerPulseBellMock
 }))
 
+vi.mock('../../orca-plus/outgoing-approval/register-outgoing-approval', () => ({
+  registerOutgoingApproval: registerOutgoingApprovalMock
+}))
+
 vi.mock('../bitbucket', () => ({
   registerBitbucketHandlers: registerBitbucketHandlersMock
 }))
@@ -542,6 +548,7 @@ describe('registerCoreHandlers', () => {
     registerHqGroupChatHandlersMock.mockReset()
     registerHqPulseMirrorMock.mockReset()
     registerPulseBellMock.mockReset()
+    registerOutgoingApprovalMock.mockReset()
     registerBitbucketHandlersMock.mockReset()
     registerGitLabHandlersMock.mockReset()
     registerHostedReviewHandlersMock.mockReset()
@@ -643,6 +650,7 @@ describe('registerCoreHandlers', () => {
     expect(registerHqRosterSyncMock).toHaveBeenCalledWith(store)
     expect(registerHqPulseMirrorMock).toHaveBeenCalledWith(store)
     expect(registerPulseBellMock).toHaveBeenCalledWith(store, expect.anything())
+    expect(registerOutgoingApprovalMock).toHaveBeenCalledTimes(1)
     expect(registerHqGroupChatHandlersMock).toHaveBeenCalledWith(
       store,
       registerHqRosterSyncMock.mock.results[0]?.value

@@ -1,3 +1,7 @@
+import {
+  installOutgoingGateHook,
+  removeOutgoingGateHook
+} from '../orca-plus/outgoing-approval/outgoing-gate-hook-install'
 import { codebuddyHookService } from '../codebuddy/hook-service'
 import { qoderHookService } from '../qoder/hook-service'
 import type { AgentHookInstallStatus } from '../../shared/agent-hook-types'
@@ -42,7 +46,15 @@ export type ManagedAgentHookAsyncRemover = readonly [
 export type ManagedAgentHookStatusReader = readonly [HookInstallAgent, () => AgentHookInstallStatus]
 
 export const MANAGED_AGENT_HOOK_INSTALLERS: readonly ManagedAgentHookInstaller[] = [
-  ['claude', (options) => claudeHookService.install({ claudeVersion: options?.cliVersion })],
+  [
+    'claude',
+    (options) => {
+      const status = claudeHookService.install({ claudeVersion: options?.cliVersion })
+      // Custom build (outgoing-approval): the gate rides on Claude's hooks being enabled.
+      installOutgoingGateHook()
+      return status
+    }
+  ],
   ['openclaude', () => openClaudeHookService.install()],
   ['codex', () => codexHookService.install()],
   ['gemini', () => geminiHookService.install()],
@@ -90,7 +102,13 @@ export const MANAGED_AGENT_HOOK_SCRIPT_REFRESHERS: readonly ManagedAgentHookScri
 ]
 
 export const MANAGED_AGENT_HOOK_REMOVERS: readonly ManagedAgentHookRemover[] = [
-  ['claude', () => claudeHookService.remove()],
+  [
+    'claude',
+    () => {
+      removeOutgoingGateHook()
+      return claudeHookService.remove()
+    }
+  ],
   ['openclaude', () => openClaudeHookService.remove()],
   ['codex', () => codexHookService.remove()],
   ['gemini', () => geminiHookService.remove()],
