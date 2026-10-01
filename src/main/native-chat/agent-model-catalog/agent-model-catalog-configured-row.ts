@@ -1,4 +1,5 @@
 import type { AgentSessionModelOption } from '../../../shared/agent-session/agent-session-wire'
+import { findModelRowByIdentity } from './agent-model-row-identity'
 
 /** The listed row a configured model runs: an exact row first, else the row a configured alias
  *  resolves to. Its alias rows run the same model, so a chat saved on one shows the configured effort. */
@@ -11,7 +12,9 @@ export function configuredCatalogChoice(
   }
   const namedRow =
     models.find((row) => row.id === configuredModel) ??
-    models.find((row) => row.resolvedModel === configuredModel)
+    models.find((row) => row.resolvedModel === configuredModel) ??
+    // Custom build (native-chat-model-window-suffix): `opus[1m]` names the `opus` row.
+    findModelRowByIdentity(models, configuredModel)
   const configuredRow =
     (namedRow?.resolvedModel && namedRow.resolvedModel !== namedRow.id
       ? models.find((row) => row.id === namedRow.resolvedModel)
