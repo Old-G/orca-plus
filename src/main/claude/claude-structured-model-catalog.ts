@@ -62,19 +62,35 @@ export function listedModels(value: unknown): ListedModel[] {
   })
 }
 
+function namesListedModel(model: ListedModel, modelId: string): boolean {
+  return model.id === modelId || model.resolvedModel === modelId
+}
+
+/** The row a pick or report names, by alias or resolved id. `claude-opus-5-5[1m]` falls back to the
+ *  row resolving to `claude-opus-5-5` — the suffix picks a context window, not a model — but only
+ *  after an exact pass, so a listed `opus[1m]` row still wins over `opus`. */
+export function findListedModel(
+  models: readonly ListedModel[],
+  modelId: string
+): ListedModel | undefined {
+  const exact = models.find((model) => namesListedModel(model, modelId))
+  const base = modelId.replace(/\[[^\]]*\]$/u, '')
+  return (
+    exact ?? (base === modelId ? undefined : models.find((model) => namesListedModel(model, base)))
+  )
+}
+
 /** Alias matcher for the Fast-mode guards: a pick stored as an alias, as the resolved
  *  id, or as the literal `default` finds the same row. The effort and admit guards
- *  match on alias and resolved id only — neither ever resolved `default`, and widening
+ *  use `findListedModel`, without `default` — neither ever resolved it, and widening
  *  them here would tighten what they refuse. */
 export function matchListedModel(
   models: readonly ListedModel[],
   modelId: string
 ): ListedModel | undefined {
-  return models.find(
-    (model) =>
-      model.id === modelId ||
-      model.resolvedModel === modelId ||
-      (modelId === 'default' && model.isDefault)
+  return (
+    findListedModel(models, modelId) ??
+    (modelId === 'default' ? models.find((model) => model.isDefault) : undefined)
   )
 }
 
@@ -95,14 +111,7 @@ export function seedModels(): ListedModel[] {
 }
 
 export function currentModelId(models: ListedModel[], reportedModel: string | undefined): string {
-  const matched = reportedModel
-    ? models.find(
-        (model) =>
-          model.id === reportedModel ||
-          model.resolvedModel === reportedModel ||
-          (reportedModel === 'default' && model.isDefault)
-      )
-    : undefined
+  const matched = reportedModel ? matchListedModel(models, reportedModel) : undefined
   return (
     matched?.id ?? reportedModel ?? models.find((model) => model.isDefault)?.id ?? models[0]!.id
   )
