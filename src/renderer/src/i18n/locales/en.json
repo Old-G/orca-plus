@@ -19144,6 +19144,11 @@
         "weekly": "At this pace the weekly limit runs out at {{time}}"
       }
     },
+    "outgoingApproval": {
+      "editLabel": "Text to send",
+      "sendEdited": "Send edited",
+      "cancelEdit": "Cancel"
+    },
     "pulseBell": {
       "title": "Inbox",
       "empty": "Nothing needs you right now.",
@@ -19157,6 +19162,9 @@
         },
         "agent-finished": {
           "normal": "An agent finished"
+        },
+        "outgoing-approval": {
+          "urgent": "Approve an outgoing action"
         }
       },
       "action": {
@@ -19164,6 +19172,9 @@
         "open": "Open",
         "switch": "Switch account",
         "dismiss": "Not now",
+        "approve": "Approve",
+        "edit": "Edit",
+        "reject": "Reject",
         "done": "Done"
       }
     },
