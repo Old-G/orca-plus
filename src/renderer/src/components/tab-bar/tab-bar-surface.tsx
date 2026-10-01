@@ -287,6 +287,7 @@ export function renderTabBarSurface({
                 onSelectPickerAgent={selectPickerAgent}
                 hidePickerSearch={!terminalOnly && Boolean(onOpenEntry)}
                 runLaunch={launchAgentRow}
+                worktreeId={worktreeId}
               />
             </>
           ) : null}

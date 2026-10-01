@@ -20,7 +20,7 @@ import { withAgentSessionAccountEnv } from '../../agent-session-account-env'
 import { resolveWslHostAgentResumeInputs } from '../../wsl-host-agent-terminal-launch'
 import {
   resolveTuiAgentLaunchRawArgs,
-  resolveTuiAgentLaunchEnv
+  resolveTuiAgentLaunchEnvWithSubscription
 } from '../../../../shared/tui-agent-launch-defaults'
 
 export abstract class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntimeWithResolveWorktreeRemovalTarget {
@@ -143,7 +143,7 @@ export abstract class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends O
           request.agentArgs !== undefined
             ? request.agentArgs
             : resolveTuiAgentLaunchRawArgs(request.agent, settings, undefined, shell),
-        agentEnv: resolveTuiAgentLaunchEnv(request.agent, settings),
+        agentEnv: resolveTuiAgentLaunchEnvWithSubscription(request.agent, settings),
         ompResumeFilePath: request.ompResumeFilePath,
         sessionOptions: this.toAgentSessionOptions(request.launchPreferences),
         sessionOptionsOverrideAgentArgs: Boolean(request.launchPreferences),

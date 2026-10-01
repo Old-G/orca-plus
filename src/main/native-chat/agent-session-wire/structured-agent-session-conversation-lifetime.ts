@@ -46,6 +46,8 @@ import {
   recordStructuredAgentSessionStartFailure
 } from './structured-agent-session-start-failure-row'
 import { structuredAgentSessionFailureWordsContext } from './structured-agent-session-send-preparation'
+import { switchStructuredAgentSessionAccountHome } from './structured-agent-session-account-home-switch'
+import type { AgentSessionRecord } from '../../../shared/agent-session-record'
 
 export function createStructuredAgentSessionConversationLifetime(
   host: StructuredAgentSessionConversationLifetimeHost
@@ -265,6 +267,22 @@ export function createStructuredAgentSessionConversationLifetime(
           runtime.startupAttempts.childEnded(sessionId, child)
         }
       }),
+    /** Custom build (claude-subscriptions): the same chat continues under another Claude config dir. */
+    switchAccountHome: (sessionId: string, accountHome: AgentSessionRecord['accountHome']) =>
+      switchStructuredAgentSessionAccountHome(
+        {
+          deps: deps(),
+          sessions,
+          serialize,
+          deliveryActive: host.deliveryActive,
+          childWorkOpen: host.childWorkOpen,
+          stopAgent: (id) => stopAgent(id, { cause: 'evict' }),
+          publishStatus: (id) => host.context().publishStatus?.(id),
+          now: () => host.context().now()
+        },
+        sessionId,
+        accountHome
+      ),
     dispose: (): void => {
       disposed = true
       idleSweep.dispose()

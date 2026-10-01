@@ -33,6 +33,35 @@ import {
   agentLaunchTabViewerRule,
   type AgentLaunchView
 } from './agent-launch-tab-publication'
+import {
+  BASE_CLAUDE_SUBSCRIPTION_ID,
+  CLAUDE_SUBSCRIPTION_SESSION_OPTION
+} from '../../../../shared/claude-subscriptions'
+import { readClaudeSubscriptionSettings } from '../../../claude-subscriptions/claude-subscription-settings-source'
+import { assignClaudeSubscriptionToSession } from '../../../claude-subscriptions/claude-subscription-session-assignments'
+
+/** `--subscription` for a Claude launch; an id this host has no subscription for is refused, not
+ *  silently run on the base sign-in. */
+function readClaudeSubscriptionOption(
+  agent: string,
+  options: Readonly<Record<string, unknown>> | undefined
+): string | null {
+  const value = agent === 'claude' ? options?.[CLAUDE_SUBSCRIPTION_SESSION_OPTION] : undefined
+  const id = typeof value === 'string' ? value.trim() : ''
+  if (!id) {
+    return null
+  }
+  const settings = readClaudeSubscriptionSettings()
+  const subscriptions = settings ? (settings.claudeSubscriptions ?? []) : null
+  if (
+    subscriptions &&
+    id !== BASE_CLAUDE_SUBSCRIPTION_ID &&
+    !subscriptions.some((subscription) => subscription.id === id)
+  ) {
+    throw new Error(`Unknown Claude subscription: ${id}`)
+  }
+  return id
+}
 
 /** Replay-safe launches keep the nested attach in the same stable caller namespace as the launch. */
 export function agentLaunchSurfaceFactory(
@@ -60,6 +89,10 @@ export function agentLaunchSurfaceFactory(
       signal
     }) => {
       const sessionId = requested ?? createStructuredAgentSessionId(agent, randomUUID)
+      const subscriptionId = readClaudeSubscriptionOption(agent, options)
+      if (subscriptionId) {
+        assignClaudeSubscriptionToSession(sessionId, subscriptionId)
+      }
       const definition = structuredAgentRuntimeMetadata(agent)?.definition
       const supported = Object.fromEntries(
         Object.entries(narrowStructuredLaunchSeedOptions(options) ?? {}).filter(([key]) =>
@@ -139,7 +172,9 @@ export function agentLaunchSurfaceFactory(
         // The user closed its tab while it waited: nothing is spawned, and that is the answer.
         terminalSpawn.rethrow(new AgentLaunchTabClosedError())
       }
+      const subscriptionId = readClaudeSubscriptionOption(agent, options)
       const created = context.runtime.createTerminal(`id:${worktreeId}`, {
+        ...(subscriptionId ? { claudeSubscriptionId: subscriptionId } : {}),
         // An agent launch the caller asked for (CLI, window or paired client) is the user's act.
         wslUserAct: true,
         // Let the runtime build the configured launcher: agent ids are not commands (cursor uses cursor-agent).

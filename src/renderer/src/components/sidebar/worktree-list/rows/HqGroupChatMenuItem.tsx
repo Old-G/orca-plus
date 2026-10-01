@@ -4,8 +4,6 @@ import { toast } from 'sonner'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { translate } from '@/i18n/i18n'
 import { activateAndRevealFolderWorkspace } from '@/lib/worktree-activation'
-import { resolveInitialNativeChatSessionOptions } from '@/components/native-chat/native-chat-launch-session-options'
-import { isNativeChatTranscriptLocalReadable } from '@/lib/native-chat-transcript-readability'
 import { submitFolderWorkspaceCreate } from '@/components/sidebar/folder-workspace-composer-submit'
 import { useAppStore } from '@/store'
 import { getProjectGroupHostId } from '@/store/slices/project-group-owner-routing'
@@ -17,7 +15,7 @@ import { findHqGroupChatWorkspace } from '../../../../../../shared/hq-group-chat
 import { isTuiAgentEnabled } from '../../../../../../shared/tui-agent-selection'
 import {
   resolveTuiAgentLaunchArgs,
-  resolveTuiAgentLaunchEnv
+  resolveTuiAgentLaunchEnvWithSubscription
 } from '../../../../../../shared/tui-agent-launch-defaults'
 
 function showFailure(description: string): void {
@@ -57,20 +55,7 @@ async function openHqGroupChat(groupId: string): Promise<void> {
       autoRenameBranchFromWork: false,
       agentCmdOverrides: settings?.agentCmdOverrides,
       agentArgs: agent ? resolveTuiAgentLaunchArgs(agent, settings) : undefined,
-      agentEnv: agent ? resolveTuiAgentLaunchEnv(agent, settings) : undefined,
-      sessionOptions: agent
-        ? resolveInitialNativeChatSessionOptions(
-            {
-              experimentalNativeChat: settings?.experimentalNativeChat,
-              openAgentTabsInChatByDefault: settings?.openAgentTabsInChatByDefault,
-              nativeChatSessionOptions: settings?.nativeChatSessionOptions
-            },
-            {
-              agent,
-              nativeChatTranscriptIsLocalReadable: isNativeChatTranscriptLocalReadable(null)
-            }
-          )
-        : undefined,
+      agentEnv: agent ? resolveTuiAgentLaunchEnvWithSubscription(agent, settings) : undefined,
       terminalWindowsShell: settings?.terminalWindowsShell,
       launchSource: 'sidebar',
       // Why: the chat must open on HQ's folder, not on the group's own parent path.

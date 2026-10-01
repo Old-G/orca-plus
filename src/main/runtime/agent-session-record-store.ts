@@ -53,6 +53,10 @@ import {
 } from './agent-session/ownership/agent-session-restart-reconciliation'
 import { replaceAgentSessionRecordOptions } from './agent-session-record-options'
 import {
+  replaceAgentSessionRecordAccountHome,
+  type AgentSessionAccountHomeReplacement
+} from './agent-session-record-account-home'
+import {
   commitAgentSessionReservation,
   type AgentSessionReserveRequest,
   type AgentSessionReserveResult
@@ -316,6 +320,12 @@ export class AgentSessionRecordStore extends AgentSessionRecordTabs {
     revise: (record: AgentSessionRecord, args: A) => AgentSessionRecord,
     args: A
   ) => this.mutate(args.sessionId, (record) => revise(record, args))
+
+  // Custom build (claude-subscriptions): see `replaceAgentSessionRecordAccountHome`.
+  replaceSessionAccountHome = (
+    args: AgentSessionAccountHomeReplacement
+  ): Promise<AgentSessionRecord> =>
+    this.mutate(args.sessionId, (record) => replaceAgentSessionRecordAccountHome(record, args))
 
   async retireClaimKey(keyId: string, now: number): Promise<void> {
     await this.transact((draft) => retireAgentSessionClaimKey(draft, keyId, now))

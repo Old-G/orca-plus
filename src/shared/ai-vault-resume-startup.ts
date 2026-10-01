@@ -16,6 +16,7 @@ import { normalizeAiVaultResumeFilePath } from './ai-vault-resume-path'
 import {
   resolveTuiAgentLaunchRawArgs,
   resolveTuiAgentLaunchEnv,
+  resolveTuiAgentLaunchEnvWithSubscription,
   type AgentLaunchProfileSettings
 } from './tui-agent-launch-defaults'
 import { buildAgentResumeStartupPlan } from './tui-agent-startup'
@@ -52,7 +53,9 @@ export type AiVaultResumeStartup = {
 }
 
 export type AiVaultResumeLaunchSettings = Partial<Pick<GlobalSettings, 'agentCmdOverrides'>> &
-  AgentLaunchProfileSettings
+  AgentLaunchProfileSettings &
+  // Custom build (claude-subscriptions): a resumed Claude pane keeps the default subscription.
+  Partial<Pick<GlobalSettings, 'claudeSubscriptions' | 'defaultClaudeSubscriptionId'>>
 
 /** The platform and live shell a resume line is written for, and the Codex home it pins. */
 export type AiVaultResumeHostShell = {
@@ -147,7 +150,7 @@ export function buildAiVaultLocalResumeStartup(
           resolveStartupShell(platform, liveShell)
         ),
       agentEnv: {
-        ...resolveTuiAgentLaunchEnv(session.agent, settings, platform),
+        ...resolveTuiAgentLaunchEnvWithSubscription(session.agent, settings, platform),
         ...managedDataAccountResumeEnv(session)
       },
       resumeInLaunchCwd: true,

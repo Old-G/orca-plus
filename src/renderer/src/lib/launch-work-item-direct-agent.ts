@@ -14,6 +14,7 @@ import type { AgentStartupShell } from '../../../shared/tui-agent-startup-shell'
 import type { AgentLaunchProfileSettings } from '../../../shared/tui-agent-launch-defaults'
 import { resolveAgentStartupPlanInputs } from '../../../shared/agent-startup-plan-inputs'
 import { translate } from '@/i18n/i18n'
+import type { ClaudeSubscriptionSettings } from '../../../shared/claude-subscriptions'
 
 export function buildDirectWorkItemAgentStartupPlan(args: {
   agent: TuiAgent | null
@@ -23,7 +24,8 @@ export function buildDirectWorkItemAgentStartupPlan(args: {
   draftContent: string
   promptDelivery: 'draft' | 'submit-after-ready'
   settings:
-    | ({ agentCmdOverrides?: Partial<Record<TuiAgent, string>> } & AgentLaunchProfileSettings)
+    | ({ agentCmdOverrides?: Partial<Record<TuiAgent, string>> } & AgentLaunchProfileSettings &
+        ClaudeSubscriptionSettings)
     | null
     | undefined
   launchPlatform: NodeJS.Platform

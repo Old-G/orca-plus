@@ -6,17 +6,26 @@ import {
   parseCliAgent,
   readCliAgentLaunch
 } from '../agent-launch-request'
-import { getRequiredStringFlag } from '../flags'
+import { getOptionalStringFlag, getRequiredStringFlag } from '../flags'
 import { printResult } from '../format'
 import { RuntimeClientError } from '../runtime-client'
 import { getRequiredWorktreeSelector } from '../selectors'
 import { resolveCurrentAgentWorkspaceSelector } from '../agent-workspace-selector'
+import { CLAUDE_SUBSCRIPTION_SESSION_OPTION } from '../../shared/claude-subscriptions'
 
 export const AGENT_LAUNCH_HANDLERS: Record<string, CommandHandler> = {
   'agent launch': async ({ flags, client, cwd, json, rawArgs }) => {
     const launch = readCliAgentLaunch(flags, parseCliAgent(getRequiredStringFlag(flags, 'agent')), {
       createsWorktree: false
     })
+    // Custom build (claude-subscriptions): pins this session to a Claude subscription (`base` = main sign-in).
+    const subscription = getOptionalStringFlag(flags, 'subscription')
+    if (subscription) {
+      launch.sessionOptions = {
+        ...launch.sessionOptions,
+        [CLAUDE_SUBSCRIPTION_SESSION_OPTION]: subscription
+      }
+    }
     if (client.isRemote && !flags.has('worktree')) {
       throw new RuntimeClientError(
         'invalid_argument',

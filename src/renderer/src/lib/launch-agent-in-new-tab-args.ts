@@ -4,6 +4,7 @@ import type { LaunchSource } from '../../../shared/telemetry-events'
 import type { StructuredLaunchTerminal } from '@/lib/structured-agent-session-launch-admission'
 import type { LaunchAgentInNewTabRequest } from '@/lib/launch-agent-in-new-tab-host-agents'
 import type { NativeChatComposerFocusIntent } from '@/components/native-chat/use-native-chat-composer-reveal-focus'
+import type * as claudeSubscription from '@/lib/launch-agent-claude-subscription'
 
 export type LaunchAgentInNewTabArgs = LaunchAgentInNewTabRequest & {
   requestedSurface?: AgentSessionLaunchRequest['requestedSurface']
@@ -51,4 +52,4 @@ export type LaunchAgentInNewTabArgs = LaunchAgentInNewTabRequest & {
   ) => boolean | void
   /** Opens instead of this agent's terminal when the host declines its structured chat. */
   onStructuredHostDeclined?: () => StructuredLaunchTerminal
-}
+} & claudeSubscription.LaunchArgs

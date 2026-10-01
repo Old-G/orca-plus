@@ -13,6 +13,8 @@ import { join } from 'node:path'
 export type StructuredClaudeAccountHomeDeps = {
   launchEnv: NodeJS.ProcessEnv
   wslDistro: string | null
+  /** The session's Claude subscription dir, when it runs on one (see claude-subscriptions). */
+  subscriptionConfigDir?: string | null
   getClaudeConfigDirectory: (
     target: { runtime: 'host' } | { runtime: 'wsl'; wslDistro: string }
   ) => string | null | undefined
@@ -28,6 +30,7 @@ export function resolveStructuredClaudeAccountHomePath(
   }
   return (
     deps.launchEnv.CLAUDE_CONFIG_DIR?.trim() ||
+    deps.subscriptionConfigDir?.trim() ||
     deps
       .getClaudeConfigDirectory(
         deps.wslDistro ? { runtime: 'wsl', wslDistro: deps.wslDistro } : { runtime: 'host' }

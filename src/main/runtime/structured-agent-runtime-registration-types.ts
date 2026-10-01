@@ -59,6 +59,12 @@ export type StructuredAgentAccountHomeServices = {
   workspaceTrustSettings: () => Parameters<typeof applyStructuredCodexWorkspaceTrust>[0]['settings']
   /** Orca's data folder on this host, where an agent's chats may keep an account of their own. */
   stateDirectory: string
+  /** Custom build (claude-subscriptions): the dir of the Claude subscription this chat runs on. */
+  claudeSubscriptionConfigDir?: (input: {
+    launchEnv: NodeJS.ProcessEnv
+    wslDistro: string | null
+    purpose: 'launch' | 'read'
+  }) => string | null
 }
 
 /** What a catalog probe is built from: the same runtime resolvers its sessions launch through. */

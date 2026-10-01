@@ -45,6 +45,8 @@ export type TerminalCreateOptions = {
   launchToken?: string
   launchAgent?: TuiAgent
   startupAgent?: TuiAgent
+  /** Claude only: the subscription (own CLAUDE_CONFIG_DIR) the startup agent runs on; absent = default. */
+  claudeSubscriptionId?: string
   /** Offer initial text only to compatible startupAgent launch commands; otherwise refuse instead of silently dropping it.
    * Typed-line carry gates delivery; onStartupPromptCarry reports clean launches whose later delivery belongs to the live PTY owner. */
   startupPrompt?: string

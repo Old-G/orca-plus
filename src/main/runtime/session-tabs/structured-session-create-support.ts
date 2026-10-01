@@ -115,7 +115,8 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
       input.agent,
       input.worktree,
       'launch',
-      hostLaunchDirectory
+      hostLaunchDirectory,
+      input.envelope.sessionId
     )
     if (!resolveAccountHome) {
       throw agentSessionRefusalError('structured_agent_session_unsupported', {

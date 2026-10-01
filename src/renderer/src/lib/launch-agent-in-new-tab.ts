@@ -15,6 +15,7 @@ import { isWebRuntimeSessionActive } from '@/runtime/web-runtime-session-environ
 import { launchAgentInWebHostTab } from '@/lib/launch-agent-web-host-tab'
 import { resolveAgentStartupPlanInputs } from '../../../shared/agent-startup-plan-inputs'
 import { readAgentLaunchPreferencesForWorktree } from '@/components/settings/use-host-agent-launch-preferences'
+import * as claudeSubscription from '@/lib/launch-agent-claude-subscription'
 import { TUI_AGENT_CONFIG } from '../../../shared/tui-agent-config'
 import { resolveAgentLaunchExecutionContext } from '@/lib/launch-agent-execution-context'
 import { launchStructuredAgentFromNewTab } from '@/lib/launch-agent-in-new-tab-structured-route'
@@ -100,6 +101,7 @@ export function launchAgentInNewTabWithOutcome(
       ...(groupId ? { groupId } : {}),
       ...(beforeSurfaceOpen ? { beforeSurfaceOpen } : {}),
       ...(args.onStructuredHostDeclined ? { onHostDeclined: args.onStructuredHostDeclined } : {}),
+      ...claudeSubscription.structuredArgs(agent, args.claudeSubscriptionId),
       // The host's "no" opens this same launch as a terminal, with the caller's arguments.
       openTerminal: (terminalPlan, terminalActivate) =>
         launchAgentInNewTabWithOutcome({
@@ -126,16 +128,20 @@ export function launchAgentInNewTabWithOutcome(
     agentLaunchChoices = readAgentLaunchPreferencesForWorktree(store, worktreeId).agentLaunchChoices
   ) =>
     planLaunchAgentStartupPrompt({
-      base: resolveAgentStartupPlanInputs({
-        agent,
-        settings: { ...store.settings, agentLaunchChoices },
-        agentArgs,
-        sessionOptions,
-        sessionOptionsYieldToAgentArgs: args.sessionOptionsYieldToAgentArgs,
-        platform: resolvedLaunchPlatform,
-        shell: queuedShell,
-        isRemote
-      }),
+      base: claudeSubscription.withPickedSubscription(
+        resolveAgentStartupPlanInputs({
+          agent,
+          settings: { ...store.settings, agentLaunchChoices },
+          agentArgs,
+          sessionOptions,
+          sessionOptionsYieldToAgentArgs: args.sessionOptionsYieldToAgentArgs,
+          platform: resolvedLaunchPlatform,
+          shell: queuedShell,
+          isRemote
+        }),
+        store.settings,
+        args.claudeSubscriptionId
+      ),
       prompt: trimmedPrompt,
       promptDelivery,
       isFollowupPath
