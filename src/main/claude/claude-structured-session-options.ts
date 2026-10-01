@@ -5,6 +5,7 @@ import type {
 } from '../../shared/agent-session-wire'
 import {
   currentModelId,
+  findListedModel,
   listedModels,
   matchListedModel,
   record,
@@ -148,9 +149,7 @@ export function claudeModelEffortLevels(
   models: readonly ListedModel[]
 ): { modelId: string | undefined; levels: ReadonlySet<string> | null } {
   const modelId = readClaudeCurrentModel(session).id
-  const matched = modelId
-    ? models.find((model) => model.id === modelId || model.resolvedModel === modelId)
-    : undefined
+  const matched = modelId ? findListedModel(models, modelId) : undefined
   return {
     modelId: matched?.id ?? modelId,
     levels: matched ? new Set(matched.efforts.map((choice) => choice.value)) : null
@@ -218,10 +217,7 @@ export function claudeCatalogAdmitsModel(models: readonly ListedModel[], modelId
   // An empty list identifies no model, so it is not evidence against one — a live
   // CLI predating `list_models` would otherwise have every model refused under it.
   // Do not turn this into a refusal.
-  return (
-    models.length === 0 ||
-    models.some((model) => model.id === modelId || model.resolvedModel === modelId)
-  )
+  return models.length === 0 || findListedModel(models, modelId) !== undefined
 }
 
 type WireClaudeModel = AgentSessionOptionsResult['models'][number]
@@ -255,8 +251,7 @@ function catalogClaudeModels(session: ClaudeSession, discovered: ListedModel[]):
     const model = wireClaudeModel(listed)
     const effort = applied?.effort
     const runsApplied =
-      applied?.model !== undefined &&
-      (listed.id === applied.model || listed.resolvedModel === applied.model)
+      applied?.model !== undefined && findListedModel(discovered, applied.model) === listed
     return effort && runsApplied && model.efforts.some((choice) => choice.value === effort)
       ? { ...model, defaultEffort: effort }
       : model
