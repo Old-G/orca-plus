@@ -49,6 +49,7 @@ import { ORCA_AGENT_SESSION_ID_ENV } from '../../shared/agent-session-caller-env
 import { ORCA_STRUCTURED_SESSION_ENV } from '../../shared/structured-session-marker'
 import { prependOrcaCliDirToChildPath } from '../cli/orca-cli-child-path'
 import { resolveStructuredWorkerIdentityForSession } from './structured-worker-authority'
+import { outgoingGateChildEnv } from '../orca-plus/outgoing-approval/outgoing-gate-endpoint'
 
 export function structuredSessionChildIdentityEnv(
   sessionId: string,
@@ -59,7 +60,9 @@ export function structuredSessionChildIdentityEnv(
     ...childEnv,
     ...(identity ? { ORCA_TERMINAL_HANDLE: identity.handle } : {}),
     [ORCA_AGENT_SESSION_ID_ENV]: sessionId,
-    [ORCA_STRUCTURED_SESSION_ENV]: '1'
+    [ORCA_STRUCTURED_SESSION_ENV]: '1',
+    // Custom build (outgoing-approval): lets the gate hook reach this Orca from a pane-less chat.
+    ...outgoingGateChildEnv()
   }
   applyThisAppCli(env)
   return env

@@ -14,6 +14,7 @@ import {
   PulseLogDecisionParams,
   PulseUpsertPersonParams
 } from '../../../../shared/rpc-contract/pulse-params'
+import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../shared/outgoing-approval/outgoing-approval-bell'
 
 // Custom build (pulse): records behind Orca+'s headquarters views. No method here approves a
 // draft or reports its delivery — see pulse-params.ts.
@@ -77,7 +78,13 @@ export const PULSE_METHODS = [
   defineMethod({
     name: 'pulse.addInboxItem',
     params: PulseAddInboxItemParams,
-    handler: async (params, { runtime }) => runtime.pulseAddInboxItem(params)
+    handler: async (params, { runtime }) => {
+      // Why: an approval card's text is what the owner approves, and agents call this RPC; only the gate raises one.
+      if (params.kind === OUTGOING_APPROVAL_BELL_KIND) {
+        throw new Error('Approval cards come only from the outgoing gate.')
+      }
+      return runtime.pulseAddInboxItem(params)
+    }
   }),
   defineMethod({
     name: 'pulse.listInbox',

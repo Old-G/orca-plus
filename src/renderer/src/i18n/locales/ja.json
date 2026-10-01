@@ -17811,6 +17811,11 @@
         "weekly": "このペースだと週間の上限に {{time}} に達します"
       }
     },
+    "outgoingApproval": {
+      "editLabel": "送信するテキスト",
+      "sendEdited": "編集して送信",
+      "cancelEdit": "キャンセル"
+    },
     "pulseBell": {
       "title": "受信トレイ",
       "empty": "今対応が必要なものはありません。",
@@ -17824,6 +17829,9 @@
         },
         "agent-finished": {
           "normal": "Agent が完了しました"
+        },
+        "outgoing-approval": {
+          "urgent": "外部への操作を承認してください"
         }
       },
       "action": {
@@ -17831,6 +17839,9 @@
         "open": "開く",
         "switch": "アカウントを切り替え",
         "dismiss": "今はしない",
+        "approve": "承認",
+        "edit": "編集",
+        "reject": "却下",
         "done": "完了"
       }
     },

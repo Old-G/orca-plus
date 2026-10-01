@@ -17811,6 +17811,11 @@
         "weekly": "이 속도라면 주간 한도가 {{time}}에 소진됩니다"
       }
     },
+    "outgoingApproval": {
+      "editLabel": "보낼 텍스트",
+      "sendEdited": "편집본 보내기",
+      "cancelEdit": "취소"
+    },
     "pulseBell": {
       "title": "받은 편지함",
       "empty": "지금 처리할 항목이 없습니다.",
@@ -17824,6 +17829,9 @@
         },
         "agent-finished": {
           "normal": "에이전트가 작업을 마쳤습니다"
+        },
+        "outgoing-approval": {
+          "urgent": "외부로 나가는 작업을 승인하세요"
         }
       },
       "action": {
@@ -17831,6 +17839,9 @@
         "open": "열기",
         "switch": "계정 전환",
         "dismiss": "나중에",
+        "approve": "승인",
+        "edit": "편집",
+        "reject": "거부",
         "done": "완료"
       }
     },

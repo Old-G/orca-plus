@@ -1,4 +1,5 @@
 import { isTmuxInnerSubject } from '../../../shared/tmux-agent-hook-owner'
+import type { OutgoingGateRequestHandler } from '../../orca-plus/outgoing-approval/outgoing-gate-http'
 import type {
   AgentStatusClearIpcPayload,
   AgentStatusIpcPayload
@@ -107,6 +108,10 @@ export abstract class AgentHookServerListeners extends AgentHookServerState {
     listener: ((event: ClaudeStatusLineRateLimits) => void) | null
   ): void {
     this.onClaudeStatusLine = listener
+  }
+
+  setOutgoingGateHandler(handler: OutgoingGateRequestHandler | null): void {
+    this.onOutgoingGate = handler
   }
 
   subscribeStatusChanges(listener: (statuses: AgentHookStatusChangeEntry[]) => void): () => void {

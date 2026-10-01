@@ -17811,6 +17811,11 @@
         "weekly": "按当前速度，每周限额将在 {{time}} 用完"
       }
     },
+    "outgoingApproval": {
+      "editLabel": "要发送的文本",
+      "sendEdited": "发送编辑后的内容",
+      "cancelEdit": "取消"
+    },
     "pulseBell": {
       "title": "收件箱",
       "empty": "目前没有需要你处理的事项。",
@@ -17824,6 +17829,9 @@
         },
         "agent-finished": {
           "normal": "有智能体已完成"
+        },
+        "outgoing-approval": {
+          "urgent": "请批准一项外发操作"
         }
       },
       "action": {
@@ -17831,6 +17839,9 @@
         "open": "打开",
         "switch": "切换账户",
         "dismiss": "暂不",
+        "approve": "批准",
+        "edit": "编辑",
+        "reject": "拒绝",
         "done": "完成"
       }
     },

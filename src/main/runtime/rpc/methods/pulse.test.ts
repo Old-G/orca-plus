@@ -108,6 +108,20 @@ describe('pulse RPC methods', () => {
     )
   })
 
+  it('refuses a forged approval card, which only the outgoing gate may raise', async () => {
+    const { call } = setup()
+    await expect(
+      call('pulse.addInboxItem', {
+        kind: 'outgoing-approval',
+        title: 'Approve an outgoing action',
+        body: 'Slack · send message\nhi',
+        refKind: 'draft',
+        refId: 'real-draft-with-other-text'
+      })
+    ).rejects.toThrow(/only from the outgoing gate/)
+    expect(await call('pulse.listInbox')).toEqual([])
+  })
+
   it('offers no way to approve a draft or report its delivery', async () => {
     const { dispatcher } = setup()
     for (const method of ['pulse.decideDraft', 'pulse.markDraftDelivery']) {

@@ -34,6 +34,7 @@ import { clickupApi } from './api/clickup-bridge'
 import { slackApi } from './api/slack-bridge'
 import { claudeHandoffApi } from './api/claude-handoff-bridge'
 import { pulseBellApi } from './api/pulse-bell-bridge'
+import { outgoingApprovalApi } from './api/outgoing-approval-bridge'
 import { claudeLimitGuardApi } from './api/claude-limit-guard-bridge'
 import { claudeSubscriptionsApi } from './api/claude-subscriptions-bridge'
 import { strataApi } from './api/strata-bridge'
@@ -144,6 +145,7 @@ const api = {
   slack: slackApi,
   claudeHandoff: claudeHandoffApi,
   pulseBell: pulseBellApi,
+  outgoingApproval: outgoingApprovalApi,
   claudeLimitGuard: claudeLimitGuardApi,
   claudeSubscriptions: claudeSubscriptionsApi,
   strata: strataApi,
