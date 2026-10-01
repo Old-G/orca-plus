@@ -35,6 +35,7 @@ import {
   collectAgentSessionRestartProbes,
   type AgentSessionRestartProbeArgs
 } from '../ownership/agent-session-restart-reconciliation'
+import type { AgentSessionAccountHomeReplacement } from '../../agent-session-record-account-home'
 import type { AgentSessionRecordCommand } from './agent-session-record-command'
 import type { AgentSessionIdleForget } from './agent-session-record-forget'
 import type {
@@ -376,4 +377,9 @@ export class AgentSessionRecordStore extends AgentSessionRecordTabs {
           legacyTabIds: this.transactions.legacySessionTabIds
         })
     )
+
+  // Custom build (claude-subscriptions): see `replaceAgentSessionRecordAccountHome`.
+  replaceSessionAccountHome = (
+    args: AgentSessionAccountHomeReplacement
+  ): Promise<AgentSessionRecord> => this.updateRecord(args.sessionId, { kind: 'account-home', args })
 }

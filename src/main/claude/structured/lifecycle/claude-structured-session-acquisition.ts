@@ -28,6 +28,10 @@ import * as journal from '../journal/claude-structured-session-journal-control'
 import { isRootClaudeFrame } from '../turns/claude-turn-opening'
 import * as outcome from '../startup/claude-structured-startup-outcome'
 import { claudeStartupResultError } from '../../sdk-transport/claude-stream-json-exit-error'
+import {
+  forgetClaudeChatLaunchHome,
+  noteClaudeChatLaunchHome
+} from '../../../claude-limit-guard/claude-chat-launch-homes'
 import * as ui from './claude-structured-plugin-ui-recovery'
 
 export async function acquireClaudeSession({
@@ -210,6 +214,7 @@ export async function acquireClaudeSession({
           ...permissions.handlers,
           onFault: childFailed,
           onExit: permissions.closeThen((error, exit) => {
+            forgetClaudeChatLaunchHome(sessionId, attempt)
             if (exit?.expected) {
               naming?.failed()
               callbacks.finishClose(sessionId, attempt)
@@ -227,6 +232,7 @@ export async function acquireClaudeSession({
     )
     attempt.connection = connection
     naming?.attach(connection)
+    noteClaudeChatLaunchHome(sessionId, launch.claudeConfigDir, attempt)
     unbindReadingControl = journal.bindClaudeConnectionJournalControls(
       input.events,
       connection,

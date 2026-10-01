@@ -39,6 +39,7 @@ import { resolveStartupShell } from '../../../../shared/agent-launch/startup/tui
 import { resolveWslSessionContext } from '../../../daemon/pty-subprocess/wsl-session-context'
 import { isTuiAgentEnabled } from '../../../../shared/agent-launch/catalog/tui-agent-selection'
 import { resolveWslHostAgentLaunchInputs } from './wsl-host-agent-terminal-launch'
+import { withClaudeSubscriptionLaunchEnv } from '../../../../shared/claude-subscriptions'
 
 /** No launch command could be built for a requested `startupAgent`. */
 export class AgentLaunchUnbuildableError extends Error {}
@@ -177,21 +178,31 @@ async function buildRuntimeAgentTerminalStartupOptions(
   if (opts.startupPrompt && !forceLine && !agentPromptRidesLaunchCommand(agent)) {
     throw new Error(`Agent ${agent} does not take a startup prompt on its launch command.`)
   }
+  const planInputs = resolveWslHostAgentLaunchInputs(
+    resolveAgentStartupPlanInputs({
+      agent,
+      settings,
+      platform: runtime.platform,
+      isRemote,
+      ...(opts.agentArgs !== undefined ? { agentArgs: opts.agentArgs } : {}),
+      ...(opts.extraAgentArgs !== undefined ? { extraAgentArgs: opts.extraAgentArgs } : {}),
+      shell: agentLaunchQuotingShell(runtime),
+      sessionOptions: sessionOptions ?? host.toSessionOptions(opts.launchPreferences),
+      ...(opts.suppressStartupUpdatePrompt ? { suppressStartupUpdatePrompt: true } : {})
+    }),
+    opts.env?.PATH
+  )
   const scope = {
-    inputs: resolveWslHostAgentLaunchInputs(
-      resolveAgentStartupPlanInputs({
+    inputs: {
+      ...planInputs,
+      // Custom build (claude-subscriptions): in the launch env, so a resumed pane keeps its subscription.
+      agentEnv: withClaudeSubscriptionLaunchEnv(
         agent,
+        planInputs.agentEnv,
         settings,
-        platform: runtime.platform,
-        isRemote,
-        ...(opts.agentArgs !== undefined ? { agentArgs: opts.agentArgs } : {}),
-        ...(opts.extraAgentArgs !== undefined ? { extraAgentArgs: opts.extraAgentArgs } : {}),
-        shell: agentLaunchQuotingShell(runtime),
-        sessionOptions: sessionOptions ?? host.toSessionOptions(opts.launchPreferences),
-        ...(opts.suppressStartupUpdatePrompt ? { suppressStartupUpdatePrompt: true } : {})
-      }),
-      opts.env?.PATH
-    ),
+        opts.claudeSubscriptionId
+      )
+    },
     prompt: opts.startupPrompt ?? '',
     cwd: resolveTerminalStartupCwd(workspace.path, opts.cwd) ?? workspace.path,
     hostIdentity: host.hostIdentity,

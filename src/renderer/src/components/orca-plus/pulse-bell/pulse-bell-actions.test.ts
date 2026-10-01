@@ -9,8 +9,14 @@ const mocks = vi.hoisted(() => ({
   activateTabAndFocusPane: vi.fn(),
   dismiss: vi.fn(async () => {}),
   markRead: vi.fn(async () => {}),
-  markDone: vi.fn(async () => {})
+  markDone: vi.fn(async () => {}),
+  continueOnSubscription: vi.fn(
+    async (): Promise<{ ok: true } | { ok: false; reason: string }> => ({ ok: true })
+  ),
+  toastError: vi.fn()
 }))
+
+vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }))
 
 vi.mock('@/app-shell/use-claude-handoff-offers', () => ({
   launchClaudeHandoffOffer: mocks.launchClaudeHandoffOffer
@@ -54,6 +60,7 @@ beforeEach(() => {
   vi.stubGlobal('window', {
     api: {
       claudeHandoff: { dismiss: mocks.dismiss },
+      claudeLimitGuard: { continueOnSubscription: mocks.continueOnSubscription },
       pulseBell: { markRead: mocks.markRead, markDone: mocks.markDone }
     }
   })
@@ -100,6 +107,24 @@ describe('runPulseBellAction', () => {
     await runPulseBellAction(bellItem('claude-limit', 'acc-b'), 'switch')
     expect(mocks.switchClaudeAccountTo).toHaveBeenCalledWith('acc-b')
     expect(mocks.markDone).toHaveBeenCalledWith('item-1', 'switch')
+  })
+
+  it('continues a limit-stopped chat on the picked subscription, then closes its item', async () => {
+    const ref = JSON.stringify({ paneKey: 'p', tabId: 't', worktreeId: 'wt', sessionId: 'chat-1' })
+    await runPulseBellAction(bellItem('claude-chat-limit', ref), 'continue-on:work')
+    expect(mocks.continueOnSubscription).toHaveBeenCalledWith({
+      sessionId: 'chat-1',
+      subscriptionId: 'work'
+    })
+    expect(mocks.markDone).toHaveBeenCalledWith('item-1', 'continue-on:work')
+  })
+
+  it('keeps a chat-limit item open and says why when the move is refused', async () => {
+    mocks.continueOnSubscription.mockResolvedValueOnce({ ok: false, reason: 'busy' })
+    const ref = JSON.stringify({ paneKey: 'p', tabId: 't', worktreeId: 'wt', sessionId: 'chat-1' })
+    await runPulseBellAction(bellItem('claude-chat-limit', ref), 'continue-on:work')
+    expect(mocks.toastError).toHaveBeenCalledWith(expect.any(String), { description: 'busy' })
+    expect(mocks.markDone).not.toHaveBeenCalled()
   })
 
   it('only closes an item of an unknown kind', async () => {
