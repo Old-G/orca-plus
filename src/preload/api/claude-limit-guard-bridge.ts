@@ -4,6 +4,9 @@ import type { PreloadApi } from '../api-types'
 
 export const claudeLimitGuardApi = {
   list: () => ipcRenderer.invoke('claudeLimitGuard:list'),
+  continueAuthStops: () => ipcRenderer.invoke('claudeLimitGuard:continueAuthStops'),
+  continueOnSubscription: (args) =>
+    ipcRenderer.invoke('claudeLimitGuard:continueOnSubscription', args),
   onStopsChanged: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, stops: ClaudeLimitStoppedAgent[]): void =>
       callback(stops)
