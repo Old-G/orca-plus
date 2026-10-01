@@ -7,6 +7,7 @@ import type {
   PulseDraftInput,
   PulseDraftStatus
 } from '../../../shared/pulse-types'
+import { parseOutgoingDraftCall } from '../../../shared/outgoing-approval/outgoing-action'
 import type { PulseCore } from './pulse-core'
 import { integer, oneOf, optionalText, text } from './pulse-row-fields'
 
@@ -27,7 +28,8 @@ function toDraft(row: SqliteRow): PulseDraft {
     fingerprint: optionalText(row, 'fingerprint'),
     status: oneOf(row, 'status', DRAFT_STATUSES),
     createdAt: integer(row, 'created_at'),
-    updatedAt: integer(row, 'updated_at')
+    updatedAt: integer(row, 'updated_at'),
+    call: parseOutgoingDraftCall(optionalText(row, 'payload'))
   }
 }
 
@@ -61,13 +63,14 @@ export function addDraft(core: PulseCore, input: PulseDraftInput): PulseAddResul
       fingerprint: input.fingerprint ?? null,
       status: 'pending',
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      call: input.call ?? null
     }
     core.db
       .prepare(
         'INSERT INTO drafts (id, kind, target, title, body, project, person_id, source, ' +
-          'source_ref, fingerprint, status, created_at, updated_at) ' +
-          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          'source_ref, fingerprint, status, created_at, updated_at, payload) ' +
+          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       )
       .run(
         draft.id,
@@ -82,7 +85,8 @@ export function addDraft(core: PulseCore, input: PulseDraftInput): PulseAddResul
         draft.fingerprint,
         draft.status,
         now,
-        now
+        now,
+        draft.call ? JSON.stringify(draft.call) : null
       )
     core.emit('draft.added', 'draft', draft.id, draft)
     return { record: draft, created: true }
@@ -133,6 +137,15 @@ export function markDraftDelivery(
   return core.transaction(() => {
     const moved = moveDraft(core, id, status)
     core.emit(`draft.${status}`, 'draft', id, moved)
+    return moved
+  })
+}
+
+/** Custom build (outgoing-approval): the agent stopped waiting before anyone decided; no approval is recorded. */
+export function abandonDraft(core: PulseCore, id: string): PulseDraft {
+  return core.transaction(() => {
+    const moved = moveDraft(core, id, 'rejected')
+    core.emit('draft.abandoned', 'draft', id, moved)
     return moved
   })
 }

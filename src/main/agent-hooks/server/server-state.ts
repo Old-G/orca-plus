@@ -2,6 +2,7 @@ import type {
   AgentProcessPresence,
   AgentProcessVerdict
 } from '../../../shared/agent-process-presence'
+import type { OutgoingGateRequestHandler } from '../../orca-plus/outgoing-approval/outgoing-gate-http'
 import type { createServer } from 'node:http'
 import { randomBytes, randomUUID } from 'node:crypto'
 
@@ -108,6 +109,8 @@ export abstract class AgentHookServerState {
   protected clearStartupPromptClaims: (() => void) | null = null
   protected statusHooksEnabled = true
   protected statusHookGeneration = 0
+  // Custom build (outgoing-approval): holds outgoing agent tool calls until the owner decides.
+  protected onOutgoingGate: OutgoingGateRequestHandler | null = null
   protected onPaneStatusCleared: PaneStatusClearListener | null = null
   protected paneStatusClearListeners = new Set<PaneStatusClearListener>()
   protected statusDropListeners = new Set<StatusDropListener>()
