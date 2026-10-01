@@ -66,6 +66,45 @@ describe('PulseDb schema', () => {
     expect(second.listWaitings().map((w) => w.title)).toEqual(['Contract from Ann'])
   })
 
+  it('lifts a version 1 file with drafts to the gate payload column', async () => {
+    const path = await tempPath()
+    const first = openDb(path)
+    first.addDraft({ kind: 'message', body: 'old draft', source: 'agent' })
+    first.close()
+    const raw = new Database(path)
+    raw.exec('ALTER TABLE drafts DROP COLUMN payload')
+    raw.pragma('user_version = 1')
+    raw.close()
+
+    // Why: random ids — the test clock would reuse the first file's ids.
+    const lifted = new PulseDb(path)
+    open.push(lifted)
+    expect(lifted.listDrafts().map((d) => [d.body, d.call])).toEqual([['old draft', null]])
+    const call = {
+      agent: 'claude',
+      toolName: 'mcp__claude_ai_Slack__slack_send_message',
+      toolInput: { channel_id: 'D1', message: 'hi' },
+      toolUseId: 'toolu_1',
+      sessionId: 's1',
+      cwd: '/repo',
+      paneKey: null,
+      agentSessionId: 'chat-1',
+      service: 'Slack',
+      operation: 'send message',
+      editField: 'message'
+    }
+    const { record } = lifted.addDraft({ kind: 'message', body: 'hi', source: 'gate', call })
+    expect(lifted.getDraft(record.id)?.call).toEqual(call)
+  })
+
+  it('abandons a pending draft without recording an approval', () => {
+    const db = openDb()
+    const { record } = db.addDraft({ kind: 'other', body: 'git push', source: 'gate' })
+    expect(db.abandonDraft(record.id).status).toBe('rejected')
+    expect(db.listDecisions()).toEqual([])
+    expect(() => db.abandonDraft(record.id)).toThrow(/cannot go from rejected/)
+  })
+
   it('refuses a file written by a newer schema', async () => {
     const path = await tempPath()
     const raw = new Database(path)
