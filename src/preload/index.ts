@@ -35,6 +35,7 @@ import { slackApi } from './api/slack-bridge'
 import { claudeHandoffApi } from './api/claude-handoff-bridge'
 import { pulseBellApi } from './api/pulse-bell-bridge'
 import { claudeLimitGuardApi } from './api/claude-limit-guard-bridge'
+import { claudeSubscriptionsApi } from './api/claude-subscriptions-bridge'
 import { strataApi } from './api/strata-bridge'
 import { hqGroupChatApi } from './api/hq-group-chat-bridge'
 import { lspApi } from './api/lsp-bridge'
@@ -144,6 +145,7 @@ const api = {
   claudeHandoff: claudeHandoffApi,
   pulseBell: pulseBellApi,
   claudeLimitGuard: claudeLimitGuardApi,
+  claudeSubscriptions: claudeSubscriptionsApi,
   strata: strataApi,
   hqGroupChat: hqGroupChatApi,
   lsp: lspApi,

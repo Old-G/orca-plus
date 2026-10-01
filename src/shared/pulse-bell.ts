@@ -2,12 +2,17 @@
 import type { ClaudeHandoffOffer } from './claude-handoff-file'
 import type { PulseInboxInput } from './pulse-types'
 import { parsePaneKey } from './stable-pane-id'
+import {
+  structuredAgentSessionPaneKey,
+  structuredAgentSessionTabId
+} from './structured-agent-session-projection'
 
 export const PULSE_BELL_KIND = {
   handoff: 'handoff',
   agentWaiting: 'agent-waiting',
   claudeLimit: 'claude-limit',
-  agentFinished: 'agent-finished'
+  agentFinished: 'agent-finished',
+  claudeChatLimit: 'claude-chat-limit'
 } as const
 
 export const PULSE_BELL_ACTION = {
@@ -109,6 +114,55 @@ export function agentFinishedBellItem(agent: FinishedAgent): PulseBellInput {
   }
 }
 
+const CONTINUE_ON_PREFIX = 'continue-on:'
+
+/** One button per subscription the chat can move to; the id names the subscription. */
+export function continueOnSubscriptionActionId(subscriptionId: string): string {
+  return `${CONTINUE_ON_PREFIX}${subscriptionId}`
+}
+
+export function readContinueOnSubscriptionAction(actionId: string): string | null {
+  return actionId.startsWith(CONTINUE_ON_PREFIX)
+    ? actionId.slice(CONTINUE_ON_PREFIX.length) || null
+    : null
+}
+
+export type LimitStoppedChat = {
+  sessionId: string
+  worktreeId: string | null
+  chatTitle: string | null
+  subscriptionLabel: string
+  /** Where it can continue, in the order the buttons show. */
+  alternatives: readonly { id: string; label: string }[]
+  stoppedAt: number
+}
+
+/** A native chat stopped on its subscription's limit; it continues on another in the same chat. */
+export function limitStoppedChatBellItem(chat: LimitStoppedChat): PulseBellInput {
+  const tabId = structuredAgentSessionTabId(chat.sessionId)
+  return {
+    kind: PULSE_BELL_KIND.claudeChatLimit,
+    title: 'A chat stopped on its Claude limit',
+    body: [chat.chatTitle, `on ${chat.subscriptionLabel}`].filter(Boolean).join(' · '),
+    urgency: 'urgent',
+    refKind: 'pane',
+    refId: JSON.stringify({
+      paneKey: structuredAgentSessionPaneKey(tabId, chat.sessionId),
+      tabId,
+      worktreeId: chat.worktreeId,
+      sessionId: chat.sessionId
+    }),
+    actions: [
+      ...chat.alternatives.map((choice) => ({
+        id: continueOnSubscriptionActionId(choice.id),
+        label: `Continue on ${choice.label}`
+      })),
+      { id: PULSE_BELL_ACTION.dismiss, label: 'Not now' }
+    ],
+    dedupeKey: `claude-chat-limit:${chat.sessionId}:${chat.stoppedAt}`
+  }
+}
+
 export type PulseBellPaneRef = { paneKey: string; tabId: string | null; worktreeId: string | null }
 
 export function readPulseBellPaneRef(refId: string | null): PulseBellPaneRef | null {
@@ -130,6 +184,18 @@ export function readPulseBellPaneRef(refId: string | null): PulseBellPaneRef | n
           worktreeId: typeof worktreeId === 'string' ? worktreeId : null
         }
       : null
+  } catch {
+    return null
+  }
+}
+
+/** The native chat a limit item names; see `limitStoppedChatBellItem`. */
+export function readPulseBellSessionId(refId: string | null): string | null {
+  try {
+    const parsed: unknown = refId ? JSON.parse(refId) : null
+    const sessionId: unknown =
+      parsed && typeof parsed === 'object' ? Reflect.get(parsed, 'sessionId') : null
+    return typeof sessionId === 'string' ? sessionId : null
   } catch {
     return null
   }

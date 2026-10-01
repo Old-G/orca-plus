@@ -17840,6 +17840,20 @@
         "description": "汇总所有项目的元 wiki。添加或移除项目时会更新其注册表和页面。",
         "placeholder": "未设置 — 同步已关闭"
       }
+    },
+    "claudeSubscriptions": {
+      "baseLabel": "主登录",
+      "baseDetail": "~/.claude，使用上方的账户切换器",
+      "title": "按会话的 Claude 订阅",
+      "description": "每个订阅都是一个拥有独立登录的 Claude 配置文件夹，因此不同订阅的会话可以同时运行。设置、钩子、技能、插件和历史记录与 ~/.claude 共享；登录不共享。",
+      "default": "默认",
+      "makeDefault": "设为默认",
+      "signIn": "登录",
+      "remove": "移除",
+      "labelPlaceholder": "名称，例如 工作",
+      "add": "添加",
+      "statusChecking": "正在检查登录…",
+      "statusSignedOut": "未登录"
     }
   },
   "components": {

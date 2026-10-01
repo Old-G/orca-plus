@@ -17840,6 +17840,20 @@
         "description": "모든 프로젝트를 아우르는 메타 위키입니다. 프로젝트를 추가하거나 제거하면 레지스트리와 페이지가 업데이트됩니다.",
         "placeholder": "설정 안 됨 — 동기화 꺼짐"
       }
+    },
+    "claudeSubscriptions": {
+      "baseLabel": "기본 로그인",
+      "baseDetail": "~/.claude, 위의 계정 전환기 사용",
+      "title": "세션별 Claude 구독",
+      "description": "각 구독은 자체 로그인이 있는 별도의 Claude 설정 폴더이므로 서로 다른 구독의 세션을 동시에 실행할 수 있습니다. 설정, 훅, 스킬, 플러그인, 기록은 ~/.claude와 공유되며 로그인은 공유되지 않습니다.",
+      "default": "기본값",
+      "makeDefault": "기본값으로 설정",
+      "signIn": "로그인",
+      "remove": "제거",
+      "labelPlaceholder": "이름 (예: 업무)",
+      "add": "추가",
+      "statusChecking": "로그인 확인 중…",
+      "statusSignedOut": "로그인되지 않음"
     }
   },
   "components": {

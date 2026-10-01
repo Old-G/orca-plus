@@ -1,7 +1,11 @@
-// Custom build (claude-limit-guard): Claude agents whose turn ended on a usage limit, and the one
-// nudge (Esc + a continue prompt) each gets once another account is active or the limit lifted.
+// Custom build (claude-limit-guard): Claude agents whose turn ended on a usage limit or a rejected
+// sign-in, and the one nudge (Esc + a continue prompt) each gets once another account is active, the
+// limit lifted, or the owner fixed the sign-in.
 import {
   CLAUDE_LIMIT_SWITCH_THRESHOLD_PERCENT,
+  claudeLimitStopIsAuth,
+  claudeLimitStopOnBaseSignIn,
+  type ClaudeLimitStopReason,
   type ClaudeLimitStoppedAgent
 } from '../../shared/claude-limit-guard'
 import type { ProviderRateLimits } from '../../shared/rate-limit-types'
@@ -24,6 +28,8 @@ export type ClaudeLimitStopsDeps = {
   activeAccountId: () => string | null
   resumeTerminal: (paneKey: string) => Promise<boolean>
   resumeNativeChat: (sessionId: string) => Promise<boolean>
+  /** The subscription a native chat runs on; null for the base sign-in. */
+  nativeChatSubscription?: (sessionId: string) => string | null
   onChanged: (stops: ClaudeLimitStoppedAgent[]) => void
   /** True when the stopped turn had written a handoff: that session moves on, it is not continued. */
   checkHandoff?: (stop: ClaudeLimitStoppedAgent) => Promise<boolean>
@@ -52,6 +58,30 @@ export function isClaudeLimitStopFrame(frame: ClaudeLimitNativeFrame): boolean {
     return frame.error === 'rate_limit'
   }
   return frame.type === 'result' && frame.is_error === true && frame.api_error_status === 429
+}
+
+/** A frame that ends the main agent's turn on a rejected sign-in ("Please run /login · 403"). */
+export function isClaudeAuthStopFrame(frame: ClaudeLimitNativeFrame): boolean {
+  if (!isMainAgentFrame(frame)) {
+    return false
+  }
+  if (frame.type === 'assistant') {
+    return frame.error === 'authentication_failed'
+  }
+  return (
+    frame.type === 'result' &&
+    frame.is_error === true &&
+    (frame.api_error_status === 401 || frame.api_error_status === 403)
+  )
+}
+
+function nativeStopReason(frame: ClaudeLimitNativeFrame): ClaudeLimitStopReason | null {
+  return isClaudeLimitStopFrame(frame) ? 'limit' : isClaudeAuthStopFrame(frame) ? 'auth' : null
+}
+
+const HOOK_STOP_REASONS: Readonly<Record<string, ClaudeLimitStopReason>> = {
+  rate_limit: 'limit',
+  authentication_failed: 'auth'
 }
 
 /** A frame that proves the main agent is working again. */
@@ -85,7 +115,9 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
 
   const record = (stop: ClaudeLimitStoppedAgent): void => {
     stops.set(stopId(stop.kind, stop.key), stop)
-    deps.log?.(`${stop.kind} ${stop.key} stopped on a usage limit`)
+    deps.log?.(
+      `${stop.kind} ${stop.key} ${claudeLimitStopIsAuth(stop) ? 'stopped: sign-in rejected' : 'stopped on a usage limit'}`
+    )
     publish()
     // Why: raises the handoff offer now; a limit-cut turn never sends the `done` that would.
     void handedOff(stop)
@@ -138,9 +170,14 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
         return
       }
       const id = stopId('terminal', event.paneKey)
-      if (event.hookEventName === 'StopFailure' && event.stopFailureError === 'rate_limit') {
+      const reason =
+        event.hookEventName === 'StopFailure'
+          ? HOOK_STOP_REASONS[event.stopFailureError ?? '']
+          : undefined
+      if (reason) {
         record({
           kind: 'terminal',
+          reason,
           key: event.paneKey,
           worktreeId: event.worktreeId ?? null,
           accountId: deps.activeAccountId(),
@@ -157,16 +194,19 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
 
     onNativeFrame(sessionId: string, worktreeId: string | null, frame: ClaudeLimitNativeFrame) {
       const id = stopId('native-chat', sessionId)
-      if (isClaudeLimitStopFrame(frame)) {
+      const reason = nativeStopReason(frame)
+      if (reason) {
         if (!stops.has(id)) {
           record({
             kind: 'native-chat',
+            reason,
             key: sessionId,
             worktreeId,
             accountId: deps.activeAccountId(),
             stoppedAt: deps.now(),
             resetsAt: null,
-            sessionId
+            sessionId,
+            subscriptionId: deps.nativeChatSubscription?.(sessionId) ?? null
           })
         }
         return
@@ -186,8 +226,19 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
 
     /** Another account became active: every agent stopped on a different account continues. */
     async onAccountChanged(activeAccountId: string | null): Promise<void> {
-      const due = [...stops.values()].filter((stop) => stop.accountId !== activeAccountId)
+      const due = [...stops.values()].filter(
+        (stop) => stop.accountId !== activeAccountId && claudeLimitStopOnBaseSignIn(stop)
+      )
       await Promise.all(due.map(resume))
+    },
+
+    /** The owner fixed the sign-in (or says it is fixed): agents stopped on a rejected one continue. */
+    async resumeAuthStops(): Promise<number> {
+      const due = [...stops.values()].filter(
+        (stop) => claudeLimitStopIsAuth(stop) && claudeLimitStopOnBaseSignIn(stop)
+      )
+      await Promise.all(due.map(resume))
+      return due.length
     },
 
     /** The active account has room again (window reset): agents stopped on it continue once. */
@@ -200,6 +251,8 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
         const id = stopId(stop.kind, stop.key)
         return (
           stop.accountId === activeAccountId &&
+          !claudeLimitStopIsAuth(stop) &&
+          claudeLimitStopOnBaseSignIn(stop) &&
           now - stop.stoppedAt >= MIN_STOP_AGE_FOR_RELIEF_MS &&
           now - (lastReliefResumeAt.get(id) ?? 0) >= RELIEF_RETRY_COOLDOWN_MS
         )

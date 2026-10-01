@@ -6,6 +6,7 @@ import type { AgentLaunchSurface, LaunchAgentInNewTabArgs } from '@/lib/launch-a
 import { launchAgentInStructuredNewTab } from '@/lib/launch-agent-in-new-tab-structured'
 import type { StructuredAgentLaunchSettlement } from '@/lib/structured-agent-launch-settlement'
 import type { StructuredPromptDeliveryResult } from '@/lib/structured-agent-session-launch-prompt'
+import { rememberClaudeSubscriptionForSession } from '@/lib/claude-subscription-choice'
 import {
   beginStructuredAgentSessionProvisionalLaunch,
   structuredLaunchPairedOwner
@@ -28,20 +29,29 @@ export function launchStructuredAgentFromNewTab(args: {
   worktreeId: string
   groupId?: string
   beforeSurfaceOpen?: LaunchAgentInNewTabArgs['beforeSurfaceOpen']
+  /** Custom build (claude-subscriptions): a local Claude chat's picked subscription. */
+  claudeSubscriptionId?: string
   openTerminal: (terminalPlan: AgentSessionLaunchPlan) => {
     promptDeliveryResult?: Promise<StructuredPromptDeliveryResult>
   } | null
 }): StructuredFromNewTab | null {
-  const { plan, beforeSurfaceOpen } = args
+  const { plan, beforeSurfaceOpen, claudeSubscriptionId } = args
   const paired = structuredLaunchPairedOwner(plan, args.worktreeId)
   if (!paired) {
     const structured = launchAgentInStructuredNewTab({
       plan,
-      ...(beforeSurfaceOpen
+      ...(beforeSurfaceOpen || claudeSubscriptionId
         ? {
-            beforeOpen: (sessionId?: string) =>
-              sessionId === undefined ||
-              beforeSurfaceOpen({ kind: 'local-agent-session', sessionId })
+            beforeOpen: (sessionId?: string) => {
+              // Before the create can run, so the host resolves this chat's home from the pick.
+              if (sessionId !== undefined && claudeSubscriptionId) {
+                rememberClaudeSubscriptionForSession(sessionId, claudeSubscriptionId)
+              }
+              return (
+                sessionId === undefined ||
+                beforeSurfaceOpen?.({ kind: 'local-agent-session', sessionId }) !== false
+              )
+            }
           }
         : {}),
       ...(args.groupId ? { targetGroupId: args.groupId } : {})

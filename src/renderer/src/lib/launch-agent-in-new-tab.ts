@@ -14,10 +14,7 @@ import { isNativeChatTranscriptLocalReadable } from '@/lib/native-chat-transcrip
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { isWebRuntimeSessionActive } from '@/runtime/web-runtime-session'
 import { launchAgentInWebHostTab } from '@/lib/launch-agent-web-host-tab'
-import {
-  resolveTuiAgentLaunchArgs,
-  resolveTuiAgentLaunchEnv
-} from '../../../shared/tui-agent-launch-defaults'
+import { resolveTuiAgentLaunchArgs } from '../../../shared/tui-agent-launch-defaults'
 import { TUI_AGENT_CONFIG } from '../../../shared/tui-agent-config'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import type { LaunchSource } from '../../../shared/telemetry-events'
@@ -25,6 +22,7 @@ import { resolveAgentLaunchExecutionContext } from '@/lib/launch-agent-execution
 import { resolveInitialNativeChatSessionOptions } from '@/components/native-chat/native-chat-launch-session-options'
 import { seedNativeChatAppliedSessionOptions } from '@/components/native-chat/native-chat-session-option-cache'
 import { launchStructuredAgentFromNewTab } from '@/lib/launch-agent-in-new-tab-structured-route'
+import * as claudeSubscription from '@/lib/launch-agent-claude-subscription'
 import type { StructuredAgentLaunchSettlement } from '@/lib/structured-agent-launch-settlement'
 import { workspaceKindForWorktreeId } from '@/lib/agent-launch-route-input'
 import {
@@ -82,7 +80,7 @@ export type LaunchAgentInNewTabArgs = LaunchAgentInNewTabRequest & {
       | { kind: 'local-agent-session'; sessionId: string }
       | { kind: 'host-published' }
   ) => boolean | void
-}
+} & claudeSubscription.LaunchArgs
 
 export type AgentLaunchSurface =
   | { kind: 'local-terminal'; tabId: string }
@@ -143,7 +141,7 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
     agentArgs !== undefined
       ? agentArgs
       : resolveTuiAgentLaunchArgs(agent, store.settings?.agentDefaultArgs)
-  const agentEnv = resolveTuiAgentLaunchEnv(agent, store.settings?.agentDefaultEnv)
+  const agentEnv = claudeSubscription.agentEnv(agent, store.settings, args.claudeSubscriptionId)
   const trimmedPrompt = prompt?.trim() ?? ''
   const hasPrompt = trimmedPrompt.length > 0
   const isFollowupPath = TUI_AGENT_CONFIG[agent].promptInjectionMode === 'stdin-after-start'
@@ -203,6 +201,7 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
       worktreeId,
       ...(groupId ? { groupId } : {}),
       ...(beforeSurfaceOpen ? { beforeSurfaceOpen } : {}),
+      ...claudeSubscription.structuredArgs(agent, args.claudeSubscriptionId),
       // A paired server's "no" opens this same launch as a terminal, with the caller's arguments.
       openTerminal: (terminalPlan) =>
         launchAgentInNewTabInternal({

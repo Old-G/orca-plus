@@ -75,6 +75,12 @@ export type StructuredAgentAccountHomeServices = {
   prepareCodexLaunchHome: StructuredCodexAccountHomeDeps['resolveLaunchHome']
   readCodexLaunchHome: StructuredCodexAccountHomeDeps['resolveLaunchHome']
   workspaceTrustSettings: () => Parameters<typeof applyStructuredCodexWorkspaceTrust>[0]['settings']
+  /** Custom build (claude-subscriptions): the dir of the Claude subscription this chat runs on. */
+  claudeSubscriptionConfigDir?: (input: {
+    launchEnv: NodeJS.ProcessEnv
+    wslDistro: string | null
+    purpose: 'launch' | 'read'
+  }) => string | null
 }
 
 export type StructuredAgentRuntimeRegistration = {
@@ -222,10 +228,15 @@ export const STRUCTURED_AGENT_RUNTIME_REGISTRATIONS: readonly StructuredAgentRun
       definition: CLAUDE_STRUCTURED_AGENT,
       createAdapter: createClaudeAdapter,
       supportsLocation: supportsClaudeStructuredLocation,
-      resolveAccountHomePath: async ({ launchEnv, location }, services) =>
+      resolveAccountHomePath: async ({ launchEnv, location, purpose }, services) =>
         resolveStructuredClaudeAccountHomePath({
           launchEnv,
           wslDistro: location?.wslDistro ?? null,
+          subscriptionConfigDir: services.claudeSubscriptionConfigDir?.({
+            launchEnv,
+            wslDistro: location?.wslDistro ?? null,
+            purpose
+          }),
           getClaudeConfigDirectory: services.getClaudeConfigDirectory
         })
     },

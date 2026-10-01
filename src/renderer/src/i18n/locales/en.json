@@ -18233,6 +18233,20 @@
         "description": "Meta-wiki over all your projects. Adding or removing a project updates its registry and pages.",
         "placeholder": "Not set — sync is off"
       }
+    },
+    "claudeSubscriptions": {
+      "baseLabel": "Main sign-in",
+      "baseDetail": "~/.claude, with the account switcher above",
+      "title": "Claude subscriptions per session",
+      "description": "Each subscription is its own Claude config folder with its own sign-in, so sessions on different subscriptions run side by side. Settings, hooks, skills, plugins and history are shared with ~/.claude; sign-in is not.",
+      "default": "Default",
+      "makeDefault": "Make default",
+      "signIn": "Sign in",
+      "remove": "Remove",
+      "labelPlaceholder": "Name, e.g. Work",
+      "add": "Add",
+      "statusChecking": "Checking sign-in…",
+      "statusSignedOut": "Not signed in"
     }
   },
   "components": {

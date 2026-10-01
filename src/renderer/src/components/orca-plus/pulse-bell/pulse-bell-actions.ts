@@ -1,8 +1,11 @@
 // Custom build (pulse-bell): what each button of a bell item does. Unknown kinds only close.
+import { toast } from 'sonner'
 import {
   PULSE_BELL_ACTION,
   PULSE_BELL_KIND,
+  readContinueOnSubscriptionAction,
   readPulseBellPaneRef,
+  readPulseBellSessionId,
   type PulseBellPaneRef
 } from '../../../../../shared/pulse-bell'
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
@@ -12,6 +15,7 @@ import { switchClaudeAccountTo } from '@/app-shell/use-claude-limit-guard'
 import { activateTabAndFocusPane } from '@/lib/activate-tab-and-focus-pane'
 import { activateStructuredAgentSessionTab } from '@/lib/structured-agent-session-tab-activation'
 import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
+import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 
 function openPane(ref: PulseBellPaneRef): void {
@@ -65,6 +69,22 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
     const ref = readPulseBellPaneRef(item.refId)
     if (ref) {
       openPane(ref)
+    }
+  }
+  const continueOn = readContinueOnSubscriptionAction(actionId)
+  const chatSessionId = readPulseBellSessionId(item.refId)
+  if (item.kind === PULSE_BELL_KIND.claudeChatLimit && continueOn && chatSessionId) {
+    const moved = await window.api.claudeLimitGuard.continueOnSubscription({
+      sessionId: chatSessionId,
+      subscriptionId: continueOn
+    })
+    if (!moved.ok) {
+      toast.error(
+        translate('auto.pulseBell.chatLimit.moveFailed', 'The chat could not continue there'),
+        { description: moved.reason }
+      )
+      // Why: the stop stays recorded, so the item stays for another try.
+      return
     }
   }
   if (

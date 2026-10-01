@@ -43,6 +43,7 @@ export {
   StructuredAgentSessionCreateUnknownOutcomeError,
   StructuredAgentSessionOwnerUnresolvedError
 }
+import { sendPendingClaudeSubscriptionChoice } from '@/lib/claude-subscription-choice'
 
 export type StructuredAgentSessionLaunchIntent = {
   sessionId: string
@@ -269,6 +270,9 @@ export async function launchStructuredAgentSession(
   const hostSeed = await requireHostCreateSupport(intent)
   if (intent.target.kind !== 'local') {
     onHostSeed?.(hostSeed)
+  }
+  if (intent.agent === 'claude') {
+    await sendPendingClaudeSubscriptionChoice(intent.sessionId)
   }
   let result: AgentSessionMutationResult<AgentSessionAttachResult>
   try {

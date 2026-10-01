@@ -32,7 +32,7 @@ import { useCustomAppearanceBackground } from './app-shell/use-custom-appearance
 import { useClaudeHandoffOffers } from './app-shell/use-claude-handoff-offers'
 import { useStrataStatusRefresh } from './app-shell/use-strata-status-refresh'
 import { useClaudeLimitGuard } from './app-shell/use-claude-limit-guard'
-import { useAgentFinishedToasts } from './components/orca-plus/pulse-bell/use-agent-finished-toasts'
+import { usePulseBellToasts } from './components/orca-plus/pulse-bell/use-pulse-bell-toasts'
 import { useFloatingWorkspacePanel } from './app-shell/use-floating-workspace-panel'
 import { useGlobalKeybindings } from './app-shell/use-global-keybindings'
 import { useOnboardingAndFeatureTips } from './app-shell/use-onboarding-and-feature-tips'
@@ -60,7 +60,7 @@ function App(): React.JSX.Element {
   useClaudeHandoffOffers()
   useStrataStatusRefresh()
   useClaudeLimitGuard()
-  useAgentFinishedToasts()
+  usePulseBellToasts()
   useWindowVisibilityEffects()
   useGlobalKeybindings({ layout, floatingWorkspace })
 

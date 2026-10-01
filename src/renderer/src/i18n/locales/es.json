@@ -17839,6 +17839,20 @@
         "description": "Metawiki de todos tus proyectos. Al añadir o quitar un proyecto se actualizan su registro y sus páginas.",
         "placeholder": "Sin configurar — sincronización desactivada"
       }
+    },
+    "claudeSubscriptions": {
+      "baseLabel": "Inicio de sesión principal",
+      "baseDetail": "~/.claude, con el selector de cuentas de arriba",
+      "title": "Suscripciones de Claude por sesión",
+      "description": "Cada suscripción es su propia carpeta de configuración de Claude con su propio inicio de sesión, así que las sesiones de distintas suscripciones funcionan a la vez. Ajustes, hooks, skills, plugins e historial se comparten con ~/.claude; el inicio de sesión no.",
+      "default": "Predeterminada",
+      "makeDefault": "Hacer predeterminada",
+      "signIn": "Iniciar sesión",
+      "remove": "Quitar",
+      "labelPlaceholder": "Nombre, p. ej. Trabajo",
+      "add": "Añadir",
+      "statusChecking": "Comprobando el inicio de sesión…",
+      "statusSignedOut": "Sin iniciar sesión"
     }
   },
   "components": {

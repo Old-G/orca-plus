@@ -3,6 +3,9 @@ import { SQLITE_DATABASE_RUNTIME_INCLUDE } from './vitest-sqlite-database-runtim
 // Real SQLite fixtures keep Node publication and close semantics.
 export const SQLITE_RUNTIME_INCLUDE = [
   ...SQLITE_DATABASE_RUNTIME_INCLUDE,
+  // Custom build: Orca+ suites on a real SQLite file (pulse inbox, chat account-home records).
+  'src/main/orca-plus/pulse/pulse-db.test.ts',
+  'src/main/runtime/agent-session-record-account-home.test.ts',
   'src/main/active-view-persistence-boundary.test.ts',
   'src/main/automations/automation-dispatch-host-fence.test.ts',
   'src/main/automations/automation-owner-fencing.test.ts',

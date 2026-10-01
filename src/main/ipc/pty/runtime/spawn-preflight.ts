@@ -43,6 +43,7 @@ import { stampWslOrchestrationCompatibilityHost } from '../../../pty/wsl-orca-en
 import { ensureCodexStateDbBackfillRecoveryStarted } from '../../../codex/codex-state-db-backfill-recovery'
 import { clearProviderPtyState } from '../provider/state-cleanup'
 import { awaitExplicitPiOmpGuestReadiness } from '../../../agent-hooks/wsl-pi-omp-guest-readiness'
+import { prepareClaudeLaunchAuthOnSubscription } from '../../../claude-subscriptions/claude-subscription-launch'
 import type { RuntimePtySpawnState } from './spawn-state'
 
 export async function prepareRuntimePtySpawn(
@@ -147,10 +148,11 @@ export async function prepareRuntimePtySpawn(
   // notifyResumeUnavailable — runtime/relay panes start fresh without the notice.
   ctx.launchCommand = codexResumeLaunch.command
   args.env = withClaudeProfileTerminalEnv(args.env, args.connectionId, ctx.codexSelectionTarget)
-  ctx.claudeAuth =
-    ctx.isClaudeLaunch && ctx.deps.prepareClaudeAuth
-      ? await ctx.deps.prepareClaudeAuth(ctx.codexSelectionTarget)
-      : null
+  ctx.claudeAuth = await prepareClaudeLaunchAuthOnSubscription(
+    ctx,
+    ctx.codexSelectionTarget,
+    args.env
+  )
   if (ctx.isClaudeLaunch && isClaudeAuthSwitchInProgress()) {
     throw new Error(CLAUDE_AUTH_SWITCH_IN_PROGRESS_MESSAGE)
   }

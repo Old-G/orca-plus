@@ -17840,6 +17840,20 @@
         "description": "すべてのプロジェクトをまとめるメタ wiki。プロジェクトを追加・削除すると、レジストリとページが更新されます。",
         "placeholder": "未設定 — 同期はオフ"
       }
+    },
+    "claudeSubscriptions": {
+      "baseLabel": "メインのサインイン",
+      "baseDetail": "~/.claude（上のアカウント切り替えを使用）",
+      "title": "セッションごとの Claude サブスクリプション",
+      "description": "各サブスクリプションは独自のサインインを持つ Claude 設定フォルダーです。異なるサブスクリプションのセッションを同時に実行できます。設定、フック、スキル、プラグイン、履歴は ~/.claude と共有され、サインインは共有されません。",
+      "default": "デフォルト",
+      "makeDefault": "デフォルトにする",
+      "signIn": "サインイン",
+      "remove": "削除",
+      "labelPlaceholder": "名前（例: 仕事）",
+      "add": "追加",
+      "statusChecking": "サインインを確認中…",
+      "statusSignedOut": "未サインイン"
     }
   },
   "components": {

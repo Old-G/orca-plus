@@ -7,6 +7,10 @@ import {
   type AgentStartupShell
 } from './tui-agent-startup-shell'
 import type { TuiAgent } from './tui-agent'
+import {
+  withClaudeSubscriptionLaunchEnv,
+  type ClaudeSubscriptionSettings
+} from './claude-subscriptions'
 import { resolveLocalWindowsAgentStartupShell } from './windows-terminal-shell'
 
 const UNSUPPORTED_TUI_AGENT_ARGS: Partial<Record<TuiAgent, readonly string[]>> = {
@@ -161,10 +165,13 @@ export function resolvedTuiAgentArgsBypassPermissions(
 
 export function resolveTuiAgentLaunchEnv(
   agent: TuiAgent,
-  configuredEnv: Partial<Record<TuiAgent, Record<string, string>>> | null | undefined
+  configuredEnv: Partial<Record<TuiAgent, Record<string, string>>> | null | undefined,
+  /** Launch paths pass settings so a Claude pane's saved env names its subscription. */
+  subscriptions?: ClaudeSubscriptionSettings | null
 ): Record<string, string> {
-  if (configuredEnv && Object.hasOwn(configuredEnv, agent)) {
-    return { ...configuredEnv[agent] }
-  }
-  return getTuiAgentDefaultEnv(agent)
+  const env =
+    configuredEnv && Object.hasOwn(configuredEnv, agent)
+      ? { ...configuredEnv[agent] }
+      : getTuiAgentDefaultEnv(agent)
+  return subscriptions ? withClaudeSubscriptionLaunchEnv(agent, env, subscriptions, undefined) : env
 }

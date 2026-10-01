@@ -13,6 +13,7 @@ import {
 import { resolveTerminalStartupCwd } from '../../shared/terminal-startup-cwd'
 import { resolveAgentStartupPlanInputs } from '../../shared/agent-startup-plan-inputs'
 import { agentStartedTelemetry } from '../agent-launch/agent-started-telemetry'
+import { withClaudeSubscriptionLaunchEnv } from '../../shared/claude-subscriptions'
 
 export async function buildRuntimeAgentTerminalStartupOptions(
   workspace: TerminalWorkspaceLaunchScope,
@@ -45,17 +46,27 @@ export async function buildRuntimeAgentTerminalStartupOptions(
   if (opts.startupPrompt && !agentPromptRidesLaunchCommand(agent)) {
     throw new Error(`Agent ${agent} does not take a startup prompt on its launch command.`)
   }
+  const planInputs = resolveAgentStartupPlanInputs({
+    agent,
+    settings,
+    platform,
+    isRemote,
+    ...(opts.agentArgs !== undefined ? { agentArgs: opts.agentArgs } : {}),
+    // A requested shell is the one this PTY will actually be, so it owns the quoting family.
+    windowsShellOverride: opts.shellOverride,
+    sessionOptions: sessionOptions
+  })
   const { plan: startupPlan, promptCarried } = await planExecutionHostStartupWithPromptCandidate({
-    inputs: resolveAgentStartupPlanInputs({
-      agent,
-      settings,
-      platform,
-      isRemote,
-      ...(opts.agentArgs !== undefined ? { agentArgs: opts.agentArgs } : {}),
-      // A requested shell is the one this PTY will actually be, so it owns the quoting family.
-      windowsShellOverride: opts.shellOverride,
-      sessionOptions: sessionOptions
-    }),
+    inputs: {
+      ...planInputs,
+      // Custom build (claude-subscriptions): in the launch env, so a resumed pane keeps its subscription.
+      agentEnv: withClaudeSubscriptionLaunchEnv(
+        agent,
+        planInputs.agentEnv,
+        settings,
+        opts.claudeSubscriptionId
+      )
+    },
     prompt: opts.startupPrompt ?? '',
     cwd: resolveTerminalStartupCwd(workspace.path, opts.cwd) ?? workspace.path,
     hostIdentity,

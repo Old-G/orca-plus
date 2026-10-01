@@ -18,6 +18,7 @@ import {
   routesFreshSpawnsToLocalProvider
 } from '../host-env/fresh-spawn-routing'
 import { getAppPtyId, getProvider, getRelayPtyId } from '../provider/registry'
+import { prepareClaudeLaunchAuthOnSubscription } from '../../../claude-subscriptions/claude-subscription-launch'
 import type { PtyIpcSpawnState } from './spawn-state'
 
 export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promise<void> {
@@ -229,9 +230,10 @@ export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promis
     ctx.expectedWslDistro
   )
   args.env = withClaudeProfileTerminalEnv(args.env, args.connectionId, initialSelectionTarget)
-  ctx.claudeAuth =
-    ctx.isClaudeLaunch && ctx.deps.prepareClaudeAuth
-      ? await ctx.deps.prepareClaudeAuth(initialSelectionTarget)
-      : null
+  ctx.claudeAuth = await prepareClaudeLaunchAuthOnSubscription(
+    ctx,
+    initialSelectionTarget,
+    args.env
+  )
   ctx.spawnTiming.mark('auth')
 }

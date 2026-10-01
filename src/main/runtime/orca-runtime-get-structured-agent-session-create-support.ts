@@ -31,6 +31,8 @@ import {
   type StructuredAgentId
 } from '../../shared/agent-session-provider-handle'
 import { agentSessionWireProviderHandle } from '../../shared/agent-session-provider-handle-encoding'
+import { resolveClaudeSubscriptionLaunchConfigDir } from '../claude-subscriptions/claude-subscription-launch'
+import { getAssignedClaudeSubscription } from '../claude-subscriptions/claude-subscription-session-assignments'
 
 export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaRuntimeWithGetWorktreePs {
   async getStructuredAgentSessionCreateSupport(
@@ -58,7 +60,8 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     agent: StructuredAgentId,
     worktree: string,
     purpose: 'launch' | 'read',
-    hostLaunchDirectory?: string
+    hostLaunchDirectory?: string,
+    sessionId?: string
   ) {
     const registration = structuredAgentRuntimeRegistration(agent)
     if (!registration) {
@@ -68,7 +71,19 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
       getClaudeConfigDirectory: (target) => this.accounts.getClaudeConfigDirectory(target),
       prepareCodexLaunchHome: this.prepareCodexStructuredLaunchFn,
       readCodexLaunchHome: this.resolveCodexStructuredLaunchHomeFn,
-      workspaceTrustSettings: () => this.requireStore().getSettings()
+      workspaceTrustSettings: () => this.requireStore().getSettings(),
+      claudeSubscriptionConfigDir: ({ launchEnv, wslDistro, purpose: homePurpose }) =>
+        resolveClaudeSubscriptionLaunchConfigDir({
+          settings: this.requireStore().getSettings(),
+          env: launchEnv,
+          runtime: wslDistro ? 'wsl' : 'host',
+          // A read names the default subscription's dir without touching it.
+          ...(homePurpose === 'read'
+            ? { prepareHome: () => {} }
+            : sessionId
+              ? { subscriptionId: getAssignedClaudeSubscription(sessionId) }
+              : {})
+        })
     }
     return async ({ launchEnv, location }) =>
       registration.resolveAccountHomePath(
@@ -164,7 +179,8 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
       input.agent,
       input.worktree,
       'launch',
-      hostLaunchDirectory
+      hostLaunchDirectory,
+      input.envelope.sessionId
     )
     if (!resolveAccountHomePath) {
       throw agentSessionRefusalError('structured_agent_session_unsupported', {

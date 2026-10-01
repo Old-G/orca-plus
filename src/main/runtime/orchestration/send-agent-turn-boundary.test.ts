@@ -114,7 +114,9 @@ describe('agent turn send boundary', () => {
         'runtime/orchestration/coordinator-task-dispatch.ts',
         'runtime/rpc/methods/orchestration/federation/federation.ts',
         // A chat assignee's task, from `dispatch --inject` and `worker-start --terminal`.
-        'runtime/rpc/methods/orchestration/chat-task-delivery.ts'
+        'runtime/rpc/methods/orchestration/chat-task-delivery.ts',
+        // Custom build (claude-limit-guard): «продолжай» to a chat stopped on its Claude limit.
+        'ipc/claude-limit-guard.ts'
       ].sort()
     )
   })
@@ -193,6 +195,9 @@ describe('agent turn send boundary', () => {
       [
         // Intended: a plugin's own terminal input, not a message on an agent's behalf.
         'plugins/plugin-host-service-bindings.ts',
+        // Custom build (claude-limit-guard): Esc, then «продолжай», into a Claude TUI stopped on its
+        // limit — the keystrokes a user would type; no terminal turn purpose fits an Esc.
+        'ipc/claude-limit-guard.ts',
         // Intended: Claude's agent-teams tmux `send-keys`, keystrokes the Claude CLI itself
         // issues; Orca relays them and is not the sender.
         'runtime/claude-agent-teams-tmux-dispatcher.ts',

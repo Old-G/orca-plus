@@ -41,6 +41,7 @@ import type { SlackApi } from './api/slack-api'
 import type { ClaudeHandoffApi } from './api/claude-handoff-api'
 import type { PulseBellApi } from './api/pulse-bell-api'
 import type { ClaudeLimitGuardApi } from './api/claude-limit-guard-api'
+import type { ClaudeSubscriptionsApi } from './api/claude-subscriptions-api'
 import type { StrataApi } from './api/strata-api'
 import type { HqGroupChatApi } from './api/hq-group-chat-api'
 import type { LinearApi } from './api/linear-api'
@@ -113,6 +114,7 @@ export type PreloadApi = {
   claudeHandoff: ClaudeHandoffApi
   pulseBell: PulseBellApi
   claudeLimitGuard: ClaudeLimitGuardApi
+  claudeSubscriptions: ClaudeSubscriptionsApi
   strata: StrataApi
   hqGroupChat: HqGroupChatApi
   starNag: StarNagApi

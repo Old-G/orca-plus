@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createClaudeLimitStops, isClaudeLimitStopFrame } from './claude-limit-stops'
+import {
+  createClaudeLimitStops,
+  isClaudeAuthStopFrame,
+  isClaudeLimitStopFrame
+} from './claude-limit-stops'
 import type { ProviderRateLimits } from '../../shared/rate-limit-types'
 import type { ClaudeLimitStoppedAgent } from '../../shared/claude-limit-guard'
 
@@ -7,7 +11,8 @@ const PANE = 'tab-1:leaf-1'
 
 function setup(
   active: { id: string | null } = { id: 'lh' },
-  handedOff: (stop: ClaudeLimitStoppedAgent) => boolean = () => false
+  handedOff: (stop: ClaudeLimitStoppedAgent) => boolean = () => false,
+  subscriptionOf: (sessionId: string) => string | null = () => null
 ) {
   let now = 1_000_000
   const resumeTerminal = vi.fn(async () => true)
@@ -20,7 +25,8 @@ function setup(
     resumeTerminal,
     resumeNativeChat,
     onChanged,
-    checkHandoff
+    checkHandoff,
+    nativeChatSubscription: subscriptionOf
   })
   return {
     stops,
@@ -134,6 +140,24 @@ describe('claude limit stops', () => {
     expect(isClaudeLimitStopFrame({ type: 'assistant', error: 'server_error' })).toBe(false)
   })
 
+  it('records the subscription a chat ran on and leaves it out of managed-account nudges', async () => {
+    const active: { id: string | null } = { id: 'lh' }
+    const { stops, resumeNativeChat } = setup(
+      active,
+      () => false,
+      (sessionId) => (sessionId === 'on-work' ? 'work' : null)
+    )
+    stops.onNativeFrame('on-work', null, { type: 'assistant', error: 'rate_limit' })
+    stops.onNativeFrame('on-base', null, { type: 'assistant', error: 'rate_limit' })
+    expect(stops.list().map((stop) => [stop.key, stop.subscriptionId])).toEqual([
+      ['on-work', 'work'],
+      ['on-base', null]
+    ])
+    active.id = 'personal'
+    await stops.onAccountChanged('personal')
+    expect(resumeNativeChat.mock.calls).toEqual([['on-base']])
+  })
+
   it('forgets a native chat that produces output again', () => {
     const { stops, onChanged } = setup()
     stops.onNativeFrame('session-1', null, { type: 'assistant', error: 'rate_limit' })
@@ -172,5 +196,67 @@ describe('claude limit stops', () => {
     expect(resumeNativeChat).not.toHaveBeenCalled()
     expect(resumeTerminal).toHaveBeenCalledWith(PANE)
     expect(stops.list()).toEqual([])
+  })
+})
+
+describe('claude sign-in stops', () => {
+  // Captured 29.09 (lh-it-hub): "Please run /login · API Error: 403 Request not allowed".
+  const authFrame = {
+    type: 'assistant',
+    error: 'authentication_failed',
+    isApiErrorMessage: true,
+    parent_tool_use_id: null
+  }
+
+  it('recognizes a rejected sign-in, not a limit', () => {
+    expect(isClaudeAuthStopFrame(authFrame)).toBe(true)
+    expect(isClaudeLimitStopFrame(authFrame)).toBe(false)
+    expect(isClaudeAuthStopFrame({ type: 'result', is_error: true, api_error_status: 403 })).toBe(
+      true
+    )
+    expect(isClaudeAuthStopFrame({ type: 'result', is_error: true, api_error_status: 429 })).toBe(
+      false
+    )
+    expect(isClaudeAuthStopFrame({ ...authFrame, parent_tool_use_id: 'tool-1' })).toBe(false)
+  })
+
+  it('records terminal and native-chat stops with the auth reason and raises the handoff check', async () => {
+    const { stops, checkHandoff } = setup()
+    stops.onHookStatus({ ...limitStop, stopFailureError: 'authentication_failed' })
+    stops.onNativeFrame('chat-1', 'repo::/wt', authFrame)
+    expect(stops.list()).toEqual([
+      expect.objectContaining({ kind: 'terminal', key: PANE, reason: 'auth' }),
+      expect.objectContaining({ kind: 'native-chat', key: 'chat-1', reason: 'auth' })
+    ])
+    await vi.waitFor(() => expect(checkHandoff).toHaveBeenCalledTimes(2))
+  })
+
+  it('is not lifted by usage readings, only by Continue or an account switch', async () => {
+    const { stops, resumeTerminal, resumeNativeChat, advance } = setup()
+    stops.onHookStatus({ ...limitStop, stopFailureError: 'authentication_failed' })
+    advance(30 * 60_000)
+    await stops.onActiveUsage('lh', usage(5))
+    expect(resumeTerminal).not.toHaveBeenCalled()
+
+    stops.onNativeFrame('chat-1', null, authFrame)
+    expect(await stops.resumeAuthStops()).toBe(2)
+    expect(resumeTerminal).toHaveBeenCalledWith(PANE)
+    expect(resumeNativeChat).toHaveBeenCalledWith('chat-1')
+    expect(stops.list()).toEqual([])
+  })
+
+  it('Continue leaves limit stops alone', async () => {
+    const { stops, resumeTerminal } = setup()
+    stops.onHookStatus(limitStop)
+    expect(await stops.resumeAuthStops()).toBe(0)
+    expect(resumeTerminal).not.toHaveBeenCalled()
+    expect(stops.list()).toHaveLength(1)
+  })
+
+  it('an account switch nudges sign-in stops too', async () => {
+    const { stops, resumeNativeChat } = setup()
+    stops.onNativeFrame('chat-1', null, authFrame)
+    await stops.onAccountChanged('personal')
+    expect(resumeNativeChat).toHaveBeenCalledWith('chat-1')
   })
 })

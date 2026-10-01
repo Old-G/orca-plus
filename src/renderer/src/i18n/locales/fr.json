@@ -17941,6 +17941,20 @@
         "description": "Méta-wiki de tous vos projets. Ajouter ou retirer un projet met à jour son registre et ses pages.",
         "placeholder": "Non défini — synchronisation désactivée"
       }
+    },
+    "claudeSubscriptions": {
+      "baseLabel": "Connexion principale",
+      "baseDetail": "~/.claude, avec le sélecteur de comptes ci-dessus",
+      "title": "Abonnements Claude par session",
+      "description": "Chaque abonnement est son propre dossier de configuration Claude avec sa propre connexion : des sessions sur des abonnements différents tournent côte à côte. Réglages, hooks, skills, plugins et historique sont partagés avec ~/.claude ; la connexion ne l'est pas.",
+      "default": "Par défaut",
+      "makeDefault": "Définir par défaut",
+      "signIn": "Se connecter",
+      "remove": "Retirer",
+      "labelPlaceholder": "Nom, p. ex. Travail",
+      "add": "Ajouter",
+      "statusChecking": "Vérification de la connexion…",
+      "statusSignedOut": "Non connecté"
     }
   },
   "components": {

@@ -1,6 +1,7 @@
 import type { Store } from '../persistence'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import type { VoiceSettings } from '../../shared/speech-types'
+import type { ClaudeSubscriptionSettings } from '../../shared/claude-subscriptions'
 
 export type RuntimeStore = {
   getRepos: Store['getRepos']
@@ -135,6 +136,9 @@ export type RuntimeStore = {
     aiVaultSearch?: GlobalSettings['aiVaultSearch']
     sourceControlAi?: GlobalSettings['sourceControlAi']
     commitMessageAi?: GlobalSettings['commitMessageAi']
+    /** Custom build (claude-subscriptions): read when a runtime launch pins a Claude config dir. */
+    claudeSubscriptions?: ClaudeSubscriptionSettings['claudeSubscriptions']
+    defaultClaudeSubscriptionId?: ClaudeSubscriptionSettings['defaultClaudeSubscriptionId']
   }
   // Why: narrow to `unknown` return so test mocks can return void without
   // a cast. The runtime never reads the return value — the persisted value
