@@ -7,6 +7,7 @@ import type { LaunchAgentInNewTabArgs } from '@/lib/agent-session/launch/new-tab
 import { useAppStore } from '@/store/index'
 import { toast } from 'sonner'
 import { invalidTerminalArgsMessage } from '../../../workspace/creation/work-item/launch-work-item-direct-messages'
+import * as claudeSubscription from '@/lib/launch-agent-claude-subscription'
 import {
   agentLaunchCheckSettingsMessage,
   notifyAgentLaunchFailure
@@ -122,6 +123,7 @@ function openAgentInNewTab(
       ...(groupId ? { groupId } : {}),
       ...(beforeSurfaceOpen ? { beforeSurfaceOpen } : {}),
       ...(args.onStructuredHostDeclined ? { onHostDeclined: args.onStructuredHostDeclined } : {}),
+      ...claudeSubscription.structuredArgs(agent, args.claudeSubscriptionId),
       // The host's "no" opens this same launch as a terminal, with the caller's arguments.
       openTerminal: (terminalPlan, terminalActivate) =>
         launchAgentInNewTabWithOutcome(
@@ -163,16 +165,20 @@ function openAgentInNewTab(
     agentLaunchChoices = readAgentLaunchPreferencesForWorktree(store, worktreeId).agentLaunchChoices
   ) =>
     planLaunchAgentStartupPrompt({
-      base: resolveAgentStartupPlanInputs({
-        agent,
-        settings: { ...store.settings, agentLaunchChoices },
-        agentArgs,
-        sessionOptions,
-        sessionOptionsYieldToAgentArgs: args.sessionOptionsYieldToAgentArgs,
-        platform: resolvedLaunchPlatform,
-        shell: queuedShell,
-        isRemote
-      }),
+      base: claudeSubscription.withPickedSubscription(
+        resolveAgentStartupPlanInputs({
+          agent,
+          settings: { ...store.settings, agentLaunchChoices },
+          agentArgs,
+          sessionOptions,
+          sessionOptionsYieldToAgentArgs: args.sessionOptionsYieldToAgentArgs,
+          platform: resolvedLaunchPlatform,
+          shell: queuedShell,
+          isRemote
+        }),
+        store.settings,
+        args.claudeSubscriptionId
+      ),
       prompt: trimmedPrompt,
       promptDelivery,
       isFollowupPath

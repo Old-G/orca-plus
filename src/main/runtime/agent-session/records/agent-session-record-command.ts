@@ -41,6 +41,10 @@ import {
   setAgentSessionRecordUserName,
   type AgentSessionUserNameWrite
 } from './agent-session-record-conversation-name'
+import {
+  replaceAgentSessionRecordAccountHome,
+  type AgentSessionAccountHomeReplacement
+} from '../../agent-session-record-account-home'
 
 type WithoutRecord<F extends (...args: never[]) => unknown> = Omit<Parameters<F>[0], 'record'>
 
@@ -56,6 +60,8 @@ export type AgentSessionRecordCommand =
     }
   | { kind: 'launch-directory'; launchDirectory: string; now: number }
   | { kind: 'options'; args: AgentSessionOptionsReplacement }
+  // Custom build (claude-subscriptions): a chat at rest moves to another subscription's config dir.
+  | { kind: 'account-home'; args: AgentSessionAccountHomeReplacement }
   | { kind: 'pick-option'; args: AgentSessionOptionPick }
   | { kind: 'ran-options'; args: AgentSessionRanOptions }
   | { kind: 'process'; args: WithoutRecord<typeof commitAgentSessionProcessIdentity> }
@@ -131,6 +137,9 @@ export function applyAgentSessionRecordCommand(
       break
     case 'options':
       next = replaceAgentSessionRecordOptions(record, command.args)
+      break
+    case 'account-home':
+      next = replaceAgentSessionRecordAccountHome(record, command.args)
       break
     case 'pick-option':
       next = pickAgentSessionOption(record, command.args)

@@ -127,7 +127,8 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
             input.agent,
             input.worktree,
             'launch',
-            hostLaunchDirectory
+            hostLaunchDirectory,
+            input.envelope.sessionId
           )
         )
     return !resolved.hostLaunchDirectory && hostLaunchDirectory
