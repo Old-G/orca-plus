@@ -22,7 +22,7 @@ export type RailNavigationStore = {
   setState: (partial: Pick<AppState, 'worktreeNavHistoryIndex'>) => void
 }
 
-const CLOSE_PAGE: Record<Exclude<UISlice['activeView'], 'terminal'>, keyof PageCloseActions> = {
+const CLOSE_PAGE: Record<Exclude<UISlice['activeView'], 'terminal' | 'hq'>, keyof PageCloseActions> = {
   tasks: 'closeTaskPage',
   automations: 'closeAutomationsPage',
   artifacts: 'closeArtifactsPage',
@@ -57,7 +57,12 @@ export function returnToTerminalView(store: RailNavigationStore): void {
   }
   while (view !== 'terminal' && !closed.has(view)) {
     closed.add(view)
-    getState()[CLOSE_PAGE[view]]()
+    // Custom build (hq-screen): HQ has no store close action; the rail leaves it for the terminal.
+    if (view === 'hq') {
+      getState().setActiveView('terminal')
+    } else {
+      getState()[CLOSE_PAGE[view]]()
+    }
     view = getState().activeView
   }
   // Only a stale or cyclic previous-view chain gets here, after every page in it has already closed once.
