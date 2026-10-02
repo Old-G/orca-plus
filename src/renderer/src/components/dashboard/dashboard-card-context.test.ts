@@ -7,6 +7,7 @@ import { getGitHubPRCacheKey } from '@/store/slices/github-cache-key'
 import { getHostedReviewCacheKey } from '@/store/slices/hosted-review-cache-identity'
 import {
   resolveDashboardCardContext,
+  resolveDashboardHostedReview,
   type DashboardCardContextState
 } from './dashboard-card-context'
 
@@ -178,5 +179,66 @@ describe('resolveDashboardCardContext', () => {
         worktree()
       ).review
     ).toBeUndefined()
+  })
+})
+
+describe('resolveDashboardHostedReview', () => {
+  const pr: PRInfo = {
+    number: 42,
+    title: 'GitHub review',
+    state: 'open',
+    url: 'https://example.test/pull/42',
+    checksStatus: 'success',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    mergeable: 'MERGEABLE'
+  }
+  const prKey = getGitHubPRCacheKey(repo.path, repo.id, 'feature', null, null, null, true)
+  const reviewKey = getHostedReviewCacheKey(repo.path, 'feature', null, repo.id, null, null, true)
+
+  it('returns the cached GitHub review with the PR behind it', () => {
+    const cached = review({ provider: 'github', number: 42 })
+    expect(
+      resolveDashboardHostedReview(
+        {
+          settings: null,
+          hostedReviewCache: {
+            [reviewKey]: { data: cached, fetchedAt: 2, linkedReviewHintKey: 'github:42' }
+          },
+          prCache: { [prKey]: { data: pr, fetchedAt: 1 } }
+        },
+        repo,
+        worktree({ linkedPR: 42 })
+      )
+    ).toEqual({ review: cached, githubPR: pr })
+  })
+
+  it('never pairs a GitLab review with a GitHub PR', () => {
+    const cached = review({ provider: 'gitlab', number: 42 })
+    expect(
+      resolveDashboardHostedReview(
+        {
+          settings: null,
+          hostedReviewCache: {
+            [reviewKey]: { data: cached, fetchedAt: 2, linkedReviewHintKey: 'gitlab:42' }
+          },
+          prCache: { [prKey]: { data: pr, fetchedAt: 1 } }
+        },
+        repo,
+        worktree({ linkedGitLabMR: 42 })
+      )
+    ).toEqual({ review: cached, githubPR: null })
+  })
+
+  it('builds the review from the GitHub PR cache when no hosted review is cached', () => {
+    expect(
+      resolveDashboardHostedReview(
+        { settings: null, hostedReviewCache: {}, prCache: { [prKey]: { data: pr, fetchedAt: 1 } } },
+        repo,
+        worktree({ linkedPR: 42 })
+      )
+    ).toMatchObject({
+      review: { provider: 'github', number: 42, mergeable: 'MERGEABLE' },
+      githubPR: pr
+    })
   })
 })
