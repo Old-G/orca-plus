@@ -100,6 +100,7 @@ export const TopLevelViewSchema = lazyZodSchema(() =>
   z
     .enum([
       'terminal',
+      'hq',
       'settings',
       'tasks',
       'activity',
