@@ -132,6 +132,7 @@ export type NewWorkspaceDraft = {
 
 export type UiViewHistory =
   | 'terminal'
+  | 'hq'
   | 'settings'
   | 'tasks'
   | 'activity'
