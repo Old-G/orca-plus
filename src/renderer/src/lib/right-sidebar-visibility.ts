@@ -6,6 +6,7 @@ import { selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 type ActiveView = AppState['activeView']
 
 const RIGHT_SIDEBAR_SUPPRESSED_VIEWS = new Set<ActiveView>([
+  'hq',
   'settings',
   'tasks',
   'activity',
