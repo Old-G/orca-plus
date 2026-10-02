@@ -10,6 +10,7 @@ import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { SetupGuideSidebarEntry } from '../../setup-guide/SetupGuideSidebarEntry'
+import { HqSidebarEntry } from '../../orca-plus/hq/HqSidebarEntry'
 import { HideSidebarMenu, SIDEBAR_NAV_DIMMED_ICON_CLASS_NAME } from './sidebar-nav-controls'
 import { useTranslate } from '@/i18n/use-translate'
 import { lazyWithRetry } from '@/app-shell/startup/lazy-with-retry'
@@ -141,6 +142,7 @@ const SidebarNav = React.memo(function SidebarNav() {
           <LazySidebarTaskNavButton />
         </React.Suspense>
       )}
+      <HqSidebarEntry />
       {showArtifactsButton && !appRailVisible ? (
         <ContextMenu>
           <ContextMenuTrigger asChild>
