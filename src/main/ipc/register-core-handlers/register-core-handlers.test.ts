@@ -59,6 +59,7 @@ const {
   registerClaudeSubscriptionHandlersMock,
   registerHqRosterSyncMock,
   registerHqGroupChatHandlersMock,
+  registerHqProjectPagesHandlersMock,
   registerHqPulseMirrorMock,
   registerPulseBellMock,
   registerOutgoingApprovalMock,
@@ -139,6 +140,7 @@ const {
   registerClaudeSubscriptionHandlersMock: vi.fn(),
   registerHqRosterSyncMock: vi.fn(() => ({ syncNow: vi.fn() })),
   registerHqGroupChatHandlersMock: vi.fn(),
+  registerHqProjectPagesHandlersMock: vi.fn(),
   registerHqPulseMirrorMock: vi.fn(),
   registerPulseBellMock: vi.fn(),
   registerOutgoingApprovalMock: vi.fn(),
@@ -456,6 +458,10 @@ vi.mock('../../hq-group-chat/register-hq-group-chat', () => ({
   registerHqGroupChatHandlers: registerHqGroupChatHandlersMock
 }))
 
+vi.mock('../../hq-project-pages/register-hq-project-pages', () => ({
+  registerHqProjectPagesHandlers: registerHqProjectPagesHandlersMock
+}))
+
 vi.mock('../../hq-pulse-mirror/register-hq-pulse-mirror', () => ({
   registerHqPulseMirror: registerHqPulseMirrorMock
 }))
@@ -463,6 +469,8 @@ vi.mock('../../hq-pulse-mirror/register-hq-pulse-mirror', () => ({
 vi.mock('../../orca-plus/pulse-bell/register-pulse-bell', () => ({
   registerPulseBell: registerPulseBellMock
 }))
+
+vi.mock('../../hq-today/hq-morning-briefing', () => ({ startHqMorningBriefing: vi.fn() }))
 
 vi.mock('../../orca-plus/outgoing-approval/register-outgoing-approval', () => ({
   registerOutgoingApproval: registerOutgoingApprovalMock
@@ -560,6 +568,7 @@ describe('registerCoreHandlers', () => {
     registerClaudeSubscriptionHandlersMock.mockReset()
     registerHqRosterSyncMock.mockReset()
     registerHqGroupChatHandlersMock.mockReset()
+    registerHqProjectPagesHandlersMock.mockReset()
     registerHqPulseMirrorMock.mockReset()
     registerPulseBellMock.mockReset()
     registerOutgoingApprovalMock.mockReset()
@@ -665,6 +674,7 @@ describe('registerCoreHandlers', () => {
     expect(registerStrataHandlersMock).toHaveBeenCalledWith(store, expect.anything())
     expect(registerHqRosterSyncMock).toHaveBeenCalledWith(store)
     expect(registerHqPulseMirrorMock).toHaveBeenCalledWith(store)
+    expect(registerHqProjectPagesHandlersMock).toHaveBeenCalledWith(store)
     expect(registerPulseBellMock).toHaveBeenCalledWith(store, expect.anything())
     expect(registerOutgoingApprovalMock).toHaveBeenCalledTimes(1)
     expect(registerHqGroupChatHandlersMock).toHaveBeenCalledWith(

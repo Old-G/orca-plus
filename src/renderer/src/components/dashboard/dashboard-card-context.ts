@@ -3,7 +3,11 @@ import { getHostedReviewCacheKey } from '@/store/slices/hosted-review-cache-iden
 import type { AppState } from '@/store/types'
 import type { DashboardCardReview } from '../../../../shared/dashboard-snapshot'
 import { hostedReviewInfoFromGitHubPRInfo } from '../../../../shared/hosted-review-github'
-import { isPositiveHostedReviewNumber } from '../../../../shared/hosted-review'
+import {
+  isPositiveHostedReviewNumber,
+  type HostedReviewInfo
+} from '../../../../shared/hosted-review'
+import type { PRInfo } from '../../../../shared/github/pull-request-types'
 import type { Repo } from '../../../../shared/repo-types'
 import type { WorkspaceStatusDefinition, Worktree } from '../../../../shared/worktree/types'
 import {
@@ -36,11 +40,15 @@ function hasLinkedReview(worktree: Worktree): boolean {
   ].some(isPositiveHostedReviewNumber)
 }
 
-function resolveReview(
+/** The worktree's cached review in full, with the GitHub PR behind it when there is one. */
+export type DashboardHostedReview = { review: HostedReviewInfo; githubPR: PRInfo | null }
+
+// Custom build (hq): exported in full so HQ can offer the Checks panel's merge actions.
+export function resolveDashboardHostedReview(
   state: DashboardCardContextState,
   repo: Repo | null,
   worktree: Worktree
-): DashboardCardReview | undefined {
+): DashboardHostedReview | undefined {
   if (!repo || !state.hostedReviewCache || !state.prCache || repo.kind === 'folder') {
     return undefined
   }
@@ -58,22 +66,37 @@ function resolveReview(
       )
     ]
   const hostedReview = hostedReviewEntry?.data
-  if (
-    hostedReview &&
-    canUseParentPrChecksHostedReviewCacheEntry(worktree, hostedReview, hostedReviewEntry)
-  ) {
-    return { number: hostedReview.number, state: hostedReview.state }
-  }
   const prEntry = getParentPrChecksGitHubPRCacheEntry({
     prCache: state.prCache,
     repo,
     branch,
     settings: state.settings ?? null
   })
-  const review = canUseParentPrChecksGitHubPRCacheEntry(worktree, prEntry, hostedReviewEntry)
-    ? hostedReviewInfoFromGitHubPRInfo(prEntry.data)
-    : undefined
-  return review ? { number: review.number, state: review.state } : undefined
+  const githubPR = canUseParentPrChecksGitHubPRCacheEntry(worktree, prEntry, hostedReviewEntry)
+    ? prEntry.data
+    : null
+  if (
+    hostedReview &&
+    canUseParentPrChecksHostedReviewCacheEntry(worktree, hostedReview, hostedReviewEntry)
+  ) {
+    return {
+      review: hostedReview,
+      githubPR:
+        hostedReview.provider === 'github' && githubPR?.number === hostedReview.number
+          ? githubPR
+          : null
+    }
+  }
+  return githubPR ? { review: hostedReviewInfoFromGitHubPRInfo(githubPR), githubPR } : undefined
+}
+
+function resolveReview(
+  state: DashboardCardContextState,
+  repo: Repo | null,
+  worktree: Worktree
+): DashboardCardReview | undefined {
+  const resolved = resolveDashboardHostedReview(state, repo, worktree)
+  return resolved ? { number: resolved.review.number, state: resolved.review.state } : undefined
 }
 
 export function resolveDashboardCardContext(

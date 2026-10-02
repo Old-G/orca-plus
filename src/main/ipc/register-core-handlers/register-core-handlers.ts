@@ -24,6 +24,8 @@ import { registerClaudeSubscriptionHandlers } from '../claude-subscriptions'
 import { registerStrataHandlers } from '../strata'
 import { registerHqRosterSync } from '../../hq-roster-sync/register-hq-roster-sync'
 import { registerHqGroupChatHandlers } from '../../hq-group-chat/register-hq-group-chat'
+import { registerHqProjectPagesHandlers } from '../../hq-project-pages/register-hq-project-pages'
+import { startHqMorningBriefing } from '../../hq-today/hq-morning-briefing'
 import { registerHqPulseMirror } from '../../hq-pulse-mirror/register-hq-pulse-mirror'
 import { registerPulseBell } from '../../orca-plus/pulse-bell/register-pulse-bell'
 import { registerOutgoingApproval } from '../../orca-plus/outgoing-approval/register-outgoing-approval'
@@ -191,8 +193,15 @@ export function registerCoreHandlers(
   registerClaudeSubscriptionHandlers(store)
   registerStrataHandlers(store, runtime)
   registerHqGroupChatHandlers(store, registerHqRosterSync(store))
+  registerHqProjectPagesHandlers(store)
   registerHqPulseMirror(store)
   registerPulseBell(store, runtime)
+  startHqMorningBriefing({
+    now: Date.now,
+    listInbox: () => runtime.pulseListInbox(true),
+    addInboxItem: (input) => void runtime.pulseAddInboxItem(input),
+    markInboxDone: (id, action) => void runtime.pulseMarkInboxDone(id, action)
+  })
   registerOutgoingApproval(runtime)
   registerBitbucketHandlers()
   registerFeedbackHandlers()

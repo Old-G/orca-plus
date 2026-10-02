@@ -2,6 +2,7 @@
 import type { CustomAppearanceBackground } from './custom-appearance-background'
 import type { CustomAppearanceTheme } from './vscode-theme/custom-appearance-theme'
 import type { ClaudeSubscriptionSettings } from './claude-subscriptions'
+import type { HqProjectClickUpLists } from './hq-project-clickup'
 
 /** Custom build (claude-subscriptions): Claude sign-ins a session can run on. */
 export type CustomBuildSettings = ClaudeSubscriptionSettings & {
@@ -13,4 +14,10 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings & {
   customAppearanceTheme?: CustomAppearanceTheme | null
   /** Custom build (hq-roster-sync): HQ meta-wiki root; adding or removing a project syncs its registry. */
   hqPath?: string | null
+  /** Custom build (hq-screen): the ClickUp list each project's HQ card shows tasks from, by repo id. */
+  hqProjectClickUpLists?: HqProjectClickUpLists
+  /** Custom build (hq-screen): minutes an unfinished session stays quiet before HQ lists it; default 30. */
+  hqDeferredAfterMinutes?: number
+  /** Custom build (hq-screen): closed deferred sessions — pane key → the quiet spell that was closed. */
+  hqDeferredDismissed?: Record<string, number>
 }
