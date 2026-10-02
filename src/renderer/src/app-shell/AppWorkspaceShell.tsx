@@ -13,6 +13,7 @@ import type { AppChromeLayout } from './use-app-chrome-layout'
 import type { FloatingWorkspacePanelState } from './use-floating-workspace-panel'
 
 const Landing = lazy(() => import('../components/Landing'))
+const HqScreen = lazy(() => import('../components/orca-plus/hq/HqScreen'))
 const WorktreeCreationPanel = lazy(
   () => import('../components/worktree-creation/WorktreeCreationPanel')
 )
@@ -68,6 +69,7 @@ function ActivePage({ layout }: { layout: AppChromeLayout }): React.JSX.Element 
   const { activeView, activeWorktreeId, activePendingCreationId, creationLayoutActive } = layout
   return (
     <>
+      {activeView === 'hq' ? <HqScreen /> : null}
       {activeView === 'settings' ? <Settings /> : null}
       {activeView === 'skills' ? <SkillsPage /> : null}
       {activeView === 'artifacts' ? <ArtifactsPage /> : null}

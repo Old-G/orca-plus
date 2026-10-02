@@ -8,6 +8,13 @@ import {
   readPulseBellSessionId,
   type PulseBellPaneRef
 } from '../../../../../shared/pulse-bell'
+import {
+  HQ_BRIEFING_KIND,
+  HQ_BRIEFING_OPEN_ACTION,
+  HQ_BRIEFING_TAB,
+  HQ_DEFERRED_KIND,
+  HQ_DEFERRED_TAB
+} from '../../../../../shared/hq-morning-briefing'
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 import { parsePaneKey } from '../../../../../shared/stable-pane-id'
 import { launchClaudeHandoffOffer } from '@/app-shell/use-claude-handoff-offers'
@@ -17,6 +24,7 @@ import { activateStructuredAgentSessionTab } from '@/lib/structured-agent-sessio
 import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
+import { openHqScreen } from '../hq/hq-view'
 
 function openPane(ref: PulseBellPaneRef): void {
   if (!ref.worktreeId) {
@@ -64,6 +72,12 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
     // Why: the item closes itself when the agent stops waiting; opening is not answering.
     await window.api.pulseBell.markRead([item.id])
     return
+  }
+  if (item.kind === HQ_BRIEFING_KIND && actionId === HQ_BRIEFING_OPEN_ACTION) {
+    openHqScreen(HQ_BRIEFING_TAB)
+  }
+  if (item.kind === HQ_DEFERRED_KIND && actionId === PULSE_BELL_ACTION.open) {
+    openHqScreen(HQ_DEFERRED_TAB)
   }
   if (item.kind === PULSE_BELL_KIND.agentFinished && actionId === PULSE_BELL_ACTION.open) {
     const ref = readPulseBellPaneRef(item.refId)

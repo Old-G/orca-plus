@@ -85,7 +85,11 @@ export const LOCAL_STORAGE_MODULE_DISPOSITIONS: Record<string, WslMoveFieldDispo
       'src/renderer/src/web/web-preload-api-test-harness.ts',
       'src/renderer/src/web/web-runtime-credential-source.ts',
       'src/renderer/src/web/web-runtime-environment.ts',
-      'src/shared/default-global-settings.ts'
+      'src/shared/default-global-settings.ts',
+      // Custom build (Orca+): ClickUp and HQ view filters; the dialog only names localStorage.
+      'src/renderer/src/components/clickup-connect-dialog.tsx',
+      'src/renderer/src/components/orca-plus/hq/hq-project-task-filter.ts',
+      'src/renderer/src/components/task-page/clickup/use-clickup-task-list.ts'
     ].map((path) => [
       path,
       notApplicableDisposition(62, 'Global preference or web-client storage.')
@@ -118,6 +122,8 @@ export const SQLITE_SCHEMA_FILE_DATABASES: Record<string, string> = {
   'src/main/runtime/orchestration/db/schema/migrate-v39.ts': 'orchestration',
   'src/main/runtime/orchestration/db/schema/migrate.ts': 'orchestration',
   'src/main/runtime/orchestration/mutation-receipt-capacity.ts': 'orchestration',
+  // Custom build (pulse): Orca+'s own database of waitings, decisions, drafts and the inbox.
+  'src/main/orca-plus/pulse/pulse-schema.ts': 'orca-plus-pulse',
   // Test fixtures that mirror third-party agent and browser databases.
   'src/main/ai-vault/session-scanner-opencode-sqlite-fixture.ts': 'test-fixture',
   'src/main/ai-vault/session-scanner-test-fixtures.ts': 'test-fixture',
@@ -238,6 +244,11 @@ export const SQLITE_TABLE_DISPOSITIONS: Record<string, WslMoveFieldDisposition> 
       'pi-branch-import',
       ['entries'],
       notApplicableDisposition(52, 'Operation-local Pi import scratch, outside workspace state.')
+    ),
+    ...tables(
+      'orca-plus-pulse',
+      ['people', 'waitings', 'drafts', 'decisions', 'inbox', 'events'],
+      notApplicableDisposition(62, "Orca+ pulse: the owner's global inbox, not a project's.")
     ),
     ...tables(
       'test-fixture',
