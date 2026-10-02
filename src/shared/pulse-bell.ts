@@ -1,5 +1,6 @@
 // Custom build (pulse-bell): what Orca+'s bell shows, and the inbox items its producers raise.
 import type { ClaudeHandoffOffer } from './claude-handoff-file'
+import { HQ_DEFERRED_KIND } from './hq-morning-briefing'
 import type { PulseInboxInput } from './pulse-types'
 import { parsePaneKey } from './stable-pane-id'
 import {
@@ -12,18 +13,23 @@ export const PULSE_BELL_KIND = {
   agentWaiting: 'agent-waiting',
   claudeLimit: 'claude-limit',
   agentFinished: 'agent-finished',
-  claudeChatLimit: 'claude-chat-limit'
+  claudeChatLimit: 'claude-chat-limit',
+  claudeAuthStop: 'claude-auth-stop'
 } as const
 
 export const PULSE_BELL_ACTION = {
   launch: 'launch',
   open: 'open',
   switchAccount: 'switch',
+  continue: 'continue',
   dismiss: 'dismiss'
 } as const
 
 /** Kinds the renderer may sync itself; the others are owned by main. */
-export const RENDERER_SYNCED_PULSE_BELL_KINDS: readonly string[] = [PULSE_BELL_KIND.claudeLimit]
+export const RENDERER_SYNCED_PULSE_BELL_KINDS: readonly string[] = [
+  PULSE_BELL_KIND.claudeLimit,
+  HQ_DEFERRED_KIND
+]
 
 export type PulseBellInput = PulseInboxInput & { dedupeKey: string }
 
@@ -160,6 +166,27 @@ export function limitStoppedChatBellItem(chat: LimitStoppedChat): PulseBellInput
       { id: PULSE_BELL_ACTION.dismiss, label: 'Not now' }
     ],
     dedupeKey: `claude-chat-limit:${chat.sessionId}:${chat.stoppedAt}`
+  }
+}
+
+/** Agents whose turn the API cut on a rejected sign-in; Continue nudges them once it is fixed. */
+export function claudeAuthStopBellItem(stops: readonly { stoppedAt: number }[]): PulseBellInput {
+  const firstAt = Math.min(...stops.map((stop) => stop.stoppedAt))
+  return {
+    kind: PULSE_BELL_KIND.claudeAuthStop,
+    title:
+      stops.length === 1
+        ? 'An agent stopped: Claude rejected the sign-in'
+        : `${stops.length} agents stopped: Claude rejected the sign-in`,
+    body: 'Sign in again (claude /login) or switch the account, then Continue.',
+    urgency: 'urgent',
+    refKind: 'claude-auth-stop',
+    refId: null,
+    actions: [
+      { id: PULSE_BELL_ACTION.continue, label: 'Continue' },
+      { id: PULSE_BELL_ACTION.dismiss, label: 'Not now' }
+    ],
+    dedupeKey: `claude-auth-stop:${firstAt}`
   }
 }
 
