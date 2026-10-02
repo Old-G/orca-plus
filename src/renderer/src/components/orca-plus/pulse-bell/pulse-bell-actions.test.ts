@@ -13,7 +13,8 @@ const mocks = vi.hoisted(() => ({
   continueOnSubscription: vi.fn(
     async (): Promise<{ ok: true } | { ok: false; reason: string }> => ({ ok: true })
   ),
-  toastError: vi.fn()
+  toastError: vi.fn(),
+  openHqScreen: vi.fn()
 }))
 
 vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }))
@@ -34,6 +35,7 @@ vi.mock('@/lib/activate-tab-and-focus-pane', () => ({
   activateTabAndFocusPane: mocks.activateTabAndFocusPane
 }))
 vi.mock('@/store', () => ({ useAppStore: { getState: () => ({ tabsByWorktree: {} }) } }))
+vi.mock('../hq/hq-view', () => ({ openHqScreen: mocks.openHqScreen }))
 
 import { runPulseBellAction } from './pulse-bell-actions'
 
@@ -67,6 +69,17 @@ beforeEach(() => {
 })
 
 describe('runPulseBellAction', () => {
+  it('opens the morning briefing on HQ’s Today tab and closes the item', async () => {
+    await runPulseBellAction(bellItem('hq-briefing', null), 'open')
+    expect(mocks.openHqScreen).toHaveBeenCalledWith('today')
+    expect(mocks.markDone).toHaveBeenCalledWith('item-1', 'open')
+  })
+
+  it('opens the deferred sessions on HQ’s Agents tab', async () => {
+    await runPulseBellAction(bellItem('hq-deferred', null), 'open')
+    expect(mocks.openHqScreen).toHaveBeenCalledWith('agents')
+  })
+
   it('launches or dismisses a handoff through its offer, which closes the item itself', async () => {
     await runPulseBellAction(bellItem('handoff', 'offer-1'), 'launch')
     expect(mocks.launchClaudeHandoffOffer).toHaveBeenCalledWith('offer-1')

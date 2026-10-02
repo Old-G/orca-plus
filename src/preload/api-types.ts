@@ -44,6 +44,7 @@ import type { ClaudeLimitGuardApi } from './api/claude-limit-guard-api'
 import type { ClaudeSubscriptionsApi } from './api/claude-subscriptions-api'
 import type { StrataApi } from './api/strata-api'
 import type { HqGroupChatApi } from './api/hq-group-chat-api'
+import type { HqProjectsApi } from './api/hq-projects-api'
 import type { LinearApi } from './api/linear-api'
 import type { LspApi } from './api/lsp-api'
 import type { ClaudeIdeApi } from './api/claude-ide-api'
@@ -118,6 +119,7 @@ export type PreloadApi = {
   claudeSubscriptions: ClaudeSubscriptionsApi
   strata: StrataApi
   hqGroupChat: HqGroupChatApi
+  hqProjects: HqProjectsApi
   starNag: StarNagApi
   telemetryTrack: TelemetryApi['telemetryTrack']
   telemetrySetOptIn: TelemetryApi['telemetrySetOptIn']

@@ -82,7 +82,7 @@ function KanbanColumn({
   return (
     // Why: attention no longer tints the whole column — the cards inside carry
     // their own state color, so a column border would double-signal it.
-    <section className="flex min-w-[264px] flex-1 flex-col rounded-xl border border-border/60 bg-muted/30">
+    <section className="flex min-w-[264px] flex-1 flex-col rounded-xl border border-border/60 bg-muted/30 @max-xl/kanban:min-w-0 @max-xl/kanban:flex-none">
       <header className="flex items-center gap-2 px-3 py-2">
         <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
           {bucketLabel(bucket)}
@@ -243,7 +243,10 @@ export function AgentKanbanBoard({
     // window's provider is harmless.
     <TooltipProvider delayDuration={300}>
       <div
-        className={cn('relative flex flex-col bg-background text-foreground', containerClassName)}
+        className={cn(
+          '@container/kanban relative flex flex-col bg-background text-foreground',
+          containerClassName
+        )}
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2.5">
           <h1 className="text-[13px] font-semibold">
@@ -280,9 +283,10 @@ export function AgentKanbanBoard({
           onFiltersChange={setFilters}
           searchInputRef={searchInputRef}
         />
-        <div className="scrollbar-sleek flex min-h-0 flex-1 overflow-x-auto p-3">
+        {/* Custom build (hq): at phone width the columns stack and the board scrolls down, not sideways. */}
+        <div className="scrollbar-sleek flex min-h-0 flex-1 overflow-x-auto p-3 @max-xl/kanban:overflow-x-hidden @max-xl/kanban:overflow-y-auto">
           {/* Auto margins center the capped board and collapse during horizontal overflow. */}
-          <div className="mx-auto flex w-full max-w-[1280px] gap-3">
+          <div className="mx-auto flex w-full max-w-[1280px] gap-3 @max-xl/kanban:h-fit @max-xl/kanban:flex-col">
             {visibleBuckets.map((bucket) => (
               <KanbanColumn
                 key={bucket}

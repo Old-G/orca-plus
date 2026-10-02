@@ -1,5 +1,6 @@
 // Custom build (pulse-bell): what Orca+'s bell shows, and the inbox items its producers raise.
 import type { ClaudeHandoffOffer } from './claude-handoff-file'
+import { HQ_DEFERRED_KIND } from './hq-morning-briefing'
 import type { PulseInboxInput } from './pulse-types'
 import { parsePaneKey } from './stable-pane-id'
 import {
@@ -23,7 +24,10 @@ export const PULSE_BELL_ACTION = {
 } as const
 
 /** Kinds the renderer may sync itself; the others are owned by main. */
-export const RENDERER_SYNCED_PULSE_BELL_KINDS: readonly string[] = [PULSE_BELL_KIND.claudeLimit]
+export const RENDERER_SYNCED_PULSE_BELL_KINDS: readonly string[] = [
+  PULSE_BELL_KIND.claudeLimit,
+  HQ_DEFERRED_KIND
+]
 
 export type PulseBellInput = PulseInboxInput & { dedupeKey: string }
 

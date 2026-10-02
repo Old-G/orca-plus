@@ -39,6 +39,7 @@ import { claudeLimitGuardApi } from './api/claude-limit-guard-bridge'
 import { claudeSubscriptionsApi } from './api/claude-subscriptions-bridge'
 import { strataApi } from './api/strata-bridge'
 import { hqGroupChatApi } from './api/hq-group-chat-bridge'
+import { hqProjectsApi } from './api/hq-projects-bridge'
 import { lspApi } from './api/lsp-bridge'
 import { claudeIdeApi } from './api/claude-ide-bridge'
 import { starNagApi } from './api/star-nag-bridge'
@@ -148,6 +149,7 @@ const api = {
   claudeSubscriptions: claudeSubscriptionsApi,
   strata: strataApi,
   hqGroupChat: hqGroupChatApi,
+  hqProjects: hqProjectsApi,
   lsp: lspApi,
   claudeIde: claudeIdeApi,
   starNag: starNagApi,
