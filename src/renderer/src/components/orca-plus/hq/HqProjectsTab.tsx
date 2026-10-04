@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useNow } from '@/lib/window-activity/use-now'
 import { translate } from '@/i18n/i18n'
+import { hqAutonomyShort } from './HqAutonomyBadge'
 import { formatShortTimeAgo } from '@/lib/time-format/short-time-ago'
 import { useAppStore } from '@/store'
 import { useLiveDashboardSnapshot } from '../../dashboard/snapshot/useLiveDashboardSnapshot'
@@ -103,6 +104,7 @@ function ProjectCard({
               value0: String(project.worktreeCount)
             })}
           </span>
+          {project.autonomy !== null ? <span>{hqAutonomyShort(project.autonomy)}</span> : null}
           {project.lastActivityAt ? (
             <span className="tabular-nums">{formatShortTimeAgo(project.lastActivityAt, now)}</span>
           ) : null}
