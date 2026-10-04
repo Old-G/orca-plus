@@ -11,6 +11,7 @@ import CommentMarkdown from '@/components/sidebar/CommentMarkdown'
 import { translate } from '@/i18n/i18n'
 import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
 import type { HqProjectCard } from './hq-project-board'
+import { HqAutonomyBadge } from './HqAutonomyBadge'
 import { hqWikiBody, resolveHqWikiLink } from './hq-wiki-tree'
 import { HqProjectDiagram } from './HqProjectDiagram'
 import { HqProjectFeed, HqProjectWaitings } from './HqProjectPulsePanels'
@@ -132,6 +133,7 @@ export function HqProjectDetail({
         {project.status ? (
           <span className="shrink-0 text-[11px] text-muted-foreground">{project.status}</span>
         ) : null}
+        {project.autonomy !== null ? <HqAutonomyBadge level={project.autonomy} /> : null}
         <span className="flex-1" />
         <Button
           type="button"

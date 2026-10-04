@@ -1,6 +1,7 @@
 // Custom build (hq): reads HQ's project pages — frontmatter plus the first heading of each.
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { HQ_AUTONOMY_FILE, hqAutonomyFor, parseHqAutonomy } from '../../shared/hq-autonomy'
 import type { HqProjectPage } from '../../shared/hq-project-pages'
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/
@@ -55,5 +56,11 @@ export async function listHqProjectPages(hqPath: string): Promise<HqProjectPage[
   const pages = await Promise.all(
     names.map(async (name) => readHqProjectPage(await readFile(join(dir, name), 'utf8')))
   )
-  return pages.filter((page): page is HqProjectPage => page !== null)
+  // Custom build (hq-autonomy): a missing file means every project gets the fallback level.
+  const autonomy = parseHqAutonomy(
+    await readFile(join(hqPath, HQ_AUTONOMY_FILE), 'utf8').catch(() => null)
+  )
+  return pages
+    .filter((page): page is HqProjectPage => page !== null)
+    .map((page) => ({ ...page, autonomy: hqAutonomyFor(autonomy, page.slug) }))
 }

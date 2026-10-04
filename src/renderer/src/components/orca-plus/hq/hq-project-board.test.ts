@@ -194,7 +194,8 @@ describe('buildHqProjectBoard', () => {
             title: 'shop — the storefront',
             status: 'active',
             group: null,
-            relations: []
+            relations: [],
+            autonomy: 2
           }
         ]
       })
@@ -210,7 +211,8 @@ describe('buildHqProjectBoard', () => {
       agentsNeedYou: 1,
       openReviews: 2,
       openWaitings: 1,
-      openWorktreeId: 'shop::/main'
+      openWorktreeId: 'shop::/main',
+      autonomy: 2
     })
   })
 
