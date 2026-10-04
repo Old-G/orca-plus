@@ -23,6 +23,8 @@ import { createGitApi } from './preload-api/git/web-git-api'
 import { createWebGithubCacheApi } from './preload-api/github/web-github-cache-api'
 import { createGitHubApi } from './preload-api/github/web-github-api'
 import { createGitLabApi } from './preload-api/gitlab/web-gitlab-api'
+import { createWebHqProjectsApi } from './preload-api/web-hq-projects-api'
+import { withRuntimeHqSettings } from './preload-api/web-hq-settings'
 import {
   createComputerUsePermissionsApi,
   createDeveloperPermissionsApi,
@@ -81,7 +83,7 @@ function createWebPreloadApi(): Omit<Partial<PreloadApi>, 'settings' | 'plugins'
     linkPreview: createWebLinkPreviewApi(),
     ...createWebOrcaProfilesApi(),
     ...createWebE2EApi(),
-    ...createWebSettingsApi(),
+    ...withRuntimeHqSettings(createWebSettingsApi()),
     keybindings: createWebKeybindingsApi(),
     ui: createWebUiApi(),
     plugins: createWebPluginsApi(),
@@ -186,6 +188,8 @@ function createWebPreloadApi(): Omit<Partial<PreloadApi>, 'settings' | 'plugins'
     },
     ...createWebAgentStatusApi(),
     ...createWebMobileApi(),
-    ...createWebTelemetryApi()
+    ...createWebTelemetryApi(),
+    // Custom build (hq): HQ's reads and ClickUp, through the runtime RPC.
+    ...createWebHqProjectsApi()
   }
 }
