@@ -19,6 +19,7 @@ import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../../shared/workspace-layout/l
 import { ORCA_SIDEBAR_INPUTS_IS_MAIN } from '../../../../shared/sidebar-list/feed/sidebar-inputs-switch'
 import { DEFAULT_LAZY_RPC_METHOD_GROUPS } from './lazy-rpc-method-groups'
 import { PULSE_METHODS } from './pulse'
+import { HQ_PROJECTS_METHODS } from './hq-projects'
 
 export { DEFAULT_LAZY_RPC_METHOD_GROUPS }
 
@@ -42,7 +43,8 @@ export const EAGER_SERVICE_RPC_METHODS = [
   // Switch point: a window-fed build publishes no sidebar input.
   ...(ORCA_SIDEBAR_INPUTS_IS_MAIN ? SIDEBAR_INPUT_METHODS : []),
   ...SIDEBAR_REPO_ICON_METHODS,
-  ...PULSE_METHODS
+  ...PULSE_METHODS,
+  ...HQ_PROJECTS_METHODS
 ] as const
 
 export const EAGER_RPC_METHODS = [...EAGER_CORE_RPC_METHODS, ...EAGER_SERVICE_RPC_METHODS] as const
