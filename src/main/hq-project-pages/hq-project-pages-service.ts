@@ -82,7 +82,8 @@ export function createHqProjectPagesService(store: HqProjectPagesStore): HqProje
       hqPath: current.hqPath ?? null,
       hqProjectClickUpLists: current.hqProjectClickUpLists ?? {},
       hqDeferredAfterMinutes: current.hqDeferredAfterMinutes,
-      hqDeferredDismissed: current.hqDeferredDismissed ?? {}
+      hqDeferredDismissed: current.hqDeferredDismissed ?? {},
+      hqTriageDecisions: current.hqTriageDecisions ?? {}
     }
   }
 
