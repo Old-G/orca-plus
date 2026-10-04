@@ -1,3 +1,5 @@
+import type { HqAutonomyLevel } from './hq-autonomy'
+
 // Custom build (hq): what HQ's projects/<slug>.md pages say about each Orca project. A page's
 // frontmatter `id` is the Orca repo id, so the renderer joins pages to repos without the registry.
 export type HqProjectPage = {
@@ -12,6 +14,8 @@ export type HqProjectPage = {
   group: string | null
   /** Frontmatter `relations`: slugs of projects this one calls or is called by. */
   relations: string[]
+  /** Custom build (hq-autonomy): from HQ's autonomy.yaml; absent from hosts that predate it. */
+  autonomy?: HqAutonomyLevel
 }
 
 /** `pages` is empty when no HQ folder is set. */
