@@ -8,7 +8,7 @@ import type { GitHubProjectSettings } from './github/projects/project-types'
 import type { VoiceSettings } from './speech-types'
 import type { AiVaultSearchSettings } from './ai-vault/search/ai-vault-search-settings'
 import type { GitLabProjectSettings } from './gitlab-types'
-import type { TaskProvider, TaskProviderRolloutFlags } from './work-items/task-providers'
+import type { TaskProvider } from './work-items/task-providers'
 import type { AppIconId } from './app-icon'
 import type { SourceControlAiSettings } from './source-control/ai/settings/source-control-ai-settings-types'
 import type { CustomBuildSettings } from './custom-build-settings'
@@ -80,8 +80,6 @@ export type GlobalSettings = GlobalSettingsBase & {
   uiLanguagePortugueseMigrationApplied?: boolean
   appIcon: AppIconId
   appFontFamily: string
-  /** Load `~/.orca/custom.css` on top of the built-in theme and reload it on save. */
-  customCssEnabled?: boolean
   editorAutoSave: boolean
   /** Days a release must be public before Orca offers it; absent/0 offers releases immediately. */
   updateDelayDays?: number
@@ -502,7 +500,6 @@ export type GlobalSettings = GlobalSettingsBase & {
   voiceDictationModeDefaultedToAuto?: boolean
   /** Transcript full-text search consent + retention. Absent means off; nothing indexes until the user opts in. */
   aiVaultSearch?: AiVaultSearchSettings
-} & TaskProviderRolloutFlags &
-  CustomBuildSettings
+} & CustomBuildSettings
 
 export type { OrcaWorkspaceLayout } from './orca-workspace-layout'

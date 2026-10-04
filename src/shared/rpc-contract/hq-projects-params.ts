@@ -20,5 +20,15 @@ const HqClickUpListBindingParam = z.object({
 /** Only what HQ itself edits; the HQ folder and the quiet threshold stay Settings-only on the Mac. */
 export const HqUpdateSettingsParams = z.object({
   hqProjectClickUpLists: z.record(z.string(), HqClickUpListBindingParam).optional(),
-  hqDeferredDismissed: z.record(z.string(), z.number()).optional()
+  hqDeferredDismissed: z.record(z.string(), z.number()).optional(),
+  hqTriageDecisions: z
+    .record(
+      z.string(),
+      z.object({
+        decision: z.enum(['taken', 'hidden']),
+        at: z.number(),
+        repoId: z.string().optional()
+      })
+    )
+    .optional()
 })
