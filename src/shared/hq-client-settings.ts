@@ -3,13 +3,18 @@ import type { CustomBuildSettings } from './custom-build-settings'
 
 export type HqClientSettings = Pick<
   CustomBuildSettings,
-  'hqPath' | 'hqProjectClickUpLists' | 'hqDeferredAfterMinutes' | 'hqDeferredDismissed'
+  | 'hqPath'
+  | 'hqProjectClickUpLists'
+  | 'hqDeferredAfterMinutes'
+  | 'hqDeferredDismissed'
+  | 'hqTriageDecisions'
 >
 
 /** The HQ settings a paired client may change. */
 export const HQ_CLIENT_WRITABLE_SETTING_KEYS = [
   'hqProjectClickUpLists',
-  'hqDeferredDismissed'
+  'hqDeferredDismissed',
+  'hqTriageDecisions'
 ] as const
 
 export type HqClientSettingsUpdate = Pick<
