@@ -1,7 +1,11 @@
 // Custom build (hq): opening and closing Orca+'s HQ screen, a main-area view like Skills or Tasks,
 // optionally on a given tab.
 import type { TopLevelView } from '../../../../../shared/ui-chrome-types'
+import { isWebClientLocation } from '@/lib/web-client-location'
 import { useAppStore } from '@/store'
+
+// Why: below this width the sidebar would leave HQ a sliver; on a phone it gives way to HQ.
+const NARROW_WEB_QUERY = '(max-width: 767px)'
 
 let viewBeforeHq: TopLevelView | null = null
 let requestedTab: string | null = null
@@ -15,7 +19,10 @@ export function openHqScreen(tab?: string): void {
       listener(tab)
     }
   }
-  const { activeView, setActiveView } = useAppStore.getState()
+  const { activeView, setActiveView, setSidebarOpen } = useAppStore.getState()
+  if (isWebClientLocation() && window.matchMedia?.(NARROW_WEB_QUERY).matches) {
+    setSidebarOpen(false)
+  }
   if (activeView === 'hq') {
     return
   }

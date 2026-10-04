@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react'
 import type { HqProjectPage } from '../../../../../shared/hq-project-pages'
 import { useAppStore } from '@/store'
-import { isWebClientLocation } from '@/lib/web-client-location'
 
 export type HqProjectPagesState =
   | { status: 'off' }
@@ -13,8 +12,7 @@ export type HqProjectPagesState =
 type Loaded = { hqPath: string; state: HqProjectPagesState }
 
 export function useHqProjectPages(): HqProjectPagesState {
-  // Why: the HQ folder lives on the desktop; a paired web client has no bridge to it.
-  const hqPath = useAppStore((s) => (isWebClientLocation() ? null : (s.settings?.hqPath ?? null)))
+  const hqPath = useAppStore((s) => s.settings?.hqPath ?? null)
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   useEffect(() => {
     if (!hqPath) {

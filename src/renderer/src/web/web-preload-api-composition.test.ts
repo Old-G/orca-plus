@@ -17,6 +17,8 @@ describe('web preload API composition', () => {
     const { installWebPreloadApi } = await import('./web-preload-api')
     installWebPreloadApi()
 
+    // Custom build (hq-web): the paired web client gets our ClickUp and HQ projects APIs.
+    expect(Object.keys(globals.window.api)).toEqual(expect.arrayContaining(['clickup', 'hqProjects']))
     expect('onFileDrop' in globals.window.api.ui).toBe(false)
     expect(Object.keys(globals.window.api.projects)).toEqual([])
     const projects: Record<string, unknown> = globals.window.api.projects
