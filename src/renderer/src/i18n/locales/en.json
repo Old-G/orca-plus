@@ -18410,6 +18410,13 @@
       "add": "Add",
       "statusChecking": "Checking sign-in…",
       "statusSignedOut": "Not signed in"
+    },
+    "webPush": {
+      "offer": "Get the bell on this phone while you are away from the Mac.",
+      "installFirst": "For notifications, add Orca+ to the Home Screen and open it from there.",
+      "denied": "Notifications are blocked for Orca+ in this phone’s settings.",
+      "enable": "Turn on",
+      "failed": "Notifications could not be turned on"
     }
   },
   "components": {
