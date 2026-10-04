@@ -4,6 +4,8 @@
 import { useEffect, useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { translate } from '@/i18n/i18n'
+import { isWebClientLocation } from '@/lib/web-client-location'
+import WebPushPrompt from '@/web/WebPushPrompt'
 import { HqAgentsTab } from './HqAgentsTab'
 import { HqMapTab } from './HqMapTab'
 import { HqProjectsTab } from './HqProjectsTab'
@@ -69,6 +71,7 @@ export default function HqScreen(): React.JSX.Element {
           ))}
         </TabsList>
       </div>
+      {isWebClientLocation() ? <WebPushPrompt /> : null}
       {/* Why: Radix unmounts inactive content, so the live board derivation runs only while shown. */}
       <TabsContent value="agents" className="min-h-0 flex-1">
         <HqAgentsTab />
