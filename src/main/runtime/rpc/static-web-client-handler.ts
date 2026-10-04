@@ -3,8 +3,10 @@ import { stat } from 'node:fs/promises'
 import type { IncomingMessage, RequestListener, ServerResponse } from 'node:http'
 import { extname, isAbsolute, posix, relative, resolve } from 'node:path'
 
-const STATIC_WEB_ALLOWED_PATHS = new Set(['/web-index.html'])
-const STATIC_WEB_ALLOWED_PREFIXES = ['/assets/', '/cmaps/', '/standard_fonts/', '/wasm/']
+// Custom build (pwa): the manifest and service worker sit beside the page so they share its scope.
+const STATIC_WEB_PWA_ROOT_FILES = ['/manifest.webmanifest', '/sw.js']
+const STATIC_WEB_ALLOWED_PATHS = new Set(['/web-index.html', ...STATIC_WEB_PWA_ROOT_FILES])
+const STATIC_WEB_ALLOWED_PREFIXES = ['/assets/', '/cmaps/', '/standard_fonts/', '/wasm/', '/pwa/']
 const STATIC_WEB_CONTENT_TYPES = new Map([
   ['.css', 'text/css; charset=utf-8'],
   ['.html', 'text/html; charset=utf-8'],
@@ -13,6 +15,7 @@ const STATIC_WEB_CONTENT_TYPES = new Map([
   ['.png', 'image/png'],
   ['.svg', 'image/svg+xml; charset=utf-8'],
   ['.wasm', 'application/wasm'],
+  ['.webmanifest', 'application/manifest+json; charset=utf-8'],
   ['.webp', 'image/webp'],
   ['.woff2', 'font/woff2']
 ])
@@ -135,6 +138,10 @@ function parseStaticPathname(rawUrl: string | undefined): string | null {
 function mapProxyPrefixedStaticPathname(pathname: string): string {
   if (pathname === '/web-index.html' || pathname.endsWith('/web-index.html')) {
     return '/web-index.html'
+  }
+  const pwaRootFile = STATIC_WEB_PWA_ROOT_FILES.find((file) => pathname.endsWith(file))
+  if (pwaRootFile) {
+    return pwaRootFile
   }
   const prefixIndex = STATIC_WEB_ALLOWED_PREFIXES.reduce(
     (deepest, prefix) => Math.max(deepest, pathname.indexOf(prefix)),

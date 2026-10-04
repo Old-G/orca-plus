@@ -19,6 +19,7 @@ import {
 import { installWebPreloadApi } from './web-preload-api'
 import { initWebDeviceKeySupport } from './web-device-key-support'
 import { WebPairingSecurityNotice } from './WebPairingSecurityNotice'
+import { registerWebServiceWorker } from './web-service-worker'
 import { I18nProvider } from '../i18n/I18nProvider'
 import { translate } from '../i18n/i18n'
 import { installOsFileDropCancellationGuard } from '../lib/os-file-drop-cancellation-guard'
@@ -96,6 +97,8 @@ function WebRootBoundary(): React.JSX.Element {
     </RecoverableRenderErrorBoundary>
   )
 }
+
+registerWebServiceWorker()
 
 // Why await: where a new pairing may be stored depends on what this browser can keep secret.
 void initWebDeviceKeySupport()
