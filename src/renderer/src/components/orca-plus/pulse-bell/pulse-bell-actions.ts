@@ -52,6 +52,26 @@ function openPane(ref: PulseBellPaneRef): void {
   })
 }
 
+/** Where a bell item leads, without answering it; a tap on its phone push opens the same place. */
+export function openPulseBellItemTarget(item: PulseInboxItem): boolean {
+  if (item.kind === PULSE_BELL_KIND.agentWaiting || item.kind === PULSE_BELL_KIND.agentFinished) {
+    const ref = readPulseBellPaneRef(item.refId)
+    if (ref) {
+      openPane(ref)
+      return true
+    }
+  }
+  if (item.kind === HQ_BRIEFING_KIND) {
+    openHqScreen(HQ_BRIEFING_TAB)
+    return true
+  }
+  if (item.kind === HQ_DEFERRED_KIND) {
+    openHqScreen(HQ_DEFERRED_TAB)
+    return true
+  }
+  return false
+}
+
 /** Runs the button, then closes the item unless its producer closes it on its own. */
 export async function runPulseBellAction(item: PulseInboxItem, actionId: string): Promise<void> {
   if (item.kind === PULSE_BELL_KIND.handoff && item.refId) {
@@ -100,6 +120,14 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
       // Why: the stop stays recorded, so the item stays for another try.
       return
     }
+  }
+  if (item.kind === PULSE_BELL_KIND.claudeAuthStop && actionId === PULSE_BELL_ACTION.continue) {
+    const { resumed } = await window.api.claudeLimitGuard.continueAuthStops()
+    toast.success(
+      translate('auto.pulseBell.authStop.continued', 'Sent «продолжай» to {{count}} agent(s)', {
+        count: resumed
+      })
+    )
   }
   if (
     item.kind === PULSE_BELL_KIND.claudeLimit &&
