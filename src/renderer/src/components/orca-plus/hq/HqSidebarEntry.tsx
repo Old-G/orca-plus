@@ -2,20 +2,17 @@
 // also carries the morning count of deferred sessions, since it is always mounted.
 import { Castle } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
-import { isWebClientLocation } from '@/lib/web-client-location'
+import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import { useAppStore } from '@/store'
 import { HqDeferredBell } from './HqDeferredBell'
 import { closeHqScreen, openHqScreen } from './hq-view'
 
 export function HqSidebarEntry(): React.JSX.Element | null {
   const active = useAppStore((s) => s.activeView === 'hq')
-  // Why: the paired web client has its own surfaces; HQ is the desktop's.
-  if (isWebClientLocation()) {
-    return null
-  }
   return (
     <>
-      <HqDeferredBell />
+      {/* Why desktop only: the bell's morning lines are raised by the desktop, never twice. */}
+      {isWebClientLocation() ? null : <HqDeferredBell />}
       <button
         type="button"
         onClick={() => (active ? closeHqScreen() : openHqScreen())}

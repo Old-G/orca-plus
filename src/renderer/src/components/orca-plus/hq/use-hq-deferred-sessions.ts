@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { DashboardCard } from '../../../../../shared/dashboard-snapshot'
 import type { HqWorktreeGitState } from '../../../../../shared/hq-project-pages'
 import { useNow } from '@/hooks/use-now'
-import { isWebClientLocation } from '@/lib/web-client-location'
+import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import { useAppStore } from '@/store'
 import {
   HQ_DEFERRED_DEFAULT_MINUTES,
@@ -97,7 +97,7 @@ function useGitStates(
   // Why: re-read every five minutes; main caches each path for one.
   const period = Math.floor(now / (5 * TICK_MS))
   useEffect(() => {
-    if (!key || isWebClientLocation()) {
+    if (!key) {
       return
     }
     let alive = true

@@ -84,6 +84,7 @@ import {
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../../shared/layout-owner-switch'
 import { ORCA_SIDEBAR_INPUTS_IS_MAIN } from '../../../../shared/sidebar-inputs-switch'
 import { PULSE_METHODS } from './pulse'
+import { HQ_PROJECTS_METHODS } from './hq-projects'
 
 // Keep registration order and the full RPC/security surface visible in one manifest.
 export const ALL_RPC_METHODS = [
@@ -169,5 +170,6 @@ export const ALL_RPC_METHODS = [
   ...(ORCA_SIDEBAR_INPUTS_IS_MAIN ? SIDEBAR_INPUT_METHODS : []),
   ...UPDATER_METHODS,
   ...AUTOMATIC_WORK_METHODS,
-  ...PULSE_METHODS
+  ...PULSE_METHODS,
+  ...HQ_PROJECTS_METHODS
 ]
