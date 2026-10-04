@@ -17880,8 +17880,7 @@
         "outcomeRejected": "거부됨",
         "kindDecision": "결정",
         "loading": "불러오는 중…",
-        "loadFailed": "대기 항목을 읽지 못했습니다: {{value0}}",
-        "desktopOnly": "데스크톱 앱에서 HQ를 여세요"
+        "loadFailed": "대기 항목을 읽지 못했습니다: {{value0}}"
       },
       "projects": {
         "ungrouped": "기타 프로젝트",

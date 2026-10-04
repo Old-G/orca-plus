@@ -17981,8 +17981,7 @@
         "outcomeRejected": "Refusé",
         "kindDecision": "Décision",
         "loading": "Chargement…",
-        "loadFailed": "Impossible de lire les attentes : {{value0}}",
-        "desktopOnly": "ouvrez HQ dans l'app de bureau"
+        "loadFailed": "Impossible de lire les attentes : {{value0}}"
       },
       "projects": {
         "ungrouped": "Autres projets",

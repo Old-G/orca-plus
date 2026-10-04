@@ -17880,8 +17880,7 @@
         "outcomeRejected": "却下",
         "kindDecision": "決定",
         "loading": "読み込み中…",
-        "loadFailed": "待ち状況を読み込めませんでした: {{value0}}",
-        "desktopOnly": "デスクトップアプリで HQ を開いてください"
+        "loadFailed": "待ち状況を読み込めませんでした: {{value0}}"
       },
       "projects": {
         "ungrouped": "その他のプロジェクト",

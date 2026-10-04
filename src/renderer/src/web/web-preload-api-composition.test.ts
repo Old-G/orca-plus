@@ -78,7 +78,9 @@ describe('web preload API composition', () => {
       'telemetryTrack',
       'telemetrySetOptIn',
       'telemetryGetConsentState',
-      'telemetryAcknowledgeBanner'
+      'telemetryAcknowledgeBanner',
+      'clickup',
+      'hqProjects'
     ])
     expect(Object.keys(globals.window.api.projects)).toEqual([])
     const projects: Record<string, unknown> = globals.window.api.projects

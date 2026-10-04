@@ -7,6 +7,7 @@ import type {
   HqWikiPageResult,
   HqWikiTreeResult
 } from '../../shared/hq-project-pages'
+import type { HqClientSettings } from '../../shared/hq-client-settings'
 
 export type HqProjectsApi = {
   list: () => Promise<HqProjectPagesResult>
@@ -18,4 +19,6 @@ export type HqProjectsApi = {
   reviews: (refresh?: boolean) => Promise<HqReviewsResult>
   /** Local absolute paths only; each read is cached for a minute in main. */
   gitState: (paths: string[]) => Promise<HqWorktreeGitStates>
+  /** Paired web client only: HQ's settings, which live on the Mac. The desktop reads its own. */
+  settings?: () => Promise<HqClientSettings>
 }

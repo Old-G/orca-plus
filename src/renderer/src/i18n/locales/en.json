@@ -18273,8 +18273,7 @@
         "outcomeRejected": "Rejected",
         "kindDecision": "Decision",
         "loading": "Loading…",
-        "loadFailed": "Couldn't read waitings: {{value0}}",
-        "desktopOnly": "open HQ in the desktop app"
+        "loadFailed": "Couldn't read waitings: {{value0}}"
       },
       "projects": {
         "ungrouped": "Other projects",

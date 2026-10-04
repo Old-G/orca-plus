@@ -1,34 +1,36 @@
 // Custom build (hq): the microphone beside HQ's command line — Orca's own dictation, started the way
 // the chat composer starts it, so the words land in the focused command box.
-import { useState, type RefObject } from 'react'
+import type { RefObject } from 'react'
 import { Mic, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
-import { useAppStore } from '@/store'
-import { useNativeChatDictationActions } from '../../native-chat/use-native-chat-dictation-actions'
+import { isWebClientLocation } from '@/lib/web-client-location'
+import { useNativeChatDictation } from '../../native-chat/use-native-chat-dictation'
 
-export function HqCommandDictation({
+export function HqCommandDictation(props: {
+  textareaRef: RefObject<HTMLTextAreaElement | null>
+  disabled: boolean
+}): React.JSX.Element | null {
+  // Why: dictation records on the desktop; the paired web client has no speech bridge yet.
+  return isWebClientLocation() ? null : <CommandDictationButton {...props} />
+}
+
+function CommandDictationButton({
   textareaRef,
   disabled
 }: {
   textareaRef: RefObject<HTMLTextAreaElement | null>
   disabled: boolean
 }): React.JSX.Element {
-  const [pressed, setPressed] = useState(false)
-  const dictationState = useAppStore((s) => s.dictationState)
-  const voice = useAppStore((s) => s.settings?.voice)
-  const { toggleDictation, startHoldDictation, stopHoldDictation } = useNativeChatDictationActions({
-    textareaRef,
-    setDictationPressed: setPressed
-  })
-  const unavailable = voice?.enabled !== true || !voice.sttModel
+  const {
+    dictationDisabled: unavailable,
+    isDictating: dictating,
+    isDictationHoldMode: holdMode,
+    toggleDictation,
+    startHoldDictation,
+    stopHoldDictation
+  } = useNativeChatDictation(textareaRef)
   const off = disabled || unavailable
-  const holdMode = voice?.dictationMode === 'hold'
-  const dictating =
-    pressed ||
-    dictationState === 'starting' ||
-    dictationState === 'listening' ||
-    dictationState === 'stopping'
   const label = unavailable
     ? translate('auto.hq.today.dictationOff', 'Turn on voice dictation in Settings → Voice')
     : dictating

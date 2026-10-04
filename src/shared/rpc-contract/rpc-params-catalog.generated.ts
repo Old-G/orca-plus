@@ -318,6 +318,13 @@ import {
   HostedReviewForBranch
 } from './hosted-review-params'
 import {
+  HqGitStateParams,
+  HqProjectDiagramParams,
+  HqReviewsParams,
+  HqUpdateSettingsParams,
+  HqWikiPageParams
+} from './hq-projects-params'
+import {
   AssignableUsers,
   Connect as ConnectOfJiraParams,
   CreateIssue as CreateIssueOfJiraParams,
@@ -989,6 +996,15 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.createStacked': HostedReviewCreate,
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
+  'hqProjects.gitState': HqGitStateParams,
+  'hqProjects.list': null,
+  'hqProjects.map': null,
+  'hqProjects.projectDiagram': HqProjectDiagramParams,
+  'hqProjects.reviews': HqReviewsParams,
+  'hqProjects.settings': null,
+  'hqProjects.updateSettings': HqUpdateSettingsParams,
+  'hqProjects.wikiPage': HqWikiPageParams,
+  'hqProjects.wikiTree': null,
   'jira.addIssueComment': IssueCommentOfJiraParams,
   'jira.connect': ConnectOfJiraParams,
   'jira.createIssue': CreateIssueOfJiraParams,

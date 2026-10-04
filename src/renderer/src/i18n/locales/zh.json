@@ -17880,8 +17880,7 @@
         "outcomeRejected": "已拒绝",
         "kindDecision": "决定",
         "loading": "加载中…",
-        "loadFailed": "无法读取等待项：{{value0}}",
-        "desktopOnly": "请在桌面应用中打开 HQ"
+        "loadFailed": "无法读取等待项：{{value0}}"
       },
       "projects": {
         "ungrouped": "其他项目",
