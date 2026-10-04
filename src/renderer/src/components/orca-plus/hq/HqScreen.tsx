@@ -11,6 +11,7 @@ import { HqTodayTab } from './HqTodayTab'
 import { HqWaitingTab } from './HqWaitingTab'
 import { HqWikiTab } from './HqWikiTab'
 import { onHqTabRequested, takeRequestedHqTab } from './hq-view'
+import { useHqWebSettings } from './use-hq-web-settings'
 
 const HQ_TABS = [
   { id: 'agents', label: () => translate('auto.hq.tab.agents', 'Agents') },
@@ -29,6 +30,7 @@ function findTab(id: string | null): HqTabId | null {
 
 export default function HqScreen(): React.JSX.Element {
   const [tab, setTab] = useState<HqTabId>(() => findTab(takeRequestedHqTab()) ?? 'agents')
+  useHqWebSettings()
   useEffect(
     () =>
       onHqTabRequested((requested) => {

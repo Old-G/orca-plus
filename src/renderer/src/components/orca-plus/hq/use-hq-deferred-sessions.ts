@@ -97,7 +97,7 @@ function useGitStates(
   // Why: re-read every five minutes; main caches each path for one.
   const period = Math.floor(now / (5 * TICK_MS))
   useEffect(() => {
-    if (!key || isWebClientLocation()) {
+    if (!key) {
       return
     }
     let alive = true

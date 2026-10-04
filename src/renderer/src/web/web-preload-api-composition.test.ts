@@ -80,7 +80,9 @@ describe('web preload API composition', () => {
       'telemetryTrack',
       'telemetrySetOptIn',
       'telemetryGetConsentState',
-      'telemetryAcknowledgeBanner'
+      'telemetryAcknowledgeBanner',
+      'clickup',
+      'hqProjects'
     ])
     expect('onFileDrop' in globals.window.api.ui).toBe(false)
     expect(Object.keys(globals.window.api.projects)).toEqual([])
