@@ -30,6 +30,7 @@ import { startHqMorningBriefing } from '../../hq-today/hq-morning-briefing'
 import { registerHqPulseMirror } from '../../hq-pulse-mirror/register-hq-pulse-mirror'
 import { registerPulseBell } from '../../orca-plus/pulse-bell/register-pulse-bell'
 import { registerOutgoingApproval } from '../../orca-plus/outgoing-approval/register-outgoing-approval'
+import { registerWebPush } from '../../orca-plus/web-push/register-web-push'
 import { registerBitbucketHandlers } from '../bitbucket'
 import { registerFeedbackHandlers } from '../feedback'
 import { registerCrashReportingHandlers } from '../crash-reporting'
@@ -230,6 +231,7 @@ export function registerCoreHandlers(
     markInboxDone: (id, action) => void runtime.pulseMarkInboxDone(id, action)
   })
   registerOutgoingApproval(runtime)
+  registerWebPush(runtime)
   registerBitbucketHandlers()
   registerFeedbackHandlers()
   if (crashReports) {
