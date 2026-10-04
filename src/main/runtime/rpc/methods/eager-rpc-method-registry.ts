@@ -20,6 +20,7 @@ import { ORCA_SIDEBAR_INPUTS_IS_MAIN } from '../../../../shared/sidebar-list/fee
 import { DEFAULT_LAZY_RPC_METHOD_GROUPS } from './lazy-rpc-method-groups'
 import { PULSE_METHODS } from './pulse'
 import { HQ_PROJECTS_METHODS } from './hq-projects'
+import { WEB_PUSH_METHODS } from './web-push'
 
 export { DEFAULT_LAZY_RPC_METHOD_GROUPS }
 
@@ -44,7 +45,8 @@ export const EAGER_SERVICE_RPC_METHODS = [
   ...(ORCA_SIDEBAR_INPUTS_IS_MAIN ? SIDEBAR_INPUT_METHODS : []),
   ...SIDEBAR_REPO_ICON_METHODS,
   ...PULSE_METHODS,
-  ...HQ_PROJECTS_METHODS
+  ...HQ_PROJECTS_METHODS,
+  ...WEB_PUSH_METHODS
 ] as const
 
 export const EAGER_RPC_METHODS = [...EAGER_CORE_RPC_METHODS, ...EAGER_SERVICE_RPC_METHODS] as const
