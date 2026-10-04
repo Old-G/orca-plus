@@ -32,6 +32,7 @@ import.meta.hot?.dispose(disposeOsFileDropGuard)
 installAppKeyboardRouter()
 const App = lazy(() => import('../App'))
 const WebPhoneLayout = lazy(() => import('./web-phone-layout'))
+const WebPushTap = lazy(() => import('./WebPushTap'))
 
 function WebRoot(): React.JSX.Element {
   const initialPairingInput = useMemo(() => readPairingInputFromLocation(window.location), [])
@@ -81,6 +82,7 @@ function WebRoot(): React.JSX.Element {
       <Suspense fallback={<div className="min-h-dvh bg-background" />}>
         <App />
         <WebPhoneLayout />
+        <WebPushTap />
       </Suspense>
       <WebPairingSecurityNotice />
     </>
