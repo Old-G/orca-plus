@@ -149,6 +149,8 @@ function RightSidebarInner(): React.JSX.Element {
   return (
     <div
       ref={containerRef}
+      // Custom build (web-phone): lets the phone layout widen this panel to the whole screen.
+      data-right-sidebar=""
       className={cn(
         'relative flex-shrink-0 flex flex-row',
         // Why: overflow-visible is needed when open so the resize handle
