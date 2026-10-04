@@ -17,6 +17,7 @@ import {
   saveStoredWebRuntimeEnvironment
 } from './web-runtime-environment'
 import { installWebPreloadApi } from './web-preload-api'
+import { registerWebServiceWorker } from './web-service-worker'
 import { I18nProvider } from '../i18n/I18nProvider'
 import { translate } from '../i18n/i18n'
 import { installOsFileDropCancellationGuard } from '../lib/os-file-drop-cancellation-guard'
@@ -91,6 +92,8 @@ function WebRootBoundary(): React.JSX.Element {
     </RecoverableRenderErrorBoundary>
   )
 }
+
+registerWebServiceWorker()
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <I18nProvider>
