@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { omitPairingLocalUiFields } from './pairing-local-ui-fields'
+import { omitPairingLocalUiFields, PAIRING_LOCAL_UI_FIELDS } from './pairing-local-ui-fields'
 
 describe('pairing-local UI fields', () => {
+  // Custom build (web-phone): each paired client keeps its own right sidebar open or closed.
+  it('keeps the right sidebar state local to each pairing', () => {
+    expect([...PAIRING_LOCAL_UI_FIELDS]).toContain('rightSidebarOpen')
+  })
+
   it('omits every member and keeps everything else', () => {
     const state = {
       hideWorkspacesFromOtherDevices: true,

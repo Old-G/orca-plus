@@ -1,0 +1,34 @@
+/* Custom build (web-phone): the paired web client as a phone app. */
+
+/* Why: viewport-fit=cover lets the home-screen app draw under the rounded corners and home indicator. */
+#root {
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
+#root .app-layout {
+  height: 100%;
+  width: 100%;
+}
+
+/* Keep in sync with PHONE_WEB_QUERY in web-phone-layout.tsx. */
+@media (max-width: 767px) {
+  /* Why: on a phone the sidebar is a full-screen menu; a 280px column would leave the page a sliver. */
+  div:has(> [data-sidebar-resize-handle]) {
+    width: calc(
+      100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)
+    ) !important;
+  }
+
+  [data-sidebar-resize-handle] {
+    display: none;
+  }
+
+  /* The right panel opens as a full-screen page too; closed, it stays at width 0. */
+  [data-right-sidebar].overflow-visible {
+    width: calc(
+      100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)
+    ) !important;
+  }
+}
