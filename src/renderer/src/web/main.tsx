@@ -1,4 +1,6 @@
 import '../assets/main.css'
+// Custom build (web-phone): safe-area padding and the phone sidebar.
+import './web-phone-layout.css'
 
 import { Suspense, useMemo, useState } from 'react'
 import { lazyWithRetry as lazy } from '@/lib/lazy-with-retry'
@@ -29,6 +31,7 @@ const disposeOsFileDropGuard = installOsFileDropCancellationGuard()
 import.meta.hot?.dispose(disposeOsFileDropGuard)
 installAppKeyboardRouter()
 const App = lazy(() => import('../App'))
+const WebPhoneLayout = lazy(() => import('./web-phone-layout'))
 
 function WebRoot(): React.JSX.Element {
   const initialPairingInput = useMemo(() => readPairingInputFromLocation(window.location), [])
@@ -77,6 +80,7 @@ function WebRoot(): React.JSX.Element {
     <>
       <Suspense fallback={<div className="min-h-dvh bg-background" />}>
         <App />
+        <WebPhoneLayout />
       </Suspense>
       <WebPairingSecurityNotice />
     </>

@@ -408,7 +408,6 @@ describe('client UI RPC methods', () => {
 
     const response = await dispatcher.dispatch(
       makeRequest('ui.set', {
-        rightSidebarOpen: false,
         rightSidebarTab: 'checks',
         rightSidebarExplorerView: 'search',
         showActiveOnly: true,
@@ -419,7 +418,6 @@ describe('client UI RPC methods', () => {
     )
 
     expect(runtime.updateUIState).toHaveBeenCalledWith({
-      rightSidebarOpen: false,
       rightSidebarTab: 'checks',
       rightSidebarExplorerView: 'search',
       showActiveOnly: true,
@@ -637,7 +635,7 @@ describe('client UI RPC methods', () => {
     const response = await dispatcher.dispatch(makeRequest('ui.set', payload))
 
     expect(response).toMatchObject({ ok: true })
-    expect(runtime.updateUIState).toHaveBeenCalledWith(payload)
+    expect(runtime.updateUIState).toHaveBeenCalledWith(omitPairingLocalUiFields(payload))
   })
 
   it('records a feature interaction through the runtime host', async () => {

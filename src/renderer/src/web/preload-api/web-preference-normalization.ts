@@ -93,7 +93,8 @@ export function mergeHostWebUIState(
     agentsReadFilter: local.agentsReadFilter,
     agentsGroupBy: local.agentsGroupBy,
     activityClearedAtByPaneKey: local.activityClearedAtByPaneKey,
-    manuallyUnreadTurnsByPaneKey: local.manuallyUnreadTurnsByPaneKey
+    manuallyUnreadTurnsByPaneKey: local.manuallyUnreadTurnsByPaneKey,
+    rightSidebarOpen: local.rightSidebarOpen
   } satisfies Record<PairingLocalUiField, unknown> & Partial<PersistedUIState>
   return {
     ...mergeWebUIState(local, incoming),
@@ -141,8 +142,8 @@ export function mergeContextualTourSeenIds(
 }
 
 export function mergeOsc52ClipboardNoticePending(
-  current: PersistedUIState,
-  incoming: PersistedUIState
+  current: Pick<PersistedUIState, 'osc52ClipboardDefaultOnNoticePending'>,
+  incoming: Pick<PersistedUIState, 'osc52ClipboardDefaultOnNoticePending'>
 ): boolean {
   return (
     current.osc52ClipboardDefaultOnNoticePending === true ||
