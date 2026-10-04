@@ -1,8 +1,8 @@
-// Custom build (hq): the pulse records behind HQ, refreshed whenever main reports a pulse write,
+// Custom build (hq): the pulse records behind HQ, refreshed whenever main reports a pulse write
+// (in the paired web client, which hears no such report, after its own writes and every 30 s),
 // and the writes HQ makes itself.
 import { useEffect, useState } from 'react'
 import type { PulseWaitingDirection } from '../../../../../shared/pulse-types'
-import { translate } from '@/i18n/i18n'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import { findPersonByName, readHqPulse, type HqPerson, type HqPulse } from './hq-pulse-snapshot'
 
@@ -19,20 +19,20 @@ async function callPulse(method: string, params?: unknown): Promise<unknown> {
   return response.result
 }
 
+const WEB_POLL_MS = 30_000
+const ownWriteListeners = new Set<() => void>()
+
+async function writePulse(method: string, params: unknown): Promise<unknown> {
+  const result = await callPulse(method, params)
+  for (const listener of ownWriteListeners) {
+    listener()
+  }
+  return result
+}
+
 export function useHqPulse(): HqPulseState {
-  // Why: the paired web client has no bell bridge to hear changes; the desktop owns the pulse.
-  const [state, setState] = useState<HqPulseState>(() =>
-    isWebClientLocation()
-      ? {
-          status: 'error',
-          message: translate('auto.hq.waiting.desktopOnly', 'open HQ in the desktop app')
-        }
-      : { status: 'loading' }
-  )
+  const [state, setState] = useState<HqPulseState>({ status: 'loading' })
   useEffect(() => {
-    if (isWebClientLocation()) {
-      return
-    }
     let alive = true
     const load = (): void => {
       callPulse('pulse.snapshot')
@@ -54,10 +54,18 @@ export function useHqPulse(): HqPulseState {
         })
     }
     load()
+    ownWriteListeners.add(load)
     const unsubscribe = window.api.pulseBell.onChanged(load)
+    const poll = setInterval(() => {
+      if (isWebClientLocation()) {
+        load()
+      }
+    }, WEB_POLL_MS)
     return () => {
       alive = false
+      ownWriteListeners.delete(load)
       unsubscribe()
+      clearInterval(poll)
     }
   }, [])
   return state
@@ -72,7 +80,7 @@ async function personIdFor(people: readonly HqPerson[], name: string): Promise<s
   if (known) {
     return known.id
   }
-  const created = await callPulse('pulse.upsertPerson', { name: trimmed })
+  const created = await writePulse('pulse.upsertPerson', { name: trimmed })
   const id = typeof created === 'object' && created !== null ? Reflect.get(created, 'id') : null
   if (typeof id !== 'string') {
     throw new Error('pulse.upsertPerson returned no id')
@@ -89,7 +97,7 @@ export async function addHqWaiting(args: {
   project?: string | null
 }): Promise<void> {
   const personId = await personIdFor(args.people, args.personName)
-  await callPulse('pulse.addWaiting', {
+  await writePulse('pulse.addWaiting', {
     direction: args.direction,
     title: args.title.trim(),
     source: 'manual',
@@ -99,5 +107,5 @@ export async function addHqWaiting(args: {
 }
 
 export async function closeHqWaiting(id: string, status: 'resolved' | 'cancelled'): Promise<void> {
-  await callPulse('pulse.closeWaiting', { id, status })
+  await writePulse('pulse.closeWaiting', { id, status })
 }
