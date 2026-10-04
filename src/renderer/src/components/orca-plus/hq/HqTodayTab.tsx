@@ -1,5 +1,5 @@
 // Custom build (hq): the HQ «Today» tab — the morning briefing kept live: a command line to HQ's
-// Claude (typed or dictated), agents and waitings that need a move, ClickUp deadlines, open reviews and limits.
+// Claude (typed or dictated), agents and waitings that need a move, new ClickUp tasks and deadlines, open reviews and limits.
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -11,6 +11,7 @@ import { HqCommandDictation } from './HqCommandDictation'
 import { findHqWorktreeId, launchHqCommand } from './hq-today-actions'
 import { HqTodayAgents, HqTodayWaitings } from './HqTodayPeople'
 import { HqTodayReviewRequests } from './HqTodayReviewRequests'
+import { HqTodayTriage } from './HqTodayTriage'
 import { HqTodayDeadlines, HqTodayLimits } from './HqTodayWork'
 import { HqTodayReviews } from './HqTodayWorkspaceReviews'
 import { useHqPulse } from './use-hq-pulse'
@@ -110,6 +111,7 @@ export function HqTodayTab(): React.JSX.Element {
           )}
         </div>
         <div className="flex min-w-0 flex-col gap-6">
+          <HqTodayTriage />
           <HqTodayDeadlines now={now} />
           <HqTodayReviewRequests now={now} />
           <HqTodayReviews workspaces={snapshot.workspaces ?? []} />
