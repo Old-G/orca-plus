@@ -90,8 +90,22 @@ describe('listHqProjectPages', () => {
         title: 'Shop — the storefront',
         status: 'active',
         group: 'Work',
-        relations: ['billing', 'api']
+        relations: ['billing', 'api'],
+        autonomy: 1
       }
+    ])
+  })
+
+  it('gives each page its level from autonomy.yaml', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'hq-pages-'))
+    mkdirSync(join(dir, 'projects'))
+    writeFileSync(join(dir, 'projects', 'shop.md'), PAGE)
+    writeFileSync(join(dir, 'projects', 'api.md'), '---\nid: repo-2\nproject: api\n---\n# Api\n')
+    writeFileSync(join(dir, 'autonomy.yaml'), 'default: 2\nprojects:\n  shop: 0\n')
+    const pages = await listHqProjectPages(dir)
+    expect(pages.map((page) => [page.slug, page.autonomy])).toEqual([
+      ['api', 2],
+      ['shop', 0]
     ])
   })
 
