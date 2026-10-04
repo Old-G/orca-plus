@@ -20,6 +20,9 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
 const selectedFiles = new Set(['web-index.html'])
 const visitedEntries = new Set()
 const PDFJS_VIEWER_ASSET_DIRS = ['cmaps', 'standard_fonts', 'wasm']
+// Custom build (pwa): copied from the renderer's public dir; the page links them by fixed path.
+const PWA_FILES = ['manifest.webmanifest', 'sw.js']
+const PWA_DIRS = ['pwa']
 const TEXT_REFERENCE_OUTPUT = /\.(?:css|html|m?js|svg)$/
 
 function assertEntryIsolation() {
@@ -133,6 +136,22 @@ function includeReferencedOutputs() {
   }
 }
 
+function includePwaAssets() {
+  for (const file of PWA_FILES) {
+    if (existsSync(join(rendererOutput, file))) {
+      addOutputPath(file)
+    }
+  }
+  for (const directory of PWA_DIRS) {
+    const root = join(rendererOutput, directory)
+    if (existsSync(root)) {
+      for (const outputPath of listOutputFiles(root, directory)) {
+        addOutputPath(outputPath)
+      }
+    }
+  }
+}
+
 function includePdfjsViewerAssets() {
   for (const directory of PDFJS_VIEWER_ASSET_DIRS) {
     const root = join(rendererOutput, directory)
@@ -169,6 +188,7 @@ assertEntryIsolation()
 visitManifestEntry('web-index.html')
 includeReferencedOutputs()
 includePdfjsViewerAssets()
+includePwaAssets()
 
 rmSync(stagingOutput, { force: true, recursive: true })
 try {
