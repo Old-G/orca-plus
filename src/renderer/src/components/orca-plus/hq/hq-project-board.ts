@@ -1,5 +1,6 @@
 // Custom build (hq): the HQ «Projects» board — project groups as sections, one card per project
 // with its agents, open reviews, waitings and last activity, all from data the window already has.
+import type { HqAutonomyLevel } from '../../../../../shared/hq-autonomy'
 import type { DashboardSnapshot } from '../../../../../shared/dashboard-snapshot'
 import type { HqProjectPage } from '../../../../../shared/hq-project-pages'
 import type { ProjectGroup } from '../../../../../shared/project-group-types'
@@ -24,6 +25,8 @@ export type HqProjectCard = {
   openWaitings: number
   /** The worktree a click opens: the primary checkout, else the most recently active one. */
   openWorktreeId: string | null
+  /** Custom build (hq-autonomy): null when the host predates autonomy.yaml or HQ has no page. */
+  autonomy: HqAutonomyLevel | null
 }
 
 export type HqProjectSection = {
@@ -83,6 +86,7 @@ function buildCard(
     name: repo.displayName,
     summary: pageSummary(page, repo.displayName),
     status: page?.status ?? null,
+    autonomy: page?.autonomy ?? null,
     worktreeCount: worktrees.length,
     lastActivityAt,
     agentsWorking: cards.filter((entry) => entry.bucket === 'working').length,

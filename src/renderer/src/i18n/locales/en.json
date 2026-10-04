@@ -18395,6 +18395,14 @@
         "settingDescription": "Minutes a session stays quiet with its work unfinished before HQ lists it under Deferred.",
         "settingTitle": "Deferred sessions after",
         "title": "Deferred"
+      },
+      "autonomy": {
+        "level0": "proposes only",
+        "level1": "works in a worktree",
+        "level2": "opens a PR",
+        "level3": "merges",
+        "short": "Autonomy {{value0}}",
+        "hint": "Set in autonomy.yaml in the HQ folder. Production always waits for your yes."
       }
     },
     "claudeSubscriptions": {
