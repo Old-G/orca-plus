@@ -28,6 +28,7 @@ import { startHqMorningBriefing } from '../../hq-today/hq-morning-briefing'
 import { registerHqPulseMirror } from '../../hq-pulse-mirror/register-hq-pulse-mirror'
 import { registerPulseBell } from '../../orca-plus/pulse-bell/register-pulse-bell'
 import { registerOutgoingApproval } from '../../orca-plus/outgoing-approval/register-outgoing-approval'
+import { registerWebPush } from '../../orca-plus/web-push/register-web-push'
 import { registerLazyCrashReportingHandlers } from '../crash-reporting/lazy-crash-reporting-handlers'
 import { registerStatsHandlers } from '../stats'
 import { registerLazyRateLimitHandlers } from '../lazy-rate-limits-handlers'
@@ -155,6 +156,7 @@ export async function registerCoreHandlers(
       markInboxDone: (id, action) => void runtime.pulseMarkInboxDone(id, action)
     })
     registerOutgoingApproval(runtime)
+    registerWebPush(runtime)
     if (crashReports) {
       registerLazyCrashReportingHandlers(crashReports)
     }
