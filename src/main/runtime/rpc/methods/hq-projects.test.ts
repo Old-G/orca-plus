@@ -72,18 +72,28 @@ describe('hqProjects RPC methods', () => {
       hqPath: '/hq',
       hqProjectClickUpLists: {},
       hqDeferredAfterMinutes: 45,
-      hqDeferredDismissed: { old: 1 }
+      hqDeferredDismissed: { old: 1 },
+      hqTriageDecisions: {}
     })
 
     await call('hqProjects.updateSettings', {
       hqDeferredDismissed: { pane: 2 },
+      hqTriageDecisions: { t1: { decision: 'taken', at: 3, repoId: 'repo-api' } },
       hqPath: '/elsewhere',
       hqDeferredAfterMinutes: 1
     })
     expect(settings().hqDeferredDismissed).toEqual({ pane: 2 })
+    expect(settings().hqTriageDecisions).toEqual({
+      t1: { decision: 'taken', at: 3, repoId: 'repo-api' }
+    })
     expect(settings().hqPath).toBe('/hq')
     expect(settings().hqDeferredAfterMinutes).toBe(45)
     expect(notified).toEqual([true])
+    await expect(
+      call('hqProjects.updateSettings', {
+        hqTriageDecisions: { t2: { decision: 'deploy', at: 1 } }
+      })
+    ).rejects.toThrow(/invalid/i)
   })
 
   it('says so when the host has no HQ service', async () => {
