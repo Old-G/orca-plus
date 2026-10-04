@@ -18643,8 +18643,7 @@
         "outcomeRejected": "Rechazado",
         "kindDecision": "Decisión",
         "loading": "Cargando…",
-        "loadFailed": "No se pudieron leer las esperas: {{value0}}",
-        "desktopOnly": "abre HQ en la app de escritorio"
+        "loadFailed": "No se pudieron leer las esperas: {{value0}}"
       },
       "projects": {
         "ungrouped": "Otros proyectos",

@@ -33,6 +33,9 @@ vi.mock('@/store', () => ({
   useAppStore: (selector: (state: Record<string, unknown>) => unknown) => selector(mocks.state)
 }))
 
+// Custom build (hq-screen): the HQ entry reads the live dashboard store, which this store stub lacks.
+vi.mock('../orca-plus/hq/HqSidebarEntry', () => ({ HqSidebarEntry: () => null }))
+
 vi.mock('@/store/selectors', () => ({
   useRepoMap: () =>
     new Map(
