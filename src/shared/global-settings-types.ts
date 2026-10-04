@@ -5,7 +5,7 @@ import type { GitHubProjectSettings } from './github/project-types'
 import type { VoiceSettings } from './speech-types'
 import type { AiVaultSearchSettings } from './ai-vault-search-settings'
 import type { GitLabProjectSettings } from './gitlab-types'
-import type { TaskProvider, TaskProviderRolloutFlags } from './task-providers'
+import type { TaskProvider } from './task-providers'
 import type { KeybindingOverrides, TerminalShortcutPolicy } from './keybindings'
 import type { AppIconId } from './app-icon'
 import type { CustomBuildSettings } from './custom-build-settings'
@@ -78,8 +78,6 @@ export type GlobalSettings = NativeChatGlobalSettings & {
   uiLanguage: UiLanguage
   appIcon: AppIconId
   appFontFamily: string
-  /** Load `~/.orca/custom.css` on top of the built-in theme and reload it on save. */
-  customCssEnabled?: boolean
   editorAutoSave: boolean
   editorAutoSaveDelayMs: number
   editorMinimapEnabled: boolean
@@ -531,8 +529,7 @@ export type GlobalSettings = NativeChatGlobalSettings & {
   voice?: VoiceSettings
   /** Transcript full-text search consent + retention. Absent means off; nothing indexes until the user opts in. */
   aiVaultSearch?: AiVaultSearchSettings
-} & TaskProviderRolloutFlags &
-  CustomBuildSettings
+} & CustomBuildSettings
 
 // Re-exported so existing importers keep one entry point; the shape lives in its
 // own file because this one is at the max-lines ceiling.

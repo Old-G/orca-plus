@@ -18403,6 +18403,18 @@
         "level3": "merges",
         "short": "Autonomy {{value0}}",
         "hint": "Set in autonomy.yaml in the HQ folder. Production always waits for your yes."
+      },
+      "triage": {
+        "title": "New tasks",
+        "empty": "No new tasks.",
+        "project": "Project for {{value0}}",
+        "pickProject": "Pick a project",
+        "take": "Take",
+        "taking": "Starting…",
+        "snooze": "Not now",
+        "hide": "Hide",
+        "noInProcess": "{{value0}}: Claude started, but its ClickUp list has no «in process» status — move it by hand.",
+        "statusFailed": "{{value0}}: Claude started, but ClickUp kept the old status: {{value1}}"
       }
     },
     "claudeSubscriptions": {
