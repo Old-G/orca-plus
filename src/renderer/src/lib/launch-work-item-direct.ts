@@ -77,7 +77,11 @@ export async function launchWorkItemDirect(args: LaunchWorkItemDirectArgs): Prom
   }
   const { repo, executionHostId: repoOwnerHostId, target: repoOwnerTarget } = owner
 
-  const settings = store.settings
+  // Custom build (hq-executors): a launch can override the chat's model/effort for this one session.
+  const settings =
+    args.nativeChatSessionOptions && store.settings
+      ? { ...store.settings, nativeChatSessionOptions: args.nativeChatSessionOptions }
+      : store.settings
   const promptDelivery = args.promptDelivery ?? 'draft'
   const repoConnectionId = repo.connectionId?.trim() || null
   const githubIdentity =

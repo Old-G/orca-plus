@@ -5,6 +5,7 @@ import {
   hqAuthorAnswered,
   hqTasksAwaitingAuthor,
   restoreFirstQuestionNumber,
+  withHqTakeEffort,
   hqTriagePrompt,
   pendingHqTriageTasks,
   suggestHqTriageProject
@@ -104,5 +105,24 @@ describe('HQ task triage', () => {
     expect(restoreFirstQuestionNumber('1. A\n2. B')).toBe('1. A\n2. B')
     expect(restoreFirstQuestionNumber('Один вопрос')).toBe('Один вопрос')
     expect(restoreFirstQuestionNumber('Intro\n- B')).toBe('Intro\n- B')
+  })
+
+  it('pins effort on the owner’s own model without dropping his other choices', () => {
+    expect(
+      withHqTakeEffort({
+        claude: {
+          model: 'opus[1m]',
+          valuesByModel: { 'opus[1m]': { fastMode: true, effort: 'low' } }
+        },
+        codex: { model: 'gpt' }
+      })
+    ).toEqual({
+      claude: {
+        model: 'opus[1m]',
+        valuesByModel: { 'opus[1m]': { fastMode: true, effort: 'high' } }
+      },
+      codex: { model: 'gpt' }
+    })
+    expect(withHqTakeEffort(undefined).claude?.model).toBe('opus')
   })
 })
