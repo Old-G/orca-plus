@@ -32,6 +32,8 @@ import { prepareDirectWorkItemAgentLaunch } from '@/lib/workspace/creation/work-
 import { planAgentSessionLaunch } from '@/lib/agent-session/launch/routing/agent-session-launch-plan'
 
 import { createNonSecureContextUuid } from '../../../../../../shared/non-secure-context-uuid'
+import type { TuiAgent } from '../../../../../../shared/agent-launch/catalog/tui-agent'
+import type { PersistedNativeChatSessionOptions } from '../../../../../../shared/native-chat/input/native-chat-session-options'
 /** Create/activate a workspace and deliver work-item context to its agent. Setup decisions, unresolved repos or unavailable agents fall back to the modal; paste failures retain the usable workspace and surface a notice. */
 export async function launchWorkItemDirect(
   args: LaunchWorkItemDirectArgs
@@ -42,6 +44,12 @@ export async function launchWorkItemDirect(
   let agentArgs = args.agentArgs
   let creationAccepted = false
   let failureAgent = agentOverride
+  // Custom build (hq-executors): a launch can override the chat's model/effort for this one session.
+  const resolveSessionOptions =
+    args.resolveSessionOptions ??
+    (args.nativeChatSessionOptions && !args.sessionOptions
+      ? (agent: TuiAgent) => persistedChatLaunchOptions(args.nativeChatSessionOptions, agent)
+      : undefined)
   const reportFailure = directWorkItemFailureReporter(args.onFailureNotified, () => failureAgent)
   try {
     if (args.signal?.aborted) {
@@ -137,7 +145,7 @@ export async function launchWorkItemDirect(
       repoOwnerHostId: context.executionHostId,
       draftContent,
       promptDelivery,
-      resolveSessionOptions: args.resolveSessionOptions,
+      resolveSessionOptions,
       sessionOptions: args.sessionOptions,
       chatSessionOptions: args.chatSessionOptions,
       ...(preflightInputs ? { launchInputs: preflightInputs } : {}),
@@ -208,7 +216,7 @@ export async function launchWorkItemDirect(
       ...(preflightInputs ? { preflightInputs } : {}),
       chatSessionOptions: args.chatSessionOptions,
       resolveAgentArgs: args.resolveAgentArgs,
-      resolveSessionOptions: args.resolveSessionOptions,
+      resolveSessionOptions,
       launchChoice: args.launchChoice,
       sessionOptionsYieldToAgentArgs: args.sessionOptionsYieldToAgentArgs,
       repoConnectionId: context.repoConnectionId,
@@ -305,5 +313,22 @@ export async function launchWorkItemDirect(
       return 'cancelled'
     }
     return reportFailure(error instanceof Error ? error.message : 'Failed to create workspace.')
+  }
+}
+
+/** Custom build (hq-executors): one agent's saved chat model and its values, as launch options. */
+function persistedChatLaunchOptions(
+  persisted: PersistedNativeChatSessionOptions | undefined,
+  agent: TuiAgent
+): Readonly<Record<string, string>> | undefined {
+  const entry = persisted?.[agent]
+  const model = entry?.model?.trim()
+  if (!model) {
+    return undefined
+  }
+  const values = entry?.valuesByModel?.[model] ?? {}
+  return {
+    model,
+    ...Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value)]))
   }
 }
