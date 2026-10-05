@@ -114,6 +114,17 @@ export function clickUpUpdateTaskStatus(
   return call(settings, 'updateTaskStatus', args, () => window.api.clickup.updateTaskStatus(args))
 }
 
+export function clickUpUpdateTaskTimeEstimate(
+  settings: RuntimeClickUpSettings,
+  taskId: string,
+  hours: number
+): Promise<ClickUpMutationResult> {
+  const args = { taskId, hours }
+  return call(settings, 'updateTaskTimeEstimate', args, () =>
+    window.api.clickup.updateTaskTimeEstimate(args)
+  )
+}
+
 export function clickUpAddTaskComment(
   settings: RuntimeClickUpSettings,
   taskId: string,

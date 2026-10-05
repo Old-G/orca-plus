@@ -21,8 +21,10 @@ import {
   listClickUpTaskComments,
   listClickUpTasks,
   searchClickUpTasks,
-  updateClickUpTaskStatus
+  updateClickUpTaskStatus,
+  updateClickUpTaskTimeEstimate
 } from '../clickup/clickup-tasks'
+import { TaskTimeEstimateUpdate } from '../../shared/rpc-contract/clickup-params'
 import { _resetPreflightCache } from './preflight'
 
 function readArgs(value: unknown): Record<string, unknown> {
@@ -102,6 +104,18 @@ export function registerClickUpHandlers(): void {
       return taskId && status
         ? updateClickUpTaskStatus(taskId, status)
         : { ok: false, error: 'Task and status are required.' }
+    }
+  )
+
+  ipcMain.handle(
+    'clickup:updateTaskTimeEstimate',
+    async (_event, args: unknown): Promise<ClickUpMutationResult> => {
+      const input = readArgs(args)
+      const taskId = readId(input.taskId)
+      const parsed = TaskTimeEstimateUpdate.safeParse({ taskId, hours: input.hours })
+      return parsed.success
+        ? updateClickUpTaskTimeEstimate(parsed.data.taskId, parsed.data.hours)
+        : { ok: false, error: 'Task and hours are required.' }
     }
   )
 

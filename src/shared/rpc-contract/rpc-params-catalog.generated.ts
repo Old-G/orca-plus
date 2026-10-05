@@ -132,7 +132,8 @@ import {
   SpaceRef,
   TaskComment,
   TaskRef,
-  TaskStatusUpdate
+  TaskStatusUpdate,
+  TaskTimeEstimateUpdate
 } from './clickup-params'
 import { ClientEventsUnsubscribeParams } from './client-events-params'
 import {
@@ -806,6 +807,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'clickup.taskComments': TaskRef,
   'clickup.testConnection': null,
   'clickup.updateTaskStatus': TaskStatusUpdate,
+  'clickup.updateTaskTimeEstimate': TaskTimeEstimateUpdate,
   'clipboard.abortImageUpload': AbortImageUpload,
   'clipboard.appendImageUploadChunk': AppendImageUploadChunk,
   'clipboard.commitImageUpload': CommitImageUpload,

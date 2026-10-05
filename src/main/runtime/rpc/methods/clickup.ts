@@ -8,7 +8,8 @@ import {
   SpaceRef,
   TaskComment,
   TaskRef,
-  TaskStatusUpdate
+  TaskStatusUpdate,
+  TaskTimeEstimateUpdate
 } from '../../../../shared/rpc-contract/clickup-params'
 
 export const CLICKUP_METHODS = [
@@ -64,6 +65,12 @@ export const CLICKUP_METHODS = [
     params: TaskStatusUpdate,
     handler: async (params, { runtime }) =>
       runtime.clickupUpdateTaskStatus(params.taskId.trim(), params.status)
+  }),
+  defineMethod({
+    name: 'clickup.updateTaskTimeEstimate',
+    params: TaskTimeEstimateUpdate,
+    handler: async (params, { runtime }) =>
+      runtime.clickupUpdateTaskTimeEstimate(params.taskId.trim(), params.hours)
   }),
   defineMethod({
     name: 'clickup.addTaskComment',

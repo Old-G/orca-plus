@@ -10,6 +10,7 @@ import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import {
   deriveRunningAgentSendTargets,
+  deriveStatuslessStructuredAgentSendTargets,
   runningAgentMessageTarget
 } from '@/lib/running-agent-targets'
 import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
@@ -103,4 +104,45 @@ export function launchHqCommand(worktreeId: string, prompt: string): HqActionRes
         ok: false,
         message: translate('auto.hq.today.launchFailed', "Couldn't start Claude in HQ.")
       }
+}
+
+/** The worktree's agent panes, chats before their first turn included. */
+export function agentPaneKeys(worktreeId: string): Set<string> {
+  const state = useAppStore.getState()
+  return new Set(
+    [
+      ...deriveRunningAgentSendTargets(state, worktreeId),
+      ...deriveStatuslessStructuredAgentSendTargets(state, worktreeId)
+    ].map((target) => target.paneKey)
+  )
+}
+
+const NEW_PANE_TIMEOUT_MS = 120_000
+
+/** The pane a launch just opened in the worktree: the first one that was not there before. */
+export function waitForNewAgentPane(
+  worktreeId: string,
+  before: ReadonlySet<string>
+): Promise<string | null> {
+  const fresh = (): string | null =>
+    [...agentPaneKeys(worktreeId)].find((paneKey) => !before.has(paneKey)) ?? null
+  return new Promise((resolve) => {
+    const found = fresh()
+    if (found) {
+      resolve(found)
+      return
+    }
+    const finish = (paneKey: string | null): void => {
+      clearTimeout(timer)
+      unsubscribe()
+      resolve(paneKey)
+    }
+    const timer = setTimeout(() => finish(null), NEW_PANE_TIMEOUT_MS)
+    const unsubscribe = useAppStore.subscribe(() => {
+      const paneKey = fresh()
+      if (paneKey) {
+        finish(paneKey)
+      }
+    })
+  })
 }

@@ -36,6 +36,8 @@ const mocks = vi.hoisted(() => {
       selectedWorkspaceId: 'ws',
       viewer: { id: 'me', username: 'gleb', email: null }
     },
+    worktreesByRepo: { 'repo-api': [{ id: 'wt-old' }] },
+    activeWorktreeId: 'wt-new',
     clickUpStatusChecked: true,
     clickUpStatusContextKey: 'local',
     clickUpConnectionRevision: 1,
@@ -72,6 +74,7 @@ const mocks = vi.hoisted(() => {
   }
 })
 
+vi.mock('./HqTodayReady', () => ({ HqTodayReady: () => null }))
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, options?: Record<string, string>) =>
     fallback.replace('{{value0}}', options?.value0 ?? '')
@@ -103,7 +106,9 @@ vi.mock('@/runtime/runtime-clickup-client', () => ({
 vi.mock('./HqCommandDictation', () => ({ HqCommandDictation: () => null }))
 vi.mock('./hq-today-actions', () => ({
   findHqWorktreeId: () => 'hq-wt',
-  launchHqCommand: mocks.launchHq
+  launchHqCommand: mocks.launchHq,
+  agentPaneKeys: () => new Set(['old-pane']),
+  waitForNewAgentPane: async () => 'new-pane'
 }))
 vi.mock('@/components/task-page/clickup/TaskSheet', () => ({ ClickUpTaskSheet: () => null }))
 vi.mock('@/components/ui/select', () => ({
@@ -146,7 +151,7 @@ function rowOf(title: string): HTMLElement {
 
 describe('HqTodayTriage', () => {
   it('lists only fresh, undecided tasks with the bound project suggested', async () => {
-    render(<HqTodayTriage now={100} />)
+    render(<HqTodayTriage now={100} cards={[]} />)
     expect(await screen.findByText('Fix the cart')).toBeTruthy()
     expect(screen.getByText('Plan the launch')).toBeTruthy()
     expect(screen.queryByText('Already going')).toBeNull()
@@ -162,7 +167,7 @@ describe('HqTodayTriage', () => {
   })
 
   it('hides for good, snoozes for now, and takes into the picked project', async () => {
-    render(<HqTodayTriage now={100} />)
+    render(<HqTodayTriage now={100} cards={[]} />)
     await screen.findByText('Fix the cart')
 
     fireEvent.click(within(rowOf('Fix the cart')).getByRole('button', { name: 'Not now' }))
@@ -183,15 +188,18 @@ describe('HqTodayTriage', () => {
       })
     )
     expect(mocks.updateStatus).toHaveBeenCalledWith(expect.anything(), '2', 'in process')
-    expect(mocks.state.settings.hqTriageDecisions).toMatchObject({
-      '2': { decision: 'taken', repoId: 'repo-web' }
-    })
+    // The new worktree and its agent's pane, so «Ready for you» finds the task's agent later.
+    await waitFor(() =>
+      expect(mocks.state.settings.hqTriageDecisions).toMatchObject({
+        '2': { decision: 'taken', repoId: 'repo-web', worktreeId: 'wt-new', paneKey: 'new-pane' }
+      })
+    )
     expect(screen.queryByText('Plan the launch')).toBeNull()
   })
 
   it('records a hidden task so it stays gone', async () => {
     mocks.state.settings = { ...mocks.state.settings, hqTriageDecisions: {} }
-    render(<HqTodayTriage now={100} />)
+    render(<HqTodayTriage now={100} cards={[]} />)
     await screen.findByText('Fix the cart')
     fireEvent.click(within(rowOf('Fix the cart')).getByRole('button', { name: 'Hide' }))
     await waitFor(() => expect(screen.queryByText('Fix the cart')).toBeNull())
@@ -203,7 +211,7 @@ describe('HqTodayTriage', () => {
   it('drafts questions, sends the edited text as a comment, then waits on the author', async () => {
     mocks.state.settings = { ...mocks.state.settings, hqTriageDecisions: {} }
     Object.assign(window, { api: { hqProjects: { draftTaskQuestions: mocks.draftQuestions } } })
-    render(<HqTodayTriage now={100} />)
+    render(<HqTodayTriage now={100} cards={[]} />)
     await screen.findByText('Fix the cart')
     fireEvent.click(within(rowOf('Fix the cart')).getByRole('button', { name: 'Questions' }))
 
@@ -234,7 +242,7 @@ describe('HqTodayTriage', () => {
     mocks.state.settings = { ...mocks.state.settings, hqTriageDecisions: {} }
     mocks.addComment.mockResolvedValueOnce({ ok: false, error: 'no access' })
     Object.assign(window, { api: { hqProjects: { draftTaskQuestions: mocks.draftQuestions } } })
-    render(<HqTodayTriage now={100} />)
+    render(<HqTodayTriage now={100} cards={[]} />)
     await screen.findByText('Fix the cart')
     fireEvent.click(within(rowOf('Fix the cart')).getByRole('button', { name: 'Questions' }))
     await screen.findByRole('textbox', { name: 'Questions for DEV-1' })
@@ -252,7 +260,7 @@ describe('HqTodayTriage', () => {
       { id: 'c1', body: 'my questions', author: { id: 'me' }, createdAt: 60 },
       { id: 'c2', body: 'web', author: { id: 'ann' }, createdAt: 70 }
     ])
-    render(<HqTodayTriage now={100} />)
+    render(<HqTodayTriage now={100} cards={[]} />)
     await waitFor(() => expect(mocks.state.settings.hqTriageDecisions).toEqual({}))
     expect(await screen.findByText('Fix the cart')).toBeTruthy()
     expect(screen.queryByText('Waiting on the author')).toBeNull()
@@ -260,7 +268,7 @@ describe('HqTodayTriage', () => {
 
   it('hands a task spanning two projects to a coordinator in the HQ workspace', async () => {
     mocks.state.settings = { ...mocks.state.settings, hqTriageDecisions: {} }
-    render(<HqTodayTriage now={100} />)
+    render(<HqTodayTriage now={100} cards={[]} />)
     await screen.findByText('Fix the cart')
     const row = rowOf('Fix the cart')
     const [, addProject] = within(row).getAllByRole<HTMLSelectElement>('combobox')
@@ -277,6 +285,11 @@ describe('HqTodayTriage', () => {
     expect(mocks.launch).not.toHaveBeenCalled()
     await waitFor(() =>
       expect(mocks.updateStatus).toHaveBeenCalledWith(expect.anything(), '1', 'in process')
+    )
+    await waitFor(() =>
+      expect(mocks.state.settings.hqTriageDecisions).toMatchObject({
+        '1': { decision: 'taken', worktreeId: 'hq-wt', coordinator: true, paneKey: 'new-pane' }
+      })
     )
   })
 })
