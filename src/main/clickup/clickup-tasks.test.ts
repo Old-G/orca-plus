@@ -18,7 +18,8 @@ import {
   addClickUpTaskComment,
   listClickUpTasks,
   searchClickUpTasks,
-  updateClickUpTaskStatus
+  updateClickUpTaskStatus,
+  updateClickUpTaskTimeEstimate
 } from './clickup-tasks'
 
 function task(id: string, name: string, type = 'open', customId: string | null = null) {
@@ -100,6 +101,16 @@ describe('write-back', () => {
     expect(JSON.parse(String(requestMock.mock.calls[1][2].body))).toEqual({
       comment_text: 'hello',
       notify_all: false
+    })
+  })
+
+  it('writes hours as the Time Estimate in milliseconds, not as time spent', async () => {
+    requestMock.mockResolvedValue({})
+    await expect(updateClickUpTaskTimeEstimate('t1', 1.5)).resolves.toEqual({ ok: true })
+    expect(requestMock.mock.calls[0][1]).toBe('/task/t1')
+    expect(requestMock.mock.calls[0][2]).toMatchObject({
+      method: 'PUT',
+      body: JSON.stringify({ time_estimate: 5_400_000 })
     })
   })
 
