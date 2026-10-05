@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import * as z from 'zod'
 import { OptionalFiniteNumber, requiredString } from './rpc-param-primitives'
 
 // Why: normalizeClickUpTaskFilter narrows the payload on the host, so the
@@ -33,6 +33,12 @@ export const TaskRef = z.object({
 export const TaskStatusUpdate = z.object({
   taskId: requiredString('Task is required'),
   status: requiredString('Status is required')
+})
+
+/** Hours of work; ClickUp stores them as milliseconds. */
+export const TaskTimeEstimateUpdate = z.object({
+  taskId: requiredString('Task is required'),
+  hours: z.number().positive().max(1_000)
 })
 
 export const TaskComment = z.object({
