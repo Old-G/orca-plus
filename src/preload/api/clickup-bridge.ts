@@ -13,6 +13,7 @@ export const clickupApi = {
   taskComments: (args) => ipcRenderer.invoke('clickup:taskComments', args),
   updateTaskStatus: (args) => ipcRenderer.invoke('clickup:updateTaskStatus', args),
   addTaskComment: (args) => ipcRenderer.invoke('clickup:addTaskComment', args),
+  updateTaskTimeEstimate: (args) => ipcRenderer.invoke('clickup:updateTaskTimeEstimate', args),
   listSpaces: () => ipcRenderer.invoke('clickup:listSpaces'),
   listLists: (args) => ipcRenderer.invoke('clickup:listLists', args),
   listStatuses: (args) => ipcRenderer.invoke('clickup:listStatuses', args)
