@@ -674,7 +674,7 @@ describe('registerCoreHandlers', () => {
     expect(registerStrataHandlersMock).toHaveBeenCalledWith(store, expect.anything())
     expect(registerHqRosterSyncMock).toHaveBeenCalledWith(store)
     expect(registerHqPulseMirrorMock).toHaveBeenCalledWith(store)
-    expect(registerHqProjectPagesHandlersMock).toHaveBeenCalledWith(store)
+    expect(registerHqProjectPagesHandlersMock).toHaveBeenCalledWith(store, expect.any(Function))
     expect(registerPulseBellMock).toHaveBeenCalledWith(store, expect.anything())
     expect(registerOutgoingApprovalMock).toHaveBeenCalledTimes(1)
     expect(registerHqGroupChatHandlersMock).toHaveBeenCalledWith(

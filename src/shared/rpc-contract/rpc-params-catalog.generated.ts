@@ -318,6 +318,7 @@ import {
   HostedReviewForBranch
 } from './hosted-review-params'
 import {
+  HqDraftTaskQuestionsParams,
   HqGitStateParams,
   HqProjectDiagramParams,
   HqReviewsParams,
@@ -997,6 +998,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.createStacked': HostedReviewCreate,
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
+  'hqProjects.draftTaskQuestions': HqDraftTaskQuestionsParams,
   'hqProjects.gitState': HqGitStateParams,
   'hqProjects.list': null,
   'hqProjects.map': null,

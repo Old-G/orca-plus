@@ -194,7 +194,7 @@ export function registerCoreHandlers(
   registerClaudeSubscriptionHandlers(store)
   registerStrataHandlers(store, runtime)
   registerHqGroupChatHandlers(store, registerHqRosterSync(store))
-  registerHqProjectPagesHandlers(store)
+  registerHqProjectPagesHandlers(store, () => runtime.getCommitMessageAgentEnvironmentResolvers())
   registerHqPulseMirror(store)
   registerPulseBell(store, runtime)
   startHqMorningBriefing({

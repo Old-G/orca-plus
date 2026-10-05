@@ -8,5 +8,6 @@ export const hqProjectsApi = {
   map: () => ipcRenderer.invoke('hqProjects:map'),
   projectDiagram: (repoId) => ipcRenderer.invoke('hqProjects:projectDiagram', repoId),
   reviews: (refresh) => ipcRenderer.invoke('hqProjects:reviews', refresh === true),
-  gitState: (paths) => ipcRenderer.invoke('hqProjects:gitState', paths)
+  gitState: (paths) => ipcRenderer.invoke('hqProjects:gitState', paths),
+  draftTaskQuestions: (task) => ipcRenderer.invoke('hqProjects:draftTaskQuestions', task)
 } satisfies PreloadApi['hqProjects']

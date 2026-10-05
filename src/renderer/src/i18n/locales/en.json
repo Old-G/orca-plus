@@ -18414,7 +18414,16 @@
         "snooze": "Not now",
         "hide": "Hide",
         "noInProcess": "{{value0}}: Claude started, but its ClickUp list has no «in process» status — move it by hand.",
-        "statusFailed": "{{value0}}: Claude started, but ClickUp kept the old status: {{value1}}"
+        "statusFailed": "{{value0}}: Claude started, but ClickUp kept the old status: {{value1}}",
+        "questions": "Questions",
+        "drafting": "Claude is reading the task and drafting questions…",
+        "questionsFor": "Questions for {{value0}}",
+        "sending": "Sending…",
+        "sendQuestions": "Send to ClickUp",
+        "sendHint": "Goes to the task as your comment; nothing is sent before you click.",
+        "awaitingAuthor": "Waiting on the author",
+        "askedAgo": "asked {{value0}}",
+        "backToNew": "Back to new"
       }
     },
     "claudeSubscriptions": {

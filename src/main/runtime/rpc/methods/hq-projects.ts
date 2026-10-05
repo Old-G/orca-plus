@@ -1,5 +1,6 @@
 import { defineMethod } from '../core'
 import {
+  HqDraftTaskQuestionsParams,
   HqGitStateParams,
   HqProjectDiagramParams,
   HqReviewsParams,
@@ -55,6 +56,11 @@ export const HQ_PROJECTS_METHODS = [
     name: 'hqProjects.map',
     params: null,
     handler: async () => service().map()
+  }),
+  defineMethod({
+    name: 'hqProjects.draftTaskQuestions',
+    params: HqDraftTaskQuestionsParams,
+    handler: async (params) => service().draftTaskQuestions(params)
   }),
   defineMethod({
     name: 'hqProjects.settings',
