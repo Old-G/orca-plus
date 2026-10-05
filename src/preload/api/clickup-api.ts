@@ -27,6 +27,10 @@ export type ClickUpApi = {
   taskComments: (args: { taskId: string }) => Promise<ClickUpComment[]>
   updateTaskStatus: (args: { taskId: string; status: string }) => Promise<ClickUpMutationResult>
   addTaskComment: (args: { taskId: string; body: string }) => Promise<ClickUpMutationResult>
+  updateTaskTimeEstimate: (args: {
+    taskId: string
+    hours: number
+  }) => Promise<ClickUpMutationResult>
   listSpaces: () => Promise<ClickUpSpace[]>
   listLists: (args: { spaceId: string }) => Promise<ClickUpList[]>
   listStatuses: (args: { listId: string }) => Promise<ClickUpStatus[]>

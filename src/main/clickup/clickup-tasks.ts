@@ -188,6 +188,19 @@ export function updateClickUpTaskStatus(
   )
 }
 
+/** Custom build (hq-closing): the task's Time Estimate — what LH reads as the hours a task took. */
+export function updateClickUpTaskTimeEstimate(
+  taskId: string,
+  hours: number
+): Promise<ClickUpMutationResult> {
+  return mutate((session) =>
+    clickUpRequest(session.token, `/task/${encodeURIComponent(taskId)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ time_estimate: Math.round(hours * 3_600_000) })
+    })
+  )
+}
+
 export function addClickUpTaskComment(
   taskId: string,
   body: string

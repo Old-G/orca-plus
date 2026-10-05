@@ -35,6 +35,12 @@ export const TaskStatusUpdate = z.object({
   status: requiredString('Status is required')
 })
 
+/** Hours of work; ClickUp stores them as milliseconds. */
+export const TaskTimeEstimateUpdate = z.object({
+  taskId: requiredString('Task is required'),
+  hours: z.number().positive().max(1_000)
+})
+
 export const TaskComment = z.object({
   taskId: requiredString('Task is required'),
   body: requiredString('Comment body is required')

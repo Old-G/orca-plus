@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { ClickUpTaskSummary } from '../../../../../shared/clickup-types'
+import type { DashboardCard } from '../../../../../shared/dashboard-snapshot'
 import type { HqAutonomyLevel } from '../../../../../shared/hq-autonomy'
 import { isGitRepoKind } from '../../../../../shared/repo-kind'
 import type { Repo } from '../../../../../shared/repo-types'
@@ -32,7 +33,8 @@ import {
   clickUpUpdateTaskStatus
 } from '@/runtime/runtime-clickup-client'
 import { useAppStore } from '@/store'
-import { findHqWorktreeId, launchHqCommand } from './hq-today-actions'
+import { agentPaneKeys, findHqWorktreeId, launchHqCommand } from './hq-today-actions'
+import { rememberHqTake, updateHqTriageDecisions, type HqTakenSession } from './hq-triage-decisions'
 import {
   buildHqCoordinatorWorkItem,
   buildHqTriageWorkItem,
@@ -40,6 +42,7 @@ import {
   type HqTriageTakeResult
 } from './hq-triage-take'
 import { HqTodayAwaitingAuthor } from './HqTodayAwaitingAuthor'
+import { HqTodayReady } from './HqTodayReady'
 import { HqTodayTriageRow } from './HqTodayTriageRow'
 import { ColumnHeader } from './hq-waiting-parts'
 import { useHqClickUpConnection, useHqMyClickUpTasks } from './use-hq-project-clickup'
@@ -77,14 +80,19 @@ function reportTake(result: HqTriageTakeResult, task: ClickUpTaskSummary): void 
   }
 }
 
-export function HqTodayTriage({ now }: { now: number }): React.JSX.Element | null {
+export function HqTodayTriage({
+  now,
+  cards
+}: {
+  now: number
+  cards: readonly DashboardCard[]
+}): React.JSX.Element | null {
   const connection = useHqClickUpConnection(TODAY_SOURCE_PROJECT)
   const tasks = useHqMyClickUpTasks(connection)
   const pages = useHqProjectPages()
   const decisions = useAppStore((s) => s.settings?.hqTriageDecisions ?? NO_DECISIONS)
   const bindings = useAppStore((s) => s.settings?.hqProjectClickUpLists)
   const allRepos = useAppStore((s) => s.repos ?? NO_REPOS)
-  const updateSettings = useAppStore((s) => s.updateSettings)
   const openModal = useAppStore((s) => s.openModal)
   // Why: «Not now» lasts until HQ reopens, so it stays out of settings.
   const [snoozed, setSnoozed] = useState<ReadonlySet<string>>(() => new Set())
@@ -104,20 +112,19 @@ export function HqTodayTriage({ now }: { now: number }): React.JSX.Element | nul
     decision: HqTriageDecision['decision'],
     repoId?: string
   ): Promise<void> =>
-    updateSettings({
-      hqTriageDecisions: {
-        ...useAppStore.getState().settings?.hqTriageDecisions,
-        [taskId]: triageDecision(decision, repoId)
-      }
-    })
+    updateHqTriageDecisions((current) => ({
+      ...current,
+      [taskId]: triageDecision(decision, repoId)
+    }))
 
-  const forget = (taskIds: string[]): Promise<void> => {
-    const next = { ...useAppStore.getState().settings?.hqTriageDecisions }
-    for (const taskId of taskIds) {
-      delete next[taskId]
-    }
-    return updateSettings({ hqTriageDecisions: next })
-  }
+  const forget = (taskIds: string[]): Promise<void> =>
+    updateHqTriageDecisions((current) => {
+      const next = { ...current }
+      for (const taskId of taskIds) {
+        delete next[taskId]
+      }
+      return next
+    })
 
   const draftQuestions = async (task: ClickUpTaskSummary): Promise<HqTaskQuestionsResult> => {
     const full = await clickUpGetTask(sourceContext, task.id).catch(() => null)
@@ -164,6 +171,7 @@ export function HqTodayTriage({ now }: { now: number }): React.JSX.Element | nul
       useAppStore.getState().settings?.nativeChatSessionOptions
     )
     const coordinate = chosen.length > 1
+    let session: HqTakenSession | null = null
     setBusyId(task.id)
     try {
       const result = await takeHqTriageTask(
@@ -187,7 +195,10 @@ export function HqTodayTriage({ now }: { now: number }): React.JSX.Element | nul
           getTask: (taskId) => clickUpGetTask(sourceContext, taskId),
           launch: async (item) => {
             if (!coordinate) {
-              return launchWorkItemDirect({
+              const existing = new Set(
+                (useAppStore.getState().worktreesByRepo[main.id] ?? []).map((w) => w.id)
+              )
+              const launched = await launchWorkItemDirect({
                 item,
                 repoId: main.id,
                 agentOverride: 'claude',
@@ -197,6 +208,13 @@ export function HqTodayTriage({ now }: { now: number }): React.JSX.Element | nul
                 nativeChatSessionOptions: sessionOptions,
                 openModalFallback: () => openComposer(task, main.id)
               })
+              // Why: the launch reveals its new worktree; an older one active means it was not caught.
+              const worktreeId = useAppStore.getState().activeWorktreeId
+              session =
+                launched && worktreeId && !existing.has(worktreeId)
+                  ? { worktreeId, before: new Set(), coordinator: false }
+                  : null
+              return launched
             }
             const state = useAppStore.getState()
             const hqWorktreeId = findHqWorktreeId(
@@ -204,6 +222,7 @@ export function HqTodayTriage({ now }: { now: number }): React.JSX.Element | nul
               state.repos,
               state.worktreesByRepo
             )
+            const before = hqWorktreeId ? agentPaneKeys(hqWorktreeId) : new Set<string>()
             const launched = hqWorktreeId
               ? launchHqCommand(hqWorktreeId, item.pasteContent ?? '')
               : {
@@ -215,12 +234,14 @@ export function HqTodayTriage({ now }: { now: number }): React.JSX.Element | nul
                 }
             if (!launched.ok) {
               toast.error(launched.message)
+            } else if (hqWorktreeId) {
+              session = { worktreeId: hqWorktreeId, before, coordinator: true }
             }
             return launched.ok
           },
           listStatuses: (listId) => clickUpListStatuses(sourceContext, listId),
           setStatus: (taskId, status) => clickUpUpdateTaskStatus(sourceContext, taskId, status),
-          remember: () => decide(task.id, 'taken', main.id)
+          remember: () => rememberHqTake(task.id, main.id, session)
         }
       )
       reportTake(result, task)
@@ -276,28 +297,37 @@ export function HqTodayTriage({ now }: { now: number }): React.JSX.Element | nul
     )
   }
   return (
-    <section className="flex flex-col gap-2" aria-label={title}>
-      <ColumnHeader title={title} count={pending.length} />
-      {body}
-      <HqTodayAwaitingAuthor
-        tasks={awaiting}
+    <>
+      <HqTodayReady
+        tasks={allTasks}
         decisions={decisions}
-        ownerId={ownerId}
-        now={now}
-        readComments={(taskId) => clickUpTaskComments(sourceContext, taskId)}
-        onAnswered={(taskIds) => void forget(taskIds)}
-        onBack={(taskId) => void forget([taskId])}
-      />
-      <ClickUpTaskSheet
-        summary={selected}
+        cards={cards}
         sourceContext={sourceContext}
-        onClose={() => setSelected(null)}
-        onUse={(task) => {
-          setSelected(null)
-          openComposer(task, suggestHqTriageProject(task, bindings))
-        }}
-        onTaskChanged={tasks.refresh}
+        levelOf={levelOf}
       />
-    </section>
+      <section className="flex flex-col gap-2" aria-label={title}>
+        <ColumnHeader title={title} count={pending.length} />
+        {body}
+        <HqTodayAwaitingAuthor
+          tasks={awaiting}
+          decisions={decisions}
+          ownerId={ownerId}
+          now={now}
+          readComments={(taskId) => clickUpTaskComments(sourceContext, taskId)}
+          onAnswered={(taskIds) => void forget(taskIds)}
+          onBack={(taskId) => void forget([taskId])}
+        />
+        <ClickUpTaskSheet
+          summary={selected}
+          sourceContext={sourceContext}
+          onClose={() => setSelected(null)}
+          onUse={(task) => {
+            setSelected(null)
+            openComposer(task, suggestHqTriageProject(task, bindings))
+          }}
+          onTaskChanged={tasks.refresh}
+        />
+      </section>
+    </>
   )
 }
