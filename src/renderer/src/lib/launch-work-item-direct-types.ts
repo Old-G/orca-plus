@@ -3,6 +3,7 @@ import type { TaskProvider } from '../../../shared/task-providers'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import type { WorkspaceSource as WorkspaceCreateTelemetrySource } from '../../../shared/workspace-source'
 import type { LaunchSource } from '../../../shared/telemetry-events'
+import type { PersistedNativeChatSessionOptions } from '../../../shared/native-chat-session-options'
 
 export type LaunchableWorkItem = {
   provider?: TaskProvider
@@ -32,4 +33,6 @@ export type LaunchWorkItemDirectArgs = {
   agentArgs?: string | null
   promptDelivery?: 'draft' | 'submit-after-ready'
   launchPlatform?: NodeJS.Platform
+  /** Custom build (hq-triage): chat model/effort for this launch instead of the user's defaults. */
+  nativeChatSessionOptions?: PersistedNativeChatSessionOptions
 }
