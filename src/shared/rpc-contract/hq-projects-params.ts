@@ -17,6 +17,12 @@ const HqClickUpListBindingParam = z.object({
   spaceId: z.string()
 })
 
+export const HqDraftTaskQuestionsParams = z.object({
+  identifier: z.string().max(200),
+  title: z.string().max(2_000),
+  description: z.string().max(50_000)
+})
+
 /** Only what HQ itself edits; the HQ folder and the quiet threshold stay Settings-only on the Mac. */
 export const HqUpdateSettingsParams = z.object({
   hqProjectClickUpLists: z.record(z.string(), HqClickUpListBindingParam).optional(),
@@ -25,7 +31,7 @@ export const HqUpdateSettingsParams = z.object({
     .record(
       z.string(),
       z.object({
-        decision: z.enum(['taken', 'hidden']),
+        decision: z.enum(['taken', 'hidden', 'asked']),
         at: z.number(),
         repoId: z.string().optional()
       })
