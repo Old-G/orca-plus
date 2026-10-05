@@ -19,7 +19,8 @@ import {
   listClickUpTaskComments,
   listClickUpTasks,
   searchClickUpTasks,
-  updateClickUpTaskStatus
+  updateClickUpTaskStatus,
+  updateClickUpTaskTimeEstimate
 } from '../clickup/clickup-tasks'
 
 export class RuntimeClickUpCommands {
@@ -75,6 +76,13 @@ export class RuntimeClickUpCommands {
     status: string
   ): ReturnType<typeof updateClickUpTaskStatus> {
     return updateClickUpTaskStatus(taskId, status)
+  }
+
+  clickupUpdateTaskTimeEstimate(
+    taskId: string,
+    hours: number
+  ): ReturnType<typeof updateClickUpTaskTimeEstimate> {
+    return updateClickUpTaskTimeEstimate(taskId, hours)
   }
 
   clickupAddTaskComment(taskId: string, body: string): ReturnType<typeof addClickUpTaskComment> {

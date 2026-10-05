@@ -31,9 +31,18 @@ export const HqUpdateSettingsParams = z.object({
     .record(
       z.string(),
       z.object({
-        decision: z.enum(['taken', 'hidden', 'asked']),
+        decision: z.enum(['taken', 'hidden', 'asked', 'closed']),
         at: z.number(),
-        repoId: z.string().optional()
+        repoId: z.string().optional(),
+        worktreeId: z.string().optional(),
+        paneKey: z.string().optional(),
+        coordinator: z.boolean().optional(),
+        acceptedAt: z.number().optional(),
+        mergeAskedAt: z.number().optional(),
+        commentAskedAt: z.number().optional(),
+        lastToldAt: z.number().optional(),
+        commentedAt: z.number().optional(),
+        hours: z.number().optional()
       })
     )
     .optional()

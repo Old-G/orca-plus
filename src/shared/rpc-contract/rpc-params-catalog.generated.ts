@@ -151,7 +151,8 @@ import {
   SpaceRef,
   TaskComment,
   TaskRef,
-  TaskStatusUpdate
+  TaskStatusUpdate,
+  TaskTimeEstimateUpdate
 } from './clickup-params'
 import { ClientEventsUnsubscribeParams } from './client-events-params'
 import {
@@ -339,6 +340,20 @@ import {
   HostedReviewCreationEligibility,
   HostedReviewForBranch
 } from './hosted-review-params'
+import {
+  HqBellActionOnDesktopParams,
+  HqClickUpReplyParams,
+  HqDraftTaskQuestionsParams,
+  HqGitStateParams,
+  HqProjectDiagramParams,
+  HqRequestOnDesktopParams,
+  HqReviewsParams,
+  HqSlackDraftCreateParams,
+  HqSlackDraftEditParams,
+  HqSlackDraftRefParams,
+  HqUpdateSettingsParams,
+  HqWikiPageParams
+} from './hq-projects-params'
 import { JiraFavouriteFilterParams } from './jira-favourite-filter-params'
 import {
   AssignableUsers,
@@ -636,6 +651,7 @@ import {
   TerminalUpdateViewport
 } from './terminal-viewport-schemas-params'
 import { UpdaterCheckParams } from './updater-params'
+import { WebPushSubscribeParams } from './web-push-params'
 import {
   UsageCredentialApiKeyParams,
   UsageCredentialSessionCookieParams
@@ -907,6 +923,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'clickup.taskComments': TaskRef,
   'clickup.testConnection': null,
   'clickup.updateTaskStatus': TaskStatusUpdate,
+  'clickup.updateTaskTimeEstimate': TaskTimeEstimateUpdate,
   'clipboard.abortImageUpload': AbortImageUpload,
   'clipboard.appendImageUploadChunk': AppendImageUploadChunk,
   'clipboard.commitImageUpload': CommitImageUpload,
@@ -1103,6 +1120,27 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.createStacked': HostedReviewCreate,
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
+  'hqProjects.answerSlackDraft': HqSlackDraftRefParams,
+  'hqProjects.createSlackDraftTask': HqSlackDraftCreateParams,
+  'hqProjects.draftClickUpReply': HqSlackDraftRefParams,
+  'hqProjects.draftTaskQuestions': HqDraftTaskQuestionsParams,
+  'hqProjects.editSlackDraft': HqSlackDraftEditParams,
+  'hqProjects.gitState': HqGitStateParams,
+  'hqProjects.list': null,
+  'hqProjects.map': null,
+  'hqProjects.projectDiagram': HqProjectDiagramParams,
+  'hqProjects.rejectSlackDraft': HqSlackDraftRefParams,
+  'hqProjects.restoreSlackDraft': HqSlackDraftRefParams,
+  'hqProjects.reviews': HqReviewsParams,
+  'hqProjects.runBellActionOnDesktop': HqBellActionOnDesktopParams,
+  'hqProjects.runRequestOnDesktop': HqRequestOnDesktopParams,
+  'hqProjects.sendClickUpReply': HqClickUpReplyParams,
+  'hqProjects.settings': null,
+  'hqProjects.slackDrafts': null,
+  'hqProjects.takeSlackDraft': HqSlackDraftRefParams,
+  'hqProjects.updateSettings': HqUpdateSettingsParams,
+  'hqProjects.wikiPage': HqWikiPageParams,
+  'hqProjects.wikiTree': null,
   'jira.addIssueComment': IssueCommentOfJiraParams,
   'jira.attachmentImage': AttachmentImage,
   'jira.cancelGenerateIssueSummary': CancelGenerateIssueSummary,
@@ -1457,6 +1495,11 @@ export const RPC_PARAMS_BY_METHOD = {
   'updater.download': null,
   'updater.getStatus': null,
   'updater.install': null,
+  'webPush.publicKey': null,
+  'webPush.status': null,
+  'webPush.subscribe': WebPushSubscribeParams,
+  'webPush.test': null,
+  'webPush.unsubscribe': null,
   'workspacePorts.kill': WorkspacePortKillParams,
   'workspacePorts.killHost': WorkspacePortKillHostParams,
   'workspacePorts.probePage': WorkspacePortProbePageParams,
