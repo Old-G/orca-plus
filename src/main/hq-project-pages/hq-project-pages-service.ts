@@ -30,6 +30,9 @@ import { ensureHqProjectMap } from '../hq-project-map/hq-project-map'
 import { readHqProjectDiagram } from './hq-project-diagram'
 import { listHqProjectPages } from './hq-project-pages'
 import { listHqWikiEntries, readHqWikiPage } from './hq-wiki-files'
+import { draftHqTaskQuestions } from '../hq-today/hq-task-questions'
+import type { HqTaskQuestionsResult } from '../../shared/hq-triage'
+import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 
 const MAP_TIMEOUT_MS = 120_000
 // Why: Today re-mounts often; reviews move slowly and gh/glab calls cost rate limit.
@@ -59,6 +62,12 @@ export type HqProjectPagesService = {
   map(): Promise<HqProjectMapResult>
   settings(): HqClientSettings
   updateSettings(update: HqClientSettingsUpdate): HqClientSettings
+  /** Custom build (hq-task-questions): a draft of questions to a task's author; nothing is sent. */
+  draftTaskQuestions(task: {
+    identifier: string
+    title: string
+    description: string
+  }): Promise<HqTaskQuestionsResult>
 }
 
 export type HqProjectPagesStore = Pick<
@@ -66,7 +75,10 @@ export type HqProjectPagesStore = Pick<
   'getSettings' | 'updateSettings' | 'getRepo' | 'getProjectGroups'
 >
 
-export function createHqProjectPagesService(store: HqProjectPagesStore): HqProjectPagesService {
+export function createHqProjectPagesService(
+  store: HqProjectPagesStore,
+  getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined = () => undefined
+): HqProjectPagesService {
   const hqPath = (): string | null => store.getSettings().hqPath ?? null
   let mapInFlight: Promise<HqProjectMapResult> | null = null
   let reviews: { at: number; result: Promise<HqReviewsResult> } | null = null
@@ -89,6 +101,14 @@ export function createHqProjectPagesService(store: HqProjectPagesStore): HqProje
 
   return {
     settings,
+
+    draftTaskQuestions(task) {
+      return draftHqTaskQuestions(task, {
+        settings: store.getSettings(),
+        cwd: hqPath() ?? homedir(),
+        getAgentEnvResolvers
+      })
+    },
 
     updateSettings(update) {
       const allowed = Object.fromEntries(
