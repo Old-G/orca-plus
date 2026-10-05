@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { ClickUpStatus, ClickUpTaskSummary } from './clickup-types'
 import {
   findInProcessStatus,
+  HQ_REVIEW_MODEL,
+  hqCoordinatorPrompt,
   hqAuthorAnswered,
   hqTasksAwaitingAuthor,
   restoreFirstQuestionNumber,
@@ -72,6 +74,22 @@ describe('HQ task triage', () => {
     expect(hqTriagePrompt({ ...base, level: 0 })).toContain('ничего не меняй в коде')
     expect(hqTriagePrompt({ ...base, level: 1 })).toContain('Наружу ничего не отправляй')
     expect(hqTriagePrompt({ ...base, level: 2 })).toContain('Не мержь')
+  })
+
+  it('sends written code to a Codex review before it reaches the owner', () => {
+    const base = { identifier: 'DEV-1', url: 'u', projectName: 'lh-api' }
+    const review = `codex review --base <ветка, от которой начат worktree> -c model=${HQ_REVIEW_MODEL}`
+    expect(hqTriagePrompt({ ...base, level: 0 })).not.toContain('codex review')
+    expect(hqTriagePrompt({ ...base, level: 1 })).toContain(review)
+    expect(hqTriagePrompt({ ...base, level: 2 })).toContain('до push и PR/MR')
+    const coordinator = { identifier: 'DEV-1', url: 'u', model: 'opus', effort: 'high' }
+    const project = { name: 'a', path: '/a', level: 0 as const }
+    expect(hqCoordinatorPrompt({ ...coordinator, projects: [project] })).not.toContain(
+      'codex review'
+    )
+    expect(
+      hqCoordinatorPrompt({ ...coordinator, projects: [project, { ...project, level: 2 }] })
+    ).toContain(review)
   })
 
   it('waits on the author only for asked tasks still in their first status', () => {
