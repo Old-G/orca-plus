@@ -6,11 +6,23 @@ import type { HqProjectClickUpLists } from './hq-project-clickup'
 import type { PersistedNativeChatSessionOptions } from './native-chat-session-options'
 
 export type HqTriageDecision = {
-  /** `asked`: questions went to the author; the task waits for an answer. */
-  decision: 'taken' | 'hidden' | 'asked'
+  /** `asked`: questions went to the author; the task waits for an answer. `closed`: set to «check». */
+  decision: 'taken' | 'hidden' | 'asked' | 'closed'
   at: number
   /** The project a taken task went to. */
   repoId?: string
+  /** Custom build (hq-closing): where the taken task's agent runs (the HQ workspace for a coordinator). */
+  worktreeId?: string
+  paneKey?: string
+  coordinator?: boolean
+  /** When the owner pressed each «Ready for you» step. */
+  acceptedAt?: number
+  mergeAskedAt?: number
+  commentAskedAt?: number
+  /** The last message any «Ready for you» button sent the agent. */
+  lastToldAt?: number
+  commentedAt?: number
+  hours?: number
 }
 
 /** Custom build (hq-task-questions): Claude's draft of questions to a task's author. */
