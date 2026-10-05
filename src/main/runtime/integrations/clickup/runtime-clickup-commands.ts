@@ -19,7 +19,8 @@ import {
   listClickUpTaskComments,
   listClickUpTasks,
   searchClickUpTasks,
-  updateClickUpTaskStatus
+  updateClickUpTaskStatus,
+  updateClickUpTaskTimeEstimate
 } from '../../../clickup/clickup-tasks'
 
 export class RuntimeClickUpCommands {
@@ -27,8 +28,8 @@ export class RuntimeClickUpCommands {
     return connectClickUp(apiToken)
   }
 
-  clickupDisconnect(): { ok: true } {
-    disconnectClickUp()
+  async clickupDisconnect(): Promise<{ ok: true }> {
+    await disconnectClickUp()
     return { ok: true }
   }
 
@@ -40,7 +41,7 @@ export class RuntimeClickUpCommands {
     return testClickUpConnection()
   }
 
-  clickupSelectWorkspace(workspaceId: string): ClickUpConnectionStatus {
+  clickupSelectWorkspace(workspaceId: string): Promise<ClickUpConnectionStatus> {
     return selectClickUpWorkspace(workspaceId)
   }
 
@@ -75,6 +76,13 @@ export class RuntimeClickUpCommands {
     status: string
   ): ReturnType<typeof updateClickUpTaskStatus> {
     return updateClickUpTaskStatus(taskId, status)
+  }
+
+  clickupUpdateTaskTimeEstimate(
+    taskId: string,
+    hours: number
+  ): ReturnType<typeof updateClickUpTaskTimeEstimate> {
+    return updateClickUpTaskTimeEstimate(taskId, hours)
   }
 
   clickupAddTaskComment(taskId: string, body: string): ReturnType<typeof addClickUpTaskComment> {
