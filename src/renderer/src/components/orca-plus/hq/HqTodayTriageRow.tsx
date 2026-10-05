@@ -1,6 +1,7 @@
 // Custom build (hq-triage): one «New tasks» row — the task, a project picker, Take / Questions /
 // Not now / Hide, and the questions panel: Claude's draft, edited by hand or by voice, sent on click.
 import { useRef, useState } from 'react'
+import { X } from 'lucide-react'
 import type { ClickUpTaskSummary } from '../../../../../shared/clickup-types'
 import type { HqTaskQuestionsResult } from '../../../../../shared/hq-triage'
 import type { Repo } from '../../../../../shared/repo-types'
@@ -116,7 +117,8 @@ export function HqTodayTriageRow({
   suggested: string | null
   busy: boolean
   onOpen: () => void
-  onTake: (repoId: string) => void
+  /** The first id is the main project; more than one starts a coordinator. */
+  onTake: (repoIds: string[]) => void
   onDraftQuestions: () => Promise<HqTaskQuestionsResult>
   /** Resolves to an error to show, or null once the comment is in ClickUp. */
   onSendQuestions: (text: string) => Promise<string | null>
@@ -127,7 +129,10 @@ export function HqTodayTriageRow({
     suggested && repos.some((repo) => repo.id === suggested) ? suggested : null
   )
   const [questions, setQuestions] = useState<Questions>({ status: 'closed' })
+  const [extraIds, setExtraIds] = useState<string[]>([])
   const locked = busy || questions.status !== 'closed'
+  const chosen = repoId ? [repoId, ...extraIds.filter((id) => id !== repoId)] : []
+  const addable = repos.filter((repo) => !chosen.includes(repo.id))
   const draft = async (): Promise<void> => {
     setQuestions({ status: 'drafting' })
     const result = await onDraftQuestions()
@@ -174,11 +179,53 @@ export function HqTodayTriageRow({
             ))}
           </SelectContent>
         </Select>
+        {extraIds
+          .filter((id) => id !== repoId)
+          .map((id) => (
+            <Button
+              key={id}
+              type="button"
+              variant="outline"
+              size="xs"
+              disabled={locked}
+              onClick={() => setExtraIds((current) => current.filter((entry) => entry !== id))}
+              aria-label={translate('auto.hq.triage.removeProject', 'Remove {{value0}}', {
+                value0: repos.find((repo) => repo.id === id)?.displayName ?? id
+              })}
+            >
+              {repos.find((repo) => repo.id === id)?.displayName ?? id}
+              <X className="size-3" />
+            </Button>
+          ))}
+        {repoId && addable.length > 0 ? (
+          <Select
+            value=""
+            onValueChange={(id) => setExtraIds((current) => [...current, id])}
+            disabled={locked}
+          >
+            <SelectTrigger
+              size="sm"
+              className="w-36"
+              aria-label={translate('auto.hq.triage.addProject', 'Add a project to {{value0}}', {
+                value0: task.identifier
+              })}
+            >
+              <SelectValue placeholder={translate('auto.hq.triage.alsoIn', '+ project')} />
+            </SelectTrigger>
+            <SelectContent>
+              {addable.map((repo) => (
+                <SelectItem key={repo.id} value={repo.id}>
+                  {repo.displayName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
         <Button
           type="button"
           size="xs"
           disabled={!repoId || locked}
-          onClick={() => (repoId ? onTake(repoId) : undefined)}
+          onClick={() => (chosen.length > 0 ? onTake(chosen) : undefined)}
         >
           {busy
             ? translate('auto.hq.triage.taking', 'Starting…')

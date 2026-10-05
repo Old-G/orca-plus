@@ -28,6 +28,7 @@ import {
   resolveDirectProspectiveAgent
 } from '@/lib/launch-work-item-direct-preflight'
 import type { LaunchWorkItemDirectArgs } from '@/lib/launch-work-item-direct-types'
+import type { PersistedNativeChatSessionOptions } from '../../../shared/native-chat/input/native-chat-session-options'
 import {
   refineLocalLaunchPlatform,
   resolveRepoExecutionHostPlatform
@@ -65,6 +66,12 @@ export async function launchWorkItemDirect(args: LaunchWorkItemDirectArgs): Prom
   }
   const { repo, executionHostId: repoOwnerHostId, target: repoOwnerTarget } = owner
 
+  // Custom build (hq-executors): a launch can override the chat's model/effort for this one session.
+  const resolveSessionOptions =
+    args.resolveSessionOptions ??
+    (args.nativeChatSessionOptions && !args.sessionOptions
+      ? (agent: TuiAgent) => persistedChatLaunchOptions(args.nativeChatSessionOptions, agent)
+      : undefined)
   const promptDelivery = args.promptDelivery ?? 'draft'
   const repoConnectionId = repo.connectionId?.trim() || null
   const githubIdentity =
@@ -160,7 +167,7 @@ export async function launchWorkItemDirect(args: LaunchWorkItemDirectArgs): Prom
     repoOwnerHostId,
     draftContent,
     promptDelivery,
-    resolveSessionOptions: args.resolveSessionOptions,
+    resolveSessionOptions,
     sessionOptions: args.sessionOptions,
     launchChoice: args.launchChoice
   })
@@ -224,7 +231,7 @@ export async function launchWorkItemDirect(args: LaunchWorkItemDirectArgs): Prom
       agentArgs: args.agentArgs,
       ...(args.sessionOptions ? { sessionOptions: args.sessionOptions } : {}),
       resolveAgentArgs: args.resolveAgentArgs,
-      resolveSessionOptions: args.resolveSessionOptions,
+      resolveSessionOptions,
       launchChoice: args.launchChoice,
       sessionOptionsYieldToAgentArgs: args.sessionOptionsYieldToAgentArgs,
       repoConnectionId,
@@ -313,4 +320,21 @@ export async function launchWorkItemDirect(args: LaunchWorkItemDirectArgs): Prom
     draftLaunchedNatively,
     startupPlanFailed
   })
+}
+
+/** Custom build (hq-executors): one agent's saved chat model and its values, as launch options. */
+function persistedChatLaunchOptions(
+  persisted: PersistedNativeChatSessionOptions | undefined,
+  agent: TuiAgent
+): Readonly<Record<string, string>> | undefined {
+  const entry = persisted?.[agent]
+  const model = entry?.model?.trim()
+  if (!model) {
+    return undefined
+  }
+  const values = entry?.valuesByModel?.[model] ?? {}
+  return {
+    model,
+    ...Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value)]))
+  }
 }

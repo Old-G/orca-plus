@@ -1,5 +1,6 @@
 // Custom build (hq-triage): «Take» on an HQ «New tasks» row — start Claude in a fresh worktree of the
-// chosen project, then move the ClickUp task to «in process» and remember the decision.
+// chosen project (or a coordinator for several), then move the ClickUp task to «in process» and
+// remember the decision.
 import type {
   ClickUpMutationResult,
   ClickUpStatus,
@@ -7,7 +8,11 @@ import type {
   ClickUpTaskSummary
 } from '../../../../../shared/clickup-types'
 import type { HqAutonomyLevel } from '../../../../../shared/hq-autonomy'
-import { findInProcessStatus, hqTriagePrompt } from '../../../../../shared/hq-triage'
+import {
+  findInProcessStatus,
+  hqCoordinatorPrompt,
+  hqTriagePrompt
+} from '../../../../../shared/hq-triage'
 import { buildClickUpLinkedWorkItem } from '@/lib/clickup-linked-work-item'
 import type { LaunchableWorkItem } from '@/lib/launch-work-item-direct-types'
 import { buildContainedLinkedContextBlock } from '@/lib/linked-work-item-context'
@@ -30,34 +35,62 @@ export type HqTriageTakeResult =
   | { launched: false }
   | { launched: true; status: HqTriageStatusOutcome }
 
-export function buildHqTriageWorkItem(
+function withTaskData(
   task: ClickUpTaskSummary,
   full: ClickUpTask | null,
-  project: { name: string; level: HqAutonomyLevel }
+  prompt: string
 ): LaunchableWorkItem {
   // Why: the title must reach the agent only inside the untrusted block, even without the full task.
   const item = buildClickUpLinkedWorkItem(
     task,
     full ?? { ...task, description: '', tags: [], creator: null, createdAt: null }
   )
-  const prompt = hqTriagePrompt({
-    identifier: task.identifier,
-    url: task.url,
-    projectName: project.name,
-    level: project.level
-  })
   const context = buildContainedLinkedContextBlock(item.linkedContext)
   return { ...item, pasteContent: context ? `${prompt}\n\n${context}` : prompt }
 }
 
+export function buildHqTriageWorkItem(
+  task: ClickUpTaskSummary,
+  full: ClickUpTask | null,
+  project: { name: string; level: HqAutonomyLevel }
+): LaunchableWorkItem {
+  return withTaskData(
+    task,
+    full,
+    hqTriagePrompt({
+      identifier: task.identifier,
+      url: task.url,
+      projectName: project.name,
+      level: project.level
+    })
+  )
+}
+
+/** Custom build (hq-triage): the coordinator of a task that spans several projects. */
+export function buildHqCoordinatorWorkItem(
+  task: ClickUpTaskSummary,
+  full: ClickUpTask | null,
+  coordinator: {
+    projects: readonly { name: string; path: string; level: HqAutonomyLevel }[]
+    model: string
+    effort: string
+  }
+): LaunchableWorkItem {
+  return withTaskData(
+    task,
+    full,
+    hqCoordinatorPrompt({ identifier: task.identifier, url: task.url, ...coordinator })
+  )
+}
+
 export async function takeHqTriageTask(
   task: ClickUpTaskSummary,
-  project: { name: string; level: HqAutonomyLevel },
+  buildItem: (full: ClickUpTask | null) => LaunchableWorkItem,
   deps: HqTriageTakeDeps
 ): Promise<HqTriageTakeResult> {
   // Why: the agent's prompt carries the task text, so the row's summary is not enough.
   const full = await deps.getTask(task.id).catch(() => null)
-  if (!(await deps.launch(buildHqTriageWorkItem(task, full, project)))) {
+  if (!(await deps.launch(buildItem(full)))) {
     return { launched: false }
   }
   await deps.remember()

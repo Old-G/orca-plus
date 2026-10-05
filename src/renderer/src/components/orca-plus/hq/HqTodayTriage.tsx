@@ -9,7 +9,9 @@ import { isGitRepoKind } from '../../../../../shared/repo-kind'
 import type { Repo } from '../../../../../shared/repo-types'
 import type { TaskSourceContext } from '../../../../../shared/task-source-context'
 import {
+  HQ_TAKE_EFFORT,
   hqTasksAwaitingAuthor,
+  withHqTakeEffort,
   pendingHqTriageTasks,
   suggestHqTriageProject,
   type HqTaskQuestionsResult,
@@ -30,7 +32,13 @@ import {
   clickUpUpdateTaskStatus
 } from '@/runtime/runtime-clickup-client'
 import { useAppStore } from '@/store'
-import { takeHqTriageTask, type HqTriageTakeResult } from './hq-triage-take'
+import { findHqWorktreeId, launchHqCommand } from './hq-today-actions'
+import {
+  buildHqCoordinatorWorkItem,
+  buildHqTriageWorkItem,
+  takeHqTriageTask,
+  type HqTriageTakeResult
+} from './hq-triage-take'
 import { HqTodayAwaitingAuthor } from './HqTodayAwaitingAuthor'
 import { HqTodayTriageRow } from './HqTodayTriageRow'
 import { ColumnHeader } from './hq-waiting-parts'
@@ -142,32 +150,77 @@ export function HqTodayTriage({ now }: { now: number }): React.JSX.Element | nul
       telemetrySource: 'sidebar'
     })
 
-  const take = async (task: ClickUpTaskSummary, repoId: string): Promise<void> => {
-    const repo = repos.find((entry) => entry.id === repoId)
-    if (!repo) {
+  const levelOf = (repoId: string): HqAutonomyLevel =>
+    (pages.status === 'ready' ? pages.pages.find((p) => p.repoId === repoId)?.autonomy : null) ??
+    DEFAULT_LEVEL
+
+  const take = async (task: ClickUpTaskSummary, repoIds: string[]): Promise<void> => {
+    const chosen = repoIds.flatMap((id) => repos.filter((repo) => repo.id === id))
+    const [main] = chosen
+    if (!main) {
       return
     }
-    const page = pages.status === 'ready' ? pages.pages.find((p) => p.repoId === repoId) : null
+    const sessionOptions = withHqTakeEffort(
+      useAppStore.getState().settings?.nativeChatSessionOptions
+    )
+    const coordinate = chosen.length > 1
     setBusyId(task.id)
     try {
       const result = await takeHqTriageTask(
         task,
-        { name: repo.displayName, level: page?.autonomy ?? DEFAULT_LEVEL },
+        (full) =>
+          coordinate
+            ? buildHqCoordinatorWorkItem(task, full, {
+                projects: chosen.map((repo) => ({
+                  name: repo.displayName,
+                  path: repo.path,
+                  level: levelOf(repo.id)
+                })),
+                model: sessionOptions.claude?.model ?? 'opus',
+                effort: HQ_TAKE_EFFORT
+              })
+            : buildHqTriageWorkItem(task, full, {
+                name: main.displayName,
+                level: levelOf(main.id)
+              }),
         {
           getTask: (taskId) => clickUpGetTask(sourceContext, taskId),
-          launch: (item) =>
-            launchWorkItemDirect({
-              item,
-              repoId,
-              agentOverride: 'claude',
-              promptDelivery: 'submit-after-ready',
-              launchSource: 'task_page',
-              telemetrySource: 'sidebar',
-              openModalFallback: () => openComposer(task, repoId)
-            }),
+          launch: async (item) => {
+            if (!coordinate) {
+              return launchWorkItemDirect({
+                item,
+                repoId: main.id,
+                agentOverride: 'claude',
+                promptDelivery: 'submit-after-ready',
+                launchSource: 'task_page',
+                telemetrySource: 'sidebar',
+                nativeChatSessionOptions: sessionOptions,
+                openModalFallback: () => openComposer(task, main.id)
+              })
+            }
+            const state = useAppStore.getState()
+            const hqWorktreeId = findHqWorktreeId(
+              state.settings?.hqPath,
+              state.repos,
+              state.worktreesByRepo
+            )
+            const launched = hqWorktreeId
+              ? launchHqCommand(hqWorktreeId, item.pasteContent ?? '')
+              : {
+                  ok: false as const,
+                  message: translate(
+                    'auto.hq.today.addHqProject',
+                    'Add the HQ folder as a project in Orca to run reminders and commands.'
+                  )
+                }
+            if (!launched.ok) {
+              toast.error(launched.message)
+            }
+            return launched.ok
+          },
           listStatuses: (listId) => clickUpListStatuses(sourceContext, listId),
           setStatus: (taskId, status) => clickUpUpdateTaskStatus(sourceContext, taskId, status),
-          remember: () => decide(task.id, 'taken', repoId)
+          remember: () => decide(task.id, 'taken', main.id)
         }
       )
       reportTake(result, task)
@@ -212,7 +265,7 @@ export function HqTodayTriage({ now }: { now: number }): React.JSX.Element | nul
             suggested={suggestHqTriageProject(task, bindings)}
             busy={busyId === task.id}
             onOpen={() => setSelected(task)}
-            onTake={(repoId) => void take(task, repoId)}
+            onTake={(repoIds) => void take(task, repoIds)}
             onDraftQuestions={() => draftQuestions(task)}
             onSendQuestions={(text) => sendQuestions(task, text)}
             onSnooze={() => setSnoozed((current) => new Set(current).add(task.id))}
