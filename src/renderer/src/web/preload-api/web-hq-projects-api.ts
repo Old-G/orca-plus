@@ -7,6 +7,8 @@ import { callRuntimeResult } from './web-runtime-calls'
 
 // Why: the all-projects map renders through archify on the Mac for up to two minutes.
 const MAP_TIMEOUT_MS = 150_000
+// Why: the Mac's Claude run is capped at 60 s.
+const QUESTIONS_TIMEOUT_MS = 75_000
 
 export function createWebHqProjectsApi(): Pick<PreloadApi, 'hqProjects' | 'clickup'> {
   return {
@@ -19,6 +21,8 @@ export function createWebHqProjectsApi(): Pick<PreloadApi, 'hqProjects' | 'click
       projectDiagram: (repoId) => callRuntimeResult('hqProjects.projectDiagram', { repoId }),
       reviews: (refresh) => callRuntimeResult('hqProjects.reviews', { refresh: refresh === true }),
       gitState: (paths) => callRuntimeResult('hqProjects.gitState', { paths }),
+      draftTaskQuestions: (task) =>
+        callRuntimeResult('hqProjects.draftTaskQuestions', task, QUESTIONS_TIMEOUT_MS),
       settings: () => loadRuntimeHqSettings()
     }
   }

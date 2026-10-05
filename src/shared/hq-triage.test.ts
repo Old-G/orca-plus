@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { ClickUpStatus, ClickUpTaskSummary } from './clickup-types'
 import {
   findInProcessStatus,
+  hqAuthorAnswered,
+  hqTasksAwaitingAuthor,
+  restoreFirstQuestionNumber,
   hqTriagePrompt,
   pendingHqTriageTasks,
   suggestHqTriageProject
@@ -68,5 +71,38 @@ describe('HQ task triage', () => {
     expect(hqTriagePrompt({ ...base, level: 0 })).toContain('ничего не меняй в коде')
     expect(hqTriagePrompt({ ...base, level: 1 })).toContain('Наружу ничего не отправляй')
     expect(hqTriagePrompt({ ...base, level: 2 })).toContain('Не мержь')
+  })
+
+  it('waits on the author only for asked tasks still in their first status', () => {
+    const tasks = [task('1', 'open'), task('2', 'open'), task('3', 'custom')]
+    const decisions = {
+      '1': { decision: 'asked' as const, at: 5 },
+      '3': { decision: 'asked' as const, at: 5 }
+    }
+    expect(hqTasksAwaitingAuthor(tasks, decisions).map((entry) => entry.id)).toEqual(['1'])
+    expect(pendingHqTriageTasks(tasks, decisions, new Set()).map((entry) => entry.id)).toEqual([
+      '2'
+    ])
+  })
+
+  it('counts as an answer only a later comment from someone other than the owner', () => {
+    const comment = (authorId: string | null, createdAt: number | null) => ({
+      id: `${authorId}-${createdAt}`,
+      body: 'x',
+      author: authorId ? { id: authorId, username: authorId, initials: null, color: null } : null,
+      createdAt
+    })
+    expect(hqAuthorAnswered([comment('me', 20), comment('ann', 5)], 10, 'me')).toBe(false)
+    expect(hqAuthorAnswered([comment(null, 20), comment('ann', null)], 10, 'me')).toBe(false)
+    expect(hqAuthorAnswered([comment('ann', 20)], 10, 'me')).toBe(true)
+  })
+
+  it('gives the first question back its number only when the list goes on with 2.', () => {
+    expect(restoreFirstQuestionNumber('Какой формат?\n2. Какие поля?')).toBe(
+      '1. Какой формат?\n2. Какие поля?'
+    )
+    expect(restoreFirstQuestionNumber('1. A\n2. B')).toBe('1. A\n2. B')
+    expect(restoreFirstQuestionNumber('Один вопрос')).toBe('Один вопрос')
+    expect(restoreFirstQuestionNumber('Intro\n- B')).toBe('Intro\n- B')
   })
 })
