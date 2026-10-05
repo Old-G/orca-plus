@@ -111,7 +111,7 @@ export function HqTodayTab(): React.JSX.Element {
           )}
         </div>
         <div className="flex min-w-0 flex-col gap-6">
-          <HqTodayTriage />
+          <HqTodayTriage now={now} />
           <HqTodayDeadlines now={now} />
           <HqTodayReviewRequests now={now} />
           <HqTodayReviews workspaces={snapshot.workspaces ?? []} />

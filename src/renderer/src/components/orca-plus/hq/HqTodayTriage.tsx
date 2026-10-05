@@ -1,5 +1,6 @@
 // Custom build (hq-triage): the «Today» tab's «New tasks» — the owner's fresh ClickUp tasks, each with
-// a suggested project. Take starts Claude in a new worktree there; nothing starts on its own.
+// a suggested project. Take starts Claude in a new worktree there; Questions asks the author first.
+// Nothing starts or is sent on its own.
 import { useState } from 'react'
 import { toast } from 'sonner'
 import type { ClickUpTaskSummary } from '../../../../../shared/clickup-types'
@@ -8,19 +9,13 @@ import { isGitRepoKind } from '../../../../../shared/repo-kind'
 import type { Repo } from '../../../../../shared/repo-types'
 import type { TaskSourceContext } from '../../../../../shared/task-source-context'
 import {
+  hqTasksAwaitingAuthor,
   pendingHqTriageTasks,
   suggestHqTriageProject,
+  type HqTaskQuestionsResult,
   type HqTriageDecision
 } from '../../../../../shared/hq-triage'
 import { ClickUpTaskSheet } from '@/components/task-page/clickup/TaskSheet'
-import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import { translate } from '@/i18n/i18n'
 import {
   buildClickUpLinkedWorkItem,
@@ -28,12 +23,16 @@ import {
 } from '@/lib/clickup-linked-work-item'
 import { launchWorkItemDirect } from '@/lib/launch-work-item-direct'
 import {
+  clickUpAddTaskComment,
   clickUpGetTask,
   clickUpListStatuses,
+  clickUpTaskComments,
   clickUpUpdateTaskStatus
 } from '@/runtime/runtime-clickup-client'
 import { useAppStore } from '@/store'
 import { takeHqTriageTask, type HqTriageTakeResult } from './hq-triage-take'
+import { HqTodayAwaitingAuthor } from './HqTodayAwaitingAuthor'
+import { HqTodayTriageRow } from './HqTodayTriageRow'
 import { ColumnHeader } from './hq-waiting-parts'
 import { useHqClickUpConnection, useHqMyClickUpTasks } from './use-hq-project-clickup'
 import { useHqProjectPages } from './use-hq-project-pages'
@@ -70,86 +69,7 @@ function reportTake(result: HqTriageTakeResult, task: ClickUpTaskSummary): void 
   }
 }
 
-function TriageRow({
-  task,
-  repos,
-  suggested,
-  busy,
-  onOpen,
-  onTake,
-  onSnooze,
-  onHide
-}: {
-  task: ClickUpTaskSummary
-  repos: Repo[]
-  suggested: string | null
-  busy: boolean
-  onOpen: () => void
-  onTake: (repoId: string) => void
-  onSnooze: () => void
-  onHide: () => void
-}): React.JSX.Element {
-  const [repoId, setRepoId] = useState<string | null>(
-    suggested && repos.some((repo) => repo.id === suggested) ? suggested : null
-  )
-  return (
-    <li className="flex flex-col gap-1.5 rounded-md px-2 py-1.5 hover:bg-accent/50">
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex w-full items-center gap-2 rounded-sm text-left focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-      >
-        <span className="w-20 shrink-0 truncate font-mono text-[11px] text-muted-foreground">
-          {task.identifier}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-[13px]">{task.title}</span>
-        {task.listName ? (
-          <span className="max-w-32 shrink-0 truncate text-[11px] text-muted-foreground">
-            {task.listName}
-          </span>
-        ) : null}
-      </button>
-      <div className="flex flex-wrap items-center gap-1.5 pl-22">
-        <Select value={repoId ?? undefined} onValueChange={setRepoId} disabled={busy}>
-          <SelectTrigger
-            size="sm"
-            className="w-48"
-            aria-label={translate('auto.hq.triage.project', 'Project for {{value0}}', {
-              value0: task.identifier
-            })}
-          >
-            <SelectValue placeholder={translate('auto.hq.triage.pickProject', 'Pick a project')} />
-          </SelectTrigger>
-          <SelectContent>
-            {repos.map((repo) => (
-              <SelectItem key={repo.id} value={repo.id}>
-                {repo.displayName}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          type="button"
-          size="xs"
-          disabled={!repoId || busy}
-          onClick={() => (repoId ? onTake(repoId) : undefined)}
-        >
-          {busy
-            ? translate('auto.hq.triage.taking', 'Starting…')
-            : translate('auto.hq.triage.take', 'Take')}
-        </Button>
-        <Button type="button" variant="ghost" size="xs" disabled={busy} onClick={onSnooze}>
-          {translate('auto.hq.triage.snooze', 'Not now')}
-        </Button>
-        <Button type="button" variant="ghost" size="xs" disabled={busy} onClick={onHide}>
-          {translate('auto.hq.triage.hide', 'Hide')}
-        </Button>
-      </div>
-    </li>
-  )
-}
-
-export function HqTodayTriage(): React.JSX.Element | null {
+export function HqTodayTriage({ now }: { now: number }): React.JSX.Element | null {
   const connection = useHqClickUpConnection(TODAY_SOURCE_PROJECT)
   const tasks = useHqMyClickUpTasks(connection)
   const pages = useHqProjectPages()
@@ -165,11 +85,10 @@ export function HqTodayTriage(): React.JSX.Element | null {
   const sourceContext: TaskSourceContext | null =
     connection.status === 'ready' ? connection.sourceContext : null
   const repos = allRepos.filter(isGitRepoKind)
-  const pending = pendingHqTriageTasks(
-    tasks.state.status === 'ready' ? tasks.state.tasks : [],
-    decisions,
-    snoozed
-  )
+  const ownerId = useAppStore((s) => s.clickUpStatus.viewer?.id ?? null)
+  const allTasks = tasks.state.status === 'ready' ? tasks.state.tasks : []
+  const awaiting = hqTasksAwaitingAuthor(allTasks, decisions)
+  const pending = pendingHqTriageTasks(allTasks, decisions, snoozed)
   const title = translate('auto.hq.triage.title', 'New tasks')
 
   const decide = (
@@ -183,6 +102,36 @@ export function HqTodayTriage(): React.JSX.Element | null {
         [taskId]: triageDecision(decision, repoId)
       }
     })
+
+  const forget = (taskIds: string[]): Promise<void> => {
+    const next = { ...useAppStore.getState().settings?.hqTriageDecisions }
+    for (const taskId of taskIds) {
+      delete next[taskId]
+    }
+    return updateSettings({ hqTriageDecisions: next })
+  }
+
+  const draftQuestions = async (task: ClickUpTaskSummary): Promise<HqTaskQuestionsResult> => {
+    const full = await clickUpGetTask(sourceContext, task.id).catch(() => null)
+    return window.api.hqProjects
+      .draftTaskQuestions({
+        identifier: task.identifier,
+        title: task.title,
+        description: full?.description ?? ''
+      })
+      .catch((error: unknown) => ({ ok: false, error: String(error) }))
+  }
+
+  const sendQuestions = async (task: ClickUpTaskSummary, text: string): Promise<string | null> => {
+    const result = await clickUpAddTaskComment(sourceContext, task.id, text).catch(
+      (error: unknown) => ({ ok: false as const, error: String(error) })
+    )
+    if (!result.ok) {
+      return result.error
+    }
+    await decide(task.id, 'asked')
+    return null
+  }
 
   const openComposer = (task: ClickUpTaskSummary, repoId: string | null): void =>
     openModal('new-workspace-composer', {
@@ -256,7 +205,7 @@ export function HqTodayTriage(): React.JSX.Element | null {
     body = (
       <ul className="flex flex-col gap-1">
         {pending.map((task) => (
-          <TriageRow
+          <HqTodayTriageRow
             key={task.id}
             task={task}
             repos={repos}
@@ -264,6 +213,8 @@ export function HqTodayTriage(): React.JSX.Element | null {
             busy={busyId === task.id}
             onOpen={() => setSelected(task)}
             onTake={(repoId) => void take(task, repoId)}
+            onDraftQuestions={() => draftQuestions(task)}
+            onSendQuestions={(text) => sendQuestions(task, text)}
             onSnooze={() => setSnoozed((current) => new Set(current).add(task.id))}
             onHide={() => void decide(task.id, 'hidden')}
           />
@@ -275,6 +226,15 @@ export function HqTodayTriage(): React.JSX.Element | null {
     <section className="flex flex-col gap-2" aria-label={title}>
       <ColumnHeader title={title} count={pending.length} />
       {body}
+      <HqTodayAwaitingAuthor
+        tasks={awaiting}
+        decisions={decisions}
+        ownerId={ownerId}
+        now={now}
+        readComments={(taskId) => clickUpTaskComments(sourceContext, taskId)}
+        onAnswered={(taskIds) => void forget(taskIds)}
+        onBack={(taskId) => void forget([taskId])}
+      />
       <ClickUpTaskSheet
         summary={selected}
         sourceContext={sourceContext}
