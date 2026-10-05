@@ -12,7 +12,7 @@ import type {
 } from '../../../../shared/clickup-types'
 import type { GlobalSettings } from '../../../../shared/settings/global-settings-types'
 import type { TaskSourceContext } from '../../../../shared/work-items/task-source-context'
-import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
+import type { RuntimeClientTarget } from '../../../../shared/remote-runtime/host-catalog/runtime-client-target'
 import { defaultScopeHost } from '@/runtime/hosts/selection/default-creation-host'
 import { taskSourceRuntimeTarget } from '@/lib/work-items/task-source-runtime-target'
 import { callRuntimeRpc } from '../rpc/calls/runtime-rpc-call'
@@ -117,6 +117,17 @@ export function clickUpUpdateTaskStatus(
 ): Promise<ClickUpMutationResult> {
   const args = { taskId, status }
   return call(settings, 'updateTaskStatus', args, () => window.api.clickup.updateTaskStatus(args))
+}
+
+export function clickUpUpdateTaskTimeEstimate(
+  settings: RuntimeClickUpSettings,
+  taskId: string,
+  hours: number
+): Promise<ClickUpMutationResult> {
+  const args = { taskId, hours }
+  return call(settings, 'updateTaskTimeEstimate', args, () =>
+    window.api.clickup.updateTaskTimeEstimate(args)
+  )
 }
 
 export function clickUpAddTaskComment(
