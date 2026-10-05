@@ -12,6 +12,7 @@ export type DirectWorkItemLaunchInputs = AgentLaunchInputViews &
   Pick<AgentSessionLaunchRequest, 'requestedSurface' | 'preferredSurface'> & {
     actionAgentArgs?: string
   }
+import type { PersistedNativeChatSessionOptions } from '../../../../../../shared/native-chat/input/native-chat-session-options'
 
 export type LaunchableWorkItem = {
   provider?: TaskProvider
@@ -58,4 +59,6 @@ export type LaunchWorkItemDirectArgs = {
     Pick<AgentSessionLaunchRequest, 'preferredSurface'>
   promptDelivery?: 'draft' | 'submit-after-ready'
   launchPlatform?: NodeJS.Platform
+  /** Custom build (hq-triage): chat model/effort for this launch instead of the user's defaults. */
+  nativeChatSessionOptions?: PersistedNativeChatSessionOptions
 }
