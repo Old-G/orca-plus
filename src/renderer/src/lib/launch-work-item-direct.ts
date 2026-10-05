@@ -72,7 +72,10 @@ export async function launchWorkItemDirect(args: LaunchWorkItemDirectArgs): Prom
     return false
   }
 
-  const settings = store.settings
+  const settings =
+    args.nativeChatSessionOptions && store.settings
+      ? { ...store.settings, nativeChatSessionOptions: args.nativeChatSessionOptions }
+      : store.settings
   // Why: preflight (PR base + hooks probe) must run on the repo's owner host so it
   // matches the owner-routed createWorktree below, not the focused runtime.
   const repoOwnerSettings = getSettingsForRepoRuntimeOwner(store, repoId)

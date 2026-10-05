@@ -18423,7 +18423,10 @@
         "sendHint": "Goes to the task as your comment; nothing is sent before you click.",
         "awaitingAuthor": "Waiting on the author",
         "askedAgo": "asked {{value0}}",
-        "backToNew": "Back to new"
+        "backToNew": "Back to new",
+        "removeProject": "Remove {{value0}}",
+        "addProject": "Add a project to {{value0}}",
+        "alsoIn": "+ project"
       }
     },
     "claudeSubscriptions": {

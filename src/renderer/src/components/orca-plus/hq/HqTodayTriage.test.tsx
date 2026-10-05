@@ -26,8 +26,8 @@ const mocks = vi.hoisted(() => {
   const state = {
     settings,
     repos: [
-      { id: 'repo-api', displayName: 'lh-api', kind: 'git' },
-      { id: 'repo-web', displayName: 'lh-web', kind: 'git' },
+      { id: 'repo-api', displayName: 'lh-api', kind: 'git', path: '/p/api' },
+      { id: 'repo-web', displayName: 'lh-web', kind: 'git', path: '/p/web' },
       { id: 'notes', displayName: 'notes', kind: 'folder' }
     ],
     clickUpStatus: {
@@ -67,7 +67,8 @@ const mocks = vi.hoisted(() => {
       })
     ),
     taskComments: vi.fn(async (): Promise<unknown[]> => []),
-    draftQuestions: vi.fn(async (_task: unknown) => ({ ok: true, questions: '1. Which cart?' }))
+    draftQuestions: vi.fn(async (_task: unknown) => ({ ok: true, questions: '1. Which cart?' })),
+    launchHq: vi.fn((_worktreeId: string, _prompt: string) => ({ ok: true }))
   }
 })
 
@@ -100,6 +101,10 @@ vi.mock('@/runtime/runtime-clickup-client', () => ({
   clickUpTaskComments: mocks.taskComments
 }))
 vi.mock('./HqCommandDictation', () => ({ HqCommandDictation: () => null }))
+vi.mock('./hq-today-actions', () => ({
+  findHqWorktreeId: () => 'hq-wt',
+  launchHqCommand: mocks.launchHq
+}))
 vi.mock('@/components/task-page/clickup/TaskSheet', () => ({ ClickUpTaskSheet: () => null }))
 vi.mock('@/components/ui/select', () => ({
   Select: ({
@@ -148,7 +153,8 @@ describe('HqTodayTriage', () => {
     expect(screen.queryByText('Hidden one')).toBeNull()
 
     const selects = screen.getAllByRole<HTMLSelectElement>('combobox')
-    expect(selects.map((select) => select.value)).toEqual(['repo-api', ''])
+    // The suggested row also offers «+ project»; a row without a project does not.
+    expect(selects.map((select) => select.value)).toEqual(['repo-api', '', ''])
     // Why: a folder project cannot hold a worktree.
     expect(screen.queryAllByRole('option', { name: 'notes' })).toHaveLength(0)
     const takeButtons = screen.getAllByRole<HTMLButtonElement>('button', { name: 'Take' })
@@ -170,7 +176,10 @@ describe('HqTodayTriage', () => {
       expect.objectContaining({
         repoId: 'repo-web',
         agentOverride: 'claude',
-        promptDelivery: 'submit-after-ready'
+        promptDelivery: 'submit-after-ready',
+        nativeChatSessionOptions: {
+          claude: { model: 'opus', valuesByModel: { opus: { effort: 'high' } } }
+        }
       })
     )
     expect(mocks.updateStatus).toHaveBeenCalledWith(expect.anything(), '2', 'in process')
@@ -247,5 +256,27 @@ describe('HqTodayTriage', () => {
     await waitFor(() => expect(mocks.state.settings.hqTriageDecisions).toEqual({}))
     expect(await screen.findByText('Fix the cart')).toBeTruthy()
     expect(screen.queryByText('Waiting on the author')).toBeNull()
+  })
+
+  it('hands a task spanning two projects to a coordinator in the HQ workspace', async () => {
+    mocks.state.settings = { ...mocks.state.settings, hqTriageDecisions: {} }
+    render(<HqTodayTriage now={100} />)
+    await screen.findByText('Fix the cart')
+    const row = rowOf('Fix the cart')
+    const [, addProject] = within(row).getAllByRole<HTMLSelectElement>('combobox')
+    fireEvent.change(addProject, { target: { value: 'repo-web' } })
+    expect(within(row).getByRole('button', { name: 'Remove lh-web' })).toBeTruthy()
+
+    fireEvent.click(within(row).getByRole('button', { name: 'Take' }))
+    await waitFor(() => expect(mocks.launchHq).toHaveBeenCalled())
+    const [worktreeId, prompt] = mocks.launchHq.mock.calls[0]
+    expect(worktreeId).toBe('hq-wt')
+    expect(prompt).toContain('Ты координатор задачи ClickUp DEV-1')
+    expect(prompt).toContain('lh-api')
+    expect(prompt).toContain('- lh-web: `/p/web`')
+    expect(mocks.launch).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(mocks.updateStatus).toHaveBeenCalledWith(expect.anything(), '1', 'in process')
+    )
   })
 })
