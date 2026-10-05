@@ -51,6 +51,8 @@ export type TextGenerationOperation =
   | 'jira-issue-summary'
   | 'conversation-name'
   | 'dictation-cleanup'
+  // Custom build (hq-task-questions): HQ drafts questions to a ClickUp task's author.
+  | 'hq-task-questions'
 
 export type CommitMessageGenerationTarget =
   | { kind: 'local'; cwd: string; env?: NodeJS.ProcessEnv; wslDistro?: string }
