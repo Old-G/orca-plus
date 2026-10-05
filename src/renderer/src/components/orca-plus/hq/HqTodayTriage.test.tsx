@@ -3,6 +3,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+type CommentResult = { ok: true } | { ok: false; error: string }
+
 const mocks = vi.hoisted(() => {
   const listeners = new Set<() => void>()
   const status = (name: string, type: string) => ({ name, type, color: null, orderIndex: 0 })
@@ -31,7 +33,8 @@ const mocks = vi.hoisted(() => {
     clickUpStatus: {
       connected: true,
       workspaces: [{ id: 'ws', name: 'Team' }],
-      selectedWorkspaceId: 'ws'
+      selectedWorkspaceId: 'ws',
+      viewer: { id: 'me', username: 'gleb', email: null }
     },
     clickUpStatusChecked: true,
     clickUpStatusContextKey: 'local',
@@ -57,7 +60,14 @@ const mocks = vi.hoisted(() => {
     getTask: vi.fn(async () => null),
     listStatuses: vi.fn(async () => [status('in process', 'custom')]),
     updateStatus: vi.fn(async () => ({ ok: true })),
-    launch: vi.fn(async (_args: unknown) => true)
+    launch: vi.fn(async (_args: unknown) => true),
+    addComment: vi.fn(
+      async (_ctx: unknown, _taskId: string, _body: string): Promise<CommentResult> => ({
+        ok: true
+      })
+    ),
+    taskComments: vi.fn(async (): Promise<unknown[]> => []),
+    draftQuestions: vi.fn(async (_task: unknown) => ({ ok: true, questions: '1. Which cart?' }))
   }
 })
 
@@ -85,8 +95,11 @@ vi.mock('@/runtime/runtime-clickup-client', () => ({
   clickUpListTasks: mocks.listTasks,
   clickUpGetTask: mocks.getTask,
   clickUpListStatuses: mocks.listStatuses,
-  clickUpUpdateTaskStatus: mocks.updateStatus
+  clickUpUpdateTaskStatus: mocks.updateStatus,
+  clickUpAddTaskComment: mocks.addComment,
+  clickUpTaskComments: mocks.taskComments
 }))
+vi.mock('./HqCommandDictation', () => ({ HqCommandDictation: () => null }))
 vi.mock('@/components/task-page/clickup/TaskSheet', () => ({ ClickUpTaskSheet: () => null }))
 vi.mock('@/components/ui/select', () => ({
   Select: ({
@@ -128,7 +141,7 @@ function rowOf(title: string): HTMLElement {
 
 describe('HqTodayTriage', () => {
   it('lists only fresh, undecided tasks with the bound project suggested', async () => {
-    render(<HqTodayTriage />)
+    render(<HqTodayTriage now={100} />)
     expect(await screen.findByText('Fix the cart')).toBeTruthy()
     expect(screen.getByText('Plan the launch')).toBeTruthy()
     expect(screen.queryByText('Already going')).toBeNull()
@@ -143,7 +156,7 @@ describe('HqTodayTriage', () => {
   })
 
   it('hides for good, snoozes for now, and takes into the picked project', async () => {
-    render(<HqTodayTriage />)
+    render(<HqTodayTriage now={100} />)
     await screen.findByText('Fix the cart')
 
     fireEvent.click(within(rowOf('Fix the cart')).getByRole('button', { name: 'Not now' }))
@@ -169,12 +182,70 @@ describe('HqTodayTriage', () => {
 
   it('records a hidden task so it stays gone', async () => {
     mocks.state.settings = { ...mocks.state.settings, hqTriageDecisions: {} }
-    render(<HqTodayTriage />)
+    render(<HqTodayTriage now={100} />)
     await screen.findByText('Fix the cart')
     fireEvent.click(within(rowOf('Fix the cart')).getByRole('button', { name: 'Hide' }))
     await waitFor(() => expect(screen.queryByText('Fix the cart')).toBeNull())
     expect(mocks.state.settings.hqTriageDecisions).toMatchObject({ '1': { decision: 'hidden' } })
     expect(mocks.launch).not.toHaveBeenCalled()
     expect(mocks.updateStatus).not.toHaveBeenCalled()
+  })
+
+  it('drafts questions, sends the edited text as a comment, then waits on the author', async () => {
+    mocks.state.settings = { ...mocks.state.settings, hqTriageDecisions: {} }
+    Object.assign(window, { api: { hqProjects: { draftTaskQuestions: mocks.draftQuestions } } })
+    render(<HqTodayTriage now={100} />)
+    await screen.findByText('Fix the cart')
+    fireEvent.click(within(rowOf('Fix the cart')).getByRole('button', { name: 'Questions' }))
+
+    const box = await screen.findByRole<HTMLTextAreaElement>('textbox', {
+      name: 'Questions for DEV-1'
+    })
+    expect(box.value).toBe('1. Which cart?')
+    expect(mocks.draftQuestions).toHaveBeenCalledWith(
+      expect.objectContaining({ identifier: 'DEV-1', title: 'Fix the cart' })
+    )
+    expect(mocks.addComment).not.toHaveBeenCalled()
+
+    fireEvent.change(box, { target: { value: '1. Which cart, web or app?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send to ClickUp' }))
+    await waitFor(() =>
+      expect(mocks.addComment).toHaveBeenCalledWith(
+        expect.anything(),
+        '1',
+        '1. Which cart, web or app?'
+      )
+    )
+    expect(mocks.state.settings.hqTriageDecisions).toMatchObject({ '1': { decision: 'asked' } })
+    expect(await screen.findByText('Waiting on the author')).toBeTruthy()
+    expect(mocks.launch).not.toHaveBeenCalled()
+  })
+
+  it('keeps the questions and shows why when ClickUp refuses the comment', async () => {
+    mocks.state.settings = { ...mocks.state.settings, hqTriageDecisions: {} }
+    mocks.addComment.mockResolvedValueOnce({ ok: false, error: 'no access' })
+    Object.assign(window, { api: { hqProjects: { draftTaskQuestions: mocks.draftQuestions } } })
+    render(<HqTodayTriage now={100} />)
+    await screen.findByText('Fix the cart')
+    fireEvent.click(within(rowOf('Fix the cart')).getByRole('button', { name: 'Questions' }))
+    await screen.findByRole('textbox', { name: 'Questions for DEV-1' })
+    fireEvent.click(screen.getByRole('button', { name: 'Send to ClickUp' }))
+    expect(await screen.findByText('no access')).toBeTruthy()
+    expect(mocks.state.settings.hqTriageDecisions).toEqual({})
+  })
+
+  it('returns a task to New tasks once someone else answers after the questions', async () => {
+    mocks.state.settings = {
+      ...mocks.state.settings,
+      hqTriageDecisions: { '1': { decision: 'asked', at: 50 } }
+    }
+    mocks.taskComments.mockResolvedValue([
+      { id: 'c1', body: 'my questions', author: { id: 'me' }, createdAt: 60 },
+      { id: 'c2', body: 'web', author: { id: 'ann' }, createdAt: 70 }
+    ])
+    render(<HqTodayTriage now={100} />)
+    await waitFor(() => expect(mocks.state.settings.hqTriageDecisions).toEqual({}))
+    expect(await screen.findByText('Fix the cart')).toBeTruthy()
+    expect(screen.queryByText('Waiting on the author')).toBeNull()
   })
 })
