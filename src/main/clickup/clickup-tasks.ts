@@ -201,6 +201,38 @@ export function updateClickUpTaskTimeEstimate(
   )
 }
 
+/** Custom build (hq-slack-scout): a new task in a list; resolves to its ClickUp link. */
+export async function createClickUpTask(task: {
+  listId: string
+  name: string
+  markdownDescription: string
+  assigneeId: string | null
+  status: string | null
+}): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  try {
+    const created = await withClickUpSession((session) =>
+      clickUpRequest(session.token, `/list/${encodeURIComponent(task.listId)}/task`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: task.name,
+          markdown_content: task.markdownDescription,
+          ...(task.assigneeId ? { assignees: [Number(task.assigneeId)] } : {}),
+          ...(task.status ? { status: task.status } : {})
+        })
+      })
+    )
+    const url: unknown = created && typeof created === 'object' ? Reflect.get(created, 'url') : null
+    return typeof url === 'string' && url
+      ? { ok: true, url }
+      : { ok: false, error: 'ClickUp did not return the new task.' }
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error && error.message ? error.message : 'ClickUp create failed.'
+    }
+  }
+}
+
 export function addClickUpTaskComment(
   taskId: string,
   body: string

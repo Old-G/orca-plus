@@ -4,6 +4,8 @@ import {
   HqGitStateParams,
   HqProjectDiagramParams,
   HqReviewsParams,
+  HqSlackDraftCreateParams,
+  HqSlackDraftRefParams,
   HqUpdateSettingsParams,
   HqWikiPageParams
 } from '../../../../shared/rpc-contract/hq-projects-params'
@@ -61,6 +63,21 @@ export const HQ_PROJECTS_METHODS = [
     name: 'hqProjects.draftTaskQuestions',
     params: HqDraftTaskQuestionsParams,
     handler: async (params) => service().draftTaskQuestions(params)
+  }),
+  defineMethod({
+    name: 'hqProjects.slackDrafts',
+    params: null,
+    handler: async () => service().slackDrafts()
+  }),
+  defineMethod({
+    name: 'hqProjects.rejectSlackDraft',
+    params: HqSlackDraftRefParams,
+    handler: async (params) => service().rejectSlackDraft(params.id)
+  }),
+  defineMethod({
+    name: 'hqProjects.createSlackDraftTask',
+    params: HqSlackDraftCreateParams,
+    handler: async (params) => service().createSlackDraftTask(params)
   }),
   defineMethod({
     name: 'hqProjects.settings',

@@ -32,6 +32,12 @@ import { listHqProjectPages } from './hq-project-pages'
 import { listHqWikiEntries, readHqWikiPage } from './hq-wiki-files'
 import { draftHqTaskQuestions } from '../hq-today/hq-task-questions'
 import type { HqTaskQuestionsResult } from '../../shared/hq-triage'
+import type { HqSlackScoutCreateResult, HqSlackScoutResult } from '../../shared/hq-slack-scout'
+import {
+  createHqSlackScoutTask,
+  readHqSlackScout,
+  rejectHqSlackScoutDraft
+} from '../hq-today/hq-slack-scout'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 
 const MAP_TIMEOUT_MS = 120_000
@@ -68,6 +74,14 @@ export type HqProjectPagesService = {
     title: string
     description: string
   }): Promise<HqTaskQuestionsResult>
+  /** Custom build (hq-slack-scout): the scout's drafts the owner has not decided yet. */
+  slackDrafts(): Promise<HqSlackScoutResult>
+  rejectSlackDraft(id: string): Promise<HqSlackScoutCreateResult | { ok: true }>
+  createSlackDraftTask(draft: {
+    id: string
+    title: string
+    description: string
+  }): Promise<HqSlackScoutCreateResult>
 }
 
 export type HqProjectPagesStore = Pick<
@@ -108,6 +122,38 @@ export function createHqProjectPagesService(
         cwd: hqPath() ?? homedir(),
         getAgentEnvResolvers
       })
+    },
+
+    async slackDrafts() {
+      const hq = hqPath()
+      return hq
+        ? readHqSlackScout(hq)
+        : { ok: true, configured: false, lastRunAt: null, failedAt: null, drafts: [] }
+    },
+
+    async rejectSlackDraft(id) {
+      const hq = hqPath()
+      if (!hq) {
+        return { ok: false, error: 'No HQ folder is set.' }
+      }
+      try {
+        await rejectHqSlackScoutDraft(hq, id)
+        return { ok: true }
+      } catch (error) {
+        return { ok: false, error: errorText(error) }
+      }
+    },
+
+    async createSlackDraftTask(draft) {
+      const hq = hqPath()
+      if (!hq) {
+        return { ok: false, error: 'No HQ folder is set.' }
+      }
+      try {
+        return await createHqSlackScoutTask(hq, draft)
+      } catch (error) {
+        return { ok: false, error: errorText(error) }
+      }
     },
 
     updateSettings(update) {
