@@ -14,6 +14,7 @@ import { HqTodayReviewRequests } from './HqTodayReviewRequests'
 import { HqTodayTriage } from './HqTodayTriage'
 import { HqTodayDeadlines, HqTodayLimits } from './HqTodayWork'
 import { HqTodayReviews } from './HqTodayWorkspaceReviews'
+import { HqTodaySlackDrafts } from './HqTodaySlackDrafts'
 import { useHqPulse } from './use-hq-pulse'
 
 const AGE_TICK_MS = 60_000
@@ -112,6 +113,7 @@ export function HqTodayTab(): React.JSX.Element {
         </div>
         <div className="flex min-w-0 flex-col gap-6">
           <HqTodayTriage now={now} cards={snapshot.cards} />
+          <HqTodaySlackDrafts />
           <HqTodayDeadlines now={now} />
           <HqTodayReviewRequests now={now} />
           <HqTodayReviews workspaces={snapshot.workspaces ?? []} />

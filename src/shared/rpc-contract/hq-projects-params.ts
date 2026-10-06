@@ -23,6 +23,16 @@ export const HqDraftTaskQuestionsParams = z.object({
   description: z.string().max(50_000)
 })
 
+/** Custom build (hq-slack-scout): one Slack-scout draft by its `<channel>:<ts>` id. */
+export const HqSlackDraftRefParams = z.object({ id: z.string().min(1).max(200) })
+
+/** The draft as the owner edited it, created as a ClickUp task. */
+export const HqSlackDraftCreateParams = z.object({
+  id: z.string().min(1).max(200),
+  title: z.string().trim().min(1).max(300),
+  description: z.string().max(20_000)
+})
+
 /** Only what HQ itself edits; the HQ folder and the quiet threshold stay Settings-only on the Mac. */
 export const HqUpdateSettingsParams = z.object({
   hqProjectClickUpLists: z.record(z.string(), HqClickUpListBindingParam).optional(),
