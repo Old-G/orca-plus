@@ -71,7 +71,14 @@ export const HOST_OPERATION_OWNERSHIP = {
   ui: 'host',
   updater: 'host',
   workspacePorts: 'host',
-  worktree: 'host'
+  worktree: 'host',
+  // Custom build: Orca+ namespaces. ClickUp is a task source like Jira/Linear; the rest live on this desktop.
+  chat: 'host',
+  clickup: 'scope-picked',
+  hq: 'host',
+  hqProjects: 'host',
+  pulse: 'host',
+  webPush: 'host'
 } as const satisfies Record<string, HostOperationOwnership>
 
 /** Method overrides for scope-picked forge reads and streams without a subscription name. */
