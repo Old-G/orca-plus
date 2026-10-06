@@ -3,7 +3,11 @@
 import { ipcMain } from 'electron'
 import type { Store } from '../persistence'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
-import { HqDraftTaskQuestionsParams } from '../../shared/rpc-contract/hq-projects-params'
+import {
+  HqDraftTaskQuestionsParams,
+  HqSlackDraftCreateParams,
+  HqSlackDraftRefParams
+} from '../../shared/rpc-contract/hq-projects-params'
 import {
   createHqProjectPagesService,
   provideHqProjectPagesService
@@ -26,5 +30,12 @@ export function registerHqProjectPagesHandlers(
   ipcMain.handle('hqProjects:map', () => service.map())
   ipcMain.handle('hqProjects:draftTaskQuestions', (_event, task: unknown) =>
     service.draftTaskQuestions(HqDraftTaskQuestionsParams.parse(task))
+  )
+  ipcMain.handle('hqProjects:slackDrafts', () => service.slackDrafts())
+  ipcMain.handle('hqProjects:rejectSlackDraft', (_event, ref: unknown) =>
+    service.rejectSlackDraft(HqSlackDraftRefParams.parse(ref).id)
+  )
+  ipcMain.handle('hqProjects:createSlackDraftTask', (_event, draft: unknown) =>
+    service.createSlackDraftTask(HqSlackDraftCreateParams.parse(draft))
   )
 }
