@@ -16,6 +16,7 @@ vi.mock('./clickup-client', () => ({
 import { ClickUpApiError } from './clickup-request'
 import {
   addClickUpTaskComment,
+  createClickUpTask,
   listClickUpTasks,
   searchClickUpTasks,
   updateClickUpTaskStatus,
@@ -111,6 +112,26 @@ describe('write-back', () => {
     expect(requestMock.mock.calls[0][2]).toMatchObject({
       method: 'PUT',
       body: JSON.stringify({ time_estimate: 5_400_000 })
+    })
+  })
+
+  it('creates a task in the list on the assignee with markdown, and returns its link', async () => {
+    requestMock.mockResolvedValueOnce({ id: 'n1', url: 'https://app.clickup.com/t/n1' })
+    await expect(
+      createClickUpTask({
+        listId: '9015',
+        name: 'Fix the cart',
+        markdownDescription: '## Зачем',
+        assigneeId: '100',
+        status: 'future'
+      })
+    ).resolves.toEqual({ ok: true, url: 'https://app.clickup.com/t/n1' })
+    expect(requestMock.mock.calls[0][1]).toBe('/list/9015/task')
+    expect(JSON.parse(String(requestMock.mock.calls[0][2].body))).toEqual({
+      name: 'Fix the cart',
+      markdown_content: '## Зачем',
+      assignees: [100],
+      status: 'future'
     })
   })
 
