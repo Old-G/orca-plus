@@ -9,5 +9,8 @@ export const hqProjectsApi = {
   projectDiagram: (repoId) => ipcRenderer.invoke('hqProjects:projectDiagram', repoId),
   reviews: (refresh) => ipcRenderer.invoke('hqProjects:reviews', refresh === true),
   gitState: (paths) => ipcRenderer.invoke('hqProjects:gitState', paths),
-  draftTaskQuestions: (task) => ipcRenderer.invoke('hqProjects:draftTaskQuestions', task)
+  draftTaskQuestions: (task) => ipcRenderer.invoke('hqProjects:draftTaskQuestions', task),
+  slackDrafts: () => ipcRenderer.invoke('hqProjects:slackDrafts'),
+  rejectSlackDraft: (ref) => ipcRenderer.invoke('hqProjects:rejectSlackDraft', ref),
+  createSlackDraftTask: (draft) => ipcRenderer.invoke('hqProjects:createSlackDraftTask', draft)
 } satisfies PreloadApi['hqProjects']
