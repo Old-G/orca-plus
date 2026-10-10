@@ -313,6 +313,11 @@ export const electronViteConfig: UserConfig = {
       createPdfjsViewerAssetsPlugin(),
       createViteCacheRetentionPlugin()
     ],
+    // Custom build (dev): a linked workspace package is served as-is in dev, and process-host's
+    // build is CommonJS, so the browser cannot take a named export from it without pre-bundling.
+    optimizeDeps: {
+      include: ['@orca/process-host/growing-byte-buffer']
+    },
     worker: {
       format: 'es'
     },
