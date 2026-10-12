@@ -1,4 +1,4 @@
-import type { Grammar } from 'shiki/core'
+import type { Grammar, ThemeRegistrationRaw } from 'shiki/core'
 import type { StateStack } from 'shiki/textmate'
 import { BoundedMap } from '../../../../shared/bounded-map'
 import {
@@ -53,7 +53,8 @@ export type SyntaxHighlighter = (
 /** `unsupported`: no grammar for the language. `failed`: the grammar could not load. */
 export type SyntaxLanguageStatus = 'ready' | 'unsupported' | 'failed'
 
-const THEMES = { light: 'light-plus', dark: 'dark-plus' } as const
+// Custom build (custom-appearance-theme): mutable, so an imported theme can take its mode's slot.
+export const THEMES: { light: string; dark: string } = { light: 'light-plus', dark: 'dark-plus' }
 const MAX_LOAD_ATTEMPTS = 3
 const LOAD_RETRY_DELAY_MS = 2000
 // Arbitrary fence labels must not grow the table without limit.
@@ -83,6 +84,11 @@ const pendingLanguages = new BoundedMap<string, PendingLanguage>({
 })
 let highlighterPromise: Promise<TextMateCore> | undefined
 let loadFailureLogged = false
+
+/** Custom build (custom-appearance-theme): registers a theme the THEMES slots can then name. */
+export async function loadSyntaxTheme(theme: ThemeRegistrationRaw): Promise<void> {
+  await (await loadHighlighter()).core.loadTheme(theme)
+}
 
 function loadHighlighter(): Promise<TextMateCore> {
   highlighterPromise ??= createTextMateCore([

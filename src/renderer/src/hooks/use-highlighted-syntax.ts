@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react'
 import {
   createIncrementalSyntaxTokenizer,
   type SyntaxProgress
@@ -8,6 +8,10 @@ import {
   loadedSyntaxHighlighter,
   loadSyntaxLanguage
 } from '@/lib/syntax-highlighting/syntax-highlighter'
+import {
+  subscribeSyntaxHighlightTheme,
+  syntaxHighlightThemeRevision
+} from '@/lib/syntax-highlighting/syntax-highlight-theme-override'
 import { BoundedMap } from '../../../shared/bounded-map'
 
 // Each token is a DOM node, so only the start of a very long block is colored.
@@ -52,8 +56,9 @@ const finished = new BoundedMap<string, SyntaxProgress>({
   sizeOf: finishedBytes
 })
 
-function finishedKey(language: string, source: string): string {
-  return `${language}\n${source}`
+// Custom build (custom-appearance-theme): a theme change must not serve colors cached in the old one.
+function finishedKey(language: string, source: string, themeRevision: number): string {
+  return `${themeRevision}\n${language}\n${source}`
 }
 
 /**
@@ -66,6 +71,12 @@ export function useHighlightedSyntax(code: string, language: string): SyntaxProg
     code.length > MAX_HIGHLIGHTED_CODE_LENGTH ? code.slice(0, MAX_HIGHLIGHTED_CODE_LENGTH) : code
   const highlighter = loadedSyntaxHighlighter(language)
   const [, rerender] = useReducer((count: number) => count + 1, 0)
+  const themeRevision = useSyncExternalStore(
+    subscribeSyntaxHighlightTheme,
+    syntaxHighlightThemeRevision,
+    // Why: comment/document markdown is also rendered to a string, which needs a server snapshot.
+    syntaxHighlightThemeRevision
+  )
 
   // Why: `source` is a dependency so a block still streaming asks again after a failed load.
   useEffect(() => {
@@ -85,14 +96,15 @@ export function useHighlightedSyntax(code: string, language: string): SyntaxProg
 
   const tokenize = useMemo(
     () => (highlighter ? createIncrementalSyntaxTokenizer(highlighter) : null),
-    [highlighter]
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- themeRevision restarts tokenizing in the new theme.
+    [highlighter, themeRevision]
   )
   // Short blocks finish here and paint in color at once; longer ones continue below.
   const started = useMemo(
     () =>
-      finished.get(finishedKey(language, source)) ??
+      finished.get(finishedKey(language, source, themeRevision)) ??
       (tokenize ? tokenize(source, remainingRenderBudgetMs()) : null),
-    [language, source, tokenize]
+    [language, source, tokenize, themeRevision]
   )
   const [continued, setContinued] = useState<{
     after: SyntaxProgress
@@ -111,9 +123,9 @@ export function useHighlightedSyntax(code: string, language: string): SyntaxProg
     })
   }, [source, started, tokenize])
 
-  const latest = useRef({ language, source, progress })
+  const latest = useRef({ language, source, progress, themeRevision })
   useEffect(() => {
-    latest.current = { language, source, progress }
+    latest.current = { language, source, progress, themeRevision }
   })
   // Why: remembered on unmount, not on every streamed chunk, which would fill the cache with prefixes.
   useEffect(
@@ -125,7 +137,7 @@ export function useHighlightedSyntax(code: string, language: string): SyntaxProg
         !last.progress.degraded &&
         last.progress.highlightedLength >= last.source.length
       ) {
-        finished.set(finishedKey(last.language, last.source), last.progress)
+        finished.set(finishedKey(last.language, last.source, last.themeRevision), last.progress)
       }
     },
     []
