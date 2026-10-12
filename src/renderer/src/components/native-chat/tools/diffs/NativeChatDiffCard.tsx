@@ -9,6 +9,7 @@ import { NativeChatCopyButton } from '../../messages/actions/NativeChatCopyButto
 import { NativeChatToolFileTarget } from '../lines/NativeChatToolFileTarget'
 import { nativeChatToolRowVerb } from '../lines/native-chat-tool-line-label'
 import { nativeChatEditFilePatchText } from '../../../../../../shared/native-chat/tools/native-chat-edit-cards'
+import { NativeChatOpenDiffButton } from '../../NativeChatOpenDiffButton'
 import {
   nativeChatEditFileBaseName,
   nativeChatEditGutterChars,
@@ -197,6 +198,7 @@ export function NativeChatDiffCard({
             />
           ) : null}
         </button>
+        {file.changeKind === 'deleted' ? null : <NativeChatOpenDiffButton path={file.path} />}
         <NativeChatCopyButton
           text={copyText}
           label={t('components.native-chat.tool.copyDiff', 'Copy diff')}
