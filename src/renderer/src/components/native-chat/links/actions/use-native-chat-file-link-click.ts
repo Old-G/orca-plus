@@ -7,14 +7,15 @@ import { useAppStore } from '../../../../store/index'
 import { routeNativeChatHref } from '../../../../../../shared/native-chat/native-chat-href-routing'
 import { resolveNativeChatFileLink } from './native-chat-file-link'
 import type { NativeChatFileLinkContext } from './native-chat-file-link-context'
-import { nativeChatPlainLinkClickBehavior } from './native-chat-link-click-behavior'
 import { showFileLinkUnresolvedToast } from './native-chat-file-link-toasts'
+import { nativeChatPlainFileLinkClickBehavior } from './native-chat-link-click-behavior'
 import {
   nativeChatFileLinkActions,
   nativeChatFileOpenDeps
 } from './native-chat-link-target-actions'
 
-/** Honor terminal link-click settings: plain-click popover, modifier opens in Orca, Shift uses the default app. */
+/** A plain or modifier click opens the file in Orca, Shift opens the default app; a plain
+ *  click does nothing only when the link-click setting is "none". */
 export function useNativeChatFileLinkClick(
   context: NativeChatFileLinkContext | null,
   request?: (request: LinkActionRequest) => void,
@@ -33,7 +34,7 @@ export function useNativeChatFileLinkClick(
       event.stopPropagation()
       const state = useAppStore.getState()
       const behavior = isTerminalLinkActionActivation(event)
-        ? nativeChatPlainLinkClickBehavior(state.settings)
+        ? nativeChatPlainFileLinkClickBehavior(state.settings)
         : 'open'
       if (behavior === 'none') {
         return
