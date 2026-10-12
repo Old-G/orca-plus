@@ -19635,6 +19635,7 @@
         "fullOutputFailed": "无法加载完整输出",
         "fullOutputPartial": "正在显示 {{total}} 中的 {{shown}}",
         "copyDiff": "复制差异",
+        "openDiff": "在编辑器中打开差异",
         "diffGap": "未显示的行",
         "diffTruncated": "差异已截断",
         "row": {
