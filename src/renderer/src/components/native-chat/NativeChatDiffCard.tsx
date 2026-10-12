@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 import { DiffLineCounts } from '../right-sidebar/source-control/listing/diff-line-counts'
 import { NativeChatCopyButton } from './NativeChatCopyButton'
+import { NativeChatOpenDiffButton } from './NativeChatOpenDiffButton'
 import { NativeChatToolFileTarget } from './NativeChatToolFileTarget'
 import { nativeChatToolRowVerb } from './native-chat-tool-line-label'
 import { nativeChatEditFilePatchText } from '../../../../shared/native-chat-edit-cards'
@@ -212,6 +213,7 @@ export function NativeChatDiffCard({
             />
           ) : null}
         </button>
+        {file.changeKind === 'deleted' ? null : <NativeChatOpenDiffButton path={file.path} />}
         <NativeChatCopyButton
           text={copyText}
           label={translate('components.native-chat.tool.copyDiff', 'Copy diff')}

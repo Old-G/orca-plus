@@ -19383,6 +19383,7 @@
         "usedOneSummary": "使用 1 个工具",
         "usedManySummary": "使用过的 {{toolCount}} 工具",
         "copyDiff": "复制差异",
+        "openDiff": "在编辑器中打开差异",
         "diffGap": "未显示线路",
         "diffTruncated": "差异被截断",
         "row": {

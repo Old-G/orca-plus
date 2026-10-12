@@ -19528,6 +19528,7 @@
         "usedOneSummary": "Utilisé 1 outil",
         "usedManySummary": "Outils {{toolCount}} utilisés",
         "copyDiff": "Copier la différence",
+        "openDiff": "Ouvrir la différence dans l'éditeur",
         "diffGap": "Lignes non affichées",
         "diffTruncated": "Différent tronqué",
         "row": {
