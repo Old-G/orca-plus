@@ -31,6 +31,21 @@ describe('nativeChatAppearanceStyle terminal interface', () => {
     ).toBeUndefined()
   })
 
+  it('sets chat code in the editor font when one is chosen, unless chat matches the terminal', () => {
+    const editor = makeSettings({ terminalFontFamily: 'SF Mono', editorFontFamily: 'Monaco' })
+    expect(nativeChatAppearanceStyle(editor)['--chat-code-font-family']).toBe(
+      buildFontFamily('Monaco')
+    )
+    const matching = makeSettings({
+      terminalFontFamily: 'SF Mono',
+      editorFontFamily: 'Monaco',
+      nativeChatAppearance: { matchTerminalInterface: true }
+    })
+    expect(nativeChatAppearanceStyle(matching)['--chat-code-font-family']).toBe(
+      buildFontFamily('SF Mono')
+    )
+  })
+
   it('uses the selected theme and live overrides as the two palette sources', () => {
     const settings = makeSettings({
       nativeChatAppearance: { matchTerminalInterface: true, contrast: 150 },
