@@ -5,6 +5,7 @@ import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { resolveNativeChatAppearanceSettings } from '../../../../shared/native-chat-appearance-settings'
 import { resolveConfiguredTerminalColors } from '../../../../shared/terminal-theme-selection'
 import { buildFontFamily } from '@/lib/monospace-font-family'
+import { resolveEditorFontStack } from '@/lib/editor-font-zoom'
 import { getSystemPrefersDark, isTerminalBackgroundLight } from '@/lib/terminal-theme'
 import { useSystemPrefersDark } from '../terminal-pane/use-system-prefers-dark'
 
@@ -47,6 +48,7 @@ export function selectNativeChatAppearanceSettings(
     terminalCustomThemes: settings?.terminalCustomThemes,
     terminalColorOverrides: settings?.terminalColorOverrides,
     terminalFontFamily: settings?.terminalFontFamily,
+    editorFontFamily: settings?.editorFontFamily,
     terminalFontSize: settings?.nativeChatAppearance?.matchTerminalInterface
       ? settings.terminalFontSize
       : undefined,
@@ -93,7 +95,8 @@ export function nativeChatAppearanceStyle(
       Math.floor((((96 * columnWidthPx) / 736) * 14) / fontSize)
     ),
     '--chat-estimated-spacing-scale': uiFontSize / 14,
-    '--chat-code-font-family': font
+    // Custom build (chat-code-editor-font): chat code reads like the editor's, unless chat matches the terminal.
+    '--chat-code-font-family': matching ? font : resolveEditorFontStack(settings)
   }
   let light = settings?.theme === 'light' || (settings?.theme === 'system' && !systemPrefersDark)
   if (matching) {
