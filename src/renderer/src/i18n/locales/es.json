@@ -18766,6 +18766,7 @@
         "usedOneSummary": "Se usó 1 herramienta",
         "usedManySummary": "Se usaron {{toolCount}} herramientas",
         "copyDiff": "Copiar diff",
+        "openDiff": "Abrir diff en el editor",
         "diffGap": "Líneas no mostradas",
         "diffTruncated": "Diff truncado",
         "row": {

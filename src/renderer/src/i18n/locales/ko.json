@@ -18805,6 +18805,7 @@
         "usedOneSummary": "도구 1개 사용",
         "usedManySummary": "{{toolCount}} 도구를 사용했습니다.",
         "copyDiff": "차이점 복사",
+        "openDiff": "편집기에서 차이점 열기",
         "diffGap": "표시되지 않는 라인",
         "diffTruncated": "잘린 차이점",
         "row": {
