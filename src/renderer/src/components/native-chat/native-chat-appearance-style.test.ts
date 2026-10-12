@@ -34,6 +34,21 @@ describe('nativeChatAppearanceStyle terminal interface', () => {
     expect(style['--chat-foreground-mix']).toBe('78%')
   })
 
+  it('sets chat code in the editor font when one is chosen, unless chat matches the terminal', () => {
+    const editor = makeSettings({ terminalFontFamily: 'SF Mono', editorFontFamily: 'Monaco' })
+    expect(nativeChatAppearanceStyle(editor)['--chat-code-font-family']).toBe(
+      buildFontFamily('Monaco')
+    )
+    const matching = makeSettings({
+      terminalFontFamily: 'SF Mono',
+      editorFontFamily: 'Monaco',
+      nativeChatAppearance: { matchTerminalInterface: true }
+    })
+    expect(nativeChatAppearanceStyle(matching)['--chat-code-font-family']).toBe(
+      buildFontFamily('SF Mono')
+    )
+  })
+
   it('updates the code font and matching body font from the current terminal setting', () => {
     for (const terminalFontFamily of ['', 'Menlo', 'Consolas']) {
       const settings = makeSettings({
