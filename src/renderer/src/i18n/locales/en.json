@@ -19629,6 +19629,7 @@
         "usedOneSummary": "Used 1 tool",
         "usedManySummary": "Used {{toolCount}} tools",
         "copyDiff": "Copy diff",
+        "openDiff": "Open diff in editor",
         "diffGap": "Lines not shown",
         "diffTruncated": "Diff truncated",
         "row": {

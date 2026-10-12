@@ -19158,6 +19158,7 @@
         "usedOneSummary": "使用した工具 1 個",
         "usedManySummary": "使用した{{toolCount}}ツール",
         "copyDiff": "差分をコピー",
+        "openDiff": "エディターで差分を開く",
         "diffGap": "線は表示されません",
         "diffTruncated": "差分切り捨て",
         "row": {
