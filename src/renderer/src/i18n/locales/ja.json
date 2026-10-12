@@ -19127,6 +19127,7 @@
         "fullOutputFailed": "出力全体を読み込めませんでした。",
         "fullOutputPartial": "{{total}} のうち {{shown}} を表示しています。",
         "copyDiff": "差分をコピー",
+        "openDiff": "エディターで差分を開く",
         "diffGap": "線は表示されません",
         "diffTruncated": "差分切り捨て",
         "row": {

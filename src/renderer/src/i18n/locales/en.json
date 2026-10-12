@@ -20044,6 +20044,7 @@
         "fullOutputFailed": "Couldn't load the full output.",
         "fullOutputPartial": "Showing {{shown}} of {{total}}.",
         "copyDiff": "Copy diff",
+        "openDiff": "Open diff in editor",
         "diffGap": "Lines not shown",
         "diffTruncated": "Diff truncated",
         "row": {

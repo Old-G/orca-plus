@@ -34,6 +34,11 @@ vi.mock('./native-chat-file-link-toasts', () => ({
   showFileLinkUnverifiableToast: mocks.showUnverifiable,
   showFileLinkUnresolvedToast: mocks.showUnresolved
 }))
+// The edit card's diff button reads worktrees this partial store does not have; links are the subject here.
+vi.mock('./native-chat-edit-diff', () => ({
+  resolveChatEditDiffTarget: () => null,
+  openChatEditDiff: vi.fn()
+}))
 vi.mock('@/store', () => ({
   useAppStore: Object.assign(
     (selector: (state: Record<string, unknown>) => unknown) => selector({}),

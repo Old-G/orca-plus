@@ -19570,6 +19570,7 @@
         "fullOutputFailed": "No se pudo cargar la salida completa.",
         "fullOutputPartial": "Se muestran {{shown}} de {{total}}.",
         "copyDiff": "Copiar diff",
+        "openDiff": "Abrir diff en el editor",
         "diffGap": "Líneas no mostradas",
         "diffTruncated": "Diff truncado",
         "row": {

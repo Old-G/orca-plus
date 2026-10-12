@@ -19790,6 +19790,7 @@
         "fullOutputFailed": "Impossible de charger la sortie complète.",
         "fullOutputPartial": "Affichage de {{shown}} sur {{total}}.",
         "copyDiff": "Copier la différence",
+        "openDiff": "Ouvrir la différence dans l'éditeur",
         "diffGap": "Lignes non affichées",
         "diffTruncated": "Différent tronqué",
         "row": {

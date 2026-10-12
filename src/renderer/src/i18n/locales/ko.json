@@ -19127,6 +19127,7 @@
         "fullOutputFailed": "전체 출력을 불러오지 못했습니다.",
         "fullOutputPartial": "{{total}} 중 {{shown}}을(를) 표시하는 중입니다.",
         "copyDiff": "차이점 복사",
+        "openDiff": "편집기에서 차이점 열기",
         "diffGap": "표시되지 않는 라인",
         "diffTruncated": "잘린 차이점",
         "row": {

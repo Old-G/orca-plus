@@ -19093,6 +19093,7 @@
         "fullOutputFailed": "无法加载完整输出。",
         "fullOutputPartial": "正在显示 {{total}} 中的 {{shown}}。",
         "copyDiff": "复制差异",
+        "openDiff": "在编辑器中打开差异",
         "diffGap": "未显示线路",
         "diffTruncated": "差异被截断",
         "row": {
