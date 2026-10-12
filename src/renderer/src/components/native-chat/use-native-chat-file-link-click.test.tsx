@@ -149,26 +149,21 @@ describe('tool and edit-card file activation', () => {
     }
   )
 
-  it.each(['Enter', ' '])(
-    'anchors plain %j activation under the link and restores its focus',
-    (key) => {
-      mocks.buildFileLinkActions.mockReturnValue({ destination: '/repo/src/app.ts', kind: 'file' })
-      const request = vi.fn<(request: LinkActionRequest) => void>()
-      render(<ToolTarget request={request} />)
-      const link = screen.getByRole('link')
-      vi.spyOn(link, 'getBoundingClientRect').mockReturnValue(new DOMRect(10, 20, 30, 40))
+  it.each(['Enter', ' '])('opens the file on plain %j activation', (key) => {
+    const request = vi.fn<(request: LinkActionRequest) => void>()
+    render(<ToolTarget request={request} />)
+    const link = screen.getByRole('link')
 
-      fireEvent.keyDown(link, { key })
+    fireEvent.keyDown(link, { key })
 
-      expect(request).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({ anchorX: 10, anchorY: 60 })
-      )
-      expect(mocks.openDetectedFilePath).not.toHaveBeenCalled()
-      request.mock.calls[0]?.[0].restoreFocus()
-      expect(document.activeElement).toBe(link)
-      expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('false')
-    }
-  )
+    expect(request).not.toHaveBeenCalled()
+    expect(mocks.openDetectedFilePath).toHaveBeenCalledExactlyOnceWith(
+      '/repo/src/app.ts',
+      null,
+      null,
+      expect.objectContaining({ openWithSystemDefault: false })
+    )
+  })
 
   it.each([
     ['/repo/report:12', '/repo/report:12', 'tool'],
@@ -197,21 +192,19 @@ describe('tool and edit-card file activation', () => {
     }
   )
 
-  it('builds the menu for the exact sibling target without opening it', () => {
+  it('opens the exact sibling target on a plain click', () => {
     const request = vi.fn()
     render(<ToolTarget path="../sibling/readme.md" request={request} />)
 
     fireEvent.click(screen.getByRole('link'))
 
-    expect(mocks.buildFileLinkActions).toHaveBeenCalledExactlyOnceWith(
+    expect(request).not.toHaveBeenCalled()
+    expect(mocks.openDetectedFilePath).toHaveBeenCalledExactlyOnceWith(
       '/sibling/readme.md',
       null,
       null,
-      expect.objectContaining({ worktreeId: 'wt-1' }),
-      { kind: 'local' }
+      expect.objectContaining({ worktreeId: 'wt-1' })
     )
-    expect(request).toHaveBeenCalledOnce()
-    expect(mocks.openDetectedFilePath).not.toHaveBeenCalled()
   })
 
   it.each(['tool', 'reply'] as const)(
@@ -412,22 +405,20 @@ describe('useNativeChatFileLinkClick', () => {
   describe('with the file popover', () => {
     const rows = { destination: '/repo/src/app.ts', kind: 'file', primary: { label: 'Open file' } }
 
-    it('offers the terminal file actions on a plain click', () => {
+    it('opens the file on a plain click instead of offering the popover', () => {
       mocks.buildFileLinkActions.mockReturnValue(rows)
       const request = vi.fn()
       render(<Transcript markdown="See `src/app.ts:12`." request={request} />)
 
       clickLink('src/app.ts:12')
 
-      expect(mocks.openDetectedFilePath).not.toHaveBeenCalled()
-      expect(mocks.buildFileLinkActions).toHaveBeenCalledWith(
+      expect(request).not.toHaveBeenCalled()
+      expect(mocks.openDetectedFilePath).toHaveBeenCalledExactlyOnceWith(
         '/repo/src/app.ts',
         12,
         null,
-        expect.objectContaining({ worktreeId: 'wt-1', onOpenFailure: expect.any(Function) }),
-        { kind: 'local' }
+        expect.objectContaining({ worktreeId: 'wt-1', openWithSystemDefault: false })
       )
-      expect(request).toHaveBeenCalledWith(expect.objectContaining(rows))
     })
 
     it.each([
