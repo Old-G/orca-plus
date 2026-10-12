@@ -377,9 +377,8 @@ describe('native chat Markdown image preview', () => {
       )
       fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
       fireEvent.click(screen.getByRole('link', { name: 'Source' }))
-      if (terminalLinkClickBehavior === 'actions') {
-        expect(screen.getByText('Open file')).toBeInTheDocument()
-      } else if (terminalLinkClickBehavior === 'open') {
+      // Custom build (chat-file-links): a plain click on a chat file link opens it under "actions" too.
+      if (terminalLinkClickBehavior !== 'none') {
         expect(mocks.openDetectedFilePath).toHaveBeenCalledWith(
           '/repo/worktree/src/app.ts',
           null,
@@ -433,7 +432,13 @@ describe('native chat Markdown image preview', () => {
     expect(screen.queryByText('Open file')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     fireEvent.click(screen.getByRole('link', { name: 'caption' }))
-    expect(screen.getByText('/repo/worktree/details.md')).toBeInTheDocument()
+    // Custom build (chat-file-links): the caption's file link opens on a plain click.
+    expect(mocks.openDetectedFilePath).toHaveBeenCalledWith(
+      '/repo/worktree/details.md',
+      null,
+      null,
+      expect.anything()
+    )
   })
 
   it.each([
