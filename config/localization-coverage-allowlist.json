@@ -82,5 +82,19 @@
     "text": "Switch language",
     "dynamic": false,
     "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/orca-plus/hq/use-hq-chat-context.ts",
+    "kind": "object-property:label",
+    "text": "ClickUp",
+    "dynamic": true,
+    "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/settings/ClaudeSubscriptionsSection.tsx",
+    "kind": "jsx-attribute:placeholder",
+    "text": "~/.claude-work",
+    "dynamic": false,
+    "count": 1
   }
 ]

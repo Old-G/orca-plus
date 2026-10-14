@@ -2969,18 +2969,22 @@
     },
     "pulseBell": {
       "action": {
-        "dismiss": "Not now",
         "launch": "New session",
-        "open": "Open",
         "switch": "Switch account"
       },
       "kind": {
+        "agent-finished": {
+          "normal": "An agent finished"
+        },
         "agent-waiting": {
           "normal": "An agent is waiting for you",
           "urgent": "An agent needs your permission"
         },
         "handoff": {
           "normal": "Handoff saved, new session ready"
+        },
+        "outgoing-approval": {
+          "urgent": "Approve an outgoing action"
         }
       }
     },

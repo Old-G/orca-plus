@@ -29,7 +29,12 @@ export const getGeneralWorkspaceSearchEntries = createLocalizedCatalog(() => [
       'auto.hq.setting.description',
       'Meta-wiki over all your projects. Adding or removing a project updates its registry and pages.'
     ),
-    keywords: ['hq', 'wiki', 'registry', 'strata']
+    keywords: [
+      ...translateSearchKeyword('auto.hq.setting.keyword.hq', 'hq'),
+      ...translateSearchKeyword('auto.hq.setting.keyword.wiki', 'wiki'),
+      ...translateSearchKeyword('auto.hq.setting.keyword.registry', 'registry'),
+      ...translateSearchKeyword('auto.hq.setting.keyword.strata', 'strata')
+    ]
   },
   {
     title: translate(

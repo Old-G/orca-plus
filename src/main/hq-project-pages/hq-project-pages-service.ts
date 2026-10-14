@@ -109,7 +109,8 @@ export function createHqProjectPagesService(
       hqProjectClickUpLists: current.hqProjectClickUpLists ?? {},
       hqDeferredAfterMinutes: current.hqDeferredAfterMinutes,
       hqDeferredDismissed: current.hqDeferredDismissed ?? {},
-      hqTriageDecisions: current.hqTriageDecisions ?? {}
+      hqTriageDecisions: current.hqTriageDecisions ?? {},
+      hqChatsView: current.hqChatsView
     }
   }
 
