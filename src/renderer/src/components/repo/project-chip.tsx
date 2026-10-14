@@ -1,5 +1,5 @@
 import type React from 'react'
-import { RepoIconGlyph } from '@/components/repo/repo-icon'
+import { ProjectAccentRepoIconGlyph } from '../sidebar/ProjectAccentRepoIconGlyph'
 import { cn } from '@/lib/class-names'
 import type { Repo } from '../../../../shared/repository/repo-types'
 import { resolveRepoHeaderColor } from '../sidebar/worktree-list/rows/project-header-color'
@@ -9,7 +9,7 @@ export function ProjectChip({
   repo,
   className,
   ...props
-}: { repo: Pick<Repo, 'displayName' | 'repoIcon' | 'badgeColor'> } & Omit<
+}: { repo: Pick<Repo, 'id' | 'displayName' | 'repoIcon' | 'badgeColor'> } & Omit<
   React.ComponentProps<'span'>,
   'children'
 >): React.JSX.Element {
@@ -23,7 +23,9 @@ export function ProjectChip({
     >
       {/* Why: emoji glyphs scale with font size (0.9em), so pin it to fit the 12px icon box. */}
       <span className="inline-flex size-3 shrink-0 items-center justify-center text-2xs">
-        <RepoIconGlyph
+        {/* Custom build (project-colors): the project's accent color tints its icon. */}
+        <ProjectAccentRepoIconGlyph
+          projectId={repo.id}
           repoIcon={repo.repoIcon}
           color={resolveRepoHeaderColor(repo.badgeColor)}
           className="size-full"
