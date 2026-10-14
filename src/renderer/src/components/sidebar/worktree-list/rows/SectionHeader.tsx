@@ -9,6 +9,7 @@ import type { VirtualItem } from '@tanstack/react-virtual'
 import { cn } from '@/lib/class-names'
 import { RepoIconGlyph } from '@/components/repo/repo-icon'
 import { RepoMark } from '@/components/repo/RepoMark'
+import type { AppState } from '@/store/types'
 import { RepoForkIndicator } from '@/components/repo/repo-fork-indicator'
 
 import '@/store/project-groups/project-group-owner-routing'

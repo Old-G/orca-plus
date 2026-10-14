@@ -32,6 +32,7 @@ import { getRepositoryIconSectionId } from '@/components/settings/repository/rep
 import { WslMoveProjectMenuItem } from '@/components/wsl-move/WslMoveProjectMenuItem'
 import { WslMovedRepoUseHereMenuItem } from '@/components/wsl-move/WslMovedUseHereMenuItem'
 import { StrataAdoptMenuItem } from './StrataAdoptMenuItem'
+import { ProjectColorMenuItem } from './ProjectColorMenuItem'
 import type { ProjectGroup } from '../../../../../../shared/project/groups/project-group-types'
 import type {
   Repo,
@@ -153,6 +154,7 @@ export const RepoHeaderProjectActionsMenu = React.memo(function RepoHeaderProjec
           <Shapes className="size-3.5" />
           {t('auto.components.sidebar.WorktreeList.e82d3589a1', 'Change Project Icon')}
         </DropdownMenuItem>
+        <ProjectColorMenuItem repo={repo} />
         {isGitRepoKind(repo) ? (
           <DropdownMenuItem onSelect={() => actions.onOpenWorktreeVisibility(repo)}>
             <Eye className="size-3.5" />
