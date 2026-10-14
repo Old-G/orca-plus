@@ -18485,6 +18485,10 @@
       "forecast": {
         "session": "At this pace the 5-hour limit runs out at {{time}}",
         "weekly": "At this pace the weekly limit runs out at {{time}}"
+      },
+      "auto": {
+        "title": "Claude switched to {{account}}",
+        "body": "{{account}} hit its limit. Agents stopped on it: {{count}} — they continue now."
       }
     },
     "outgoingApproval": {
@@ -18519,13 +18523,25 @@
         "edit": "Edit",
         "reject": "Reject",
         "done": "Done"
+      },
+      "chatLimit": {
+        "moveFailed": "The chat could not continue there"
+      },
+      "authStop": {
+        "continued": "Sent «продолжай» to {{count}} agent(s)"
       }
     },
     "hq": {
       "setting": {
         "title": "HQ Folder",
         "description": "Meta-wiki over all your projects. Adding or removing a project updates its registry and pages.",
-        "placeholder": "Not set — sync is off"
+        "placeholder": "Not set — sync is off",
+        "keyword": {
+          "hq": "hq",
+          "wiki": "wiki",
+          "registry": "registry",
+          "strata": "strata"
+        }
       },
       "title": "HQ",
       "tab": {
@@ -18710,6 +18726,119 @@
         "removeProject": "Remove {{value0}}",
         "addProject": "Add a project to {{value0}}",
         "alsoIn": "+ project"
+      },
+      "chats": {
+        "group": {
+          "needs": "Needs you",
+          "working": "Working",
+          "done": "Done",
+          "quiet": "Quiet"
+        },
+        "listLabel": "Agent chats",
+        "empty": "No agent chats yet.",
+        "nextWaiting": "Next",
+        "nextWaitingHint": "Next chat that waits for you",
+        "markAllRead": "Mark all read",
+        "noHost": "This chat runs on a host HQ cannot reach from here. Open its project to see it.",
+        "state": {
+          "new": "No turns yet"
+        },
+        "back": "Back to chats",
+        "openProject": "Open project",
+        "waitsForYou": "Waiting for you",
+        "answerFor": "Answer {{value0}}",
+        "reviewApproval": "Review",
+        "pick": "Pick a chat on the left to read and answer it."
+      },
+      "context": {
+        "label": "Chat context",
+        "changes": "Changes",
+        "noGit": "No git branch to show changes for.",
+        "noChanges": "No uncommitted changes.",
+        "moreChanges": "+{{count}} more",
+        "review": "Review",
+        "task": "Task",
+        "otherChats": "Other chats here"
+      },
+      "mode": {
+        "label": "Mode",
+        "hq": "HQ",
+        "code": "Code"
+      },
+      "pinned": {
+        "agentBoard": "Agent board",
+        "label": "Pinned",
+        "onYou": "{{count}} on you",
+        "deferred": "{{count}} deferred"
+      },
+      "ready": {
+        "noCheck": "The task list has no «check» status — move it by hand.",
+        "title": "Ready for you",
+        "agentGone": "Agent session closed",
+        "agentWorking": "Agent is working…",
+        "agentDone": "Agent finished",
+        "reviewMerged": "{{value0}} merged",
+        "reviewOpen": "{{value0}} {{value1}}",
+        "open": "Report",
+        "acceptAgain": "Accept again",
+        "accept": "Accept",
+        "mergeConfirm": "Merge — sure?",
+        "merge": "Merge",
+        "checkSpec": "Check spec",
+        "redraftComment": "Redraft comment",
+        "draftComment": "Draft comment",
+        "reviewComment": "Review comment",
+        "rework": "Rework",
+        "checkAfterComment": "Send the comment first",
+        "setCheck": "Set «check»",
+        "dismissHint": "Leaves ClickUp as it is",
+        "dismiss": "Remove from HQ",
+        "reworkFor": "What to redo in {{value0}}",
+        "sendRework": "Send to the agent",
+        "reworkHint": "Goes to the same agent session.",
+        "commentFor": "Comment for {{value0}}",
+        "commented": "Comment is in ClickUp.",
+        "hoursSet": "Time Estimate: {{value0}} h",
+        "hours": "Time Estimate:",
+        "hoursPreset": "{{value0}} h",
+        "hoursOther": "other",
+        "hoursFor": "Hours for {{value0}}",
+        "setHours": "Set"
+      },
+      "slack": {
+        "created": "Task created in ClickUp",
+        "open": "Open",
+        "titleLabel": "Task title",
+        "descriptionLabel": "Task description",
+        "creating": "Creating…",
+        "create": "Create task",
+        "createHint": "Goes to the list in slack-scout/config.yaml; nothing is created before you click.",
+        "review": "Review draft",
+        "thread": "Slack thread",
+        "reject": "Reject",
+        "title": "From Slack",
+        "runFailed": "The scout did not run at {{time}} (Slack or ClickUp connector missing?). It retries the window next run; log: ~/Library/Logs/slack-scout.log",
+        "failed": "Couldn't read the Slack scout: {{value0}}",
+        "empty": "Nothing new from Slack."
+      },
+      "view": {
+        "newView": "New view"
+      },
+      "palette": {
+        "open": "Open HQ",
+        "openHint": "Agent chats, the day, waitings",
+        "code": "Switch to Code",
+        "codeHint": "The open chat's project",
+        "chat": "Chat: {{value0}}"
+      },
+      "deferredBell": {
+        "titleOne": "1 deferred session",
+        "titleMany": "{{value0}} deferred sessions",
+        "body": "Quiet sessions with their work unfinished — on HQ → Agents.",
+        "open": "Open"
+      },
+      "pulse": {
+        "badShape": "pulse snapshot has an unexpected shape"
       }
     },
     "claudeSubscriptions": {
@@ -18732,6 +18861,15 @@
       "denied": "Notifications are blocked for Orca+ in this phone’s settings.",
       "enable": "Turn on",
       "failed": "Notifications could not be turned on"
+    },
+    "sidebar": {
+      "summary": {
+        "needs": "{{count}} need you",
+        "working": "{{count}} working",
+        "done": "{{count}} done, unread"
+      },
+      "projectColor": "Project color",
+      "projectColorAuto": "Auto"
     },
     "startup": {
       "webHostUnreachable": {
