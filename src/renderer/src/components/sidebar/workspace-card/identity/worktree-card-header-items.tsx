@@ -1,7 +1,7 @@
 import React from 'react'
 import { AlertCircle, FolderMinus, House, Server, ServerOff, Star, Trash2 } from 'lucide-react'
 
-import { RepoIconGlyph } from '@/components/repo/repo-icon'
+import { ProjectAccentRepoIconGlyph } from '../../ProjectAccentRepoIconGlyph'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -26,7 +26,9 @@ export function WorktreeCardRepoChip({ repo }: { repo: Repo }): React.JSX.Elemen
         >
           {/* Why: emoji glyphs scale with font size (0.9em), so pin it to fit the 12px icon box. */}
           <span className="inline-flex size-3 shrink-0 items-center justify-center text-2xs">
-            <RepoIconGlyph
+            {/* Custom build (project-colors): the project's accent color tints its icon. */}
+            <ProjectAccentRepoIconGlyph
+              projectId={repo.id}
               repoIcon={repo.repoIcon}
               color={resolveRepoHeaderColor(repo.badgeColor)}
               className="size-full"

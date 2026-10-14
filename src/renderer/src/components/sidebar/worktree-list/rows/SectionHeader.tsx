@@ -8,6 +8,8 @@ import { ProjectHeaderHostLabel, ProjectHeaderHostTooltip } from './ProjectHeade
 import type { VirtualItem } from '@tanstack/react-virtual'
 import { cn } from '@/lib/class-names'
 import { RepoIconGlyph } from '@/components/repo/repo-icon'
+import type { AppState } from '@/store/types'
+import { ProjectAccentRepoIconGlyph } from '../../ProjectAccentRepoIconGlyph'
 import { RepoForkIndicator } from '@/components/repo/repo-fork-indicator'
 
 import '@/store/project-groups/project-group-owner-routing'
@@ -317,7 +319,8 @@ export function renderWorktreeSectionHeaderRow(
               )}
             >
               {row.repo ? (
-                <RepoIconGlyph
+                <ProjectAccentRepoIconGlyph
+                  projectId={row.repo.id}
                   repoIcon={row.repo.repoIcon}
                   color={repoHeaderColor}
                   className="size-4"
