@@ -8,6 +8,7 @@ export type HqClientSettings = Pick<
   | 'hqDeferredAfterMinutes'
   | 'hqDeferredDismissed'
   | 'hqTriageDecisions'
+  | 'hqChatsView'
 >
 
 /** The HQ settings a paired client may change. */
