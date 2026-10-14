@@ -8,6 +8,7 @@ import {
 } from '../../../../../shared/hq-morning-briefing'
 import { PULSE_BELL_ACTION } from '../../../../../shared/pulse-bell'
 import { useNow } from '@/hooks/use-now'
+import { translate } from '@/i18n/i18n'
 import { useLiveDashboardSnapshot } from '../../dashboard/useLiveDashboardSnapshot'
 import { useHqDeferredSessions } from './use-hq-deferred-sessions'
 
@@ -28,9 +29,19 @@ function Counter({ day, onDone }: { day: string; onDone: () => void }): null {
           .syncKind(HQ_DEFERRED_KIND, [
             {
               kind: HQ_DEFERRED_KIND,
-              title: `${count.current} deferred session${count.current === 1 ? '' : 's'}`,
-              body: 'Quiet sessions with their work unfinished — on HQ → Agents.',
-              actions: [{ id: PULSE_BELL_ACTION.open, label: 'Open' }],
+              title:
+                count.current === 1
+                  ? translate('auto.hq.deferredBell.titleOne', '1 deferred session')
+                  : translate('auto.hq.deferredBell.titleMany', '{{value0}} deferred sessions', {
+                      value0: String(count.current)
+                    }),
+              body: translate(
+                'auto.hq.deferredBell.body',
+                'Quiet sessions with their work unfinished — on HQ → Agents.'
+              ),
+              actions: [
+                { id: PULSE_BELL_ACTION.open, label: translate('auto.hq.deferredBell.open', 'Open') }
+              ],
               dedupeKey: `${HQ_DEFERRED_KIND}:${day}`
             }
           ])

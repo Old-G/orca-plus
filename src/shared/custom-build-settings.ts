@@ -25,6 +25,8 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqDeferredAfterMinutes?: number
     /** Custom build (hq-screen): closed deferred sessions — pane key → the quiet spell that was closed. */
     hqDeferredDismissed?: Record<string, number>
+    /** Custom build (hq-chats): HQ opens on its Chats view; false keeps only the earlier tabs. Default on. */
+    hqChatsView?: boolean
     /** Custom build (hq-triage): ClickUp tasks the owner took or hid in HQ «New tasks», by task id. */
     hqTriageDecisions?: HqTriageDecisions
   }

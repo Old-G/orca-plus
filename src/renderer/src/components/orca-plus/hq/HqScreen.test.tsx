@@ -9,13 +9,16 @@ type BoardProps = {
 }
 
 const mocks = vi.hoisted(() => {
+  const chatsView: { current: boolean | undefined } = { current: undefined }
   const board: { props: BoardProps | null } = { props: null }
   return {
     acknowledgeAgents: vi.fn(),
     revealDashboardAgent: vi.fn(),
     board,
     activeView: 'terminal',
-    setActiveView: vi.fn()
+    setActiveView: vi.fn(),
+    chatsView,
+    updateSettings: vi.fn(async () => {})
   }
 })
 
@@ -25,7 +28,9 @@ vi.mock('@/store', () => {
   const state = () => ({
     activeView: mocks.activeView,
     setActiveView: mocks.setActiveView,
-    acknowledgeAgents: mocks.acknowledgeAgents
+    acknowledgeAgents: mocks.acknowledgeAgents,
+    settings: { hqChatsView: mocks.chatsView.current },
+    updateSettings: mocks.updateSettings
   })
   const useAppStore = (selector: (s: ReturnType<typeof state>) => unknown) => selector(state())
   useAppStore.getState = state
@@ -34,6 +39,7 @@ vi.mock('@/store', () => {
 vi.mock('../../dashboard/useLiveDashboardSnapshot', () => ({
   useLiveDashboardSnapshot: () => ({})
 }))
+vi.mock('./HqMessengerScreen', () => ({ HqMessengerScreen: () => <div>messenger view</div> }))
 vi.mock('./HqWaitingTab', () => ({ HqWaitingTab: () => <div>waiting tab</div> }))
 vi.mock('./HqProjectsTab', () => ({ HqProjectsTab: () => <div>projects tab</div> }))
 vi.mock('./HqWikiTab', () => ({ HqWikiTab: () => <div>wiki tab</div> }))
@@ -62,10 +68,31 @@ afterEach(() => {
   cleanup()
   vi.clearAllMocks()
   mocks.activeView = 'terminal'
+  mocks.chatsView.current = undefined
+})
+
+describe('HqScreen views', () => {
+  it('shows the messenger view unless it was switched off', () => {
+    render(<HqScreen />)
+    expect(screen.getByText('messenger view')).toBeTruthy()
+    cleanup()
+    mocks.chatsView.current = false
+    render(<HqScreen />)
+    expect(screen.getByText('agent board')).toBeTruthy()
+    expect(screen.queryByText('messenger view')).toBeNull()
+  })
+
+  it("switches back to the new view from the earlier one's header", () => {
+    mocks.chatsView.current = false
+    render(<HqScreen />)
+    fireEvent.click(screen.getByRole('switch', { name: 'New view' }))
+    expect(mocks.updateSettings).toHaveBeenCalledWith({ hqChatsView: true })
+  })
 })
 
 describe('HqScreen', () => {
   it('shows the agent board on its Agents tab, acting on this window', () => {
+    mocks.chatsView.current = false
     render(<HqScreen />)
     expect(screen.getByText('agent board')).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Agents' }).getAttribute('aria-selected')).toBe('true')
@@ -80,6 +107,7 @@ describe('HqScreen', () => {
 
 describe('opening HQ on a tab', () => {
   it('starts a new screen on the asked tab, and switches an open one', () => {
+    mocks.chatsView.current = false
     openHqScreen('today')
     const { unmount } = render(<HqScreen />)
     expect(screen.getByText('today tab')).toBeTruthy()

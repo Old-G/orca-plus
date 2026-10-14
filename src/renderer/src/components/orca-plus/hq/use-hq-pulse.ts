@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import type { PulseWaitingDirection } from '../../../../../shared/pulse-types'
 import { isWebClientLocation } from '@/lib/web-client-location'
+import { translate } from '@/i18n/i18n'
 import { findPersonByName, readHqPulse, type HqPerson, type HqPulse } from './hq-pulse-snapshot'
 
 export type HqPulseState =
@@ -44,7 +45,13 @@ export function useHqPulse(): HqPulseState {
           setState(
             pulse
               ? { status: 'ready', pulse }
-              : { status: 'error', message: 'pulse snapshot has an unexpected shape' }
+              : {
+                  status: 'error',
+                  message: translate(
+                    'auto.hq.pulse.badShape',
+                    'pulse snapshot has an unexpected shape'
+                  )
+                }
           )
         })
         .catch((error: unknown) => {
