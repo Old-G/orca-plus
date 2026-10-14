@@ -5,6 +5,8 @@ import type { ProjectHeaderHostContext } from './project-header-host-context'
 import type { VirtualItem } from '@tanstack/react-virtual'
 import { cn } from '@/lib/utils'
 import { RepoIconGlyph } from '@/components/repo/repo-icon'
+import type { AppState } from '@/store/types'
+import { ProjectAccentRepoIconGlyph } from '../../ProjectAccentRepoIconGlyph'
 import { RepoForkIndicator } from '@/components/repo/repo-fork-indicator'
 import type { FolderWorkspacePathStatus } from '../../../../../../shared/folder-workspace-path-status'
 import { isConfirmedStaleFolderPathStatus } from '../../../../../../shared/folder-workspace-path-status'
@@ -322,7 +324,8 @@ export function renderWorktreeSectionHeaderRow(args: {
               )}
             >
               {row.repo ? (
-                <RepoIconGlyph
+                <ProjectAccentRepoIconGlyph
+                  projectId={row.repo.id}
                   repoIcon={row.repo.repoIcon}
                   color={repoHeaderColor}
                   className="size-4"
