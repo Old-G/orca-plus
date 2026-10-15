@@ -196,6 +196,8 @@ export const uiTerminalAndSessionTabsApi = {
       worktreeId: string
       leafId?: string | null
       ackPaneKeyOnSuccess?: string
+      /** Custom build (hq-stays): a notification click, not a CLI or runtime request. */
+      fromNotification?: boolean
       flashFocusedPane?: boolean
       scrollToBottomIfOutputSinceLastView?: boolean
     }) => void
@@ -207,6 +209,7 @@ export const uiTerminalAndSessionTabsApi = {
         worktreeId: string
         leafId?: string | null
         ackPaneKeyOnSuccess?: string
+        fromNotification?: boolean
         flashFocusedPane?: boolean
         scrollToBottomIfOutputSinceLastView?: boolean
       }

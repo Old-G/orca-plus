@@ -88,6 +88,7 @@ describe('terminal notification clicks in repo-less workspaces', () => {
       worktreeId,
       leafId: LEAF_ID,
       ackPaneKeyOnSuccess: PANE_KEY,
+      fromNotification: true,
       flashFocusedPane: true,
       scrollToBottomIfOutputSinceLastView: true
     })
