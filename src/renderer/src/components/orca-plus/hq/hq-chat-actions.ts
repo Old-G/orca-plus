@@ -9,6 +9,7 @@ import { useAppStore } from '@/store'
 import { revealDashboardAgent } from '../../dashboard/reveal-dashboard-agent'
 import { hqChatTabId, type HqChatItem } from './hq-chat-list'
 import { setShownHqChatTab } from './hq-chat-open'
+import { openCodeChat } from '../code-chat/code-chat-panel-state'
 import { closeHqScreen } from './hq-view'
 
 let shownItem: HqChatItem | null = null
@@ -19,15 +20,32 @@ export function setShownHqChat(item: HqChatItem | null): void {
   setShownHqChatTab(item ? { worktreeId: item.worktreeId, tabId: hqChatTabId(item) } : null)
 }
 
-/** The Code mode: the project of the chat HQ shows, with that chat in front; else back to where HQ
- *  was opened from. */
+/** The Code mode: the project of the chat HQ shows — a native chat beside the editor in the right
+ *  sidebar's Chat tab, a terminal agent's terminal in front; else back to where HQ was opened from. */
 export function switchHqToCode(): void {
   if (useAppStore.getState().activeView !== 'hq') {
     return
   }
-  if (!shownItem || !openHqChatInProject(shownItem)) {
+  const opened =
+    shownItem?.kind === 'chat'
+      ? openHqChatBesideEditor(shownItem)
+      : !!shownItem && openHqChatInProject(shownItem)
+  if (!opened) {
     closeHqScreen()
   }
+}
+
+function openHqChatBesideEditor(item: Extract<HqChatItem, { kind: 'chat' }>): boolean {
+  const executionHostId = item.tab.executionHostId ?? item.card?.executionHostId
+  const revealed = activateAndRevealWorkspace(
+    item.worktreeId,
+    executionHostId ? { executionHostId } : undefined
+  )
+  if (revealed === false) {
+    return false
+  }
+  openCodeChat(item.worktreeId, item.key)
+  return true
 }
 
 /** Leaves HQ for the chat's workspace with the chat's own tab in front. */

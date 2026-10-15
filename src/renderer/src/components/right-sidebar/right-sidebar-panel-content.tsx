@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import { lazyWithRetry as lazy } from '@/app-shell/startup/lazy-with-retry'
 import type { ActiveRightSidebarTab } from '../../../../shared/ui-chrome-types'
 import { isPluginPanelTabKey } from '../../../../shared/plugins/manifest/plugin-manifest'
+import { CODE_CHAT_TAB } from '../orca-plus/code-chat/code-chat-panel-state'
 
 const FileExplorer = lazy(() => import('./file-explorer/panel/FileExplorer'))
 const FolderWorkspaceSourceControl = lazy(() => import('./FolderWorkspaceSourceControlPanel'))
@@ -15,6 +16,7 @@ const FolderWorkspacePrChecksPanel = lazy(
   () => import('./hosted-review/folder-checks/FolderWorkspacePrChecksPanel')
 )
 const PluginPanel = lazy(() => import('./plugin-panels/PluginPanel'))
+const CodeChatPanel = lazy(() => import('../orca-plus/code-chat/CodeChatPanel'))
 
 type RightSidebarPanelContentProps = {
   effectiveTab: ActiveRightSidebarTab
@@ -63,8 +65,9 @@ export function RightSidebarPanelContent({
             isVisible={rightSidebarOpen && effectiveTab === 'pr-checks'}
           />
         )}
+        {effectiveTab === CODE_CHAT_TAB && <CodeChatPanel />}
         {/* Remount on plugin changes so an old iframe cannot post through the next plugin's rebound bridge. */}
-        {isPluginPanelTabKey(effectiveTab) && (
+        {isPluginPanelTabKey(effectiveTab) && effectiveTab !== CODE_CHAT_TAB && (
           <PluginPanel key={effectiveTab} tabKey={effectiveTab} />
         )}
       </Suspense>
