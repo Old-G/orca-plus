@@ -5,6 +5,7 @@ import {
   HqProjectDiagramParams,
   HqReviewsParams,
   HqSlackDraftCreateParams,
+  HqSlackDraftEditParams,
   HqSlackDraftRefParams,
   HqUpdateSettingsParams,
   HqWikiPageParams
@@ -100,6 +101,20 @@ export const HQ_PROJECTS_METHODS = [
     permission: 'workspace',
     params: HqSlackDraftCreateParams,
     handler: async (params) => service().createSlackDraftTask(params)
+  }),
+  defineMethod({
+    name: 'hqProjects.answerSlackDraft',
+
+    permission: 'workspace',
+    params: HqSlackDraftRefParams,
+    handler: async (params) => service().answerSlackDraft(params.id)
+  }),
+  defineMethod({
+    name: 'hqProjects.editSlackDraft',
+
+    permission: 'workspace',
+    params: HqSlackDraftEditParams,
+    handler: async (params) => service().editSlackDraft(params)
   }),
   defineMethod({
     name: 'hqProjects.settings',

@@ -9,7 +9,11 @@ import type {
 } from '../../shared/hq-project-pages'
 import type { HqClientSettings } from '../../shared/hq-client-settings'
 import type { HqTaskQuestionsResult } from '../../shared/hq-triage'
-import type { HqSlackScoutCreateResult, HqSlackScoutResult } from '../../shared/hq-slack-scout'
+import type {
+  HqSlackScoutCreateResult,
+  HqSlackScoutEdit,
+  HqSlackScoutResult
+} from '../../shared/hq-slack-scout'
 
 export type HqProjectsApi = {
   list: () => Promise<HqProjectPagesResult>
@@ -35,6 +39,11 @@ export type HqProjectsApi = {
     title: string
     description: string
   }) => Promise<HqSlackScoutCreateResult>
+  /** Custom build (hq-slack-requests): «Just reply» and the owner's corrections. */
+  answerSlackDraft: (ref: { id: string }) => Promise<HqSlackScoutCreateResult | { ok: true }>
+  editSlackDraft: (
+    edit: HqSlackScoutEdit & { id: string }
+  ) => Promise<HqSlackScoutCreateResult | { ok: true }>
   /** Paired web client only: HQ's settings, which live on the Mac. The desktop reads its own. */
   settings?: () => Promise<HqClientSettings>
 }

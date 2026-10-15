@@ -19,6 +19,9 @@ import { onPulseChanged } from '../pulse/pulse-change-events'
 import { bindAgentFinishedInbox, clearAgentFinished } from './pulse-bell-agent-finished'
 import { createWaitingAgentsTracker } from './pulse-bell-waiting-agents'
 import { readPulseBellInputs } from './pulse-bell-input-validation'
+import { startHqSlackRequestBell } from '../../hq-today/hq-slack-request-bell'
+import { onHqSlackScoutChanged, readHqSlackScout } from '../../hq-today/hq-slack-scout'
+import { listHqProjectPages } from '../../hq-project-pages/hq-project-pages'
 
 const BROADCAST_DEBOUNCE_MS = 50
 
@@ -75,6 +78,16 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
     }
   })
   agentHookServer.subscribeStatusDrop(onPaneGone)
+
+  // Custom build (hq-slack-requests): Slack requests the owner has not decided, behind «New view».
+  startHqSlackRequestBell({
+    hqPath: () => store.getSettings().hqPath ?? null,
+    enabled: () => store.getSettings().hqChatsView !== false,
+    readScout: readHqSlackScout,
+    listPages: listHqProjectPages,
+    sync,
+    onChanged: onHqSlackScoutChanged
+  })
 
   let timer: ReturnType<typeof setTimeout> | null = null
   onPulseChanged(() => {
