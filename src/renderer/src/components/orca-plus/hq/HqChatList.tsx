@@ -1,7 +1,7 @@
 // Custom build (hq-chats): the left column of the HQ chat screen — chats grouped by what they need
 // from the user, the quiet ones folded away.
 import { useState } from 'react'
-import { ChevronRight, Pin, PinOff } from 'lucide-react'
+import { ChevronRight, Pin, PinOff, Plus } from 'lucide-react'
 import { ShortcutKeyCombo } from '@/components/ShortcutKeyCombo'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -10,6 +10,7 @@ import { translate } from '@/i18n/i18n'
 import type { HqActiveProject } from './hq-active-projects'
 import type { HqChatGroup, HqChatItem } from './hq-chat-list'
 import { HqChatRow, HqNeedsChatRow } from './HqChatRow'
+import { startHqChat } from './hq-new-chat'
 
 export function hqChatGroupTitle(group: HqChatGroup): string {
   switch (group) {
@@ -33,6 +34,35 @@ function GroupCaption({ group, count }: { group: HqChatGroup; count: number }): 
   )
 }
 
+/** A new chat in the workspace of the project's latest chat. */
+function NewChatButton({ project }: { project: HqActiveProject }): React.JSX.Element | null {
+  const worktreeId = project.items[0]?.worktreeId
+  if (!worktreeId) {
+    return null
+  }
+  const label = translate('auto.hq.chats.newChat', 'New chat in {{value0}}', {
+    value0: project.projectName
+  })
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label={label}
+          onClick={() => void startHqChat(worktreeId)}
+        >
+          <Plus className="text-muted-foreground" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top" sideOffset={4}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 function ActiveProjectHeader({
   project,
   color,
@@ -53,6 +83,7 @@ function ActiveProjectHeader({
         style={{ backgroundColor: color }}
       />
       <span className="min-w-0 flex-1 truncate font-medium">{project.projectName}</span>
+      <NewChatButton project={project} />
       <Tooltip>
         <TooltipTrigger asChild>
           <Button

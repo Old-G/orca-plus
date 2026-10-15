@@ -19408,7 +19408,9 @@
         "reviewApproval": "Review",
         "pick": "Pick a chat on the left to read and answer it.",
         "unkeepProject": "Stop keeping in HQ",
-        "keepProject": "Keep in HQ"
+        "keepProject": "Keep in HQ",
+        "newChat": "New chat in {{value0}}",
+        "newChatFailed": "Couldn't start a new chat here."
       },
       "context": {
         "label": "Chat context",
