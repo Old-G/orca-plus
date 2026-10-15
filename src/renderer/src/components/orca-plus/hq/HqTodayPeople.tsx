@@ -185,7 +185,7 @@ export function HqTodayAgents({
   )
 }
 
-function RemindButton({
+export function RemindButton({
   waiting,
   personName,
   hqWorktreeId
