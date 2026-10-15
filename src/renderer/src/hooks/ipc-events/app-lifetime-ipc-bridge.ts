@@ -6,6 +6,7 @@ import { createBackgroundSleepingAgentWakeDispatcher } from '@/lib/wake-sleeping
 import { remoteRuntimeTerminalColorPush } from '@/runtime/remote-runtime-terminal-color-push'
 import { resetAgentHookCompletionNotificationCoordinators } from '../agent-hook-completion-notifications'
 import { useAppStore } from '../../store'
+import { openChatInShownHq } from '@/components/orca-plus/hq/hq-chat-open'
 import { registerAgentStatusIpcBridge } from './agent-status-ipc-bridge'
 import { registerBackgroundWorktreeRemovalBridge } from './background-worktree-removal-bridge'
 import { registerBrowserRequestIpcBridge } from './browser-request-ipc-bridge'
@@ -93,7 +94,11 @@ export function installAppLifetimeIpcEvents(): () => void {
   registerClaudeIdeIpcBridge(unsubs)
   unsubs.push(
     window.api.ui.onActivateWorktree(
-      ({ repoId, worktreeId, setup, startup, defaultTabs, providesInitialSurface }) => {
+      ({ repoId, worktreeId, setup, startup, defaultTabs, providesInitialSurface, notificationTabId }) => {
+        // Custom build (hq-stays): a notification clicked while HQ is in front opens its chat there.
+        if (notificationTabId && openChatInShownHq(worktreeId, notificationTabId)) {
+          return
+        }
         void worktreeRuntime
           .activateNotifiedWorktree(
             {

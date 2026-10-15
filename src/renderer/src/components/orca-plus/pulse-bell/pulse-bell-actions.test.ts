@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({
   ),
   toastError: vi.fn(),
   openHqScreen: vi.fn(),
-  openHqChat: vi.fn(),
+  list: vi.fn(async (): Promise<PulseInboxItem[]> => []),
   state: storeState()
 }))
 
@@ -48,9 +48,9 @@ vi.mock('@/lib/activate-tab-and-focus-pane', () => ({
 }))
 vi.mock('@/store', () => ({ useAppStore: { getState: () => mocks.state } }))
 vi.mock('../hq/hq-view', () => ({ openHqScreen: mocks.openHqScreen }))
-vi.mock('../hq/hq-chat-actions', () => ({ openHqChat: mocks.openHqChat }))
 
-import { runPulseBellAction } from './pulse-bell-actions'
+import { rememberedHqChat } from '../hq/hq-chat-open'
+import { closeFinishedPulseBellItemsForHqChat, runPulseBellAction } from './pulse-bell-actions'
 
 function bellItem(kind: string, refId: string | null): PulseInboxItem {
   return {
@@ -77,7 +77,7 @@ beforeEach(() => {
     api: {
       claudeHandoff: { dismiss: mocks.dismiss },
       claudeLimitGuard: { continueOnSubscription: mocks.continueOnSubscription },
-      pulseBell: { markRead: mocks.markRead, markDone: mocks.markDone }
+      pulseBell: { list: mocks.list, markRead: mocks.markRead, markDone: mocks.markDone }
     }
   })
 })
@@ -138,7 +138,8 @@ describe('runPulseBellAction', () => {
       worktreeId: 'wt-2'
     })
     await runPulseBellAction(bellItem('agent-finished', ref), 'open')
-    expect(mocks.openHqChat).toHaveBeenCalledWith('wt-2\u0000structured-agent-session-claude_ab')
+    expect(rememberedHqChat()).toBe('wt-2\u0000structured-agent-session-claude_ab')
+    expect(mocks.openHqScreen).toHaveBeenCalledWith('chats')
     expect(mocks.activateAndRevealWorkspace).not.toHaveBeenCalled()
     expect(mocks.markDone).toHaveBeenCalledWith('item-1', 'open')
   })
@@ -147,8 +148,23 @@ describe('runPulseBellAction', () => {
     mocks.state = storeState('hq', { hqChatsView: false })
     const ref = JSON.stringify({ paneKey: 'tab-9:leaf-1', tabId: 'tab-9', worktreeId: 'wt-2' })
     await runPulseBellAction(bellItem('agent-finished', ref), 'open')
-    expect(mocks.openHqChat).not.toHaveBeenCalled()
+    expect(mocks.openHqScreen).not.toHaveBeenCalled()
     expect(mocks.activateAndRevealWorkspace).toHaveBeenCalled()
+  })
+
+  it('closes the finish of a chat opened in HQ as its Open would, and nothing else', async () => {
+    const finish = (id: string, tabId: string, kind = 'agent-finished'): PulseInboxItem => ({
+      ...bellItem(kind, JSON.stringify({ paneKey: `${tabId}:leaf-1`, tabId, worktreeId: 'wt-2' })),
+      id
+    })
+    mocks.list.mockResolvedValueOnce([
+      finish('shown', 'tab-1'),
+      finish('other', 'tab-2'),
+      finish('asking', 'tab-1', 'agent-waiting')
+    ])
+    await closeFinishedPulseBellItemsForHqChat('wt-2', 'tab-1')
+    expect(mocks.markDone).toHaveBeenCalledTimes(1)
+    expect(mocks.markDone).toHaveBeenCalledWith('shown', 'open')
   })
 
   it('switches the Claude account for a limit card, then closes it with the pressed button', async () => {

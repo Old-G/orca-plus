@@ -4,6 +4,7 @@ import type { ClaudeHandoffOffer } from '../../../shared/claude-handoff-file'
 import { translate } from '@/i18n/i18n'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
+import { openChatInShownHq } from '@/components/orca-plus/hq/hq-chat-open'
 
 const toastId = (offer: ClaudeHandoffOffer): string => `claude-handoff-${offer.id}`
 
@@ -34,7 +35,9 @@ export async function launchClaudeHandoffOffer(offerId: string): Promise<void> {
     )
     return
   }
-  activateAndRevealWorktree(result.worktreeId)
+  if (!openChatInShownHq(result.worktreeId, result.tabId)) {
+    activateAndRevealWorktree(result.worktreeId)
+  }
 }
 
 /**

@@ -102,13 +102,15 @@ describe('registerNotificationHandlers', () => {
     expect(notificationRemoveListenerMock).toHaveBeenCalledWith('click', expect.any(Function))
     expect(webContentsSend).toHaveBeenCalledWith('ui:activateWorktree', {
       repoId: 'repo',
-      worktreeId: 'repo::wt1'
+      worktreeId: 'repo::wt1',
+      notificationTabId: 'tab-1'
     })
     expect(webContentsSend).toHaveBeenCalledWith('ui:focusTerminal', {
       tabId: 'tab-1',
       worktreeId: 'repo::wt1',
       leafId: '11111111-1111-4111-8111-111111111111',
       ackPaneKeyOnSuccess: paneKey,
+      fromNotification: true,
       flashFocusedPane: true,
       scrollToBottomIfOutputSinceLastView: true
     })
@@ -156,7 +158,8 @@ describe('registerNotificationHandlers', () => {
 
     expect(webContentsSend).toHaveBeenCalledWith('ui:activateWorktree', {
       repoId: 'repo',
-      worktreeId: 'repo::wt1'
+      worktreeId: 'repo::wt1',
+      notificationTabId: 'chat-tab'
     })
     expect(webContentsSend).toHaveBeenCalledWith('ui:focusEditorTab', {
       tabId: 'chat-tab',
