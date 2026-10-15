@@ -102,14 +102,18 @@ export async function addHqWaiting(args: {
   people: readonly HqPerson[]
   /** HQ slug of the project the waiting is about. */
   project?: string | null
+  /** Custom build (hq-notes): `note` for a plain note; `manual` otherwise. */
+  source?: string
+  dueAt?: number | null
 }): Promise<void> {
   const personId = await personIdFor(args.people, args.personName)
   await writePulse('pulse.addWaiting', {
     direction: args.direction,
     title: args.title.trim(),
-    source: 'manual',
+    source: args.source ?? 'manual',
     ...(personId ? { personId } : {}),
-    ...(args.project ? { project: args.project } : {})
+    ...(args.project ? { project: args.project } : {}),
+    ...(args.dueAt ? { dueAt: args.dueAt } : {})
   })
 }
 
