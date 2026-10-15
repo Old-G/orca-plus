@@ -56,6 +56,10 @@ export class AgentStatusProjection {
   dashboardCounts(): DashboardCounts {
     return this.data.dashboardTotals
   }
+  /** Custom build (sidebar-summary): the same counts per workspace, for per-project sums. */
+  dashboardCountsByWorktree(): ReadonlyMap<string, DashboardCounts> {
+    return this.data.countsByWorktree
+  }
   terminalLeafAgentTypes(tabId: string) {
     return readTerminalLeafAgentTypes(this.data, tabId)
   }
