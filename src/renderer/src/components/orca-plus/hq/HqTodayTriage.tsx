@@ -24,7 +24,6 @@ import {
   buildClickUpLinkedWorkItem,
   getClickUpTaskWorkspaceSeed
 } from '@/lib/clickup-linked-work-item'
-import { launchWorkItemDirect } from '@/lib/launch-work-item-direct'
 import {
   clickUpAddTaskComment,
   clickUpGetTask,
@@ -41,6 +40,7 @@ import {
   takeHqTriageTask,
   type HqTriageTakeResult
 } from './hq-triage-take'
+import { launchHqTakeInRepo } from './hq-take-launch'
 import { HqTodayAwaitingAuthor } from './HqTodayAwaitingAuthor'
 import { HqTodayReady } from './HqTodayReady'
 import { HqTodayTriageRow } from './HqTodayTriageRow'
@@ -195,26 +195,14 @@ export function HqTodayTriage({
           getTask: (taskId) => clickUpGetTask(sourceContext, taskId),
           launch: async (item) => {
             if (!coordinate) {
-              const existing = new Set(
-                (useAppStore.getState().worktreesByRepo[main.id] ?? []).map((w) => w.id)
-              )
-              const launched = await launchWorkItemDirect({
+              const launched = await launchHqTakeInRepo({
                 item,
                 repoId: main.id,
-                agentOverride: 'claude',
-                promptDelivery: 'submit-after-ready',
-                launchSource: 'task_page',
-                telemetrySource: 'sidebar',
-                nativeChatSessionOptions: sessionOptions,
+                sessionOptions,
                 openModalFallback: () => openComposer(task, main.id)
               })
-              // Why: the launch reveals its new worktree; an older one active means it was not caught.
-              const worktreeId = useAppStore.getState().activeWorktreeId
-              session =
-                launched && worktreeId && !existing.has(worktreeId)
-                  ? { worktreeId, before: new Set(), coordinator: false }
-                  : null
-              return launched
+              session = launched.session
+              return launched.launched
             }
             const state = useAppStore.getState()
             const hqWorktreeId = findHqWorktreeId(

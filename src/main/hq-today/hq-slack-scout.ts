@@ -181,5 +181,5 @@ export async function createHqSlackScoutTask(
     at: deps.now(),
     taskUrl: created.url
   })
-  return { ok: true, taskUrl: created.url }
+  return { ok: true, taskUrl: created.url, ...(created.id ? { taskId: created.id } : {}) }
 }

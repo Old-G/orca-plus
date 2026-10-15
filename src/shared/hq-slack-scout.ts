@@ -185,7 +185,9 @@ export type HqSlackScoutResult =
     }
   | { ok: false; error: string }
 
-export type HqSlackScoutCreateResult = { ok: true; taskUrl: string } | { ok: false; error: string }
+export type HqSlackScoutCreateResult =
+  | { ok: true; taskUrl: string; taskId?: string }
+  | { ok: false; error: string }
 
 /** Drafts the owner has not decided yet. */
 export function pendingHqSlackScoutDrafts(
