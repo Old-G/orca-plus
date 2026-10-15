@@ -7,9 +7,8 @@ import { ChevronDown } from 'lucide-react'
 import { ProjectHeaderHostLabel, ProjectHeaderHostTooltip } from './ProjectHeaderHostLabel'
 import type { VirtualItem } from '@tanstack/react-virtual'
 import { cn } from '@/lib/class-names'
-import { RepoIconGlyph } from '@/components/repo/repo-icon'
-import type { AppState } from '@/store/types'
 import { ProjectAccentRepoIconGlyph } from '../../ProjectAccentRepoIconGlyph'
+import { ProjectAgentSummary } from '../../ProjectAgentSummary'
 import { RepoForkIndicator } from '@/components/repo/repo-fork-indicator'
 
 import '@/store/project-groups/project-group-owner-routing'
@@ -339,6 +338,7 @@ export function renderWorktreeSectionHeaderRow(
                 <FolderPathStatusIndicator status={projectGroupPathStatus} />
                 {isRepoHeader ? <StrataStatusIndicator repoId={row.repo!.id} /> : null}
                 {isRepoHeader ? <RepoScanUnavailableIndicator repo={row.repo!} /> : null}
+                {isRepoHeader ? <ProjectAgentSummary projectId={row.repo!.id} /> : null}
               </div>
             </div>
           </div>
