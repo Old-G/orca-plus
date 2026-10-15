@@ -110,7 +110,8 @@ export function createHqProjectPagesService(
       hqDeferredAfterMinutes: current.hqDeferredAfterMinutes,
       hqDeferredDismissed: current.hqDeferredDismissed ?? {},
       hqTriageDecisions: current.hqTriageDecisions ?? {},
-      hqChatsView: current.hqChatsView
+      hqChatsView: current.hqChatsView,
+      hqKeptProjectIds: current.hqKeptProjectIds ?? []
     }
   }
 
