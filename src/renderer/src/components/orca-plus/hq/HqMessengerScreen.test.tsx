@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import type { DashboardCard, DashboardWorkspace } from '../../../../../shared/dashboard-snapshot'
@@ -213,12 +213,12 @@ describe('HqMessengerScreen', () => {
     )
   })
 
-  it('folds quiet chats away, and opens one in its project on request', () => {
+  it("keeps a recent project's read chats in view, and opens one in its project on request", () => {
     setItems([], [chatTab('new', 'Fresh chat')])
     renderTab()
-    expect(screen.queryByRole('button', { name: /Fresh chat/ })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /Quiet/ }))
-    fireEvent.click(screen.getByRole('button', { name: /Fresh chat/ }))
+    const projects = screen.getByRole('region', { name: 'Active projects' })
+    expect(screen.queryByRole('button', { name: /Quiet/ })).toBeNull()
+    fireEvent.click(within(projects).getByRole('button', { name: /Fresh chat/ }))
     expect(screen.getByText('No turns yet')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Open project' }))
     expect(mocks.openInProject).toHaveBeenCalledWith(
