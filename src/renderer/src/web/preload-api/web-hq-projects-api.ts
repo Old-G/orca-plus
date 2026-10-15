@@ -26,6 +26,8 @@ export function createWebHqProjectsApi(): Pick<PreloadApi, 'hqProjects' | 'click
       slackDrafts: () => callRuntimeResult('hqProjects.slackDrafts'),
       rejectSlackDraft: (ref) => callRuntimeResult('hqProjects.rejectSlackDraft', ref),
       createSlackDraftTask: (draft) => callRuntimeResult('hqProjects.createSlackDraftTask', draft),
+      answerSlackDraft: (ref) => callRuntimeResult('hqProjects.answerSlackDraft', ref),
+      editSlackDraft: (edit) => callRuntimeResult('hqProjects.editSlackDraft', edit),
       settings: () => loadRuntimeHqSettings()
     }
   }
