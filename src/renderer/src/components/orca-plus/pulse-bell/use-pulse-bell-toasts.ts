@@ -1,6 +1,7 @@
 // Custom build (pulse-bell): an agent that finishes while Orca+ is in front pops a toast naming it,
 // with Open — the desktop banner only shows while Orca+ is in the background. A chat stopped on its
-// Claude limit pops one too, with the item's own buttons (continue on another subscription).
+// Claude limit pops one too, with the item's own buttons (continue on another subscription). A held
+// outgoing call pops as its whole decision card.
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import {
@@ -12,6 +13,7 @@ import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 import { runPulseBellAction } from './pulse-bell-actions'
 import { usePulseBellInbox } from './use-pulse-bell-inbox'
 import { isHqChatShown } from '../hq/hq-chat-open'
+import { syncOutgoingApprovalToasts } from '../outgoing-approval/outgoing-approval-toasts'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 
@@ -53,8 +55,10 @@ export function usePulseBellToasts(): void {
   // Why: null until the first list lands — items already open at launch stay in the Inbox only.
   const known = useRef<Set<string> | null>(null)
   const shown = useRef(new Set<string>())
+  const approvals = useRef(new Set<string>())
 
   useEffect(() => {
+    syncOutgoingApprovalToasts(items, approvals.current)
     const finished = items.filter((item) => TOASTED_KINDS.has(item.kind))
     const open = new Set(finished.map((item) => item.id))
     for (const id of shown.current) {
