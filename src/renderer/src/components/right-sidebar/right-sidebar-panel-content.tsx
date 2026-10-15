@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { lazyWithRetry as lazy } from '@/lib/lazy-with-retry'
 import type { ActiveRightSidebarTab } from '@/store/slices/editor'
 import { isPluginPanelTabKey } from '../../../../shared/plugins/manifest/plugin-manifest'
+import { CODE_CHAT_TAB } from '../orca-plus/code-chat/code-chat-panel-state'
 
 const FileExplorer = lazy(() => import('./FileExplorer'))
 const SourceControl = lazy(() => import('./SourceControl'))
@@ -11,6 +12,7 @@ const AiVaultSidebarPanel = lazy(() => import('./AiVaultSidebarPanel'))
 const FolderWorkspaceWorktreesPanel = lazy(() => import('./FolderWorkspaceWorktreesPanel'))
 const FolderWorkspacePrChecksPanel = lazy(() => import('./FolderWorkspacePrChecksPanel'))
 const PluginPanel = lazy(() => import('./PluginPanel'))
+const CodeChatPanel = lazy(() => import('../orca-plus/code-chat/CodeChatPanel'))
 
 type RightSidebarPanelContentProps = {
   effectiveTab: ActiveRightSidebarTab
@@ -38,8 +40,9 @@ export function RightSidebarPanelContent({
             isVisible={rightSidebarOpen && effectiveTab === 'pr-checks'}
           />
         )}
+        {effectiveTab === CODE_CHAT_TAB && <CodeChatPanel />}
         {/* Remount on plugin changes so an old iframe cannot post through the next plugin's rebound bridge. */}
-        {isPluginPanelTabKey(effectiveTab) && (
+        {isPluginPanelTabKey(effectiveTab) && effectiveTab !== CODE_CHAT_TAB && (
           <PluginPanel key={effectiveTab} tabKey={effectiveTab} />
         )}
       </Suspense>

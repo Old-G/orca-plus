@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Plug, Files, GitBranch, ListChecks, Workflow } from 'lucide-react'
+import { Plug, Files, GitBranch, ListChecks, MessagesSquare, Workflow } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { useRepoById } from '@/store/selectors'
 import { isFolderRepo } from '../../../../shared/repo-kind'
@@ -22,6 +22,8 @@ import { translate } from '@/i18n/i18n'
 import { useUiLanguageRevision } from '@/i18n/use-ui-language-revision'
 import { AgentSessionHistoryIcon } from './agent-session-history-icon'
 import type { ActivityBarItem } from './activity-bar-buttons'
+import { useOrcaPlusNewView } from '@/lib/orca-plus-new-view'
+import { CODE_CHAT_TAB } from '../orca-plus/code-chat/code-chat-panel-state'
 
 export type RightSidebarActivityItems = {
   visibleItems: ActivityBarItem[]
@@ -66,8 +68,10 @@ export function useRightSidebarActivityItems({
   const installedPlugins = usePluginPanelsStore((s) => s.plugins)
   const pluginFetchStatus = usePluginPanelsStore((s) => s.fetchStatus)
   const pluginPanelErrors = usePluginPanelsStore((s) => s.panelErrors)
+  const newView = useOrcaPlusNewView()
+  // Custom build (code-chat): the Chat tab rides a plugin-shaped key, so it counts as installed.
   const installedPluginTabKeys = useMemo(
-    () => collectInstalledPluginTabKeys(installedPlugins),
+    () => new Set([...collectInstalledPluginTabKeys(installedPlugins), CODE_CHAT_TAB]),
     [installedPlugins]
   )
 
@@ -79,6 +83,16 @@ export function useRightSidebarActivityItems({
         title: translate('auto.components.right.sidebar.index.8bc2bbc3a0', 'Explorer'),
         shortcut: explorerShortcut === 'Unassigned' ? '' : explorerShortcut
       },
+      ...(newView
+        ? [
+            {
+              id: CODE_CHAT_TAB,
+              icon: MessagesSquare,
+              title: translate('auto.codeChat.title', 'Chat'),
+              shortcut: ''
+            }
+          ]
+        : []),
       {
         id: 'vault',
         icon: AgentSessionHistoryIcon,
@@ -130,6 +144,7 @@ export function useRightSidebarActivityItems({
     [
       checksShortcut,
       explorerShortcut,
+      newView,
       pluginPanelErrors,
       visiblePluginPanels,
       portsShortcut,
