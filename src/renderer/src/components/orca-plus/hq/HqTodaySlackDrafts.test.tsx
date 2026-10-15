@@ -9,7 +9,7 @@ vi.mock('@/i18n/i18n', () => ({
     fallback.replace('{{value0}}', options?.value0 ?? '')
 }))
 vi.mock('./HqCommandDictation', () => ({ HqCommandDictation: () => null }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }))
 let newView = false
 vi.mock('@/lib/orca-plus-new-view', () => ({ useOrcaPlusNewView: () => newView }))
 vi.mock('./use-hq-project-pages', () => ({
@@ -22,6 +22,14 @@ vi.mock('./use-hq-project-pages', () => ({
   })
 }))
 vi.mock('./hq-view', () => ({ openHqScreen: vi.fn() }))
+vi.mock('@/store', () => ({
+  useAppStore: { getState: () => ({ repos: [], worktreesByRepo: {}, settings: {} }) }
+}))
+vi.mock('@/runtime/runtime-clickup-client', () => ({}))
+vi.mock('./hq-today-actions', () => ({ findHqWorktreeId: () => null, launchHqCommand: vi.fn() }))
+vi.mock('./hq-take-launch', () => ({ launchHqTakeInRepo: vi.fn() }))
+vi.mock('./hq-triage-decisions', () => ({ rememberHqTake: vi.fn() }))
+vi.mock('./use-hq-project-clickup', () => ({ readHqClickUpSourceContext: () => null }))
 
 const { HqTodaySlackDrafts } = await import('./HqTodaySlackDrafts')
 
@@ -147,22 +155,21 @@ describe('HqTodaySlackDrafts', () => {
       expect(second?.querySelectorAll('button')[0]?.textContent).toBe('Do')
     })
 
-    it('Do creates the task straight from the draft', async () => {
+    it('Do on a request with no project asks for the project before anything is created', async () => {
       render(<HqTodaySlackDrafts />)
       await screen.findByText('проверь тикеты')
       const second = screen.getAllByRole('listitem')[1]
       fireEvent.click(second!.querySelectorAll('button')[0]!)
+      expect(await screen.findByRole('textbox', { name: 'What they ask' })).toBeTruthy()
+      expect(api.createSlackDraftTask).not.toHaveBeenCalled()
+      // Cancel lets go of the editor the bell or Do asked for.
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
       await waitFor(() =>
-        expect(api.createSlackDraftTask).toHaveBeenCalledWith({
-          id: 'C1:1',
-          title: 'Fix the cart',
-          description: '## Зачем'
-        })
+        expect(screen.queryByRole('textbox', { name: 'What they ask' })).toBeNull()
       )
-      await waitFor(() => expect(screen.queryByText('Fix the cart')).toBeNull())
     })
 
-    it('Just reply opens the thread and records the answer, without a task', async () => {
+    it('Just reply without the HQ workspace opens the thread and records the answer', async () => {
       render(<HqTodaySlackDrafts />)
       fireEvent.click((await screen.findAllByRole('button', { name: 'Just reply' }))[0]!)
       await waitFor(() => expect(api.answerSlackDraft).toHaveBeenCalledWith({ id: 'D1:2' }))

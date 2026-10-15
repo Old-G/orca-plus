@@ -32,6 +32,22 @@ export type HqClickUpTasksState =
   | { status: 'ready'; tasks: ClickUpTaskSummary[] }
   | { status: 'error'; message: string }
 
+/** Custom build (hq-slack-requests): the context the hook builds, read once outside React. */
+export function readHqClickUpSourceContext(repoId: string): TaskSourceContext | null {
+  const { settings, clickUpStatus: status } = useAppStore.getState()
+  const workspace =
+    status.workspaces.find((entry) => entry.id === status.selectedWorkspaceId) ??
+    status.workspaces[0] ??
+    null
+  return status.connected
+    ? buildClickUpTaskSourceContext({
+        projectId: repoId,
+        hostId: getSettingsFocusedExecutionHostId(settings),
+        workspace
+      })
+    : null
+}
+
 function errorText(error: unknown): string {
   return readIpcErrorMessage(error) ?? String(error)
 }
