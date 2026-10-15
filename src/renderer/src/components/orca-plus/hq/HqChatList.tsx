@@ -1,12 +1,13 @@
 // Custom build (hq-chats): the left column of the HQ chat screen — chats grouped by what they need
 // from the user, the quiet ones folded away.
 import { useState } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Pin, PinOff } from 'lucide-react'
 import { ShortcutKeyCombo } from '@/components/ShortcutKeyCombo'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
+import type { HqActiveProject } from './hq-active-projects'
 import type { HqChatGroup, HqChatItem } from './hq-chat-list'
 import { HqChatRow, HqNeedsChatRow } from './HqChatRow'
 
@@ -32,8 +33,51 @@ function GroupCaption({ group, count }: { group: HqChatGroup; count: number }): 
   )
 }
 
+function ActiveProjectHeader({
+  project,
+  color,
+  onKeep
+}: {
+  project: HqActiveProject
+  color: string
+  onKeep: (repoId: string, kept: boolean) => void
+}): React.JSX.Element {
+  const label = project.kept
+    ? translate('auto.hq.chats.unkeepProject', 'Stop keeping in HQ')
+    : translate('auto.hq.chats.keepProject', 'Keep in HQ')
+  return (
+    <div className="flex items-center gap-1.5 pr-1 pl-2.5 text-xs">
+      <span
+        aria-hidden
+        className="size-2 shrink-0 rounded-full"
+        style={{ backgroundColor: color }}
+      />
+      <span className="min-w-0 flex-1 truncate font-medium">{project.projectName}</span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={label}
+            aria-pressed={project.kept}
+            onClick={() => onKeep(project.repoId, !project.kept)}
+          >
+            {project.kept ? <PinOff /> : <Pin className="text-muted-foreground" />}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top" sideOffset={4}>
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  )
+}
+
 export function HqChatList({
   groups,
+  activeProjects,
+  onKeepProject,
   colorFor,
   selectedKey,
   now,
@@ -42,7 +86,10 @@ export function HqChatList({
   onNextWaiting,
   nextWaitingKeys
 }: {
+  /** `groups.quiet` holds only what the active projects do not show. */
   groups: Record<HqChatGroup, HqChatItem[]>
+  activeProjects: HqActiveProject[]
+  onKeepProject: (repoId: string, kept: boolean) => void
   colorFor: (projectId: string) => string
   selectedKey: string | null
   now: number
@@ -79,7 +126,7 @@ export function HqChatList({
       aria-label={translate('auto.hq.chats.listLabel', 'Agent chats')}
       className="scrollbar-sleek flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 py-3"
     >
-      {active.length === 0 && groups.quiet.length === 0 ? (
+      {active.length === 0 && activeProjects.length === 0 && groups.quiet.length === 0 ? (
         <p className="px-2.5 text-xs text-muted-foreground">
           {translate('auto.hq.chats.empty', 'No agent chats yet.')}
         </p>
@@ -112,6 +159,26 @@ export function HqChatList({
           {rows(groups[group])}
         </section>
       ))}
+      {activeProjects.length > 0 ? (
+        <section
+          aria-label={translate('auto.hq.chats.group.projects', 'Active projects')}
+          className="flex flex-col gap-2"
+        >
+          <h2 className="px-2.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+            {translate('auto.hq.chats.group.projects', 'Active projects')}
+          </h2>
+          {activeProjects.map((project) => (
+            <div key={project.repoId} className="flex flex-col gap-px">
+              <ActiveProjectHeader
+                project={project}
+                color={colorFor(project.repoId)}
+                onKeep={onKeepProject}
+              />
+              {rows(project.items)}
+            </div>
+          ))}
+        </section>
+      ) : null}
       {groups.quiet.length > 0 ? (
         <Collapsible open={quietOpen} onOpenChange={setQuietOpen}>
           <CollapsibleTrigger asChild>

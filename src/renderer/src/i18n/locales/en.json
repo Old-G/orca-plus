@@ -19389,7 +19389,8 @@
           "needs": "Needs you",
           "working": "Working",
           "done": "Done",
-          "quiet": "Quiet"
+          "quiet": "Quiet",
+          "projects": "Active projects"
         },
         "listLabel": "Agent chats",
         "empty": "No agent chats yet.",
@@ -19405,7 +19406,9 @@
         "waitsForYou": "Waiting for you",
         "answerFor": "Answer {{value0}}",
         "reviewApproval": "Review",
-        "pick": "Pick a chat on the left to read and answer it."
+        "pick": "Pick a chat on the left to read and answer it.",
+        "unkeepProject": "Stop keeping in HQ",
+        "keepProject": "Keep in HQ"
       },
       "context": {
         "label": "Chat context",
@@ -19526,7 +19529,8 @@
         "done": "{{count}} done, unread"
       },
       "projectColor": "Project color",
-      "projectColorAuto": "Auto"
+      "projectColorAuto": "Auto",
+      "keepInHq": "Keep in HQ"
     },
     "startup": {
       "webHostUnreachable": {
