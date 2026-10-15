@@ -25,6 +25,22 @@ import type {
 } from '../../shared/claude-handoff-file'
 import { getRuntimePathBasename } from '../../shared/cross-platform-path'
 import { splitWorktreeId } from '../../shared/worktree/id'
+import { parsePaneKey } from '../../shared/stable-pane-id'
+
+/** The tab the launch opened, so HQ can show the new chat in place; absent from older hosts. */
+function readLaunchedTabId(result: unknown): string | undefined {
+  const outcome: unknown =
+    result && typeof result === 'object' ? Reflect.get(result, 'outcome') : null
+  if (!outcome || typeof outcome !== 'object') {
+    return undefined
+  }
+  const tabId: unknown = Reflect.get(outcome, 'tabId')
+  if (typeof tabId === 'string') {
+    return tabId
+  }
+  const paneKey: unknown = Reflect.get(outcome, 'paneKey')
+  return typeof paneKey === 'string' ? parsePaneKey(paneKey)?.tabId : undefined
+}
 
 type OffersListener = (offers: ClaudeHandoffOffer[]) => void
 const offersListeners = new Set<OffersListener>()
@@ -145,7 +161,8 @@ export function registerClaudeHandoffHandlers(
           return { ok: false, error: response.error.message }
         }
         offers.dismiss(id)
-        return { ok: true, worktreeId: resolved.offer.worktreeId }
+        const tabId = readLaunchedTabId(response.result)
+        return { ok: true, worktreeId: resolved.offer.worktreeId, ...(tabId ? { tabId } : {}) }
       } finally {
         launching.delete(id)
       }

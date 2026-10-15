@@ -37,7 +37,8 @@ const mocks = vi.hoisted(() => {
     respond: vi.fn(async () => true),
     openInProject: vi.fn(),
     acknowledge: vi.fn(),
-    acknowledgeMany: vi.fn()
+    acknowledgeMany: vi.fn(),
+    closeFinishToast: vi.fn(async () => {})
   }
 })
 
@@ -76,6 +77,9 @@ vi.mock('./hq-chat-actions', async (importOriginal) => ({
   acknowledgeHqChat: mocks.acknowledge,
   acknowledgeHqChats: mocks.acknowledgeMany
 }))
+vi.mock('../pulse-bell/pulse-bell-actions', () => ({
+  closeFinishedPulseBellItemsForHqChat: mocks.closeFinishToast
+}))
 vi.mock('../../native-chat/NativeChatView', () => ({
   default: (props: ChatProps) => {
     mocks.chatProps.push(props)
@@ -89,7 +93,7 @@ vi.mock('../../dashboard-popout/AgentTerminalPreview', () => ({
   }
 }))
 
-import { rememberHqChat } from './hq-chat-actions'
+import { rememberHqChat } from './hq-chat-open'
 import { rememberHqSelection } from './hq-messenger-selection'
 import { openHqScreen } from './hq-view'
 import { HqMessengerScreen } from './HqMessengerScreen'
@@ -204,6 +208,8 @@ describe('HqMessengerScreen', () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: /Report/ }))
     expect(screen.getByTestId('native-chat').textContent).toBe('session-fresh')
+    // Why: opening a finished chat answers its «An agent finished» toast, as its Open would.
+    expect(mocks.closeFinishToast).toHaveBeenLastCalledWith('wt-1', 'fresh')
     expect(mocks.acknowledge).toHaveBeenLastCalledWith(
       expect.objectContaining({ key: hqChatKey('wt-1', 'work') })
     )

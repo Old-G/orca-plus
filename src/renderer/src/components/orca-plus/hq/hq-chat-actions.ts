@@ -7,29 +7,16 @@ import { activateStructuredAgentSessionTab } from '@/lib/structured-agent-sessio
 import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
 import { useAppStore } from '@/store'
 import { revealDashboardAgent } from '../../dashboard/reveal-dashboard-agent'
-import type { HqChatItem } from './hq-chat-list'
-import { closeHqScreen, openHqScreen } from './hq-view'
+import { hqChatTabId, type HqChatItem } from './hq-chat-list'
+import { setShownHqChatTab } from './hq-chat-open'
+import { closeHqScreen } from './hq-view'
 
-let rememberedKey: string | null = null
 let shownItem: HqChatItem | null = null
-
-export function rememberedHqChat(): string | null {
-  return rememberedKey
-}
-
-export function rememberHqChat(key: string | null): void {
-  rememberedKey = key
-}
 
 /** The chat HQ shows right now, for the Code mode to open; null on a pinned page. */
 export function setShownHqChat(item: HqChatItem | null): void {
   shownItem = item
-}
-
-/** HQ opened on one chat: remembered first, so an open HQ switches to it as a new one starts on it. */
-export function openHqChat(key: string): void {
-  rememberHqChat(key)
-  openHqScreen('chats')
+  setShownHqChatTab(item ? { worktreeId: item.worktreeId, tabId: hqChatTabId(item) } : null)
 }
 
 /** The Code mode: the project of the chat HQ shows, with that chat in front; else back to where HQ

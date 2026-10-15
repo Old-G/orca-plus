@@ -24,19 +24,19 @@ import { activateStructuredAgentSessionTab } from '@/lib/structured-agent-sessio
 import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
-import { openHqChat } from '../hq/hq-chat-actions'
-import { hqChatKey } from '../hq/hq-chat-list'
+import { openChatInShownHq } from '../hq/hq-chat-open'
 import { openHqScreen } from '../hq/hq-view'
+
+function paneRefTabId(ref: PulseBellPaneRef): string | undefined {
+  return ref.tabId ?? parsePaneKey(ref.paneKey)?.tabId
+}
 
 function openPane(ref: PulseBellPaneRef): void {
   if (!ref.worktreeId) {
     return
   }
-  // Why: from HQ's messenger the chat opens in place; leaving for its project loses HQ.
-  const tabId = ref.tabId ?? parsePaneKey(ref.paneKey)?.tabId
-  const { activeView, settings } = useAppStore.getState()
-  if (activeView === 'hq' && settings?.hqChatsView !== false && tabId) {
-    openHqChat(hqChatKey(ref.worktreeId, tabId))
+  const tabId = paneRefTabId(ref)
+  if (openChatInShownHq(ref.worktreeId, tabId)) {
     return
   }
   if (activateAndRevealWorkspace(ref.worktreeId, { revealInSidebar: false }) === false) {
@@ -78,6 +78,22 @@ export function openPulseBellItemTarget(item: PulseInboxItem): boolean {
     return true
   }
   return false
+}
+
+/** The user opened this chat in HQ, so its finish toast and bell item close as Open would. */
+export async function closeFinishedPulseBellItemsForHqChat(
+  worktreeId: string,
+  tabId: string
+): Promise<void> {
+  const items = await window.api.pulseBell.list()
+  const opened = items.filter((item) => {
+    const ref =
+      item.kind === PULSE_BELL_KIND.agentFinished ? readPulseBellPaneRef(item.refId) : null
+    return !!ref && ref.worktreeId === worktreeId && paneRefTabId(ref) === tabId
+  })
+  await Promise.all(
+    opened.map((item) => window.api.pulseBell.markDone(item.id, PULSE_BELL_ACTION.open))
+  )
 }
 
 /** Runs the button, then closes the item unless its producer closes it on its own. */
