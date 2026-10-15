@@ -1,6 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 
+type StoreState = {
+  tabsByWorktree: Record<string, unknown[]>
+  activeView: string
+  settings: { hqChatsView?: boolean }
+}
+
+function storeState(activeView = 'terminal', settings: StoreState['settings'] = {}): StoreState {
+  return { tabsByWorktree: {}, activeView, settings }
+}
+
 const mocks = vi.hoisted(() => ({
   launchClaudeHandoffOffer: vi.fn(async () => {}),
   switchClaudeAccountTo: vi.fn(async () => {}),
@@ -14,7 +24,9 @@ const mocks = vi.hoisted(() => ({
     async (): Promise<{ ok: true } | { ok: false; reason: string }> => ({ ok: true })
   ),
   toastError: vi.fn(),
-  openHqScreen: vi.fn()
+  openHqScreen: vi.fn(),
+  openHqChat: vi.fn(),
+  state: storeState()
 }))
 
 vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }))
@@ -34,8 +46,9 @@ vi.mock('@/lib/agent-session/structured-agent-session-tab-activation', () => ({
 vi.mock('@/lib/activate-tab-and-focus-pane', () => ({
   activateTabAndFocusPane: mocks.activateTabAndFocusPane
 }))
-vi.mock('@/store', () => ({ useAppStore: { getState: () => ({ tabsByWorktree: {} }) } }))
+vi.mock('@/store', () => ({ useAppStore: { getState: () => mocks.state } }))
 vi.mock('../hq/hq-view', () => ({ openHqScreen: mocks.openHqScreen }))
+vi.mock('../hq/hq-chat-actions', () => ({ openHqChat: mocks.openHqChat }))
 
 import { runPulseBellAction } from './pulse-bell-actions'
 
@@ -59,6 +72,7 @@ function bellItem(kind: string, refId: string | null): PulseInboxItem {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.state = storeState()
   vi.stubGlobal('window', {
     api: {
       claudeHandoff: { dismiss: mocks.dismiss },
@@ -114,6 +128,27 @@ describe('runPulseBellAction', () => {
       tabId: 'structured-agent-session-claude_ab'
     })
     expect(mocks.markDone).toHaveBeenCalledWith('item-1', 'open')
+  })
+
+  it('opens a finished agent inside HQ when HQ is on screen, without leaving it', async () => {
+    mocks.state = storeState('hq')
+    const ref = JSON.stringify({
+      paneKey: 'structured-agent-session-claude_ab:leaf-1',
+      tabId: 'structured-agent-session-claude_ab',
+      worktreeId: 'wt-2'
+    })
+    await runPulseBellAction(bellItem('agent-finished', ref), 'open')
+    expect(mocks.openHqChat).toHaveBeenCalledWith('wt-2\u0000structured-agent-session-claude_ab')
+    expect(mocks.activateAndRevealWorkspace).not.toHaveBeenCalled()
+    expect(mocks.markDone).toHaveBeenCalledWith('item-1', 'open')
+  })
+
+  it('leaves HQ for the project when the old HQ view is on', async () => {
+    mocks.state = storeState('hq', { hqChatsView: false })
+    const ref = JSON.stringify({ paneKey: 'tab-9:leaf-1', tabId: 'tab-9', worktreeId: 'wt-2' })
+    await runPulseBellAction(bellItem('agent-finished', ref), 'open')
+    expect(mocks.openHqChat).not.toHaveBeenCalled()
+    expect(mocks.activateAndRevealWorkspace).toHaveBeenCalled()
   })
 
   it('switches the Claude account for a limit card, then closes it with the pressed button', async () => {

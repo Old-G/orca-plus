@@ -17,6 +17,7 @@ import { useShortcutLabel } from '../hooks/useShortcutLabel'
 import { useAppStore } from '../store'
 import { hasCustomTitleBar, hasMacTrafficLights } from './app-window-chrome'
 import { orcaPlusAppName } from '../lib/orca-plus-app-name'
+import { HqModeSwitch } from '../components/orca-plus/hq/HqModeSwitch'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 
 /**
@@ -108,6 +109,7 @@ export function TitlebarLeftControls({ layout }: { layout: AppChromeLayout }): R
             </TooltipContent>
           </Tooltip>
         )}
+        <HqModeSwitch />
       </div>
       {/* Why: Back/Forward span worktree + page history, so show the cluster wherever the shortcut is live (hidden in Settings/non-stack views). */}
       {shouldShowWorktreeHistoryControls(layout.activeView) && (
