@@ -205,6 +205,8 @@ export const uiTabAndBrowserCommandsApi = {
       startup?: { command: string; env?: Record<string, string> }
       defaultTabs?: WorktreeDefaultTabsLaunch
       providesInitialSurface?: boolean
+      /** Custom build (hq-stays): the tab a clicked notification is about. */
+      notificationTabId?: string
     }) => void
   ): (() => void) => {
     const listener = (
@@ -216,6 +218,7 @@ export const uiTabAndBrowserCommandsApi = {
         startup?: { command: string; env?: Record<string, string> }
         defaultTabs?: WorktreeDefaultTabsLaunch
         providesInitialSurface?: boolean
+        notificationTabId?: string
       }
     ) => callback(data)
     ipcRenderer.on('ui:activateWorktree', listener)

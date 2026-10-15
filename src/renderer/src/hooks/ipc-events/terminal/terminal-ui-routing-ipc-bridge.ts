@@ -10,6 +10,7 @@ import { useAppStore } from '../../../store/index'
 import type { AppState } from '../../../store/types'
 import { resolveBrowserSessionTabTarget } from '../browser/browser-session-tab-target'
 import { resolveWindowTabIdForHostTab } from '../session-tabs/host-session-tab-target'
+import { openChatInShownHq } from '@/components/orca-plus/hq/hq-chat-open'
 import { revealWorkspaceSurface } from '@/lib/workspace/activation/workspace-surface-reveal'
 import { activateAiVaultStructuredSession } from '@/lib/agent-session/open/activate-ai-vault-structured-session'
 import { isBotPage } from '@/components/bots/bot-workspace'
@@ -158,9 +159,14 @@ export function registerTerminalUiRoutingIpcBridge(unsubs: (() => void)[]): void
         worktreeId,
         leafId,
         ackPaneKeyOnSuccess,
+        fromNotification,
         flashFocusedPane,
         scrollToBottomIfOutputSinceLastView
       }) => {
+        // Custom build (hq-stays): a notification clicked while HQ is in front opens its chat there.
+        if (fromNotification && openChatInShownHq(worktreeId, tabId)) {
+          return
+        }
         const store = useAppStore.getState()
         endSidebarListKeyboardNavigation()
         revealWorkspaceSurface(store, worktreeId)
@@ -183,6 +189,10 @@ export function registerTerminalUiRoutingIpcBridge(unsubs: (() => void)[]): void
   unsubs.push(
     window.api.ui.onFocusEditorTab(({ tabId, worktreeId, userInitiated }) => {
       const localTabId = resolveWindowTabIdForHostTab(worktreeId, tabId)
+      // Custom build (hq-stays): only a notification click is userInitiated here.
+      if (userInitiated && openChatInShownHq(worktreeId, localTabId)) {
+        return
+      }
       const store = useAppStore.getState()
       const tab = (store.unifiedTabsByWorktree[worktreeId] ?? []).find(
         (item) => item.id === localTabId
