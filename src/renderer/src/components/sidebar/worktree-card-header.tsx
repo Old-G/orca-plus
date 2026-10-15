@@ -2,6 +2,7 @@ import React from 'react'
 import { AlertCircle, Server, ServerOff, Star, Trash2 } from 'lucide-react'
 
 import { ProjectAccentRepoIconGlyph } from './ProjectAccentRepoIconGlyph'
+import { useOrcaPlusNewView } from '@/lib/orca-plus-new-view'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -58,6 +59,7 @@ export function WorktreeCardHeader({
   card: WorktreeCardController
   presentation: WorktreeCardPresentation
 }): React.JSX.Element {
+  const newView = useOrcaPlusNewView()
   const {
     worktree,
     repo,
@@ -224,22 +226,31 @@ export function WorktreeCardHeader({
           </Tooltip>
         ) : null}
         {!compactCards && worktree.isMainWorktree && !isFolder && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge
-                variant="outline"
-                className="h-[16px] px-1.5 text-[10px] font-medium rounded shrink-0 leading-none text-foreground/70 border-foreground/20 bg-foreground/[0.06]"
-              >
-                {translate('auto.components.sidebar.WorktreeCard.7d517f82e2', 'primary')}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent side="right" sideOffset={8}>
-              {translate(
-                'auto.components.sidebar.WorktreeCard.0777de5970',
-                'Primary worktree (original clone directory)'
-              )}
-            </TooltipContent>
-          </Tooltip>
+          // Custom build (sidebar-summary): under «New view» the badge shows on hover only.
+          <span
+            className={cn(
+              'inline-flex shrink-0',
+              newView &&
+                'opacity-0 transition-opacity group-focus-within/worktree-card:opacity-100 group-hover/worktree-card:opacity-100'
+            )}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant="outline"
+                  className="h-[16px] px-1.5 text-[10px] font-medium rounded shrink-0 leading-none text-foreground/70 border-foreground/20 bg-foreground/[0.06]"
+                >
+                  {translate('auto.components.sidebar.WorktreeCard.7d517f82e2', 'primary')}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                {translate(
+                  'auto.components.sidebar.WorktreeCard.0777de5970',
+                  'Primary worktree (original clone directory)'
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </span>
         )}
 
         {worktree.isSparse && (
