@@ -19500,7 +19500,13 @@
         "gotIt": "Got it",
         "skip": "Skip",
         "projectUnknown": "project?",
-        "gone": "This Slack request is already decided."
+        "gone": "This Slack request is already decided.",
+        "pickProject": "Pick the project Claude should work in, save, then Do.",
+        "noRepo": "Project {{value0}} is not open in Orca as a git repo.",
+        "createdOnly": "Task created in ClickUp, but Claude did not start — take it from «New tasks».",
+        "takenNoStatus": "{{value0}} created, Claude started; move it to «in process» by hand.",
+        "taken": "{{value0}} created, Claude started on it.",
+        "replyStarted": "Claude is drafting the reply; you approve it before it goes out."
       },
       "view": {
         "newView": "New view"

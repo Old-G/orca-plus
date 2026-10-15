@@ -52,18 +52,17 @@ function withTaskData(
 export function buildHqTriageWorkItem(
   task: ClickUpTaskSummary,
   full: ClickUpTask | null,
-  project: { name: string; level: HqAutonomyLevel }
+  project: { name: string; level: HqAutonomyLevel },
+  /** Custom build (hq-slack-requests): owner-written instructions placed before the task's data. */
+  extra?: string
 ): LaunchableWorkItem {
-  return withTaskData(
-    task,
-    full,
-    hqTriagePrompt({
-      identifier: task.identifier,
-      url: task.url,
-      projectName: project.name,
-      level: project.level
-    })
-  )
+  const prompt = hqTriagePrompt({
+    identifier: task.identifier,
+    url: task.url,
+    projectName: project.name,
+    level: project.level
+  })
+  return withTaskData(task, full, extra ? `${prompt}\n${extra}` : prompt)
 }
 
 /** Custom build (hq-triage): the coordinator of a task that spans several projects. */
