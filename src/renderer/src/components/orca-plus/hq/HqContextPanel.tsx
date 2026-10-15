@@ -3,6 +3,7 @@
 // other chats.
 import { ExternalLink } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
+import { HqAgentMapSection } from './HqAgentMap'
 import { STATUS_COLORS, STATUS_LABELS } from '../../right-sidebar/status-display'
 import { ReviewChecksBadge, ReviewStateBadge } from '../../sidebar/WorktreeCardMetadataStatusBadges'
 import { openHqChangeDiff } from './hq-chat-actions'
@@ -143,6 +144,10 @@ export function HqContextPanel({
           </LinkRow>
         </section>
       ) : null}
+      <HqAgentMapSection
+        item={item}
+        heading={<Caption>{translate('auto.hq.agentMap.caption', 'Subagents')}</Caption>}
+      />
       {siblings.length > 0 ? (
         <section>
           <Caption>

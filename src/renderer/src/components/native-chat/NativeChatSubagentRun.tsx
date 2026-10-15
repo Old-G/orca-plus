@@ -56,7 +56,7 @@ export function StatusDot({
 }
 
 /** Leaf so the shared 1s clock re-renders only the digits, never the roster. */
-function SubagentElapsed({
+export function SubagentElapsed({
   startedAt,
   settledAt,
   counting
