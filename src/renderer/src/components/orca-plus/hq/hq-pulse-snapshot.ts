@@ -11,7 +11,10 @@ export type HqPerson = Pick<PulsePerson, 'id' | 'name'>
 export type HqWaiting = Pick<
   PulseWaiting,
   'id' | 'direction' | 'title' | 'personId' | 'project' | 'dueAt' | 'createdAt'
->
+> & {
+  /** Custom build (hq-notes): who recorded it; `note` marks a plain note. Absent from older hosts. */
+  source?: string
+}
 export type HqDecision = Pick<
   PulseDecision,
   'id' | 'kind' | 'title' | 'outcome' | 'project' | 'decidedAt'
@@ -71,7 +74,10 @@ function readWaiting(record: object): HqWaiting | null {
     createdAt,
     personId: nullableString(field(record, 'personId')),
     project: nullableString(field(record, 'project')),
-    dueAt: typeof dueAt === 'number' ? dueAt : null
+    dueAt: typeof dueAt === 'number' ? dueAt : null,
+    ...(typeof field(record, 'source') === 'string'
+      ? { source: String(field(record, 'source')) }
+      : {})
   }
 }
 
