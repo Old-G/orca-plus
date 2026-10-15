@@ -24,10 +24,19 @@ import { activateStructuredAgentSessionTab } from '@/lib/structured-agent-sessio
 import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
+import { openHqChat } from '../hq/hq-chat-actions'
+import { hqChatKey } from '../hq/hq-chat-list'
 import { openHqScreen } from '../hq/hq-view'
 
 function openPane(ref: PulseBellPaneRef): void {
   if (!ref.worktreeId) {
+    return
+  }
+  // Why: from HQ's messenger the chat opens in place; leaving for its project loses HQ.
+  const tabId = ref.tabId ?? parsePaneKey(ref.paneKey)?.tabId
+  const { activeView, settings } = useAppStore.getState()
+  if (activeView === 'hq' && settings?.hqChatsView !== false && tabId) {
+    openHqChat(hqChatKey(ref.worktreeId, tabId))
     return
   }
   if (activateAndRevealWorkspace(ref.worktreeId, { revealInSidebar: false }) === false) {
@@ -40,7 +49,6 @@ function openPane(ref: PulseBellPaneRef): void {
     return
   }
   const state = useAppStore.getState()
-  const tabId = ref.tabId ?? parsePaneKey(ref.paneKey)?.tabId
   if (!tabId || !(state.tabsByWorktree[ref.worktreeId] ?? []).some((tab) => tab.id === tabId)) {
     return
   }

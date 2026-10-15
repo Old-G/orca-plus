@@ -10,6 +10,7 @@ import {
 } from '@/components/cmd-j/palette-results'
 import { getCmdJQuickActions } from '@/components/cmd-j/quick-actions'
 import { buildPluginQuickActions } from '@/components/cmd-j/plugin-quick-actions'
+import { useHqPaletteActions } from '@/components/orca-plus/hq/use-hq-palette-actions'
 import type { ProjectTargetPaletteItem } from './worktree-jump-palette-model'
 import type { WorktreeJumpPaletteFilter } from './use-worktree-jump-palette-filter'
 import type { WorktreeJumpPaletteLocalState } from './use-worktree-jump-palette-local-state'
@@ -43,13 +44,16 @@ export function useWorktreeJumpPaletteProjectTargets({
     () => buildCmdJSettingsResults(settingsSections),
     [settingsSections]
   )
+  // Custom build (hq-chats): HQ, the Code mode and every native chat by name.
+  const hqActions = useHqPaletteActions()
   const actionResults = useMemo(
     () =>
       buildCmdJActionResults([
         ...getCmdJQuickActions(),
-        ...buildPluginQuickActions(pluginCommands)
+        ...buildPluginQuickActions(pluginCommands),
+        ...hqActions
       ]),
-    [pluginCommands]
+    [hqActions, pluginCommands]
   )
   const renderableProjectRepoIds = useMemo(() => {
     const ids = new Set<string>()

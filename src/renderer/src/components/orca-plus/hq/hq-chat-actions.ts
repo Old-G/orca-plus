@@ -8,8 +8,10 @@ import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
 import { useAppStore } from '@/store'
 import { revealDashboardAgent } from '../../dashboard/reveal-dashboard-agent'
 import type { HqChatItem } from './hq-chat-list'
+import { closeHqScreen, openHqScreen } from './hq-view'
 
 let rememberedKey: string | null = null
+let shownItem: HqChatItem | null = null
 
 export function rememberedHqChat(): string | null {
   return rememberedKey
@@ -17,6 +19,28 @@ export function rememberedHqChat(): string | null {
 
 export function rememberHqChat(key: string | null): void {
   rememberedKey = key
+}
+
+/** The chat HQ shows right now, for the Code mode to open; null on a pinned page. */
+export function setShownHqChat(item: HqChatItem | null): void {
+  shownItem = item
+}
+
+/** HQ opened on one chat: remembered first, so an open HQ switches to it as a new one starts on it. */
+export function openHqChat(key: string): void {
+  rememberHqChat(key)
+  openHqScreen('chats')
+}
+
+/** The Code mode: the project of the chat HQ shows, with that chat in front; else back to where HQ
+ *  was opened from. */
+export function switchHqToCode(): void {
+  if (useAppStore.getState().activeView !== 'hq') {
+    return
+  }
+  if (!shownItem || !openHqChatInProject(shownItem)) {
+    closeHqScreen()
+  }
 }
 
 /** Leaves HQ for the chat's workspace with the chat's own tab in front. */
