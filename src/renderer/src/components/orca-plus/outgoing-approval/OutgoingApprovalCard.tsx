@@ -19,7 +19,9 @@ export function splitOutgoingApprovalBody(body: string | null): { head: string; 
     : { head: value.slice(0, newline), text: value.slice(newline + 1) }
 }
 
-export function OutgoingApprovalCard({ item }: { item: PulseInboxItem }): React.JSX.Element {
+/** The decision itself — what is held, its whole text, and Approve / Edit / Reject — shared by the
+ *  bell's card and the toast that pops for it. */
+function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): React.JSX.Element {
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -39,7 +41,7 @@ export function OutgoingApprovalCard({ item }: { item: PulseInboxItem }): React.
   }
 
   return (
-    <li className="flex flex-col gap-1.5 rounded-md px-2 py-2 hover:bg-accent">
+    <>
       <div className="flex items-start gap-2">
         <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-hidden="true" />
         <div className="min-w-0 flex-1">
@@ -125,6 +127,28 @@ export function OutgoingApprovalCard({ item }: { item: PulseInboxItem }): React.
           </>
         )}
       </div>
+    </>
+  )
+}
+
+export function OutgoingApprovalCard({ item }: { item: PulseInboxItem }): React.JSX.Element {
+  return (
+    <li className="flex flex-col gap-1.5 rounded-md px-2 py-2 hover:bg-accent">
+      <OutgoingApprovalDecision item={item} />
     </li>
+  )
+}
+
+/** Custom build (approval-toast): the same decision popped bottom-right, so a held call is seen
+ *  without opening the bell. */
+export function OutgoingApprovalToast({ item }: { item: PulseInboxItem }): React.JSX.Element {
+  return (
+    <div
+      role="alertdialog"
+      aria-label={translate(`auto.pulseBell.kind.${item.kind}.${item.urgency}`, item.title)}
+      className="flex w-[var(--width)] max-w-[calc(100vw-32px)] flex-col gap-1.5 rounded-lg border border-destructive/50 bg-popover p-3 text-popover-foreground shadow-xs"
+    >
+      <OutgoingApprovalDecision item={item} />
+    </div>
   )
 }
