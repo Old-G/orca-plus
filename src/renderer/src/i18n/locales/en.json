@@ -20363,6 +20363,12 @@
       },
       "pulse": {
         "badShape": "pulse snapshot has an unexpected shape"
+      },
+      "agentMap": {
+        "title": "Agent map",
+        "caption": "Subagents",
+        "summary": "{{total}} subagents",
+        "summaryWorking": "{{total}} subagents, {{working}} working"
       }
     },
     "claudeSubscriptions": {
