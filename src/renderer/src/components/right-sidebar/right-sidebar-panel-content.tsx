@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { lazyWithRetry as lazy } from '@/lib/lazy-with-retry'
 import type { ActiveRightSidebarTab } from '@/store/slices/editor'
 import { isPluginPanelTabKey } from '../../../../shared/plugins/plugin-manifest'
+import { CODE_CHAT_TAB } from '../orca-plus/code-chat/code-chat-panel-state'
 
 const FileExplorer = lazy(() => import('./FileExplorer'))
 const SourceControl = lazy(() => import('./SourceControl'))
@@ -11,6 +12,7 @@ const AiVaultPanel = lazy(() => import('./AiVaultPanel'))
 const FolderWorkspaceWorktreesPanel = lazy(() => import('./FolderWorkspaceWorktreesPanel'))
 const FolderWorkspacePrChecksPanel = lazy(() => import('./FolderWorkspacePrChecksPanel'))
 const PluginPanel = lazy(() => import('./PluginPanel'))
+const CodeChatPanel = lazy(() => import('../orca-plus/code-chat/CodeChatPanel'))
 
 type RightSidebarPanelContentProps = {
   effectiveTab: ActiveRightSidebarTab
@@ -45,7 +47,8 @@ export function RightSidebarPanelContent({
             Why key: switching plugin tabs must remount the sandboxed iframe —
             a reused frame could keep posting messages while the bridge is
             rebound under the next plugin's identity. */}
-        {isPluginPanelTabKey(effectiveTab) && (
+        {effectiveTab === CODE_CHAT_TAB && <CodeChatPanel />}
+        {isPluginPanelTabKey(effectiveTab) && effectiveTab !== CODE_CHAT_TAB && (
           <PluginPanel key={effectiveTab} tabKey={effectiveTab} />
         )}
       </Suspense>
