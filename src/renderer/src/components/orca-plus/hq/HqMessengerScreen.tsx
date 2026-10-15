@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MessagesSquare } from 'lucide-react'
 import { useNow } from '@/hooks/use-now'
+import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import { cn } from '@/lib/utils'
@@ -14,8 +15,10 @@ import {
   openHqChatInProject,
   rememberHqChat,
   rememberedHqChat,
+  setHqProjectKept,
   setShownHqChat
 } from './hq-chat-actions'
+import { splitHqActiveProjects } from './hq-active-projects'
 import { groupHqChats, nextHqWaitingChat, pickHqChat } from './hq-chat-list'
 import {
   hqSelectionForRequest,
@@ -36,6 +39,7 @@ import { useHqPinnedNotes } from './use-hq-pinned-notes'
 import { useHqNextWaitingShortcut } from './use-hq-next-waiting-shortcut'
 
 const AGE_TICK_MS = 30_000
+const NO_KEPT: string[] = []
 
 export function HqMessengerScreen(): React.JSX.Element {
   const { items, cards } = useHqChatList()
@@ -52,7 +56,14 @@ export function HqMessengerScreen(): React.JSX.Element {
   const selectedKey = pickHqChat(items, [chosen, rememberedHqChat()])
   const selectedChat =
     selection.kind === 'chat' ? items.find((item) => item.key === selectedKey) : undefined
+  const keptProjectIds = useAppStore((state) => state.settings?.hqKeptProjectIds) ?? NO_KEPT
+  const split = useMemo(
+    () => splitHqActiveProjects(items, keptProjectIds, now),
+    [items, keptProjectIds, now]
+  )
   const groups = useMemo(() => groupHqChats(items), [items])
+  // Why: the active projects' latest chats show in their own section, not again under Quiet.
+  const listGroups = useMemo(() => ({ ...groups, quiet: split.quiet }), [groups, split.quiet])
 
   useEffect(
     () =>
@@ -136,7 +147,9 @@ export function HqMessengerScreen(): React.JSX.Element {
             </div>
             <div className="mx-4 shrink-0 border-t border-border" />
             <HqChatList
-              groups={groups}
+              groups={listGroups}
+              activeProjects={split.active}
+              onKeepProject={setHqProjectKept}
               colorFor={colorFor}
               selectedKey={selection.kind === 'chat' ? selectedKey : null}
               now={now}
