@@ -24,7 +24,11 @@ type Drafts =
   | { status: 'error'; message: string }
   | { status: 'ready'; drafts: HqSlackScoutDraft[]; failedAt: string | null }
 
-function useSlackDrafts(): { state: Drafts; refresh: () => void; drop: (id: string) => void } {
+export function useHqSlackDrafts(): {
+  state: Drafts
+  refresh: () => void
+  drop: (id: string) => void
+} {
   const [state, setState] = useState<Drafts>({ status: 'loading' })
   const refresh = useCallback(() => {
     void window.api.hqProjects
@@ -196,7 +200,7 @@ function formatScoutTime(iso: string): string {
     : at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 }
 
-function SlackRequestList({
+export function SlackRequestList({
   drafts,
   onDone,
   onChanged
@@ -234,7 +238,7 @@ function SlackRequestList({
 }
 
 export function HqTodaySlackDrafts(): React.JSX.Element | null {
-  const { state, refresh, drop } = useSlackDrafts()
+  const { state, refresh, drop } = useHqSlackDrafts()
   const newView = useOrcaPlusNewView()
   if (state.status === 'hidden' || state.status === 'loading') {
     return null

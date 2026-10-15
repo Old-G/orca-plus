@@ -82,10 +82,13 @@ function reportTake(result: HqTriageTakeResult, task: ClickUpTaskSummary): void 
 
 export function HqTodayTriage({
   now,
-  cards
+  cards,
+  focusTaskId
 }: {
   now: number
   cards: readonly DashboardCard[]
+  /** Custom build (hq-today-inbox): only this task, as Today's right pane opens one item. */
+  focusTaskId?: string
 }): React.JSX.Element | null {
   const connection = useHqClickUpConnection(TODAY_SOURCE_PROJECT)
   const tasks = useHqMyClickUpTasks(connection)
@@ -104,7 +107,9 @@ export function HqTodayTriage({
   const ownerId = useAppStore((s) => s.clickUpStatus.viewer?.id ?? null)
   const allTasks = tasks.state.status === 'ready' ? tasks.state.tasks : []
   const awaiting = hqTasksAwaitingAuthor(allTasks, decisions)
-  const pending = pendingHqTriageTasks(allTasks, decisions, snoozed)
+  const pending = pendingHqTriageTasks(allTasks, decisions, snoozed).filter(
+    (task) => !focusTaskId || task.id === focusTaskId
+  )
   const title = translate('auto.hq.triage.title', 'New tasks')
 
   const decide = (
@@ -292,30 +297,35 @@ export function HqTodayTriage({
         cards={cards}
         sourceContext={sourceContext}
         levelOf={levelOf}
+        focusTaskId={focusTaskId}
       />
-      <section className="flex flex-col gap-2" aria-label={title}>
-        <ColumnHeader title={title} count={pending.length} />
-        {body}
-        <HqTodayAwaitingAuthor
-          tasks={awaiting}
-          decisions={decisions}
-          ownerId={ownerId}
-          now={now}
-          readComments={(taskId) => clickUpTaskComments(sourceContext, taskId)}
-          onAnswered={(taskIds) => void forget(taskIds)}
-          onBack={(taskId) => void forget([taskId])}
-        />
-        <ClickUpTaskSheet
-          summary={selected}
-          sourceContext={sourceContext}
-          onClose={() => setSelected(null)}
-          onUse={(task) => {
-            setSelected(null)
-            openComposer(task, suggestHqTriageProject(task, bindings))
-          }}
-          onTaskChanged={tasks.refresh}
-        />
-      </section>
+      {focusTaskId && pending.length === 0 ? null : (
+        <section className="flex flex-col gap-2" aria-label={title}>
+          <ColumnHeader title={title} count={pending.length} />
+          {body}
+          {focusTaskId ? null : (
+            <HqTodayAwaitingAuthor
+              tasks={awaiting}
+              decisions={decisions}
+              ownerId={ownerId}
+              now={now}
+              readComments={(taskId) => clickUpTaskComments(sourceContext, taskId)}
+              onAnswered={(taskIds) => void forget(taskIds)}
+              onBack={(taskId) => void forget([taskId])}
+            />
+          )}
+          <ClickUpTaskSheet
+            summary={selected}
+            sourceContext={sourceContext}
+            onClose={() => setSelected(null)}
+            onUse={(task) => {
+              setSelected(null)
+              openComposer(task, suggestHqTriageProject(task, bindings))
+            }}
+            onTaskChanged={tasks.refresh}
+          />
+        </section>
+      )}
     </>
   )
 }

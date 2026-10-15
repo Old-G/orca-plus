@@ -19,7 +19,14 @@ import { useHqPulse } from './use-hq-pulse'
 
 const AGE_TICK_MS = 60_000
 
-function CommandBox({ hqWorktreeId }: { hqWorktreeId: string | null }): React.JSX.Element {
+export function HqCommandBox({
+  hqWorktreeId,
+  compact = false
+}: {
+  hqWorktreeId: string | null
+  /** Custom build (hq-today-inbox): a short hint for Today's narrow list column. */
+  compact?: boolean
+}): React.JSX.Element {
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -56,10 +63,14 @@ function CommandBox({ hqWorktreeId }: { hqWorktreeId: string | null }): React.JS
               submit()
             }
           }}
-          placeholder={translate(
-            'auto.hq.today.commandPlaceholder',
-            'Give HQ a command — Claude starts in the HQ workspace with it…'
-          )}
+          placeholder={
+            compact
+              ? translate('auto.hq.today.commandShort', 'Command to HQ…')
+              : translate(
+                  'auto.hq.today.commandPlaceholder',
+                  'Give HQ a command — Claude starts in the HQ workspace with it…'
+                )
+          }
           aria-label={translate('auto.hq.today.command', 'Command')}
           disabled={!hqWorktreeId}
         />
@@ -90,7 +101,7 @@ export function HqTodayTab(): React.JSX.Element {
   )
   return (
     <div className="scrollbar-sleek flex h-full min-h-0 flex-col gap-6 overflow-y-auto p-4">
-      <CommandBox hqWorktreeId={hqWorktreeId} />
+      <HqCommandBox hqWorktreeId={hqWorktreeId} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-6">
           <HqTodayAgents cards={snapshot.cards} now={now} />
