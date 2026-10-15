@@ -8,12 +8,12 @@ import { translate } from '@/i18n/i18n'
 import { formatShortTimeAgo } from '@/lib/short-time-ago'
 import { ColumnHeader } from './hq-waiting-parts'
 
-type ReviewsState =
+export type ReviewsState =
   | { status: 'loading' }
   | { status: 'ready'; result: HqReviewsResult }
   | { status: 'error'; message: string }
 
-function useHqReviewRequests(): { state: ReviewsState; refresh: () => void } {
+export function useHqReviewRequests(): { state: ReviewsState; refresh: () => void } {
   const [state, setState] = useState<ReviewsState>({ status: 'loading' })
   const [request, setRequest] = useState({ nonce: 0, refresh: false })
   useEffect(() => {
