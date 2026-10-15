@@ -6,6 +6,7 @@ import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/
 import {
   HqDraftTaskQuestionsParams,
   HqSlackDraftCreateParams,
+  HqSlackDraftEditParams,
   HqSlackDraftRefParams
 } from '../../shared/rpc-contract/hq-projects-params'
 import {
@@ -37,5 +38,11 @@ export function registerHqProjectPagesHandlers(
   )
   ipcMain.handle('hqProjects:createSlackDraftTask', (_event, draft: unknown) =>
     service.createSlackDraftTask(HqSlackDraftCreateParams.parse(draft))
+  )
+  ipcMain.handle('hqProjects:answerSlackDraft', (_event, ref: unknown) =>
+    service.answerSlackDraft(HqSlackDraftRefParams.parse(ref).id)
+  )
+  ipcMain.handle('hqProjects:editSlackDraft', (_event, edit: unknown) =>
+    service.editSlackDraft(HqSlackDraftEditParams.parse(edit))
   )
 }
