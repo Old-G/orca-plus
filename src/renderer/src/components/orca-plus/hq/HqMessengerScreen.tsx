@@ -13,13 +13,12 @@ import {
   acknowledgeHqChat,
   acknowledgeHqChats,
   openHqChatInProject,
-  rememberHqChat,
-  rememberedHqChat,
   setHqProjectKept,
   setShownHqChat
 } from './hq-chat-actions'
+import { rememberHqChat, rememberedHqChat } from './hq-chat-open'
 import { splitHqActiveProjects } from './hq-active-projects'
-import { groupHqChats, nextHqWaitingChat, pickHqChat } from './hq-chat-list'
+import { groupHqChats, hqChatTabId, nextHqWaitingChat, pickHqChat } from './hq-chat-list'
 import {
   hqSelectionForRequest,
   rememberHqSelection,
@@ -28,6 +27,7 @@ import {
   type HqSelection
 } from './hq-messenger-selection'
 import { onHqTabRequested, takeRequestedHqTab } from './hq-view'
+import { closeFinishedPulseBellItemsForHqChat } from '../pulse-bell/pulse-bell-actions'
 import { HqChatList } from './HqChatList'
 import { HqChatPane } from './HqChatPane'
 import { HqContextPanel } from './HqContextPanel'
@@ -95,6 +95,13 @@ export function HqMessengerScreen(): React.JSX.Element {
   useEffect(() => {
     if (shownChatKey) {
       rememberHqChat(shownChatKey)
+      // Why: the paired web client has no bell; on the desktop its finish toast is answered now.
+      const shown = itemsRef.current.find((item) => item.key === shownChatKey)
+      if (shown && !isWebClientLocation()) {
+        void closeFinishedPulseBellItemsForHqChat(shown.worktreeId, hqChatTabId(shown)).catch(
+          (error: unknown) => console.warn('[hq] closing the finish toast failed:', error)
+        )
+      }
     }
     // Why: a finish counts as read once the user moves on from it, so the row stays put while read.
     return () => acknowledgeHqChat(itemsRef.current.find((item) => item.key === shownChatKey))
