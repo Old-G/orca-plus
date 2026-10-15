@@ -40,6 +40,11 @@ export function hqChatKey(worktreeId: string, tabId: string): string {
   return `${worktreeId}\u0000${tabId}`
 }
 
+/** The tab a chat lives in; a terminal's agents may share it with their split panes. */
+export function hqChatTabId(item: HqChatItem): string {
+  return item.kind === 'chat' ? item.tab.id : item.card.tabId
+}
+
 function groupForCard(card: DashboardCard | null): HqChatGroup {
   if (!card) {
     return 'quiet'
@@ -132,8 +137,12 @@ export function pickHqChat(
   candidates: readonly (string | null)[]
 ): string | null {
   for (const candidate of candidates) {
-    if (candidate && items.some((item) => item.key === candidate)) {
-      return candidate
+    // Why: a request names a tab; a terminal's chat is keyed by its pane, so the tab finds its pane.
+    const item =
+      items.find((entry) => entry.key === candidate) ??
+      items.find((entry) => hqChatKey(entry.worktreeId, hqChatTabId(entry)) === candidate)
+    if (candidate && item) {
+      return item.key
     }
   }
   return (
