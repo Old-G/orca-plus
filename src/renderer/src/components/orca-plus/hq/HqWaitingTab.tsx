@@ -55,7 +55,7 @@ function WaitingColumn({
   )
 }
 
-function DecisionsColumn({
+export function DecisionsColumn({
   decisions,
   now
 }: {

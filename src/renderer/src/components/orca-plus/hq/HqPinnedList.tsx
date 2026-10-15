@@ -9,7 +9,7 @@ type Pinned = { id: HqPinnedId; icon: LucideIcon; label: () => string }
 
 const PINNED: readonly Pinned[] = [
   { id: 'today', icon: Sun, label: () => translate('auto.hq.tab.today', 'Today') },
-  { id: 'waiting', icon: Users, label: () => translate('auto.hq.tab.waiting', 'Waiting') },
+  { id: 'waiting', icon: Users, label: () => translate('auto.hq.pinned.notes', 'Notes') },
   { id: 'projects', icon: LayoutGrid, label: () => translate('auto.hq.tab.projects', 'Projects') },
   { id: 'wiki', icon: BookOpen, label: () => translate('auto.hq.tab.wiki', 'Wiki') },
   { id: 'map', icon: Network, label: () => translate('auto.hq.tab.map', 'Map') },

@@ -18776,7 +18776,8 @@
         "agentBoard": "Agent board",
         "label": "Pinned",
         "onYou": "{{count}} on you",
-        "deferred": "{{count}} deferred"
+        "deferred": "{{count}} deferred",
+        "notes": "Notes"
       },
       "ready": {
         "noCheck": "The task list has no «check» status — move it by hand.",
@@ -18893,6 +18894,18 @@
         "yourPrs": "Your open PRs and MRs",
         "limits": "Limits",
         "emptyDetail": "Pick an item on the left."
+      },
+      "notes": {
+        "previewDue": " · due {{value0}}",
+        "previewOnMe": "{{value0}} waits on you",
+        "previewOnThem": "You wait on {{value0}}",
+        "previewNote": "A note",
+        "placeholder": "+ Note… e.g. «@Irina жду выгрузку до пт» — HQ reads who, what and when",
+        "label": "New note",
+        "self": "Me",
+        "notes": "Just notes",
+        "empty": "No notes.",
+        "hint": "Slack questions to you land in «Waiting on me» on their own. Remind writes to the person only after you approve it."
       }
     },
     "claudeSubscriptions": {
