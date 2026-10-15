@@ -31,11 +31,7 @@ function previewLine(item: HqChatItem, prompt: HqPendingPrompt | null): string {
       prompt?.text ?? card?.askSummary ?? translate('auto.hq.chats.waitsForYou', 'Waiting for you')
     )
   }
-  return (
-    card?.lastAgentMessage ??
-    card?.lastUserMessage ??
-    (card?.task || item.worktreeName)
-  )
+  return card?.lastAgentMessage ?? card?.lastUserMessage ?? (card?.task || item.worktreeName)
 }
 
 function RowBody({

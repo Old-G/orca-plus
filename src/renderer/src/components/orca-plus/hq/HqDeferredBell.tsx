@@ -40,7 +40,10 @@ function Counter({ day, onDone }: { day: string; onDone: () => void }): null {
                 'Quiet sessions with their work unfinished — on HQ → Agents.'
               ),
               actions: [
-                { id: PULSE_BELL_ACTION.open, label: translate('auto.hq.deferredBell.open', 'Open') }
+                {
+                  id: PULSE_BELL_ACTION.open,
+                  label: translate('auto.hq.deferredBell.open', 'Open')
+                }
               ],
               dedupeKey: `${HQ_DEFERRED_KIND}:${day}`
             }

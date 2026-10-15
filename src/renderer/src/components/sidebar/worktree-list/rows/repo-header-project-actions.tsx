@@ -31,6 +31,7 @@ import { getRepositoryIconSectionId } from '@/components/settings/repository/rep
 import { WslMoveProjectMenuItem } from '@/components/wsl-move/WslMoveProjectMenuItem'
 import { StrataAdoptMenuItem } from './StrataAdoptMenuItem'
 import { ProjectColorMenuItem } from './ProjectColorMenuItem'
+import { HqKeepProjectMenuItem } from './HqKeepProjectMenuItem'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import type { Repo } from '../../../../../../shared/repo-types'
 import type { WorktreeVisibilityDefaults } from '../../../../../../shared/global-settings-types'
@@ -147,6 +148,7 @@ export const RepoHeaderProjectActionsMenu = React.memo(function RepoHeaderProjec
           {translate('auto.components.sidebar.WorktreeList.e82d3589a1', 'Change Project Icon')}
         </DropdownMenuItem>
         <ProjectColorMenuItem repo={repo} />
+        <HqKeepProjectMenuItem repo={repo} />
         {isGitRepoKind(repo) ? (
           <DropdownMenuItem onSelect={() => actions.onOpenWorktreeVisibility(repo)}>
             <Eye className="size-3.5" />
