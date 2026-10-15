@@ -18679,7 +18679,8 @@
         "noReviewRequests": "Nobody is waiting on your review.",
         "dictationOff": "Turn on voice dictation in Settings → Voice",
         "stopDictation": "Stop dictation",
-        "startDictation": "Dictate the command"
+        "startDictation": "Dictate the command",
+        "commandShort": "Command to HQ…"
       },
       "deferred": {
         "ahead": "{{value0}} unpushed",
@@ -18875,6 +18876,23 @@
         "caption": "Subagents",
         "summary": "{{total}} subagents",
         "summaryWorking": "{{total}} subagents, {{working}} working"
+      },
+      "inbox": {
+        "needs": "Needs you",
+        "ready": "Ready for review",
+        "tasks": "Tasks",
+        "reviews": "Reviews",
+        "agentWaits": "waits for you",
+        "newTask": "New",
+        "overdue": "Overdue",
+        "dueToday": "Due today",
+        "openClickUp": "Open in ClickUp",
+        "understood": "What HQ understood",
+        "openReview": "Open the review",
+        "empty": "Nothing needs you right now.",
+        "yourPrs": "Your open PRs and MRs",
+        "limits": "Limits",
+        "emptyDetail": "Pick an item on the left."
       }
     },
     "claudeSubscriptions": {
