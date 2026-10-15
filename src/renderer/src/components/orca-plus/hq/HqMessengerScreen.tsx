@@ -13,7 +13,8 @@ import {
   acknowledgeHqChats,
   openHqChatInProject,
   rememberHqChat,
-  rememberedHqChat
+  rememberedHqChat,
+  setShownHqChat
 } from './hq-chat-actions'
 import { groupHqChats, nextHqWaitingChat, pickHqChat } from './hq-chat-list'
 import {
@@ -60,6 +61,10 @@ export function HqMessengerScreen(): React.JSX.Element {
         if (found) {
           takeRequestedHqTab()
           setSelection(found)
+          // Why: a chat asked for by name was remembered first; the last click must not outrank it.
+          if (found.kind === 'chat') {
+            setChosen(null)
+          }
           setNarrowShowsDetail(true)
         }
       }),
@@ -72,6 +77,10 @@ export function HqMessengerScreen(): React.JSX.Element {
     itemsRef.current = items
   }, [items])
   const shownChatKey = selectedChat?.key ?? null
+  useEffect(() => {
+    setShownHqChat(selectedChat ?? null)
+  }, [selectedChat])
+  useEffect(() => () => setShownHqChat(null), [])
   useEffect(() => {
     if (shownChatKey) {
       rememberHqChat(shownChatKey)
