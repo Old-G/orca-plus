@@ -20,6 +20,7 @@ import { AgentTerminalPreview } from '../../dashboard-popout/AgentTerminalPrevie
 import { terminalPreviewUnavailableMessage } from '../../dashboard-popout/terminal-preview-unavailable-message'
 import type { HqChatItem } from './hq-chat-list'
 import { HqChatAvatar, useHqChatTitle } from './HqChatAvatar'
+import { HqAgentMapButton } from './HqAgentMap'
 
 function Notice({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
@@ -141,6 +142,7 @@ export function HqChatPane({
             <span className="shrink-0">{stateLabel}</span>
           </div>
         </div>
+        <HqAgentMapButton item={item} />
         <Button type="button" variant="outline" size="xs" onClick={() => onOpenProject(item)}>
           <SquareArrowOutUpRight className="size-3" />
           {translate('auto.hq.chats.openProject', 'Open project')}
