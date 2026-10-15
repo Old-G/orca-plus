@@ -25,6 +25,7 @@ import { WslMoveProjectMenuItem } from '@/components/wsl-move/WslMoveProjectMenu
 import { WslMovedRepoUseHereMenuItem } from '@/components/wsl-move/WslMovedUseHereMenuItem'
 import { StrataAdoptMenuItem } from './StrataAdoptMenuItem'
 import { ProjectColorMenuItem } from './ProjectColorMenuItem'
+import { HqKeepProjectMenuItem } from './HqKeepProjectMenuItem'
 import type { ProjectGroup } from '../../../../../../shared/project/groups/project-group-types'
 import type {
   Repo,
@@ -99,6 +100,7 @@ export function RepoHeaderProjectActionsMenuContent({
         {t('auto.components.sidebar.WorktreeList.e82d3589a1', 'Change Project Icon')}
       </DropdownMenuItem>
       <ProjectColorMenuItem repo={repo} />
+      <HqKeepProjectMenuItem repo={repo} />
       {isGitRepoKind(repo) ? (
         <DropdownMenuItem onSelect={() => actions.onOpenWorktreeVisibility(repo)}>
           <Eye className="size-3.5" />

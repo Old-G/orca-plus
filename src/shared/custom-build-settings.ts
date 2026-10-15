@@ -27,6 +27,8 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqDeferredDismissed?: Record<string, number>
     /** Custom build (hq-chats): HQ opens on its Chats view; false keeps only the earlier tabs. Default on. */
     hqChatsView?: boolean
+    /** Custom build (hq-chats): projects whose latest chats stay on view in HQ even when quiet. */
+    hqKeptProjectIds?: string[]
     /** Custom build (hq-triage): ClickUp tasks the owner took or hid in HQ «New tasks», by task id. */
     hqTriageDecisions?: HqTriageDecisions
   }
