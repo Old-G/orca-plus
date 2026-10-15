@@ -33,6 +33,16 @@ export const HqSlackDraftCreateParams = z.object({
   description: z.string().max(20_000)
 })
 
+/** Custom build (hq-slack-requests): the owner's correction to a request; absent fields stay. */
+export const HqSlackDraftEditParams = z.object({
+  id: z.string().min(1).max(200),
+  kind: z.enum(['do', 'answer', 'fyi']).optional(),
+  project: z.string().max(200).nullable().optional(),
+  ask: z.string().trim().max(500).optional(),
+  title: z.string().trim().min(1).max(300).optional(),
+  description: z.string().max(20_000).optional()
+})
+
 /** Only what HQ itself edits; the HQ folder and the quiet threshold stay Settings-only on the Mac. */
 export const HqUpdateSettingsParams = z.object({
   hqProjectClickUpLists: z.record(z.string(), HqClickUpListBindingParam).optional(),

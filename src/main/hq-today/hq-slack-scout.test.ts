@@ -4,7 +4,10 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseHqSlackScoutTaskTarget } from '../../shared/hq-slack-scout'
 import {
+  answerHqSlackScoutDraft,
   createHqSlackScoutTask,
+  editHqSlackScoutDraft,
+  onHqSlackScoutChanged,
   readHqSlackScout,
   rejectHqSlackScoutDraft,
   type HqSlackScoutDeps
@@ -131,5 +134,64 @@ describe('HQ Slack scout files', () => {
       assigneeId: null,
       status: null
     })
+  })
+
+  it('reads the kind, ask and project of a request, and drops a bad field alone', async () => {
+    scoutFile(
+      'drafts.json',
+      JSON.stringify({
+        drafts: [
+          { ...draft('C1:1'), kind: 'answer', ask: 'проверь тикеты', project: 'flowbridge' },
+          { ...draft('C1:2'), kind: 'later', project: 42 }
+        ]
+      })
+    )
+    const result = await readHqSlackScout(hq)
+    expect(result.ok && result.drafts).toMatchObject([
+      { id: 'C1:1', kind: 'answer', ask: 'проверь тикеты', project: 'flowbridge' },
+      { id: 'C1:2', kind: undefined, project: undefined }
+    ])
+  })
+
+  it('lays the owner corrections over the scout draft, merging later ones', async () => {
+    scoutFile('drafts.json', JSON.stringify({ drafts: [{ ...draft('C1:1'), kind: 'do' }] }))
+    await editHqSlackScoutDraft(hq, 'C1:1', { kind: 'answer', project: null })
+    await editHqSlackScoutDraft(hq, 'C1:1', { ask: 'ответить Ирине' })
+    const result = await readHqSlackScout(hq)
+    expect(result.ok && result.drafts[0]).toMatchObject({
+      kind: 'answer',
+      project: null,
+      ask: 'ответить Ирине',
+      title: 'Fix the cart'
+    })
+    // The scout's own file stays as it wrote it.
+    const drafts = JSON.parse(readFileSync(join(hq, 'slack-scout', 'drafts.json'), 'utf8'))
+    expect(drafts.drafts[0].kind).toBe('do')
+  })
+
+  it('Just reply closes the request without a task, and tells listeners', async () => {
+    scoutFile('drafts.json', JSON.stringify({ drafts: [draft('C1:1')] }))
+    const listener = vi.fn()
+    const off = onHqSlackScoutChanged(listener)
+    await answerHqSlackScoutDraft(hq, 'C1:1', deps(vi.fn()))
+    off()
+    expect(listener).toHaveBeenCalledTimes(1)
+    const decisions = JSON.parse(readFileSync(join(hq, 'slack-scout', 'decisions.json'), 'utf8'))
+    expect(decisions['C1:1']).toEqual({ decision: 'answered', at: 42 })
+    const result = await readHqSlackScout(hq)
+    expect(result.ok && result.drafts).toEqual([])
+  })
+
+  it('keeps the decisions it understands when one entry is from a newer app', async () => {
+    scoutFile('drafts.json', JSON.stringify({ drafts: [draft('C1:1'), draft('C1:2')] }))
+    scoutFile(
+      'decisions.json',
+      JSON.stringify({
+        'C1:1': { decision: 'delegated', at: 1 },
+        'C1:2': { decision: 'rejected', at: 1 }
+      })
+    )
+    const result = await readHqSlackScout(hq)
+    expect(result.ok && result.drafts.map((entry) => entry.id)).toEqual(['C1:1'])
   })
 })
