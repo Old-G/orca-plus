@@ -23,7 +23,7 @@ export type ClaudeHandoffOffer = {
 }
 
 export type ClaudeHandoffLaunchResult =
-  | { ok: true; worktreeId: string }
+  | { ok: true; worktreeId: string; tabId?: string }
   | { ok: false; error: string }
 
 // Why: a launch prompt is typed into the agent; anything this large is not a handoff prompt.
