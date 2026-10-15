@@ -17,6 +17,7 @@ import { useShortcutLabel } from '../hooks/useShortcutLabel'
 import { useAppStore } from '../store'
 import { hasCustomTitleBar, hasMacTrafficLights } from './app-window-chrome'
 import { orcaPlusAppName } from '../lib/orca-plus-app-name'
+import { HqModeSwitch } from '../components/orca-plus/hq/HqModeSwitch'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 
 /** Reuse left chrome across full-width and sidebar-width headers so controls/popovers stay consistent. */
@@ -103,6 +104,7 @@ export function TitlebarLeftControls({ layout }: { layout: AppChromeLayout }): R
             </TooltipContent>
           </Tooltip>
         )}
+        <HqModeSwitch />
       </div>
       {/* Show shared workspace/page history wherever its shortcut is available. */}
       {shouldShowWorktreeHistoryControls(layout.activeView) && (
