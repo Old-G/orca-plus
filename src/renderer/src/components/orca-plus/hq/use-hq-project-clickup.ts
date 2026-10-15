@@ -10,7 +10,7 @@ import type {
 import { getSettingsFocusedExecutionHostId } from '../../../../../shared/execution-host'
 import type { TaskSourceContext } from '../../../../../shared/work-items/task-source-context'
 import { buildClickUpTaskSourceContext } from '@/lib/clickup-linked-work-item'
-import { readIpcErrorMessage } from '@/lib/ipc-error'
+import { readIpcErrorMessage } from '@/runtime/errors/ipc-error'
 import { getProviderRuntimeContextKey } from '@/runtime/hosts/observations/provider-runtime-context'
 import {
   clickUpListLists,
@@ -31,6 +31,22 @@ export type HqClickUpTasksState =
   | { status: 'loading' }
   | { status: 'ready'; tasks: ClickUpTaskSummary[] }
   | { status: 'error'; message: string }
+
+/** Custom build (hq-slack-requests): the context the hook builds, read once outside React. */
+export function readHqClickUpSourceContext(repoId: string): TaskSourceContext | null {
+  const { settings, clickUpStatus: status } = useAppStore.getState()
+  const workspace =
+    status.workspaces.find((entry) => entry.id === status.selectedWorkspaceId) ??
+    status.workspaces[0] ??
+    null
+  return status.connected
+    ? buildClickUpTaskSourceContext({
+        projectId: repoId,
+        hostId: getSettingsFocusedExecutionHostId(settings),
+        workspace
+      })
+    : null
+}
 
 function errorText(error: unknown): string {
   return readIpcErrorMessage(error) ?? String(error)
