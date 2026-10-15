@@ -99,3 +99,11 @@ export function openHqChangeDiff(
   )
   store.setActiveTabType('editor', worktree.id)
 }
+
+/** Keeps a project's latest chats on view in HQ, or lets them go quiet with the rest again. */
+export function setHqProjectKept(repoId: string, kept: boolean): void {
+  const { settings, updateSettings } = useAppStore.getState()
+  const current = settings?.hqKeptProjectIds ?? []
+  const next = kept ? [...new Set([...current, repoId])] : current.filter((id) => id !== repoId)
+  void updateSettings({ hqKeptProjectIds: next })
+}
