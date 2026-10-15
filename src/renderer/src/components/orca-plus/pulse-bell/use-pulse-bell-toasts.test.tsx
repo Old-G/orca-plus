@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 
 type StoreView = {
+  activeView: string
   activeWorktreeId: string | null
   activeTabId: string | null
   activeGroupIdByWorktree: Record<string, string>
@@ -14,6 +15,7 @@ type StoreView = {
 const mocks = vi.hoisted(() => {
   const items: PulseInboxItem[] = []
   const state: StoreView = {
+    activeView: 'terminal',
     activeWorktreeId: null,
     activeTabId: null,
     activeGroupIdByWorktree: {},
@@ -34,6 +36,7 @@ vi.mock('./pulse-bell-actions', () => ({ runPulseBellAction: mocks.run }))
 vi.mock('@/store', () => ({ useAppStore: { getState: () => mocks.state } }))
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 
+import { setShownHqChatTab } from '../hq/hq-chat-open'
 import { usePulseBellToasts } from './use-pulse-bell-toasts'
 
 function finished(id: string, tabId = 'tab-1'): PulseInboxItem {
@@ -60,7 +63,9 @@ describe('usePulseBellToasts', () => {
     mocks.info.mockReset()
     mocks.dismiss.mockReset()
     mocks.run.mockClear()
+    setShownHqChatTab(null)
     Object.assign(mocks.state, {
+      activeView: 'terminal',
       activeWorktreeId: 'wt-other',
       activeTabId: null,
       activeGroupIdByWorktree: {},
@@ -115,6 +120,17 @@ describe('usePulseBellToasts', () => {
     rerender()
 
     expect(mocks.info).not.toHaveBeenCalled()
+  })
+
+  it('stays quiet when HQ shows that chat', () => {
+    mocks.state.activeView = 'hq'
+    setShownHqChatTab({ worktreeId: 'wt-1', tabId: 'tab-1' })
+    const { rerender } = renderHook(() => usePulseBellToasts())
+    mocks.items = [finished('new'), finished('other', 'tab-2')]
+    rerender()
+
+    expect(mocks.info).toHaveBeenCalledTimes(1)
+    expect(mocks.info.mock.calls[0]?.[1]).toMatchObject({ id: 'pulse-bell-toast-other' })
   })
 
   it('still toasts that pane while Orca+ is not in front', () => {

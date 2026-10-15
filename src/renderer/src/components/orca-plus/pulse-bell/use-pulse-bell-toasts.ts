@@ -11,6 +11,7 @@ import {
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 import { runPulseBellAction } from './pulse-bell-actions'
 import { usePulseBellInbox } from './use-pulse-bell-inbox'
+import { isHqChatShown } from '../hq/hq-chat-open'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 
@@ -22,11 +23,15 @@ const TOASTED_KINDS: ReadonlySet<string> = new Set([
 
 const toastId = (item: PulseInboxItem): string => `pulse-bell-toast-${item.id}`
 
-/** The user is already looking at the pane that finished, so a toast would only cover it. */
+/** The user is already looking at the pane that finished, in its project or in HQ, so a toast would
+ *  only cover it. */
 function isWatching(item: PulseInboxItem): boolean {
   const ref = readPulseBellPaneRef(item.refId)
   if (!ref?.worktreeId || !ref.tabId || !document.hasFocus()) {
     return false
+  }
+  if (isHqChatShown(ref.worktreeId, ref.tabId)) {
+    return true
   }
   const state = useAppStore.getState()
   if (state.activeWorktreeId !== ref.worktreeId) {

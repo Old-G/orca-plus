@@ -91,7 +91,11 @@ export function deliverNativeNotification(
       }
       safelyRevealWindow(win)
       if (repoId !== null) {
-        win.webContents.send('ui:activateWorktree', { repoId, worktreeId })
+        win.webContents.send('ui:activateWorktree', {
+          repoId,
+          worktreeId,
+          ...(paneTarget ? { notificationTabId: paneTarget.tabId } : {})
+        })
       }
       if (chatTarget) {
         win.webContents.send('ui:focusEditorTab', {
@@ -110,6 +114,7 @@ export function deliverNativeNotification(
         worktreeId,
         leafId: paneTarget.leafId,
         ackPaneKeyOnSuccess: args.paneKey,
+        fromNotification: true,
         flashFocusedPane: true,
         scrollToBottomIfOutputSinceLastView: true
       })

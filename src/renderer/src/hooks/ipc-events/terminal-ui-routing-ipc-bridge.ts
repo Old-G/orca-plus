@@ -7,6 +7,7 @@ import {
 import { hasRegisteredRuntimeTerminalTab } from '@/runtime/hosted-terminals/mounted-surfaces/mounted-terminal-tab-registry'
 import { activateTabAndFocusPane } from '@/lib/workspace/tabs/activate-tab-and-focus-pane'
 import { useAppStore } from '../../store'
+import { openChatInShownHq } from '@/components/orca-plus/hq/hq-chat-open'
 import type { AppState } from '../../store/types'
 import { resolveBrowserSessionTabTarget } from './browser-session-tab-target'
 import { resolveWindowTabIdForHostTab } from './host-session-tab-target'
@@ -153,9 +154,14 @@ export function registerTerminalUiRoutingIpcBridge(unsubs: (() => void)[]): void
         worktreeId,
         leafId,
         ackPaneKeyOnSuccess,
+        fromNotification,
         flashFocusedPane,
         scrollToBottomIfOutputSinceLastView
       }) => {
+        // Custom build (hq-stays): a notification clicked while HQ is in front opens its chat there.
+        if (fromNotification && openChatInShownHq(worktreeId, tabId)) {
+          return
+        }
         const store = useAppStore.getState()
         revealWorkspaceSurface(store, worktreeId)
         store.setActiveTab(tabId)
@@ -177,6 +183,10 @@ export function registerTerminalUiRoutingIpcBridge(unsubs: (() => void)[]): void
   unsubs.push(
     window.api.ui.onFocusEditorTab(({ tabId, worktreeId, userInitiated }) => {
       const localTabId = resolveWindowTabIdForHostTab(worktreeId, tabId)
+      // Custom build (hq-stays): only a notification click is userInitiated here.
+      if (userInitiated && openChatInShownHq(worktreeId, localTabId)) {
+        return
+      }
       const store = useAppStore.getState()
       const tab = (store.unifiedTabsByWorktree[worktreeId] ?? []).find(
         (item) => item.id === localTabId
