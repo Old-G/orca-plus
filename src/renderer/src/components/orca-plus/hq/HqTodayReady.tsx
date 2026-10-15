@@ -87,15 +87,20 @@ export function HqTodayReady({
   decisions,
   cards,
   sourceContext,
-  levelOf
+  levelOf,
+  focusTaskId
 }: {
   tasks: readonly ClickUpTaskSummary[]
   decisions: HqTriageDecisions
   cards: readonly DashboardCard[]
   sourceContext: TaskSourceContext | null
   levelOf: (repoId: string) => HqAutonomyLevel
+  /** Custom build (hq-today-inbox): only this task, as Today's right pane opens one item. */
+  focusTaskId?: string
 }): React.JSX.Element | null {
-  const ready = readyHqTasks(tasks, decisions, cards)
+  const ready = readyHqTasks(tasks, decisions, cards).filter(
+    ({ task }) => !focusTaskId || task.id === focusTaskId
+  )
   if (ready.length === 0) {
     return null
   }
