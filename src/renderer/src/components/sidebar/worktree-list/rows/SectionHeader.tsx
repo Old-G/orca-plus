@@ -4,9 +4,8 @@ import { ProjectHeaderHostLabel, ProjectHeaderHostTooltip } from './ProjectHeade
 import type { ProjectHeaderHostContext } from './project-header-host-context'
 import type { VirtualItem } from '@tanstack/react-virtual'
 import { cn } from '@/lib/utils'
-import { RepoIconGlyph } from '@/components/repo/repo-icon'
-import type { AppState } from '@/store/types'
 import { ProjectAccentRepoIconGlyph } from '../../ProjectAccentRepoIconGlyph'
+import { ProjectAgentSummary } from '../../ProjectAgentSummary'
 import { RepoForkIndicator } from '@/components/repo/repo-fork-indicator'
 import type { FolderWorkspacePathStatus } from '../../../../../../shared/folder-workspace-path-status'
 import { isConfirmedStaleFolderPathStatus } from '../../../../../../shared/folder-workspace-path-status'
@@ -344,6 +343,7 @@ export function renderWorktreeSectionHeaderRow(args: {
                 <FolderPathStatusIndicator status={projectGroupPathStatus} />
                 {isRepoHeader ? <StrataStatusIndicator repoId={row.repo!.id} /> : null}
                 {isRepoHeader ? <RepoScanUnavailableIndicator repo={row.repo!} /> : null}
+                {isRepoHeader ? <ProjectAgentSummary projectId={row.repo!.id} /> : null}
               </div>
             </div>
           </div>
