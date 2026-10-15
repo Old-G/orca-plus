@@ -208,7 +208,7 @@ export async function createClickUpTask(task: {
   markdownDescription: string
   assigneeId: string | null
   status: string | null
-}): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+}): Promise<{ ok: true; url: string; id?: string } | { ok: false; error: string }> {
   try {
     const created = await withClickUpSession((session) =>
       clickUpRequest(session.token, `/list/${encodeURIComponent(task.listId)}/task`, {
@@ -222,8 +222,9 @@ export async function createClickUpTask(task: {
       })
     )
     const url: unknown = created && typeof created === 'object' ? Reflect.get(created, 'url') : null
+    const id: unknown = created && typeof created === 'object' ? Reflect.get(created, 'id') : null
     return typeof url === 'string' && url
-      ? { ok: true, url }
+      ? { ok: true, url, ...(typeof id === 'string' && id ? { id } : {}) }
       : { ok: false, error: 'ClickUp did not return the new task.' }
   } catch (error) {
     return {

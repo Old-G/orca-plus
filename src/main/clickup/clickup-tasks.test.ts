@@ -125,7 +125,7 @@ describe('write-back', () => {
         assigneeId: '100',
         status: 'future'
       })
-    ).resolves.toEqual({ ok: true, url: 'https://app.clickup.com/t/n1' })
+    ).resolves.toEqual({ ok: true, url: 'https://app.clickup.com/t/n1', id: 'n1' })
     expect(requestMock.mock.calls[0][1]).toBe('/list/9015/task')
     expect(JSON.parse(String(requestMock.mock.calls[0][2].body))).toEqual({
       name: 'Fix the cart',
