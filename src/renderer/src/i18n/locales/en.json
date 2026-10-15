@@ -19532,6 +19532,12 @@
       "projectColorAuto": "Auto",
       "keepInHq": "Keep in HQ"
     },
+    "codeChat": {
+      "title": "Chat",
+      "pick": "Agent chat",
+      "empty": "No agent chats in this workspace yet.",
+      "inEditor": "This chat is open in the editor area. Pick another one here, or switch the editor to another tab."
+    },
     "startup": {
       "webHostUnreachable": {
         "title": "Couldn't reach your Orca host",
