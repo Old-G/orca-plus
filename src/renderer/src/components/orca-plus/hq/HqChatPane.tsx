@@ -63,7 +63,8 @@ const HqNativeChat = memo(function HqNativeChat({
   )
 })
 
-function ChatBody({ item }: { item: HqChatItem }): React.JSX.Element {
+/** The live chat itself, also shown by the Code mode's Chat tab. */
+export function HqChatBody({ item }: { item: HqChatItem }): React.JSX.Element {
   if (item.kind === 'chat') {
     return <HqNativeChat tab={item.tab} agent={item.agentType} />
   }
@@ -146,7 +147,7 @@ export function HqChatPane({
         </Button>
       </header>
       <div className="flex min-h-0 flex-1 flex-col">
-        <ChatBody key={item.key} item={item} />
+        <HqChatBody key={item.key} item={item} />
       </div>
     </section>
   )
