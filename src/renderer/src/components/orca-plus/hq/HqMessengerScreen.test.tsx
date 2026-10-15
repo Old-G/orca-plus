@@ -262,7 +262,7 @@ describe('HqMessengerScreen', () => {
     setItems([card({ tabId: 'work', paneKey: 'work:l' })], [chatTab('work', 'Review')])
     renderTab()
     expect(screen.getByText('2 on you')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /Waiting/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Notes/ }))
     expect(screen.getByTestId('pinned-pane').textContent).toBe('waiting')
     expect(screen.queryByTestId('native-chat')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Review/ }))
