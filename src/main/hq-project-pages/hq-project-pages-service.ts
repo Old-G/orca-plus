@@ -32,9 +32,15 @@ import { listHqProjectPages } from './hq-project-pages'
 import { listHqWikiEntries, readHqWikiPage } from './hq-wiki-files'
 import { draftHqTaskQuestions } from '../hq-today/hq-task-questions'
 import type { HqTaskQuestionsResult } from '../../shared/hq-triage'
-import type { HqSlackScoutCreateResult, HqSlackScoutResult } from '../../shared/hq-slack-scout'
+import type {
+  HqSlackScoutCreateResult,
+  HqSlackScoutEdit,
+  HqSlackScoutResult
+} from '../../shared/hq-slack-scout'
 import {
+  answerHqSlackScoutDraft,
   createHqSlackScoutTask,
+  editHqSlackScoutDraft,
   readHqSlackScout,
   rejectHqSlackScoutDraft
 } from '../hq-today/hq-slack-scout'
@@ -82,6 +88,11 @@ export type HqProjectPagesService = {
     title: string
     description: string
   }): Promise<HqSlackScoutCreateResult>
+  /** Custom build (hq-slack-requests): the owner replies in the thread himself; no task. */
+  answerSlackDraft(id: string): Promise<HqSlackScoutCreateResult | { ok: true }>
+  editSlackDraft(
+    edit: HqSlackScoutEdit & { id: string }
+  ): Promise<HqSlackScoutCreateResult | { ok: true }>
 }
 
 export type HqProjectPagesStore = Pick<
@@ -101,6 +112,21 @@ export function createHqProjectPagesService(
       (await gitExecFileAsync(['status', '--porcelain', '-b'], { cwd: path })).stdout,
     now: Date.now
   })
+
+  const writeSlackRecord = async (
+    write: (hq: string) => Promise<void>
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
+    const hq = hqPath()
+    if (!hq) {
+      return { ok: false, error: 'No HQ folder is set.' }
+    }
+    try {
+      await write(hq)
+      return { ok: true }
+    } catch (error) {
+      return { ok: false, error: errorText(error) }
+    }
+  }
 
   const settings = (): HqClientSettings => {
     const current = store.getSettings()
@@ -133,17 +159,16 @@ export function createHqProjectPagesService(
         : { ok: true, configured: false, lastRunAt: null, failedAt: null, drafts: [] }
     },
 
-    async rejectSlackDraft(id) {
-      const hq = hqPath()
-      if (!hq) {
-        return { ok: false, error: 'No HQ folder is set.' }
-      }
-      try {
-        await rejectHqSlackScoutDraft(hq, id)
-        return { ok: true }
-      } catch (error) {
-        return { ok: false, error: errorText(error) }
-      }
+    rejectSlackDraft(id) {
+      return writeSlackRecord((hq) => rejectHqSlackScoutDraft(hq, id))
+    },
+
+    answerSlackDraft(id) {
+      return writeSlackRecord((hq) => answerHqSlackScoutDraft(hq, id))
+    },
+
+    editSlackDraft({ id, ...edit }) {
+      return writeSlackRecord((hq) => editHqSlackScoutDraft(hq, id, edit))
     },
 
     async createSlackDraftTask(draft) {

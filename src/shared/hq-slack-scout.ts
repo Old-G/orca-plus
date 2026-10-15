@@ -1,12 +1,14 @@
 // Custom build (hq-slack-scout): the Slack scout's files in the HQ folder. The scout (a skill on a
-// 30-minute automation) writes drafts of tasks it found in Slack; HQ shows them, and the owner's
-// Create or Reject is written back so the scout never drafts that thread again.
+// 10-minute automation) writes requests to the owner it found in Slack; HQ shows them, and the owner's
+// decision is written back so the scout never drafts that thread again.
 import { z } from 'zod'
 
 export const HQ_SLACK_SCOUT_DIR = 'slack-scout'
 export const HQ_SLACK_SCOUT_DRAFTS_FILE = 'drafts.json'
 export const HQ_SLACK_SCOUT_DECISIONS_FILE = 'decisions.json'
 export const HQ_SLACK_SCOUT_CONFIG_FILE = 'config.yaml'
+/** Custom build (hq-slack-requests): the owner's corrections to a request — kind, project, wording. */
+export const HQ_SLACK_SCOUT_EDITS_FILE = 'edits.json'
 /** Written by the scout's run.sh after every run: `{at, ok, exitCode, lastRunAt}`. */
 export const HQ_SLACK_SCOUT_STATUS_FILE = 'status.json'
 
@@ -25,6 +27,11 @@ export function parseHqSlackScoutFailedAt(text: string | null): string | null {
   }
 }
 
+export const HQ_SLACK_REQUEST_KINDS = ['do', 'answer', 'fyi'] as const
+export type HqSlackRequestKind = (typeof HQ_SLACK_REQUEST_KINDS)[number]
+
+const SlackRequestKind = z.enum(HQ_SLACK_REQUEST_KINDS)
+
 const SlackScoutDraft = z.object({
   /** `<channel id>:<thread ts>` — one draft per Slack thread. */
   id: z.string().min(1).max(200),
@@ -35,7 +42,14 @@ const SlackScoutDraft = z.object({
   quote: z.string().max(4_000).default(''),
   title: z.string().min(1).max(300),
   description: z.string().max(20_000).default(''),
-  foundAt: z.string().max(100).default('')
+  foundAt: z.string().max(100).default(''),
+  // Custom build (hq-slack-requests): absent from drafts written before requests; a bad value is dropped alone.
+  kind: SlackRequestKind.optional().catch(undefined),
+  /** What the author wants from the owner, one line. */
+  ask: z.string().max(500).optional().catch(undefined),
+  /** HQ project slug, or null when the thread does not say. */
+  project: z.string().max(200).nullable().optional().catch(undefined),
+  authorId: z.string().max(50).optional().catch(undefined)
 })
 
 export type HqSlackScoutDraft = z.infer<typeof SlackScoutDraft>
@@ -68,8 +82,13 @@ export function parseHqSlackScoutDrafts(text: string): HqSlackScoutDraftsFile {
   }
 }
 
+/** A draft from before requests had a kind was always a task. */
+export function hqSlackRequestKind(draft: Pick<HqSlackScoutDraft, 'kind'>): HqSlackRequestKind {
+  return draft.kind ?? 'do'
+}
+
 const SlackScoutDecision = z.object({
-  decision: z.enum(['created', 'rejected']),
+  decision: z.enum(['created', 'rejected', 'answered']),
   at: z.number(),
   taskUrl: z.string().optional()
 })
@@ -77,13 +96,55 @@ const SlackScoutDecision = z.object({
 export type HqSlackScoutDecision = z.infer<typeof SlackScoutDecision>
 export type HqSlackScoutDecisions = Record<string, HqSlackScoutDecision>
 
-export function parseHqSlackScoutDecisions(text: string): HqSlackScoutDecisions {
+/** `{id: entry}` read entry by entry, so one entry a newer app wrote does not drop the rest. */
+function parseRecordFile<T>(text: string, entry: z.ZodType<T>): Record<string, T> {
+  let raw: unknown
   try {
-    const parsed = z.record(z.string(), SlackScoutDecision).safeParse(JSON.parse(text))
-    return parsed.success ? parsed.data : {}
+    raw = JSON.parse(text)
   } catch {
     return {}
   }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {}
+  }
+  const out: Record<string, T> = {}
+  for (const [id, value] of Object.entries(raw)) {
+    const parsed = entry.safeParse(value)
+    if (parsed.success) {
+      out[id] = parsed.data
+    }
+  }
+  return out
+}
+
+export function parseHqSlackScoutDecisions(text: string): HqSlackScoutDecisions {
+  return parseRecordFile(text, SlackScoutDecision)
+}
+
+const SlackScoutEdit = z.object({
+  kind: SlackRequestKind.optional(),
+  project: z.string().max(200).nullable().optional(),
+  ask: z.string().max(500).optional(),
+  title: z.string().min(1).max(300).optional(),
+  description: z.string().max(20_000).optional()
+})
+
+export type HqSlackScoutEdit = z.infer<typeof SlackScoutEdit>
+export type HqSlackScoutEdits = Record<string, HqSlackScoutEdit>
+
+export function parseHqSlackScoutEdits(text: string): HqSlackScoutEdits {
+  return parseRecordFile(text, SlackScoutEdit)
+}
+
+/** The scout's drafts with the owner's corrections laid over them. */
+export function applyHqSlackScoutEdits(
+  drafts: readonly HqSlackScoutDraft[],
+  edits: HqSlackScoutEdits
+): HqSlackScoutDraft[] {
+  return drafts.map((draft) => {
+    const edit = edits[draft.id]
+    return edit ? { ...draft, ...edit } : draft
+  })
 }
 
 export type HqSlackScoutTaskTarget = {

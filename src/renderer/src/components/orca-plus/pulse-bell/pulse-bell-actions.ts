@@ -16,6 +16,10 @@ import {
   HQ_DEFERRED_TAB
 } from '../../../../../shared/hq-morning-briefing'
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
+import {
+  HQ_SLACK_REQUEST_BELL_KIND,
+  readHqSlackRequestRef
+} from '../../../../../shared/hq-slack-request-bell'
 import { parsePaneKey } from '../../../../../shared/stable-pane-id'
 import { launchClaudeHandoffOffer } from '@/app-shell/use-claude-handoff-offers'
 import { switchClaudeAccountTo } from '@/app-shell/use-claude-limit-guard'
@@ -26,6 +30,7 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { openChatInShownHq } from '../hq/hq-chat-open'
 import { openHqScreen } from '../hq/hq-view'
+import { runHqSlackRequestAction } from '../slack-requests/hq-slack-request-actions'
 
 function paneRefTabId(ref: PulseBellPaneRef): string | undefined {
   return ref.tabId ?? parsePaneKey(ref.paneKey)?.tabId
@@ -77,6 +82,10 @@ export function openPulseBellItemTarget(item: PulseInboxItem): boolean {
     openHqScreen(HQ_DEFERRED_TAB)
     return true
   }
+  if (item.kind === HQ_SLACK_REQUEST_BELL_KIND) {
+    openHqScreen('today')
+    return true
+  }
   return false
 }
 
@@ -98,6 +107,14 @@ export async function closeFinishedPulseBellItemsForHqChat(
 
 /** Runs the button, then closes the item unless its producer closes it on its own. */
 export async function runPulseBellAction(item: PulseInboxItem, actionId: string): Promise<void> {
+  const slackRequest =
+    item.kind === HQ_SLACK_REQUEST_BELL_KIND ? readHqSlackRequestRef(item.refId) : null
+  if (slackRequest) {
+    await runHqSlackRequestAction(slackRequest.id, actionId)
+    // Why: the item closes once HQ records the decision; Edit is not one, and a failure keeps it.
+    await window.api.pulseBell.markRead([item.id])
+    return
+  }
   if (item.kind === PULSE_BELL_KIND.handoff && item.refId) {
     if (actionId === PULSE_BELL_ACTION.launch) {
       await launchClaudeHandoffOffer(item.refId)

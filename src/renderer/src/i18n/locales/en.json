@@ -19179,7 +19179,8 @@
         "approve": "Approve",
         "edit": "Edit",
         "reject": "Reject",
-        "done": "Done"
+        "done": "Done",
+        "later": "Later"
       },
       "chatLimit": {
         "moveFailed": "The chat could not continue there"
@@ -19481,7 +19482,25 @@
         "title": "From Slack",
         "runFailed": "The scout did not run at {{time}} (Slack or ClickUp connector missing?). It retries the window next run; log: ~/Library/Logs/slack-scout.log",
         "failed": "Couldn't read the Slack scout: {{value0}}",
-        "empty": "Nothing new from Slack."
+        "empty": "Nothing new from Slack.",
+        "kind": {
+          "do": "Do",
+          "answer": "Reply",
+          "fyi": "FYI"
+        },
+        "kindLabel": "Kind",
+        "projectLabel": "Project",
+        "noProject": "No project",
+        "askPlaceholder": "What they want from you",
+        "askLabel": "What they ask",
+        "save": "Save",
+        "do": "Do",
+        "answer": "Just reply",
+        "edit": "Edit",
+        "gotIt": "Got it",
+        "skip": "Skip",
+        "projectUnknown": "project?",
+        "gone": "This Slack request is already decided."
       },
       "view": {
         "newView": "New view"
