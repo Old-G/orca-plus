@@ -157,6 +157,17 @@ describe('pickHqChat', () => {
     expect(pickHqChat(items, ['closed-long-ago', null])).toBe(hqChatKey('wt-1', 'ask'))
     expect(pickHqChat([], [null])).toBeNull()
   })
+
+  it("finds a terminal agent's chat from its tab, as a toast or notification names it", () => {
+    const terminal = buildHqChatList(
+      {
+        workspaces: [workspace('wt-1')],
+        cards: [card({ tabId: 'term', paneKey: 'term:leaf-2', bucket: 'done', dotState: 'done' })]
+      },
+      []
+    )
+    expect(pickHqChat(terminal, [hqChatKey('wt-1', 'term')])).toBe('term:leaf-2')
+  })
 })
 
 describe('nextHqWaitingChat', () => {

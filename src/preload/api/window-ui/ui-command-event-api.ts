@@ -187,6 +187,8 @@ export type UiCommandEventApi = {
       startup?: WorktreeStartupLaunch
       defaultTabs?: WorktreeDefaultTabsLaunch
       providesInitialSurface?: boolean
+      /** Custom build (hq-stays): the tab a clicked notification is about. */
+      notificationTabId?: string
     }) => void
   ) => () => void
   onCreateTerminal: (
@@ -246,6 +248,8 @@ export type UiCommandEventApi = {
       worktreeId: string
       leafId?: string | null
       ackPaneKeyOnSuccess?: string
+      /** Custom build (hq-stays): a notification click, not a CLI or runtime request. */
+      fromNotification?: boolean
       flashFocusedPane?: boolean
       scrollToBottomIfOutputSinceLastView?: boolean
     }) => void
