@@ -1,6 +1,8 @@
 import React from 'react'
 
 import { shouldBeginWorktreeRename } from '../controller/worktree-card-model'
+import { useOrcaPlusNewView } from '@/lib/orca-plus-new-view'
+import { cn } from '@/lib/utils'
 import type { WorktreeCardPresentation } from './worktree-card-presentation'
 import {
   WorktreeCardDeleteQuickAction,
@@ -22,6 +24,7 @@ export function WorktreeCardHeader({
   card: WorktreeCardController
   presentation: WorktreeCardPresentation
 }): React.JSX.Element {
+  const newView = useOrcaPlusNewView()
   const {
     worktree,
     repo,
@@ -113,7 +116,16 @@ export function WorktreeCardHeader({
           />
         ) : null}
         {!compactCards && worktree.isMainWorktree && !isFolder && (
-          <WorktreeCardPrimaryBadge card={card} hasHoverDetails={hasHoverDetails} />
+          // Custom build (sidebar-summary): under «New view» the badge shows on hover only.
+          <span
+            className={cn(
+              'inline-flex shrink-0',
+              newView &&
+                'opacity-0 transition-opacity group-focus-within/worktree-card:opacity-100 group-hover/worktree-card:opacity-100'
+            )}
+          >
+            <WorktreeCardPrimaryBadge card={card} hasHoverDetails={hasHoverDetails} />
+          </span>
         )}
 
         {worktree.isSparse && (
