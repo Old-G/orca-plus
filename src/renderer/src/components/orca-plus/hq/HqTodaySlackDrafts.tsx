@@ -1,16 +1,21 @@
 // Custom build (hq-slack-scout): the «Today» tab's «From Slack» — task drafts the Slack scout found.
 // The owner edits a draft and creates the ClickUp task, or rejects it for good; nothing goes out alone.
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { HqSlackScoutDraft } from '../../../../../shared/hq-slack-scout'
+import { hqProjectShortName } from '../../../../../shared/hq-slack-request-bell'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { translate } from '@/i18n/i18n'
 import { HqCommandDictation } from './HqCommandDictation'
 import { ColumnHeader } from './hq-waiting-parts'
+import { useHqProjectPages } from './use-hq-project-pages'
+import { useOrcaPlusNewView } from '@/lib/orca-plus-new-view'
+import { HqSlackRequestCard } from '../slack-requests/HqSlackRequestCard'
+import { useHqSlackRequestEditTarget } from '../slack-requests/hq-slack-request-actions'
 
-// Why: the scout runs every 30 minutes; a minute keeps the block fresh without a watcher.
+// Why: the scout runs every 10 minutes; a minute keeps the block fresh without a watcher.
 const REFRESH_MS = 60_000
 
 type Drafts =
@@ -191,8 +196,46 @@ function formatScoutTime(iso: string): string {
     : at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 }
 
+function SlackRequestList({
+  drafts,
+  onDone,
+  onChanged
+}: {
+  drafts: readonly HqSlackScoutDraft[]
+  onDone: (id: string) => void
+  onChanged: () => void
+}): React.JSX.Element {
+  const pages = useHqProjectPages()
+  const projects = useMemo(
+    () =>
+      pages.status === 'ready'
+        ? pages.pages
+            .map((page) => ({ slug: page.slug, name: hqProjectShortName(page) }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        : [],
+    [pages]
+  )
+  const editTarget = useHqSlackRequestEditTarget()
+  return (
+    <ul className="flex flex-col gap-1">
+      {drafts.map((draft) => (
+        <HqSlackRequestCard
+          key={draft.id}
+          draft={draft}
+          projects={projects}
+          editRequested={editTarget.id === draft.id}
+          onEditHandled={editTarget.clear}
+          onDone={() => onDone(draft.id)}
+          onChanged={onChanged}
+        />
+      ))}
+    </ul>
+  )
+}
+
 export function HqTodaySlackDrafts(): React.JSX.Element | null {
-  const { state, drop } = useSlackDrafts()
+  const { state, refresh, drop } = useSlackDrafts()
+  const newView = useOrcaPlusNewView()
   if (state.status === 'hidden' || state.status === 'loading') {
     return null
   }
@@ -219,6 +262,8 @@ export function HqTodaySlackDrafts(): React.JSX.Element | null {
         <p className="text-xs text-muted-foreground">
           {translate('auto.hq.slack.empty', 'Nothing new from Slack.')}
         </p>
+      ) : newView ? (
+        <SlackRequestList drafts={state.drafts} onDone={drop} onChanged={refresh} />
       ) : (
         <ul className="flex flex-col gap-1">
           {state.drafts.map((draft) => (
