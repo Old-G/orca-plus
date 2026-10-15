@@ -10,6 +10,18 @@ vi.mock('@/i18n/i18n', () => ({
 }))
 vi.mock('./HqCommandDictation', () => ({ HqCommandDictation: () => null }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+let newView = false
+vi.mock('@/lib/orca-plus-new-view', () => ({ useOrcaPlusNewView: () => newView }))
+vi.mock('./use-hq-project-pages', () => ({
+  useHqProjectPages: () => ({
+    status: 'ready',
+    pages: [
+      { repoId: 'r1', slug: 'acme_support_service', title: 'acme_support_service — Zenith' },
+      { repoId: 'r2', slug: 'acme-flows', title: 'Billing — робот' }
+    ]
+  })
+}))
+vi.mock('./hq-view', () => ({ openHqScreen: vi.fn() }))
 
 const { HqTodaySlackDrafts } = await import('./HqTodaySlackDrafts')
 
@@ -27,10 +39,24 @@ const draft: HqSlackScoutDraft = {
 const api = {
   slackDrafts: vi.fn(),
   createSlackDraftTask: vi.fn(async () => ({ ok: true as const, taskUrl: 'https://cu/t/1' })),
-  rejectSlackDraft: vi.fn(async () => ({ ok: true as const }))
+  rejectSlackDraft: vi.fn(async () => ({ ok: true as const })),
+  answerSlackDraft: vi.fn(async () => ({ ok: true as const })),
+  editSlackDraft: vi.fn(async () => ({ ok: true as const }))
+}
+
+const request: HqSlackScoutDraft = {
+  ...draft,
+  id: 'D1:2',
+  author: 'Вера',
+  kind: 'answer',
+  ask: 'проверь тикеты',
+  project: 'acme_support_service',
+  title: 'Проверить тикеты',
+  quote: 'Владелец, проверь тикеты'
 }
 
 beforeEach(() => {
+  newView = false
   api.slackDrafts.mockResolvedValue({
     ok: true,
     configured: true,
@@ -96,5 +122,79 @@ describe('HqTodaySlackDrafts', () => {
     await waitFor(() => expect(api.rejectSlackDraft).toHaveBeenCalledWith({ id: 'C1:1' }))
     expect(api.createSlackDraftTask).not.toHaveBeenCalled()
     await waitFor(() => expect(screen.getByText('Nothing new from Slack.')).toBeTruthy())
+  })
+
+  describe('as Slack requests («New view»)', () => {
+    beforeEach(() => {
+      newView = true
+      api.slackDrafts.mockResolvedValue({
+        ok: true,
+        configured: true,
+        lastRunAt: null,
+        failedAt: null,
+        drafts: [request, draft]
+      })
+    })
+
+    it('shows who asks what for which project, the suggested answer first', async () => {
+      render(<HqTodaySlackDrafts />)
+      expect(await screen.findByText('проверь тикеты')).toBeTruthy()
+      expect(screen.getByText('acme_support_service · acme-bugs')).toBeTruthy()
+      // A draft from before requests had a kind reads as a task with no project.
+      expect(screen.getByText('project? · acme-bugs')).toBeTruthy()
+      const [first, second] = screen.getAllByRole('listitem')
+      expect(first?.querySelectorAll('button')[0]?.textContent).toBe('Just reply')
+      expect(second?.querySelectorAll('button')[0]?.textContent).toBe('Do')
+    })
+
+    it('Do creates the task straight from the draft', async () => {
+      render(<HqTodaySlackDrafts />)
+      await screen.findByText('проверь тикеты')
+      const second = screen.getAllByRole('listitem')[1]
+      fireEvent.click(second!.querySelectorAll('button')[0]!)
+      await waitFor(() =>
+        expect(api.createSlackDraftTask).toHaveBeenCalledWith({
+          id: 'C1:1',
+          title: 'Fix the cart',
+          description: '## Зачем'
+        })
+      )
+      await waitFor(() => expect(screen.queryByText('Fix the cart')).toBeNull())
+    })
+
+    it('Just reply opens the thread and records the answer, without a task', async () => {
+      render(<HqTodaySlackDrafts />)
+      fireEvent.click((await screen.findAllByRole('button', { name: 'Just reply' }))[0]!)
+      await waitFor(() => expect(api.answerSlackDraft).toHaveBeenCalledWith({ id: 'D1:2' }))
+      expect(window.api.shell.openUrl).toHaveBeenCalledWith('https://slack/p')
+      expect(api.createSlackDraftTask).not.toHaveBeenCalled()
+      await waitFor(() => expect(screen.queryByText('проверь тикеты')).toBeNull())
+    })
+
+    it('Edit saves the corrected kind, project and ask', async () => {
+      render(<HqTodaySlackDrafts />)
+      fireEvent.click((await screen.findAllByRole('button', { name: 'Edit' }))[0]!)
+      fireEvent.change(screen.getByRole('textbox', { name: 'What they ask' }), {
+        target: { value: 'проверить тикеты Зенита' }
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      await waitFor(() =>
+        expect(api.editSlackDraft).toHaveBeenCalledWith({
+          id: 'D1:2',
+          kind: 'answer',
+          project: 'acme_support_service',
+          ask: 'проверить тикеты Зенита',
+          title: 'Проверить тикеты',
+          description: '## Зачем'
+        })
+      )
+      await waitFor(() => expect(api.slackDrafts).toHaveBeenCalledTimes(2))
+    })
+
+    it('Skip records the rejection', async () => {
+      render(<HqTodaySlackDrafts />)
+      fireEvent.click((await screen.findAllByRole('button', { name: 'Skip' }))[0]!)
+      await waitFor(() => expect(api.rejectSlackDraft).toHaveBeenCalledWith({ id: 'D1:2' }))
+    })
   })
 })

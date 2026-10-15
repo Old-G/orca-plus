@@ -48,6 +48,8 @@ vi.mock('@/lib/activate-tab-and-focus-pane', () => ({
 }))
 vi.mock('@/store', () => ({ useAppStore: { getState: () => mocks.state } }))
 vi.mock('../hq/hq-view', () => ({ openHqScreen: mocks.openHqScreen }))
+const runHqSlackRequestAction = vi.hoisted(() => vi.fn(async () => true))
+vi.mock('../slack-requests/hq-slack-request-actions', () => ({ runHqSlackRequestAction }))
 
 import { rememberedHqChat } from '../hq/hq-chat-open'
 import { closeFinishedPulseBellItemsForHqChat, runPulseBellAction } from './pulse-bell-actions'
@@ -196,5 +198,17 @@ describe('runPulseBellAction', () => {
     expect(mocks.markDone).toHaveBeenCalledWith('item-1', 'done')
     expect(mocks.launchClaudeHandoffOffer).not.toHaveBeenCalled()
     expect(mocks.switchClaudeAccountTo).not.toHaveBeenCalled()
+  })
+})
+
+describe('Slack request bell items', () => {
+  it('runs the answer on the request and leaves closing to main', async () => {
+    await runPulseBellAction(
+      bellItem('slack-request', JSON.stringify({ id: 'D1:2', kind: 'do' })),
+      'slack-skip'
+    )
+    expect(runHqSlackRequestAction).toHaveBeenCalledWith('D1:2', 'slack-skip')
+    expect(mocks.markRead).toHaveBeenCalledWith(['item-1'])
+    expect(mocks.markDone).not.toHaveBeenCalled()
   })
 })

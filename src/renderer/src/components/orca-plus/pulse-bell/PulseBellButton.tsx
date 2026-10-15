@@ -10,6 +10,7 @@ import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import { PULSE_BELL_ACTION } from '../../../../../shared/pulse-bell'
+import { HQ_SLACK_REQUEST_ACTION } from '../../../../../shared/hq-slack-request-bell'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../../shared/outgoing-approval/outgoing-approval-bell'
 import { OutgoingApprovalCard } from '../outgoing-approval/OutgoingApprovalCard'
 import { runPulseBellAction } from './pulse-bell-actions'
@@ -24,7 +25,11 @@ function actionLabel(id: string, fallback: string): string {
 }
 
 // Why: these take the user to another surface, so the popover must not cover it.
-const NAVIGATING_ACTIONS: readonly string[] = [PULSE_BELL_ACTION.open, PULSE_BELL_ACTION.launch]
+const NAVIGATING_ACTIONS: readonly string[] = [
+  PULSE_BELL_ACTION.open,
+  PULSE_BELL_ACTION.launch,
+  HQ_SLACK_REQUEST_ACTION.edit
+]
 
 function PulseBellRow({
   item,
