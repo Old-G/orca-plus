@@ -69,7 +69,13 @@ function title(card: DashboardCard): string {
 }
 
 /** An agent waiting on the user: what it asks, in full. */
-function WaitingAgentCard({ card, now }: { card: DashboardCard; now: number }): React.JSX.Element {
+export function WaitingAgentCard({
+  card,
+  now
+}: {
+  card: DashboardCard
+  now: number
+}): React.JSX.Element {
   const detail = card.askSummary ?? card.lastAgentMessage
   return (
     <li className="flex flex-col gap-1 rounded-lg border border-border bg-card p-3 text-card-foreground">
