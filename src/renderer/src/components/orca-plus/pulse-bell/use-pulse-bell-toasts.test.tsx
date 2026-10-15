@@ -24,13 +24,16 @@ const mocks = vi.hoisted(() => {
   return {
     items,
     info: vi.fn(),
+    custom: vi.fn(),
     dismiss: vi.fn(),
     run: vi.fn(async () => {}),
     state
   }
 })
 
-vi.mock('sonner', () => ({ toast: { info: mocks.info, dismiss: mocks.dismiss } }))
+vi.mock('sonner', () => ({
+  toast: { info: mocks.info, custom: mocks.custom, dismiss: mocks.dismiss }
+}))
 vi.mock('./use-pulse-bell-inbox', () => ({ usePulseBellInbox: () => mocks.items }))
 vi.mock('./pulse-bell-actions', () => ({ runPulseBellAction: mocks.run }))
 vi.mock('@/store', () => ({ useAppStore: { getState: () => mocks.state } }))
@@ -61,6 +64,7 @@ describe('usePulseBellToasts', () => {
   beforeEach(() => {
     mocks.items = []
     mocks.info.mockReset()
+    mocks.custom.mockReset()
     mocks.dismiss.mockReset()
     mocks.run.mockClear()
     setShownHqChatTab(null)
@@ -167,5 +171,32 @@ describe('usePulseBellToasts', () => {
       expect.objectContaining({ id: 'limit' }),
       'continue-on:work'
     )
+  })
+
+  it('pops a held outgoing call, even one held at launch, until it is decided', () => {
+    const held: PulseInboxItem = {
+      ...finished('draft-item'),
+      kind: 'outgoing-approval',
+      title: 'Approve an outgoing action',
+      urgency: 'urgent',
+      refKind: 'draft',
+      refId: 'draft-1'
+    }
+    mocks.items = [held]
+    const { rerender } = renderHook(() => usePulseBellToasts())
+
+    expect(mocks.custom).toHaveBeenCalledTimes(1)
+    expect(mocks.custom.mock.calls[0]?.[1]).toMatchObject({
+      id: 'outgoing-approval-toast-draft-item',
+      duration: Number.POSITIVE_INFINITY
+    })
+    expect(mocks.info).not.toHaveBeenCalled()
+
+    rerender()
+    expect(mocks.custom).toHaveBeenCalledTimes(1)
+
+    mocks.items = []
+    rerender()
+    expect(mocks.dismiss).toHaveBeenCalledWith('outgoing-approval-toast-draft-item')
   })
 })
