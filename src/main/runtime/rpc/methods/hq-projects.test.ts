@@ -73,7 +73,9 @@ describe('hqProjects RPC methods', () => {
       hqProjectClickUpLists: {},
       hqDeferredAfterMinutes: 45,
       hqDeferredDismissed: { old: 1 },
-      hqTriageDecisions: {}
+      hqTriageDecisions: {},
+      hqChatsView: undefined,
+      hqKeptProjectIds: []
     })
 
     await call('hqProjects.updateSettings', {
