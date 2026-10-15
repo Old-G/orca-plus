@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { MessagesSquare } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { useRepoById } from '@/store/repos/use-repository-catalog'
 import { isFolderRepo } from '../../../../../shared/repository/repo-kind'
@@ -33,6 +34,8 @@ import { useFocusedChatWorkers } from '@/lib/focused-chat-workers'
 import { useBotNeedsYouCount, useBotNow } from '../../bots/use-bot-now'
 import { usePublishedBotsNeedsYou } from '../../bots/bot-needs-you-published'
 import { useBotGroupMembers } from '../../bots/use-bot-group-members'
+import { useOrcaPlusNewView } from '@/lib/orca-plus-new-view'
+import { CODE_CHAT_TAB } from '../../orca-plus/code-chat/code-chat-panel-state'
 
 export type RightSidebarActivityItems = {
   visibleItems: ActivityBarItem[]
@@ -94,8 +97,10 @@ export function useRightSidebarActivityItems({
   const installedPlugins = usePluginPanelsStore((s) => s.plugins)
   const pluginFetchStatus = usePluginPanelsStore((s) => s.fetchStatus)
   const pluginPanelErrors = usePluginPanelsStore((s) => s.panelErrors)
+  const newView = useOrcaPlusNewView()
+  // Custom build (code-chat): the Chat tab rides a plugin-shaped key, so it counts as installed.
   const installedPluginTabKeys = useMemo(
-    () => collectInstalledPluginTabKeys(installedPlugins),
+    () => new Set([...collectInstalledPluginTabKeys(installedPlugins), CODE_CHAT_TAB]),
     [installedPlugins]
   )
   // Why here: the checks tab announces this status, so a plugin tab's name is judged against it.
@@ -117,6 +122,16 @@ export function useRightSidebarActivityItems({
       needsYou,
       connectorsNeedingOwner
     })
+    // Custom build (code-chat): under «New view» the Chat tab sits right after the bot tabs.
+    if (newView) {
+      const afterBotChats = builtInItems.findIndex((item) => item.id === 'bot-chats') + 1
+      builtInItems.splice(afterBotChats, 0, {
+        id: CODE_CHAT_TAB,
+        icon: MessagesSquare,
+        title: t('auto.codeChat.title', 'Chat'),
+        shortcut: ''
+      })
+    }
     return [
       ...builtInItems,
       // Append plugin tabs to preserve built-in navigation positions. Checked against every built-in
@@ -134,6 +149,7 @@ export function useRightSidebarActivityItems({
   }, [
     checksShortcut,
     explorerShortcut,
+    newView,
     pluginPanelErrors,
     visiblePluginPanels,
     portsShortcut,
