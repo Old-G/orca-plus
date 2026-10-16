@@ -34,14 +34,18 @@ export function hqTaskQuestionsParams(
   }
 }
 
-export async function draftHqTaskQuestions(
-  task: { identifier: string; title: string; description: string },
-  deps: {
-    settings: GlobalSettings
-    cwd: string
-    getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined
-  }
-): Promise<HqTaskQuestionsResult> {
+export type HqTextGenerationDeps = {
+  settings: GlobalSettings
+  cwd: string
+  getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined
+}
+
+/** One short Claude run with no tools on text other people wrote; the raw answer, trimmed. */
+export async function generateHqText(
+  prompt: string,
+  what: { emptyResultName: string; operation: 'hq-task-questions' | 'hq-clickup-reply' },
+  deps: HqTextGenerationDeps
+): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const params = hqTaskQuestionsParams(deps.settings)
   const planned = planCommitMessageGeneration(
     {
@@ -51,7 +55,7 @@ export async function draftHqTaskQuestions(
       ...(params.agentCommandOverride ? { agentCommandOverride: params.agentCommandOverride } : {}),
       ...(params.agentArgs ? { agentArgs: params.agentArgs } : {})
     },
-    hqTaskQuestionsPrompt(task)
+    prompt
   )
   if (!planned.ok) {
     return { ok: false, error: planned.error }
@@ -64,11 +68,23 @@ export async function draftHqTaskQuestions(
     params,
     plan: planned.plan,
     target,
-    emptyResultName: 'list of questions',
-    operation: 'hq-task-questions',
+    emptyResultName: what.emptyResultName,
+    operation: what.operation,
     spawnAgent: spawnSourceControlAgent
   })
   return result.success
-    ? { ok: true, questions: restoreFirstQuestionNumber(result.rawOutput.trim()) }
+    ? { ok: true, text: result.rawOutput.trim() }
     : { ok: false, error: result.error }
+}
+
+export async function draftHqTaskQuestions(
+  task: { identifier: string; title: string; description: string },
+  deps: HqTextGenerationDeps
+): Promise<HqTaskQuestionsResult> {
+  const result = await generateHqText(
+    hqTaskQuestionsPrompt(task),
+    { emptyResultName: 'list of questions', operation: 'hq-task-questions' },
+    deps
+  )
+  return result.ok ? { ok: true, questions: restoreFirstQuestionNumber(result.text) } : result
 }

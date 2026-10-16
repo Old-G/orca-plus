@@ -65,7 +65,9 @@ function itemText(item: HqInboxItem): { title: string; subtitle: string } {
             : translate('auto.hq.slack.kind.do', 'Do')
       return {
         title: `${item.draft.author ? `${item.draft.author}: ` : ''}${item.draft.ask || item.draft.title}`,
-        subtitle: [label, 'Slack', item.draft.channelName].filter(Boolean).join(' · ')
+        subtitle: [label, item.draft.source === 'clickup' ? null : 'Slack', item.draft.channelName]
+          .filter(Boolean)
+          .join(' · ')
       }
     }
     case 'agent':

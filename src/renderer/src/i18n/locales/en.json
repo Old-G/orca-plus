@@ -19318,7 +19318,8 @@
         "createdOnly": "Task created in ClickUp, but Claude did not start — take it from «New tasks».",
         "takenNoStatus": "{{value0}} created, Claude started; move it to «in process» by hand.",
         "taken": "{{value0}} created, Claude started on it.",
-        "replyStarted": "Claude is drafting the reply; you approve it before it goes out."
+        "replyStarted": "Claude is drafting the reply; you approve it before it goes out.",
+        "notStarted": "Claude did not start on the task; nothing changed."
       },
       "view": {
         "newView": "New view"
@@ -19373,6 +19374,15 @@
         "notes": "Just notes",
         "empty": "No notes.",
         "hint": "Slack questions to you land in «Waiting on me» on their own. Remind writes to the person only after you approve it."
+      },
+      "clickup": {
+        "replySent": "Reply posted in ClickUp.",
+        "drafting": "Drafting the reply…",
+        "replyPlaceholder": "Your reply",
+        "replyLabel": "Reply in ClickUp",
+        "sending": "Sending…",
+        "send": "Send",
+        "task": "ClickUp task"
       }
     },
     "claudeSubscriptions": {
