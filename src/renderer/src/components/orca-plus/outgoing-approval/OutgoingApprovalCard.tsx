@@ -48,7 +48,8 @@ function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): React.JSX
           <p className={cn('truncate text-sm', item.readAt === null && 'font-semibold')}>
             {translate(`auto.pulseBell.kind.${item.kind}.${item.urgency}`, item.title)}
           </p>
-          <p className="truncate text-xs text-muted-foreground" title={head}>
+          {/* Custom build (outgoing-approval-target): where it goes and from which chat, wrapped. */}
+          <p className="line-clamp-3 text-xs break-words text-muted-foreground" title={head}>
             {head}
           </p>
         </div>

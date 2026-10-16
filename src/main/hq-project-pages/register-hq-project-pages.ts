@@ -12,7 +12,10 @@ import {
 } from '../../shared/rpc-contract/hq-projects-params'
 import { keepHqApprovalEdits } from '../hq-today/hq-reply-corrections'
 import { setHqDesktopSender } from '../hq-today/hq-request-on-desktop'
-import { onOutgoingApprovalDecided } from '../orca-plus/outgoing-approval/register-outgoing-approval'
+import {
+  bindOutgoingApprovalHqPath,
+  onOutgoingApprovalDecided
+} from '../orca-plus/outgoing-approval/register-outgoing-approval'
 import {
   createHqProjectPagesService,
   provideHqProjectPagesService
@@ -26,6 +29,8 @@ export function registerHqProjectPagesHandlers(
   provideHqProjectPagesService(service)
   // Custom build (hq-reply-tone): a Slack message rewritten in Approve becomes a tone lesson.
   onOutgoingApprovalDecided(keepHqApprovalEdits(() => store.getSettings().hqPath ?? null))
+  // Custom build (outgoing-approval-target): the scout's files name the DMs approval cards send to.
+  bindOutgoingApprovalHqPath(() => store.getSettings().hqPath ?? null)
   // Custom build (hq-mobile): one window only, so a phone's Do never runs twice.
   setHqDesktopSender((channel, payload) => {
     const window =
