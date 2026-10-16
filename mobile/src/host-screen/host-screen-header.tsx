@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native'
+import { Image, Pressable, Text, View } from 'react-native'
 import {
   workspaceOptionsAccessibilityLabel,
   WORKSPACE_OPTIONS_TITLE
@@ -19,6 +19,7 @@ import { StatusDot } from '../components/StatusDot'
 import { classifyConnection, type ConnectionVerdict } from '../transport/connection-health'
 import { colors } from '../theme/mobile-theme'
 import { hostScreenStyles as styles } from './host-screen-styles'
+import { ORCA_PLUS_MARK } from './orca-plus-mark'
 import type { HostScreenController } from './use-host-screen-controller'
 
 function isErrorVerdict(v: ConnectionVerdict): boolean {
@@ -53,6 +54,10 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
         >
           <ChevronLeft size={22} color={colors.textPrimary} />
         </Pressable>
+        <View style={styles.brand}>
+          <Image source={ORCA_PLUS_MARK} style={styles.brandMark} accessibilityLabel="Orca+" />
+          <Text style={styles.brandText}>Orca+</Text>
+        </View>
         {(() => {
           const headerVerdict = classifyConnection({
             state: connState,
