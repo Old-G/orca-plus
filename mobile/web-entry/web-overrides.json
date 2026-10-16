@@ -104,6 +104,8 @@
     {
       "file": "app/h/[hostId]/automations.web.tsx",
       "reason": "The served automation route renders its screen directly; the native sibling mounts the shell and imports a native view manager unavailable in the page."
+      "file": "app/h/[hostId]/hq.web.tsx",
+      "reason": "Custom build (hq-mobile): HQ exists only in the page, and its native file mounts the shell, whose module calls requireNativeViewManager at import and throws in a browser; this sibling renders the screen itself."
     },
     {
       "file": "app/h/[hostId]/source-control/[worktreeId].web.tsx",
