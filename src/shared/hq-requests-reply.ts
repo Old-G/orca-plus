@@ -49,3 +49,27 @@ export const HqDraftReplySchema = z.union([
   z.object({ ok: z.literal(true), text: z.string() }),
   z.object({ ok: z.literal(false), error: z.string() })
 ])
+
+/** Custom build (hq-mobile): a bell item as a client off the Mac shows it. */
+export const HqInboxItemSchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  title: z.string(),
+  body: z.string().nullable(),
+  actions: z.array(z.object({ id: z.string(), label: z.string() })),
+  createdAt: z.number(),
+  readAt: z.number().nullable(),
+  doneAt: z.number().nullable()
+})
+
+export type HqInboxItem = z.infer<typeof HqInboxItemSchema>
+
+/** The open bell items, newest first; an entry a newer host shaped differently is dropped. */
+export function readHqInbox(raw: readonly unknown[]): HqInboxItem[] {
+  return raw
+    .flatMap((entry) => {
+      const parsed = HqInboxItemSchema.safeParse(entry)
+      return parsed.success && parsed.data.doneAt === null ? [parsed.data] : []
+    })
+    .sort((a, b) => b.createdAt - a.createdAt)
+}

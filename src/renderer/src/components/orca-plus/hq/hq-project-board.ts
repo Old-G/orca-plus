@@ -7,7 +7,7 @@ import type { ProjectGroup } from '../../../../../shared/project-group-types'
 import { getEffectiveProjectGroupManualRank } from '../../../../../shared/project-groups'
 import type { Repo } from '../../../../../shared/repo-types'
 import type { Worktree } from '../../../../../shared/worktree/types'
-import type { HqWaiting } from './hq-pulse-snapshot'
+import type { HqWaiting } from '../../../../../shared/hq-pulse-snapshot'
 
 export type HqProjectCard = {
   repoId: string

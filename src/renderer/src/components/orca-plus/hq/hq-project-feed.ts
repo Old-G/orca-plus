@@ -1,7 +1,7 @@
 // Custom build (hq): a project card's feed — its recent commits and the decisions recorded for it,
 // as one newest-first timeline.
 import type { GitHistoryItem } from '../../../../../shared/git-history-types'
-import type { HqDecision } from './hq-pulse-snapshot'
+import type { HqDecision } from '../../../../../shared/hq-pulse-snapshot'
 
 export type HqFeedEntry =
   | { kind: 'commit'; id: string; at: number; title: string; hash: string; author: string | null }

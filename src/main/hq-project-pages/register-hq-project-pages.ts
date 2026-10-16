@@ -11,7 +11,7 @@ import {
   HqSlackDraftRefParams
 } from '../../shared/rpc-contract/hq-projects-params'
 import { keepHqApprovalEdits } from '../hq-today/hq-reply-corrections'
-import { setHqRequestDesktopSender } from '../hq-today/hq-request-on-desktop'
+import { setHqDesktopSender } from '../hq-today/hq-request-on-desktop'
 import { onOutgoingApprovalDecided } from '../orca-plus/outgoing-approval/register-outgoing-approval'
 import {
   createHqProjectPagesService,
@@ -27,11 +27,11 @@ export function registerHqProjectPagesHandlers(
   // Custom build (hq-reply-tone): a Slack message rewritten in Approve becomes a tone lesson.
   onOutgoingApprovalDecided(keepHqApprovalEdits(() => store.getSettings().hqPath ?? null))
   // Custom build (hq-mobile): one window only, so a phone's Do never runs twice.
-  setHqRequestDesktopSender((request) => {
+  setHqDesktopSender((channel, payload) => {
     const window =
       BrowserWindow.getFocusedWindow() ??
       BrowserWindow.getAllWindows().find((entry) => !entry.isDestroyed())
-    window?.webContents.send('hqProjects:runRequest', request)
+    window?.webContents.send(channel, payload)
     return Boolean(window)
   })
   ipcMain.handle('hqProjects:list', () => service.list())

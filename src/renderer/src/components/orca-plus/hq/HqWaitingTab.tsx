@@ -3,7 +3,7 @@ import type { PulseWaitingDirection } from '../../../../../shared/pulse-types'
 import { useNow } from '@/hooks/use-now'
 import { translate } from '@/i18n/i18n'
 import { formatShortTimeAgo } from '@/lib/short-time-ago'
-import type { HqDecision, HqPerson, HqWaiting } from './hq-pulse-snapshot'
+import type { HqDecision, HqPerson, HqWaiting } from '../../../../../shared/hq-pulse-snapshot'
 import { ColumnHeader, QuickAdd, WaitingCard, decisionLabel } from './hq-waiting-parts'
 import { useHqPulse } from './use-hq-pulse'
 

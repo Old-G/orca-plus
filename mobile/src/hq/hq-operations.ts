@@ -4,7 +4,10 @@ import {
   HqRequestsReplySchema,
   HqWriteReplySchema
 } from '../../../src/shared/hq-requests-reply'
+import { z } from 'zod'
+import { readHqPulse, type HqPulse } from '../../../src/shared/hq-pulse-snapshot'
 import { defineRpcOperation } from '../transport/rpc-operation'
+import type { RpcCompatibleReader } from '../transport/rpc-operation-contract'
 import { rpcResultVariant } from '../transport/rpc-operation-result-reader'
 
 export const hqRequestsRead = defineRpcOperation({
@@ -54,4 +57,74 @@ export const hqClickUpReplySend = defineRpcOperation({
   acceptance: 'require-result-or-throw',
   barrier: 'on-settle',
   read: rpcResultVariant('hq-clickup-reply-send', HqWriteReplySchema)
+})
+
+const pulseReader: RpcCompatibleReader<unknown, 'hq-pulse', HqPulse> = (raw) => {
+  const pulse = readHqPulse(raw)
+  return pulse
+    ? {
+        compatible: true,
+        variant: 'hq-pulse',
+        value: pulse,
+        salvage: { droppedPaths: [], droppedCount: 0 }
+      }
+    : { compatible: false, issues: [{ path: '', message: 'not a pulse snapshot' }] }
+}
+
+/** People, open waitings and notes, and decisions — the Mac's pulse database. */
+export const hqPulseRead = defineRpcOperation({
+  name: 'hq.pulse',
+  method: 'pulse.snapshot',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: pulseReader
+})
+
+export const hqPersonUpsert = defineRpcOperation({
+  name: 'hq.person-upsert',
+  method: 'pulse.upsertPerson',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-person', z.object({ id: z.string() }).passthrough())
+})
+
+export const hqWaitingAdd = defineRpcOperation({
+  name: 'hq.waiting-add',
+  method: 'pulse.addWaiting',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-waiting-added', z.unknown())
+})
+
+export const hqWaitingClose = defineRpcOperation({
+  name: 'hq.waiting-close',
+  method: 'pulse.closeWaiting',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-waiting-closed', z.unknown())
+})
+
+export const hqInboxRead = defineRpcOperation({
+  name: 'hq.inbox',
+  method: 'pulse.listInbox',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-inbox', z.array(z.unknown()))
+})
+
+export const hqInboxMarkRead = defineRpcOperation({
+  name: 'hq.inbox-mark-read',
+  method: 'pulse.markInboxRead',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-inbox-read', z.unknown())
+})
+
+/** A bell item's button, pressed in the Mac's window; the Mac refuses approvals. */
+export const hqBellActionOnDesktop = defineRpcOperation({
+  name: 'hq.bell-action-on-desktop',
+  method: 'hqProjects.runBellActionOnDesktop',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-bell-action-on-desktop', HqWriteReplySchema)
 })
