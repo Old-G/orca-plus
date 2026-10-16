@@ -1,6 +1,6 @@
 // Custom build (hq-notes): one line typed into HQ's «Notes» — «@Вера жду выгрузку до пт» — read into
 // who, which way the waiting goes, what, and by when. Anything it cannot read stays in the text.
-import type { PulseWaitingDirection } from '../../../../../shared/pulse-types'
+import type { PulseWaitingDirection } from './pulse-types'
 
 /** A plain note: no person, nobody waits. Stored as a waiting with this source. */
 export const HQ_NOTE_SOURCE = 'note'

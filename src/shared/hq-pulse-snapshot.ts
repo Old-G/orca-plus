@@ -5,7 +5,7 @@ import type {
   PulseDecision,
   PulsePerson,
   PulseWaiting
-} from '../../../../../shared/pulse-types'
+} from './pulse-types'
 
 export type HqPerson = Pick<PulsePerson, 'id' | 'name'>
 export type HqWaiting = Pick<
