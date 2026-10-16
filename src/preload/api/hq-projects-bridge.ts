@@ -24,5 +24,11 @@ export const hqProjectsApi = {
       listener(request)
     ipcRenderer.on('hqProjects:runRequest', handler)
     return () => ipcRenderer.removeListener('hqProjects:runRequest', handler)
+  },
+  onRunBellAction: (listener) => {
+    const handler = (_event: unknown, request: { itemId: string; actionId: string }): void =>
+      listener(request)
+    ipcRenderer.on('hqProjects:runBellAction', handler)
+    return () => ipcRenderer.removeListener('hqProjects:runBellAction', handler)
   }
 } satisfies PreloadApi['hqProjects']

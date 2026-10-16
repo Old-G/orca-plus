@@ -53,6 +53,11 @@ export const HqRequestOnDesktopParams = z.object({
   action: z.enum(HQ_REQUEST_DESKTOP_ACTIONS)
 })
 
+export const HqBellActionOnDesktopParams = z.object({
+  itemId: z.string().min(1).max(200),
+  actionId: z.string().min(1).max(100)
+})
+
 export const HqClickUpReplyParams = z.object({
   id: z.string().min(1).max(200),
   text: z.string().trim().min(1).max(20_000),
