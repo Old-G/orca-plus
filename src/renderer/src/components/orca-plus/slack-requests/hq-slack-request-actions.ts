@@ -68,6 +68,7 @@ function slackTakeDeps(): HqSlackTakeDeps {
           })
       }),
     remember: rememberHqTake,
+    markTaken: (id) => window.api.hqProjects.takeSlackDraft({ id }),
     now: () => new Date()
   }
 }
@@ -81,7 +82,10 @@ function openTaskAction(taskUrl: string): { label: string; onClick: () => void }
 
 /** «Do»: the ClickUp task (with the owner's corrections), then Claude in the request's project. */
 export async function doHqSlackRequest(
-  draft: Pick<HqSlackScoutDraft, 'id' | 'title' | 'description' | 'project' | 'permalink'>
+  draft: Pick<
+    HqSlackScoutDraft,
+    'id' | 'title' | 'description' | 'project' | 'permalink' | 'clickupTaskId'
+  >
 ): Promise<boolean> {
   const outcome = await takeHqSlackRequest(draft, slackTakeDeps())
   switch (outcome.kind) {
@@ -103,6 +107,12 @@ export async function doHqSlackRequest(
       return false
     case 'create-failed':
       toast.error(outcome.error)
+      return false
+    case 'not-started':
+      toast.error(
+        translate('auto.hq.slack.notStarted', 'Claude did not start on the task; nothing changed.'),
+        { action: openTaskAction(outcome.taskUrl) }
+      )
       return false
     case 'created-only':
       toast.warning(
@@ -131,10 +141,15 @@ export async function doHqSlackRequest(
 }
 
 /** «Just reply»: Claude in HQ drafts the owner's answer in the thread; it goes out only once approved.
- *  Without the HQ workspace the thread opens for the owner's own answer. */
+ *  Without the HQ workspace the thread opens for the owner's own answer. A ClickUp comment gets the
+ *  reply composer in HQ's Today instead. */
 export async function answerHqSlackRequest(
-  draft: Pick<HqSlackScoutDraft, 'id' | 'permalink'>
+  draft: Pick<HqSlackScoutDraft, 'id' | 'permalink' | 'source'>
 ): Promise<boolean> {
+  if (draft.source === 'clickup') {
+    openHqSlackRequest(draft.id, 'reply')
+    return false
+  }
   const thread = hqSlackThread(draft)
   const state = useAppStore.getState()
   const hqWorktreeId = findHqWorktreeId(state.settings?.hqPath, state.repos, state.worktreesByRepo)
@@ -160,31 +175,44 @@ export async function skipHqSlackRequest(id: string): Promise<boolean> {
   return settle(await window.api.hqProjects.rejectSlackDraft({ id }).catch(failed))
 }
 
-let editTarget: string | null = null
-const editListeners = new Set<() => void>()
+/** Which panel of a request the bell or a toast opened: the editor, or a ClickUp reply composer. */
+export type HqSlackRequestOpenMode = 'edit' | 'reply'
 
-function setEditTarget(id: string | null): void {
-  editTarget = id
-  for (const listener of editListeners) {
+type OpenTarget = { id: string; mode: HqSlackRequestOpenMode }
+
+let openTarget: OpenTarget | null = null
+const openListeners = new Set<() => void>()
+
+function setOpenTarget(target: OpenTarget | null): void {
+  openTarget = target
+  for (const listener of openListeners) {
     listener()
   }
 }
 
-/** «Edit» from the bell or a toast: HQ's Today opens with that request's editor. */
-export function editHqSlackRequest(id: string): void {
-  setEditTarget(id)
+function openHqSlackRequest(id: string, mode: HqSlackRequestOpenMode): void {
+  setOpenTarget({ id, mode })
   openHqScreen('today')
 }
 
-export function useHqSlackRequestEditTarget(): { id: string | null; clear: () => void } {
-  const id = useSyncExternalStore(
+/** «Edit» from the bell or a toast: HQ's Today opens with that request's editor. */
+export function editHqSlackRequest(id: string): void {
+  openHqSlackRequest(id, 'edit')
+}
+
+export function useHqSlackRequestEditTarget(): {
+  id: string | null
+  mode: HqSlackRequestOpenMode | null
+  clear: () => void
+} {
+  const target = useSyncExternalStore(
     (listener) => {
-      editListeners.add(listener)
-      return () => editListeners.delete(listener)
+      openListeners.add(listener)
+      return () => openListeners.delete(listener)
     },
-    () => editTarget
+    () => openTarget
   )
-  return { id, clear: () => setEditTarget(null) }
+  return { id: target?.id ?? null, mode: target?.mode ?? null, clear: () => setOpenTarget(null) }
 }
 
 /** A bell or toast button by its action id; false when the request is gone or the write failed. */

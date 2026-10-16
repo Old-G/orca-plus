@@ -20,10 +20,12 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { translate } from '@/i18n/i18n'
 import { HqCommandDictation } from '../hq/HqCommandDictation'
+import { HqClickUpReplyComposer } from './HqClickUpReplyComposer'
 import {
   answerHqSlackRequest,
   doHqSlackRequest,
-  skipHqSlackRequest
+  skipHqSlackRequest,
+  type HqSlackRequestOpenMode
 } from './hq-slack-request-actions'
 
 export type HqSlackRequestProject = { slug: string; name: string }
@@ -178,27 +180,29 @@ const ACTION_ORDER: Record<HqSlackRequestKind, ActionKey[]> = {
 export function HqSlackRequestCard({
   draft,
   projects,
-  editRequested,
-  onEditHandled,
+  openRequested,
+  onOpenHandled,
   onDone,
   onChanged
 }: {
   draft: HqSlackScoutDraft
   projects: readonly HqSlackRequestProject[]
-  /** The bell or a toast asked for this request's editor. */
-  editRequested: boolean
-  onEditHandled: () => void
+  /** The bell or a toast asked for this request's editor or ClickUp reply composer. */
+  openRequested: HqSlackRequestOpenMode | null
+  onOpenHandled: () => void
   onDone: () => void
   onChanged: () => void
 }): React.JSX.Element {
-  const [editingHere, setEditingHere] = useState(false)
-  const editing = editingHere || editRequested
-  const setEditing = (next: boolean): void => {
-    setEditingHere(next)
-    if (!next && editRequested) {
-      onEditHandled()
+  const [panelHere, setPanelHere] = useState<HqSlackRequestOpenMode | null>(null)
+  const panel = panelHere ?? openRequested
+  const setPanel = (next: HqSlackRequestOpenMode | null): void => {
+    setPanelHere(next)
+    if (!next && openRequested) {
+      onOpenHandled()
     }
   }
+  const editing = panel === 'edit'
+  const isClickUp = draft.source === 'clickup'
   const [busy, setBusy] = useState(false)
   const rowRef = useRef<HTMLLIElement>(null)
   const kind = hqSlackRequestKind(draft)
@@ -207,10 +211,10 @@ export function HqSlackRequestCard({
     : null
 
   useEffect(() => {
-    if (editRequested) {
+    if (openRequested) {
       rowRef.current?.scrollIntoView({ block: 'center' })
     }
-  }, [editRequested])
+  }, [openRequested])
 
   const decide = async (run: () => Promise<boolean>): Promise<void> => {
     setBusy(true)
@@ -231,11 +235,15 @@ export function HqSlackRequestCard({
   }
   const handlers: Record<ActionKey, () => void> = {
     do: () => void decide(() => doHqSlackRequest(draft)),
-    answer: () => void decide(() => answerHqSlackRequest(draft)),
-    edit: () => setEditing(true),
+    answer: isClickUp
+      ? () => setPanel('reply')
+      : () => void decide(() => answerHqSlackRequest(draft)),
+    edit: () => setPanel('edit'),
     skip: () => void decide(() => skipHqSlackRequest(draft.id))
   }
-  const actions = ACTION_ORDER[kind].filter((key) => key !== 'edit' || !editing)
+  const actions = ACTION_ORDER[kind].filter(
+    (key) => (key !== 'edit' || !editing) && (key !== 'answer' || panel !== 'reply')
+  )
 
   return (
     <li ref={rowRef} className="flex flex-col gap-1.5 rounded-md px-2 py-1.5 hover:bg-accent/50">
@@ -261,10 +269,20 @@ export function HqSlackRequestCard({
           draft={draft}
           projects={projects}
           onSaved={() => {
-            setEditing(false)
+            setPanel(null)
             onChanged()
           }}
-          onCancel={() => setEditing(false)}
+          onCancel={() => setPanel(null)}
+        />
+      ) : null}
+      {panel === 'reply' && isClickUp ? (
+        <HqClickUpReplyComposer
+          id={draft.id}
+          onSent={() => {
+            setPanel(null)
+            onDone()
+          }}
+          onCancel={() => setPanel(null)}
         />
       ) : null}
       <div className="flex flex-wrap items-center gap-1.5">
@@ -287,7 +305,9 @@ export function HqSlackRequestCard({
             size="xs"
             onClick={() => void window.api.shell.openUrl(draft.permalink)}
           >
-            {translate('auto.hq.slack.thread', 'Slack thread')}
+            {isClickUp
+              ? translate('auto.hq.clickup.task', 'ClickUp task')
+              : translate('auto.hq.slack.thread', 'Slack thread')}
           </Button>
         ) : null}
       </div>

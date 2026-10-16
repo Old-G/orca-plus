@@ -9,6 +9,10 @@ export const HQ_SLACK_SCOUT_DECISIONS_FILE = 'decisions.json'
 export const HQ_SLACK_SCOUT_CONFIG_FILE = 'config.yaml'
 /** Custom build (hq-slack-requests): the owner's corrections to a request — kind, project, wording. */
 export const HQ_SLACK_SCOUT_EDITS_FILE = 'edits.json'
+/** Custom build (hq-clickup-requests): comments to the owner's ClickUp tasks, written by Orca+ itself. */
+export const HQ_CLICKUP_REQUESTS_FILE = 'clickup.json'
+/** Custom build (hq-clickup-requests): the owner's draft-vs-sent pairs, read back as tone examples. */
+export const HQ_REPLY_CORRECTIONS_FILE = 'corrections.jsonl'
 /** Written by the scout's run.sh after every run: `{at, ok, exitCode, lastRunAt}`. */
 export const HQ_SLACK_SCOUT_STATUS_FILE = 'status.json'
 
@@ -49,7 +53,11 @@ const SlackScoutDraft = z.object({
   ask: z.string().max(500).optional().catch(undefined),
   /** HQ project slug, or null when the thread does not say. */
   project: z.string().max(200).nullable().optional().catch(undefined),
-  authorId: z.string().max(50).optional().catch(undefined)
+  authorId: z.string().max(50).optional().catch(undefined),
+  /** Custom build (hq-clickup-requests): absent = Slack. */
+  source: z.enum(['slack', 'clickup']).optional().catch(undefined),
+  /** The ClickUp task a `clickup` request is a comment on. */
+  clickupTaskId: z.string().max(100).optional().catch(undefined)
 })
 
 export type HqSlackScoutDraft = z.infer<typeof SlackScoutDraft>
@@ -88,7 +96,7 @@ export function hqSlackRequestKind(draft: Pick<HqSlackScoutDraft, 'kind'>): HqSl
 }
 
 const SlackScoutDecision = z.object({
-  decision: z.enum(['created', 'rejected', 'answered']),
+  decision: z.enum(['created', 'rejected', 'answered', 'taken']),
   at: z.number(),
   taskUrl: z.string().optional()
 })
