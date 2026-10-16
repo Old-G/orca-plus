@@ -55,6 +55,7 @@ export function mobileWebAppBundleBudgetBytes(manifest) {
 
 // Measure sorted route prefixes with routes.slice(0,n), excluding locale catalogs: distinct importer sets determine chunks, not route count.
 // Re-measure table with measure-mobile-web-app-chunk-sweep.mjs when routes change; it is envelope’s only input, and pins must fail rather than permit arbitrary ceiling bumps.
+// Custom build (hq-mobile, hq-plus-phone): re-measured 10.11 with HQ's route — 72 scripts at 18 routes, spread 1–18.
 export const MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP = [
   ['./_layout.tsx', 4],
   ['./h/[hostId]/[...page].tsx', 6],
@@ -63,16 +64,17 @@ export const MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP = [
   ['./h/[hostId]/automations.tsx', 13],
   ['./h/[hostId]/edit.tsx', 14],
   ['./h/[hostId]/files/[worktreeId].tsx', 19],
-  ['./h/[hostId]/files/preview/[worktreeId].tsx', 27],
-  ['./h/[hostId]/history/[worktreeId].tsx', 28],
+  ['./h/[hostId]/files/preview/[worktreeId].tsx', 24],
+  ['./h/[hostId]/history/[worktreeId].tsx', 25],
+  ['./h/[hostId]/hq.tsx', 28],
   ['./h/[hostId]/index.tsx', 32],
-  ['./h/[hostId]/new-workspace.tsx', 40],
-  ['./h/[hostId]/pr/[worktreeId].tsx', 41],
-  ['./h/[hostId]/review/[worktreeId].tsx', 48],
-  ['./h/[hostId]/session/[worktreeId].tsx', 60],
-  ['./h/[hostId]/source-control/[worktreeId].tsx', 66],
-  ['./h/[hostId]/tasks.tsx', 73],
-  ['./h/_layout.tsx', 75]
+  ['./h/[hostId]/new-workspace.tsx', 35],
+  ['./h/[hostId]/pr/[worktreeId].tsx', 36],
+  ['./h/[hostId]/review/[worktreeId].tsx', 43],
+  ['./h/[hostId]/session/[worktreeId].tsx', 61],
+  ['./h/[hostId]/source-control/[worktreeId].tsx', 63],
+  ['./h/[hostId]/tasks.tsx', 68],
+  ['./h/_layout.tsx', 72]
 ]
 
 const sweptScripts = MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP.map(([, scripts]) => scripts)

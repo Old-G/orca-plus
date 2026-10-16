@@ -19,6 +19,7 @@ import {
   syncHqSlackRequestToasts,
   type HqSlackRequestToastMemory
 } from '../slack-requests/hq-slack-request-toasts'
+import { useHqRequestsFromPhone } from '../slack-requests/use-hq-requests-from-phone'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 
@@ -56,6 +57,7 @@ function act(item: PulseInboxItem, actionId: string): void {
 }
 
 export function usePulseBellToasts(): void {
+  useHqRequestsFromPhone()
   const items = usePulseBellInbox()
   // Why: null until the first list lands — items already open at launch stay in the Inbox only.
   const known = useRef<Set<string> | null>(null)
