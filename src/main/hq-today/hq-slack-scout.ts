@@ -16,6 +16,7 @@ import {
   parseHqSlackScoutFailedAt,
   parseHqSlackScoutDrafts,
   parseHqSlackScoutTaskTarget,
+  hqSlackScoutDone,
   pendingHqSlackScoutDrafts,
   type HqSlackScoutCreateResult,
   type HqSlackScoutDecision,
@@ -46,38 +47,49 @@ function scoutPath(hqPath: string, file: string): string {
   return join(hqPath, HQ_SLACK_SCOUT_DIR, file)
 }
 
-export async function readHqSlackScout(hqPath: string): Promise<HqSlackScoutResult> {
+/** Every request in the scout's files and Orca+'s own, with the owner's corrections over them. */
+async function readScoutFiles(hqPath: string) {
+  const [config, drafts, decisions, status, edits, clickup] = await Promise.all([
+    readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_CONFIG_FILE)),
+    readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DRAFTS_FILE)),
+    readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DECISIONS_FILE)),
+    readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_STATUS_FILE)),
+    readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_EDITS_FILE)),
+    readOptional(scoutPath(hqPath, HQ_CLICKUP_REQUESTS_FILE))
+  ])
+  const file = parseHqSlackScoutDrafts(drafts ?? '{}')
+  // Custom build (hq-clickup-requests): comments on the owner's tasks sit beside the Slack requests.
+  // Why: only Orca+'s own clickup.json may name a ClickUp task to comment on or take; the scout
+  // writes drafts.json from Slack text other people control.
+  const slackDrafts = file.drafts.map(
+    ({ source: _source, clickupTaskId: _taskId, ...draft }) => draft
+  )
+  const clickupDrafts = parseHqSlackScoutDrafts(clickup ?? '{}').drafts.flatMap((draft) =>
+    draft.clickupTaskId ? [{ ...draft, source: 'clickup' as const }] : []
+  )
+  return {
+    configured: config !== null || clickupDrafts.length > 0,
+    lastRunAt: file.lastRunAt,
+    failedAt: parseHqSlackScoutFailedAt(status),
+    all: applyHqSlackScoutEdits(
+      [...slackDrafts, ...clickupDrafts],
+      parseHqSlackScoutEdits(edits ?? '{}')
+    ),
+    decisions: parseHqSlackScoutDecisions(decisions ?? '{}')
+  }
+}
+
+export async function readHqSlackScout(
+  hqPath: string,
+  now: () => number = Date.now
+): Promise<HqSlackScoutResult> {
   try {
-    const [config, drafts, decisions, status, edits, clickup] = await Promise.all([
-      readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_CONFIG_FILE)),
-      readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DRAFTS_FILE)),
-      readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DECISIONS_FILE)),
-      readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_STATUS_FILE)),
-      readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_EDITS_FILE)),
-      readOptional(scoutPath(hqPath, HQ_CLICKUP_REQUESTS_FILE))
-    ])
-    const file = parseHqSlackScoutDrafts(drafts ?? '{}')
-    // Custom build (hq-clickup-requests): comments on the owner's tasks sit beside the Slack requests.
-    // Why: only Orca+'s own clickup.json may name a ClickUp task to comment on or take; the scout
-    // writes drafts.json from Slack text other people control.
-    const slackDrafts = file.drafts.map(
-      ({ source: _source, clickupTaskId: _taskId, ...draft }) => draft
-    )
-    const clickupDrafts = parseHqSlackScoutDrafts(clickup ?? '{}').drafts.flatMap((draft) =>
-      draft.clickupTaskId ? [{ ...draft, source: 'clickup' as const }] : []
-    )
+    const { all, decisions, ...run } = await readScoutFiles(hqPath)
     return {
       ok: true,
-      configured: config !== null || clickupDrafts.length > 0,
-      lastRunAt: file.lastRunAt,
-      failedAt: parseHqSlackScoutFailedAt(status),
-      drafts: applyHqSlackScoutEdits(
-        pendingHqSlackScoutDrafts(
-          [...slackDrafts, ...clickupDrafts],
-          parseHqSlackScoutDecisions(decisions ?? '{}')
-        ),
-        parseHqSlackScoutEdits(edits ?? '{}')
-      )
+      ...run,
+      drafts: pendingHqSlackScoutDrafts(all, decisions),
+      done: hqSlackScoutDone(decisions, now())
     }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
@@ -107,14 +119,17 @@ function writeRecordEntry<T>(
   file: string,
   parse: (text: string) => Record<string, T>,
   draftId: string,
-  update: (current: T | undefined) => T
+  /** undefined drops the entry. */
+  update: (current: T | undefined) => T | undefined
 ): Promise<void> {
   const write = recordWrites.then(async () => {
     const path = scoutPath(hqPath, file)
     const current = parse((await readOptional(path)) ?? '{}')
     await mkdir(join(hqPath, HQ_SLACK_SCOUT_DIR), { recursive: true })
     const temp = `${path}.${process.pid}.tmp`
-    const next = { ...current, [draftId]: update(current[draftId]) }
+    const { [draftId]: previous, ...rest } = current
+    const value = update(previous)
+    const next = value === undefined ? rest : { ...rest, [draftId]: value }
     await writeFile(temp, `${JSON.stringify(next, null, 2)}\n`)
     await rename(temp, path)
   })
@@ -126,11 +141,22 @@ function writeRecordEntry<T>(
   })
 }
 
-function recordDecision(
+async function recordDecision(
   hqPath: string,
   draftId: string,
-  decision: HqSlackScoutDecision
+  decided: HqSlackScoutDecision
 ): Promise<void> {
+  // Custom build (hq-done-journal): the journal names the request after its draft is gone.
+  const draft = (await readScoutFiles(hqPath).catch(() => null))?.all.find((d) => d.id === draftId)
+  const decision: HqSlackScoutDecision = draft
+    ? {
+        ...decided,
+        title: (draft.ask || draft.title).slice(0, 300),
+        ...(draft.author ? { author: draft.author.slice(0, 200) } : {}),
+        source: draft.source ?? 'slack',
+        permalink: draft.permalink.slice(0, 2000)
+      }
+    : decided
   return writeRecordEntry(
     hqPath,
     HQ_SLACK_SCOUT_DECISIONS_FILE,
@@ -179,6 +205,21 @@ export async function rejectHqSlackScoutDraft(
   deps: HqSlackScoutDeps = defaultDeps
 ): Promise<void> {
   await recordDecision(hqPath, draftId, { decision: 'rejected', at: deps.now() })
+}
+
+/** Custom build (hq-done-journal): a skipped request comes back while its draft is still on file. */
+export async function restoreHqSlackScoutDraft(hqPath: string, draftId: string): Promise<void> {
+  const { all, decisions } = await readScoutFiles(hqPath)
+  if (decisions[draftId]?.decision !== 'rejected' || !all.some((draft) => draft.id === draftId)) {
+    throw new Error('This request can no longer come back.')
+  }
+  await writeRecordEntry<HqSlackScoutDecision>(
+    hqPath,
+    HQ_SLACK_SCOUT_DECISIONS_FILE,
+    parseHqSlackScoutDecisions,
+    draftId,
+    () => undefined
+  )
 }
 
 /** Creates the owner-edited draft as a task where config.yaml says, then marks the draft created. */
