@@ -13,8 +13,8 @@ import {
   answerHqSlackRequest,
   skipHqSlackRequest
 } from '../slack-requests/hq-slack-request-actions'
-import { HQ_NOTE_SOURCE, parseHqNote, type HqParsedNote } from './hq-note-parse'
-import type { HqPerson, HqWaiting } from './hq-pulse-snapshot'
+import { HQ_NOTE_SOURCE, parseHqNote, type HqParsedNote } from '../../../../../shared/hq-note-parse'
+import type { HqPerson, HqWaiting } from '../../../../../shared/hq-pulse-snapshot'
 import { findHqWorktreeId } from './hq-today-actions'
 import { RemindButton } from './HqTodayPeople'
 import { useHqSlackDrafts } from './HqTodaySlackDrafts'

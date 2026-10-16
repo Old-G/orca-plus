@@ -3,7 +3,7 @@
 import type { ClickUpTaskSummary } from '../../../../../shared/clickup-types'
 import type { DashboardCard } from '../../../../../shared/dashboard-snapshot'
 import { translate } from '@/i18n/i18n'
-import type { HqWaiting } from './hq-pulse-snapshot'
+import type { HqWaiting } from '../../../../../shared/hq-pulse-snapshot'
 
 const DAY_MS = 86_400_000
 

@@ -9,6 +9,14 @@ export const PAIRED_DESKTOP_METHODS = [
   'hqProjects.draftClickUpReply',
   'hqProjects.sendClickUpReply',
   'hqProjects.runRequestOnDesktop',
+  'hqProjects.runBellActionOnDesktop',
+  // Its notes, waitings and bell, which live in the Mac's pulse database.
+  'pulse.snapshot',
+  'pulse.upsertPerson',
+  'pulse.addWaiting',
+  'pulse.closeWaiting',
+  'pulse.listInbox',
+  'pulse.markInboxRead',
   // Device and pairing concerns of the phone's own pairing.
   'mobileWeb.bundle.chunk',
   'mobileWeb.bundle.manifest',
