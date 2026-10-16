@@ -53,6 +53,9 @@ export function registerHqProjectPagesHandlers(
   ipcMain.handle('hqProjects:takeSlackDraft', (_event, ref: unknown) =>
     service.takeSlackDraft(HqSlackDraftRefParams.parse(ref).id)
   )
+  ipcMain.handle('hqProjects:restoreSlackDraft', (_event, ref: unknown) =>
+    service.restoreSlackDraft(HqSlackDraftRefParams.parse(ref).id)
+  )
   ipcMain.handle('hqProjects:draftClickUpReply', (_event, ref: unknown) =>
     service.draftClickUpReply(HqSlackDraftRefParams.parse(ref).id)
   )

@@ -32,19 +32,12 @@ import { listHqProjectPages } from './hq-project-pages'
 import { listHqWikiEntries, readHqWikiPage } from './hq-wiki-files'
 import { draftHqTaskQuestions } from '../hq-today/hq-task-questions'
 import type { HqTaskQuestionsResult } from '../../shared/hq-triage'
-import type {
-  HqSlackScoutCreateResult,
-  HqSlackScoutEdit,
-  HqSlackScoutResult
-} from '../../shared/hq-slack-scout'
+import type { HqSlackScoutCreateResult } from '../../shared/hq-slack-scout'
+import { createHqSlackScoutTask } from '../hq-today/hq-slack-scout'
 import {
-  answerHqSlackScoutDraft,
-  createHqSlackScoutTask,
-  editHqSlackScoutDraft,
-  takeHqSlackScoutDraft,
-  readHqSlackScout,
-  rejectHqSlackScoutDraft
-} from '../hq-today/hq-slack-scout'
+  createHqSlackRecordService,
+  type HqSlackRecordService
+} from '../hq-today/hq-slack-record-service'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import {
   createHqClickUpReplyService,
@@ -85,22 +78,13 @@ export type HqProjectPagesService = {
     title: string
     description: string
   }): Promise<HqTaskQuestionsResult>
-  /** Custom build (hq-slack-scout): the scout's drafts the owner has not decided yet. */
-  slackDrafts(): Promise<HqSlackScoutResult>
-  rejectSlackDraft(id: string): Promise<HqSlackScoutCreateResult | { ok: true }>
   createSlackDraftTask(draft: {
     id: string
     title: string
     description: string
   }): Promise<HqSlackScoutCreateResult>
-  /** Custom build (hq-slack-requests): the owner replies in the thread himself; no task. */
-  answerSlackDraft(id: string): Promise<HqSlackScoutCreateResult | { ok: true }>
-  editSlackDraft(
-    edit: HqSlackScoutEdit & { id: string }
-  ): Promise<HqSlackScoutCreateResult | { ok: true }>
-  /** Custom build (hq-clickup-requests): «Do» took the request's existing ClickUp task. */
-  takeSlackDraft(id: string): Promise<HqSlackScoutCreateResult | { ok: true }>
-} & HqClickUpReplyService
+} & HqClickUpReplyService &
+  HqSlackRecordService
 
 export type HqProjectPagesStore = Pick<
   Store,
@@ -120,20 +104,7 @@ export function createHqProjectPagesService(
     now: Date.now
   })
 
-  const writeSlackRecord = async (
-    write: (hq: string) => Promise<void>
-  ): Promise<{ ok: true } | { ok: false; error: string }> => {
-    const hq = hqPath()
-    if (!hq) {
-      return { ok: false, error: 'No HQ folder is set.' }
-    }
-    try {
-      await write(hq)
-      return { ok: true }
-    } catch (error) {
-      return { ok: false, error: errorText(error) }
-    }
-  }
+  const slackRecords = createHqSlackRecordService(hqPath)
 
   const clickUpReplies = createHqClickUpReplyService({
     hqPath,
@@ -165,29 +136,7 @@ export function createHqProjectPagesService(
       })
     },
 
-    async slackDrafts() {
-      const hq = hqPath()
-      return hq
-        ? readHqSlackScout(hq)
-        : { ok: true, configured: false, lastRunAt: null, failedAt: null, drafts: [] }
-    },
-
-    rejectSlackDraft(id) {
-      return writeSlackRecord((hq) => rejectHqSlackScoutDraft(hq, id))
-    },
-
-    answerSlackDraft(id) {
-      return writeSlackRecord((hq) => answerHqSlackScoutDraft(hq, id))
-    },
-
-    editSlackDraft({ id, ...edit }) {
-      return writeSlackRecord((hq) => editHqSlackScoutDraft(hq, id, edit))
-    },
-
-    takeSlackDraft(id) {
-      return writeSlackRecord((hq) => takeHqSlackScoutDraft(hq, id))
-    },
-
+    ...slackRecords,
     ...clickUpReplies,
 
     async createSlackDraftTask(draft) {

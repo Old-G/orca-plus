@@ -18,7 +18,10 @@ export type HqWaiting = Pick<
 export type HqDecision = Pick<
   PulseDecision,
   'id' | 'kind' | 'title' | 'outcome' | 'project' | 'decidedAt'
->
+> & {
+  /** Custom build (hq-done-journal): what was sent, for «Done for you». */
+  body?: string
+}
 
 export type HqPulse = {
   people: HqPerson[]
@@ -93,7 +96,16 @@ function readDecision(record: object): HqDecision | null {
     return null
   }
   const outcome = OUTCOMES.find((candidate) => candidate === field(record, 'outcome')) ?? null
-  return { id, title, kind, outcome, project: nullableString(field(record, 'project')), decidedAt }
+  const body = nullableString(field(record, 'body'))
+  return {
+    id,
+    title,
+    kind,
+    outcome,
+    project: nullableString(field(record, 'project')),
+    decidedAt,
+    ...(body ? { body } : {})
+  }
 }
 
 /** Null when the answer is not a snapshot at all. */
