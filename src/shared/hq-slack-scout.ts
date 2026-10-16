@@ -98,10 +98,33 @@ export function hqSlackRequestKind(draft: Pick<HqSlackScoutDraft, 'kind'>): HqSl
 const SlackScoutDecision = z.object({
   decision: z.enum(['created', 'rejected', 'answered', 'taken']),
   at: z.number(),
-  taskUrl: z.string().optional()
+  taskUrl: z.string().optional(),
+  /** Custom build (hq-done-journal): what the request was, so the journal names it once it is gone. */
+  title: z.string().max(300).optional().catch(undefined),
+  author: z.string().max(200).optional().catch(undefined),
+  source: z.enum(['slack', 'clickup']).optional().catch(undefined),
+  permalink: z.string().max(2000).optional().catch(undefined)
 })
 
 export type HqSlackScoutDecision = z.infer<typeof SlackScoutDecision>
+/** Custom build (hq-done-journal): one decision on a request, for «Done for you». */
+export type HqSlackScoutDone = HqSlackScoutDecision & { id: string }
+
+/** How far back «Done for you» looks. */
+export const HQ_DONE_WINDOW_MS = 7 * 24 * 60 * 60_000
+const DONE_MAX = 50
+
+/** The last week's decisions, newest first. */
+export function hqSlackScoutDone(
+  decisions: HqSlackScoutDecisions,
+  now: number
+): HqSlackScoutDone[] {
+  return Object.entries(decisions)
+    .map(([id, decision]) => ({ ...decision, id }))
+    .filter((entry) => entry.at > now - HQ_DONE_WINDOW_MS)
+    .sort((a, b) => b.at - a.at)
+    .slice(0, DONE_MAX)
+}
 export type HqSlackScoutDecisions = Record<string, HqSlackScoutDecision>
 
 /** `{id: entry}` read entry by entry, so one entry a newer app wrote does not drop the rest. */
@@ -190,6 +213,8 @@ export type HqSlackScoutResult =
       /** The last run's time when it failed. */
       failedAt: string | null
       drafts: HqSlackScoutDraft[]
+      /** Custom build (hq-done-journal): the last week's decisions; absent from older hosts. */
+      done?: HqSlackScoutDone[]
     }
   | { ok: false; error: string }
 
