@@ -4,6 +4,7 @@ import { hostScreenStyles as styles } from './host-screen-styles'
 import { HostScreenHeader } from './host-screen-header'
 import { HostScreenOverlays } from './host-screen-overlays'
 import { HostWorkspaceList } from './host-workspace-list'
+import { PageBundleUpdateBanner } from '../mobile-web-shell/page-bundle-update-banner'
 import type { HostScreenController } from './use-host-screen-controller'
 
 export function HostScreenView({ controller }: { controller: HostScreenController }) {
@@ -18,6 +19,7 @@ export function HostScreenView({ controller }: { controller: HostScreenControlle
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <HostScreenHeader controller={controller} />
+      <PageBundleUpdateBanner />
       <HostWorkspaceList controller={controller} />
       <HostScreenOverlays controller={controller} />
     </SafeAreaView>
