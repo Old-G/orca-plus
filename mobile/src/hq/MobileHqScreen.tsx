@@ -3,6 +3,7 @@
 import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { hostStackHostRoute } from '../navigation/host-stack-navigation'
 import { useRouteHandoff } from '../navigation/route-handoff'
 import { firstParam } from '../navigation/route-param-reader'
@@ -34,7 +35,7 @@ export function MobileHqScreen() {
   }
 
   return (
-    <View style={styles.root} testID="mobile-hq-screen">
+    <SafeAreaView style={styles.root} edges={['top']} testID="mobile-hq-screen">
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
@@ -75,7 +76,7 @@ export function MobileHqScreen() {
           <MobileHqInboxTab client={client} onNotice={setNotice} />
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   )
 }
 
