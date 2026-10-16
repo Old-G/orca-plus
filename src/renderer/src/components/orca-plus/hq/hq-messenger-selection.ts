@@ -5,6 +5,7 @@ export const HQ_PINNED_IDS = [
   'today',
   'waiting',
   'journal',
+  'history',
   'projects',
   'wiki',
   'map',

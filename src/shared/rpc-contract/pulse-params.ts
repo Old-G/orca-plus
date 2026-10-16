@@ -90,7 +90,14 @@ export const PulseAddInboxItemParams = z.object({
   dedupeKey: OptionalString
 })
 
-export const PulseListInboxParams = z.object({ includeDone: z.boolean().optional() }).optional()
+export const PulseListInboxParams = z
+  .object({
+    includeDone: z.boolean().optional(),
+    // Custom build (hq-history): one kind since a time (epoch ms), for a log that only grows.
+    kind: z.string().min(1).max(64).optional(),
+    since: z.number().int().nonnegative().optional()
+  })
+  .optional()
 
 export const PulseInboxItemRef = z.object({
   id: requiredString('Inbox item id is required'),
