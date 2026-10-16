@@ -15,6 +15,7 @@ import type {
   PulseWaiting,
   PulseWaitingFilter,
   PulseWaitingInput,
+  PulseWaitingReply,
   PulseWaitingStatus
 } from '../../shared/pulse-types'
 import { getAppEnvironment } from '../../shared/app-environment'
@@ -85,6 +86,15 @@ export class RuntimePulseCommands {
 
   pulseListWaitings(filter?: PulseWaitingFilter): PulseWaiting[] {
     return this.db().listWaitings(filter)
+  }
+
+  /** Custom build (hq-waiting-replies): main's reply relay only; no RPC method reaches these. */
+  pulseRecordWaitingReply(id: string, reply: PulseWaitingReply): PulseWaiting | null {
+    return this.db().recordWaitingReply(id, reply)
+  }
+
+  pulseMarkWaitingReplyDelivered(id: string): PulseWaiting | null {
+    return this.db().markWaitingReplyDelivered(id)
   }
 
   pulseAddDraft(input: PulseDraftInput): PulseAddResult<PulseDraft> {

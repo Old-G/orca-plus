@@ -2,9 +2,9 @@
 // closed native chat brought back from its record first. HQ stays in front either way.
 import {
   refreshStructuredSessionTabs,
-  revealStructuredSession,
   structuredSessionOpenFeedback
-} from '@/lib/activate-ai-vault-structured-session'
+} from '@/lib/agent-session/open/activate-ai-vault-structured-session'
+import { revealStructuredSession } from '@/lib/agent-session/open/open-existing-structured-session'
 import { useAppStore } from '@/store'
 import type { Tab } from '../../../../../shared/tab-types'
 import type { HqHistoryEntry } from '../../../../../shared/hq-chat-history'
@@ -27,7 +27,9 @@ export function canOpenHqHistoryEntry(
   return isHqHistoryTabOpen(entry, tabsByWorktree) || Boolean(entry.worktreeId && entry.sessionId)
 }
 
-function openIfListed(entry: HqHistoryEntry): boolean {
+type HqChatRef = Pick<HqHistoryEntry, 'worktreeId' | 'tabId' | 'sessionId'>
+
+function openIfListed(entry: HqChatRef): boolean {
   if (!entry.worktreeId || !entry.tabId) {
     return false
   }
@@ -38,7 +40,7 @@ function openIfListed(entry: HqHistoryEntry): boolean {
   return true
 }
 
-export async function openHqHistoryEntry(entry: HqHistoryEntry): Promise<void> {
+export async function openHqHistoryEntry(entry: HqChatRef): Promise<void> {
   if (openIfListed(entry) || !entry.worktreeId || !entry.sessionId) {
     return
   }
@@ -54,7 +56,8 @@ export async function openHqHistoryEntry(entry: HqHistoryEntry): Promise<void> {
     structuredSessionOpenFeedback.hostCannotOpen()
     return
   }
-  if (outcome === 'revealed') {
+  // Why: upstream's reveal now resolves to the opened target itself instead of 'revealed'.
+  if (typeof outcome === 'object' && 'sessionId' in outcome) {
     // Why: the republished tab reaches the store through the inventory, so it is read once more.
     await refreshStructuredSessionTabs(entry.worktreeId).catch(() => undefined)
     if (openIfListed(entry)) {
