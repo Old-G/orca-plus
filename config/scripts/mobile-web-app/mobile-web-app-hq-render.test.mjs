@@ -181,7 +181,7 @@ afterAll(async () => {
   }
 })
 
-async function openHq(pathname = HQ_ROUTE, ready = 'done for you') {
+async function openHq(pathname = HQ_ROUTE, ready = 'done for you', replies = REPLIES) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
   await page.addInitScript(installShellDouble, {
     version: bridgeVersion,
@@ -193,7 +193,7 @@ async function openHq(pathname = HQ_ROUTE, ready = 'done for you') {
     faultGrant,
     grants: [faultGrant, ...HQ_GRANTS],
     pageRoutes: PAGE_ROUTE_PATTERNS,
-    replies: REPLIES
+    replies
   })
   const errors = []
   page.on('pageerror', (error) => errors.push(`${error.name}: ${error.message}`))
@@ -236,6 +236,32 @@ describeRender('the HQ route in a real browser', () => {
     expect(await page.evaluate(() => location.pathname)).toBe(HQ_ROUTE)
     expect(errors).toEqual([])
     await page.close()
+  }, 60_000)
+
+  it('tells the owner to reopen the app once the Mac serves a newer page', async () => {
+    const served = (buildId) => ({
+      ...REPLIES,
+      'mobileWeb.bundle.manifest': { manifest: { buildId }, chunkBytes: 65536 }
+    })
+    const stale = await openHq(HOST_ROUTE, SHELL_HOST.name.toLowerCase(), served('newer-build'))
+    await stale.page.waitForFunction(() => document.body.innerText.includes('newer version'))
+    await shot(stale.page, '-stale')
+    await stale.page.getByRole('button', { name: 'Dismiss notice' }).click()
+    await stale.page.waitForFunction(() => !document.body.innerText.includes('newer version'))
+    await stale.page.close()
+
+    const fresh = await openHq(
+      HOST_ROUTE,
+      SHELL_HOST.name.toLowerCase(),
+      served('render-check-build')
+    )
+    await fresh.page.waitForFunction(() =>
+      globalThis.__orcaRenderCheckRequests.some((r) => r.method === 'mobileWeb.bundle.manifest')
+    )
+    // The reply lands after the request is recorded; give it the time the stale case needed.
+    await fresh.page.waitForTimeout(1_000)
+    expect(await fresh.page.evaluate(() => document.body.innerText)).not.toContain('newer version')
+    await fresh.page.close()
   }, 60_000)
 
   it('paints the requests to the owner and what was done for him', async () => {
