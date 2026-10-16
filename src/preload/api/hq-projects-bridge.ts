@@ -16,6 +16,7 @@ export const hqProjectsApi = {
   answerSlackDraft: (ref) => ipcRenderer.invoke('hqProjects:answerSlackDraft', ref),
   editSlackDraft: (edit) => ipcRenderer.invoke('hqProjects:editSlackDraft', edit),
   takeSlackDraft: (ref) => ipcRenderer.invoke('hqProjects:takeSlackDraft', ref),
+  restoreSlackDraft: (ref) => ipcRenderer.invoke('hqProjects:restoreSlackDraft', ref),
   draftClickUpReply: (ref) => ipcRenderer.invoke('hqProjects:draftClickUpReply', ref),
   sendClickUpReply: (reply) => ipcRenderer.invoke('hqProjects:sendClickUpReply', reply)
 } satisfies PreloadApi['hqProjects']

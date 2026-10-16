@@ -125,6 +125,13 @@ export const HQ_PROJECTS_METHODS = [
     handler: async (params) => service().takeSlackDraft(params.id)
   }),
   defineMethod({
+    name: 'hqProjects.restoreSlackDraft',
+
+    permission: 'workspace',
+    params: HqSlackDraftRefParams,
+    handler: async (params) => service().restoreSlackDraft(params.id)
+  }),
+  defineMethod({
     name: 'hqProjects.draftClickUpReply',
 
     permission: 'workspace',
