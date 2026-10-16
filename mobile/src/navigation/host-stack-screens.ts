@@ -22,6 +22,13 @@ export const HOST_STACK_SCREENS = [
     name: '[hostId]/tasks',
     title: (t: Translate) => t('navigation.hostStackScreens.tasks', 'Tasks')
   },
+  // Custom build (hq-mobile): HQ, the requests to the owner and what was done for him.
+  {
+    name: '[hostId]/hq',
+    get title() {
+      return translate('navigation.hostStackScreens.hq', 'HQ')
+    }
+  },
   {
     name: '[hostId]/automations',
     title: (t: Translate) => t('navigation.hostStackScreens.automations', 'Automations')

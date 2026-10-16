@@ -36,6 +36,9 @@ vi.mock('sonner', () => ({
 }))
 vi.mock('./use-pulse-bell-inbox', () => ({ usePulseBellInbox: () => mocks.items }))
 vi.mock('./pulse-bell-actions', () => ({ runPulseBellAction: mocks.run }))
+vi.mock('../slack-requests/use-hq-requests-from-phone', () => ({
+  useHqRequestsFromPhone: () => undefined
+}))
 vi.mock('@/store', () => ({ useAppStore: { getState: () => mocks.state } }))
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 

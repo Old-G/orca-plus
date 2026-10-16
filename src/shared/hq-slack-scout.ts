@@ -36,7 +36,7 @@ export type HqSlackRequestKind = (typeof HQ_SLACK_REQUEST_KINDS)[number]
 
 const SlackRequestKind = z.enum(HQ_SLACK_REQUEST_KINDS)
 
-const SlackScoutDraft = z.object({
+export const HqSlackScoutDraftSchema = z.object({
   /** `<channel id>:<thread ts>` — one draft per Slack thread. */
   id: z.string().min(1).max(200),
   channelName: z.string().max(200).default(''),
@@ -60,7 +60,7 @@ const SlackScoutDraft = z.object({
   clickupTaskId: z.string().max(100).optional().catch(undefined)
 })
 
-export type HqSlackScoutDraft = z.infer<typeof SlackScoutDraft>
+export type HqSlackScoutDraft = z.infer<typeof HqSlackScoutDraftSchema>
 
 const SlackScoutDrafts = z.object({
   lastRunAt: z.string().max(100).optional(),
@@ -84,7 +84,7 @@ export function parseHqSlackScoutDrafts(text: string): HqSlackScoutDraftsFile {
   return {
     lastRunAt: file.data.lastRunAt ?? null,
     drafts: file.data.drafts.flatMap((draft) => {
-      const parsed = SlackScoutDraft.safeParse(draft)
+      const parsed = HqSlackScoutDraftSchema.safeParse(draft)
       return parsed.success ? [parsed.data] : []
     })
   }
@@ -95,7 +95,7 @@ export function hqSlackRequestKind(draft: Pick<HqSlackScoutDraft, 'kind'>): HqSl
   return draft.kind ?? 'do'
 }
 
-const SlackScoutDecision = z.object({
+export const HqSlackScoutDecisionSchema = z.object({
   decision: z.enum(['created', 'rejected', 'answered', 'taken']),
   at: z.number(),
   taskUrl: z.string().optional(),
@@ -106,7 +106,7 @@ const SlackScoutDecision = z.object({
   permalink: z.string().max(2000).optional().catch(undefined)
 })
 
-export type HqSlackScoutDecision = z.infer<typeof SlackScoutDecision>
+export type HqSlackScoutDecision = z.infer<typeof HqSlackScoutDecisionSchema>
 /** Custom build (hq-done-journal): one decision on a request, for «Done for you». */
 export type HqSlackScoutDone = HqSlackScoutDecision & { id: string }
 
@@ -149,7 +149,7 @@ function parseRecordFile<T>(text: string, entry: z.ZodType<T>): Record<string, T
 }
 
 export function parseHqSlackScoutDecisions(text: string): HqSlackScoutDecisions {
-  return parseRecordFile(text, SlackScoutDecision)
+  return parseRecordFile(text, HqSlackScoutDecisionSchema)
 }
 
 const SlackScoutEdit = z.object({
