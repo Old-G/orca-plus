@@ -6,6 +6,7 @@ import {
 import { WorkspaceOptionsCountBadge } from './workspace-options-count-badge'
 import {
   ChevronLeft,
+  Inbox,
   List,
   PanelLeftClose,
   Plus,
@@ -104,6 +105,20 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
             </>
           )
         })()}
+        <Pressable
+          style={[styles.hqButton, connState !== 'connected' && styles.toolbarIconDisabled]}
+          onPress={() => actions.navigateFromHostList(`/h/${encodeURIComponent(hostId)}/hq`)}
+          disabled={connState !== 'connected'}
+          accessibilityRole="button"
+          accessibilityLabel="HQ"
+          hitSlop={8}
+        >
+          <Inbox
+            size={14}
+            color={connState === 'connected' ? colors.textPrimary : colors.textMuted}
+          />
+          <Text style={styles.reconnectButtonText}>HQ</Text>
+        </Pressable>
         {!embedded && floatingWorkspaceEnabled ? (
           <Pressable
             style={[
