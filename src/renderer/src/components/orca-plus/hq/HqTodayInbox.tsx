@@ -8,10 +8,10 @@ import { pendingHqTriageTasks } from '../../../../../shared/hq-triage'
 import { Button } from '@/components/ui/button'
 import { useNow } from '@/lib/window-activity/use-now'
 import { translate } from '@/i18n/i18n'
-import { formatShortTimeAgo } from '@/lib/short-time-ago'
+import { formatShortTimeAgo } from '@/lib/time-format/short-time-ago'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store'
-import { useLiveDashboardSnapshot } from '../../dashboard/useLiveDashboardSnapshot'
+import { useLiveDashboardSnapshot } from '../../dashboard/snapshot/useLiveDashboardSnapshot'
 import { useHqSlackRequestEditTarget } from '../slack-requests/hq-slack-request-actions'
 import { buildHqTodayAgents, buildHqTodayTasks } from './hq-today'
 import { findHqWorktreeId } from './hq-today-actions'
@@ -65,7 +65,9 @@ function itemText(item: HqInboxItem): { title: string; subtitle: string } {
             : translate('auto.hq.slack.kind.do', 'Do')
       return {
         title: `${item.draft.author ? `${item.draft.author}: ` : ''}${item.draft.ask || item.draft.title}`,
-        subtitle: [label, 'Slack', item.draft.channelName].filter(Boolean).join(' · ')
+        subtitle: [label, item.draft.source === 'clickup' ? null : 'Slack', item.draft.channelName]
+          .filter(Boolean)
+          .join(' · ')
       }
     }
     case 'agent':
