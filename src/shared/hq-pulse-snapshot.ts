@@ -1,11 +1,6 @@
 // Custom build (hq): the part of the pulse snapshot HQ shows, read field by field — the runtime's
 // answer arrives untyped, and a record that does not fit is dropped rather than trusted.
-import type {
-  PulseApprovalOutcome,
-  PulseDecision,
-  PulsePerson,
-  PulseWaiting
-} from '../../../../../shared/pulse-types'
+import type { PulseApprovalOutcome, PulseDecision, PulsePerson, PulseWaiting } from './pulse-types'
 
 export type HqPerson = Pick<PulsePerson, 'id' | 'name'>
 export type HqWaiting = Pick<

@@ -78,6 +78,69 @@ const REPLIES = {
     ]
   },
   'hqProjects.runRequestOnDesktop': { ok: true },
+  'hqProjects.runBellActionOnDesktop': { ok: true },
+  'pulse.snapshot': {
+    people: [{ id: 'p1', name: 'Петя' }],
+    waitings: [
+      {
+        id: 'w1',
+        direction: 'on-them',
+        title: 'Выгрузка возвратов',
+        personId: 'p1',
+        project: null,
+        dueAt: null,
+        createdAt: NOW,
+        source: 'manual'
+      },
+      {
+        id: 'w2',
+        direction: 'on-me',
+        title: 'Купить домен',
+        personId: null,
+        project: null,
+        dueAt: null,
+        createdAt: NOW,
+        source: 'note'
+      }
+    ],
+    decisions: []
+  },
+  'pulse.upsertPerson': { id: 'p2', name: 'Вера' },
+  'pulse.addWaiting': { id: 'w3' },
+  'pulse.closeWaiting': { id: 'w1' },
+  'pulse.listInbox': [
+    {
+      id: 'i1',
+      kind: 'agent-finished',
+      title: 'Claude finished DEV-12345',
+      body: 'Zenith · tests green',
+      urgency: 'normal',
+      refKind: null,
+      refId: null,
+      actions: [{ id: 'open', label: 'Open' }],
+      dedupeKey: null,
+      createdAt: NOW,
+      readAt: null,
+      doneAt: null,
+      doneAction: null
+    },
+    {
+      id: 'i2',
+      kind: 'outgoing-approval',
+      title: 'Approve an outgoing action',
+      body: 'Slack · send message',
+      urgency: 'high',
+      refKind: 'draft',
+      refId: 'd1',
+      actions: [{ id: 'approve', label: 'Approve' }],
+      dedupeKey: null,
+      createdAt: NOW - 60_000,
+      readAt: null,
+      doneAt: null,
+      doneAction: null
+    }
+  ],
+  'pulse.markInboxRead': { id: 'i1' },
   'hqProjects.rejectSlackDraft': { ok: true },
   'hqProjects.draftClickUpReply': { ok: true, text: 'Сегодня вечером.' },
   'hqProjects.sendClickUpReply': { ok: true }
@@ -118,13 +181,13 @@ afterAll(async () => {
   }
 })
 
-async function openHq() {
+async function openHq(pathname = HQ_ROUTE, ready = 'done for you') {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
   await page.addInitScript(installShellDouble, {
     version: bridgeVersion,
     sessionId: 'render-check-session',
     buildId: 'render-check-build',
-    route: { pathname: HQ_ROUTE },
+    route: { pathname },
     host: SHELL_HOST,
     storage: {},
     faultGrant,
@@ -141,14 +204,21 @@ async function openHq() {
   })
   await page.goto(`${origin}/`, { waitUntil: 'load' })
   await page.waitForFunction(
-    () => document.body.innerText.toLowerCase().includes('done for you'),
-    null,
+    (text) => document.body.innerText.toLowerCase().includes(text),
+    ready,
     {
       timeout: 30_000,
       polling: 250
     }
   )
   return { page, errors }
+}
+
+async function shot(page, name) {
+  const path = process.env.ORCA_MOBILE_WEB_RENDER_SHOT
+  if (path) {
+    await page.screenshot({ path: path.replace(/\.png$/, `${name}.png`), fullPage: true })
+  }
 }
 
 const sent = (page, method) =>
@@ -158,6 +228,16 @@ const sent = (page, method) =>
   )
 
 describeRender('the HQ route in a real browser', () => {
+  it('opens HQ from the worktree list header without leaving the document', async () => {
+    const { page, errors } = await openHq(HOST_ROUTE, SHELL_HOST.name.toLowerCase())
+    await shot(page, '-host')
+    await page.getByRole('button', { name: 'HQ' }).click()
+    await page.waitForFunction(() => document.body.innerText.toLowerCase().includes('done for you'))
+    expect(await page.evaluate(() => location.pathname)).toBe(HQ_ROUTE)
+    expect(errors).toEqual([])
+    await page.close()
+  }, 60_000)
+
   it('paints the requests to the owner and what was done for him', async () => {
     const { page, errors } = await openHq()
     const text = await page.evaluate(() => document.body.innerText)
@@ -168,9 +248,7 @@ describeRender('the HQ route in a real browser', () => {
     expect(text).toContain('Skipped')
     expect(text).toContain('Bring back')
     expect(text).not.toContain('Unmatched Route')
-    if (process.env.ORCA_MOBILE_WEB_RENDER_SHOT) {
-      await page.screenshot({ path: process.env.ORCA_MOBILE_WEB_RENDER_SHOT, fullPage: true })
-    }
+    await shot(page, '')
     expect(errors).toEqual([])
     await page.close()
   }, 60_000)
@@ -202,6 +280,51 @@ describeRender('the HQ route in a real browser', () => {
       }
     ])
     expect(await sent(page, 'hqProjects.runRequestOnDesktop')).toEqual([])
+    await page.close()
+  }, 60_000)
+
+  it('jots a note for a person in one line, the way the Mac reads it', async () => {
+    const { page, errors } = await openHq()
+    await page.getByRole('tab', { name: 'Notes' }).click()
+    await page.waitForFunction(() => document.body.innerText.includes('Выгрузка возвратов'))
+    const text = await page.evaluate(() => document.body.innerText.toLowerCase())
+    expect(text).toContain("i'm waiting on · 1")
+    expect(text).toContain('just notes · 1')
+    await page.getByLabel('New note').fill('@Вера жду выгрузку')
+    await page.waitForFunction(() => document.body.innerText.includes('waiting on Вера'))
+    await shot(page, '-notes')
+    await page.getByRole('button', { name: 'Add' }).click()
+    await page.waitForFunction(() =>
+      globalThis.__orcaRenderCheckRequests.some((r) => r.method === 'pulse.addWaiting')
+    )
+    expect(await sent(page, 'pulse.upsertPerson')).toEqual([
+      { method: 'pulse.upsertPerson', params: { name: 'Вера' } }
+    ])
+    expect((await sent(page, 'pulse.addWaiting'))[0]?.params).toMatchObject({
+      direction: 'on-them',
+      personId: 'p2',
+      source: 'manual'
+    })
+    expect(errors).toEqual([])
+    await page.close()
+  }, 60_000)
+
+  it("runs a bell item's button on the Mac, and offers none on an approval", async () => {
+    const { page } = await openHq()
+    await page.getByRole('tab', { name: 'Inbox' }).click()
+    await page.waitForFunction(() => document.body.innerText.includes('Claude finished DEV-12345'))
+    const text = await page.evaluate(() => document.body.innerText)
+    expect(text).toContain('Approve this on your Mac.')
+    await shot(page, '-inbox')
+    expect(await page.getByRole('button', { name: 'Approve' }).count()).toBe(0)
+    await page.getByRole('button', { name: 'Open' }).click()
+    await page.waitForFunction(() => document.body.innerText.includes('ran on your Mac'))
+    expect(await sent(page, 'hqProjects.runBellActionOnDesktop')).toEqual([
+      {
+        method: 'hqProjects.runBellActionOnDesktop',
+        params: { itemId: 'i1', actionId: 'open' }
+      }
+    ])
     await page.close()
   }, 60_000)
 })
