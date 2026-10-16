@@ -41,10 +41,15 @@ import {
   answerHqSlackScoutDraft,
   createHqSlackScoutTask,
   editHqSlackScoutDraft,
+  takeHqSlackScoutDraft,
   readHqSlackScout,
   rejectHqSlackScoutDraft
 } from '../hq-today/hq-slack-scout'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
+import {
+  createHqClickUpReplyService,
+  type HqClickUpReplyService
+} from '../hq-today/hq-clickup-reply-service'
 
 const MAP_TIMEOUT_MS = 120_000
 // Why: Today re-mounts often; reviews move slowly and gh/glab calls cost rate limit.
@@ -93,7 +98,9 @@ export type HqProjectPagesService = {
   editSlackDraft(
     edit: HqSlackScoutEdit & { id: string }
   ): Promise<HqSlackScoutCreateResult | { ok: true }>
-}
+  /** Custom build (hq-clickup-requests): «Do» took the request's existing ClickUp task. */
+  takeSlackDraft(id: string): Promise<HqSlackScoutCreateResult | { ok: true }>
+} & HqClickUpReplyService
 
 export type HqProjectPagesStore = Pick<
   Store,
@@ -127,6 +134,12 @@ export function createHqProjectPagesService(
       return { ok: false, error: errorText(error) }
     }
   }
+
+  const clickUpReplies = createHqClickUpReplyService({
+    hqPath,
+    settings: () => store.getSettings(),
+    getAgentEnvResolvers
+  })
 
   const settings = (): HqClientSettings => {
     const current = store.getSettings()
@@ -170,6 +183,12 @@ export function createHqProjectPagesService(
     editSlackDraft({ id, ...edit }) {
       return writeSlackRecord((hq) => editHqSlackScoutDraft(hq, id, edit))
     },
+
+    takeSlackDraft(id) {
+      return writeSlackRecord((hq) => takeHqSlackScoutDraft(hq, id))
+    },
+
+    ...clickUpReplies,
 
     async createSlackDraftTask(draft) {
       const hq = hqPath()
