@@ -5,21 +5,44 @@ import { ipcMain } from 'electron'
 import { getAppEnvironment } from '../../../shared/app-environment'
 import {
   OUTGOING_APPROVAL_BELL_KIND,
-  outgoingApprovalBellItem
+  outgoingApprovalBellItem,
+  type OutgoingApprovalContext
 } from '../../../shared/outgoing-approval/outgoing-approval-bell'
 import type { PulseApprovalOutcome, PulseDraft } from '../../../shared/pulse-types'
 import { agentHookServer } from '../../agent-hooks/server'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
+import { readHqSlackScoutIndex } from '../../hq-today/hq-slack-scout-index'
 import { PulseDb, pulseDbPath } from '../pulse/pulse-db'
+import { describeOutgoingDraft, type OutgoingContextSources } from './outgoing-approval-context'
 import { OutgoingApprovalGate } from './outgoing-approval-gate'
 import { bindOutgoingGateEndpoint } from './outgoing-gate-endpoint'
 import { createOutgoingGateRequestHandler } from './outgoing-gate-http'
+import { slackConversationName } from './outgoing-slack-names'
 
 const SWEEP_INTERVAL_MS = 30_000
+// Why: the card waits this long for names at most; the agent is held either way.
+const DESCRIBE_TIMEOUT_MS = 3_000
 const OUTCOMES: readonly PulseApprovalOutcome[] = ['approved', 'edited', 'rejected']
 
 type DecidedListener = (decided: PulseDraft, outcome: PulseApprovalOutcome) => void
 const decidedListeners = new Set<DecidedListener>()
+
+let hqPath: () => string | null = () => null
+
+/** Custom build (outgoing-approval-target): where the Slack scout's files are, for naming DMs. */
+export function bindOutgoingApprovalHqPath(read: () => string | null): void {
+  hqPath = read
+}
+
+function withTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
+  return Promise.race([
+    promise.catch(() => fallback),
+    new Promise<T>((resolve) => {
+      const timer = setTimeout(() => resolve(fallback), DESCRIBE_TIMEOUT_MS)
+      timer.unref?.()
+    })
+  ])
+}
 
 /** Custom build (hq-reply-tone): how the owner answered a held call, for HQ to learn from. */
 export function onOutgoingApprovalDecided(listener: DecidedListener): () => void {
@@ -29,19 +52,50 @@ export function onOutgoingApprovalDecided(listener: DecidedListener): () => void
 
 export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
   let db: PulseDb | null = null
+  const contexts = new Map<string, OutgoingApprovalContext>()
+  const sources: OutgoingContextSources = {
+    slackName: (id) => slackConversationName(id),
+    scout: async () => {
+      const path = hqPath()
+      return path ? readHqSlackScoutIndex(path) : null
+    },
+    chatName: (id) =>
+      runtime.openedAgentSessionRecordStore()?.getRecord(id)?.conversationName ?? null
+  }
   const syncBell = (): void => {
     try {
+      const pending = gate.pending()
       runtime.pulseSyncInboxKind(
         OUTGOING_APPROVAL_BELL_KIND,
-        gate.pending().map(outgoingApprovalBellItem)
+        pending.map((draft) => outgoingApprovalBellItem(draft, contexts.get(draft.id)))
       )
+      const live = new Set(pending.map((draft) => draft.id))
+      for (const id of contexts.keys()) {
+        if (!live.has(id)) {
+          contexts.delete(id)
+        }
+      }
     } catch (error) {
       console.warn('[outgoing-approval] bell sync failed:', error)
     }
   }
+  // Why: a card is raised once and never rewritten, so a new call is named before its card appears.
+  let describing = Promise.resolve()
+  const describeThenSync = (): void => {
+    describing = describing
+      .then(async () => {
+        for (const draft of gate.pending()) {
+          if (!contexts.has(draft.id)) {
+            contexts.set(draft.id, await withTimeout(describeOutgoingDraft(draft, sources), {}))
+          }
+        }
+      })
+      .catch((error: unknown) => console.warn('[outgoing-approval] naming failed:', error))
+      .then(syncBell)
+  }
   const gate = new OutgoingApprovalGate({
     db: () => (db ??= new PulseDb(pulseDbPath(getAppEnvironment().getPath('userData')))),
-    onChanged: syncBell
+    onChanged: describeThenSync
   })
   agentHookServer.setOutgoingGateHandler(createOutgoingGateRequestHandler(() => gate))
   bindOutgoingGateEndpoint(() => agentHookServer.endpointFilePath)
