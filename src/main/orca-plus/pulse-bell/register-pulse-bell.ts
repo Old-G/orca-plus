@@ -35,6 +35,8 @@ import {
   listClickUpTasks
 } from '../../clickup/clickup-tasks'
 import { listHqProjectPages } from '../../hq-project-pages/hq-project-pages'
+import { startHqWaitingReplyRelay } from '../../hq-today/hq-waiting-reply-relay'
+import { deliverWaitingReply } from '../waiting-replies/deliver-waiting-reply'
 
 const BROADCAST_DEBOUNCE_MS = 50
 
@@ -122,6 +124,17 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
       })
     },
     onAdded: notifyHqSlackScoutChanged
+  })
+
+  // Custom build (hq-waiting-replies): Slack answers to what the chats wait for, back into those chats.
+  startHqWaitingReplyRelay({
+    hqPath: () => store.getSettings().hqPath ?? null,
+    listOpen: () => runtime.pulseListWaitings({ status: 'open' }),
+    personName: (id) => runtime.pulseListPeople().find((person) => person.id === id)?.name ?? null,
+    recordReply: (id, reply) => runtime.pulseRecordWaitingReply(id, reply),
+    markDelivered: (id) => void runtime.pulseMarkWaitingReplyDelivered(id),
+    deliver: deliverWaitingReply,
+    onChanged: onPulseChanged
   })
 
   let timer: ReturnType<typeof setTimeout> | null = null
