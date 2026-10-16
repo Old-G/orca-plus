@@ -169,4 +169,21 @@ describe('inbox', () => {
     expect(db.listInbox().map((i) => i.id)).toEqual([normal.id])
     expect(db.listInbox({ includeDone: true })).toHaveLength(2)
   })
+
+  it('lists one kind since a time, done items included', () => {
+    const db = openDb()
+    const early = db.addInboxItem({ kind: 'agent-finished', title: 'A' }).record
+    db.addInboxItem({ kind: 'review', title: 'PR 1' })
+    const late = db.addInboxItem({ kind: 'agent-finished', title: 'B' }).record
+    db.markInboxDone(late.id, 'seen')
+    const listed = db.listInbox({
+      includeDone: true,
+      kind: 'agent-finished',
+      since: early.createdAt
+    })
+    expect(listed.map((i) => i.id)).toEqual([late.id, early.id])
+    expect(
+      db.listInbox({ includeDone: true, kind: 'agent-finished', since: late.createdAt })
+    ).toEqual([expect.objectContaining({ id: late.id })])
+  })
 })

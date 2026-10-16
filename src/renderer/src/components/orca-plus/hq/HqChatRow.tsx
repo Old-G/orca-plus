@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { formatShortTimeAgo } from '@/lib/short-time-ago'
 import { cn } from '@/lib/utils'
-import type { HqChatItem } from './hq-chat-list'
+import { hqChatRecentlyDone, type HqChatItem } from './hq-chat-list'
 import { HqChatAvatar, useHqChatTitle } from './HqChatAvatar'
 import {
   useHqPendingPrompt,
@@ -44,10 +44,16 @@ function RowBody({
   answers
 }: RowProps & { prompt: HqPendingPrompt | null; answers: React.ReactNode }): React.JSX.Element {
   const title = useHqChatTitle(item)
+  // Custom build (hq-history): a chat that just left Done keeps a mark in its project's section.
+  const recentlyDone = hqChatRecentlyDone(item, now)
   return (
     <li
       data-current={selected ? 'true' : undefined}
-      className="rounded-md hover:bg-accent data-[current=true]:bg-accent"
+      data-recently-done={recentlyDone ? 'true' : undefined}
+      title={
+        recentlyDone ? translate('auto.hq.chats.recentlyDone', 'Finished recently') : undefined
+      }
+      className="rounded-md border-l-2 border-transparent hover:bg-accent data-[current=true]:bg-accent data-[recently-done=true]:border-status-success"
     >
       <button
         type="button"

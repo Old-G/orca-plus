@@ -13,6 +13,8 @@ import type {
   StructuredSessionOpenDeps
 } from '../../../../../shared/open-structured-agent-session'
 import type { RuntimeClientTarget } from '../../../../../shared/runtime-client-target'
+// Custom build (hq-history): HQ's History refreshes a chat's tabs before it opens one.
+export { refreshStructuredSessionTabs } from './open-existing-structured-session'
 
 type StructuredSessionActivationDeps = StructuredSessionOpenAdapterDeps & {
   unavailable: (agent?: string) => void

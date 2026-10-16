@@ -122,6 +122,20 @@ export function buildHqChatList(
   return items.sort((a, b) => b.sortAt - a.sortAt)
 }
 
+// Custom build (hq-history): how long a read finish keeps its mark in the list.
+export const HQ_RECENTLY_DONE_MS = 12 * 60 * 60 * 1000
+
+/** Finished and already read, lately: the chat that just left Done for its project's section. */
+export function hqChatRecentlyDone(item: HqChatItem, now: number): boolean {
+  const card = item.card
+  return (
+    card !== null &&
+    card.dotState === 'done' &&
+    !card.unseen &&
+    now - (card.stateChangedAt || card.startedAt) < HQ_RECENTLY_DONE_MS
+  )
+}
+
 export function groupHqChats(items: readonly HqChatItem[]): Record<HqChatGroup, HqChatItem[]> {
   const groups: Record<HqChatGroup, HqChatItem[]> = { needs: [], working: [], done: [], quiet: [] }
   for (const item of items) {
