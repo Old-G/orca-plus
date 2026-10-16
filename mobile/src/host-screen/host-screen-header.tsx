@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Pressable, Text, type HostInstance } from 'react-native'
+import { Pressable, Text, type HostInstance, Image, View } from 'react-native'
 import {
   CalendarClock,
   ChevronLeft,
@@ -29,6 +29,7 @@ import {
   verdictDisplayLabel,
   type ConnectionVerdict
 } from '../transport/connection/connection-health'
+import { ORCA_PLUS_MARK } from './orca-plus-mark'
 import type { HostScreenController } from './use-host-screen-controller'
 import { HostSharedLinksSheet } from './host-shared-links-sheet'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../src/shared/execution-host/execution-host'
@@ -184,6 +185,11 @@ export function HostScreenHeader({
               accessibilityLabel={t('hostScreen.hostScreenHeader.backToHosts', 'Back to hosts')}
               onPress={actions.leaveHost}
             />
+            {/* Custom build (orca-plus-brand): the Orca+ mark and name beside Back. */}
+            <View style={styles.brand}>
+              <Image source={ORCA_PLUS_MARK} style={styles.brandMark} accessibilityLabel="Orca+" />
+              <Text style={styles.brandText}>Orca+</Text>
+            </View>
             {embedded && onHideSidebar ? (
               <NavBarButton
                 icon={PanelLeftClose}
@@ -234,6 +240,10 @@ export function HostScreenHeader({
 }
 
 const styles = themedStyleSheet(() => ({
+  // Custom build (orca-plus-brand)
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 4 },
+  brandMark: { width: 22, height: 22 },
+  brandText: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
   reconnectText: {
     color: colors.textPrimary,
     fontSize: 12,
