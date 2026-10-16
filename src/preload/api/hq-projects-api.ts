@@ -52,6 +52,9 @@ export type HqProjectsApi = {
   onRunRequest?: (
     listener: (request: { id: string; action: 'do' | 'answer' }) => void
   ) => () => void
+  onRunBellAction?: (
+    listener: (request: { itemId: string; actionId: string }) => void
+  ) => () => void
   draftClickUpReply: (ref: {
     id: string
   }) => Promise<{ ok: true; text: string } | { ok: false; error: string }>

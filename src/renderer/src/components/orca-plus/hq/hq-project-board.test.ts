@@ -4,7 +4,7 @@ import type { ProjectGroup } from '../../../../../shared/project-group-types'
 import type { Repo } from '../../../../../shared/repo-types'
 import type { Worktree } from '../../../../../shared/worktree/types'
 import { buildHqProjectBoard, type HqProjectBoardInput } from './hq-project-board'
-import type { HqWaiting } from './hq-pulse-snapshot'
+import type { HqWaiting } from '../../../../../shared/hq-pulse-snapshot'
 
 function group(id: string, name: string, overrides: Partial<ProjectGroup> = {}): ProjectGroup {
   return {

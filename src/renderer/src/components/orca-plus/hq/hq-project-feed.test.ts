@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildHqProjectFeed } from './hq-project-feed'
-import type { HqDecision } from './hq-pulse-snapshot'
+import type { HqDecision } from '../../../../../shared/hq-pulse-snapshot'
 
 function decision(id: string, project: string | null, decidedAt: number): HqDecision {
   return { id, kind: 'decision', title: id, outcome: null, project, decidedAt }
