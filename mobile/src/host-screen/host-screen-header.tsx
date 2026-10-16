@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native'
+import { Image, Pressable, Text, View } from 'react-native'
 import type { Translate } from '../i18n/mobile-i18n'
 import { useMobileTranslation } from '../i18n/use-mobile-translation'
 import { WorkspaceOptionsCountBadge } from './workspace-options-count-badge'
@@ -19,6 +19,7 @@ import { useCalmConnectionState } from '../transport/calm-connection-state'
 import { colors } from '../theme/mobile-theme'
 import { useMobileColorScheme } from '../theme/use-mobile-color-scheme'
 import { hostScreenStyles as styles } from './host-screen-styles'
+import { ORCA_PLUS_MARK } from './orca-plus-mark'
 import type { HostScreenController } from './use-host-screen-controller'
 
 function isErrorVerdict(v: ConnectionVerdict): boolean {
@@ -73,6 +74,10 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
         >
           <ChevronLeft size={22} color={colors.textPrimary} />
         </Pressable>
+        <View style={styles.brand}>
+          <Image source={ORCA_PLUS_MARK} style={styles.brandMark} accessibilityLabel="Orca+" />
+          <Text style={styles.brandText}>Orca+</Text>
+        </View>
         <View style={styles.hostIdentity}>
           <View style={styles.hostIdentityLine}>
             {presentedConnState !== connState && !isErrorVerdict(connectionVerdict) ? (

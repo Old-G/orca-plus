@@ -4,11 +4,13 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ForceReconnect } from '../transport/rpc-client-context-contract'
 
 vi.mock('react-native', () => ({
+  Image: 'Image',
   Pressable: 'Pressable',
   StyleSheet: { create: (styles: unknown) => styles, hairlineWidth: 1 },
   Text: 'Text',
   View: 'View'
 }))
+vi.mock('./orca-plus-mark', () => ({ ORCA_PLUS_MARK: 1 }))
 vi.mock('lucide-react-native', () => ({
   ChevronLeft: 'Icon',
   Filter: 'Icon',
