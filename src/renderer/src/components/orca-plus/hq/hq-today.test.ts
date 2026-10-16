@@ -9,7 +9,7 @@ import {
   hqDaysOverdue,
   sortHqTodayWaitings
 } from './hq-today'
-import type { HqWaiting } from './hq-pulse-snapshot'
+import type { HqWaiting } from '../../../../../shared/hq-pulse-snapshot'
 
 // 2026-10-03 12:00 local
 const NOW = new Date(2026, 9, 3, 12, 0).getTime()
