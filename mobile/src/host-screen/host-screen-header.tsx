@@ -4,6 +4,7 @@ import {
   CalendarClock,
   ChevronLeft,
   Link,
+  Inbox,
   List,
   MoreHorizontal,
   PanelLeftClose,
@@ -110,6 +111,15 @@ export function HostScreenHeader({
   const hostPath = `/h/${encodeURIComponent(hostId)}`
 
   const navigationGroup: ActionSheetAction[] = [
+    // Custom build (hq-mobile): HQ on the phone, first in the menu and as its own bar button.
+    {
+      id: 'hq',
+      label: t('hostScreen.hostScreenHeader.hq', 'HQ'),
+      icon: Inbox,
+      disabled: disconnected,
+      closeBeforePress: true,
+      onPress: () => actions.navigateFromHostList(`${hostPath}/hq`)
+    },
     {
       id: 'tasks',
       label: t('hostScreen.hostScreenHeader.tasks', 'Tasks'),
@@ -189,13 +199,21 @@ export function HostScreenHeader({
         titleOpacity={collapsingTitle?.barTitleOpacity}
         dividerOpacity={collapsingTitle?.barDividerOpacity}
         trailing={
-          <NavBarButton
-            ref={moreRef}
-            icon={MoreHorizontal}
-            accessibilityLabel={t('hostScreen.hostScreenHeader.moreActions', 'More actions')}
-            onPress={() => setMenuOpen(true)}
-            active={menuOpen}
-          />
+          <>
+            <NavBarButton
+              icon={Inbox}
+              accessibilityLabel={t('hostScreen.hostScreenHeader.hq', 'HQ')}
+              disabled={disconnected}
+              onPress={() => actions.navigateFromHostList(`${hostPath}/hq`)}
+            />
+            <NavBarButton
+              ref={moreRef}
+              icon={MoreHorizontal}
+              accessibilityLabel={t('hostScreen.hostScreenHeader.moreActions', 'More actions')}
+              onPress={() => setMenuOpen(true)}
+              active={menuOpen}
+            />
+          </>
         }
       />
       <PullDownMenu

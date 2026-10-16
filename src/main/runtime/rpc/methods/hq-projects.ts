@@ -1,6 +1,7 @@
 import { defineMethod } from '../core'
 import {
   HqDraftTaskQuestionsParams,
+  HqRequestOnDesktopParams,
   HqGitStateParams,
   HqProjectDiagramParams,
   HqReviewsParams,
@@ -11,6 +12,7 @@ import {
   HqUpdateSettingsParams,
   HqWikiPageParams
 } from '../../../../shared/rpc-contract/hq-projects-params'
+import { runHqRequestOnDesktop } from '../../../hq-today/hq-request-on-desktop'
 import {
   getHqProjectPagesService,
   type HqProjectPagesService
@@ -130,6 +132,13 @@ export const HQ_PROJECTS_METHODS = [
     permission: 'workspace',
     params: HqSlackDraftRefParams,
     handler: async (params) => service().restoreSlackDraft(params.id)
+  }),
+  defineMethod({
+    name: 'hqProjects.runRequestOnDesktop',
+
+    permission: 'workspace',
+    params: HqRequestOnDesktopParams,
+    handler: async (params) => runHqRequestOnDesktop(params.id, params.action)
   }),
   defineMethod({
     name: 'hqProjects.draftClickUpReply',

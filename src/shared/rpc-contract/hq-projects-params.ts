@@ -44,6 +44,15 @@ export const HqSlackDraftEditParams = z.object({
 })
 
 /** Custom build (hq-clickup-requests): the owner's reply to a ClickUp comment, and the draft it came from. */
+/** Custom build (hq-mobile): what the phone may ask the Mac's window to run on a request. */
+export const HQ_REQUEST_DESKTOP_ACTIONS = ['do', 'answer'] as const
+export type HqRequestDesktopAction = (typeof HQ_REQUEST_DESKTOP_ACTIONS)[number]
+
+export const HqRequestOnDesktopParams = z.object({
+  id: z.string().min(1).max(200),
+  action: z.enum(HQ_REQUEST_DESKTOP_ACTIONS)
+})
+
 export const HqClickUpReplyParams = z.object({
   id: z.string().min(1).max(200),
   text: z.string().trim().min(1).max(20_000),
