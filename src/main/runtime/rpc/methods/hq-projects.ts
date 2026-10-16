@@ -4,6 +4,7 @@ import {
   HqGitStateParams,
   HqProjectDiagramParams,
   HqReviewsParams,
+  HqClickUpReplyParams,
   HqSlackDraftCreateParams,
   HqSlackDraftEditParams,
   HqSlackDraftRefParams,
@@ -115,6 +116,27 @@ export const HQ_PROJECTS_METHODS = [
     permission: 'workspace',
     params: HqSlackDraftEditParams,
     handler: async (params) => service().editSlackDraft(params)
+  }),
+  defineMethod({
+    name: 'hqProjects.takeSlackDraft',
+
+    permission: 'workspace',
+    params: HqSlackDraftRefParams,
+    handler: async (params) => service().takeSlackDraft(params.id)
+  }),
+  defineMethod({
+    name: 'hqProjects.draftClickUpReply',
+
+    permission: 'workspace',
+    params: HqSlackDraftRefParams,
+    handler: async (params) => service().draftClickUpReply(params.id)
+  }),
+  defineMethod({
+    name: 'hqProjects.sendClickUpReply',
+
+    permission: 'workspace',
+    params: HqClickUpReplyParams,
+    handler: async (params) => service().sendClickUpReply(params)
   }),
   defineMethod({
     name: 'hqProjects.settings',
