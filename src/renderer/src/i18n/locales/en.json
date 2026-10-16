@@ -19434,7 +19434,8 @@
         "label": "Pinned",
         "onYou": "{{count}} on you",
         "deferred": "{{count}} deferred",
-        "notes": "Notes"
+        "notes": "Notes",
+        "doneForYou": "Done for you"
       },
       "ready": {
         "noCheck": "The task list has no «check» status — move it by hand.",
@@ -19573,6 +19574,22 @@
         "sending": "Sending…",
         "send": "Send",
         "task": "ClickUp task"
+      },
+      "done": {
+        "taskCreated": "Task created",
+        "taskTaken": "Task taken",
+        "replied": "Replied",
+        "skipped": "Skipped",
+        "sent": "Sent",
+        "sentEdited": "Sent with your edits",
+        "notSent": "Not sent",
+        "task": "Task",
+        "clickup": "ClickUp",
+        "thread": "Thread",
+        "restored": "The request is back in Today.",
+        "bringBack": "Bring back",
+        "hint": "What Orca+ did in your name over the last week: tasks it made or took, replies, and messages sent after your Approve.",
+        "empty": "Nothing done for you yet this week."
       }
     },
     "claudeSubscriptions": {
