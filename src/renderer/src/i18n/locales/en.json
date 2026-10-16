@@ -19566,7 +19566,21 @@
         "self": "Me",
         "notes": "Just notes",
         "empty": "No notes.",
-        "hint": "Slack questions to you land in «Waiting on me» on their own. Remind writes to the person only after you approve it."
+        "hint": "Slack questions to you land in «Waiting on me» on their own. Remind writes to the person only after you approve it.",
+        "replyAuthorless": "Answer",
+        "replyDelivered": "Sent to the chat",
+        "replyPending": "Reaches the chat once it is open",
+        "openChat": "Open the chat that waits",
+        "openSlack": "Open in Slack",
+        "tileOverdue": "Overdue",
+        "emptyOverdue": "Nothing is overdue.",
+        "tileAnswered": "Answered",
+        "emptyAnswered": "No answers yet.",
+        "nobody": "No one named",
+        "hintReplies": "A question a chat sends to Slack lands in «I'm waiting on»; the answer comes back here and to that chat. Remind writes to the person only after you approve it.",
+        "tileWaiting": "We wait on",
+        "tileOnMe": "Wait on us",
+        "replyHereOnly": "Only here — no chat to send it to"
       },
       "clickup": {
         "replySent": "Reply posted in ClickUp.",
