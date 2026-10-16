@@ -149,11 +149,34 @@ export function markInboxDone(core: PulseCore, id: string, action?: string): Pul
   return update(core, id, 'done', action)
 }
 
+export type ListInboxOptions = {
+  includeDone?: boolean
+  // Custom build (hq-history): one kind since a time, so a long log is not read whole.
+  kind?: string
+  since?: number
+}
+
 /** Open items (not done), urgent first, then newest. */
-export function listInbox(core: PulseCore, options: { includeDone?: boolean } = {}) {
-  const whereSql = options.includeDone ? '' : ' WHERE done_at IS NULL'
+export function listInbox(core: PulseCore, options: ListInboxOptions = {}) {
+  const where: string[] = []
+  const args: (string | number)[] = []
+  if (!options.includeDone) {
+    where.push('done_at IS NULL')
+  }
+  if (options.kind !== undefined) {
+    where.push('kind = ?')
+    args.push(options.kind)
+  }
+  if (options.since !== undefined) {
+    where.push('created_at >= ?')
+    args.push(options.since)
+  }
+  const whereSql = where.length > 0 ? ` WHERE ${where.join(' AND ')}` : ''
   const sql = `SELECT * FROM inbox${whereSql} ORDER BY urgency = 'urgent' DESC, created_at DESC, rowid DESC`
-  return core.db.prepare(sql).all().map(toItem)
+  return core.db
+    .prepare(sql)
+    .all(...args)
+    .map(toItem)
 }
 
 // Custom build (pulse-bell): closing reason for an item whose source no longer reports it.
