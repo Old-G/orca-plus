@@ -6,10 +6,10 @@ import type { ClickUpTask } from '../../shared/clickup-types'
 import type { HqSlackScoutDraft } from '../../shared/hq-slack-scout'
 import {
   draftHqClickUpReply,
-  readHqReplyCorrections,
   sendHqClickUpReply,
   type HqClickUpReplyDeps
 } from './hq-clickup-reply'
+import { readHqReplyCorrections } from './hq-reply-corrections'
 
 let hq: string
 
@@ -104,7 +104,7 @@ describe('draftHqClickUpReply', () => {
     })
     const prompt = generate.mock.calls[0]?.[0] ?? ''
     expect(prompt).toContain('Коротко, без «добрый день».')
-    expect(prompt).toContain('владелец отправил: Сделаю')
+    expect(prompt).toContain('Владелец отправил: Сделаю')
     expect(prompt).toContain('Petya: Когда будет?')
     expect(prompt).toContain('DEV-1: Cart fix')
   })
