@@ -83,6 +83,10 @@ function deps(over: Record<string, unknown> = {}) {
     ),
     remember: vi.fn(async () => undefined),
     markTaken: vi.fn(async () => undefined),
+    replyStyle: () => ({
+      tonePath: '/hq/wiki/tone.md',
+      correctionsPath: '/hq/slack-scout/corrections.jsonl'
+    }),
     now: () => new Date('2026-10-16T09:00:00Z'),
     ...over
   }
@@ -115,6 +119,8 @@ describe('Do on a Slack request', () => {
     expect(item?.pasteContent).toContain('channel_id D09MLEW74P7, thread_ts 1791963881.532369')
     expect(item?.pasteContent).toContain('фактическое время с 2026-10-16T09:00:00.000Z')
     expect(item?.pasteContent).toContain('Уровень автономии проекта 2')
+    expect(item?.pasteContent).toContain('Тон владельца описан в /hq/wiki/tone.md')
+    expect(item?.pasteContent).toContain('/hq/slack-scout/corrections.jsonl')
     expect(d.setStatus).toHaveBeenCalledWith('t1', 'in proсess')
     expect(d.remember).toHaveBeenCalledWith('t1', 'r1', null)
   })

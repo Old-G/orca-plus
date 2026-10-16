@@ -7,7 +7,7 @@ import {
   OUTGOING_APPROVAL_BELL_KIND,
   outgoingApprovalBellItem
 } from '../../../shared/outgoing-approval/outgoing-approval-bell'
-import type { PulseApprovalOutcome } from '../../../shared/pulse-types'
+import type { PulseApprovalOutcome, PulseDraft } from '../../../shared/pulse-types'
 import { agentHookServer } from '../../agent-hooks/server'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import { PulseDb, pulseDbPath } from '../pulse/pulse-db'
@@ -17,6 +17,15 @@ import { createOutgoingGateRequestHandler } from './outgoing-gate-http'
 
 const SWEEP_INTERVAL_MS = 30_000
 const OUTCOMES: readonly PulseApprovalOutcome[] = ['approved', 'edited', 'rejected']
+
+type DecidedListener = (decided: PulseDraft, outcome: PulseApprovalOutcome) => void
+const decidedListeners = new Set<DecidedListener>()
+
+/** Custom build (hq-reply-tone): how the owner answered a held call, for HQ to learn from. */
+export function onOutgoingApprovalDecided(listener: DecidedListener): () => void {
+  decidedListeners.add(listener)
+  return () => decidedListeners.delete(listener)
+}
 
 export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
   let db: PulseDb | null = null
@@ -54,7 +63,14 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
       if (typeof id !== 'string' || !known) {
         throw new Error('outgoingApproval:decide needs a draft id and an outcome')
       }
-      gate.decide(id, known, typeof text === 'string' ? text : undefined)
+      const decided = gate.decide(id, known, typeof text === 'string' ? text : undefined)
+      for (const listener of decidedListeners) {
+        try {
+          listener(decided, known)
+        } catch (error) {
+          console.warn('[outgoing-approval] decided listener failed:', error)
+        }
+      }
     }
   )
 }
