@@ -35,7 +35,8 @@ export const MOBILE_WEB_APP_HOST_CATALOG_MAX_BYTES = 384 * 1024
 // Our own fence on the page's code, well inside the phone contract (32 MiB total, 10 MiB per asset in
 // manifest-contract.ts); routes are split and the entry is capped below, so no one asset nears 10 MiB.
 // Plus 216 KiB for the bot and group screens (mascots are 131 KB of it; 211 KiB measured 2026-11-18).
-export const MOBILE_WEB_APP_BUNDLE_MAX_TOTAL_BYTES = 10.25 * 1024 * 1024 + 216 * 1024
+// Custom build (hq-mobile, hq-plus-phone): plus 256 KiB for the phone's HQ and HQ+ screens (~165 KB of code, 16.11).
+export const MOBILE_WEB_APP_BUNDLE_MAX_TOTAL_BYTES = 10.25 * 1024 * 1024 + 216 * 1024 + 256 * 1024
 
 // Only these licensed terminal fonts have their own allowance; other fonts (KaTeX's) and code count.
 // The page fetches each only when the terminal draws with it, so none weighs on first open.
@@ -69,6 +70,7 @@ export function mobileWebAppBundleBudgetBytes(manifest) {
 
 // Measure sorted route prefixes with routes.slice(0,n), excluding locale catalogs: distinct importer sets determine chunks, not route count.
 // Re-measure table with measure-mobile-web-app-chunk-sweep.mjs when routes change; it is envelope’s only input, and pins must fail rather than permit arbitrary ceiling bumps.
+// Custom build (hq-mobile, hq-plus-phone): re-measured 16.11 with HQ's route — 74 scripts at 18 routes.
 export const MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP = [
   ['./_layout.tsx', 4],
   ['./h/[hostId]/[...page].tsx', 6],
@@ -80,14 +82,16 @@ export const MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP = [
   ['./h/[hostId]/files/preview/[worktreeId].tsx', 24],
   ['./h/[hostId]/group/[groupId].tsx', 30],
   ['./h/[hostId]/history/[worktreeId].tsx', 31],
-  ['./h/[hostId]/index.tsx', 39],
-  ['./h/[hostId]/new-workspace.tsx', 42],
-  ['./h/[hostId]/pr/[worktreeId].tsx', 43],
-  ['./h/[hostId]/review/[worktreeId].tsx', 52],
-  ['./h/[hostId]/session/[worktreeId].tsx', 73],
-  ['./h/[hostId]/source-control/[worktreeId].tsx', 75],
-  ['./h/[hostId]/tasks.tsx', 80],
-  ['./h/_layout.tsx', 85]
+  // Custom build: HQ's route adds ~4 scripts (25 -> 29 in the 16.11 sweep); re-measure with the sweep script.
+  ['./h/[hostId]/hq.tsx', 35],
+  ['./h/[hostId]/index.tsx', 43],
+  ['./h/[hostId]/new-workspace.tsx', 46],
+  ['./h/[hostId]/pr/[worktreeId].tsx', 47],
+  ['./h/[hostId]/review/[worktreeId].tsx', 56],
+  ['./h/[hostId]/session/[worktreeId].tsx', 77],
+  ['./h/[hostId]/source-control/[worktreeId].tsx', 79],
+  ['./h/[hostId]/tasks.tsx', 84],
+  ['./h/_layout.tsx', 89]
 ]
 
 const sweptScripts = MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP.map(([, scripts]) => scripts)
