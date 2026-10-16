@@ -107,8 +107,11 @@ export class RuntimePulseCommands {
     return this.db().addInboxItem(input)
   }
 
-  pulseListInbox(includeDone?: boolean): PulseInboxItem[] {
-    return this.db().listInbox({ includeDone })
+  pulseListInbox(
+    includeDone?: boolean,
+    filter: { kind?: string; since?: number } = {}
+  ): PulseInboxItem[] {
+    return this.db().listInbox({ includeDone, ...filter })
   }
 
   pulseMarkInboxRead(id: string): PulseInboxItem {

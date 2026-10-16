@@ -28,7 +28,8 @@ import {
   listInbox,
   markInboxDone,
   markInboxRead,
-  syncInboxKind
+  syncInboxKind,
+  type ListInboxOptions
 } from './pulse-inbox'
 import { getPerson, listPeople, upsertPerson } from './pulse-people'
 import { addWaiting, closeWaiting, getWaiting, listWaitings } from './pulse-waitings'
@@ -104,7 +105,7 @@ export class PulseDb {
   getInboxItem(id: string) {
     return getInboxItem(this.core, id)
   }
-  listInbox(options?: { includeDone?: boolean }) {
+  listInbox(options?: ListInboxOptions) {
     return listInbox(this.core, options)
   }
   markInboxRead(id: string) {
