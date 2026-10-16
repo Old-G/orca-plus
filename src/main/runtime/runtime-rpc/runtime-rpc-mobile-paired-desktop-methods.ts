@@ -1,5 +1,12 @@
 /** Phone methods the relaying Mac always answers itself, even when the call names a server. */
 export const PAIRED_DESKTOP_METHODS = [
+  // Custom build (hq-mobile): HQ lives on the Mac — its requests, their decisions and ClickUp replies.
+  'hqProjects.slackDrafts',
+  'hqProjects.rejectSlackDraft',
+  'hqProjects.restoreSlackDraft',
+  'hqProjects.draftClickUpReply',
+  'hqProjects.sendClickUpReply',
+  'hqProjects.runRequestOnDesktop',
   // Device and pairing concerns of the phone's own pairing.
   'mobileWeb.bundle.chunk',
   'mobileWeb.bundle.manifest',

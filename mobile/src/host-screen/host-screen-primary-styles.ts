@@ -65,6 +65,19 @@ export const hostScreenPrimaryStyles = StyleSheet.create({
     fontSize: typography.metaSize,
     fontWeight: '600'
   },
+  // Custom build (hq-mobile): HQ is named in the title row, where a bare tray icon went unseen.
+  hqButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: spacing.sm,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.button,
+    backgroundColor: colors.bgRaised,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle
+  },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',

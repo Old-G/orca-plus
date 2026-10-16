@@ -90,6 +90,10 @@
       "reason": "The native component seals the diagram inside a WebView whose document embeds the whole mermaid bundle as a string, because react-native-webview is a native component with no browser counterpart: importing it runs a codegen lookup that throws, and the route manifest imports every route, so one such import takes the whole page down rather than one diagram. This one renders the same diagram in this document instead — mermaid is a browser library, so it is an import() inside the render effect rather than a 3.7 MB literal, and the two hosts share one MERMAID_DIAGRAM_CONFIG. What replaces the sandbox is mermaid's own securityLevel: 'strict', which runs the serialized SVG through DOMPurify; the native path's </script> escaping has no analogue because the source is a JS string argument rather than text spliced into an inline script. Both are measured in both engines under the shipped CSP by config/scripts/mobile-web-app-mermaid-render.test.mjs, which also pins the rendered SVG byte for byte against the native document's own render."
     },
     {
+      "file": "app/h/[hostId]/hq.web.tsx",
+      "reason": "Custom build (hq-mobile): HQ exists only in the page, and its native file mounts the shell, whose module calls requireNativeViewManager at import and throws in a browser; this sibling renders the screen itself."
+    },
+    {
       "file": "app/h/[hostId]/tasks.web.tsx",
       "reason": "The shell renders this page for this route, so the page has no shell to mount inside itself and no flag to read; the switch already happened natively. Its native file reaches OrcaMobileWebShellView, whose module calls requireNativeViewManager at import and throws in a browser, and one throwing route module takes the whole bundle down because the manifest imports them all."
     },

@@ -50,9 +50,9 @@ export const MOBILE_WEB_APP_BUNDLE_MAX_TOTAL_BYTES = 9 * 1024 * 1024
  * A chunk is emitted per distinct set of importers, not per route, so a route's marginal cost is
  * what it fails to share rather than what it weighs. Re-measured on this head by building
  * `routes.slice(0, n)` for every n, which is what the fence below is derived from rather than
- * fitted to. The spread it shows is 1 to 11: `pr` and `web` add one script each, `tasks` adds eleven.
+ * fitted to. The spread it shows is 1 to 10: `pr` and `web` add one script each, `session` and `tasks` ten.
  * The root `./_layout.tsx` (the page's web sibling of the native root) sorts first; with it the
- * swept tree reads 78 scripts at 16 routes.
+ * swept tree reads 83 scripts at 17 routes (re-measured with HQ's route, Custom build hq-mobile).
  *
  * This table is the fence's only input, so a route added to the tree stales it and the pins beside
  * the fence fail until it is re-measured. That is the point: the bound is re-derived, never bumped.
@@ -64,16 +64,17 @@ export const MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP = [
   ['./h/[hostId]/agent-history/[worktreeId].tsx', 15],
   ['./h/[hostId]/edit.tsx', 19],
   ['./h/[hostId]/files/[worktreeId].tsx', 23],
-  ['./h/[hostId]/files/preview/[worktreeId].tsx', 30],
-  ['./h/[hostId]/history/[worktreeId].tsx', 33],
-  ['./h/[hostId]/index.tsx', 38],
-  ['./h/[hostId]/pr/[worktreeId].tsx', 39],
-  ['./h/[hostId]/review/[worktreeId].tsx', 48],
-  ['./h/[hostId]/session/[worktreeId].tsx', 58],
-  ['./h/[hostId]/source-control/[worktreeId].tsx', 63],
-  ['./h/[hostId]/tasks.tsx', 74],
-  ['./h/[hostId]/web.tsx', 75],
-  ['./h/_layout.tsx', 78]
+  ['./h/[hostId]/files/preview/[worktreeId].tsx', 31],
+  ['./h/[hostId]/history/[worktreeId].tsx', 34],
+  ['./h/[hostId]/hq.tsx', 38],
+  ['./h/[hostId]/index.tsx', 45],
+  ['./h/[hostId]/pr/[worktreeId].tsx', 46],
+  ['./h/[hostId]/review/[worktreeId].tsx', 54],
+  ['./h/[hostId]/session/[worktreeId].tsx', 64],
+  ['./h/[hostId]/source-control/[worktreeId].tsx', 69],
+  ['./h/[hostId]/tasks.tsx', 79],
+  ['./h/[hostId]/web.tsx', 80],
+  ['./h/_layout.tsx', 83]
 ]
 
 const sweptScripts = MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP.map(([, scripts]) => scripts)

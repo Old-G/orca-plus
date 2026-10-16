@@ -186,6 +186,7 @@ describe('the census rule itself', () => {
     expect(MOBILE_WEB_PAGE_ROUTES.map((route) => routeModule(route.pathname))).toEqual([
       'app/h/[hostId]/index.tsx',
       'app/h/[hostId]/agent-history/[worktreeId].tsx',
+      'app/h/[hostId]/hq.tsx',
       'app/h/[hostId]/tasks.tsx',
       'app/h/[hostId]/files/[worktreeId].tsx',
       'app/h/[hostId]/files/preview/[worktreeId].tsx',
