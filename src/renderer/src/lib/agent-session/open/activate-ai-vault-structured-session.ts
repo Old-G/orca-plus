@@ -27,6 +27,8 @@ import { nativeChatRestartStillStarting } from '@/components/native-chat-recover
 import { showChatOpenUnavailable, type ChatOpenUnavailable } from './chat-open-failure-toast'
 import { parseOrcaSessionAddress } from '../../../../../shared/agent-session/identity/orca-session-address'
 import { cancelPendingBotThreadOpen } from './bot-thread-open-lifecycle'
+// Custom build (hq-history): HQ's History refreshes a chat's tabs before it opens one.
+export { refreshStructuredSessionTabs } from './structured-session-restore'
 
 type StructuredSessionActivationDeps = StructuredSessionOpenAdapterDeps & {
   unavailable: (agent?: string, context?: ChatOpenUnavailable) => void
