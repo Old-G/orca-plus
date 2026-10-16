@@ -20,7 +20,20 @@ import { bindAgentFinishedInbox, clearAgentFinished } from './pulse-bell-agent-f
 import { createWaitingAgentsTracker } from './pulse-bell-waiting-agents'
 import { readPulseBellInputs } from './pulse-bell-input-validation'
 import { startHqSlackRequestBell } from '../../hq-today/hq-slack-request-bell'
-import { onHqSlackScoutChanged, readHqSlackScout } from '../../hq-today/hq-slack-scout'
+import {
+  notifyHqSlackScoutChanged,
+  onHqSlackScoutChanged,
+  readHqSlackScout
+} from '../../hq-today/hq-slack-scout'
+import {
+  collectHqClickUpRequests,
+  startHqClickUpRequests
+} from '../../hq-today/hq-clickup-requests'
+import {
+  getClickUpViewerId,
+  listClickUpTaskComments,
+  listClickUpTasks
+} from '../../clickup/clickup-tasks'
 import { listHqProjectPages } from '../../hq-project-pages/hq-project-pages'
 
 const BROADCAST_DEBOUNCE_MS = 50
@@ -87,6 +100,28 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
     listPages: listHqProjectPages,
     sync,
     onChanged: onHqSlackScoutChanged
+  })
+  // Custom build (hq-clickup-requests): comments on the owner's ClickUp tasks join those requests.
+  startHqClickUpRequests({
+    hqPath: () => store.getSettings().hqPath ?? null,
+    enabled: () => store.getSettings().hqChatsView !== false,
+    collect: async (hq) => {
+      const bindings = store.getSettings().hqProjectClickUpLists ?? {}
+      const pages = await listHqProjectPages(hq).catch(() => [])
+      return collectHqClickUpRequests(hq, {
+        listMyTasks: () => listClickUpTasks({ scope: 'mine', includeDone: true }, 50),
+        listComments: listClickUpTaskComments,
+        viewerId: getClickUpViewerId,
+        projectForList: (listId) => {
+          const repoId = Object.entries(bindings).find(
+            ([, binding]) => listId && binding.listId === listId
+          )?.[0]
+          return pages.find((page) => page.repoId === repoId)?.slug ?? null
+        },
+        now: Date.now
+      })
+    },
+    onAdded: notifyHqSlackScoutChanged
   })
 
   let timer: ReturnType<typeof setTimeout> | null = null
