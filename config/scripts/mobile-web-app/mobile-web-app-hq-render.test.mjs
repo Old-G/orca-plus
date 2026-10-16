@@ -237,6 +237,10 @@ describeRender('the HQ route in a real browser', () => {
   it('opens HQ from the worktree list header without leaving the document', async () => {
     const { page, errors } = await openHq(HOST_ROUTE, SHELL_HOST.name.toLowerCase())
     await shot(page, '-host')
+    expect(await page.evaluate(() => document.body.innerText)).toContain('Orca+')
+    const mark = page.getByRole('img', { name: 'Orca+' })
+    await mark.waitFor()
+    expect(await mark.boundingBox()).toMatchObject({ width: 22, height: 22 })
     await page.getByRole('button', { name: 'HQ' }).click()
     await page.waitForFunction(() => document.body.innerText.toLowerCase().includes('done for you'))
     expect(await page.evaluate(() => location.pathname)).toBe(HQ_ROUTE)
