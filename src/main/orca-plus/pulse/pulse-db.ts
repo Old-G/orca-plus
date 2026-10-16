@@ -10,6 +10,7 @@ import type {
   PulsePersonInput,
   PulseWaitingFilter,
   PulseWaitingInput,
+  PulseWaitingReply,
   PulseWaitingStatus
 } from '../../../shared/pulse-types'
 import { PulseCore, type PulseClock } from './pulse-core'
@@ -32,7 +33,14 @@ import {
   type ListInboxOptions
 } from './pulse-inbox'
 import { getPerson, listPeople, upsertPerson } from './pulse-people'
-import { addWaiting, closeWaiting, getWaiting, listWaitings } from './pulse-waitings'
+import {
+  addWaiting,
+  closeWaiting,
+  getWaiting,
+  listWaitings,
+  markWaitingReplyDelivered,
+  recordWaitingReply
+} from './pulse-waitings'
 
 export const PULSE_DB_FILE = 'orca-plus-pulse.db'
 
@@ -68,6 +76,12 @@ export class PulseDb {
   }
   listWaitings(filter?: PulseWaitingFilter) {
     return listWaitings(this.core, filter)
+  }
+  recordWaitingReply(id: string, reply: PulseWaitingReply) {
+    return recordWaitingReply(this.core, id, reply)
+  }
+  markWaitingReplyDelivered(id: string) {
+    return markWaitingReplyDelivered(this.core, id)
   }
 
   addDraft(input: PulseDraftInput) {

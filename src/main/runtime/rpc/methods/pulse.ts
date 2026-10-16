@@ -52,7 +52,17 @@ export const PULSE_METHODS = [
 
     permission: 'workspace',
     params: PulseAddWaitingParams,
-    handler: async (params, { runtime }) => runtime.pulseAddWaiting(params)
+    handler: async (params, { runtime }) => {
+      // Custom build (hq-waiting-replies): only a chat this host knows may receive the answer later.
+      const record = params.agentSessionId
+        ? runtime.openedAgentSessionRecordStore()?.getRecord(params.agentSessionId)
+        : undefined
+      return runtime.pulseAddWaiting({
+        ...params,
+        agentSessionId: record ? params.agentSessionId : null,
+        worktreeId: record?.location.workspaceId ?? null
+      })
+    }
   }),
   defineMethod({
     name: 'pulse.closeWaiting',

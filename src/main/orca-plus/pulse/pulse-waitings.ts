@@ -4,6 +4,7 @@ import type {
   PulseWaiting,
   PulseWaitingFilter,
   PulseWaitingInput,
+  PulseWaitingReply,
   PulseWaitingStatus
 } from '../../../shared/pulse-types'
 import type { PulseCore } from './pulse-core'
@@ -26,7 +27,15 @@ function toWaiting(row: SqliteRow): PulseWaiting {
     dueAt: optionalInteger(row, 'due_at'),
     resolution: optionalText(row, 'resolution'),
     createdAt: integer(row, 'created_at'),
-    resolvedAt: optionalInteger(row, 'resolved_at')
+    resolvedAt: optionalInteger(row, 'resolved_at'),
+    agentSessionId: optionalText(row, 'agent_session_id'),
+    paneKey: optionalText(row, 'pane_key'),
+    worktreeId: optionalText(row, 'worktree_id'),
+    reply: optionalText(row, 'reply'),
+    replyAuthor: optionalText(row, 'reply_author'),
+    replyTs: optionalText(row, 'reply_ts'),
+    repliedAt: optionalInteger(row, 'replied_at'),
+    replyDeliveredAt: optionalInteger(row, 'reply_delivered_at')
   }
 }
 
@@ -50,12 +59,21 @@ export function addWaiting(core: PulseCore, input: PulseWaitingInput): PulseWait
       dueAt: input.dueAt ?? null,
       resolution: null,
       createdAt: core.clock.now(),
-      resolvedAt: null
+      resolvedAt: null,
+      agentSessionId: input.agentSessionId ?? null,
+      paneKey: input.paneKey ?? null,
+      worktreeId: input.worktreeId ?? null,
+      reply: null,
+      replyAuthor: null,
+      replyTs: null,
+      repliedAt: null,
+      replyDeliveredAt: null
     }
     core.db
       .prepare(
         'INSERT INTO waitings (id, direction, person_id, project, title, detail, source, ' +
-          'source_ref, status, due_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          'source_ref, status, due_at, created_at, agent_session_id, pane_key, worktree_id) ' +
+          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       )
       .run(
         waiting.id,
@@ -68,7 +86,10 @@ export function addWaiting(core: PulseCore, input: PulseWaitingInput): PulseWait
         waiting.sourceRef,
         waiting.status,
         waiting.dueAt,
-        waiting.createdAt
+        waiting.createdAt,
+        waiting.agentSessionId,
+        waiting.paneKey,
+        waiting.worktreeId
       )
     core.emit('waiting.added', 'waiting', waiting.id, waiting)
     return waiting
@@ -101,6 +122,55 @@ export function closeWaiting(
       .run(closed.status, closed.resolution, closed.resolvedAt, id)
     core.emit(`waiting.${status}`, 'waiting', id, closed)
     return closed
+  })
+}
+
+/** Custom build (hq-waiting-replies): keeps the person's newest answer; an older or repeated ts is
+ *  ignored, so the scout re-reporting a thread changes nothing. Null when nothing changed. */
+export function recordWaitingReply(
+  core: PulseCore,
+  id: string,
+  reply: PulseWaitingReply
+): PulseWaiting | null {
+  return core.transaction(() => {
+    const existing = getWaiting(core, id)
+    if (!existing || existing.status !== 'open') {
+      return null
+    }
+    if (existing.replyTs !== null && Number(existing.replyTs) >= Number(reply.ts)) {
+      return null
+    }
+    const replied: PulseWaiting = {
+      ...existing,
+      reply: reply.text,
+      replyAuthor: reply.author,
+      replyTs: reply.ts,
+      repliedAt: core.clock.now(),
+      replyDeliveredAt: null
+    }
+    core.db
+      .prepare(
+        'UPDATE waitings SET reply = ?, reply_author = ?, reply_ts = ?, replied_at = ?, ' +
+          'reply_delivered_at = NULL WHERE id = ?'
+      )
+      .run(replied.reply, replied.replyAuthor, replied.replyTs, replied.repliedAt, id)
+    core.emit('waiting.replied', 'waiting', id, replied)
+    return replied
+  })
+}
+
+export function markWaitingReplyDelivered(core: PulseCore, id: string): PulseWaiting | null {
+  return core.transaction(() => {
+    const existing = getWaiting(core, id)
+    if (!existing?.repliedAt || existing.replyDeliveredAt !== null) {
+      return null
+    }
+    const delivered: PulseWaiting = { ...existing, replyDeliveredAt: core.clock.now() }
+    core.db
+      .prepare('UPDATE waitings SET reply_delivered_at = ? WHERE id = ?')
+      .run(delivered.replyDeliveredAt, id)
+    core.emit('waiting.replyDelivered', 'waiting', id, delivered)
+    return delivered
   })
 }
 

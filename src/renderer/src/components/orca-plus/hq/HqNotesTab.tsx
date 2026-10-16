@@ -1,9 +1,9 @@
 // Custom build (hq-notes): HQ's «Waiting» in «New view», reworked into notes — one line to jot «who
 // waits / whom I wait on» (HQ reads the person, the way and the date), a tick when it is done.
+// Custom build (hq-waiting-replies): coloured counters on top, answers first, whom we wait on by person.
 import { useState } from 'react'
 import { hqSlackRequestKind } from '../../../../../shared/hq-slack-scout'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { useNow } from '@/hooks/use-now'
 import { translate } from '@/i18n/i18n'
@@ -15,38 +15,25 @@ import {
 } from '../slack-requests/hq-slack-request-actions'
 import { HQ_NOTE_SOURCE, parseHqNote, type HqParsedNote } from '../../../../../shared/hq-note-parse'
 import type { HqPerson, HqWaiting } from '../../../../../shared/hq-pulse-snapshot'
+import { hqChatKey, type HqChatItem } from './hq-chat-list'
+import { buildHqNotesBoard, groupHqNotesByPerson, type HqNotesFilter } from './hq-notes-board'
 import { findHqWorktreeId } from './hq-today-actions'
-import { RemindButton } from './HqTodayPeople'
+import { HqNoteRow, noteDueLabel, noteInitials } from './HqNoteRow'
+import { HqNotesTiles } from './HqNotesTiles'
 import { useHqSlackDrafts } from './HqTodaySlackDrafts'
 import { DecisionsColumn } from './HqWaitingTab'
 import { ColumnHeader, errorText } from './hq-waiting-parts'
-import { addHqWaiting, closeHqWaiting, useHqPulse } from './use-hq-pulse'
+import { useHqChatList } from './use-hq-chat-list'
+import { addHqWaiting, useHqPulse } from './use-hq-pulse'
+import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
 
 const AGE_TICK_MS = 60_000
-// Why: a day without an answer is when a nudge stops being pushy.
-const REMIND_AFTER_MS = 24 * 60 * 60_000
-
-function initials(text: string): string {
-  return (
-    text
-      .replace(/[^\p{L}\p{N}]+/gu, ' ')
-      .trim()
-      .slice(0, 2)
-      .toUpperCase() || '··'
-  )
-}
-
-function dueLabel(dueAt: number): string {
-  return new Date(dueAt).toLocaleDateString(undefined, {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'numeric'
-  })
-}
 
 function previewText(note: HqParsedNote): string {
   const due = note.dueAt
-    ? translate('auto.hq.notes.previewDue', ' · due {{value0}}', { value0: dueLabel(note.dueAt) })
+    ? translate('auto.hq.notes.previewDue', ' · due {{value0}}', {
+        value0: noteDueLabel(note.dueAt)
+      })
     : ''
   if (note.direction === 'on-me') {
     return (
@@ -125,84 +112,6 @@ function NoteInput({
   )
 }
 
-function NoteRow({
-  waiting,
-  personName,
-  now,
-  hqWorktreeId
-}: {
-  waiting: HqWaiting
-  personName: string | null
-  now: number
-  hqWorktreeId: string | null
-}): React.JSX.Element {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const close = (status: 'resolved' | 'cancelled'): void => {
-    setBusy(true)
-    setError(null)
-    // Why: on success the snapshot refresh removes the row, so busy stays set until then.
-    closeHqWaiting(waiting.id, status).catch((reason: unknown) => {
-      setError(errorText(reason))
-      setBusy(false)
-    })
-  }
-  const meta = [
-    personName ??
-      (waiting.source === HQ_NOTE_SOURCE ? translate('auto.hq.notes.self', 'Me') : null),
-    formatShortTimeAgo(waiting.createdAt, now),
-    waiting.project
-  ].filter((part): part is string => Boolean(part))
-  const canRemind =
-    waiting.direction === 'on-them' &&
-    waiting.source !== HQ_NOTE_SOURCE &&
-    now - waiting.createdAt > REMIND_AFTER_MS
-  return (
-    <li className="flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-accent/50">
-      <Checkbox
-        className="mt-1"
-        disabled={busy}
-        onCheckedChange={() => close('resolved')}
-        aria-label={translate('auto.hq.waiting.done', 'Done')}
-      />
-      <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-semibold text-muted-foreground">
-        {initials(personName ?? 'HQ')}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-baseline gap-2 text-[11px] text-muted-foreground">
-          <span className="min-w-0 truncate">{meta.join(' · ')}</span>
-          {waiting.dueAt !== null ? (
-            <span
-              data-overdue={waiting.dueAt < now}
-              className="shrink-0 data-[overdue=true]:text-destructive"
-            >
-              {translate('auto.hq.waiting.due', 'due {{value0}}', {
-                value0: dueLabel(waiting.dueAt)
-              })}
-            </span>
-          ) : null}
-        </span>
-        <span className="block text-[13px]">{waiting.title}</span>
-        {error ? <span className="block text-xs text-destructive">{error}</span> : null}
-      </span>
-      <span className="flex shrink-0 items-center gap-1">
-        {canRemind ? (
-          <RemindButton waiting={waiting} personName={personName} hqWorktreeId={hqWorktreeId} />
-        ) : null}
-        <Button
-          type="button"
-          size="xs"
-          variant="ghost"
-          disabled={busy}
-          onClick={() => close('cancelled')}
-        >
-          {translate('auto.hq.waiting.drop', 'Drop')}
-        </Button>
-      </span>
-    </li>
-  )
-}
-
 function SlackWaitingRows({ now }: { now: number }): React.JSX.Element | null {
   const { state, drop } = useHqSlackDrafts()
   const drafts =
@@ -222,7 +131,7 @@ function SlackWaitingRows({ now }: { now: number }): React.JSX.Element | null {
             className="flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-accent/50"
           >
             <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-semibold text-muted-foreground">
-              {initials(draft.author || draft.channelName)}
+              {noteInitials(draft.author || draft.channelName)}
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[11px] text-muted-foreground">
@@ -289,6 +198,8 @@ export function HqNotesTab(): React.JSX.Element {
   const state = useHqPulse()
   const now = useNow(AGE_TICK_MS)
   const slack = useHqSlackDrafts()
+  const { items } = useHqChatList()
+  const [filter, setFilter] = useState<HqNotesFilter | null>(null)
   const hqWorktreeId = useAppStore((s) =>
     findHqWorktreeId(s.settings?.hqPath, s.repos, s.worktreesByRepo)
   )
@@ -305,56 +216,106 @@ export function HqNotesTab(): React.JSX.Element {
   }
   const { people, waitings, decisions } = state.pulse
   const names = new Map(people.map((person) => [person.id, person.name]))
+  const personName = (id: string): string | null => names.get(id) ?? null
+  const chats = new Map(items.map((item) => [item.key, item]))
+  const chatFor = (waiting: HqWaiting): HqChatItem | null =>
+    waiting.agentSessionId && waiting.worktreeId
+      ? (chats.get(
+          hqChatKey(waiting.worktreeId, structuredAgentSessionTabId(waiting.agentSessionId))
+        ) ?? null)
+      : null
   const row = (waiting: HqWaiting): React.JSX.Element => (
-    <NoteRow
+    <HqNoteRow
       key={waiting.id}
       waiting={waiting}
-      personName={waiting.personId ? (names.get(waiting.personId) ?? null) : null}
+      personName={waiting.personId ? personName(waiting.personId) : null}
+      chat={chatFor(waiting)}
       now={now}
       hqWorktreeId={hqWorktreeId}
     />
   )
-  const notes = waitings.filter((waiting) => waiting.source === HQ_NOTE_SOURCE)
-  const onMe = waitings.filter(
-    (waiting) => waiting.direction === 'on-me' && waiting.source !== HQ_NOTE_SOURCE
-  )
-  const onThem = waitings.filter(
-    (waiting) => waiting.direction === 'on-them' && waiting.source !== HQ_NOTE_SOURCE
-  )
+  const board = buildHqNotesBoard(waitings, now)
   const slackAnswers =
     slack.state.status === 'ready'
       ? slack.state.drafts.filter((draft) => hqSlackRequestKind(draft) === 'answer').length
       : 0
+  const counts: Record<HqNotesFilter, number> = {
+    waiting: board.waiting.length,
+    answered: board.answered.length,
+    'on-me': board.onMe.length + slackAnswers,
+    overdue: board.overdue.length
+  }
+  const shows = (section: HqNotesFilter): boolean => filter === null || filter === section
   return (
     <div className="scrollbar-sleek flex h-full min-h-0 flex-col gap-5 overflow-y-auto p-4">
       <NoteInput people={people} now={now} />
-      <NoteSection
-        title={translate('auto.hq.waiting.onMe', 'Waiting on me')}
-        count={onMe.length + slackAnswers}
-        empty={translate('auto.hq.waiting.emptyOnMe', 'Nobody is waiting on you.')}
-      >
-        <SlackWaitingRows now={now} />
-        {onMe.map(row)}
-      </NoteSection>
-      <NoteSection
-        title={translate('auto.hq.waiting.onThem', "I'm waiting on")}
-        count={onThem.length}
-        empty={translate('auto.hq.waiting.emptyOnThem', "You're not waiting on anyone.")}
-      >
-        {onThem.map(row)}
-      </NoteSection>
-      <NoteSection
-        title={translate('auto.hq.notes.notes', 'Just notes')}
-        count={notes.length}
-        empty={translate('auto.hq.notes.empty', 'No notes.')}
-      >
-        {notes.map(row)}
-      </NoteSection>
-      <DecisionsColumn decisions={decisions} now={now} />
+      <HqNotesTiles counts={counts} selected={filter} onSelect={setFilter} />
+      {filter === 'overdue' ? (
+        <NoteSection
+          title={translate('auto.hq.notes.tileOverdue', 'Overdue')}
+          count={board.overdue.length}
+          empty={translate('auto.hq.notes.emptyOverdue', 'Nothing is overdue.')}
+        >
+          {board.overdue.map(row)}
+        </NoteSection>
+      ) : null}
+      {shows('answered') && (filter !== null || board.answered.length > 0) ? (
+        <NoteSection
+          title={translate('auto.hq.notes.tileAnswered', 'Answered')}
+          count={board.answered.length}
+          empty={translate('auto.hq.notes.emptyAnswered', 'No answers yet.')}
+        >
+          {board.answered.map(row)}
+        </NoteSection>
+      ) : null}
+      {shows('waiting') ? (
+        <NoteSection
+          title={translate('auto.hq.waiting.onThem', "I'm waiting on")}
+          count={board.waiting.length}
+          empty={translate('auto.hq.waiting.emptyOnThem', "You're not waiting on anyone.")}
+        >
+          {groupHqNotesByPerson(board.waiting, personName).map((group) => (
+            <li key={group.key} className="flex flex-col">
+              <span className="flex items-center gap-2 px-2 pt-2 pb-0.5 text-xs font-semibold">
+                <span className="flex size-5 items-center justify-center rounded-full bg-status-warning-background text-3xs text-status-warning">
+                  {noteInitials(group.name ?? '?')}
+                </span>
+                {group.name ?? translate('auto.hq.notes.nobody', 'No one named')}
+                <span className="font-normal text-muted-foreground tabular-nums">
+                  {group.items.length}
+                </span>
+              </span>
+              <ul className="flex flex-col">{group.items.map(row)}</ul>
+            </li>
+          ))}
+        </NoteSection>
+      ) : null}
+      {shows('on-me') ? (
+        <NoteSection
+          title={translate('auto.hq.waiting.onMe', 'Waiting on me')}
+          count={counts['on-me']}
+          empty={translate('auto.hq.waiting.emptyOnMe', 'Nobody is waiting on you.')}
+        >
+          <SlackWaitingRows now={now} />
+          {board.onMe.map(row)}
+        </NoteSection>
+      ) : null}
+      {filter === null ? (
+        <>
+          <NoteSection
+            title={translate('auto.hq.notes.notes', 'Just notes')}
+            count={board.notes.length}
+            empty={translate('auto.hq.notes.empty', 'No notes.')}
+          >
+            {board.notes.map(row)}
+          </NoteSection>
+          <DecisionsColumn decisions={decisions} now={now} />
+        </>
+      ) : null}
       <p className="text-xs text-muted-foreground">
         {translate(
-          'auto.hq.notes.hint',
-          'Slack questions to you land in «Waiting on me» on their own. Remind writes to the person only after you approve it.'
+          'auto.hq.notes.hintReplies',
+          "A question a chat sends to Slack lands in «I'm waiting on»; the answer comes back here and to that chat. Remind writes to the person only after you approve it."
         )}
       </p>
     </div>
