@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import type { HqPinnedId } from './hq-messenger-selection'
 import { HqAgentsTab } from './HqAgentsTab'
+import { HqDoneJournalTab } from './HqDoneJournalTab'
 import { HqMapTab } from './HqMapTab'
 import { hqPinnedLabel } from './HqPinnedList'
 import { HqProjectsTab } from './HqProjectsTab'
@@ -18,6 +19,8 @@ function PinnedContent({ id }: { id: HqPinnedId }): React.JSX.Element {
       return <HqTodayInbox />
     case 'waiting':
       return <HqNotesTab />
+    case 'journal':
+      return <HqDoneJournalTab />
     case 'projects':
       return <HqProjectsTab />
     case 'wiki':

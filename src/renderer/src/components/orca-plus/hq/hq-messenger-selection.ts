@@ -1,7 +1,15 @@
 // Custom build (hq-chats): what HQ's messenger view shows on its right — a chat, or one of the
 // pinned items that hold the earlier tabs — and how a request for an earlier tab maps onto it.
 
-export const HQ_PINNED_IDS = ['today', 'waiting', 'projects', 'wiki', 'map', 'agents'] as const
+export const HQ_PINNED_IDS = [
+  'today',
+  'waiting',
+  'journal',
+  'projects',
+  'wiki',
+  'map',
+  'agents'
+] as const
 
 export type HqPinnedId = (typeof HQ_PINNED_IDS)[number]
 
