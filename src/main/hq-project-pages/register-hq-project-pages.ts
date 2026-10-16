@@ -5,6 +5,7 @@ import type { Store } from '../persistence'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import {
   HqDraftTaskQuestionsParams,
+  HqClickUpReplyParams,
   HqSlackDraftCreateParams,
   HqSlackDraftEditParams,
   HqSlackDraftRefParams
@@ -44,5 +45,14 @@ export function registerHqProjectPagesHandlers(
   )
   ipcMain.handle('hqProjects:editSlackDraft', (_event, edit: unknown) =>
     service.editSlackDraft(HqSlackDraftEditParams.parse(edit))
+  )
+  ipcMain.handle('hqProjects:takeSlackDraft', (_event, ref: unknown) =>
+    service.takeSlackDraft(HqSlackDraftRefParams.parse(ref).id)
+  )
+  ipcMain.handle('hqProjects:draftClickUpReply', (_event, ref: unknown) =>
+    service.draftClickUpReply(HqSlackDraftRefParams.parse(ref).id)
+  )
+  ipcMain.handle('hqProjects:sendClickUpReply', (_event, reply: unknown) =>
+    service.sendClickUpReply(HqClickUpReplyParams.parse(reply))
   )
 }

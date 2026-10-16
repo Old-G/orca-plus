@@ -34,6 +34,8 @@ export type HqSlackTakeDeps = Omit<HqTriageTakeDeps, 'launch' | 'remember'> & {
     repo: Repo
   ) => Promise<{ launched: boolean; session: HqTakenSession | null }>
   remember: (taskId: string, repoId: string, session: HqTakenSession | null) => Promise<unknown>
+  /** Custom build (hq-clickup-requests): records that a ClickUp comment's own task was taken. */
+  markTaken: (id: string) => Promise<unknown>
   now: () => Date
 }
 
@@ -44,10 +46,15 @@ export type HqSlackTakeOutcome =
   | { kind: 'create-failed'; error: string }
   /** The task exists but no agent started: ClickUp did not return it, or the launch failed. */
   | { kind: 'created-only'; taskUrl: string }
+  /** A ClickUp comment's own task could not be read or started; nothing was recorded. */
+  | { kind: 'not-started'; taskUrl: string }
   | { kind: 'taken'; taskUrl: string; identifier: string; take: HqTriageTakeResult }
 
 export async function takeHqSlackRequest(
-  draft: Pick<HqSlackScoutDraft, 'id' | 'title' | 'description' | 'project' | 'permalink'>,
+  draft: Pick<
+    HqSlackScoutDraft,
+    'id' | 'title' | 'description' | 'project' | 'permalink' | 'clickupTaskId'
+  >,
   deps: HqSlackTakeDeps
 ): Promise<HqSlackTakeOutcome> {
   if (!draft.project) {
@@ -59,6 +66,39 @@ export async function takeHqSlackRequest(
     return { kind: 'no-repo', project: draft.project }
   }
   const startedAt = deps.now().toISOString()
+  if (draft.clickupTaskId) {
+    // Why: a comment is on a task that already exists; it is taken, not created again, and closed
+    // through «Ready for you» — ClickUp comments pass no Approve window an agent could wait on.
+    const existing = await deps.getTask(draft.clickupTaskId).catch(() => null)
+    if (!existing) {
+      return { kind: 'not-started', taskUrl: draft.permalink }
+    }
+    let session: HqTakenSession | null = null
+    const take = await takeHqTriageTask(
+      existing,
+      (loaded) =>
+        buildHqTriageWorkItem(existing, loaded, {
+          name: repo.displayName,
+          level: page.autonomy ?? DEFAULT_LEVEL
+        }),
+      {
+        getTask: deps.getTask,
+        listStatuses: deps.listStatuses,
+        setStatus: deps.setStatus,
+        launch: async (item) => {
+          const launched = await deps.launchInRepo(item, repo)
+          session = launched.session
+          return launched.launched
+        },
+        remember: () => deps.remember(existing.id, repo.id, session)
+      }
+    )
+    if (!take.launched) {
+      return { kind: 'not-started', taskUrl: existing.url }
+    }
+    await deps.markTaken(draft.id)
+    return { kind: 'taken', taskUrl: existing.url, identifier: existing.identifier, take }
+  }
   const created = await deps
     .createTask({ id: draft.id, title: draft.title.trim(), description: draft.description })
     .catch((error: unknown) => ({ ok: false as const, error: String(error) }))

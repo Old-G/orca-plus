@@ -44,6 +44,16 @@ export type HqProjectsApi = {
   editSlackDraft: (
     edit: HqSlackScoutEdit & { id: string }
   ) => Promise<HqSlackScoutCreateResult | { ok: true }>
+  /** Custom build (hq-clickup-requests): «Do» on a ClickUp comment, and the reply drafted then sent. */
+  takeSlackDraft: (ref: { id: string }) => Promise<HqSlackScoutCreateResult | { ok: true }>
+  draftClickUpReply: (ref: {
+    id: string
+  }) => Promise<{ ok: true; text: string } | { ok: false; error: string }>
+  sendClickUpReply: (reply: {
+    id: string
+    text: string
+    draft?: string
+  }) => Promise<{ ok: true } | { ok: false; error: string }>
   /** Paired web client only: HQ's settings, which live on the Mac. The desktop reads its own. */
   settings?: () => Promise<HqClientSettings>
 }
