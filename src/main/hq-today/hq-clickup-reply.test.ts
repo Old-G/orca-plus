@@ -6,10 +6,10 @@ import type { ClickUpTask } from '../../shared/clickup-types'
 import type { HqSlackScoutDraft } from '../../shared/hq-slack-scout'
 import {
   draftHqClickUpReply,
-  readHqReplyCorrections,
   sendHqClickUpReply,
   type HqClickUpReplyDeps
 } from './hq-clickup-reply'
+import { readHqReplyCorrections } from './hq-reply-corrections'
 
 let hq: string
 

@@ -2,12 +2,22 @@
 // card, the bell and the toast. Each records the owner's decision, so the scout never brings it back.
 import { useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
-import type { HqSlackScoutDraft } from '../../../../../shared/hq-slack-scout'
+import {
+  HQ_REPLY_CORRECTIONS_FILE,
+  HQ_SLACK_SCOUT_DIR,
+  type HqSlackScoutDraft
+} from '../../../../../shared/hq-slack-scout'
 import { HQ_SLACK_REQUEST_ACTION } from '../../../../../shared/hq-slack-request-bell'
-import { hqSlackReplyPrompt, hqSlackThread } from '../../../../../shared/hq-slack-request-prompts'
+import {
+  HQ_TONE_GUIDE_PATH,
+  hqSlackReplyPrompt,
+  hqSlackThread,
+  type HqReplyStyleFiles
+} from '../../../../../shared/hq-slack-request-prompts'
 import { withHqTakeEffort } from '../../../../../shared/hq-triage'
 import { isGitRepoKind } from '../../../../../shared/repo-kind'
 import { translate } from '@/i18n/i18n'
+import { joinPath } from '@/lib/path'
 import {
   clickUpGetTask,
   clickUpListStatuses,
@@ -40,6 +50,17 @@ const failed = (error: unknown): { ok: false; error: string } => ({
   error: String(error)
 })
 
+/** Custom build (hq-reply-tone): where a reply agent reads the owner's tone and his past edits. */
+function hqReplyStyleFiles(): HqReplyStyleFiles | null {
+  const hq = useAppStore.getState().settings?.hqPath
+  return hq
+    ? {
+        tonePath: joinPath(hq, HQ_TONE_GUIDE_PATH),
+        correctionsPath: joinPath(hq, `${HQ_SLACK_SCOUT_DIR}/${HQ_REPLY_CORRECTIONS_FILE}`)
+      }
+    : null
+}
+
 // Why: the same ClickUp context HQ's «New tasks» uses, so a taken Slack task closes the same way.
 const HQ_TODAY_SOURCE_PROJECT = 'hq-today'
 
@@ -69,6 +90,7 @@ function slackTakeDeps(): HqSlackTakeDeps {
       }),
     remember: rememberHqTake,
     markTaken: (id) => window.api.hqProjects.takeSlackDraft({ id }),
+    replyStyle: hqReplyStyleFiles,
     now: () => new Date()
   }
 }
@@ -154,7 +176,7 @@ export async function answerHqSlackRequest(
   const state = useAppStore.getState()
   const hqWorktreeId = findHqWorktreeId(state.settings?.hqPath, state.repos, state.worktreesByRepo)
   if (thread && hqWorktreeId) {
-    const launched = launchHqCommand(hqWorktreeId, hqSlackReplyPrompt(thread))
+    const launched = launchHqCommand(hqWorktreeId, hqSlackReplyPrompt(thread, hqReplyStyleFiles()))
     if (!launched.ok) {
       toast.error(launched.message)
       return false
