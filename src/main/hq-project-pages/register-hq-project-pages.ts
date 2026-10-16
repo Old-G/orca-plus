@@ -10,6 +10,8 @@ import {
   HqSlackDraftEditParams,
   HqSlackDraftRefParams
 } from '../../shared/rpc-contract/hq-projects-params'
+import { keepHqApprovalEdits } from '../hq-today/hq-reply-corrections'
+import { onOutgoingApprovalDecided } from '../orca-plus/outgoing-approval/register-outgoing-approval'
 import {
   createHqProjectPagesService,
   provideHqProjectPagesService
@@ -21,6 +23,8 @@ export function registerHqProjectPagesHandlers(
 ): void {
   const service = createHqProjectPagesService(store, getAgentEnvResolvers)
   provideHqProjectPagesService(service)
+  // Custom build (hq-reply-tone): a Slack message rewritten in Approve becomes a tone lesson.
+  onOutgoingApprovalDecided(keepHqApprovalEdits(() => store.getSettings().hqPath ?? null))
   ipcMain.handle('hqProjects:list', () => service.list())
   ipcMain.handle('hqProjects:wikiTree', () => service.wikiTree())
   ipcMain.handle('hqProjects:wikiPage', (_event, path: unknown) => service.wikiPage(path))

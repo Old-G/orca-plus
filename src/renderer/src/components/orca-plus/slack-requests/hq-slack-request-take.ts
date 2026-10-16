@@ -4,7 +4,11 @@
 import type { ClickUpTask } from '../../../../../shared/clickup-types'
 import type { HqAutonomyLevel } from '../../../../../shared/hq-autonomy'
 import type { HqProjectPage } from '../../../../../shared/hq-project-pages'
-import { hqSlackDoPromptTail, hqSlackThread } from '../../../../../shared/hq-slack-request-prompts'
+import {
+  hqSlackDoPromptTail,
+  hqSlackThread,
+  type HqReplyStyleFiles
+} from '../../../../../shared/hq-slack-request-prompts'
 import type {
   HqSlackScoutCreateResult,
   HqSlackScoutDraft
@@ -36,6 +40,8 @@ export type HqSlackTakeDeps = Omit<HqTriageTakeDeps, 'launch' | 'remember'> & {
   remember: (taskId: string, repoId: string, session: HqTakenSession | null) => Promise<unknown>
   /** Custom build (hq-clickup-requests): records that a ClickUp comment's own task was taken. */
   markTaken: (id: string) => Promise<unknown>
+  /** Custom build (hq-reply-tone): the owner's tone guide and edits, for the reply in the thread. */
+  replyStyle: () => HqReplyStyleFiles | null
   now: () => Date
 }
 
@@ -119,7 +125,7 @@ export async function takeHqSlackRequest(
         full,
         loaded,
         { name: repo.displayName, level: page.autonomy ?? DEFAULT_LEVEL },
-        thread ? hqSlackDoPromptTail(thread, startedAt) : undefined
+        thread ? hqSlackDoPromptTail(thread, startedAt, deps.replyStyle()) : undefined
       ),
     {
       getTask: deps.getTask,
