@@ -4,6 +4,7 @@
 import type { ClickUpTask } from '../../../../../shared/clickup-types'
 import type { HqAutonomyLevel } from '../../../../../shared/hq-autonomy'
 import type { HqProjectPage } from '../../../../../shared/hq-project-pages'
+import { hqProjectShortName } from '../../../../../shared/hq-slack-request-bell'
 import {
   hqSlackDoPromptTail,
   hqSlackThread,
@@ -56,6 +57,17 @@ export type HqSlackTakeOutcome =
   | { kind: 'not-started'; taskUrl: string }
   | { kind: 'taken'; taskUrl: string; identifier: string; take: HqTriageTakeResult }
 
+/** Custom build (hq-task-project-prefix): every task names its project first, `[samantha] …`. */
+export function hqTaskTitleWithProject(
+  title: string,
+  page: Pick<HqProjectPage, 'slug' | 'title'>
+): string {
+  const trimmed = title.trim()
+  return trimmed.startsWith('[')
+    ? trimmed
+    : `[${hqProjectShortName(page).toLowerCase()}] ${trimmed}`
+}
+
 export async function takeHqSlackRequest(
   draft: Pick<
     HqSlackScoutDraft,
@@ -106,7 +118,11 @@ export async function takeHqSlackRequest(
     return { kind: 'taken', taskUrl: existing.url, identifier: existing.identifier, take }
   }
   const created = await deps
-    .createTask({ id: draft.id, title: draft.title.trim(), description: draft.description })
+    .createTask({
+      id: draft.id,
+      title: hqTaskTitleWithProject(draft.title, page),
+      description: draft.description
+    })
     .catch((error: unknown) => ({ ok: false as const, error: String(error) }))
   if (!created.ok) {
     return { kind: 'create-failed', error: created.error }

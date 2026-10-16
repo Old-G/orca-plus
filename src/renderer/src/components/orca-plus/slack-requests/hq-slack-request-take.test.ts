@@ -9,7 +9,7 @@ vi.mock('@/lib/clickup-linked-work-item', () => ({
 }))
 vi.mock('@/lib/linked-work-item-context', () => ({ buildContainedLinkedContextBlock: () => '' }))
 
-const { takeHqSlackRequest } = await import('./hq-slack-request-take')
+const { hqTaskTitleWithProject, takeHqSlackRequest } = await import('./hq-slack-request-take')
 
 const draft = {
   id: 'D09MLEW74P7:1791963881.532369',
@@ -123,6 +123,28 @@ describe('Do on a Slack request', () => {
     expect(item?.pasteContent).toContain('/hq/slack-scout/corrections.jsonl')
     expect(d.setStatus).toHaveBeenCalledWith('t1', 'in proсess')
     expect(d.remember).toHaveBeenCalledWith('t1', 'r1', null)
+  })
+
+  it('names the project first in the task title, and keeps a bracket the scout already wrote', async () => {
+    const pages = vi.fn(async () => [
+      {
+        repoId: 'r1',
+        slug: 'lh_support_ai_service',
+        title: 'Samantha — AI-поддержка',
+        status: null,
+        group: null,
+        relations: [],
+        autonomy: 2 as const
+      }
+    ])
+    const d = deps({ listPages: pages })
+    await takeHqSlackRequest(draft, d)
+    expect(d.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({ title: '[samantha] Саманта: нет автоответа' })
+    )
+    expect(hqTaskTitleWithProject(' [hub mcp] Вход ', { slug: 'x', title: 'Y' })).toBe(
+      '[hub mcp] Вход'
+    )
   })
 
   it('keeps the created task when ClickUp does not hand it back, without starting Claude', async () => {
