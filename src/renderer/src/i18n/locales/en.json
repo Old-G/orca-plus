@@ -19222,7 +19222,8 @@
         "unkeepProject": "Stop keeping in HQ",
         "keepProject": "Keep in HQ",
         "newChat": "New chat in {{value0}}",
-        "newChatFailed": "Couldn't start a new chat here."
+        "newChatFailed": "Couldn't start a new chat here.",
+        "recentlyDone": "Finished recently"
       },
       "context": {
         "label": "Chat context",
@@ -19245,7 +19246,8 @@
         "onYou": "{{count}} on you",
         "deferred": "{{count}} deferred",
         "notes": "Notes",
-        "doneForYou": "Done for you"
+        "doneForYou": "Done for you",
+        "history": "History"
       },
       "ready": {
         "noCheck": "The task list has no «check» status — move it by hand.",
@@ -19400,6 +19402,16 @@
         "bringBack": "Bring back",
         "hint": "What Orca+ did in your name over the last week: tasks it made or took, replies, and messages sent after your Approve.",
         "empty": "Nothing done for you yet this week."
+      },
+      "history": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "untitled": "Agent chat",
+        "turns": "· {{count}} turns",
+        "closed": "Closed",
+        "gone": "Terminal closed",
+        "hint": "Agent chats that finished over the last week, closed ones included. Click one to open it here.",
+        "empty": "No agent chats finished this week."
       }
     },
     "claudeSubscriptions": {
