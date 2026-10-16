@@ -26,6 +26,10 @@ export const hostScreenPrimaryStyles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: spacing.xs
   },
+  // Custom build (orca-plus-brand)
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: spacing.md },
+  brandMark: { width: 22, height: 22 },
+  brandText: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
   sidebarCollapseButton: {
     width: 24,
     height: 24,
