@@ -41,6 +41,48 @@ describe('people', () => {
 })
 
 describe('waitings', () => {
+  it('keeps the chat that waits and only the newest answer from the thread', () => {
+    const db = openDb()
+    const waiting = db.addWaiting({
+      direction: 'on-them',
+      title: 'Export',
+      source: 'slack',
+      agentSessionId: 'chat-1',
+      worktreeId: 'wt-1'
+    })
+    expect(waiting).toMatchObject({ agentSessionId: 'chat-1', worktreeId: 'wt-1', reply: null })
+    const replied = db.recordWaitingReply(waiting.id, {
+      text: 'Tomorrow',
+      author: 'Ann',
+      ts: '2.5'
+    })
+    expect(replied).toMatchObject({ reply: 'Tomorrow', replyAuthor: 'Ann', replyDeliveredAt: null })
+    expect(db.recordWaitingReply(waiting.id, { text: 'old', author: 'Ann', ts: '2.1' })).toBeNull()
+    expect(db.markWaitingReplyDelivered(waiting.id)?.replyDeliveredAt).toEqual(expect.any(Number))
+    expect(db.markWaitingReplyDelivered(waiting.id)).toBeNull()
+    const newer = db.recordWaitingReply(waiting.id, { text: 'Done', author: 'Ann', ts: '3.0' })
+    expect(newer).toMatchObject({ reply: 'Done', replyTs: '3.0', replyDeliveredAt: null })
+    db.closeWaiting(waiting.id, 'resolved')
+    expect(db.recordWaitingReply(waiting.id, { text: 'late', author: 'Ann', ts: '9' })).toBeNull()
+  })
+
+  it('moves only the open waitings of a handed-off chat to its successor', () => {
+    const db = openDb()
+    const asked = { direction: 'on-them', source: 'slack', agentSessionId: 'chat-old' } as const
+    const open = db.addWaiting({ ...asked, title: 'Export', paneKey: 'tab:1', worktreeId: 'wt-1' })
+    const closed = db.addWaiting({ ...asked, title: 'Done' })
+    const other = db.addWaiting({ ...asked, title: 'Other', agentSessionId: 'chat-x' })
+    db.closeWaiting(closed.id, 'resolved')
+    expect(db.moveOpenWaitingsToChat('chat-old', 'chat-new').map((w) => w.id)).toEqual([open.id])
+    expect(db.getWaiting(open.id)).toMatchObject({
+      agentSessionId: 'chat-new',
+      paneKey: null,
+      worktreeId: 'wt-1'
+    })
+    expect(db.getWaiting(closed.id)?.agentSessionId).toBe('chat-old')
+    expect(db.getWaiting(other.id)?.agentSessionId).toBe('chat-x')
+  })
+
   it('filters by direction, status, person and project, newest first', () => {
     const db = openDb()
     const ann = db.upsertPerson({ name: 'Ann' })
