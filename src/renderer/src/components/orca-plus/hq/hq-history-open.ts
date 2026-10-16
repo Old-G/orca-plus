@@ -1,10 +1,12 @@
 // Custom build (hq-history): opening a History row in HQ — the chat itself while its tab is open, a
 // closed native chat brought back from its record first. HQ stays in front either way.
+import { structuredSessionOpenFeedback } from '@/lib/agent-session/open/activate-ai-vault-structured-session'
 import {
   refreshStructuredSessionTabs,
-  revealStructuredSession,
-  structuredSessionOpenFeedback
-} from '@/lib/agent-session/open/activate-ai-vault-structured-session'
+  revealStructuredSession
+} from '@/lib/agent-session/open/structured-session-restore'
+import { runtimeEnvironmentIdOrLocalUnlessTwin } from '@/lib/workspace/ownership/worktree-runtime-owner'
+import { runtimeTargetForOwnerEnvironment } from '@/runtime/rpc/targets/runtime-client-target'
 import { useAppStore } from '@/store'
 import type { Tab } from '../../../../../shared/workspace-layout/tab-groups/tab-types'
 import type { HqHistoryEntry } from '../../../../../shared/hq-chat-history'
@@ -27,7 +29,9 @@ export function canOpenHqHistoryEntry(
   return isHqHistoryTabOpen(entry, tabsByWorktree) || Boolean(entry.worktreeId && entry.sessionId)
 }
 
-function openIfListed(entry: HqHistoryEntry): boolean {
+type HqChatRef = Pick<HqHistoryEntry, 'worktreeId' | 'tabId' | 'sessionId'>
+
+function openIfListed(entry: HqChatRef): boolean {
   if (!entry.worktreeId || !entry.tabId) {
     return false
   }
@@ -38,7 +42,7 @@ function openIfListed(entry: HqHistoryEntry): boolean {
   return true
 }
 
-export async function openHqHistoryEntry(entry: HqHistoryEntry): Promise<void> {
+export async function openHqHistoryEntry(entry: HqChatRef): Promise<void> {
   if (openIfListed(entry) || !entry.worktreeId || !entry.sessionId) {
     return
   }
@@ -54,9 +58,14 @@ export async function openHqHistoryEntry(entry: HqHistoryEntry): Promise<void> {
     structuredSessionOpenFeedback.hostCannotOpen()
     return
   }
-  if (outcome === 'revealed') {
+  // Why: upstream's reveal now resolves to the opened target itself instead of 'revealed'.
+  if (typeof outcome === 'object' && 'sessionId' in outcome) {
     // Why: the republished tab reaches the store through the inventory, so it is read once more.
-    await refreshStructuredSessionTabs(entry.worktreeId).catch(() => undefined)
+    // Why: upstream's refresh needs the chat's host; it is the one the reveal above dialed.
+    const host = runtimeTargetForOwnerEnvironment(
+      runtimeEnvironmentIdOrLocalUnlessTwin(useAppStore.getState(), entry.worktreeId)
+    )
+    await refreshStructuredSessionTabs(entry.worktreeId, host).catch(() => undefined)
     if (openIfListed(entry)) {
       return
     }
