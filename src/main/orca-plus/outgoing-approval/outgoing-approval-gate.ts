@@ -3,6 +3,7 @@
 // from the renderer's IPC — never from the hook server, whose token every agent can read.
 import { classifyOutgoingToolCall } from '../../../shared/outgoing-approval/outgoing-action-classifier'
 import type { OutgoingDraftCall } from '../../../shared/outgoing-approval/outgoing-action'
+import { outgoingWaitingFollowUp } from '../../../shared/outgoing-approval/outgoing-waiting-prompt'
 import type { PulseApprovalOutcome, PulseDraft } from '../../../shared/pulse-types'
 import type { PulseDb } from '../pulse/pulse-db'
 
@@ -61,14 +62,17 @@ function plainObject(value: unknown): Record<string, unknown> | null {
 function preToolUse(
   decision: 'allow' | 'deny',
   reason: string,
-  updatedInput?: Record<string, unknown>
+  updatedInput?: Record<string, unknown>,
+  additionalContext?: string | null
 ) {
   return {
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: decision,
       permissionDecisionReason: reason,
-      ...(updatedInput ? { updatedInput } : {})
+      ...(updatedInput ? { updatedInput } : {}),
+      // Custom build (hq-waiting-replies): the allow reason reaches only the user; this reaches the model.
+      ...(additionalContext ? { additionalContext } : {})
     }
   }
 }
@@ -241,7 +245,8 @@ export class OutgoingApprovalGate {
             edited
               ? 'The user approved this action with edits in the Orca+ bell.'
               : 'The user approved this action in the Orca+ bell.',
-            edited ?? undefined
+            edited ?? undefined,
+            outgoingWaitingFollowUp(call, draft.target)
           )
         }
       }

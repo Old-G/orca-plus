@@ -31,7 +31,7 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
   const msg = JSON.parse(line)
   if (msg.method === 'initialize') reply(msg.id, { protocolVersion: msg.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: 'testslack', version: '1.0.0' } })
   else if (msg.method === 'tools/list') reply(msg.id, { tools: [{ name: 'send_message', description: 'Send a Slack message to a channel', inputSchema: { type: 'object', properties: { channel_id: { type: 'string' }, message: { type: 'string' } }, required: ['channel_id', 'message'] } }] })
-  else if (msg.method === 'tools/call') { fs.writeFileSync(marker, JSON.stringify(msg.params.arguments)); reply(msg.id, { content: [{ type: 'text', text: 'sent' }] }) }
+  else if (msg.method === 'tools/call') { fs.writeFileSync(marker, JSON.stringify(msg.params.arguments)); reply(msg.id, { content: [{ type: 'text', text: 'sent, ts 1792184213.178000' }] }) }
   else if (msg.id !== undefined) reply(msg.id, {})
 })
 `
@@ -46,6 +46,16 @@ async function setup() {
   const marker = join(dir, 'sent.json')
   const server = join(dir, 'fake-slack.js')
   writeFileSync(server, FAKE_SLACK_SERVER)
+  // Custom build (hq-waiting-replies): stands in for the Orca CLI; each call leaves its argv.
+  const cliCalls = join(dir, 'orca-calls.txt')
+  const fakeCli = join(dir, 'orca')
+  writeFileSync(
+    fakeCli,
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> '${cliCalls}'\necho 'Waiting w1 recorded'\n`,
+    {
+      mode: 0o755
+    }
+  )
   const mcpConfig = join(dir, 'mcp.json')
   writeFileSync(
     mcpConfig,
@@ -64,7 +74,8 @@ async function setup() {
   })
   const hookEnv = hooks.buildPtyEnv()
   const env: NodeJS.ProcessEnv = {
-    PATH: process.env.PATH,
+    // Why: the agent calls `orca` from PATH; the stand-in must win over any installed Orca CLI.
+    PATH: `${dir}:${process.env.PATH ?? ''}`,
     HOME: process.env.HOME,
     TMPDIR: tmpdir(),
     ORCA_AGENT_HOOK_PORT: hookEnv.ORCA_AGENT_HOOK_PORT,
@@ -89,7 +100,7 @@ async function setup() {
       env,
       timeoutMs: 180_000
     })
-  return { gate, ask, marker }
+  return { gate, ask, marker, cliCalls }
 }
 
 async function decideWhenHeld(
@@ -154,5 +165,18 @@ describe.skipIf(!enabled)('outgoing gate with the real Claude CLI', () => {
       channel_id: 'D1',
       message: 'edited by owner'
     })
+  }, 200_000)
+
+  it('has the agent record what it waits for once a question to a person is approved', async () => {
+    const { gate, ask, cliCalls } = await setup()
+    const running = ask(
+      'Ask Zhenya in Slack whether the March export is ready: call mcp__testslack__send_message once with channel_id "D1" and message "Женя, выгрузка за март готова?". Then follow any instructions you receive.',
+      true
+    )
+    await decideWhenHeld(gate, (id) => gate.decide(id, 'approved'))
+    await running
+    const calls = existsSync(cliCalls) ? readFileSync(cliCalls, 'utf8') : ''
+    expect(calls).toMatch(/pulse wait add .*--direction on-them/)
+    expect(calls).toContain('slack:D1:1792184213.178000')
   }, 200_000)
 })
