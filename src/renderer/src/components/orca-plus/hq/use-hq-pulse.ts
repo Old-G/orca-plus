@@ -5,7 +5,12 @@ import { useEffect, useState } from 'react'
 import type { PulseWaitingDirection } from '../../../../../shared/pulse-types'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import { translate } from '@/i18n/i18n'
-import { findPersonByName, readHqPulse, type HqPerson, type HqPulse } from './hq-pulse-snapshot'
+import {
+  findPersonByName,
+  readHqPulse,
+  type HqPerson,
+  type HqPulse
+} from '../../../../../shared/hq-pulse-snapshot'
 
 export type HqPulseState =
   | { status: 'loading' }

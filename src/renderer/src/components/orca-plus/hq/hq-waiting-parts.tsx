@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { translate } from '@/i18n/i18n'
 import { formatShortTimeAgo } from '@/lib/short-time-ago'
-import type { HqDecision, HqPerson, HqWaiting } from './hq-pulse-snapshot'
+import type { HqDecision, HqPerson, HqWaiting } from '../../../../../shared/hq-pulse-snapshot'
 import { addHqWaiting, closeHqWaiting } from './use-hq-pulse'
 
 export function errorText(error: unknown): string {

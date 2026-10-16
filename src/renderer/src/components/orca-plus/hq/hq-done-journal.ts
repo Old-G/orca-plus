@@ -1,7 +1,7 @@
 // Custom build (hq-done-journal): «Done for you» — what Orca+ did in the owner's name over the last
 // week, newest first: requests turned into tasks or replies, and messages sent after his Approve.
 import { HQ_DONE_WINDOW_MS, type HqSlackScoutDone } from '../../../../../shared/hq-slack-scout'
-import type { HqDecision } from './hq-pulse-snapshot'
+import type { HqDecision } from '../../../../../shared/hq-pulse-snapshot'
 
 export type HqDoneWhat =
   | 'task-created'

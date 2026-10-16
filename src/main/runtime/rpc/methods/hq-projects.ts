@@ -1,5 +1,6 @@
 import { defineMethod } from '../core'
 import {
+  HqBellActionOnDesktopParams,
   HqDraftTaskQuestionsParams,
   HqRequestOnDesktopParams,
   HqGitStateParams,
@@ -12,7 +13,11 @@ import {
   HqUpdateSettingsParams,
   HqWikiPageParams
 } from '../../../../shared/rpc-contract/hq-projects-params'
-import { runHqRequestOnDesktop } from '../../../hq-today/hq-request-on-desktop'
+import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../shared/outgoing-approval/outgoing-approval-bell'
+import {
+  runHqBellActionOnDesktop,
+  runHqRequestOnDesktop
+} from '../../../hq-today/hq-request-on-desktop'
 import {
   getHqProjectPagesService,
   type HqProjectPagesService
@@ -139,6 +144,23 @@ export const HQ_PROJECTS_METHODS = [
     permission: 'workspace',
     params: HqRequestOnDesktopParams,
     handler: async (params) => runHqRequestOnDesktop(params.id, params.action)
+  }),
+  defineMethod({
+    name: 'hqProjects.runBellActionOnDesktop',
+
+    permission: 'workspace',
+    params: HqBellActionOnDesktopParams,
+    handler: async (params, { runtime }) => {
+      const item = runtime.pulseListInbox(true).find((entry) => entry.id === params.itemId)
+      if (!item) {
+        return { ok: false, error: 'This bell item is gone.' }
+      }
+      // Why: approving what goes out in the owner's name stays on the Mac (Gleb, 16.10).
+      if (item.kind === OUTGOING_APPROVAL_BELL_KIND) {
+        return { ok: false, error: 'Approve this on your Mac.' }
+      }
+      return runHqBellActionOnDesktop(item.id, params.actionId)
+    }
   }),
   defineMethod({
     name: 'hqProjects.draftClickUpReply',
