@@ -6,8 +6,8 @@ import type {
   PulsePerson,
   PulseWaiting
 } from '../../shared/pulse-types'
-import type { CommandHandler } from '../dispatch'
-import { getOptionalStringFlag, getRequiredStringFlag } from '../flags'
+import type { CommandHandler } from '../dispatch/dispatch'
+import { getOptionalStringFlag, getRequiredStringFlag } from '../arguments/flags'
 import { printResult } from '../format'
 import type { RuntimeClient } from '../runtime-client'
 import {
@@ -116,7 +116,10 @@ export const PULSE_HANDLERS: Record<string, CommandHandler> = {
       detail: getOptionalStringFlag(flags, 'detail'),
       dueAt: dueFlag(flags),
       source: source(flags),
-      sourceRef: getOptionalStringFlag(flags, 'source-ref')
+      sourceRef: getOptionalStringFlag(flags, 'source-ref'),
+      // Custom build (hq-waiting-replies): an answer reaches the chat that recorded the waiting.
+      agentSessionId: process.env.ORCA_AGENT_SESSION_ID || undefined,
+      paneKey: process.env.ORCA_PANE_KEY || undefined
     })
     printResult(result, json, (w) => `Waiting ${w.id}: [${w.direction}] ${w.title}`)
   },

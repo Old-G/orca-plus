@@ -44,6 +44,24 @@ export type PulseWaiting = {
   resolution: string | null
   createdAt: number
   resolvedAt: number | null
+  /** Custom build (hq-waiting-replies): the agent chat that waits, so an answer can reach it. */
+  agentSessionId: string | null
+  paneKey: string | null
+  worktreeId: string | null
+  /** The person's latest answer, as the Slack scout found it. */
+  reply: string | null
+  replyAuthor: string | null
+  /** Slack ts of that answer; a later one replaces it. */
+  replyTs: string | null
+  repliedAt: number | null
+  /** When the answer was handed to the waiting chat; null while it was not. */
+  replyDeliveredAt: number | null
+}
+
+export type PulseWaitingReply = {
+  text: string
+  author: string | null
+  ts: string
 }
 
 export type PulseWaitingInput = {
@@ -55,6 +73,9 @@ export type PulseWaitingInput = {
   source: string
   sourceRef?: string | null
   dueAt?: number | null
+  agentSessionId?: string | null
+  paneKey?: string | null
+  worktreeId?: string | null
 }
 
 export type PulseWaitingFilter = {
