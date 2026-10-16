@@ -276,7 +276,7 @@ type AgentSessionRevealReply =
   | { ok: true; sessionId: string; workspaceId: string; agent: string }
   | { ok: false; refusal: { code?: string; details?: unknown } }
 
-async function refreshStructuredSessionTabs(
+export async function refreshStructuredSessionTabs(
   worktreeId: string,
   target?: RuntimeClientTarget
 ): Promise<void> {

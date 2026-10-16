@@ -19,6 +19,8 @@ export {
   revealStructuredSession,
   type StructuredSessionRevealOutcome
 } from './open-existing-structured-session'
+// Custom build (hq-history): HQ's History refreshes a chat's tabs before it opens one.
+export { refreshStructuredSessionTabs } from './open-existing-structured-session'
 
 type StructuredSessionActivationDeps = StructuredSessionOpenAdapterDeps & {
   unavailable: (agent?: string) => void
