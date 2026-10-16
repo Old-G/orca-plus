@@ -48,6 +48,10 @@ export type HqProjectsApi = {
   takeSlackDraft: (ref: { id: string }) => Promise<HqSlackScoutCreateResult | { ok: true }>
   /** Custom build (hq-done-journal): a skipped request back among the pending ones. */
   restoreSlackDraft: (ref: { id: string }) => Promise<{ ok: true } | { ok: false; error: string }>
+  /** Custom build (hq-mobile): Do / Just reply a paired phone asked this window to run. */
+  onRunRequest?: (
+    listener: (request: { id: string; action: 'do' | 'answer' }) => void
+  ) => () => void
   draftClickUpReply: (ref: {
     id: string
   }) => Promise<{ ok: true; text: string } | { ok: false; error: string }>
