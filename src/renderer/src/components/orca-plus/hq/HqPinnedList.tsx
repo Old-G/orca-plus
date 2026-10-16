@@ -1,6 +1,15 @@
 // Custom build (hq-chats): the pinned items above HQ's chat list — the earlier tabs, each one row
 // with a short count where one is cheap to know.
-import { BookOpen, History, KanbanSquare, LayoutGrid, Network, Sun, Users } from 'lucide-react'
+import {
+  BookOpen,
+  Clock,
+  History,
+  KanbanSquare,
+  LayoutGrid,
+  Network,
+  Sun,
+  Users
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import type { HqPinnedId } from './hq-messenger-selection'
@@ -15,6 +24,7 @@ const PINNED: readonly Pinned[] = [
     icon: History,
     label: () => translate('auto.hq.pinned.doneForYou', 'Done for you')
   },
+  { id: 'history', icon: Clock, label: () => translate('auto.hq.pinned.history', 'History') },
   { id: 'projects', icon: LayoutGrid, label: () => translate('auto.hq.tab.projects', 'Projects') },
   { id: 'wiki', icon: BookOpen, label: () => translate('auto.hq.tab.wiki', 'Wiki') },
   { id: 'map', icon: Network, label: () => translate('auto.hq.tab.map', 'Map') },

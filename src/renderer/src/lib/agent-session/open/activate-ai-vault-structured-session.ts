@@ -26,6 +26,8 @@ import type { RuntimeClientTarget } from '../../../../../shared/remote-runtime/h
 import { nativeChatRestartStillStarting } from '@/components/native-chat-recovery/offers/native-chat-restart-runtimes'
 import { showChatOpenUnavailable, type ChatOpenUnavailable } from './chat-open-failure-toast'
 import { parseOrcaSessionAddress } from '../../../../../shared/agent-session/identity/orca-session-address'
+// Custom build (hq-history): HQ's History refreshes a chat's tabs before it opens one.
+export { refreshStructuredSessionTabs } from './open-existing-structured-session'
 
 type StructuredSessionActivationDeps = StructuredSessionOpenAdapterDeps & {
   unavailable: (agent?: string, context?: ChatOpenUnavailable) => void
