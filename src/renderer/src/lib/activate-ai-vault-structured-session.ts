@@ -249,7 +249,7 @@ export async function revealStructuredSession(target: {
 
 type AgentSessionRevealReply = { ok?: boolean; refusal?: { code?: string } }
 
-async function refreshStructuredSessionTabs(
+export async function refreshStructuredSessionTabs(
   worktreeId: string,
   target?: RuntimeClientTarget
 ): Promise<void> {
