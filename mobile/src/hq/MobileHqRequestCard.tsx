@@ -1,48 +1,23 @@
 // Custom build (hq-mobile): one request to the owner on the phone — who asks what — with Do, Just
 // reply and Skip. A ClickUp comment gets its reply composer here; the rest runs on the Mac.
 import { useEffect, useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Text, TextInput, View } from 'react-native'
 import { hqSlackRequestKind, type HqSlackScoutDraft } from '../../../src/shared/hq-slack-scout'
-import { runRpcOperation } from '../transport/rpc-operation'
-import type { RpcClient } from '../transport/rpc-client'
-import { colors, radii, spacing, typography } from '../theme/mobile-theme'
+import { runRpcOperation } from '../transport/rpc/rpc-operation'
+import type { RpcClient } from '../transport/rpc/rpc-client-contract'
+import { radii, spacing, typography } from '../theme/mobile-theme'
 import {
   hqClickUpReplyDraft,
   hqClickUpReplySend,
   hqRequestOnDesktop,
   hqRequestSkip
 } from './hq-operations'
+import { HqActionButton } from './mobile-hq-parts'
 import { errorText } from './use-mobile-hq-requests'
+import { themedStyleSheet, useThemedStyles } from '../theme/themed-styles'
+import { useMobileColors } from '../theme/use-mobile-color-scheme'
 
 const KIND_LABEL = { do: 'Do', answer: 'Reply', fyi: 'FYI' } as const
-
-function ActionButton({
-  label,
-  primary = false,
-  disabled = false,
-  onPress
-}: {
-  label: string
-  primary?: boolean
-  disabled?: boolean
-  onPress: () => void
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        primary && styles.buttonPrimary,
-        (pressed || disabled) && styles.pressed
-      ]}
-    >
-      <Text style={[styles.buttonLabel, primary && styles.buttonLabelPrimary]}>{label}</Text>
-    </Pressable>
-  )
-}
 
 function ClickUpReplyComposer({
   client,
@@ -55,6 +30,8 @@ function ClickUpReplyComposer({
   onSent: () => void
   onCancel: () => void
 }) {
+  const styles = useThemedStyles(stylesSheet)
+  const colors = useMobileColors()
   const [phase, setPhase] = useState<'drafting' | 'ready' | 'sending'>('drafting')
   const [draft, setDraft] = useState<string | null>(null)
   const [text, setText] = useState('')
@@ -108,13 +85,13 @@ function ClickUpReplyComposer({
         style={styles.input}
       />
       <View style={styles.actions}>
-        <ActionButton
+        <HqActionButton
           primary
           label={phase === 'sending' ? 'Sending…' : 'Send'}
           disabled={busy || !text.trim()}
           onPress={() => void send()}
         />
-        <ActionButton label="Cancel" disabled={phase === 'sending'} onPress={onCancel} />
+        <HqActionButton label="Cancel" disabled={phase === 'sending'} onPress={onCancel} />
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
@@ -131,6 +108,7 @@ export function MobileHqRequestCard({
   /** The request was decided or handed to the Mac; the list reloads. */
   onDone: (notice: string | null) => void
 }) {
+  const styles = useThemedStyles(stylesSheet)
   const [replying, setReplying] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -180,13 +158,13 @@ export function MobileHqRequestCard({
         />
       ) : (
         <View style={styles.actions}>
-          <ActionButton
+          <HqActionButton
             primary={kind !== 'answer'}
             label="Do"
             disabled={busy}
             onPress={() => onDesktop('do', 'Started on your Mac: the task and Claude.')}
           />
-          <ActionButton
+          <HqActionButton
             primary={kind === 'answer'}
             label="Just reply"
             disabled={busy}
@@ -196,7 +174,11 @@ export function MobileHqRequestCard({
                 : onDesktop('answer', 'Claude is drafting the reply on your Mac; approve it there.')
             }
           />
-          <ActionButton label={kind === 'fyi' ? 'Got it' : 'Skip'} disabled={busy} onPress={skip} />
+          <HqActionButton
+            label={kind === 'fyi' ? 'Got it' : 'Skip'}
+            disabled={busy}
+            onPress={skip}
+          />
         </View>
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -204,7 +186,7 @@ export function MobileHqRequestCard({
   )
 }
 
-const styles = StyleSheet.create({
+const stylesSheet = themedStyleSheet((colors) => ({
   card: {
     backgroundColor: colors.bgPanel,
     borderRadius: radii.surface,
@@ -225,16 +207,6 @@ const styles = StyleSheet.create({
   author: { fontWeight: '600' },
   meta: { fontSize: typography.metaSize, color: colors.textMuted },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  button: {
-    backgroundColor: colors.bgRaised,
-    borderRadius: radii.button,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md
-  },
-  buttonPrimary: { backgroundColor: colors.surfaceBright },
-  buttonLabel: { fontSize: typography.bodySize, fontWeight: '600', color: colors.textPrimary },
-  buttonLabelPrimary: { color: colors.bgBase },
-  pressed: { opacity: 0.6 },
   composer: { gap: spacing.sm },
   input: {
     minHeight: 96,
@@ -246,4 +218,4 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top'
   },
   error: { fontSize: typography.metaSize, color: colors.statusRed }
-})
+}))
