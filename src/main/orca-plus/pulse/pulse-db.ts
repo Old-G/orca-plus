@@ -1,5 +1,6 @@
 // Custom build (pulse): orca-plus-pulse.db — one entry point over the record modules, for the
 // RPC, the CLI and the HQ mirror to share.
+/* eslint-disable max-lines -- Why: one entry point over every pulse record module, one line per method; split when it next grows */
 import { join } from 'node:path'
 import type {
   PulseApprovalOutcome,
@@ -10,18 +11,47 @@ import type {
   PulsePersonInput,
   PulseWaitingFilter,
   PulseWaitingInput,
+  PulseWaitingPatch,
+  PulseWaitingReply,
   PulseWaitingStatus
 } from '../../../shared/pulse-types'
+import type { OutgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
+import { pulseChats } from './pulse-chat-links'
+import { linkWaitingAnswer } from './pulse-ledger-answer'
+import { pulseLedgerShadow } from './pulse-ledger-answer-shadow'
+import {
+  ingestLedgerSignal,
+  lastLedgerDirection,
+  listLedgerConversations,
+  setLedgerGuess,
+  type HqLedgerGuess
+} from './pulse-ledger'
+import { listLedgerCards, settleLedgerMessage } from './pulse-ledger-cards'
+import { recordAgentSend, type HqAgentSend } from './pulse-sent'
+import { setConversationChat, setConversationChatIfNone } from './pulse-ledger-chat'
+import { pulseAttribution } from './pulse-attribution-api'
+import { listOpenLedgerConversations } from './pulse-ledger-open'
+import {
+  closeLedgerConversation,
+  listLedgerFeed,
+  listLedgerOpenKeys,
+  listLedgerUnsent,
+  setLedgerProject
+} from './pulse-ledger-feed'
+import type { HqLedgerSignal } from '../../../shared/hq-ledger'
 import { PulseCore, type PulseClock } from './pulse-core'
 import {
   decideDraft,
   listDecisions,
   logDecision,
+  setDecisionContext,
   setDecisionMirror,
   type PulseDecisionListOptions
 } from './pulse-decisions'
 import { abandonDraft, addDraft, getDraft, listDrafts, markDraftDelivery } from './pulse-drafts'
 import { latestEventSeq, listEventsSince, pruneEvents } from './pulse-events'
+import { listFeed, listFeedWithoutPost, pruneFeed, setFeedPosts, upsertFeed } from './pulse-feed'
+import type { HqFeedItem, HqFeedQuery } from '../../../shared/hq-feed'
 import {
   addInboxItem,
   getInboxItem,
@@ -31,8 +61,35 @@ import {
   syncInboxKind,
   type ListInboxOptions
 } from './pulse-inbox'
+import {
+  countJournal,
+  getJournalEntry,
+  journalActivity,
+  listJournal,
+  countJournalBySource,
+  recordJournal
+} from './pulse-journal'
+import {
+  getSession,
+  listSessionsByAddress,
+  listRecentSessions,
+  listSessionsByProject,
+  noteSessions,
+  releaseSessionAddress
+} from './pulse-sessions'
+import type { HqJournalInput, HqJournalQuery, HqSessionInput } from '../../../shared/hq-journal'
 import { getPerson, listPeople, upsertPerson } from './pulse-people'
-import { addWaiting, closeWaiting, getWaiting, listWaitings } from './pulse-waitings'
+import {
+  addWaiting,
+  closeWaiting,
+  reopenWaiting,
+  getWaiting,
+  listWaitings,
+  markWaitingReplyDelivered,
+  moveOpenWaitingsToChat,
+  recordWaitingReply,
+  updateWaiting
+} from './pulse-waitings'
 
 export const PULSE_DB_FILE = 'orca-plus-pulse.db'
 
@@ -42,6 +99,12 @@ export function pulseDbPath(userDataPath: string): string {
 
 export class PulseDb {
   private readonly core: PulseCore
+  /** Custom build (hq-ledger-answers): what the ledger keeps in shadow, to compare with the readers. */
+  readonly ledgerShadow = pulseLedgerShadow(() => this.core)
+  /** Custom build (hq-attribution-log): guesses about conversations beside the owner's choices. */
+  readonly attribution = pulseAttribution(() => this.core)
+  /** Custom build (hq-plus-chat-tree): handoff chains and which chat started which. */
+  readonly chats = pulseChats(() => this.core)
 
   constructor(path: (string & {}) | ':memory:', clock: Partial<PulseClock> = {}) {
     this.core = new PulseCore(path, clock)
@@ -63,11 +126,101 @@ export class PulseDb {
   getWaiting(id: string) {
     return getWaiting(this.core, id)
   }
+  updateWaiting(id: string, patch: PulseWaitingPatch) {
+    return updateWaiting(this.core, id, patch)
+  }
   closeWaiting(id: string, status: Exclude<PulseWaitingStatus, 'open'>, resolution?: string) {
     return closeWaiting(this.core, id, status, resolution)
   }
+  reopenWaiting(id: string) {
+    return reopenWaiting(this.core, id)
+  }
   listWaitings(filter?: PulseWaitingFilter) {
     return listWaitings(this.core, filter)
+  }
+  recordWaitingReply(id: string, reply: PulseWaitingReply) {
+    const replied = recordWaitingReply(this.core, id, reply)
+    // Custom build (hq-ledger-answer-dedup): the answer's conversation takes the waiting's project.
+    if (replied) {
+      linkWaitingAnswer(this.core, id, reply.ts)
+    }
+    return replied
+  }
+  markWaitingReplyDelivered(id: string, replyTs?: string) {
+    return markWaitingReplyDelivered(this.core, id, replyTs)
+  }
+  ingestLedgerSignal(signal: HqLedgerSignal) {
+    return ingestLedgerSignal(this.core, signal)
+  }
+
+  /** Custom build (hq-request-ledger): a message an agent sent, read from its call's result. */
+  recordAgentSend(send: HqAgentSend) {
+    return recordAgentSend(this.core, send)
+  }
+
+  /** Custom build (hq-request-ledger): a project's open conversations, for its card. */
+  listOpenLedgerConversations(project: string) {
+    return listOpenLedgerConversations(this.core, project)
+  }
+
+  setConversationChat(key: string, sessionId: string): void {
+    setConversationChat(this.core, key, sessionId)
+  }
+
+  setConversationChatIfNone(key: string, sessionId: string): void {
+    setConversationChatIfNone(this.core, key, sessionId)
+  }
+
+  listLedgerConversations(since?: number) {
+    return listLedgerConversations(this.core, since)
+  }
+
+  lastLedgerDirection(key: string) {
+    return lastLedgerDirection(this.core, key)
+  }
+
+  setLedgerGuess(conversationId: string, guess: HqLedgerGuess): void {
+    setLedgerGuess(this.core, conversationId, guess)
+  }
+
+  settleLedgerMessage(ts: string): void {
+    settleLedgerMessage(this.core, ts)
+  }
+
+  listLedgerCards(since: number) {
+    return listLedgerCards(this.core, since)
+  }
+
+  listLedgerFeed(since: number) {
+    return listLedgerFeed(this.core, since)
+  }
+
+  setLedgerProject(key: string, project: string): void {
+    setLedgerProject(this.core, key, project)
+  }
+
+  listLedgerOpenKeys(reader: string): string[] {
+    return listLedgerOpenKeys(this.core, reader)
+  }
+
+  closeLedgerConversation(key: string): boolean {
+    return closeLedgerConversation(this.core, key)
+  }
+
+  listLedgerUnsent(key: string, limit: number) {
+    return listLedgerUnsent(this.core, key, limit)
+  }
+
+  /** The raw row, for tests and the replay script. */
+  getWaitingRecord(id: string): Record<string, unknown> {
+    return (this.core.db.prepare('SELECT * FROM waitings WHERE id = ?').get(id) ?? {}) as Record<
+      string,
+      unknown
+    >
+  }
+
+  moveOpenWaitingsToChat(fromSessionId: string, toSessionId: string) {
+    return moveOpenWaitingsToChat(this.core, fromSessionId, toSessionId)
   }
 
   addDraft(input: PulseDraftInput) {
@@ -79,8 +232,13 @@ export class PulseDb {
   listDrafts(status?: PulseDraftStatus) {
     return listDrafts(this.core, status)
   }
-  decideDraft(id: string, outcome: PulseApprovalOutcome, editedBody?: string) {
-    return decideDraft(this.core, id, outcome, editedBody)
+  decideDraft(
+    id: string,
+    outcome: PulseApprovalOutcome,
+    editedBody?: string,
+    sentContext?: OutgoingSentContext | null
+  ) {
+    return decideDraft(this.core, id, outcome, editedBody, sentContext ?? null)
   }
   markDraftDelivery(id: string, status: 'sent' | 'failed') {
     return markDraftDelivery(this.core, id, status)
@@ -97,6 +255,9 @@ export class PulseDb {
   }
   setDecisionMirror(id: string, path: string) {
     setDecisionMirror(this.core, id, path)
+  }
+  setDecisionContext(id: string, context: OutgoingSentContext) {
+    setDecisionContext(this.core, id, context)
   }
 
   addInboxItem(input: PulseInboxInput) {
@@ -126,6 +287,62 @@ export class PulseDb {
   }
   pruneEvents(beforeAt: number) {
     return pruneEvents(this.core, beforeAt)
+  }
+
+  /** Custom build (hq-feed). */
+  upsertFeed(items: readonly HqFeedItem[]) {
+    return upsertFeed(this.core, items)
+  }
+  listFeed(query?: HqFeedQuery) {
+    return listFeed(this.core, query)
+  }
+  pruneFeed(beforeAt: number) {
+    return pruneFeed(this.core, beforeAt)
+  }
+  listFeedWithoutPost(limit: number) {
+    return listFeedWithoutPost(this.core, limit)
+  }
+  setFeedPosts(posts: ReadonlyMap<string, string>) {
+    setFeedPosts(this.core, posts)
+  }
+
+  /** Custom build (hq-plus-journal). */
+  recordJournal(inputs: readonly HqJournalInput[]) {
+    return recordJournal(this.core, inputs)
+  }
+  getJournalEntry(id: string) {
+    return getJournalEntry(this.core, id)
+  }
+  listJournal(query?: HqJournalQuery) {
+    return listJournal(this.core, query)
+  }
+  countJournalBySource(kind: string, since: number) {
+    return countJournalBySource(this.core, kind, since)
+  }
+  /** Custom build (hq-plus-ui). */
+  countJournal(since: number) {
+    return countJournal(this.core, since)
+  }
+  journalActivity(query: { since: number; slotMs: number; kinds: readonly string[] }) {
+    return journalActivity(this.core, query)
+  }
+  noteSessions(inputs: readonly HqSessionInput[]) {
+    return noteSessions(this.core, inputs)
+  }
+  getSession(sessionId: string) {
+    return getSession(this.core, sessionId)
+  }
+  releaseSessionAddress(sessionId: string, address: string, at: number) {
+    return releaseSessionAddress(this.core, sessionId, address, at)
+  }
+  listSessionsByAddress(address: string) {
+    return listSessionsByAddress(this.core, address)
+  }
+  listSessionsByProject(project: string) {
+    return listSessionsByProject(this.core, project)
+  }
+  listRecentSessions(since: number) {
+    return listRecentSessions(this.core, since)
   }
 
   close(): void {
