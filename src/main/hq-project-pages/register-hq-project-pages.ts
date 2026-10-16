@@ -1,6 +1,6 @@
 // Custom build (hq): IPC for HQ's tabs; the work is in hq-project-pages-service.ts, which the
 // paired web client reaches through the hqProjects.* runtime RPC.
-import { ipcMain } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import type { Store } from '../persistence'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import {
@@ -11,6 +11,7 @@ import {
   HqSlackDraftRefParams
 } from '../../shared/rpc-contract/hq-projects-params'
 import { keepHqApprovalEdits } from '../hq-today/hq-reply-corrections'
+import { setHqRequestDesktopSender } from '../hq-today/hq-request-on-desktop'
 import { onOutgoingApprovalDecided } from '../orca-plus/outgoing-approval/register-outgoing-approval'
 import {
   createHqProjectPagesService,
@@ -25,6 +26,14 @@ export function registerHqProjectPagesHandlers(
   provideHqProjectPagesService(service)
   // Custom build (hq-reply-tone): a Slack message rewritten in Approve becomes a tone lesson.
   onOutgoingApprovalDecided(keepHqApprovalEdits(() => store.getSettings().hqPath ?? null))
+  // Custom build (hq-mobile): one window only, so a phone's Do never runs twice.
+  setHqRequestDesktopSender((request) => {
+    const window =
+      BrowserWindow.getFocusedWindow() ??
+      BrowserWindow.getAllWindows().find((entry) => !entry.isDestroyed())
+    window?.webContents.send('hqProjects:runRequest', request)
+    return Boolean(window)
+  })
   ipcMain.handle('hqProjects:list', () => service.list())
   ipcMain.handle('hqProjects:wikiTree', () => service.wikiTree())
   ipcMain.handle('hqProjects:wikiPage', (_event, path: unknown) => service.wikiPage(path))
