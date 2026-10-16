@@ -21,5 +21,15 @@ describe('Slack request prompts', () => {
     expect(prompt).toContain('channel_id C1, thread_ts 1.2')
     expect(prompt).toContain('Approve')
     expect(prompt).not.toContain('evil')
+    expect(prompt).not.toContain('Тон Глеба')
+  })
+
+  it("points a reply at the owner's tone guide and his past edits when HQ is set", () => {
+    const prompt = hqSlackReplyPrompt(hqSlackThread({ id: 'C1:1.2', permalink: '' })!, {
+      tonePath: '/hq/wiki/tone.md',
+      correctionsPath: '/hq/slack-scout/corrections.jsonl'
+    })
+    expect(prompt).toContain('Тон Глеба описан в /hq/wiki/tone.md')
+    expect(prompt).toContain('/hq/slack-scout/corrections.jsonl (draft → sent)')
   })
 })
