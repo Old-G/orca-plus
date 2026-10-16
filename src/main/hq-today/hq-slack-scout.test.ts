@@ -10,6 +10,7 @@ import {
   onHqSlackScoutChanged,
   readHqSlackScout,
   rejectHqSlackScoutDraft,
+  restoreHqSlackScoutDraft,
   type HqSlackScoutDeps
 } from './hq-slack-scout'
 
@@ -49,7 +50,8 @@ describe('HQ Slack scout files', () => {
       configured: false,
       lastRunAt: null,
       failedAt: null,
-      drafts: []
+      drafts: [],
+      done: []
     })
   })
 
@@ -202,9 +204,44 @@ describe('HQ Slack scout files', () => {
     off()
     expect(listener).toHaveBeenCalledTimes(1)
     const decisions = JSON.parse(readFileSync(join(hq, 'slack-scout', 'decisions.json'), 'utf8'))
-    expect(decisions['C1:1']).toEqual({ decision: 'answered', at: 42 })
-    const result = await readHqSlackScout(hq)
+    // Why: the journal names the request after its draft is gone.
+    expect(decisions['C1:1']).toEqual({
+      decision: 'answered',
+      at: 42,
+      title: 'Fix the cart',
+      author: 'Laure',
+      source: 'slack',
+      permalink: 'https://slack/p'
+    })
+    const result = await readHqSlackScout(hq, () => 43)
     expect(result.ok && result.drafts).toEqual([])
+    expect(result.ok && result.done).toEqual([{ ...decisions['C1:1'], id: 'C1:1' }])
+  })
+
+  it('brings a skipped request back while its draft is on file, and only a skipped one', async () => {
+    scoutFile('drafts.json', JSON.stringify({ drafts: [draft('C1:1'), draft('C1:2')] }))
+    await rejectHqSlackScoutDraft(hq, 'C1:1', deps(vi.fn()))
+    await answerHqSlackScoutDraft(hq, 'C1:2', deps(vi.fn()))
+    await restoreHqSlackScoutDraft(hq, 'C1:1')
+    await expect(restoreHqSlackScoutDraft(hq, 'C1:2')).rejects.toThrow('can no longer come back')
+    const result = await readHqSlackScout(hq)
+    expect(result.ok && result.drafts.map((entry) => entry.id)).toEqual(['C1:1'])
+  })
+
+  it("drops last week's decisions from the journal once they are older", async () => {
+    scoutFile(
+      'decisions.json',
+      JSON.stringify({
+        old: { decision: 'rejected', at: 1 },
+        fresh: {
+          decision: 'created',
+          at: 8 * 24 * 3_600_000,
+          taskUrl: 'https://app.clickup.com/t/1'
+        }
+      })
+    )
+    const result = await readHqSlackScout(hq, () => 8 * 24 * 3_600_000 + 1)
+    expect(result.ok && result.done?.map((entry) => entry.id)).toEqual(['fresh'])
   })
 
   it('keeps the decisions it understands when one entry is from a newer app', async () => {
