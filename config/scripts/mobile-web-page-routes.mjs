@@ -44,6 +44,14 @@ export const MOBILE_WEB_PAGE_ROUTES = [
     pathname: '/h/[hostId]/agent-history/[worktreeId]',
     grants: ['navigate', 'storage', 'externalLink', 'haptics']
   },
+  // Custom build (hq-mobile): HQ — the requests to the owner and what was done for him. Exactly the
+  // worktree list's grants, so the list's HQ button pushes it inside the document: `navigate` for
+  // its Back, `storage` for the host layout above every page, `externalLink` for that layout's
+  // wall, `haptics` because the layout's closure reaches the seam.
+  {
+    pathname: '/h/[hostId]/hq',
+    grants: ['navigate', 'storage', 'externalLink', 'haptics']
+  },
   // Tasks. `navigate` for the session screens its rows open and for the Back that pops the native
   // stack; `storage` for the shared components it renders; `externalLink` for the provider links
   // in its items, checks and drawers; `native.clipboard.write` for the two copy actions in its
