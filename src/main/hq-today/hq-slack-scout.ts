@@ -3,6 +3,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
+  HQ_CLICKUP_REQUESTS_FILE,
   HQ_SLACK_SCOUT_CONFIG_FILE,
   HQ_SLACK_SCOUT_DECISIONS_FILE,
   HQ_SLACK_SCOUT_DIR,
@@ -47,21 +48,34 @@ function scoutPath(hqPath: string, file: string): string {
 
 export async function readHqSlackScout(hqPath: string): Promise<HqSlackScoutResult> {
   try {
-    const [config, drafts, decisions, status, edits] = await Promise.all([
+    const [config, drafts, decisions, status, edits, clickup] = await Promise.all([
       readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_CONFIG_FILE)),
       readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DRAFTS_FILE)),
       readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DECISIONS_FILE)),
       readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_STATUS_FILE)),
-      readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_EDITS_FILE))
+      readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_EDITS_FILE)),
+      readOptional(scoutPath(hqPath, HQ_CLICKUP_REQUESTS_FILE))
     ])
     const file = parseHqSlackScoutDrafts(drafts ?? '{}')
+    // Custom build (hq-clickup-requests): comments on the owner's tasks sit beside the Slack requests.
+    // Why: only Orca+'s own clickup.json may name a ClickUp task to comment on or take; the scout
+    // writes drafts.json from Slack text other people control.
+    const slackDrafts = file.drafts.map(
+      ({ source: _source, clickupTaskId: _taskId, ...draft }) => draft
+    )
+    const clickupDrafts = parseHqSlackScoutDrafts(clickup ?? '{}').drafts.flatMap((draft) =>
+      draft.clickupTaskId ? [{ ...draft, source: 'clickup' as const }] : []
+    )
     return {
       ok: true,
-      configured: config !== null,
+      configured: config !== null || clickupDrafts.length > 0,
       lastRunAt: file.lastRunAt,
       failedAt: parseHqSlackScoutFailedAt(status),
       drafts: applyHqSlackScoutEdits(
-        pendingHqSlackScoutDrafts(file.drafts, parseHqSlackScoutDecisions(decisions ?? '{}')),
+        pendingHqSlackScoutDrafts(
+          [...slackDrafts, ...clickupDrafts],
+          parseHqSlackScoutDecisions(decisions ?? '{}')
+        ),
         parseHqSlackScoutEdits(edits ?? '{}')
       )
     }
@@ -76,6 +90,13 @@ const changeListeners = new Set<() => void>()
 export function onHqSlackScoutChanged(listener: () => void): () => void {
   changeListeners.add(listener)
   return () => changeListeners.delete(listener)
+}
+
+/** Custom build (hq-clickup-requests): tells listeners Orca+ wrote requests of its own. */
+export function notifyHqSlackScoutChanged(): void {
+  for (const listener of changeListeners) {
+    listener()
+  }
 }
 
 // Why one chain: two decisions at once must not drop each other's entry.
@@ -132,6 +153,15 @@ export async function editHqSlackScoutDraft(
     draftId,
     (current) => ({ ...current, ...edit })
   )
+}
+
+/** Custom build (hq-clickup-requests): the owner took the existing ClickUp task the request is on. */
+export async function takeHqSlackScoutDraft(
+  hqPath: string,
+  draftId: string,
+  deps: HqSlackScoutDeps = defaultDeps
+): Promise<void> {
+  await recordDecision(hqPath, draftId, { decision: 'taken', at: deps.now() })
 }
 
 /** Custom build (hq-slack-requests): the owner answers in the thread himself; no task. */

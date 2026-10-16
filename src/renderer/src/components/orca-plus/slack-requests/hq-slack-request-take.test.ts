@@ -82,6 +82,7 @@ function deps(over: Record<string, unknown> = {}) {
       })
     ),
     remember: vi.fn(async () => undefined),
+    markTaken: vi.fn(async () => undefined),
     now: () => new Date('2026-10-16T09:00:00Z'),
     ...over
   }
@@ -125,5 +126,28 @@ describe('Do on a Slack request', () => {
       taskUrl: 'https://app.clickup.com/t/t1'
     })
     expect(d.launchInRepo).not.toHaveBeenCalled()
+  })
+
+  it('takes the existing task a ClickUp comment is on, without creating one or a thread tail', async () => {
+    const d = deps()
+    const outcome = await takeHqSlackRequest(
+      { ...draft, id: 'clickup:t1:c1', clickupTaskId: 't1', permalink: task.url },
+      d
+    )
+    expect(outcome).toMatchObject({ kind: 'taken', identifier: 'DEV-1' })
+    expect(d.createTask).not.toHaveBeenCalled()
+    expect(d.launchInRepo.mock.calls[0]?.[0]?.pasteContent).not.toContain('thread_ts')
+    expect(d.setStatus).toHaveBeenCalledWith('t1', 'in proсess')
+    expect(d.markTaken).toHaveBeenCalledWith('clickup:t1:c1')
+  })
+
+  it("records nothing when the ClickUp comment's task cannot be started", async () => {
+    const d = deps({
+      launchInRepo: vi.fn(async () => ({ launched: false, session: null }))
+    })
+    await expect(
+      takeHqSlackRequest({ ...draft, id: 'clickup:t1:c1', clickupTaskId: 't1' }, d)
+    ).resolves.toEqual({ kind: 'not-started', taskUrl: task.url })
+    expect(d.markTaken).not.toHaveBeenCalled()
   })
 })

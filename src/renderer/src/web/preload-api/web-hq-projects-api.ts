@@ -28,6 +28,9 @@ export function createWebHqProjectsApi(): Pick<PreloadApi, 'hqProjects' | 'click
       createSlackDraftTask: (draft) => callRuntimeResult('hqProjects.createSlackDraftTask', draft),
       answerSlackDraft: (ref) => callRuntimeResult('hqProjects.answerSlackDraft', ref),
       editSlackDraft: (edit) => callRuntimeResult('hqProjects.editSlackDraft', edit),
+      takeSlackDraft: (ref) => callRuntimeResult('hqProjects.takeSlackDraft', ref),
+      draftClickUpReply: (ref) => callRuntimeResult('hqProjects.draftClickUpReply', ref),
+      sendClickUpReply: (reply) => callRuntimeResult('hqProjects.sendClickUpReply', reply),
       settings: () => loadRuntimeHqSettings()
     }
   }

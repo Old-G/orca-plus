@@ -53,6 +53,31 @@ describe('HQ Slack scout files', () => {
     })
   })
 
+  it("lets only clickup.json name a ClickUp task, never the scout's drafts.json", async () => {
+    scoutFile(
+      'drafts.json',
+      JSON.stringify({
+        drafts: [{ ...draft('D1:1'), source: 'clickup', clickupTaskId: 'victim', foundAt: 'x' }]
+      })
+    )
+    scoutFile(
+      'clickup.json',
+      JSON.stringify({
+        lastCheckAt: 1,
+        drafts: [
+          { ...draft('clickup:t1:c1'), clickupTaskId: 't1', foundAt: 'x' },
+          { ...draft('clickup:none:c2'), source: 'clickup', foundAt: 'x' }
+        ]
+      })
+    )
+    const result = await readHqSlackScout(hq)
+    const drafts = result.ok ? result.drafts : []
+    expect(drafts.map((entry) => [entry.id, entry.source, entry.clickupTaskId])).toEqual([
+      ['D1:1', undefined, undefined],
+      ['clickup:t1:c1', 'clickup', 't1']
+    ])
+  })
+
   it('reports a failed last run from the status run.sh writes, and clears it after a good one', async () => {
     scoutFile('status.json', JSON.stringify({ at: '2026-10-06T17:07:38Z', ok: false, exitCode: 2 }))
     await expect(readHqSlackScout(hq)).resolves.toMatchObject({ failedAt: '2026-10-06T17:07:38Z' })
