@@ -110,7 +110,12 @@ export function agentFinishedBellItem(agent: FinishedAgent): PulseBellInput {
     refId: JSON.stringify({
       paneKey: agent.paneKey,
       tabId: parsePaneKey(agent.paneKey)?.tabId ?? null,
-      worktreeId: agent.worktreeId
+      worktreeId: agent.worktreeId,
+      // Why: HQ's history reads these apart; the body only joins them for the bell.
+      agent: agent.agentLabel,
+      place: agent.place,
+      title: agent.sessionTitle,
+      said: said ? said.slice(0, 300) : null
     }),
     actions: [
       { id: PULSE_BELL_ACTION.open, label: 'Open' },

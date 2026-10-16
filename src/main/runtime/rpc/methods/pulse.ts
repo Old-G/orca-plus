@@ -115,7 +115,8 @@ export const PULSE_METHODS = [
 
     permission: 'workspace',
     params: PulseListInboxParams,
-    handler: async (params, { runtime }) => runtime.pulseListInbox(params?.includeDone)
+    handler: async (params, { runtime }) =>
+      runtime.pulseListInbox(params?.includeDone, { kind: params?.kind, since: params?.since })
   }),
   defineMethod({
     name: 'pulse.markInboxRead',

@@ -5,6 +5,8 @@ import {
   buildHqChatList,
   groupHqChats,
   hqChatKey,
+  hqChatRecentlyDone,
+  HQ_RECENTLY_DONE_MS,
   hqProjectInitials,
   nextHqWaitingChat,
   pickHqChat
@@ -195,5 +197,26 @@ describe('hqProjectInitials', () => {
     expect(hqProjectInitials('orca-custom')).toBe('OC')
     expect(hqProjectInitials('HQ')).toBe('HQ')
     expect(hqProjectInitials('')).toBe('?')
+  })
+})
+
+describe('hqChatRecentlyDone', () => {
+  const items = (overrides: Partial<DashboardCard>) =>
+    buildHqChatList(
+      { workspaces: [workspace('wt-1')], cards: [card({ tabId: 't1', ...overrides })] },
+      [chatTab('t1')]
+    )
+
+  it('marks a read finish until the window passes, and nothing unread, working or older', () => {
+    const now = 100 + HQ_RECENTLY_DONE_MS
+    const [read] = items({ dotState: 'done', bucket: 'done', stateChangedAt: 101 })
+    expect(read.group).toBe('quiet')
+    expect(hqChatRecentlyDone(read, now)).toBe(true)
+    expect(hqChatRecentlyDone(read, now + 2)).toBe(false)
+    const [unread] = items({ dotState: 'done', bucket: 'done', stateChangedAt: 101, unseen: true })
+    expect(unread.group).toBe('done')
+    expect(hqChatRecentlyDone(unread, now)).toBe(false)
+    const [working] = items({ stateChangedAt: 101 })
+    expect(hqChatRecentlyDone(working, now)).toBe(false)
   })
 })
