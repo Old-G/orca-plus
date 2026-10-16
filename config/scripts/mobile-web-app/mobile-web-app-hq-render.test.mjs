@@ -181,7 +181,12 @@ afterAll(async () => {
   }
 })
 
-async function openHq(pathname = HQ_ROUTE, ready = 'done for you', replies = REPLIES) {
+async function openHq(
+  pathname = HQ_ROUTE,
+  ready = 'done for you',
+  replies = REPLIES,
+  safeAreaInsets = null
+) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
   await page.addInitScript(installShellDouble, {
     version: bridgeVersion,
@@ -193,7 +198,8 @@ async function openHq(pathname = HQ_ROUTE, ready = 'done for you', replies = REP
     faultGrant,
     grants: [faultGrant, ...HQ_GRANTS],
     pageRoutes: PAGE_ROUTE_PATTERNS,
-    replies
+    replies,
+    ...(safeAreaInsets === null ? {} : { safeAreaInsets })
   })
   const errors = []
   page.on('pageerror', (error) => errors.push(`${error.name}: ${error.message}`))
@@ -262,6 +268,20 @@ describeRender('the HQ route in a real browser', () => {
     await fresh.page.waitForTimeout(1_000)
     expect(await fresh.page.evaluate(() => document.body.innerText)).not.toContain('newer version')
     await fresh.page.close()
+  }, 60_000)
+
+  it("keeps HQ's header below the phone's status bar", async () => {
+    const top = 59
+    const { page } = await openHq(HQ_ROUTE, 'done for you', REPLIES, {
+      top,
+      right: 0,
+      bottom: 34,
+      left: 0
+    })
+    const back = await page.getByRole('button', { name: 'Back to workspaces' }).boundingBox()
+    expect(back?.y).toBeGreaterThanOrEqual(top)
+    await shot(page, '-inset')
+    await page.close()
   }, 60_000)
 
   it('paints the requests to the owner and what was done for him', async () => {
