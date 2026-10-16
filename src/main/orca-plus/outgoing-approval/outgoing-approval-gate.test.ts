@@ -139,15 +139,48 @@ describe('OutgoingApprovalGate', () => {
     const waiting = gate.wait(id)
     gate.decide(id, 'approved')
     const hook = output(await waiting)
-    expect(hook).toEqual({
+    expect(hook).toMatchObject({
       hookEventName: 'PreToolUse',
       permissionDecision: 'allow',
       permissionDecisionReason: 'The user approved this action in the Orca+ bell.'
     })
+    expect(String(hook.additionalContext)).toMatch(
+      /pulse wait add --direction on-them[\s\S]*message link from the tool result[\s\S]*channel is D1/
+    )
     expect(db.getDraft(id)?.status).toBe('sent')
     expect(db.listDecisions().map((d) => [d.kind, d.outcome, d.draftId])).toEqual([
       ['approval', 'approved', id]
     ])
+  })
+
+  it('names the thread an approved reply waits in, and adds nothing to other services', async () => {
+    const { gate } = setup()
+    const threaded = slackHook('toolu_t')
+    const id = pendingId(
+      gate.submit({
+        ...threaded,
+        hook: {
+          ...threaded.hook,
+          tool_input: { ...threaded.hook.tool_input, thread_ts: '1700.0001' }
+        }
+      })
+    )
+    gate.decide(id, 'approved')
+    expect(String(output(await gate.wait(id)).additionalContext)).toMatch(
+      /--source-ref "slack:D1:1700\.0001"/
+    )
+    const comment = pendingId(
+      gate.submit({
+        ...slackHook('toolu_c'),
+        hook: {
+          ...slackHook('toolu_c').hook,
+          tool_name: 'mcp__claude_ai_Gmail__send_message',
+          tool_input: { to: 'ann@example.com', body: 'Готово' }
+        }
+      })
+    )
+    gate.decide(comment, 'approved')
+    expect(output(await gate.wait(comment)).additionalContext).toBeUndefined()
   })
 
   it('runs the edited text in place of the original field', async () => {

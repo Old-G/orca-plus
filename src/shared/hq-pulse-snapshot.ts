@@ -9,6 +9,12 @@ export type HqWaiting = Pick<
 > & {
   /** Custom build (hq-notes): who recorded it; `note` marks a plain note. Absent from older hosts. */
   source?: string
+  /** Custom build (hq-waiting-replies): the thread or link it came from, the chat that waits, and the
+   *  person's latest answer. Absent from older hosts. */
+  sourceRef?: string
+  agentSessionId?: string
+  worktreeId?: string
+  reply?: { text: string; author: string | null; at: number; deliveredAt: number | null }
 }
 export type HqDecision = Pick<
   PulseDecision,
@@ -75,7 +81,41 @@ function readWaiting(record: object): HqWaiting | null {
     dueAt: typeof dueAt === 'number' ? dueAt : null,
     ...(typeof field(record, 'source') === 'string'
       ? { source: String(field(record, 'source')) }
-      : {})
+      : {}),
+    ...readLinks(record),
+    ...readReply(record)
+  }
+}
+
+function readLinks(record: object): Pick<HqWaiting, 'sourceRef' | 'agentSessionId' | 'worktreeId'> {
+  const read = (key: string): string | undefined => {
+    const value = field(record, key)
+    return typeof value === 'string' && value ? value : undefined
+  }
+  const sourceRef = read('sourceRef')
+  const agentSessionId = read('agentSessionId')
+  const worktreeId = read('worktreeId')
+  return {
+    ...(sourceRef ? { sourceRef } : {}),
+    ...(agentSessionId ? { agentSessionId } : {}),
+    ...(worktreeId ? { worktreeId } : {})
+  }
+}
+
+function readReply(record: object): Pick<HqWaiting, 'reply'> {
+  const text = field(record, 'reply')
+  const at = field(record, 'repliedAt')
+  if (typeof text !== 'string' || !text || typeof at !== 'number') {
+    return {}
+  }
+  const deliveredAt = field(record, 'replyDeliveredAt')
+  return {
+    reply: {
+      text,
+      author: nullableString(field(record, 'replyAuthor')),
+      at,
+      deliveredAt: typeof deliveredAt === 'number' ? deliveredAt : null
+    }
   }
 }
 

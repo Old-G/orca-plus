@@ -37,6 +37,23 @@ afterEach(async () => {
   await Promise.all(directories.splice(0).map((d) => rm(d, { recursive: true, force: true })))
 })
 
+const WAITING_REPLY_COLUMNS = [
+  'agent_session_id',
+  'pane_key',
+  'worktree_id',
+  'reply',
+  'reply_author',
+  'reply_ts',
+  'replied_at',
+  'reply_delivered_at'
+]
+
+function dropWaitingReplyColumns(raw: Database.Database): void {
+  for (const column of WAITING_REPLY_COLUMNS) {
+    raw.exec(`ALTER TABLE waitings DROP COLUMN ${column}`)
+  }
+}
+
 describe('PulseDb schema', () => {
   it('creates every table at the current version', async () => {
     const path = await tempPath()
@@ -66,6 +83,24 @@ describe('PulseDb schema', () => {
     expect(second.listWaitings().map((w) => w.title)).toEqual(['Contract from Ann'])
   })
 
+  it('lifts a version 2 file to waitings that know their chat and answer', async () => {
+    const path = await tempPath()
+    const first = openDb(path)
+    first.addWaiting({ direction: 'on-them', title: 'Export', source: 'manual' })
+    first.close()
+    const raw = new Database(path)
+    dropWaitingReplyColumns(raw)
+    raw.pragma('user_version = 2')
+    raw.close()
+    const lifted = new PulseDb(path)
+    open.push(lifted)
+    const [waiting] = lifted.listWaitings()
+    expect(waiting).toMatchObject({ title: 'Export', agentSessionId: null, reply: null })
+    expect(
+      lifted.recordWaitingReply(waiting.id, { text: 'ok', author: 'Ann', ts: '1.0' })?.reply
+    ).toBe('ok')
+  })
+
   it('lifts a version 1 file with drafts to the gate payload column', async () => {
     const path = await tempPath()
     const first = openDb(path)
@@ -73,6 +108,7 @@ describe('PulseDb schema', () => {
     first.close()
     const raw = new Database(path)
     raw.exec('ALTER TABLE drafts DROP COLUMN payload')
+    dropWaitingReplyColumns(raw)
     raw.pragma('user_version = 1')
     raw.close()
 

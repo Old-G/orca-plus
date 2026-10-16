@@ -41,6 +41,31 @@ describe('people', () => {
 })
 
 describe('waitings', () => {
+  it('keeps the chat that waits and only the newest answer from the thread', () => {
+    const db = openDb()
+    const waiting = db.addWaiting({
+      direction: 'on-them',
+      title: 'Export',
+      source: 'slack',
+      agentSessionId: 'chat-1',
+      worktreeId: 'wt-1'
+    })
+    expect(waiting).toMatchObject({ agentSessionId: 'chat-1', worktreeId: 'wt-1', reply: null })
+    const replied = db.recordWaitingReply(waiting.id, {
+      text: 'Tomorrow',
+      author: 'Ann',
+      ts: '2.5'
+    })
+    expect(replied).toMatchObject({ reply: 'Tomorrow', replyAuthor: 'Ann', replyDeliveredAt: null })
+    expect(db.recordWaitingReply(waiting.id, { text: 'old', author: 'Ann', ts: '2.1' })).toBeNull()
+    expect(db.markWaitingReplyDelivered(waiting.id)?.replyDeliveredAt).toEqual(expect.any(Number))
+    expect(db.markWaitingReplyDelivered(waiting.id)).toBeNull()
+    const newer = db.recordWaitingReply(waiting.id, { text: 'Done', author: 'Ann', ts: '3.0' })
+    expect(newer).toMatchObject({ reply: 'Done', replyTs: '3.0', replyDeliveredAt: null })
+    db.closeWaiting(waiting.id, 'resolved')
+    expect(db.recordWaitingReply(waiting.id, { text: 'late', author: 'Ann', ts: '9' })).toBeNull()
+  })
+
   it('filters by direction, status, person and project, newest first', () => {
     const db = openDb()
     const ann = db.upsertPerson({ name: 'Ann' })

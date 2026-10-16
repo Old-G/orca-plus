@@ -35,7 +35,10 @@ export const PulseAddWaitingParams = z.object({
   detail: OptionalString,
   source: requiredString('Waiting source is required'),
   sourceRef: OptionalString,
-  dueAt: OptionalFiniteNumber
+  dueAt: OptionalFiniteNumber,
+  // Custom build (hq-waiting-replies): the chat that waits; the CLI reads them from the agent's env.
+  agentSessionId: OptionalString,
+  paneKey: OptionalString
 })
 
 export const PulseCloseWaitingParams = z.object({

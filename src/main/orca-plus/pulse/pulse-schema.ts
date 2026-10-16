@@ -100,7 +100,19 @@ CREATE TABLE events (
 // Custom build (outgoing-approval): the held agent tool call behind a gate draft, as JSON.
 const V2 = `ALTER TABLE drafts ADD COLUMN payload TEXT;`
 
-const STEPS: readonly string[] = [V1, V2]
+// Custom build (hq-waiting-replies): the chat that waits, and the latest answer from the person.
+const V3 = `
+ALTER TABLE waitings ADD COLUMN agent_session_id TEXT;
+ALTER TABLE waitings ADD COLUMN pane_key TEXT;
+ALTER TABLE waitings ADD COLUMN worktree_id TEXT;
+ALTER TABLE waitings ADD COLUMN reply TEXT;
+ALTER TABLE waitings ADD COLUMN reply_author TEXT;
+ALTER TABLE waitings ADD COLUMN reply_ts TEXT;
+ALTER TABLE waitings ADD COLUMN replied_at INTEGER;
+ALTER TABLE waitings ADD COLUMN reply_delivered_at INTEGER;
+`
+
+const STEPS: readonly string[] = [V1, V2, V3]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 

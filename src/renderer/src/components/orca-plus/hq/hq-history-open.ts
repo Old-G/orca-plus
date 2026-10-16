@@ -27,7 +27,9 @@ export function canOpenHqHistoryEntry(
   return isHqHistoryTabOpen(entry, tabsByWorktree) || Boolean(entry.worktreeId && entry.sessionId)
 }
 
-function openIfListed(entry: HqHistoryEntry): boolean {
+type HqChatRef = Pick<HqHistoryEntry, 'worktreeId' | 'tabId' | 'sessionId'>
+
+function openIfListed(entry: HqChatRef): boolean {
   if (!entry.worktreeId || !entry.tabId) {
     return false
   }
@@ -38,7 +40,7 @@ function openIfListed(entry: HqHistoryEntry): boolean {
   return true
 }
 
-export async function openHqHistoryEntry(entry: HqHistoryEntry): Promise<void> {
+export async function openHqHistoryEntry(entry: HqChatRef): Promise<void> {
   if (openIfListed(entry) || !entry.worktreeId || !entry.sessionId) {
     return
   }
