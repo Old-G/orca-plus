@@ -227,8 +227,8 @@ export function SlackRequestList({
           key={draft.id}
           draft={draft}
           projects={projects}
-          editRequested={editTarget.id === draft.id}
-          onEditHandled={editTarget.clear}
+          openRequested={editTarget.id === draft.id ? editTarget.mode : null}
+          onOpenHandled={editTarget.clear}
           onDone={() => onDone(draft.id)}
           onChanged={onChanged}
         />

@@ -154,6 +154,11 @@ export function getClickUpTask(taskRef: string): Promise<ClickUpTask | null> {
   })
 }
 
+/** Custom build (hq-clickup-requests): the connected account's ClickUp user id. */
+export function getClickUpViewerId(): Promise<string> {
+  return withClickUpSession(async (session) => session.viewer.id)
+}
+
 export function listClickUpTaskComments(taskId: string): Promise<ClickUpComment[]> {
   return withClickUpSession(async (session) =>
     mapClickUpComments(
