@@ -46,6 +46,8 @@ export type HqProjectsApi = {
   ) => Promise<HqSlackScoutCreateResult | { ok: true }>
   /** Custom build (hq-clickup-requests): «Do» on a ClickUp comment, and the reply drafted then sent. */
   takeSlackDraft: (ref: { id: string }) => Promise<HqSlackScoutCreateResult | { ok: true }>
+  /** Custom build (hq-done-journal): a skipped request back among the pending ones. */
+  restoreSlackDraft: (ref: { id: string }) => Promise<{ ok: true } | { ok: false; error: string }>
   draftClickUpReply: (ref: {
     id: string
   }) => Promise<{ ok: true; text: string } | { ok: false; error: string }>
