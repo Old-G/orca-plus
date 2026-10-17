@@ -2901,6 +2901,13 @@
     "hq": {
       "notes": {
         "hint": "Slack questions to you land in «Waiting on me» on their own. Remind writes to the person only after you approve it."
+      },
+      "today": {
+        "askPlaceholder": "Ask HQ anything — what we decided, what you wrote to whom, a task — or give it a command",
+        "command": "Command",
+        "commandPlaceholder": "Give HQ a command — Claude starts in the HQ workspace with it…",
+        "commandShort": "Command to HQ…",
+        "run": "Run"
       }
     },
     "lib": {

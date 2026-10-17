@@ -19153,7 +19153,11 @@
         "dictationOff": "Turn on voice dictation in Settings → Voice",
         "stopDictation": "Stop dictation",
         "startDictation": "Dictate the command",
-        "commandShort": "Command to HQ…"
+        "commandShort": "Command to HQ…",
+        "askShort": "Ask HQ anything…",
+        "askPlaceholder": "Ask HQ anything — what we decided, what you wrote to whom, a task — or give it a command",
+        "ask": "Ask HQ",
+        "askButton": "Ask"
       },
       "deferred": {
         "ahead": "{{value0}} unpushed",
