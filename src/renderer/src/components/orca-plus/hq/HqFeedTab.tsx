@@ -18,7 +18,8 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useNow } from '@/hooks/use-now'
 import { translate } from '@/i18n/i18n'
-import { HqFeedPost, HqFeedRow, hqFeedSourceLabel } from './HqFeedRow'
+import { HqFeedRow, hqFeedSourceLabel } from './HqFeedRow'
+import { HqFeedPost, useHqFeedProjectColor } from './HqFeedPost'
 
 const REFRESH_MS = 60_000
 const AGE_TICK_MS = 60_000
@@ -84,6 +85,7 @@ function useHqFeed(filter: Filter): { items: HqFeedItem[]; error: string | null 
 
 export function HqFeedTab(): React.JSX.Element {
   const now = useNow(AGE_TICK_MS)
+  const projectColor = useHqFeedProjectColor()
   const [filter, setFilter] = useState<Filter>({
     scope: 'done',
     source: null,
@@ -209,11 +211,18 @@ export function HqFeedTab(): React.JSX.Element {
       ) : (
         days.map((day) => (
           <section key={day.label} aria-label={day.label}>
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase">{day.label}</h3>
-            <ul className="flex flex-col">
+            <h3 className="sticky top-0 z-10 bg-background/85 py-1.5 text-xs font-semibold text-muted-foreground uppercase backdrop-blur-sm">
+              {day.label}
+            </h3>
+            <ul data-scope={filter.scope} className="flex flex-col data-[scope=done]:gap-2">
               {day.items.map((item) =>
                 filter.scope === 'done' ? (
-                  <HqFeedPost key={item.id} item={item} now={now} />
+                  <HqFeedPost
+                    key={item.id}
+                    item={item}
+                    now={now}
+                    color={item.project ? projectColor(item.project) : null}
+                  />
                 ) : (
                   <HqFeedRow key={item.id} item={item} now={now} />
                 )
