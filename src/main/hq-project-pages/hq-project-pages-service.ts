@@ -32,6 +32,17 @@ import { listHqProjectPages } from './hq-project-pages'
 import { listHqWikiEntries, readHqWikiPage } from './hq-wiki-files'
 import { draftHqTaskQuestions } from '../hq-today/hq-task-questions'
 import type { HqTaskQuestionsResult } from '../../shared/hq-triage'
+import type {
+  HqVoiceIdeaResult,
+  HqVoiceRewriteMode,
+  HqVoiceRewriteResult,
+  HqVoiceTaskResult
+} from '../../shared/hq-voice-prompts'
+import {
+  createHqVoiceTask,
+  rewriteHqVoiceText,
+  saveHqIdea
+} from '../hq-today/hq-voice-prompts-service'
 import type { HqSlackScoutCreateResult } from '../../shared/hq-slack-scout'
 import { createHqSlackScoutTask } from '../hq-today/hq-slack-scout'
 import {
@@ -83,6 +94,10 @@ export type HqProjectPagesService = {
     title: string
     description: string
   }): Promise<HqSlackScoutCreateResult>
+  /** Custom build (hq-voice-prompts): a dictation rewritten, an idea filed, a dictated task created. */
+  voiceRewrite(request: { mode: HqVoiceRewriteMode; text: string }): Promise<HqVoiceRewriteResult>
+  saveIdea(text: string): Promise<HqVoiceIdeaResult>
+  createVoiceTask(text: string): Promise<HqVoiceTaskResult>
 } & HqClickUpReplyService &
   HqSlackRecordService
 
@@ -121,7 +136,8 @@ export function createHqProjectPagesService(
       hqDeferredDismissed: current.hqDeferredDismissed ?? {},
       hqTriageDecisions: current.hqTriageDecisions ?? {},
       hqChatsView: current.hqChatsView,
-      hqKeptProjectIds: current.hqKeptProjectIds ?? []
+      hqKeptProjectIds: current.hqKeptProjectIds ?? [],
+      hqVoicePromptsEnabled: current.hqVoicePromptsEnabled === true
     }
   }
 
@@ -135,6 +151,16 @@ export function createHqProjectPagesService(
         getAgentEnvResolvers
       })
     },
+
+    voiceRewrite(request) {
+      return rewriteHqVoiceText(request, hqPath(), {
+        settings: store.getSettings(),
+        cwd: hqPath() ?? homedir(),
+        getAgentEnvResolvers
+      })
+    },
+    saveIdea: (text) => saveHqIdea(text, hqPath()),
+    createVoiceTask: (text) => createHqVoiceTask(text, hqPath()),
 
     ...slackRecords,
     ...clickUpReplies,

@@ -11,6 +11,8 @@ import {
   HqSlackDraftEditParams,
   HqSlackDraftRefParams,
   HqUpdateSettingsParams,
+  HqVoiceIdeaParams,
+  HqVoiceRewriteParams,
   HqWikiPageParams
 } from '../../../../shared/rpc-contract/hq-projects-params'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../shared/outgoing-approval/outgoing-approval-bell'
@@ -88,6 +90,28 @@ export const HQ_PROJECTS_METHODS = [
     permission: 'workspace',
     params: HqDraftTaskQuestionsParams,
     handler: async (params) => service().draftTaskQuestions(params)
+  }),
+  // Custom build (hq-voice-prompts): the phone's dictation, rewritten and filed by the Mac.
+  defineMethod({
+    name: 'hqProjects.voiceRewrite',
+
+    permission: 'workspace',
+    params: HqVoiceRewriteParams,
+    handler: async (params) => service().voiceRewrite(params)
+  }),
+  defineMethod({
+    name: 'hqProjects.saveIdea',
+
+    permission: 'workspace',
+    params: HqVoiceIdeaParams,
+    handler: async (params) => service().saveIdea(params.text)
+  }),
+  defineMethod({
+    name: 'hqProjects.createVoiceTask',
+
+    permission: 'workspace',
+    params: HqVoiceIdeaParams,
+    handler: async (params) => service().createVoiceTask(params.text)
   }),
   defineMethod({
     name: 'hqProjects.slackDrafts',

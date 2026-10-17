@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { useFocusEffect } from 'expo-router'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
+import { offerMobileVoicePrompt } from '../hq/mobile-voice-prompt'
 import { triggerError } from '../platform/haptics'
 import {
   appendBufferedDictation,
@@ -118,10 +119,13 @@ export function useMobileSessionNativeChatDictation(
     onTranscript: (text) => {
       // Why: dictation belongs to the visible composer — native chat consumes it locally, terminal mode keeps live-input routing.
       if (showNativeChatRef.current) {
-        nativeChatController.setChatComposerText((current) =>
-          appendBufferedDictation(current, text)
-        )
-        showToast('Dictation inserted')
+        // Custom build (hq-voice-prompts): with the Mac's Voice Prompts on, the owner picks first.
+        void offerMobileVoicePrompt(client, text, (picked) => {
+          nativeChatController.setChatComposerText((current) =>
+            appendBufferedDictation(current, picked)
+          )
+          showToast('Dictation inserted')
+        })
         return
       }
       // Live mode inserts the transcript into its PTY as text (no Return); buffered mode appends to the command field.
@@ -148,8 +152,10 @@ export function useMobileSessionNativeChatDictation(
         })()
         return
       }
-      setInput((current) => appendBufferedDictation(current, route.text))
-      showToast('Dictation inserted')
+      void offerMobileVoicePrompt(client, route.text, (picked) => {
+        setInput((current) => appendBufferedDictation(current, picked))
+        showToast('Dictation inserted')
+      })
     },
     onError: (err) => {
       dictationRouteContextRef.current = null
