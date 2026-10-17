@@ -19415,7 +19415,14 @@
         "restored": "The request is back in Today.",
         "bringBack": "Bring back",
         "hint": "What Orca+ did in your name over the last week: tasks it made or took, replies, and messages sent after your Approve.",
-        "empty": "Nothing done for you yet this week."
+        "empty": "Nothing done for you yet this week.",
+        "byProject": "By project",
+        "allProjects": "All",
+        "sentInThreadTo": "In a thread, replying to {{value0}}",
+        "sentInThread": "In a thread",
+        "openChat": "Open chat",
+        "collapse": "Collapse",
+        "expand": "Show the whole message"
       },
       "history": {
         "today": "Today",

@@ -5,6 +5,7 @@ import { translate } from '@/i18n/i18n'
 import { formatShortTimeAgo } from '@/lib/short-time-ago'
 import type { HqDecision, HqPerson, HqWaiting } from '../../../../../shared/hq-pulse-snapshot'
 import { ColumnHeader, QuickAdd, WaitingCard, decisionLabel } from './hq-waiting-parts'
+import { hqSentNames } from './hq-sent-names'
 import { useHqPulse } from './use-hq-pulse'
 
 const AGE_TICK_MS = 60_000
@@ -55,6 +56,18 @@ function WaitingColumn({
   )
 }
 
+/** Custom build (hq-sent-history): an approval names where it went and which project sent it. */
+function decisionTitle(decision: HqDecision): string {
+  if (!decision.sent) {
+    return decision.title
+  }
+  const { target } = hqSentNames(decision.sent)
+  const service = decision.sent.service ?? decision.title.split(' · ')[0] ?? decision.title
+  return [target ? `${service} → ${target}` : decision.title, decision.sent.project]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 export function DecisionsColumn({
   decisions,
   now
@@ -77,8 +90,8 @@ export function DecisionsColumn({
               key={decision.id}
               className="flex items-baseline gap-2 border-b border-border py-1.5 text-[13px] last:border-b-0"
             >
-              <span className="min-w-0 flex-1 truncate" title={decision.title}>
-                {decision.title}
+              <span className="min-w-0 flex-1 truncate" title={decisionTitle(decision)}>
+                {decisionTitle(decision)}
               </span>
               <span
                 data-outcome={decision.outcome ?? 'decision'}
