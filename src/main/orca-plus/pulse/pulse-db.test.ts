@@ -85,6 +85,24 @@ describe('PulseDb schema', () => {
     expect(second.listWaitings().map((w) => w.title)).toEqual(['Contract from Ann'])
   })
 
+  it('lifts a version 5 feed to posts, dropping its old «sent» rows for the collector to redo', async () => {
+    const path = await tempPath()
+    const first = openDb(path)
+    const row = { body: null, url: null, project: null, person: null, at: 1 }
+    first.upsertFeed([
+      { ...row, id: 'orca:d1', source: 'orca', kind: 'sent', title: 'git push --force' },
+      { ...row, id: 'slack:T1', source: 'slack', kind: 'conversation', title: 'Возвраты' }
+    ])
+    first.close()
+    const raw = new Database(path)
+    raw.exec('ALTER TABLE feed DROP COLUMN post')
+    raw.pragma('user_version = 5')
+    raw.close()
+    const lifted = new PulseDb(path)
+    open.push(lifted)
+    expect(lifted.listFeed().map((item) => [item.id, item.post])).toEqual([['slack:T1', null]])
+  })
+
   it('lifts a version 2 file to waitings that know their chat and answer', async () => {
     const path = await tempPath()
     const first = openDb(path)
