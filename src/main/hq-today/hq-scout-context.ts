@@ -4,6 +4,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { HQ_SLACK_SCOUT_DIR } from '../../shared/hq-slack-scout'
+import { HQ_PROMISE_SOURCE } from '../../shared/hq-promises'
 import type { PulseDecision, PulseWaiting } from '../../shared/pulse-types'
 
 export const HQ_SCOUT_CONTEXT_FILE = 'context.json'
@@ -30,6 +31,10 @@ export type HqScoutContext = {
     project: string | null
     text: string
   }[]
+  /** Custom build (hq-promises): what the owner promised and has not done yet. */
+  promises: { person: string | null; what: string; due: string | null; permalink: string }[]
+  /** Names Orca+ knows people by, so the scout names a person the same way. */
+  people: string[]
 }
 
 function oneLine(text: string | null, max: number): string {
@@ -41,9 +46,25 @@ export function buildHqScoutContext(
   waitings: readonly PulseWaiting[],
   decisions: readonly PulseDecision[],
   personName: (personId: string) => string | null,
-  now: number
+  now: number,
+  people: readonly string[] = []
 ): HqScoutContext {
   return {
+    promises: waitings
+      .filter(
+        (waiting) =>
+          waiting.status === 'open' &&
+          waiting.direction === 'on-me' &&
+          waiting.source === HQ_PROMISE_SOURCE &&
+          waiting.sourceRef
+      )
+      .map((waiting) => ({
+        person: waiting.personId ? personName(waiting.personId) : null,
+        what: oneLine(waiting.title, TEXT_MAX),
+        due: waiting.dueAt === null ? null : new Date(waiting.dueAt).toISOString().slice(0, 10),
+        permalink: waiting.sourceRef ?? ''
+      })),
+    people: [...people],
     waitings: waitings
       .filter((waiting) => waiting.status === 'open' && waiting.direction === 'on-them')
       .map((waiting) => ({
@@ -98,6 +119,7 @@ export function startHqScoutContext(deps: {
   listWaitings: () => PulseWaiting[]
   listDecisions: () => PulseDecision[]
   personName: (personId: string) => string | null
+  peopleNames: () => string[]
 }): () => void {
   const pass = (): void => {
     const hq = deps.hqPath()
@@ -108,7 +130,8 @@ export function startHqScoutContext(deps: {
       deps.listWaitings(),
       deps.listDecisions(),
       deps.personName,
-      Date.now()
+      Date.now(),
+      deps.peopleNames()
     )
     void writeHqScoutContext(hq, context).catch((error: unknown) =>
       console.warn('[hq-scout-context] write failed:', error)
