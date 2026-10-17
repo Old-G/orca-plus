@@ -1,5 +1,7 @@
 // Custom build (outgoing-approval): which shell commands message people or delete something for good.
-// Everything else an agent runs — pushes, merges, deploys, API writes — passes (owner's call, 02.10.2026).
+// Everything else an agent runs — pushes, merges, deploys, API writes — passes (owner's call, 02.10.2026);
+// since 17.10 also /tmp cleanups over ssh, ssh control calls, loopback databases and lease pushes to a
+// feature branch (gate-narrow).
 import { MAX_OUTGOING_BODY_LENGTH, type OutgoingAction } from './outgoing-action'
 import { curlRewritesClickUpTaskText } from './outgoing-clickup-text-rules'
 
@@ -131,7 +133,7 @@ const SHELL_RULES: ShellRule[] = [
     service: 'remote',
     operation: 'delete on a server or database',
     pattern: new RegExp(String.raw`${START}(?:ssh|psql|mysql|mongosh)\s`),
-    holds: (_segment, command) => REMOTE_DESTRUCTION.test(command)
+    holds: holdsRemoteDestruction
   },
   {
     service: 'deploy',
@@ -141,6 +143,56 @@ const SHELL_RULES: ShellRule[] = [
     )
   }
 ]
+
+// Custom build (gate-narrow, owner 17.10): an ssh control call runs nothing on the server.
+// Why: only when nothing follows the host — `ssh -O check host <command>` must not pass a command.
+const SSH_CONTROL =
+  /^(?:\S*\/)?ssh\s+(?:(?:-[oFiSpl]\s+\S+|-\S+)\s+)*-O\s*(?:check|exit|stop|cancel)\s+[\w.@-]+$/
+const DB_CLIENT = /^(?:\S*\/)?(?:psql|mysql|mongosh)\s/
+const DB_HOST =
+  /(?:\s-h\s*|--host[=\s]+)['"]?([^\s'"]+)|\b[a-z]+(?:\+\w+)?:\/\/[^@\s'"/]*@([^\s'"/:?]+)/gi
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
+// Why: a target the shell would expand or unquote cannot be judged from its text.
+const SHELL_EXPANSION = /[$`\\'"{}~]/
+
+/** `rm` whose every target sits under /tmp: scratch the agent made, gone on a reboot anyway. */
+function isTempCleanup(rm: string): boolean {
+  const targets = words(rm)
+    .slice(1)
+    .filter((token) => !token.startsWith('-'))
+  return (
+    targets.length > 0 &&
+    targets.every(
+      (target) =>
+        /^(?:\/private)?\/(?:var\/)?tmp\/[^\s*?/][^\s*?]*$/.test(target) &&
+        !target.includes('..') &&
+        !SHELL_EXPANSION.test(target)
+    )
+  )
+}
+
+/** Custom build (gate-narrow): what is left of a command once its /tmp cleanups are taken out. */
+function withoutTempCleanup(command: string): string {
+  return command.replace(/\brm\s+[^\n;|&'"]+/g, (rm) => (isTempCleanup(rm) ? ' ' : rm))
+}
+
+/** Every host a database command names is loopback — and it names at least one. */
+function onlyLoopbackDb(segment: string): boolean {
+  const hosts = [...segment.matchAll(DB_HOST)].map((match) => match[1] ?? match[2] ?? '')
+  return hosts.length > 0 && hosts.every((host) => LOOPBACK.has(host.toLowerCase()))
+}
+
+function holdsRemoteDestruction(segment: string, command: string): boolean {
+  const call = segment.trim().replace(/^[\s;&|(\x60{"']+/, '')
+  if (SSH_CONTROL.test(call)) {
+    return false
+  }
+  // Why: a database on this machine (a test container on loopback) is not a server.
+  if (DB_CLIENT.test(call) && onlyLoopbackDb(call) && !/(?:^|[\s/;&|("'])ssh\s/.test(command)) {
+    return false
+  }
+  return REMOTE_DESTRUCTION.test(withoutTempCleanup(command))
+}
 
 const DESTRUCTIVE_PUSH_FLAG =
   /^(?:--force(?:-with-lease|-if-includes)?(?:=\S*)?|--delete|--mirror|--prune|-[a-zA-Z]*[fd][a-zA-Z]*)$/
@@ -152,6 +204,11 @@ function words(segment: string): string[] {
     .filter(Boolean)
 }
 
+const LEASE_FLAG = /^--force-(?:with-lease|if-includes)(?:=\S*)?$/
+// Why: branches others build on; a lease does not make rewriting them safe.
+const SHARED_BRANCH =
+  /^(?:HEAD|main|master|develop|dev|production|prod|staging|release(?:[/-].*)?)$/
+
 /** A push that rewrites or deletes remote history: force, delete, mirror, prune, `+ref` or `:ref`. */
 export function isDestructiveGitPush(segment: string): boolean {
   const tokens = words(segment)
@@ -160,11 +217,24 @@ export function isDestructiveGitPush(segment: string): boolean {
   if (gitAt === -1 || pushAt === -1) {
     return false
   }
-  return tokens
-    .slice(pushAt + 1)
-    .some(
-      (token) => DESTRUCTIVE_PUSH_FLAG.test(token) || token.startsWith('+') || token.startsWith(':')
+  const args = tokens.slice(pushAt + 1)
+  const destructive = args.filter(
+    (token) => DESTRUCTIVE_PUSH_FLAG.test(token) || token.startsWith('+') || token.startsWith(':')
+  )
+  if (destructive.length === 0) {
+    return false
+  }
+  // Custom build (gate-narrow, owner 17.10): a lease push to a named feature branch passes.
+  const refs = args.filter((token) => !token.startsWith('-')).slice(1)
+  return !(
+    destructive.every((token) => LEASE_FLAG.test(token)) &&
+    refs.length > 0 &&
+    refs.every(
+      (ref) =>
+        !SHELL_EXPANSION.test(ref) &&
+        !SHARED_BRANCH.test((ref.split(':').at(-1) ?? ref).replace(/^refs\/heads\//, ''))
     )
+  )
 }
 
 export function classifyShellCommand(command: string | null): OutgoingAction | null {
