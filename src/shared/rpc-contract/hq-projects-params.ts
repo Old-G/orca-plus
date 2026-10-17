@@ -76,7 +76,7 @@ export const HqReportDecisionsParams = z.object({
     .string()
     .min(1)
     .max(500)
-    .regex(/^(?:improvements|meetings|status-update)\/[^/\\]+\.md$/, 'Not an HQ report'),
+    .regex(/^(?:improvements|meetings|status-update|updates)\/[^/\\]+\.md$/, 'Not an HQ report'),
   text: z.string().trim().min(1).max(8000)
 })
 
