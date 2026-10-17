@@ -19585,7 +19585,8 @@
         "hintReplies": "A question a chat sends to Slack lands in «I'm waiting on»; the answer comes back here and to that chat. Remind writes to the person only after you approve it.",
         "tileWaiting": "We wait on",
         "tileOnMe": "Wait on us",
-        "replyHereOnly": "Only here — no chat to send it to"
+        "replyHereOnly": "Only here — no chat to send it to",
+        "openClickUp": "Open in ClickUp"
       },
       "clickup": {
         "replySent": "Reply posted in ClickUp.",
