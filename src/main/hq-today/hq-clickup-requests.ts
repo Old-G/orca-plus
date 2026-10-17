@@ -5,10 +5,12 @@ import { join } from 'node:path'
 import type { ClickUpComment, ClickUpTaskSummary } from '../../shared/clickup-types'
 import {
   HQ_CLICKUP_REQUESTS_FILE,
+  HQ_SLACK_SCOUT_CONFIG_FILE,
   HQ_SLACK_SCOUT_DECISIONS_FILE,
   HQ_SLACK_SCOUT_DIR,
   parseHqSlackScoutDecisions,
   parseHqSlackScoutDrafts,
+  parseHqSlackScoutTuning,
   type HqSlackScoutDraft
 } from '../../shared/hq-slack-scout'
 
@@ -21,7 +23,8 @@ export type HqClickUpRequestsDeps = {
   /** The owner's open tasks, most recently updated first. */
   listMyTasks: () => Promise<ClickUpTaskSummary[]>
   listComments: (taskId: string) => Promise<ClickUpComment[]>
-  viewerId: () => Promise<string>
+  /** The owner — the account ClickUp is connected with. */
+  viewer: () => Promise<{ id: string; username: string }>
   /** HQ project slug of a ClickUp list, from HQ's list bindings. */
   projectForList: (listId: string | null) => string | null
   now: () => number
@@ -91,44 +94,67 @@ function requestFrom(
   }
 }
 
-/** Adds a request per task whose newest comment since the last look is someone else's; any newer
- *  comment on the task (the owner's answer too) replaces its undecided request. Returns how many
- *  were added. */
+// Why: an agent's comment carries the footer Approve adds; it is the owner's own message.
+const ORCA_FOOTER = /↳ [^\n]*\bref [0-9a-z]{6}(?![0-9a-z])/
+
+/** Custom build (hq-scout-quiet): a comment asks the owner when it @mentions him or asks a question;
+ *  status notes and reports on his tasks are not requests. */
+function asksTheOwner(comment: ClickUpComment, username: string): boolean {
+  const body = comment.body
+  return body.toLowerCase().includes(`@${username.toLowerCase()}`) || body.includes('?')
+}
+
+/** Adds a request per task whose newest comment since the owner last wrote there asks him something;
+ *  the owner's own comment answers what was asked before it. The agents' account and comments with
+ *  Orca+'s footer are not people. Returns how many were added. */
 export async function collectHqClickUpRequests(
   hqPath: string,
   deps: HqClickUpRequestsDeps
 ): Promise<number> {
   const dir = join(hqPath, HQ_SLACK_SCOUT_DIR)
   const path = join(dir, HQ_CLICKUP_REQUESTS_FILE)
-  const [current, decisionsText] = await Promise.all([
+  const [current, decisionsText, configText] = await Promise.all([
     readOptional(path).then(readRequestsFile),
-    readOptional(join(dir, HQ_SLACK_SCOUT_DECISIONS_FILE))
+    readOptional(join(dir, HQ_SLACK_SCOUT_DECISIONS_FILE)),
+    readOptional(join(dir, HQ_SLACK_SCOUT_CONFIG_FILE))
   ])
   const decisions = parseHqSlackScoutDecisions(decisionsText ?? '{}')
+  const ignored = new Set(parseHqSlackScoutTuning(configText ?? '').clickUpIgnoreAuthors)
   const now = deps.now()
   const since = current.lastCheckAt ?? now - FIRST_LOOK_MS
-  const [viewer, tasks] = await Promise.all([deps.viewerId(), deps.listMyTasks()])
+  const [viewer, tasks] = await Promise.all([deps.viewer(), deps.listMyTasks()])
   const fresh: HqSlackScoutDraft[] = []
   const replaced = new Set<string>()
   for (const task of tasks) {
     if ((task.updatedAt ?? 0) <= since) {
       continue
     }
-    const comments = await deps.listComments(task.id)
-    const newest = clickUpCommentsOldestFirst(comments).findLast(
-      (comment) => (comment.createdAt ?? 0) > since && comment.author
+    const relevant = clickUpCommentsOldestFirst(await deps.listComments(task.id)).filter(
+      (comment) =>
+        (comment.createdAt ?? 0) > since &&
+        comment.author &&
+        !ignored.has(comment.author.id) &&
+        !ORCA_FOOTER.test(comment.body)
     )
-    if (!newest) {
-      continue
+    const lastOwn = relevant.findLastIndex((comment) => comment.author?.id === viewer.id)
+    // Why: the owner's own comment answers whatever was asked on the task before.
+    if (lastOwn !== -1) {
+      replaced.add(task.id)
     }
-    // Why: the owner's own newest comment answers whatever was asked on the task before.
-    replaced.add(task.id)
-    if (newest.author?.id !== viewer && newest.body.trim()) {
-      fresh.push(requestFrom(task, newest, deps.projectForList(task.listId), now))
+    const ask = relevant
+      .slice(lastOwn + 1)
+      .findLast((comment) => comment.body.trim() && asksTheOwner(comment, viewer.username))
+    if (ask) {
+      replaced.add(task.id)
+      fresh.push(requestFrom(task, ask, deps.projectForList(task.listId), now))
     }
   }
   const kept = current.drafts.filter(
-    (draft) => !decisions[draft.id] && !replaced.has(draft.clickupTaskId ?? '')
+    (draft) =>
+      !decisions[draft.id] &&
+      !replaced.has(draft.clickupTaskId ?? '') &&
+      // Why: a request kept from before an author was ignored goes with the next look.
+      !ignored.has(draft.authorId ?? '')
   )
   await mkdir(dir, { recursive: true })
   const temp = `${path}.${process.pid}.tmp`
