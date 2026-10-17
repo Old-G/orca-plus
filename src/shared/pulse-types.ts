@@ -2,6 +2,7 @@
 // what an agent wants to send, and what the bell shows. Shared by main, RPC and the renderer;
 // fields added later must stay optional (docs/reference/remote-wire-compatibility.md).
 import type { OutgoingDraftCall } from './outgoing-approval/outgoing-action'
+import type { OutgoingSentContext } from './outgoing-approval/outgoing-sent-context'
 
 export type PulsePerson = {
   id: string
@@ -138,6 +139,8 @@ export type PulseDecision = {
   decidedAt: number
   /** HQ file the decision was mirrored to, once it is. */
   mirroredPath: string | null
+  /** Custom build (hq-sent-history): for an approval, where the call went and who sent it. */
+  sentContext: OutgoingSentContext | null
 }
 
 export type PulseDecisionInput = {

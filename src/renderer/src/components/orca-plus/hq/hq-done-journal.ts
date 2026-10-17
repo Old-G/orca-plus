@@ -2,6 +2,7 @@
 // week, newest first: requests turned into tasks or replies, and messages sent after his Approve.
 import { HQ_DONE_WINDOW_MS, type HqSlackScoutDone } from '../../../../../shared/hq-slack-scout'
 import type { HqDecision } from '../../../../../shared/hq-pulse-snapshot'
+import type { OutgoingSentContext } from '../../../../../shared/outgoing-approval/outgoing-sent-context'
 
 export type HqDoneWhat =
   | 'task-created'
@@ -23,6 +24,10 @@ export type HqDoneEntry = {
   links: HqDoneLink[]
   /** A skipped request that can still come back. */
   restoreId: string | null
+  /** Custom build (hq-sent-history): an approval's destination, thread, project and chat. */
+  sent?: OutgoingSentContext
+  /** The whole message or command the approval let out. */
+  message?: string
 }
 
 const SLACK_WHAT: Record<HqSlackScoutDone['decision'], HqDoneWhat> = {
@@ -74,7 +79,9 @@ function fromApproval(decision: HqDecision): HqDoneEntry | null {
     title: decision.title,
     detail: body || null,
     links: [],
-    restoreId: null
+    restoreId: null,
+    ...(decision.sent ? { sent: decision.sent } : {}),
+    ...(decision.body ? { message: decision.body } : {})
   }
 }
 
@@ -89,4 +96,16 @@ export function buildHqDoneJournal(
   ]
     .filter((entry) => entry.at > now - HQ_DONE_WINDOW_MS)
     .sort((a, b) => b.at - a.at)
+}
+
+/** Projects that sent something this week, for the journal's filter; most active first. */
+export function hqDoneProjects(entries: readonly HqDoneEntry[]): string[] {
+  const counts = new Map<string, number>()
+  for (const entry of entries) {
+    const project = entry.sent?.project
+    if (project) {
+      counts.set(project, (counts.get(project) ?? 0) + 1)
+    }
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([project]) => project)
 }
