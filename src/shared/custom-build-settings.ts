@@ -5,6 +5,7 @@ import type { ClaudeSubscriptionSettings } from './claude-subscriptions'
 import type { HqProjectClickUpLists } from './hq-project-clickup'
 import type { TaskProviderRolloutFlags } from './task-providers'
 import type { HqTriageDecisions } from './hq-triage'
+import type { OrcaPlusQuietHours } from './orca-plus-quiet-hours'
 
 /** Custom build (claude-subscriptions): Claude sign-ins a session can run on. */
 export type CustomBuildSettings = ClaudeSubscriptionSettings &
@@ -31,4 +32,6 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqKeptProjectIds?: string[]
     /** Custom build (hq-triage): ClickUp tasks the owner took or hid in HQ «New tasks», by task id. */
     hqTriageDecisions?: HqTriageDecisions
+    /** Custom build (quiet-hours): no phone or Slack alerts but urgent ones; unset = 21–9, null = off. */
+    orcaPlusQuietHours?: OrcaPlusQuietHours | null
   }

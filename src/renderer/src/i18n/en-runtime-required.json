@@ -2898,6 +2898,11 @@
         "5235c215ca": "Choose which task providers appear in the Tasks page and sidebar."
       }
     },
+    "hq": {
+      "notes": {
+        "hint": "Slack questions to you land in «Waiting on me» on their own. Remind writes to the person only after you approve it."
+      }
+    },
     "lib": {
       "browser": {
         "cookie": {
