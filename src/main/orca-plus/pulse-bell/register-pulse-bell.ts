@@ -18,6 +18,7 @@ import type { PulseInboxItem } from '../../../shared/pulse-types'
 import { onPulseChanged } from '../pulse/pulse-change-events'
 import { startHqClickUpWaitingReplies } from '../../hq-today/hq-clickup-waiting-replies'
 import { startHqScoutContext } from '../../hq-today/hq-scout-context'
+import { startHqSlackDigest } from '../../hq-today/hq-slack-digest'
 import { bindAgentFinishedInbox, clearAgentFinished } from './pulse-bell-agent-finished'
 import { createWaitingAgentsTracker } from './pulse-bell-waiting-agents'
 import { readPulseBellInputs } from './pulse-bell-input-validation'
@@ -106,6 +107,14 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
     listPages: listHqProjectPages,
     sync,
     onChanged: onHqSlackScoutChanged
+  })
+  // Custom build (hq-scout-digest): Slack in one bell item at the digest hours.
+  startHqSlackDigest({
+    hqPath: () => store.getSettings().hqPath ?? null,
+    enabled: () => store.getSettings().hqChatsView !== false,
+    readScout: readHqSlackScout,
+    sync,
+    now: () => new Date()
   })
   // Custom build (hq-clickup-requests): comments on the owner's ClickUp tasks join those requests.
   startHqClickUpRequests({
