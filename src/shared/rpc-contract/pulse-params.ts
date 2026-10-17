@@ -115,6 +115,7 @@ export const PulseFeedParams = z
     before: z.number().int().nonnegative().optional(),
     source: z.enum(HQ_FEED_SOURCES).optional(),
     project: z.string().min(1).max(200).optional(),
-    query: z.string().max(200).optional()
+    query: z.string().max(200).optional(),
+    scope: z.enum(['done', 'incoming']).optional()
   })
   .optional()

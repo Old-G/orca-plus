@@ -43,6 +43,11 @@ import { listHqProjectPages } from '../../hq-project-pages/hq-project-pages'
 import { startHqWaitingReplyRelay } from '../../hq-today/hq-waiting-reply-relay'
 import { startHqScoutPromises } from '../../hq-today/hq-scout-promises'
 import { startHqFeed } from '../../hq-today/hq-feed-collector'
+import { HQ_FEED_COMMIT_LOG_ARGS, readHqFeedCommits } from '../../hq-today/hq-feed-work'
+import { startHqFeedPosts } from '../../hq-today/hq-feed-posts'
+import { generateHqText } from '../../hq-today/hq-task-questions'
+import { gitExecFileAsync } from '../../git/runner'
+import { isGitRepoKind } from '../../../shared/repo-kind'
 import { getHqProjectPagesService } from '../../hq-project-pages/hq-project-pages-service'
 import { HQ_PROMISE_DUE_KIND, hqPromiseDueBellItems } from '../../../shared/hq-promises'
 import { deliverWaitingReply } from '../waiting-replies/deliver-waiting-reply'
@@ -50,6 +55,7 @@ import { deliverWaitingReply } from '../waiting-replies/deliver-waiting-reply'
 const BROADCAST_DEBOUNCE_MS = 50
 // Why: a promise turns «due by tomorrow» with the clock, not with a pulse change.
 const PROMISE_DUE_CHECK_MS = 30 * 60_000
+const FEED_DAYS_MS = 3 * 24 * 60 * 60_000
 
 function broadcastChanged(): void {
   for (const window of BrowserWindow.getAllWindows()) {
@@ -167,8 +173,43 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
   startHqFeed({
     hqPath: () => store.getSettings().hqPath ?? null,
     decisions: () => runtime.pulseListDecisions(100),
+    drafts: () => runtime.pulseListDrafts('sent'),
+    // Why: SSH and folder projects are skipped — a remote git per project every five minutes is too much.
+    commits: () =>
+      readHqFeedCommits(
+        store
+          .getRepos()
+          .filter((repo) => !repo.connectionId && isGitRepoKind(repo))
+          .map((repo) => ({ path: repo.path, name: repo.displayName })),
+        async (cwd) => (await gitExecFileAsync(HQ_FEED_COMMIT_LOG_ARGS, { cwd })).stdout
+      ),
+    finishedAgents: () =>
+      runtime.pulseListInbox(true, {
+        kind: PULSE_BELL_KIND.agentFinished,
+        since: Date.now() - FEED_DAYS_MS
+      }),
     reviews: async () => (await getHqProjectPagesService()?.reviews(false))?.reviews ?? [],
     upsert: (items) => void runtime.pulseUpsertFeed(items),
+    now: Date.now
+  })
+  // Custom build (hq-feed-posts): the work done, as short posts in Russian.
+  startHqFeedPosts({
+    pending: (limit) => runtime.pulseFeedWithoutPost(limit),
+    save: (posts) => runtime.pulseSetFeedPosts(posts),
+    generate: async (prompt) => {
+      const hqPath = store.getSettings().hqPath
+      return hqPath
+        ? generateHqText(
+            prompt,
+            { emptyResultName: 'feed posts', operation: 'hq-feed-posts' },
+            {
+              settings: store.getSettings(),
+              cwd: hqPath,
+              getAgentEnvResolvers: () => runtime.getCommitMessageAgentEnvironmentResolvers()
+            }
+          )
+        : { ok: false, error: 'No HQ folder is set.' }
+    },
     now: Date.now
   })
   // Custom build (hq-promises): the owner's Slack promises into Notes, and a bell line the day before.
