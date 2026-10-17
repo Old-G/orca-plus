@@ -298,4 +298,51 @@ describe('claude sign-in stops', () => {
     await stops.onAccountChanged('personal')
     expect(resumeNativeChat).toHaveBeenCalledWith('chat-1')
   })
+
+  describe('network stops (claude-network-continue)', () => {
+    const netFrame = {
+      type: 'assistant',
+      error: 'server_error',
+      isApiErrorMessage: true,
+      parent_tool_use_id: null
+    }
+
+    it('continues a cut chat once the API answers again, never as a limit card, once per 10 minutes', async () => {
+      const { stops, resumeNativeChat, onChanged, advance } = setup()
+      stops.onNativeFrame('chat-1', 'repo::/wt', netFrame)
+      stops.onNativeFrame('chat-2', 'repo::/wt', { ...netFrame, parent_tool_use_id: 'sub' })
+      expect(stops.list()).toEqual([])
+      expect(onChanged).not.toHaveBeenCalled()
+      await stops.onActiveUsage('lh', usage(99))
+      expect(resumeNativeChat).not.toHaveBeenCalled()
+      advance(30_000)
+      await stops.onActiveUsage('lh', { ...usage(99), status: 'error' })
+      expect(resumeNativeChat).not.toHaveBeenCalled()
+      // Over the switch threshold is fine: the network, not the limit, stopped it.
+      await stops.onActiveUsage('lh', usage(99))
+      expect(resumeNativeChat).toHaveBeenCalledTimes(1)
+      expect(resumeNativeChat).toHaveBeenCalledWith('chat-1')
+      stops.onNativeFrame('chat-1', 'repo::/wt', netFrame)
+      advance(60_000)
+      await stops.onActiveUsage('lh', usage(10))
+      expect(resumeNativeChat).toHaveBeenCalledTimes(1)
+      advance(10 * 60_000)
+      await stops.onActiveUsage('lh', usage(10))
+      expect(resumeNativeChat).toHaveBeenCalledTimes(2)
+    })
+
+    it('drops the stop when the agent works again or the owner writes first; terminals too', async () => {
+      const { stops, resumeNativeChat, resumeTerminal, advance } = setup()
+      stops.onNativeFrame('chat-1', null, netFrame)
+      stops.onNativeFrame('chat-1', null, { type: 'assistant', parent_tool_use_id: null })
+      stops.onHookStatus({ ...limitStop, stopFailureError: 'server_error' })
+      stops.onHookStatus({ ...limitStop, hookEventName: 'UserPromptSubmit' })
+      stops.onHookStatus({ ...limitStop, paneKey: 'tab-2:leaf', stopFailureError: 'server_error' })
+      advance(30_000)
+      await stops.onActiveUsage('lh', usage(10))
+      expect(resumeNativeChat).not.toHaveBeenCalled()
+      expect(resumeTerminal).toHaveBeenCalledTimes(1)
+      expect(resumeTerminal).toHaveBeenCalledWith('tab-2:leaf')
+    })
+  })
 })
