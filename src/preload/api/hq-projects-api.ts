@@ -15,6 +15,7 @@ import type {
   HqVoiceRewriteResult,
   HqVoiceTaskResult
 } from '../../shared/hq-voice-prompts'
+import type { HqReadAloudSpeechResult } from '../../shared/hq-read-aloud'
 import type {
   HqSlackScoutCreateResult,
   HqSlackScoutEdit,
@@ -45,6 +46,8 @@ export type HqProjectsApi = {
   saveIdea: (request: { text: string }) => Promise<HqVoiceIdeaResult>
   /** The ClickUp-mode text as a task where slack-scout/config.yaml says; only on the owner's press. */
   createVoiceTask: (request: { text: string }) => Promise<HqVoiceTaskResult>
+  /** Custom build (hq-read-aloud): one piece of an answer in a natural voice, as mp3. */
+  readAloudSpeech: (request: { text: string; voice: string }) => Promise<HqReadAloudSpeechResult>
   /** Custom build (hq-slack-scout): drafts the Slack scout wrote; Create makes the ClickUp task. */
   slackDrafts: () => Promise<HqSlackScoutResult>
   rejectSlackDraft: (ref: { id: string }) => Promise<HqSlackScoutCreateResult | { ok: true }>

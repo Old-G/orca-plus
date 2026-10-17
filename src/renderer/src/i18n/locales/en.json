@@ -19510,7 +19510,9 @@
         "read": "Read the last answer",
         "auto": "Read new answers",
         "speed": "Speed",
-        "voice": "Voice"
+        "voice": "Voice",
+        "natural": "Natural · {{value0}}",
+        "system": "System · {{value0}}"
       },
       "feed": {
         "request": "Asks you",
