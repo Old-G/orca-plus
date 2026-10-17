@@ -18,7 +18,8 @@ const empty: OutgoingSentContext = {
   taskUrl: null,
   taskName: null,
   ref: null,
-  footer: null
+  footer: null,
+  movedTo: null
 }
 
 describe('hqSentNames', () => {
