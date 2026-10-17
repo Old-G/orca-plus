@@ -51,6 +51,17 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
     notes: [PERSON_NOTE]
   },
   {
+    // Custom build (hq-ask)
+    path: ['pulse', 'decision', 'list'],
+    summary: 'Search decisions and approved or rejected outgoing messages, newest first',
+    usage: 'orca pulse decision list [--query <text>] [--project <slug>] [--limit <n>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'query', 'project', 'limit'],
+    notes: [
+      '--query matches every word, case-insensitively, against the title, the text and where a message went (channel, person, task, chat, footer ref).',
+      '--limit caps the printed rows (default 30); the search itself reads the latest 2000 decisions.'
+    ]
+  },
+  {
     path: ['pulse', 'draft', 'add'],
     summary: 'Propose something to send; it waits for the owner to approve, edit or reject it',
     usage:
