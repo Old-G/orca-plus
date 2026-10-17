@@ -92,6 +92,8 @@ describe('PulseDb schema', () => {
     first.close()
     const raw = new Database(path)
     dropWaitingReplyColumns(raw)
+    // Why: files from before the feed (v5) have no feed table.
+    raw.exec('DROP TABLE feed')
     raw.pragma('user_version = 2')
     raw.close()
     const lifted = new PulseDb(path)
@@ -111,6 +113,8 @@ describe('PulseDb schema', () => {
     const raw = new Database(path)
     raw.exec('ALTER TABLE drafts DROP COLUMN payload')
     dropWaitingReplyColumns(raw)
+    // Why: files from before the feed (v5) have no feed table.
+    raw.exec('DROP TABLE feed')
     raw.pragma('user_version = 1')
     raw.close()
 
