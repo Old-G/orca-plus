@@ -9,9 +9,11 @@ import {
   HqSlackDraftCreateParams,
   HqSlackDraftEditParams,
   HqSlackDraftRefParams,
+  HqReadAloudSpeechParams,
   HqVoiceIdeaParams,
   HqVoiceRewriteParams
 } from '../../shared/rpc-contract/hq-projects-params'
+import { synthesizeHqReadAloud } from '../hq-today/hq-read-aloud-speech'
 import { keepHqApprovalEdits } from '../hq-today/hq-reply-corrections'
 import { setHqDesktopSender } from '../hq-today/hq-request-on-desktop'
 import {
@@ -58,6 +60,10 @@ export function registerHqProjectPagesHandlers(
   )
   ipcMain.handle('hqProjects:saveIdea', (_event, request: unknown) =>
     service.saveIdea(HqVoiceIdeaParams.parse(request).text)
+  )
+  // Custom build (hq-read-aloud): desktop only — the key stays on the Mac.
+  ipcMain.handle('hqProjects:readAloudSpeech', (_event, request: unknown) =>
+    synthesizeHqReadAloud(HqReadAloudSpeechParams.parse(request))
   )
   ipcMain.handle('hqProjects:createVoiceTask', (_event, request: unknown) =>
     service.createVoiceTask(HqVoiceIdeaParams.parse(request).text)
