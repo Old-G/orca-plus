@@ -152,3 +152,56 @@ describe('orca pulse person show', () => {
     expect(calls.some((c) => c.method === 'pulse.upsertPerson')).toBe(false)
   })
 })
+
+describe('orca pulse decision list', () => {
+  const decision = (id: string, title: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    kind: 'approval',
+    title,
+    body: null,
+    outcome: 'approved',
+    project: null,
+    personId: null,
+    draftId: null,
+    source: 'outgoing-approval',
+    decidedAt: Date.UTC(2026, 9, 17, 12),
+    mirroredPath: null,
+    sentContext: null,
+    ...extra
+  })
+  const decisions = [
+    decision('d1', 'Slack → C1', {
+      body: 'Refund window stays 30 days',
+      sentContext: {
+        targetName: '#support',
+        taskName: 'Refund policy',
+        ref: 'ab12cd',
+        project: 'shop'
+      }
+    }),
+    decision('d2', 'ClickUp → DEV-1', { body: 'Unrelated note' })
+  ]
+
+  it('reads deep and keeps decisions matching every word, wherever it appears', async () => {
+    const { done, calls, printed } = run(
+      'pulse decision list',
+      { query: 'refund SUPPORT' },
+      { 'pulse.listDecisions': decisions }
+    )
+    await done
+    expect(paramsOf(calls, 'pulse.listDecisions')).toEqual({ limit: 2000 })
+    expect(printed.join('\n')).toContain('→ #support · Refund policy · shop · ref ab12cd  d1')
+    expect(printed.join('\n')).not.toContain('d2')
+  })
+
+  it('says so when nothing matches and refuses a bad limit', async () => {
+    const empty = run(
+      'pulse decision list',
+      { query: 'nothing' },
+      { 'pulse.listDecisions': decisions }
+    )
+    await empty.done
+    expect(empty.printed).toEqual(['No decisions match.'])
+    await expect(run('pulse decision list', { limit: '0' }).done).rejects.toThrow('--limit')
+  })
+})
