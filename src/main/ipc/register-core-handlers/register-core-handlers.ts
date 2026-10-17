@@ -156,7 +156,7 @@ export async function registerCoreHandlers(
       markInboxDone: (id, action) => void runtime.pulseMarkInboxDone(id, action)
     })
     registerOutgoingApproval(runtime)
-    registerWebPush(runtime)
+    registerWebPush(runtime, () => store.getSettings())
     if (crashReports) {
       registerLazyCrashReportingHandlers(crashReports)
     }
