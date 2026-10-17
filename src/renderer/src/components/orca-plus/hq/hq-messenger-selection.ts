@@ -7,7 +7,6 @@ export const HQ_PINNED_IDS = [
   'journal',
   'feed',
   'reports',
-  'history',
   'projects',
   'wiki',
   'map',
@@ -34,6 +33,7 @@ export function hqSelectionForRequest(tab: string | null): HqSelection | null {
   if (tab === 'chats') {
     return { kind: 'chat' }
   }
-  const pinned = HQ_PINNED_IDS.find((id) => id === tab)
+  // Custom build (hq-feed-history): History became the Feed's agent-session posts.
+  const pinned = HQ_PINNED_IDS.find((id) => id === (tab === 'history' ? 'feed' : tab))
   return pinned ? { kind: 'pinned', id: pinned } : null
 }

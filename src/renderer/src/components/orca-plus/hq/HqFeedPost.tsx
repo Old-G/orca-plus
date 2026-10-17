@@ -1,6 +1,7 @@
 // Custom build (hq-feed-posts): work done as a post — the project's mark in its own color (as in
 // HQ's chat list), a colored chip for what kind of work it was, the readable line, the original on demand.
 import { useMemo, useState } from 'react'
+import { MessageSquare } from 'lucide-react'
 import { hqFeedUrl, type HqFeedItem } from '../../../../../shared/hq-feed'
 import { projectAccentColor } from '../../../../../shared/project-accent-color'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,7 @@ import { formatShortTimeAgo } from '@/lib/short-time-ago'
 import { useAppStore } from '@/store'
 import { hqProjectInitials } from './hq-chat-list'
 import { HqFeedKindChip, HqFeedOpenLink } from './HqFeedRow'
+import { isHqFeedSession, openHqFeedSessionChat } from './hq-feed-open-chat'
 
 /** A feed row names its project by display name; the color is the repo's, as the chat list shows it. */
 export function useHqFeedProjectColor(): (project: string) => string {
@@ -54,7 +56,18 @@ export function HqFeedPost({
           <HqFeedOpenLink url={hqFeedUrl(item.url)} />
         </div>
         <p className="text-sm leading-snug text-foreground">{item.post ?? item.title}</p>
-        <div className="-ml-2">
+        <div className="-ml-2 flex items-center gap-1">
+          {isHqFeedSession(item) ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => void openHqFeedSessionChat(item).catch(() => undefined)}
+            >
+              <MessageSquare />
+              {translate('auto.hq.feed.openChat', 'Open chat')}
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="ghost"
