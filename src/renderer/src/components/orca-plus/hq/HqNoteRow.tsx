@@ -8,7 +8,8 @@ import { translate } from '@/i18n/i18n'
 import { formatShortTimeAgo } from '@/lib/short-time-ago'
 import { HQ_NOTE_SOURCE } from '../../../../../shared/hq-note-parse'
 import type { HqWaiting } from '../../../../../shared/hq-pulse-snapshot'
-import { slackThreadUrl } from '../../../../../shared/hq-waiting-replies'
+import { clickUpWaitingUrl, slackThreadUrl } from '../../../../../shared/hq-waiting-replies'
+import { useAppStore } from '@/store'
 import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
 import type { HqChatItem } from './hq-chat-list'
 import { openHqHistoryEntry } from './hq-history-open'
@@ -95,6 +96,7 @@ export function HqNoteRow({
   hqWorktreeId: string | null
 }): React.JSX.Element {
   const [busy, setBusy] = useState(false)
+  const clickUpWorkspaceId = useAppStore((s) => s.clickUpStatus.selectedWorkspaceId)
   const [error, setError] = useState<string | null>(null)
   const close = (status: 'resolved' | 'cancelled'): void => {
     setBusy(true)
@@ -114,6 +116,8 @@ export function HqNoteRow({
     !waiting.reply &&
     now - waiting.createdAt > REMIND_AFTER_MS
   const slackUrl = slackThreadUrl(waiting.sourceRef)
+  // Custom build (hq-clickup-waiting): a question asked in a task opens there.
+  const clickUpUrl = clickUpWaitingUrl(waiting.sourceRef, clickUpWorkspaceId)
   const { agentSessionId, worktreeId } = waiting
   return (
     <li className="flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-accent/50">
@@ -180,6 +184,18 @@ export function HqNoteRow({
             title={translate('auto.hq.notes.openSlack', 'Open in Slack')}
             aria-label={translate('auto.hq.notes.openSlack', 'Open in Slack')}
             onClick={() => void window.api.shell.openUrl(slackUrl)}
+          >
+            <ExternalLink />
+          </Button>
+        ) : null}
+        {clickUpUrl ? (
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            title={translate('auto.hq.notes.openClickUp', 'Open in ClickUp')}
+            aria-label={translate('auto.hq.notes.openClickUp', 'Open in ClickUp')}
+            onClick={() => void window.api.shell.openUrl(clickUpUrl)}
           >
             <ExternalLink />
           </Button>
