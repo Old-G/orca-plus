@@ -22,6 +22,7 @@ import {
   runHqReportDecisionsOnDesktop,
   runHqRequestOnDesktop
 } from '../../../hq-today/hq-request-on-desktop'
+import { readHqChatList } from '../../../hq-today/hq-chat-list-snapshot'
 import {
   getHqProjectPagesService,
   type HqProjectPagesService
@@ -65,6 +66,14 @@ export const HQ_PROJECTS_METHODS = [
     permission: 'workspace',
     params: null,
     handler: async () => service().reports()
+  }),
+  // Custom build (hq-mobile-messenger): the phone's HQ chat list, as the desktop window built it.
+  defineMethod({
+    name: 'hqProjects.chatList',
+
+    permission: 'workspace',
+    params: null,
+    handler: async () => readHqChatList()
   }),
   defineMethod({
     name: 'hqProjects.reportDecisionsOnDesktop',

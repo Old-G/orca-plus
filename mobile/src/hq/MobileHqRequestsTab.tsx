@@ -56,10 +56,13 @@ function DoneRow({
 
 export function MobileHqRequestsTab({
   client,
-  onNotice
+  onNotice,
+  show = 'both'
 }: {
   client: RpcClient
   onNotice: (notice: string | null) => void
+  /** Custom build (hq-mobile-messenger): Today shows the requests, Done for you the journal. */
+  show?: 'requests' | 'done' | 'both'
 }) {
   const { state, refresh } = useMobileHqRequests(client)
   if (state.status === 'loading') {
@@ -69,24 +72,33 @@ export function MobileHqRequestsTab({
     return <Text style={hqStyles.error}>{state.message}</Text>
   }
   const { drafts, done } = state.value
+  const requests =
+    show !== 'done' ? (
+      <>
+        <Text style={hqStyles.section}>Needs you · {drafts.length}</Text>
+        {drafts.length === 0 ? (
+          <Text style={hqStyles.meta}>Nothing needs you right now.</Text>
+        ) : (
+          drafts.map((request) => (
+            <MobileHqRequestCard
+              key={request.id}
+              client={client}
+              request={request}
+              onDone={(next) => {
+                onNotice(next)
+                refresh()
+              }}
+            />
+          ))
+        )}
+      </>
+    ) : null
+  if (show === 'requests') {
+    return requests
+  }
   return (
     <>
-      <Text style={hqStyles.section}>Needs you · {drafts.length}</Text>
-      {drafts.length === 0 ? (
-        <Text style={hqStyles.meta}>Nothing needs you right now.</Text>
-      ) : (
-        drafts.map((request) => (
-          <MobileHqRequestCard
-            key={request.id}
-            client={client}
-            request={request}
-            onDone={(next) => {
-              onNotice(next)
-              refresh()
-            }}
-          />
-        ))
-      )}
+      {requests}
       <Text style={hqStyles.section}>Done for you</Text>
       {done.length === 0 ? (
         <Text style={hqStyles.meta}>Nothing done for you yet this week.</Text>

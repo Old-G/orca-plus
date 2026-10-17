@@ -13,6 +13,16 @@ export const PAIRED_DESKTOP_METHODS = [
   // Custom build (hq-reports): HQ's reports and the decisions on them.
   'hqProjects.reports',
   'hqProjects.reportDecisionsOnDesktop',
+  // Custom build (hq-mobile-messenger): the rest of HQ's messenger on the phone, and its voice prompts.
+  'hqProjects.chatList',
+  'hqProjects.list',
+  'hqProjects.wikiTree',
+  'hqProjects.wikiPage',
+  'hqProjects.settings',
+  'hqProjects.voiceRewrite',
+  'hqProjects.saveIdea',
+  'hqProjects.createVoiceTask',
+  'pulse.feed',
   // Its notes, waitings and bell, which live in the Mac's pulse database.
   'pulse.snapshot',
   'pulse.upsertPerson',
