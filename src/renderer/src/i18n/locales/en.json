@@ -19035,6 +19035,14 @@
       },
       "ask": {
         "chatName": "Ask HQ"
+      },
+      "readAloud": {
+        "stop": "Stop reading",
+        "title": "Read aloud",
+        "read": "Read the last answer",
+        "auto": "Read new answers",
+        "speed": "Speed",
+        "voice": "Voice"
       }
     },
     "claudeSubscriptions": {

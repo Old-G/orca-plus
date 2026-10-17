@@ -12,6 +12,10 @@ import { NativeChatComposerGoalChip } from './NativeChatComposerGoalChip'
 import { NativeChatContextUsageRing } from './NativeChatContextUsageRing'
 import type { NativeChatContextUsageSummary } from './native-chat-context-usage-summary'
 import type { NativeChatOptionPickerRequest } from './native-chat-composer-types'
+import {
+  NativeChatReadAloudButton,
+  type NativeChatReadAloudSource
+} from '../orca-plus/read-aloud/NativeChatReadAloudButton'
 
 export type NativeChatComposerActionsProps = {
   attachDisabled: boolean
@@ -42,6 +46,8 @@ export type NativeChatComposerActionsProps = {
   contextUsage?: NativeChatContextUsageSummary | null
   /** The chat's agent, whose permission modes the picker describes. */
   agent?: string
+  /** Custom build (hq-read-aloud): the transcript «Read aloud» reads the latest answer from. */
+  readAloud?: NativeChatReadAloudSource
 }
 
 export function NativeChatComposerActions({
@@ -66,7 +72,8 @@ export function NativeChatComposerActions({
   onExitGoalMode,
   contextUsage,
   focusComposer,
-  agent
+  agent,
+  readAloud
 }: NativeChatComposerActionsProps): React.JSX.Element {
   const stops = isWorking
   const handleCriticalAction = (event: React.MouseEvent<HTMLButtonElement>): void => {
@@ -144,6 +151,7 @@ export function NativeChatComposerActions({
           pickerRequest={sessionOptionsPickerRequest}
           focusComposer={focusComposer}
         />
+        {readAloud ? <NativeChatReadAloudButton source={readAloud} isWorking={isWorking} /> : null}
         {contextUsage ? <NativeChatContextUsageRing usage={contextUsage} /> : null}
         <Tooltip>
           <TooltipTrigger asChild>

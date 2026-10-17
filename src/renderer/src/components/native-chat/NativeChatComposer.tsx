@@ -1,6 +1,6 @@
 import { useNativeChatComposerNotice } from './use-native-chat-composer-notice'
 import type { NativeChatComposerInput } from './native-chat-composer-input'
-import { forwardRef, useCallback, useState } from 'react'
+import { forwardRef, useCallback, useMemo, useState } from 'react'
 import { useNativeChatComposerInterrupt } from './use-native-chat-composer-interrupt'
 import { useNativeChatContextUsageSummary } from './use-native-chat-context-usage-summary'
 import { useNativeChatMentionFiles } from './use-native-chat-mention-files'
@@ -102,6 +102,12 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       source: recallSource,
       inputRef: textareaRef
     })
+    // Custom build (hq-read-aloud): «Read aloud» reads from the transcript the recall already gets.
+    const recallMessages = recallSource?.messages
+    const readAloud = useMemo(
+      () => (recallMessages ? { key: paneKey, messages: recallMessages } : undefined),
+      [paneKey, recallMessages]
+    )
     const { cancelPendingSends, trackPendingSend } = useNativeChatSendLifecycle(
       terminalTabId,
       targetPtyId,
@@ -408,6 +414,7 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
         contextUsage={contextUsageSummary}
         sessionOptionsPickerRequest={structuredTransport?.optionPickerRequest ?? null}
         agent={agent}
+        readAloud={readAloud}
       />
     )
   }
