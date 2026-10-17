@@ -68,6 +68,21 @@ describe('parseHqScoutPromises', () => {
     expect(parsed.done).toEqual([{ permalink: LINK, reason: 'sent it' }])
   })
 
+  it('takes a promise made in a ClickUp comment, not a look-alike host', () => {
+    const comment = 'https://app.clickup.com/t/86abc?comment=900'
+    const parsed = parseHqScoutPromises(
+      JSON.stringify({
+        promises: [
+          { permalink: comment, person: 'Петя', what: 'Внести правку' },
+          { permalink: 'https://app.clickup.com.evil.example/t/1', person: 'Петя', what: 'x' }
+        ],
+        done: [{ permalink: comment, reason: 'внёс' }]
+      })
+    )
+    expect(parsed.promises.map((promise) => promise.permalink)).toEqual([comment])
+    expect(parsed.done).toEqual([{ permalink: comment, reason: 'внёс' }])
+  })
+
   it('reads a broken file as empty', () => {
     expect(parseHqScoutPromises('{not json')).toEqual({ promises: [], done: [] })
   })
