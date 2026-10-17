@@ -55,14 +55,14 @@ export function speakableText(markdown: string): string {
   )
 }
 
-/** Sentence-sized pieces: long utterances are where speech engines stall. */
-export function speechChunks(text: string): string[] {
+/** Sentence-bounded pieces of at most `max` characters: long utterances are where speech engines stall. */
+export function speechChunks(text: string, max = CHUNK_MAX): string[] {
   const sentences = text.match(/[^.!?…]+[.!?…]+["»)]*\s*|[^.!?…]+$/g) ?? []
   const chunks: string[] = []
   let current = ''
   for (const sentence of sentences) {
     const next = `${current}${sentence}`
-    if (current && next.length > CHUNK_MAX) {
+    if (current && next.length > max) {
       chunks.push(current.trim())
       current = sentence
     } else {

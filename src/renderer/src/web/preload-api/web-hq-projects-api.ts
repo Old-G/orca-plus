@@ -27,6 +27,7 @@ export function createWebHqProjectsApi(): Pick<PreloadApi, 'hqProjects' | 'click
       voiceRewrite: (request) => callRuntimeResult('hqProjects.voiceRewrite', request),
       saveIdea: (request) => callRuntimeResult('hqProjects.saveIdea', request),
       createVoiceTask: (request) => callRuntimeResult('hqProjects.createVoiceTask', request),
+      readAloudSpeech: async () => ({ ok: false, error: 'no-key' }),
       slackDrafts: () => callRuntimeResult('hqProjects.slackDrafts'),
       rejectSlackDraft: (ref) => callRuntimeResult('hqProjects.rejectSlackDraft', ref),
       createSlackDraftTask: (draft) => callRuntimeResult('hqProjects.createSlackDraftTask', draft),
