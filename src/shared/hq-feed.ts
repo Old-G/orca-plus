@@ -17,11 +17,18 @@ export const HqFeedItemSchema = z.object({
   body: z.string().max(2000).nullable(),
   url: z.string().max(1000).nullable(),
   project: z.string().max(200).nullable(),
-  person: z.string().max(200).nullable()
+  person: z.string().max(200).nullable(),
+  /** Custom build (hq-feed-posts): the event as a short readable post; absent until written. */
+  post: z.string().max(400).nullable().optional()
 })
 export type HqFeedItem = z.infer<typeof HqFeedItemSchema>
 
+/** Kinds that are work done — the feed's posts. Everything else is what came in for the owner. */
+export const HQ_FEED_DONE_KINDS = ['commit', 'session', 'sent'] as const
+
 export type HqFeedQuery = {
+  /** `done`: only work done (HQ_FEED_DONE_KINDS); `incoming`: only the rest. */
+  scope?: 'done' | 'incoming'
   limit?: number
   /** Items older than this (epoch ms), for paging back. */
   before?: number

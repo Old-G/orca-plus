@@ -63,4 +63,27 @@ describe('pulse feed', () => {
     expect(feed.listFeed({ before: 3, limit: 1 }).map((row) => row.id)).toEqual(['b'])
     expect(feed.pruneFeed(2)).toBe(1)
   })
+
+  it('splits work done from what came in, and drops a post once its text changes', () => {
+    const feed = db()
+    feed.upsertFeed([
+      item({ id: 'commit:a', source: 'git', kind: 'commit', at: 3, title: 'custom(x): fix' }),
+      item({ id: 'orca:d1', source: 'orca', kind: 'sent', at: 2, title: 'Slack → Женя' }),
+      item({ id: 'slack:T1', at: 1 })
+    ])
+    expect(feed.listFeed({ scope: 'done' }).map((row) => row.id)).toEqual(['commit:a', 'orca:d1'])
+    expect(feed.listFeed({ scope: 'incoming' }).map((row) => row.id)).toEqual(['slack:T1'])
+    expect(feed.listFeedWithoutPost(10).map((row) => row.id)).toEqual(['commit:a', 'orca:d1'])
+    feed.setFeedPosts(new Map([['commit:a', 'Исправили ошибку']]))
+    expect(feed.listFeedWithoutPost(10).map((row) => row.id)).toEqual(['orca:d1'])
+    expect(feed.listFeed({ query: 'исправили' }).map((row) => row.id)).toEqual(['commit:a'])
+    feed.upsertFeed([
+      item({ id: 'commit:a', source: 'git', kind: 'commit', at: 3, title: 'custom(x): fix' })
+    ])
+    expect(feed.listFeed({ scope: 'done' })[0].post).toBe('Исправили ошибку')
+    feed.upsertFeed([
+      item({ id: 'commit:a', source: 'git', kind: 'commit', at: 3, title: 'reworded' })
+    ])
+    expect(feed.listFeed({ scope: 'done' })[0].post).toBeNull()
+  })
 })
