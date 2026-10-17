@@ -112,10 +112,22 @@ export function HqMessengerScreen(): React.JSX.Element {
     setSelection({ kind: 'chat' })
     setNarrowShowsDetail(true)
   }, [])
-  const selectPinned = useCallback((id: HqPinnedId) => {
-    setSelection({ kind: 'pinned', id })
-    setNarrowShowsDetail(true)
-  }, [])
+  // Why: a second press on the open pinned item closes it, back to what was shown before (owner, 18.10).
+  const beforePinned = useRef<HqSelection>({ kind: 'chat' })
+  const selectPinned = useCallback(
+    (id: HqPinnedId) => {
+      if (selection.kind === 'pinned' && selection.id === id) {
+        const previous = beforePinned.current
+        beforePinned.current = { kind: 'chat' }
+        setSelection(previous.kind === 'pinned' && previous.id === id ? { kind: 'chat' } : previous)
+        return
+      }
+      beforePinned.current = selection
+      setSelection({ kind: 'pinned', id })
+      setNarrowShowsDetail(true)
+    },
+    [selection]
+  )
   const back = useCallback(() => setNarrowShowsDetail(false), [])
   const nextWaiting = useCallback(() => {
     const next = nextHqWaitingChat(groups.needs, selection.kind === 'chat' ? selectedKey : null)
