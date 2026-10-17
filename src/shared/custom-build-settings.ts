@@ -5,6 +5,8 @@ import type { ClaudeSubscriptionSettings } from './claude-subscriptions'
 import type { HqProjectClickUpLists } from './hq-project-clickup'
 import type { TaskProviderRolloutFlags } from './work-items/task-providers'
 import type { HqTriageDecisions } from './hq-triage'
+import type { OrcaPlusQuietHours } from './orca-plus-quiet-hours'
+import type { HqOpenLoopsMode } from './hq-open-loops-mode'
 
 /** Custom build (claude-subscriptions): Claude sign-ins a session can run on. */
 export type CustomBuildSettings = ClaudeSubscriptionSettings &
@@ -29,6 +31,49 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqChatsView?: boolean
     /** Custom build (hq-chats): projects whose latest chats stay on view in HQ even when quiet. */
     hqKeptProjectIds?: string[]
+    /** Custom build (hq-plus-hide-project): projects the owner hid from HQ+'s left column, with their
+     *  chats; «All projects» finds them again. The chats stay open. */
+    hqHiddenProjectIds?: string[]
+    /** Custom build (hq-marked-chats): chats the owner marked to come back to, by HQ chat key. */
+    hqMarkedChatKeys?: string[]
+    /** Custom build (hq-pinned-counts): when each pinned item (reports, feed, journal) was last opened. */
+    hqPinnedSeenAt?: Record<string, number>
+    /** Custom build (hq-spaces): the workspace HQ shows (`workspaces/<slug>`); unset or null = all. */
+    hqActiveSpace?: string | null
     /** Custom build (hq-triage): ClickUp tasks the owner took or hid in HQ «New tasks», by task id. */
     hqTriageDecisions?: HqTriageDecisions
+    /** Custom build (chat-cleanup): quiet chats are left alone, only reported in HQ, or closed; default report. */
+    hqChatCleanup?: 'off' | 'report' | 'on'
+    /** Custom build (hq-ask): the standing «Ask HQ» chat questions go to, while it stays open. */
+    hqAskSessionId?: string | null
+    /** Custom build (hq-voice-prompts): a finished dictation opens a preview to pick what it becomes. */
+    hqVoicePromptsEnabled?: boolean
+    /** Custom build (hq-plus-ui): HQ events land in HQ+'s feed instead of popping up; default on. */
+    hqPlusFeedInsteadOfPopups?: boolean
+    /** Custom build (hq-plus-journal): HQ+'s journal follows Orca+'s records; off stops it. Default on. */
+    hqPlusJournalEnabled?: boolean
+    /** Custom build (hq-request-ledger): the request ledger — off, in shadow (reads the cards into
+     *  conversations beside them, changes nothing shown) or on (one card per Slack conversation in
+     *  place of the mention cards). Default on since 03.11 (hq-ledger-mode). */
+    hqLedger?: 'off' | 'shadow' | 'on'
+    /** Custom build (hq-open-loops): the open-loop detector is off or reports what it finds
+     *  to the HQ+ journal; default report (hq-open-loops-mode). */
+    hqOpenLoops?: HqOpenLoopsMode
+    /** Custom build (slack-notifications, owner 03.11): agent updates posted to Slack by the bot;
+     *  off unless turned on. */
+    slackAgentUpdates?: boolean
+    /** Custom build (hq-plus-sessions): the session dispatcher is off, only writes what it would do,
+     *  or continues, opens and queues chats itself; default report. */
+    hqSessionDispatcher?: 'off' | 'report' | 'on'
+    /** Custom build (hq-handoff-auto): a chat's handoff starts the new chat by itself, whatever the
+     *  dispatcher's mode; default on. */
+    hqHandoffAutoStart?: boolean
+    /** Custom build (hq-read-aloud): speed, voice and auto-reading of the chat's «Read aloud». */
+    hqReadAloud?: { rate: number; voiceURI: string | null; auto: boolean }
+    /** Custom build (hq-night-shift): hour the night shift starts tasks queued «Tonight»; default 23. */
+    hqNightShiftHour?: number
+    /** Custom build (chat-auto-effort): each message to a Claude chat picks medium, high or xhigh effort. */
+    nativeChatAutoEffort?: boolean
+    /** Custom build (quiet-hours): no phone or Slack alerts but urgent ones; unset or null = off. */
+    orcaPlusQuietHours?: OrcaPlusQuietHours | null
   }
