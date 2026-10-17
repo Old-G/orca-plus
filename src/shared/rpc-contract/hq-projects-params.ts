@@ -29,6 +29,11 @@ export const HqVoiceRewriteParams = z.object({
   text: z.string().min(1).max(20_000)
 })
 export const HqVoiceIdeaParams = z.object({ text: z.string().min(1).max(20_000) })
+/** Custom build (hq-read-aloud): one piece of an answer to speak. */
+export const HqReadAloudSpeechParams = z.object({
+  text: z.string().min(1).max(4000),
+  voice: z.string().min(1).max(40)
+})
 
 /** Custom build (hq-slack-scout): one Slack-scout draft by its `<channel>:<ts>` id. */
 export const HqSlackDraftRefParams = z.object({ id: z.string().min(1).max(200) })
