@@ -6,21 +6,22 @@ export const HQ_ACTIVE_PROJECT_WINDOW_MS = 3 * 24 * 60 * 60 * 1000
 /** Why: the owner returns to a project within the day; anything worked in this recently stays, past the limit. */
 export const HQ_ACTIVE_PROJECT_STAY_MS = 12 * 60 * 60 * 1000
 export const HQ_ACTIVE_PROJECT_LIMIT = 4
-export const HQ_ACTIVE_PROJECT_CHATS = 5
+// Why: the owner wants the chat he works in now, not every read chat of the project (17.10).
+export const HQ_ACTIVE_PROJECT_CHATS = 1
 
 export type HqActiveProject = {
   repoId: string
   projectName: string
   /** Kept by the owner, so it stays even after it goes quiet. */
   kept: boolean
-  /** Its quiet chats, newest first, at most HQ_ACTIVE_PROJECT_CHATS. */
+  /** Its latest quiet chat (at most HQ_ACTIVE_PROJECT_CHATS). */
   items: HqChatItem[]
 }
 
 /** Projects with work in the last 12 hours (all of them), up to a few more from the last days, plus the
- *  kept ones, each with its latest
- *  quiet chats; `quiet` is what stays folded away. Chats that need the user, work or are unread
- *  keep their own groups above. */
+ *  kept ones, each with its latest quiet chat; `quiet` is what stays folded away. Chats that need the
+ *  user, work or are unread keep their own groups above, and a project with one there is not listed
+ *  again here. */
 export function splitHqActiveProjects(
   items: readonly HqChatItem[],
   keptRepoIds: readonly string[],
@@ -43,9 +44,14 @@ export function splitHqActiveProjects(
   const order = [...kept, ...recent].sort(
     (a, b) => (lastActivity.get(b) ?? 0) - (lastActivity.get(a) ?? 0)
   )
+  // Why: a project whose current chat already shows above would otherwise appear twice.
+  const busy = new Set(items.filter((item) => item.group !== 'quiet').map((item) => item.repoId))
   const shown = new Set<string>()
   const active: HqActiveProject[] = []
   for (const repoId of order) {
+    if (busy.has(repoId) && !kept.has(repoId)) {
+      continue
+    }
     const chats = items
       .filter((item) => item.repoId === repoId && item.group === 'quiet')
       .sort((a, b) => b.sortAt - a.sortAt)
