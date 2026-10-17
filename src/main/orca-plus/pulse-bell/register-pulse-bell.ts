@@ -16,6 +16,7 @@ import {
 } from '../../../shared/pulse-bell'
 import type { PulseInboxItem } from '../../../shared/pulse-types'
 import { onPulseChanged } from '../pulse/pulse-change-events'
+import { startHqClickUpWaitingReplies } from '../../hq-today/hq-clickup-waiting-replies'
 import { bindAgentFinishedInbox, clearAgentFinished } from './pulse-bell-agent-finished'
 import { createWaitingAgentsTracker } from './pulse-bell-waiting-agents'
 import { readPulseBellInputs } from './pulse-bell-input-validation'
@@ -30,7 +31,10 @@ import {
   startHqClickUpRequests
 } from '../../hq-today/hq-clickup-requests'
 import {
+  getClickUpTask,
+  getClickUpViewer,
   getClickUpViewerId,
+  listClickUpCommentReplies,
   listClickUpTaskComments,
   listClickUpTasks
 } from '../../clickup/clickup-tasks'
@@ -135,6 +139,26 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
     markDelivered: (id) => void runtime.pulseMarkWaitingReplyDelivered(id),
     deliver: deliverWaitingReply,
     onChanged: onPulseChanged
+  })
+  // Custom build (hq-clickup-waiting): answers to questions asked in ClickUp comments, the same way.
+  const clickUpTaskIds = new Map<string, string>()
+  startHqClickUpWaitingReplies({
+    listOpen: () => runtime.pulseListWaitings({ status: 'open' }),
+    taskId: async (ref) => {
+      const known = clickUpTaskIds.get(ref)
+      if (known) {
+        return known
+      }
+      const id = (await getClickUpTask(ref))?.id ?? null
+      if (id) {
+        clickUpTaskIds.set(ref, id)
+      }
+      return id
+    },
+    listComments: listClickUpTaskComments,
+    listReplies: listClickUpCommentReplies,
+    viewer: getClickUpViewer,
+    recordReply: (id, reply) => runtime.pulseRecordWaitingReply(id, reply)
   })
 
   let timer: ReturnType<typeof setTimeout> | null = null
