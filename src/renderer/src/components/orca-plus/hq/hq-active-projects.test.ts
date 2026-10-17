@@ -43,7 +43,7 @@ function chat(
 }
 
 describe('splitHqActiveProjects', () => {
-  it('keeps the latest read chats of projects worked in lately, newest project first', () => {
+  it('keeps only the latest read chat of each project worked in lately, newest project first', () => {
     const items = [
       chat('a1', 'a', NOW - 1 * DAY),
       chat('a2', 'a', NOW - 2 * DAY),
@@ -53,19 +53,19 @@ describe('splitHqActiveProjects', () => {
     const { active, quiet } = splitHqActiveProjects(items, [], NOW)
     expect(active.map((project) => [project.repoId, project.items.map((i) => i.key)])).toEqual([
       ['b', ['b1']],
-      ['a', ['a1', 'a2']]
+      ['a', ['a1']]
     ])
-    expect(quiet.map((item) => item.key)).toEqual(['old'])
+    expect(quiet.map((item) => item.key)).toEqual(['a2', 'old'])
   })
 
-  it('beyond the last 12 hours shows at most four projects, and five chats each; the rest stays quiet', () => {
+  it('beyond the last 12 hours shows at most four projects, one chat each; the rest stays quiet', () => {
     const items = ['p1', 'p2', 'p3', 'p4', 'p5'].flatMap((repo, index) =>
       Array.from({ length: 6 }, (_, n) => chat(`${repo}-${n}`, repo, NOW - DAY - index * 1000 - n))
     )
     const { active, quiet } = splitHqActiveProjects(items, [], NOW)
     expect(active.map((project) => project.repoId)).toEqual(['p1', 'p2', 'p3', 'p4'])
-    expect(active.every((project) => project.items.length === 5)).toBe(true)
-    expect(quiet).toHaveLength(4 + 6)
+    expect(active.every((project) => project.items.length === 1)).toBe(true)
+    expect(quiet).toHaveLength(4 * 5 + 6)
   })
 
   it('keeps every project worked in during the last 12 hours, past the limit of four', () => {
@@ -85,6 +85,17 @@ describe('splitHqActiveProjects', () => {
       ['c', true]
     ])
     expect(quiet).toEqual([])
+  })
+
+  it('does not list a project again when its current chat already shows above', () => {
+    const items = [
+      chat('working', 'a', NOW, 'working'),
+      chat('older', 'a', NOW - 2 * 60 * 60 * 1000),
+      chat('b1', 'b', NOW - 1000)
+    ]
+    const { active, quiet } = splitHqActiveProjects(items, [], NOW)
+    expect(active.map((project) => project.repoId)).toEqual(['b'])
+    expect(quiet.map((item) => item.key)).toEqual(['older'])
   })
 
   it('leaves chats that need the user, work or are unread in their own groups', () => {
