@@ -19151,7 +19151,8 @@
     "outgoingApproval": {
       "editLabel": "Text to send",
       "sendEdited": "Send edited",
-      "cancelEdit": "Cancel"
+      "cancelEdit": "Cancel",
+      "footer": "Add the footer"
     },
     "pulseBell": {
       "title": "Inbox",
@@ -19612,7 +19613,10 @@
         "sentInThread": "In a thread",
         "openChat": "Open chat",
         "collapse": "Collapse",
-        "expand": "Show the whole message"
+        "expand": "Show the whole message",
+        "findRef": "ref…",
+        "findRefLabel": "Find a message by its ref",
+        "byTask": "By task"
       },
       "history": {
         "today": "Today",

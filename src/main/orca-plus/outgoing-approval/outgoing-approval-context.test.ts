@@ -55,11 +55,17 @@ const scout = indexHqSlackScout(
   })
 )
 
-function sources(names: Record<string, string> = {}): OutgoingContextSources {
+function sources(
+  names: Record<string, string> = {},
+  more: Partial<OutgoingContextSources> = {}
+): OutgoingContextSources {
   return {
     slackName: async (id) => names[id] ?? null,
     scout: async () => scout,
-    chatName: (id) => (id === 'claude_1' ? 'Docs Hub: переезд' : null)
+    chatName: (id) => (id === 'claude_1' ? 'Docs Hub: переезд' : null),
+    lastTask: () => null,
+    clickUpTask: async () => null,
+    ...more
   }
 }
 
@@ -67,7 +73,12 @@ describe('describeOutgoingDraft', () => {
   it('names a channel through Slack and the chat that sends to it', async () => {
     expect(
       await describeOutgoingDraft(draft('C0AAAAAAAAA', {}), sources({ C0AAAAAAAAA: '#acme-hub' }))
-    ).toEqual({ chatName: 'Docs Hub: переезд', targetName: '#acme-hub', replyingTo: null })
+    ).toEqual({
+      chatName: 'Docs Hub: переезд',
+      task: null,
+      targetName: '#acme-hub',
+      replyingTo: null
+    })
   })
 
   it('falls back to the scout for a DM the bot cannot see, with the message the thread answers', async () => {
@@ -85,7 +96,43 @@ describe('describeOutgoingDraft', () => {
 
   it('names nothing but the chat for a call that is not Slack', async () => {
     expect(await describeOutgoingDraft(draft('86abc', {}, 'ClickUp'), sources())).toEqual({
-      chatName: 'Docs Hub: переезд'
+      chatName: 'Docs Hub: переезд',
+      task: null
     })
+  })
+
+  it('finds the task a message names and asks ClickUp for its link and name', async () => {
+    const message = { ...draft('C1', {}), body: 'Петя, по DEV-18114: эталоны готовы?' }
+    const context = await describeOutgoingDraft(
+      message,
+      sources(
+        {},
+        {
+          clickUpTask: async (id) =>
+            id === 'DEV-18114'
+              ? { id, url: 'https://app.clickup.com/t/9/DEV-18114', name: 'T3-D1 эталоны' }
+              : null
+        }
+      )
+    )
+    expect(context.task).toEqual({
+      id: 'DEV-18114',
+      url: 'https://app.clickup.com/t/9/DEV-18114',
+      name: 'T3-D1 эталоны'
+    })
+  })
+
+  it("keeps to the chat's last task when the message names none, and a comment to its own task", async () => {
+    const last = { id: 'DEV-7', url: 'https://app.clickup.com/t/9/DEV-7', name: 'Seven' }
+    expect(
+      (await describeOutgoingDraft(draft('C1', {}), sources({}, { lastTask: () => last }))).task
+    ).toEqual(last)
+    const comment = draft('DEV-8', {}, 'ClickUp')
+    if (comment.call) {
+      comment.call.operation = 'create comment'
+    }
+    expect(
+      (await describeOutgoingDraft(comment, sources({}, { lastTask: () => last }))).task?.id
+    ).toBe('DEV-8')
   })
 })

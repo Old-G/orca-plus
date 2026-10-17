@@ -1,7 +1,7 @@
 // Custom build (hq-sent-history): what one approved call in «Done for you» was — where it went, in
 // which thread, from which project and chat — with the chat and the Slack thread one click away.
 import { useState } from 'react'
-import { ExternalLink, FolderGit2, MessagesSquare } from 'lucide-react'
+import { ExternalLink, FolderGit2, ListTodo, MessagesSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { slackThreadUrl } from '../../../../../shared/hq-waiting-replies'
@@ -67,6 +67,17 @@ export function HqDoneSentDetails({
             <span className="truncate">«{names.chat}»</span>
           </span>
         ) : null}
+        {/* Custom build (outgoing-footer): the task it was about, and the ref its footer carries. */}
+        {sent.taskId ? (
+          <span className="flex min-w-0 items-center gap-1" title={sent.taskName ?? undefined}>
+            <ListTodo className="size-3 shrink-0" aria-hidden />
+            <span className="truncate">
+              {sent.taskId}
+              {sent.taskName ? ` · ${sent.taskName}` : ''}
+            </span>
+          </span>
+        ) : null}
+        {sent.ref ? <span className="font-mono">ref {sent.ref}</span> : null}
         <span className="ml-auto flex items-center gap-0.5">
           {sessionId && worktreeId && tabId ? (
             <Button
@@ -77,6 +88,17 @@ export function HqDoneSentDetails({
             >
               <MessagesSquare />
               {translate('auto.hq.done.openChat', 'Open chat')}
+            </Button>
+          ) : null}
+          {sent.taskUrl ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => void window.api.shell.openUrl(sent.taskUrl ?? '')}
+            >
+              <ExternalLink />
+              ClickUp
             </Button>
           ) : null}
           {url ? (

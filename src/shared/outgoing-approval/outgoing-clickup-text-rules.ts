@@ -32,3 +32,20 @@ export function curlRewritesClickUpTaskText(segment: string): boolean {
   const bodies = [...segment.matchAll(/(?:\s-d|--data[\w-]*|--json)\s*(?:'([^']*)'|(\S+))/g)]
   return bodies.some((match) => match[1] === undefined || TASK_TEXT_IN_BODY.test(match[1]))
 }
+
+const COMMENT_TOOLS = new Set(['clickup_create_comment', 'clickup_create_task_comment'])
+const USER_MENTION = /#user_mention#\d+/
+
+/** Custom build (outgoing-footer): a ClickUp comment that @mentions, assigns or notifies someone is
+ *  a message to a person — held like a Slack one. A comment to nobody (a writeup) passes. */
+export function clickUpCommentToAPerson(server: string, tool: string, input: unknown): boolean {
+  if (!/clickup/i.test(server) || !COMMENT_TOOLS.has(tool) || !input || typeof input !== 'object') {
+    return false
+  }
+  const text = Reflect.get(input, 'comment_text')
+  return (
+    (typeof text === 'string' && USER_MENTION.test(text)) ||
+    typeof Reflect.get(input, 'assignee') === 'number' ||
+    Reflect.get(input, 'notify_all') === true
+  )
+}
