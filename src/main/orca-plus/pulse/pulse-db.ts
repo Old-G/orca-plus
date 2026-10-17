@@ -13,11 +13,13 @@ import type {
   PulseWaitingReply,
   PulseWaitingStatus
 } from '../../../shared/pulse-types'
+import type { OutgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
 import { PulseCore, type PulseClock } from './pulse-core'
 import {
   decideDraft,
   listDecisions,
   logDecision,
+  setDecisionContext,
   setDecisionMirror,
   type PulseDecisionListOptions
 } from './pulse-decisions'
@@ -93,8 +95,13 @@ export class PulseDb {
   listDrafts(status?: PulseDraftStatus) {
     return listDrafts(this.core, status)
   }
-  decideDraft(id: string, outcome: PulseApprovalOutcome, editedBody?: string) {
-    return decideDraft(this.core, id, outcome, editedBody)
+  decideDraft(
+    id: string,
+    outcome: PulseApprovalOutcome,
+    editedBody?: string,
+    sentContext?: OutgoingSentContext | null
+  ) {
+    return decideDraft(this.core, id, outcome, editedBody, sentContext ?? null)
   }
   markDraftDelivery(id: string, status: 'sent' | 'failed') {
     return markDraftDelivery(this.core, id, status)
@@ -111,6 +118,9 @@ export class PulseDb {
   }
   setDecisionMirror(id: string, path: string) {
     setDecisionMirror(this.core, id, path)
+  }
+  setDecisionContext(id: string, context: OutgoingSentContext) {
+    setDecisionContext(this.core, id, context)
   }
 
   addInboxItem(input: PulseInboxInput) {

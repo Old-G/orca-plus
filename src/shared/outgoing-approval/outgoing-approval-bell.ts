@@ -22,7 +22,7 @@ export type OutgoingApprovalContext = {
   chatName?: string | null
 }
 
-function lastPathSegment(path: string | null | undefined): string | null {
+export function lastPathSegment(path: string | null | undefined): string | null {
   const segments = path?.split(/[\\/]/) ?? []
   return segments.findLast(Boolean) ?? null
 }
