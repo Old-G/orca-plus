@@ -115,7 +115,24 @@ ALTER TABLE waitings ADD COLUMN reply_delivered_at INTEGER;
 // Custom build (hq-sent-history): where an approved call went and who sent it, as JSON.
 const V4 = `ALTER TABLE decisions ADD COLUMN context TEXT;`
 
-const STEPS: readonly string[] = [V1, V2, V3, V4]
+// Custom build (hq-feed): HQ's feed of outside events, one row per thing, updated in place.
+const V5 = `
+CREATE TABLE IF NOT EXISTS feed (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  at INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT,
+  url TEXT,
+  project TEXT,
+  person TEXT,
+  seen_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS feed_at ON feed(at);
+`
+
+const STEPS: readonly string[] = [V1, V2, V3, V4, V5]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 
