@@ -193,6 +193,18 @@ describe('OutgoingApprovalGate', () => {
     })
   })
 
+  it('ends an approved message with its footer, without calling it an edit', async () => {
+    const { gate } = setup()
+    const id = pendingId(gate.submit(slackHook()))
+    gate.decide(id, 'approved', undefined, undefined, { footer: '↳ hub · ref abc123' })
+    const answer = output(await gate.wait(id))
+    expect(answer.updatedInput).toEqual({
+      channel_id: 'D1',
+      message: 'Привет, Анна\n\n_↳ hub · ref abc123_'
+    })
+    expect(answer.permissionDecisionReason).toBe('The user approved this action in the Orca+ bell.')
+  })
+
   it('denies a rejected call and tells the agent not to retry', async () => {
     const { gate, db } = setup()
     const id = pendingId(gate.submit(slackHook()))
