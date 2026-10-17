@@ -51,7 +51,7 @@ describe('sent history', () => {
       outgoingSentContext(
         draft,
         { targetName: 'DM with Петя', chatName: 'Выгрузка', replyingTo: 'Петя: «когда?»' },
-        'wt-1'
+        { worktreeId: 'wt-1' }
       )
     )
     expect(db.listDecisions()[0]?.sentContext).toMatchObject({
