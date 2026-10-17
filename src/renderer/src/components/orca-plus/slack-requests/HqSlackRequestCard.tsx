@@ -7,6 +7,7 @@ import {
   type HqSlackRequestKind,
   type HqSlackScoutDraft
 } from '../../../../../shared/hq-slack-scout'
+import { ExternalLink } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -251,7 +252,7 @@ export function HqSlackRequestCard({
         <Badge variant="secondary" className="shrink-0">
           {kindLabel(kind)}
         </Badge>
-        <span className="min-w-0 flex-1 truncate text-[13px]">
+        <span className="min-w-0 flex-1 truncate text-sm">
           {draft.author ? <span className="font-medium">{draft.author}: </span> : null}
           {draft.ask || draft.title}
         </span>
@@ -293,7 +294,7 @@ export function HqSlackRequestCard({
             key={key}
             type="button"
             size="xs"
-            variant={index === 0 ? 'default' : 'ghost'}
+            variant={index === 0 ? 'default' : 'outline'}
             disabled={busy}
             onClick={handlers[key]}
           >
@@ -307,6 +308,7 @@ export function HqSlackRequestCard({
             size="xs"
             onClick={() => void window.api.shell.openUrl(draft.permalink)}
           >
+            <ExternalLink />
             {isClickUp
               ? translate('auto.hq.clickup.task', 'ClickUp task')
               : translate('auto.hq.slack.thread', 'Slack thread')}
