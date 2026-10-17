@@ -1,7 +1,7 @@
 import { useNativeChatComposerEditSession } from './use-native-chat-composer-edit-session'
 import { useNativeChatComposerNotice } from './use-native-chat-composer-notice'
 import { useNativeChatMobileHoldNotice } from './use-native-chat-mobile-hold-notice'
-import { forwardRef, useCallback, useState, useRef, useImperativeHandle } from 'react'
+import { forwardRef, useCallback, useMemo, useState, useRef, useImperativeHandle } from 'react'
 import { useNativeChatComposerInterrupt } from './use-native-chat-composer-interrupt'
 import { useNativeChatContextUsageSummary } from './use-native-chat-context-usage-summary'
 import { useNativeChatMentionFiles } from './use-native-chat-mention-files'
@@ -92,6 +92,12 @@ export const NativeChatComposerPane = forwardRef<ComposerHandle, C.NativeChatCom
       source: recallSource,
       inputRef: textareaRef
     })
+    // Custom build (hq-read-aloud): «Read aloud» reads from the transcript the recall already gets.
+    const recallMessages = recallSource?.messages
+    const readAloud = useMemo(
+      () => (recallMessages ? { key: paneKey, messages: recallMessages } : undefined),
+      [paneKey, recallMessages]
+    )
     const { cancelPendingSends, trackPendingSend } = useNativeChatSendLifecycle(
       terminalTabId,
       targetPtyId,
@@ -412,6 +418,7 @@ export const NativeChatComposerPane = forwardRef<ComposerHandle, C.NativeChatCom
           contextUsage={contextUsageSummary}
           sessionOptionsPickerRequest={structuredTransport?.optionPickerRequest ?? null}
           agent={agent}
+          readAloud={readAloud}
           {...fieldOverrides}
         />
       </div>

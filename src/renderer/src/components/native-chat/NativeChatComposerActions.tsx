@@ -14,6 +14,10 @@ import { NativeChatComposerGoalChip } from './NativeChatComposerGoalChip'
 import { NativeChatContextUsageRing } from './NativeChatContextUsageRing'
 import type { NativeChatContextUsageSummary } from './native-chat-context-usage-summary'
 import type { NativeChatOptionPickerRequest } from './native-chat-composer-types'
+import {
+  NativeChatReadAloudButton,
+  type NativeChatReadAloudSource
+} from '../orca-plus/read-aloud/NativeChatReadAloudButton'
 
 export type NativeChatComposerActionsProps = {
   editSession?: { cancel: () => void }
@@ -45,6 +49,8 @@ export type NativeChatComposerActionsProps = {
   contextUsage?: NativeChatContextUsageSummary | null
   /** The chat's agent, whose permission modes the picker describes. */
   agent?: string
+  /** Custom build (hq-read-aloud): the transcript «Read aloud» reads the latest answer from. */
+  readAloud?: NativeChatReadAloudSource
 }
 
 // Memoized: typing re-renders the composer per keystroke, and these controls rarely change with it.
@@ -71,7 +77,8 @@ export const NativeChatComposerActions = memo(function NativeChatComposerActions
   onExitGoalMode,
   contextUsage,
   focusComposer,
-  agent
+  agent,
+  readAloud
 }: NativeChatComposerActionsProps): React.JSX.Element {
   useUiLanguageRevision()
   const stops = isWorking
@@ -160,6 +167,7 @@ export const NativeChatComposerActions = memo(function NativeChatComposerActions
           pickerRequest={sessionOptionsPickerRequest}
           focusComposer={focusComposer}
         />
+        {readAloud ? <NativeChatReadAloudButton source={readAloud} isWorking={isWorking} /> : null}
         {contextUsage ? <NativeChatContextUsageRing usage={contextUsage} /> : null}
         <Tooltip>
           <TooltipTrigger asChild>

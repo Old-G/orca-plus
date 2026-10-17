@@ -12,6 +12,7 @@ import type {
 import { NativeChatMentionMenu, NativeChatPickerMenu } from './NativeChatAutocompleteMenus'
 import type { NativeChatMentionFiles } from './use-native-chat-mention-files'
 import { NativeChatComposerActions } from './NativeChatComposerActions'
+import type { NativeChatReadAloudSource } from '../orca-plus/read-aloud/NativeChatReadAloudButton'
 import { NativeChatComposerNotices } from './NativeChatComposerNotices'
 import type { NativeChatComposerNotice } from './native-chat-composer-notice'
 import type { NativeChatContextUsageSummary } from './native-chat-context-usage-summary'
@@ -87,6 +88,8 @@ export type NativeChatComposerFieldProps = {
   sessionOptionsPickerRequest?: NativeChatOptionPickerRequest | null
   goalMode?: NativeChatComposerGoalMode
   agent?: string
+  /** Custom build (hq-read-aloud). */
+  readAloud?: NativeChatReadAloudSource
 }
 
 export type NativeChatComposerImageAttachment = {
@@ -169,7 +172,8 @@ export function NativeChatComposerField({
   contextUsage,
   sessionOptionsPickerRequest,
   goalMode,
-  agent
+  agent,
+  readAloud
 }: NativeChatComposerFieldProps): React.JSX.Element {
   const draftNotSaved = useNativeChatComposerDraftUnsaved(draftScopeKey)
   const optionCount =
@@ -383,6 +387,7 @@ export function NativeChatComposerField({
                 focusComposer={focusComposer}
                 onExitGoalMode={goalMode?.active ? exitGoalMode : undefined}
                 {...(agent ? { agent } : {})}
+                {...(readAloud ? { readAloud } : {})}
               />
             </div>
           </div>
