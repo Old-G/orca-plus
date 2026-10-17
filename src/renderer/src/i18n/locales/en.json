@@ -19684,7 +19684,10 @@
         "title": "Voice prompt",
         "description": "Pick what your dictation becomes, edit it, and insert it where the cursor was. Nothing is sent from here.",
         "settingTitle": "Voice Prompts",
-        "settingDescription": "After dictation, pick what it becomes before it is inserted: as said, a brief for an agent, a message in your tone, a ClickUp task or an idea for HQ. Start with «для агента», «человеку», «в кликап» or «идея» to pick it by voice."
+        "settingDescription": "After dictation, pick what it becomes before it is inserted: as said, a brief for an agent, a message in your tone, a ClickUp task or an idea for HQ. Start with «для агента», «человеку», «в кликап» or «идея» to pick it by voice.",
+        "taskCreated": "Task created in ClickUp.",
+        "creatingTask": "Creating…",
+        "createTask": "Create in ClickUp"
       }
     },
     "claudeSubscriptions": {
