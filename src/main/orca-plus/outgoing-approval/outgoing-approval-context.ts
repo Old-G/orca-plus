@@ -4,12 +4,20 @@
 import type { HqSlackScoutIndex } from '../../hq-today/hq-slack-scout-index'
 import type { OutgoingApprovalContext } from '../../../shared/outgoing-approval/outgoing-approval-bell'
 import { readInputString } from '../../../shared/outgoing-approval/outgoing-action'
+import {
+  findOutgoingTask,
+  type OutgoingTaskRef
+} from '../../../shared/outgoing-approval/outgoing-footer'
 import type { PulseDraft } from '../../../shared/pulse-types'
 
 export type OutgoingContextSources = {
   slackName: (id: string) => Promise<string | null>
   scout: () => Promise<HqSlackScoutIndex | null>
   chatName: (agentSessionId: string) => string | null
+  /** Custom build (outgoing-footer): the task this chat's last message was about. */
+  lastTask: (agentSessionId: string) => OutgoingTaskRef | null
+  /** The task's link and name from ClickUp; null when ClickUp cannot say. */
+  clickUpTask: (id: string) => Promise<OutgoingTaskRef | null>
 }
 
 const QUOTE_MAX = 80
@@ -33,14 +41,37 @@ async function slackTargetName(
     : names.map((name, index) => name ?? ids[index]).join(', ')
 }
 
+/** Custom build (outgoing-footer): a comment's own task, else one the text names, else the chat's. */
+async function outgoingTask(
+  draft: PulseDraft,
+  chatName: string | null,
+  sources: OutgoingContextSources
+): Promise<OutgoingTaskRef | null> {
+  const call = draft.call
+  const commentTask =
+    call && /clickup/i.test(call.service) && /\bcomment\b/.test(call.operation) && draft.target
+      ? { id: draft.target, url: null, name: null }
+      : null
+  const found =
+    commentTask ??
+    findOutgoingTask(draft.body) ??
+    (call?.agentSessionId ? sources.lastTask(call.agentSessionId) : null) ??
+    findOutgoingTask(chatName)
+  if (!found || (found.url && found.name)) {
+    return found
+  }
+  return (await sources.clickUpTask(found.id).catch(() => null)) ?? found
+}
+
 export async function describeOutgoingDraft(
   draft: PulseDraft,
   sources: OutgoingContextSources
 ): Promise<OutgoingApprovalContext> {
   const call = draft.call
   const chatName = call?.agentSessionId ? sources.chatName(call.agentSessionId) : null
+  const task = await outgoingTask(draft, chatName, sources)
   if (!call || !/slack/i.test(call.service) || !draft.target) {
-    return { chatName }
+    return { chatName, task }
   }
   const scout = await sources.scout().catch(() => null)
   const threadTs = readInputString(call.toolInput, 'thread_ts')
@@ -51,6 +82,7 @@ export async function describeOutgoingDraft(
     : null
   return {
     chatName,
+    task,
     targetName: await slackTargetName(draft.target, sources, scout),
     replyingTo
   }

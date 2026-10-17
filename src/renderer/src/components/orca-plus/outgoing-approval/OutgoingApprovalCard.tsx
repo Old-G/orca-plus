@@ -5,10 +5,12 @@ import { TriangleAlert } from 'lucide-react'
 import type { PulseApprovalOutcome, PulseInboxItem } from '../../../../../shared/pulse-types'
 import { OUTGOING_APPROVAL_ACTION } from '../../../../../shared/outgoing-approval/outgoing-approval-bell'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
+import { useOutgoingApprovalOptions } from './use-outgoing-approval-options'
 
 /** The card body is `<what · where>\n<full text>`; see outgoingApprovalBellItem. */
 export function splitOutgoingApprovalBody(body: string | null): { head: string; text: string } {
@@ -25,6 +27,8 @@ function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): React.JSX
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [withFooter, setWithFooter] = useState(true)
+  const options = useOutgoingApprovalOptions(item.refId)
   const { head, text } = splitOutgoingApprovalBody(item.body)
   const canEdit = item.actions.some((action) => action.id === OUTGOING_APPROVAL_ACTION.edit)
 
@@ -35,7 +39,7 @@ function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): React.JSX
     setBusy(true)
     setError(null)
     window.api.outgoingApproval
-      .decide(item.refId, outcome, editedText)
+      .decide(item.refId, outcome, editedText, { footer: withFooter })
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
       .finally(() => setBusy(false))
   }
@@ -71,6 +75,19 @@ function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): React.JSX
           onChange={(event) => setEditing(event.target.value)}
         />
       )}
+      {/* Custom build (outgoing-footer): the line Approve adds, which the owner can leave off. */}
+      {options.footer ? (
+        <label className="flex items-start gap-1.5 text-xs text-muted-foreground">
+          <Checkbox
+            checked={withFooter}
+            disabled={busy}
+            onCheckedChange={(next) => setWithFooter(next === true)}
+            className="mt-px"
+            aria-label={translate('auto.outgoingApproval.footer', 'Add the footer')}
+          />
+          <span className="min-w-0 break-words [overflow-wrap:anywhere]">{options.footer}</span>
+        </label>
+      ) : null}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
       <div className="flex justify-end gap-1">
         {editing === null ? (

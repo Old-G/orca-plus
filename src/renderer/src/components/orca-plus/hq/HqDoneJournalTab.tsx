@@ -11,11 +11,14 @@ import { formatShortTimeAgo } from '@/lib/short-time-ago'
 import {
   buildHqDoneJournal,
   hqDoneProjects,
+  hqDoneTasks,
+  matchesHqDoneRef,
   type HqDoneEntry,
   type HqDoneLink,
   type HqDoneWhat
 } from './hq-done-journal'
 import type { HqChatItem } from './hq-chat-list'
+import { HqDoneFilters, NO_HQ_DONE_FILTER } from './HqDoneFilters'
 import { HqDoneSentDetails } from './HqDoneSentDetails'
 import { hqSentNames } from './hq-sent-names'
 import { useHqChatList } from './use-hq-chat-list'
@@ -176,13 +179,19 @@ export function HqDoneJournalTab(): React.JSX.Element {
   const { requests, error, refresh } = useHqRequestDecisions()
   const decisions = pulse.status === 'ready' ? pulse.pulse.decisions : null
   const { items: chats } = useHqChatList()
-  const [project, setProject] = useState<string | null>(null)
+  const [filter, setFilter] = useState(NO_HQ_DONE_FILTER)
   const all = useMemo(
     () => buildHqDoneJournal(requests, decisions ?? [], now),
     [requests, decisions, now]
   )
   const projects = useMemo(() => hqDoneProjects(all), [all])
-  const entries = project ? all.filter((entry) => entry.sent?.project === project) : all
+  const tasks = useMemo(() => hqDoneTasks(all), [all])
+  const entries = all.filter(
+    (entry) =>
+      (!filter.project || entry.sent?.project === filter.project) &&
+      (!filter.task || entry.sent?.taskId === filter.task) &&
+      matchesHqDoneRef(entry, filter.ref)
+  )
   return (
     <div className="scrollbar-sleek flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-4">
       <p className="text-xs text-muted-foreground">
@@ -191,31 +200,8 @@ export function HqDoneJournalTab(): React.JSX.Element {
           'What Orca+ did in your name over the last week: tasks it made or took, replies, and messages sent after your Approve.'
         )}
       </p>
-      {projects.length > 0 ? (
-        <div
-          className="flex flex-wrap gap-1.5"
-          aria-label={translate('auto.hq.done.byProject', 'By project')}
-        >
-          <Button
-            type="button"
-            size="xs"
-            variant={project === null ? 'secondary' : 'ghost'}
-            onClick={() => setProject(null)}
-          >
-            {translate('auto.hq.done.allProjects', 'All')}
-          </Button>
-          {projects.map((name) => (
-            <Button
-              key={name}
-              type="button"
-              size="xs"
-              variant={project === name ? 'secondary' : 'ghost'}
-              onClick={() => setProject(project === name ? null : name)}
-            >
-              {name}
-            </Button>
-          ))}
-        </div>
+      {projects.length > 0 || tasks.length > 0 ? (
+        <HqDoneFilters projects={projects} tasks={tasks} filter={filter} onChange={setFilter} />
       ) : null}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
       {entries.length === 0 ? (
