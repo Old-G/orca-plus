@@ -16,6 +16,7 @@ import type {
   HqVoiceTaskResult
 } from '../../shared/hq-voice-prompts'
 import type { HqReadAloudSpeechResult } from '../../shared/hq-read-aloud'
+import type { HqReportsResult } from '../../shared/hq-reports'
 import type {
   HqSlackScoutCreateResult,
   HqSlackScoutEdit,
@@ -26,6 +27,8 @@ export type HqProjectsApi = {
   list: () => Promise<HqProjectPagesResult>
   wikiTree: () => Promise<HqWikiTreeResult>
   wikiPage: (path: string) => Promise<HqWikiPageResult>
+  /** Custom build (hq-reports): the reports in HQ's report folders, newest first. */
+  reports: () => Promise<HqReportsResult>
   map: () => Promise<HqProjectMapResult>
   projectDiagram: (repoId: string) => Promise<HqProjectDiagramResult>
   /** Cached for two minutes in main; `refresh` reads again. */
@@ -72,6 +75,13 @@ export type HqProjectsApi = {
   onRunBellAction?: (
     listener: (request: { itemId: string; actionId: string }) => void
   ) => () => void
+  /** Web client only: hands the decisions to the Mac's window, which starts the HQ chat. */
+  reportDecisionsOnDesktop?: (request: {
+    path: string
+    text: string
+  }) => Promise<{ ok: true } | { ok: false; error: string }>
+  /** Custom build (hq-reports): decisions on a report dictated on the phone, for an HQ chat here. */
+  onRunReportDecisions?: (listener: (request: { path: string; text: string }) => void) => () => void
   draftClickUpReply: (ref: {
     id: string
   }) => Promise<{ ok: true; text: string } | { ok: false; error: string }>
