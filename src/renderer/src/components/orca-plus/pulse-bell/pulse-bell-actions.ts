@@ -30,6 +30,7 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { openChatInShownHq } from '../hq/hq-chat-open'
 import { openHqScreen } from '../hq/hq-view'
+import { HQ_PROMISE_DUE_KIND, HQ_PROMISE_OPEN_ACTION } from '../../../../../shared/hq-promises'
 import {
   HQ_SLACK_DIGEST_KIND,
   HQ_SLACK_DIGEST_OPEN_ACTION
@@ -90,6 +91,11 @@ export function openPulseBellItemTarget(item: PulseInboxItem): boolean {
     openHqScreen('today')
     return true
   }
+  // Custom build (hq-promises): a promise due soon leads to Notes, where it sits under «on me».
+  if (item.kind === HQ_PROMISE_DUE_KIND) {
+    openHqScreen('waiting')
+    return true
+  }
   return false
 }
 
@@ -143,6 +149,9 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
   }
   if (item.kind === HQ_DEFERRED_KIND && actionId === PULSE_BELL_ACTION.open) {
     openHqScreen(HQ_DEFERRED_TAB)
+  }
+  if (item.kind === HQ_PROMISE_DUE_KIND && actionId === HQ_PROMISE_OPEN_ACTION) {
+    openHqScreen('waiting')
   }
   // Custom build (hq-scout-digest): the digest leads to HQ → Today, where the requests wait.
   if (item.kind === HQ_SLACK_DIGEST_KIND && actionId === HQ_SLACK_DIGEST_OPEN_ACTION) {
