@@ -51,7 +51,8 @@ describe('HQ Slack scout files', () => {
       lastRunAt: null,
       failedAt: null,
       drafts: [],
-      done: []
+      done: [],
+      quiet: []
     })
   })
 
