@@ -23,6 +23,13 @@ export const HqDraftTaskQuestionsParams = z.object({
   description: z.string().max(50_000)
 })
 
+/** Custom build (hq-voice-prompts): a dictation to rewrite, and an idea to file. */
+export const HqVoiceRewriteParams = z.object({
+  mode: z.enum(['agent', 'person', 'clickup', 'idea']),
+  text: z.string().min(1).max(20_000)
+})
+export const HqVoiceIdeaParams = z.object({ text: z.string().min(1).max(20_000) })
+
 /** Custom build (hq-slack-scout): one Slack-scout draft by its `<channel>:<ts>` id. */
 export const HqSlackDraftRefParams = z.object({ id: z.string().min(1).max(200) })
 
