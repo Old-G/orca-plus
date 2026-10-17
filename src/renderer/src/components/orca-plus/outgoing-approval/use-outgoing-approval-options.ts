@@ -1,12 +1,13 @@
 // Custom build (outgoing-footer): what a held call's card offers beside Approve, asked of main once
 // per card.
 import { useEffect, useState } from 'react'
-import type { OutgoingApprovalOptions } from '../../../../../shared/outgoing-approval/outgoing-approval-options'
-
-const NONE: OutgoingApprovalOptions = { footer: null }
+import {
+  NO_OUTGOING_APPROVAL_OPTIONS,
+  type OutgoingApprovalOptions
+} from '../../../../../shared/outgoing-approval/outgoing-approval-options'
 
 export function useOutgoingApprovalOptions(draftId: string | null): OutgoingApprovalOptions {
-  const [options, setOptions] = useState<OutgoingApprovalOptions>(NONE)
+  const [options, setOptions] = useState<OutgoingApprovalOptions>(NO_OUTGOING_APPROVAL_OPTIONS)
   useEffect(() => {
     if (!draftId) {
       return

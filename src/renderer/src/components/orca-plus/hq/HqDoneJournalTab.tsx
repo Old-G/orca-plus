@@ -44,6 +44,10 @@ function whatLabel(what: HqDoneWhat): string {
       return translate('auto.hq.done.sentEdited', 'Sent with your edits')
     case 'not-sent':
       return translate('auto.hq.done.notSent', 'Not sent')
+    case 'moved-to-clickup':
+      return translate('auto.hq.done.movedToClickUp', 'Moved to ClickUp')
+    case 'moved-to-slack':
+      return translate('auto.hq.done.movedToSlack', 'Moved to Slack')
   }
 }
 

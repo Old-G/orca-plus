@@ -11,6 +11,8 @@ import { formatRelativeTime } from '@/components/activity/activity-thread-presen
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { useOutgoingApprovalOptions } from './use-outgoing-approval-options'
+import { OutgoingApprovalVenue } from './OutgoingApprovalVenue'
+import type { OutgoingApprovalChoice } from '../../../../../shared/outgoing-approval/outgoing-approval-options'
 
 /** The card body is `<what · where>\n<full text>`; see outgoingApprovalBellItem. */
 export function splitOutgoingApprovalBody(body: string | null): { head: string; text: string } {
@@ -28,18 +30,27 @@ function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): React.JSX
   const [editing, setEditing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [withFooter, setWithFooter] = useState(true)
+  const [threadTs, setThreadTs] = useState<string | null>(null)
   const options = useOutgoingApprovalOptions(item.refId)
   const { head, text } = splitOutgoingApprovalBody(item.body)
   const canEdit = item.actions.some((action) => action.id === OUTGOING_APPROVAL_ACTION.edit)
 
-  const decide = (outcome: PulseApprovalOutcome, editedText?: string): void => {
+  const decide = (
+    outcome: PulseApprovalOutcome,
+    editedText?: string,
+    extra: OutgoingApprovalChoice = {}
+  ): void => {
     if (!item.refId) {
       return
     }
     setBusy(true)
     setError(null)
     window.api.outgoingApproval
-      .decide(item.refId, outcome, editedText, { footer: withFooter })
+      .decide(item.refId, outcome, editedText, {
+        footer: withFooter,
+        ...(threadTs ? { threadTs } : {}),
+        ...extra
+      })
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
       .finally(() => setBusy(false))
   }
@@ -88,6 +99,15 @@ function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): React.JSX
           <span className="min-w-0 break-words [overflow-wrap:anywhere]">{options.footer}</span>
         </label>
       ) : null}
+      <OutgoingApprovalVenue
+        options={options}
+        threadTs={threadTs}
+        busy={busy}
+        onThread={setThreadTs}
+        onMove={(moveTo) =>
+          decide(editing === null ? 'approved' : 'edited', editing ?? undefined, { moveTo })
+        }
+      />
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
       <div className="flex justify-end gap-1">
         {editing === null ? (
