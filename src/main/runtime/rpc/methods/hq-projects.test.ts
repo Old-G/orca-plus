@@ -75,7 +75,8 @@ describe('hqProjects RPC methods', () => {
       hqDeferredDismissed: { old: 1 },
       hqTriageDecisions: {},
       hqChatsView: undefined,
-      hqKeptProjectIds: []
+      hqKeptProjectIds: [],
+      hqVoicePromptsEnabled: false
     })
 
     await call('hqProjects.updateSettings', {
@@ -96,6 +97,27 @@ describe('hqProjects RPC methods', () => {
         hqTriageDecisions: { t2: { decision: 'deploy', at: 1 } }
       })
     ).rejects.toThrow(/invalid/i)
+  })
+
+  it("files the phone's dictated idea in the Mac's HQ and refuses an unknown mode", async () => {
+    const hq = mkdtempSync(join(tmpdir(), 'hq-rpc-'))
+    const { call } = setup({ hqPath: hq, hqVoicePromptsEnabled: true })
+    await expect(call('hqProjects.settings')).resolves.toMatchObject({
+      hqVoicePromptsEnabled: true
+    })
+    await expect(
+      call('hqProjects.saveIdea', { text: '# Голос с телефона\nсуть' })
+    ).resolves.toMatchObject({
+      ok: true,
+      path: expect.stringContaining('голос-с-телефона')
+    })
+    await expect(call('hqProjects.createVoiceTask', { text: '# Задача' })).resolves.toEqual({
+      ok: false,
+      error: 'No list_id in slack-scout/config.yaml.'
+    })
+    await expect(call('hqProjects.voiceRewrite', { mode: 'deploy', text: 'x' })).rejects.toThrow(
+      /invalid/i
+    )
   })
 
   it('says so when the host has no HQ service', async () => {
