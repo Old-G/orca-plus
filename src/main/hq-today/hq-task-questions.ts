@@ -45,7 +45,7 @@ export async function generateHqText(
   prompt: string,
   what: {
     emptyResultName: string
-    operation: 'hq-task-questions' | 'hq-clickup-reply' | 'hq-voice-rewrite'
+    operation: 'hq-task-questions' | 'hq-clickup-reply' | 'hq-voice-rewrite' | 'hq-feed-posts'
   },
   deps: HqTextGenerationDeps
 ): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
