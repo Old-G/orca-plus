@@ -109,3 +109,31 @@ export function hqDoneProjects(entries: readonly HqDoneEntry[]): string[] {
   }
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([project]) => project)
 }
+
+/** Custom build (outgoing-footer): the ClickUp tasks the week's messages were about, busiest first. */
+export type HqDoneTask = { id: string; name: string | null }
+
+export function hqDoneTasks(entries: readonly HqDoneEntry[]): HqDoneTask[] {
+  const tasks = new Map<string, HqDoneTask & { count: number }>()
+  for (const entry of entries) {
+    const id = entry.sent?.taskId
+    if (id) {
+      const known = tasks.get(id)
+      tasks.set(id, {
+        id,
+        name: known?.name ?? entry.sent?.taskName ?? null,
+        count: (known?.count ?? 0) + 1
+      })
+    }
+  }
+  return [...tasks.values()].sort((a, b) => b.count - a.count).map(({ id, name }) => ({ id, name }))
+}
+
+/** A message found by the ref its footer carries; a short query matches its start. */
+export function matchesHqDoneRef(entry: HqDoneEntry, query: string): boolean {
+  const ref = query
+    .trim()
+    .toLowerCase()
+    .replace(/^ref\s*/, '')
+  return !ref || (entry.sent?.ref?.startsWith(ref) ?? false)
+}

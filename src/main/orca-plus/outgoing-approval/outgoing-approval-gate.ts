@@ -4,6 +4,7 @@
 import { classifyOutgoingToolCall } from '../../../shared/outgoing-approval/outgoing-action-classifier'
 import type { OutgoingDraftCall } from '../../../shared/outgoing-approval/outgoing-action'
 import type { OutgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
+import { withOutgoingFooter } from '../../../shared/outgoing-approval/outgoing-footer'
 import { outgoingWaitingFollowUp } from '../../../shared/outgoing-approval/outgoing-waiting-prompt'
 import type { PulseApprovalOutcome, PulseDraft } from '../../../shared/pulse-types'
 import type { PulseDb } from '../pulse/pulse-db'
@@ -16,6 +17,12 @@ export type GateReply =
   | { state: 'pass' }
   | { state: 'pending'; id: string }
   | { state: 'final'; output: GateHookOutput }
+
+/** Custom build (outgoing-footer): what the owner's answer adds to the call it releases. */
+export type GateRelease = {
+  /** Appended to the call's text field. */
+  footer?: string | null
+}
 
 export type GateSubmission = {
   /** The PreToolUse payload Claude piped to the hook. */
@@ -78,15 +85,20 @@ function preToolUse(
   }
 }
 
-/** The input the approved call runs with: the original, or with the edited text in its field. */
+/** The input the approved call runs with: the original, or with the edited text (and footer) in its field. */
 export function approvedToolInput(
   draft: PulseDraft,
-  call: OutgoingDraftCall
+  call: OutgoingDraftCall,
+  release: GateRelease = {}
 ): Record<string, unknown> | null {
-  if (!call.editField || call.toolInput[call.editField] === draft.body) {
+  if (!call.editField) {
     return null
   }
-  return { ...call.toolInput, [call.editField]: draft.body }
+  const text = withOutgoingFooter(draft.body, release.footer ?? null)
+  if (call.toolInput[call.editField] === text) {
+    return null
+  }
+  return { ...call.toolInput, [call.editField]: text }
 }
 
 export class OutgoingApprovalGate {
@@ -94,6 +106,8 @@ export class OutgoingApprovalGate {
   private readonly lastSeen = new Map<string, number>()
   // Why: a dropped card must not read to the agent as the owner's rejection.
   private readonly abandoned = new Set<string>()
+  // Why: held until the hook takes its answer; a restart in between sends the call as approved, bare.
+  private readonly releases = new Map<string, GateRelease>()
   private lastSweepAt: number
   private readonly now: () => number
   private readonly holdMs: number
@@ -174,7 +188,8 @@ export class OutgoingApprovalGate {
     id: string,
     outcome: PulseApprovalOutcome,
     editedText?: string,
-    describe?: (draft: PulseDraft) => OutgoingSentContext
+    describe?: (draft: PulseDraft) => OutgoingSentContext,
+    release?: GateRelease
   ): PulseDraft {
     const db = this.deps.db()
     const draft = db.getDraft(id)
@@ -190,6 +205,9 @@ export class OutgoingApprovalGate {
       outcome === 'edited' ? editedText : undefined,
       describe?.(draft) ?? null
     )
+    if (release && outcome !== 'rejected') {
+      this.releases.set(id, release)
+    }
     this.release(id)
     return decided
   }
@@ -240,12 +258,16 @@ export class OutgoingApprovalGate {
         return { state: 'pending', id: draft.id }
       case 'approved':
       case 'sent': {
+        const release = this.releases.get(draft.id)
         if (draft.status === 'approved') {
           // Why: "sent" here means released to the agent; the tool call itself runs in the agent.
           this.deps.db().markDraftDelivery(draft.id, 'sent')
           this.lastSeen.delete(draft.id)
+          this.releases.delete(draft.id)
         }
-        const edited = approvedToolInput(draft, call)
+        const input = approvedToolInput(draft, call, release)
+        // Why: a footer alone is not the owner's edit; the agent should not hunt for one.
+        const edited = call.editField !== null && call.toolInput[call.editField] !== draft.body
         return {
           state: 'final',
           output: preToolUse(
@@ -253,7 +275,7 @@ export class OutgoingApprovalGate {
             edited
               ? 'The user approved this action with edits in the Orca+ bell.'
               : 'The user approved this action in the Orca+ bell.',
-            edited ?? undefined,
+            input ?? undefined,
             outgoingWaitingFollowUp(call, draft.target)
           )
         }

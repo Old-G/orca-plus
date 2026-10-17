@@ -44,7 +44,7 @@ export function withLegacySentContext(
     return draft
       ? {
           ...decision,
-          sentContext: outgoingSentContext(draft, {}, null, heads.get(draft.id) || null)
+          sentContext: outgoingSentContext(draft, {}, { head: heads.get(draft.id) || null })
         }
       : decision
   })
