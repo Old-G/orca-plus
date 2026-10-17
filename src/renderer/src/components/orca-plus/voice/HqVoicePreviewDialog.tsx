@@ -1,6 +1,6 @@
 // Custom build (hq-voice-prompts): after a dictation, pick what it becomes — as said, a brief for an agent,
 // a message in the owner's tone, a ClickUp task spec, or an idea for HQ — edit, then insert where the
-// cursor was. Nothing is sent from here.
+// cursor was. Nothing is sent from here; a ClickUp task is created only when the owner presses Create.
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -108,6 +108,28 @@ function PreviewBody({ preview }: { preview: HqVoicePreview }): React.JSX.Elemen
     })
   }
 
+  const [creating, setCreating] = useState(false)
+  const createTask = (): void => {
+    setCreating(true)
+    void window.api.hqProjects
+      .createVoiceTask({ text })
+      .catch((error: unknown) => ({ ok: false as const, error: String(error) }))
+      .then((result) => {
+        setCreating(false)
+        if (!result.ok) {
+          toast.error(result.error)
+          return
+        }
+        toast.success(translate('auto.hq.voice.taskCreated', 'Task created in ClickUp.'), {
+          action: {
+            label: translate('auto.hq.slack.open', 'Open'),
+            onClick: () => void window.api.shell.openUrl(result.url)
+          }
+        })
+        closeHqVoicePreview()
+      })
+  }
+
   return (
     <>
       <ToggleGroup
@@ -156,6 +178,13 @@ function PreviewBody({ preview }: { preview: HqVoicePreview }): React.JSX.Elemen
         <Button type="button" variant="outline" disabled={!text} onClick={copy}>
           {translate('auto.hq.voice.copy', 'Copy')}
         </Button>
+        {mode === 'clickup' ? (
+          <Button type="button" variant="outline" disabled={!text || creating} onClick={createTask}>
+            {creating
+              ? translate('auto.hq.voice.creatingTask', 'Creating…')
+              : translate('auto.hq.voice.createTask', 'Create in ClickUp')}
+          </Button>
+        ) : null}
         {mode === 'idea' ? (
           <Button type="button" variant="outline" disabled={!text} onClick={saveIdea}>
             {translate('auto.hq.voice.saveIdea', 'Save to HQ ideas')}
@@ -182,7 +211,7 @@ export function HqVoicePreviewDialog(): React.JSX.Element {
           <DialogDescription>
             {translate(
               'auto.hq.voice.description',
-              'Pick what your dictation becomes, edit it, and insert it where the cursor was. Nothing is sent from here.'
+              'Pick what your dictation becomes, edit it, and insert it where the cursor was. Nothing is sent unless you press Create.'
             )}
           </DialogDescription>
         </DialogHeader>
