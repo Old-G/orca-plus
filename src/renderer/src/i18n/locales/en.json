@@ -19005,6 +19005,29 @@
         "tonightHint": "Start it at night: the agent works in a worktree only, and the result waits in «Ready for you» by morning.",
         "tonight": "Tonight",
         "changed": "Not started: the task changed after you queued it. Read it, then Start now or Cancel."
+      },
+      "voice": {
+        "mode": {
+          "raw": "As said",
+          "agent": "For an agent",
+          "person": "For a person",
+          "clickup": "ClickUp task",
+          "idea": "Idea"
+        },
+        "copied": "Copied.",
+        "ideaSaved": "Saved to HQ: {{value0}}",
+        "modeLabel": "What it becomes",
+        "rewriting": "Claude is rewriting it…",
+        "result": "Text to insert",
+        "said": "You said: {{value0}}",
+        "discard": "Discard",
+        "copy": "Copy",
+        "saveIdea": "Save to HQ ideas",
+        "insert": "Insert",
+        "title": "Voice prompt",
+        "description": "Pick what your dictation becomes, edit it, and insert it where the cursor was. Nothing is sent from here.",
+        "settingTitle": "Voice Prompts",
+        "settingDescription": "After dictation, pick what it becomes before it is inserted: as said, a brief for an agent, a message in your tone, a ClickUp task or an idea for HQ. Start with «для агента», «человеку», «в кликап» or «идея» to pick it by voice."
       }
     },
     "claudeSubscriptions": {
