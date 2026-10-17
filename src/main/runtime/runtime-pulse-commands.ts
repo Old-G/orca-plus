@@ -19,6 +19,7 @@ import type {
   PulseWaitingStatus
 } from '../../shared/pulse-types'
 import { getAppEnvironment } from '../../shared/app-environment'
+import type { HqFeedItem, HqFeedQuery } from '../../shared/hq-feed'
 import { PulseDb, pulseDbPath } from '../orca-plus/pulse/pulse-db'
 import { withLegacySentContext } from '../orca-plus/outgoing-approval/outgoing-sent-history'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../shared/outgoing-approval/outgoing-approval-bell'
@@ -35,6 +36,8 @@ export type PulseSnapshot = {
 
 // Why: HQ's «Done for you» shows a week of what was sent; 20 ran out within a busy day.
 const SNAPSHOT_DECISIONS = 100
+// Custom build (hq-feed): two months of the feed; older rows add nothing a search needs.
+const FEED_KEEP_MS = 60 * 24 * 60 * 60_000
 
 export class RuntimePulseCommands {
   private opened: PulseDb | null = null
@@ -70,6 +73,18 @@ export class RuntimePulseCommands {
   pulseEvents(afterSeq = 0, limit?: number): { events: PulseEvent[]; latestSeq: number } {
     const db = this.db()
     return { events: db.listEventsSince(afterSeq, limit), latestSeq: db.latestEventSeq() }
+  }
+
+  /** Custom build (hq-feed): HQ's feed, newest first. */
+  pulseFeed(query?: HqFeedQuery): { items: HqFeedItem[] } {
+    return { items: this.db().listFeed(query) }
+  }
+
+  /** Custom build (hq-feed): what the feed collector found; old rows go after FEED_KEEP_MS. */
+  pulseUpsertFeed(items: readonly HqFeedItem[]): number {
+    const db = this.db()
+    db.pruneFeed(Date.now() - FEED_KEEP_MS)
+    return db.upsertFeed(items)
   }
 
   pulseUpsertPerson(input: PulsePersonInput): PulsePerson {

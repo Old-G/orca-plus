@@ -42,6 +42,8 @@ import {
 import { listHqProjectPages } from '../../hq-project-pages/hq-project-pages'
 import { startHqWaitingReplyRelay } from '../../hq-today/hq-waiting-reply-relay'
 import { startHqScoutPromises } from '../../hq-today/hq-scout-promises'
+import { startHqFeed } from '../../hq-today/hq-feed-collector'
+import { getHqProjectPagesService } from '../../hq-project-pages/hq-project-pages-service'
 import { HQ_PROMISE_DUE_KIND, hqPromiseDueBellItems } from '../../../shared/hq-promises'
 import { deliverWaitingReply } from '../waiting-replies/deliver-waiting-reply'
 
@@ -160,6 +162,14 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
     listDecisions: () => runtime.pulseListDecisions(100),
     personName: (id) => runtime.pulseListPeople().find((person) => person.id === id)?.name ?? null,
     peopleNames: () => runtime.pulseListPeople().map((person) => person.name)
+  })
+  // Custom build (hq-feed): one timeline of what happened around the owner, for HQ's Feed.
+  startHqFeed({
+    hqPath: () => store.getSettings().hqPath ?? null,
+    decisions: () => runtime.pulseListDecisions(100),
+    reviews: async () => (await getHqProjectPagesService()?.reviews(false))?.reviews ?? [],
+    upsert: (items) => void runtime.pulseUpsertFeed(items),
+    now: Date.now
   })
   // Custom build (hq-promises): the owner's Slack promises into Notes, and a bell line the day before.
   startHqScoutPromises({
