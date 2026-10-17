@@ -57,6 +57,67 @@ export function formatDraftList(drafts: PulseDraft[]): string {
     .join('\n')
 }
 
+function decisionHaystack(decision: PulseDecision): string {
+  const sent = decision.sentContext
+  return [
+    decision.title,
+    decision.body,
+    decision.project,
+    sent?.targetName,
+    sent?.targetId,
+    sent?.replyingTo,
+    sent?.chatName,
+    sent?.project,
+    sent?.head,
+    sent?.taskId,
+    sent?.taskName,
+    sent?.ref
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join('\n')
+    .toLocaleLowerCase()
+}
+
+/** Every word of the query appears somewhere in the decision. */
+export function matchesDecisionQuery(decision: PulseDecision, query: string): boolean {
+  const haystack = decisionHaystack(decision)
+  return query
+    .toLocaleLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((word) => haystack.includes(word))
+}
+
+const BODY_PREVIEW_CHARS = 240
+
+export function formatDecisionList(decisions: PulseDecision[]): string {
+  if (decisions.length === 0) {
+    return 'No decisions match.'
+  }
+  return decisions
+    .map((d) => {
+      const sent = d.sentContext
+      const head = [
+        new Date(d.decidedAt).toISOString().slice(0, 16).replace('T', ' '),
+        d.outcome ?? d.kind,
+        d.title,
+        sent?.targetName ? `→ ${sent.targetName}` : null,
+        sent?.taskName || sent?.taskId ? `· ${sent.taskName ?? sent.taskId}` : null,
+        sent?.chatName ? `· chat «${sent.chatName}»` : null,
+        (sent?.project ?? d.project) ? `· ${sent?.project ?? d.project}` : null,
+        sent?.ref ? `· ref ${sent.ref}` : null
+      ]
+        .filter((part): part is string => part !== null)
+        .join(' ')
+        .concat(`  ${d.id}`)
+      const body = d.body?.replace(/\s+/g, ' ').trim()
+      return body
+        ? `${head}\n    ${body.length > BODY_PREVIEW_CHARS ? `${body.slice(0, BODY_PREVIEW_CHARS)}…` : body}`
+        : head
+    })
+    .join('\n')
+}
+
 export function formatPersonShow(show: PulsePersonShow, now: number): string {
   const { person } = show
   const ids = [
