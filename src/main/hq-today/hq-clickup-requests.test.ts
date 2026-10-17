@@ -61,7 +61,7 @@ function deps(
     listMyTasks: async () => tasks,
     listComments: async (taskId) => comments[taskId] ?? [],
     viewer: async () => ({ id: OWNER.id, username: OWNER.username }),
-    projectForList: (listId) => (listId === 'L1' ? 'acme-flows' : null),
+    projectForList: (listId) => (listId === 'L1' ? 'billing' : null),
     now: () => now
   }
 }
@@ -101,7 +101,7 @@ describe('collectHqClickUpRequests', () => {
         authorId: '2',
         ask: 'Когда будет?',
         title: 'Task a',
-        project: 'acme-flows',
+        project: 'billing',
         permalink: 'https://app.clickup.com/t/a'
       })
     ])
@@ -269,5 +269,32 @@ describe('startHqClickUpRequests', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it("keeps the owner's own comments of the last two days, with whom he answered, for the scout", async () => {
+    const own = (): { comments: { link: string; to: string | null; text: string }[] } =>
+      JSON.parse(readFileSync(join(hq, 'slack-scout', 'clickup-own.json'), 'utf8'))
+    await collectHqClickUpRequests(
+      hq,
+      deps([task('a', NOW - HOUR)], {
+        a: [
+          comment('c3', OWNER, NOW - HOUR, 'Сделаю до пятницы\n↳ orca · ref abc123'),
+          comment('c2', PETYA, NOW - 2 * HOUR, 'Когда?'),
+          comment('c1', OWNER, NOW - 50 * HOUR, 'старое')
+        ]
+      })
+    )
+    expect(own().comments).toEqual([
+      expect.objectContaining({
+        link: 'https://app.clickup.com/t/a?comment=c3',
+        to: 'Petya',
+        text: 'Сделаю до пятницы'
+      })
+    ])
+    // Why: a later look that does not fetch the task keeps what it saw, until two days pass.
+    await collectHqClickUpRequests(hq, deps([], {}, NOW + HOUR))
+    expect(own().comments).toHaveLength(1)
+    await collectHqClickUpRequests(hq, deps([], {}, NOW + 48 * HOUR))
+    expect(own().comments).toEqual([])
   })
 })
