@@ -21572,7 +21572,8 @@
         "meetings": "Meeting",
         "status": "Status update",
         "empty": "No reports yet. The week review, meeting follow-ups and status updates land here.",
-        "list": "Reports"
+        "list": "Reports",
+        "updates": "Updates"
       }
     },
     "claudeSubscriptions": {
