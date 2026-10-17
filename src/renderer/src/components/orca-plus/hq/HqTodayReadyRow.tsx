@@ -12,7 +12,7 @@ import {
   type HqClosingMessage
 } from '../../../../../shared/hq-closing'
 import type { HqTriageDecision } from '../../../../../shared/hq-triage'
-import type { HostedReviewInfo } from '../../../../../shared/hosted-review'
+import type { HostedReviewInfo } from '../../../../../shared/source-control/hosted-review/hosted-review-contracts'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
@@ -141,6 +141,12 @@ export function HqTodayReadyRow({
           {task.identifier}
         </span>
         <span className="min-w-0 flex-1 truncate text-[13px]">{task.title}</span>
+        {/* Custom build (hq-night-shift): done while the owner slept. */}
+        {decision.night ? (
+          <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-2xs font-medium text-muted-foreground">
+            {translate('auto.hq.night.chip', 'Night shift')}
+          </span>
+        ) : null}
         {review ? (
           <a
             href={review.url}
