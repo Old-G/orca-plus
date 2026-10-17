@@ -20,11 +20,11 @@ vi.mock('@/store', () => ({
     getState: () => ({ settings: mocks.settings, updateSettings: mocks.updateSettings })
   }
 }))
-vi.mock('@/lib/running-agent-targets', () => ({
+vi.mock('@/lib/agent-session/messaging/running-agent-targets', () => ({
   deriveRunningAgentSendTargets: () => mocks.targets,
   deriveStatuslessStructuredAgentSendTargets: () => []
 }))
-vi.mock('@/lib/launch-agent-in-new-tab', () => ({ launchAgentInNewTab: mocks.launch }))
+vi.mock('@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab', () => ({ launchAgentInNewTab: mocks.launch }))
 vi.mock('./hq-today-actions', () => ({
   agentPaneKeys: () => new Set<string>(),
   sendHqAgentMessage: mocks.send,
@@ -35,7 +35,7 @@ vi.mock('./hq-chat-open', () => ({
   openHqChat: mocks.openHqChat
 }))
 
-import { askHq } from './hq-ask-chat'
+import { HQ_STATUS_UPDATE_PROMPT, askHq, startHqStatusUpdate } from './hq-ask-chat'
 
 const chat = (sessionId: string, paneKey: string, tabId: string) => ({
   kind: 'structured-session',
@@ -84,5 +84,18 @@ describe('askHq', () => {
     await askHq('wt-hq', 'кто ждёт от меня ответа?')
     expect(mocks.launch).toHaveBeenCalledOnce()
     expect(mocks.openHqChat).toHaveBeenCalledOnce()
+  })
+})
+
+describe('startHqStatusUpdate', () => {
+  it('opens a fresh HQ chat with the status-update skill and leaves the Ask HQ chat alone', async () => {
+    mocks.targets.push(chat('s-status', 'tab-new:leaf', 'tab-new'))
+    await expect(startHqStatusUpdate('wt-hq')).resolves.toEqual({ ok: true })
+    expect(mocks.launch).toHaveBeenCalledWith(
+      expect.objectContaining({ worktreeId: 'wt-hq', prompt: HQ_STATUS_UPDATE_PROMPT })
+    )
+    expect(HQ_STATUS_UPDATE_PROMPT).toContain('status-update')
+    expect(mocks.updateSettings).not.toHaveBeenCalled()
+    expect(mocks.openShown).toHaveBeenCalledWith('wt-hq', 'tab-new')
   })
 })
