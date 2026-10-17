@@ -30,6 +30,8 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { openChatInShownHq } from '../hq/hq-chat-open'
 import { openHqScreen } from '../hq/hq-view'
+import { requestHqReport } from '../hq/hq-report-target'
+import { HQ_REPORT_BELL_KIND, HQ_REPORT_OPEN_ACTION } from '../../../../../shared/hq-reports'
 import { HQ_PROMISE_DUE_KIND, HQ_PROMISE_OPEN_ACTION } from '../../../../../shared/hq-promises'
 import {
   HQ_SLACK_DIGEST_KIND,
@@ -70,6 +72,12 @@ function openPane(ref: PulseBellPaneRef): void {
   })
 }
 
+/** Custom build (hq-reports): HQ's Reports page on this report. */
+function openHqReport(path: string): void {
+  requestHqReport(path)
+  openHqScreen('reports')
+}
+
 /** Where a bell item leads, without answering it; a tap on its phone push opens the same place. */
 export function openPulseBellItemTarget(item: PulseInboxItem): boolean {
   if (item.kind === PULSE_BELL_KIND.agentWaiting || item.kind === PULSE_BELL_KIND.agentFinished) {
@@ -94,6 +102,10 @@ export function openPulseBellItemTarget(item: PulseInboxItem): boolean {
   // Custom build (hq-promises): a promise due soon leads to Notes, where it sits under «on me».
   if (item.kind === HQ_PROMISE_DUE_KIND) {
     openHqScreen('waiting')
+    return true
+  }
+  if (item.kind === HQ_REPORT_BELL_KIND && item.refId) {
+    openHqReport(item.refId)
     return true
   }
   return false
@@ -152,6 +164,9 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
   }
   if (item.kind === HQ_PROMISE_DUE_KIND && actionId === HQ_PROMISE_OPEN_ACTION) {
     openHqScreen('waiting')
+  }
+  if (item.kind === HQ_REPORT_BELL_KIND && actionId === HQ_REPORT_OPEN_ACTION && item.refId) {
+    openHqReport(item.refId)
   }
   // Custom build (hq-scout-digest): the digest leads to HQ → Today, where the requests wait.
   if (item.kind === HQ_SLACK_DIGEST_KIND && actionId === HQ_SLACK_DIGEST_OPEN_ACTION) {

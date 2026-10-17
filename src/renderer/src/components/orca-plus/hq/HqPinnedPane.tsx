@@ -11,6 +11,7 @@ import { HqHistoryTab } from './HqHistoryTab'
 import { HqMapTab } from './HqMapTab'
 import { hqPinnedLabel } from './HqPinnedList'
 import { HqProjectsTab } from './HqProjectsTab'
+import { HqReportsTab } from './HqReportsTab'
 import { HqTodayInbox } from './HqTodayInbox'
 import { HqNotesTab } from './HqNotesTab'
 import { HqWikiTab } from './HqWikiTab'
@@ -25,6 +26,8 @@ function PinnedContent({ id }: { id: HqPinnedId }): React.JSX.Element {
       return <HqDoneJournalTab />
     case 'feed':
       return <HqFeedTab />
+    case 'reports':
+      return <HqReportsTab />
     case 'history':
       return <HqHistoryTab />
     case 'projects':
