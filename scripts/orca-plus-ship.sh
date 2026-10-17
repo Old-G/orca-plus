@@ -128,8 +128,10 @@ fi
 
 step "backup profile → $backup"
 run mkdir -p "$backup"
-# Why: the profile is live — an agent can delete a temp file mid-copy (rsync 24); state_files are checked below.
-backup_profile() { rsync -a "$profile/" "$backup/profile/" || [ $? = 24 ]; }
+# Why: the profile is live — an agent can delete a temp file mid-copy (rsync 24, or 23 when it goes
+# between listing and open); one more pass picks up the rest. state_files are checked below.
+copy_profile() { rsync -a "$profile/" "$backup/profile/" || [ $? = 24 ]; }
+backup_profile() { copy_profile || copy_profile; }
 run backup_profile
 if [ "$dry" = 0 ]; then
   shasum "${state_files[@]}" 2>/dev/null >"$backup/state.sha" || true
