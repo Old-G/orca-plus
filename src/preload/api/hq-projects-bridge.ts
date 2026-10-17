@@ -5,6 +5,7 @@ export const hqProjectsApi = {
   list: () => ipcRenderer.invoke('hqProjects:list'),
   wikiTree: () => ipcRenderer.invoke('hqProjects:wikiTree'),
   wikiPage: (path) => ipcRenderer.invoke('hqProjects:wikiPage', path),
+  reports: () => ipcRenderer.invoke('hqProjects:reports'),
   map: () => ipcRenderer.invoke('hqProjects:map'),
   projectDiagram: (repoId) => ipcRenderer.invoke('hqProjects:projectDiagram', repoId),
   reviews: (refresh) => ipcRenderer.invoke('hqProjects:reviews', refresh === true),
@@ -34,5 +35,11 @@ export const hqProjectsApi = {
       listener(request)
     ipcRenderer.on('hqProjects:runBellAction', handler)
     return () => ipcRenderer.removeListener('hqProjects:runBellAction', handler)
+  },
+  onRunReportDecisions: (listener) => {
+    const handler = (_event: unknown, request: { path: string; text: string }): void =>
+      listener(request)
+    ipcRenderer.on('hqProjects:runReportDecisions', handler)
+    return () => ipcRenderer.removeListener('hqProjects:runReportDecisions', handler)
   }
 } satisfies PreloadApi['hqProjects']
