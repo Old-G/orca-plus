@@ -133,7 +133,9 @@ CREATE INDEX IF NOT EXISTS feed_at ON feed(at);
 `
 
 // Custom build (hq-feed-posts): the readable post a model wrote for a feed row; null until written.
-const V6 = `ALTER TABLE feed ADD COLUMN post TEXT;`
+// Why the DELETE: the first feed kept approved commands as «sent»; the collector re-adds real messages.
+const V6 = `ALTER TABLE feed ADD COLUMN post TEXT;
+DELETE FROM feed WHERE kind = 'sent';`
 
 const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6]
 
