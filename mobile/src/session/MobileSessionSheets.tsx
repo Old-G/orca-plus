@@ -12,6 +12,7 @@ import { MobileTerminalRenameModal } from '../terminal/session/MobileTerminalRen
 import { ConfirmModal } from '../components/ConfirmModal'
 import { CustomKeyModal } from '../components/CustomKeyModal'
 import { MobileDictationSetupSheet } from '../components/MobileDictationSetupSheet'
+import { MobileVoicePromptSheet } from '../hq/MobileVoicePromptSheet'
 import { useWorkspaceOnPairedHost } from '../navigation/workspace-execution-host'
 import { MobileBrowserTabActionSheet } from './tabs/MobileBrowserTabActionSheet'
 import { getMobileTerminalActionSheetActions } from '../terminal/session/mobile-terminal-action-sheet-actions'
@@ -373,6 +374,7 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
         onClose={closeDictationSetup}
         onReady={closeDictationSetup}
       />
+      <MobileVoicePromptSheet client={client} showToast={showToast} />
       <ActionSheetModal
         visible={deleteKeyTarget != null}
         title={deleteKeyTarget?.label ?? t('session.sheets.shortcut', 'Shortcut')}

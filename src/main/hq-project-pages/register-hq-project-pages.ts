@@ -1,6 +1,5 @@
 // Custom build (hq): IPC for HQ's tabs; the work is in hq-project-pages-service.ts, which the
 // paired web client reaches through the hqProjects.* runtime RPC.
-import { homedir } from 'node:os'
 import { BrowserWindow, ipcMain } from 'electron'
 import type { Store } from '../persistence'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
@@ -13,11 +12,6 @@ import {
   HqVoiceIdeaParams,
   HqVoiceRewriteParams
 } from '../../shared/rpc-contract/hq-projects-params'
-import {
-  createHqVoiceTask,
-  rewriteHqVoiceText,
-  saveHqIdea
-} from '../hq-today/hq-voice-prompts-service'
 import { keepHqApprovalEdits } from '../hq-today/hq-reply-corrections'
 import { setHqDesktopSender } from '../hq-today/hq-request-on-desktop'
 import {
@@ -59,19 +53,14 @@ export function registerHqProjectPagesHandlers(
   ipcMain.handle('hqProjects:draftTaskQuestions', (_event, task: unknown) =>
     service.draftTaskQuestions(HqDraftTaskQuestionsParams.parse(task))
   )
-  // Custom build (hq-voice-prompts): desktop only — the web client has no dictation.
   ipcMain.handle('hqProjects:voiceRewrite', (_event, request: unknown) =>
-    rewriteHqVoiceText(HqVoiceRewriteParams.parse(request), store.getSettings().hqPath ?? null, {
-      settings: store.getSettings(),
-      cwd: store.getSettings().hqPath ?? homedir(),
-      getAgentEnvResolvers
-    })
+    service.voiceRewrite(HqVoiceRewriteParams.parse(request))
   )
   ipcMain.handle('hqProjects:saveIdea', (_event, request: unknown) =>
-    saveHqIdea(HqVoiceIdeaParams.parse(request).text, store.getSettings().hqPath ?? null)
+    service.saveIdea(HqVoiceIdeaParams.parse(request).text)
   )
   ipcMain.handle('hqProjects:createVoiceTask', (_event, request: unknown) =>
-    createHqVoiceTask(HqVoiceIdeaParams.parse(request).text, store.getSettings().hqPath ?? null)
+    service.createVoiceTask(HqVoiceIdeaParams.parse(request).text)
   )
   ipcMain.handle('hqProjects:slackDrafts', () => service.slackDrafts())
   ipcMain.handle('hqProjects:rejectSlackDraft', (_event, ref: unknown) =>
