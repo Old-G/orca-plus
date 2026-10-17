@@ -132,7 +132,10 @@ CREATE TABLE IF NOT EXISTS feed (
 CREATE INDEX IF NOT EXISTS feed_at ON feed(at);
 `
 
-const STEPS: readonly string[] = [V1, V2, V3, V4, V5]
+// Custom build (hq-feed-posts): the readable post a model wrote for a feed row; null until written.
+const V6 = `ALTER TABLE feed ADD COLUMN post TEXT;`
+
+const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 

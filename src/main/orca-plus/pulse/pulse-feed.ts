@@ -1,7 +1,12 @@
 // Custom build (hq-feed): HQ's feed rows. A repeat of the same thing updates its row, so a Slack
 // conversation that grows or a comment seen twice stays one line. No pulse event: nothing follows it.
 import type { SqliteRow } from '../../sqlite/sqlite-statement'
-import { HQ_FEED_SOURCES, type HqFeedItem, type HqFeedQuery } from '../../../shared/hq-feed'
+import {
+  HQ_FEED_DONE_KINDS,
+  HQ_FEED_SOURCES,
+  type HqFeedItem,
+  type HqFeedQuery
+} from '../../../shared/hq-feed'
 import type { PulseCore } from './pulse-core'
 import { integer, oneOf, optionalText, text } from './pulse-row-fields'
 
@@ -19,9 +24,12 @@ function toItem(row: SqliteRow): HqFeedItem {
     body: optionalText(row, 'body'),
     url: optionalText(row, 'url'),
     project: optionalText(row, 'project'),
-    person: optionalText(row, 'person')
+    person: optionalText(row, 'person'),
+    post: optionalText(row, 'post')
   }
 }
+
+const DONE_KINDS_SQL = HQ_FEED_DONE_KINDS.map((kind) => `'${kind}'`).join(', ')
 
 /** Adds new items and refreshes known ones; returns how many rows were new. */
 export function upsertFeed(core: PulseCore, items: readonly HqFeedItem[]): number {
@@ -36,7 +44,9 @@ export function upsertFeed(core: PulseCore, items: readonly HqFeedItem[]): numbe
        ON CONFLICT(id) DO UPDATE SET kind = excluded.kind, at = MAX(feed.at, excluded.at),
          title = excluded.title, body = excluded.body, url = COALESCE(excluded.url, feed.url),
          project = COALESCE(excluded.project, feed.project),
-         person = COALESCE(excluded.person, feed.person)`
+         person = COALESCE(excluded.person, feed.person),
+         post = CASE WHEN feed.title = excluded.title AND COALESCE(feed.body, '') = COALESCE(excluded.body, '')
+           THEN feed.post ELSE NULL END`
     )
     let added = 0
     for (const item of items) {
@@ -68,6 +78,9 @@ export function listFeed(core: PulseCore, query: HqFeedQuery = {}): HqFeedItem[]
     where.push('at < ?')
     args.push(query.before)
   }
+  if (query.scope) {
+    where.push(`kind ${query.scope === 'done' ? 'IN' : 'NOT IN'} (${DONE_KINDS_SQL})`)
+  }
   if (query.source) {
     where.push('source = ?')
     args.push(query.source)
@@ -88,7 +101,10 @@ export function listFeed(core: PulseCore, query: HqFeedQuery = {}): HqFeedItem[]
   return (
     words
       ? rows.filter((item) =>
-          [item.title, item.body, item.person].join(' ').toLocaleLowerCase().includes(words)
+          [item.post, item.title, item.body, item.person]
+            .join(' ')
+            .toLocaleLowerCase()
+            .includes(words)
         )
       : rows
   ).slice(0, limit)
@@ -99,4 +115,26 @@ export function pruneFeed(core: PulseCore, beforeAt: number): number {
   return core.transaction(() =>
     Number(core.db.prepare('DELETE FROM feed WHERE at < ?').run(beforeAt).changes)
   )
+}
+
+/** Custom build (hq-feed-posts): work-done rows still waiting for their readable post, newest first. */
+export function listFeedWithoutPost(core: PulseCore, limit: number): HqFeedItem[] {
+  return core.db
+    .prepare(
+      `SELECT * FROM feed WHERE post IS NULL AND kind IN (${DONE_KINDS_SQL}) ORDER BY at DESC LIMIT ?`
+    )
+    .all(limit)
+    .map(toItem)
+}
+
+export function setFeedPosts(core: PulseCore, posts: ReadonlyMap<string, string>): void {
+  if (posts.size === 0) {
+    return
+  }
+  core.transaction(() => {
+    const write = core.db.prepare('UPDATE feed SET post = ? WHERE id = ?')
+    for (const [id, post] of posts) {
+      write.run(post, id)
+    }
+  })
 }

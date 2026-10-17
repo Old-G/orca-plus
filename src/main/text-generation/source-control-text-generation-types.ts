@@ -51,6 +51,8 @@ export type TextGenerationOperation =
   | 'hq-clickup-reply'
   // Custom build (hq-voice-prompts): a dictation rewritten for an agent, a person, ClickUp or an idea.
   | 'hq-voice-rewrite'
+  // Custom build (hq-feed-posts): HQ's feed rows rewritten as short readable posts.
+  | 'hq-feed-posts'
 
 export type CommitMessageGenerationTarget =
   | { kind: 'local'; cwd: string; env?: NodeJS.ProcessEnv; wslDistro?: string }

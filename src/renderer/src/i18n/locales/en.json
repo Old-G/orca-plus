@@ -19720,7 +19720,16 @@
         "project": "Project",
         "allProjects": "All projects",
         "search": "Search the feed",
-        "empty": "Nothing in the feed yet."
+        "empty": "Nothing in the feed yet.",
+        "commit": "Commit",
+        "session": "Agent session",
+        "hideOriginal": "Hide original",
+        "showOriginal": "Original",
+        "scope": "What to show",
+        "done": "Done",
+        "incoming": "Incoming",
+        "doneHint": "What was done: commits, finished agent sessions and messages sent for you.",
+        "incomingHint": "What came in: Slack conversations and requests, ClickUp comments, reviews waiting on you."
       }
     },
     "claudeSubscriptions": {

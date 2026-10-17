@@ -1,16 +1,12 @@
-// Custom build (hq-feed): HQ's «Feed» — one timeline of what happened around the owner, by day:
-// Slack conversations and requests, ClickUp comments, reviews waiting on him, what Orca+ sent.
+// Custom build (hq-feed): HQ's «Feed», by day. «Done» (hq-feed-posts): commits, finished agent
+// sessions and messages sent, as short posts. «Incoming»: Slack, ClickUp comments, reviews waiting on him.
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ExternalLink } from 'lucide-react'
 import {
   HQ_FEED_SOURCES,
-  hqFeedUrl,
   readHqFeed,
   type HqFeedItem,
   type HqFeedSource
 } from '../../../../../shared/hq-feed'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -22,43 +18,16 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useNow } from '@/hooks/use-now'
 import { translate } from '@/i18n/i18n'
-import { formatShortTimeAgo } from '@/lib/short-time-ago'
+import { HqFeedPost, HqFeedRow, hqFeedSourceLabel } from './HqFeedRow'
 
 const REFRESH_MS = 60_000
 const AGE_TICK_MS = 60_000
 const PAGE = 300
 const ALL = 'all'
-
-function sourceLabel(source: HqFeedSource): string {
-  switch (source) {
-    case 'slack':
-      return 'Slack'
-    case 'clickup':
-      return 'ClickUp'
-    case 'git':
-      return 'Git'
-    case 'orca':
-      return 'Orca+'
-  }
-}
-
-function kindLabel(kind: string): string {
-  switch (kind) {
-    case 'request':
-      return translate('auto.hq.feed.request', 'Asks you')
-    case 'conversation':
-      return translate('auto.hq.feed.conversation', 'Conversation')
-    case 'fyi':
-      return translate('auto.hq.feed.fyi', 'FYI')
-    case 'my-comment':
-      return translate('auto.hq.feed.myComment', 'You wrote')
-    case 'review':
-      return translate('auto.hq.feed.review', 'Review')
-    case 'sent':
-      return translate('auto.hq.feed.sent', 'Sent for you')
-    default:
-      return kind
-  }
+// Why: work done comes from git and Orca+ only; nothing from Orca+ is «incoming».
+const SCOPE_SOURCES: Record<'done' | 'incoming', readonly HqFeedSource[]> = {
+  done: ['git', 'orca'],
+  incoming: HQ_FEED_SOURCES.filter((source) => source !== 'orca')
 }
 
 function dayLabel(at: number, now: number): string {
@@ -76,7 +45,13 @@ function dayLabel(at: number, now: number): string {
   return day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-type Filter = { source: HqFeedSource | null; project: string | null; query: string }
+type Scope = keyof typeof SCOPE_SOURCES
+type Filter = {
+  scope: Scope
+  source: HqFeedSource | null
+  project: string | null
+  query: string
+}
 
 function useHqFeed(filter: Filter): { items: HqFeedItem[]; error: string | null } {
   const [items, setItems] = useState<HqFeedItem[]>([])
@@ -86,6 +61,7 @@ function useHqFeed(filter: Filter): { items: HqFeedItem[]; error: string | null 
       method: 'pulse.feed',
       params: {
         limit: PAGE,
+        scope: filter.scope,
         ...(filter.source ? { source: filter.source } : {}),
         ...(filter.project ? { project: filter.project } : {}),
         ...(filter.query.trim() ? { query: filter.query.trim() } : {})
@@ -97,7 +73,7 @@ function useHqFeed(filter: Filter): { items: HqFeedItem[]; error: string | null 
     } else {
       setError(response.error.message)
     }
-  }, [filter.source, filter.project, filter.query])
+  }, [filter.scope, filter.source, filter.project, filter.query])
   useEffect(() => {
     void load().catch((failure: unknown) => setError(String(failure)))
     const timer = setInterval(() => void load().catch(() => undefined), REFRESH_MS)
@@ -106,45 +82,14 @@ function useHqFeed(filter: Filter): { items: HqFeedItem[]; error: string | null 
   return { items, error }
 }
 
-function FeedRow({ item, now }: { item: HqFeedItem; now: number }): React.JSX.Element {
-  const url = hqFeedUrl(item.url)
-  const meta = [item.person, item.project].filter(Boolean).join(' · ')
-  return (
-    <li className="flex flex-col gap-1 border-b border-border py-2 last:border-b-0">
-      <div className="flex items-baseline gap-2">
-        <Badge variant="outline" className="shrink-0">
-          {sourceLabel(item.source)}
-        </Badge>
-        <Badge variant="secondary" className="shrink-0">
-          {kindLabel(item.kind)}
-        </Badge>
-        <span className="min-w-0 flex-1 truncate text-[13px]" title={item.title}>
-          {item.title}
-        </span>
-        <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
-          {formatShortTimeAgo(item.at, now)}
-        </span>
-        {url ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label={translate('auto.hq.feed.open', 'Open')}
-            onClick={() => void window.api.shell.openUrl(url)}
-          >
-            <ExternalLink />
-          </Button>
-        ) : null}
-      </div>
-      {item.body ? <p className="line-clamp-2 text-xs text-muted-foreground">{item.body}</p> : null}
-      {meta ? <p className="text-[11px] text-muted-foreground">{meta}</p> : null}
-    </li>
-  )
-}
-
 export function HqFeedTab(): React.JSX.Element {
   const now = useNow(AGE_TICK_MS)
-  const [filter, setFilter] = useState<Filter>({ source: null, project: null, query: '' })
+  const [filter, setFilter] = useState<Filter>({
+    scope: 'done',
+    source: null,
+    project: null,
+    query: ''
+  })
   const { items, error } = useHqFeed(filter)
   const [projects, setProjects] = useState<string[]>([])
   useEffect(() => {
@@ -171,12 +116,36 @@ export function HqFeedTab(): React.JSX.Element {
 
   return (
     <div className="scrollbar-sleek flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-4">
-      <p className="text-xs text-muted-foreground">
-        {translate(
-          'auto.hq.feed.hint',
-          'Everything around you in one timeline: Slack conversations and requests, ClickUp comments, reviews waiting on you, and what Orca+ sent for you.'
-        )}
-      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={filter.scope}
+          onValueChange={(value) => {
+            if (value === 'done' || value === 'incoming') {
+              setFilter((current) => ({ ...current, scope: value, source: null }))
+            }
+          }}
+          aria-label={translate('auto.hq.feed.scope', 'What to show')}
+        >
+          <ToggleGroupItem value="done">{translate('auto.hq.feed.done', 'Done')}</ToggleGroupItem>
+          <ToggleGroupItem value="incoming">
+            {translate('auto.hq.feed.incoming', 'Incoming')}
+          </ToggleGroupItem>
+        </ToggleGroup>
+        <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+          {filter.scope === 'done'
+            ? translate(
+                'auto.hq.feed.doneHint',
+                'What was done: commits, finished agent sessions and messages sent for you.'
+              )
+            : translate(
+                'auto.hq.feed.incomingHint',
+                'What came in: Slack conversations and requests, ClickUp comments, reviews waiting on you.'
+              )}
+        </p>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <ToggleGroup
           type="single"
@@ -192,9 +161,9 @@ export function HqFeedTab(): React.JSX.Element {
           aria-label={translate('auto.hq.feed.source', 'Source')}
         >
           <ToggleGroupItem value={ALL}>{translate('auto.hq.feed.all', 'All')}</ToggleGroupItem>
-          {HQ_FEED_SOURCES.map((source) => (
+          {SCOPE_SOURCES[filter.scope].map((source) => (
             <ToggleGroupItem key={source} value={source}>
-              {sourceLabel(source)}
+              {hqFeedSourceLabel(source)}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
@@ -242,9 +211,13 @@ export function HqFeedTab(): React.JSX.Element {
           <section key={day.label} aria-label={day.label}>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase">{day.label}</h3>
             <ul className="flex flex-col">
-              {day.items.map((item) => (
-                <FeedRow key={item.id} item={item} now={now} />
-              ))}
+              {day.items.map((item) =>
+                filter.scope === 'done' ? (
+                  <HqFeedPost key={item.id} item={item} now={now} />
+                ) : (
+                  <HqFeedRow key={item.id} item={item} now={now} />
+                )
+              )}
             </ul>
           </section>
         ))
