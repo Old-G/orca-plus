@@ -52,6 +52,7 @@ import { PluginShotReplayMount } from './components/plugins/view/PluginShotRepla
 import { AddToChatPointMenuHost } from './components/native-chat/selection-quotes/AddToChatMenu'
 import { installActiveWorktreeRemovalSuccessor } from './lib/workspace/activation/active-worktree-removal-successor'
 import { useAppStore } from './store'
+import { HqChatListPublisher } from './components/orca-plus/hq/HqChatListPublisher'
 
 function App(): React.JSX.Element {
   const layout = useAppChromeLayout()
@@ -122,6 +123,8 @@ function App(): React.JSX.Element {
       data-linux-tiling-window-mode={tilingWindowMode || undefined}
       style={layoutStyle}
     >
+      {/* Custom build (hq-mobile-messenger): HQ's chat list for the phone. */}
+      <HqChatListPublisher />
       <TooltipProvider>
         <ConfirmationDialogProvider>
           <BrowserPagePrompts />
