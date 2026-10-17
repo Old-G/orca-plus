@@ -30,6 +30,10 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { openChatInShownHq } from '../hq/hq-chat-open'
 import { openHqScreen } from '../hq/hq-view'
+import {
+  HQ_SLACK_DIGEST_KIND,
+  HQ_SLACK_DIGEST_OPEN_ACTION
+} from '../../../../../shared/hq-slack-digest'
 import { runHqSlackRequestAction } from '../slack-requests/hq-slack-request-actions'
 
 function paneRefTabId(ref: PulseBellPaneRef): string | undefined {
@@ -82,7 +86,7 @@ export function openPulseBellItemTarget(item: PulseInboxItem): boolean {
     openHqScreen(HQ_DEFERRED_TAB)
     return true
   }
-  if (item.kind === HQ_SLACK_REQUEST_BELL_KIND) {
+  if (item.kind === HQ_SLACK_REQUEST_BELL_KIND || item.kind === HQ_SLACK_DIGEST_KIND) {
     openHqScreen('today')
     return true
   }
@@ -139,6 +143,10 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
   }
   if (item.kind === HQ_DEFERRED_KIND && actionId === PULSE_BELL_ACTION.open) {
     openHqScreen(HQ_DEFERRED_TAB)
+  }
+  // Custom build (hq-scout-digest): the digest leads to HQ → Today, where the requests wait.
+  if (item.kind === HQ_SLACK_DIGEST_KIND && actionId === HQ_SLACK_DIGEST_OPEN_ACTION) {
+    openHqScreen('today')
   }
   if (item.kind === PULSE_BELL_KIND.agentFinished && actionId === PULSE_BELL_ACTION.open) {
     const ref = readPulseBellPaneRef(item.refId)

@@ -25,6 +25,8 @@ import {
 } from './hq-today-inbox-items'
 import { WaitingAgentCard } from './HqTodayPeople'
 import { SlackRequestList, useHqSlackDrafts } from './HqTodaySlackDrafts'
+import { HqTodayQuiet } from './HqTodayQuiet'
+import type { HqSlackQuietItem } from '../../../../../shared/hq-slack-digest'
 import { HqCommandBox } from './HqTodayTab'
 import { HqTodayTriage } from './HqTodayTriage'
 import { HqTodayLimits } from './HqTodayWork'
@@ -39,6 +41,7 @@ const NO_DECISIONS = {}
 const NO_SNOOZE: ReadonlySet<string> = new Set()
 const OTHER_PRS = 'other:prs'
 const OTHER_LIMITS = 'other:limits'
+const OTHER_QUIET = 'other:quiet'
 
 function sectionTitle(section: HqInboxSection): string {
   switch (section) {
@@ -255,6 +258,7 @@ function useHqInboxItems(now: number): {
   items: HqInboxItem[]
   dropSlack: (id: string) => void
   refreshSlack: () => void
+  quiet: HqSlackQuietItem[]
   workspaces: ReturnType<typeof useLiveDashboardSnapshot>['workspaces']
 } {
   const snapshot = useLiveDashboardSnapshot()
@@ -278,13 +282,14 @@ function useHqInboxItems(now: number): {
     items,
     dropSlack: slack.drop,
     refreshSlack: slack.refresh,
+    quiet: slack.state.status === 'ready' ? slack.state.quiet : [],
     workspaces: snapshot.workspaces
   }
 }
 
 export function HqTodayInbox(): React.JSX.Element {
   const now = useNow(AGE_TICK_MS)
-  const { items, dropSlack, refreshSlack, workspaces } = useHqInboxItems(now)
+  const { items, dropSlack, refreshSlack, workspaces, quiet } = useHqInboxItems(now)
   const [selected, setSelected] = useState<string | null>(null)
   const editTarget = useHqSlackRequestEditTarget()
   const hqWorktreeId = useAppStore((s) =>
@@ -295,7 +300,7 @@ export function HqTodayInbox(): React.JSX.Element {
   const activeKey =
     editKey && items.some((item) => item.key === editKey)
       ? editKey
-      : selected === OTHER_PRS || selected === OTHER_LIMITS
+      : selected === OTHER_PRS || selected === OTHER_LIMITS || selected === OTHER_QUIET
         ? selected
         : pickHqInboxKey(items, selected)
   const active = items.find((item) => item.key === activeKey) ?? null
@@ -349,6 +354,14 @@ export function HqTodayInbox(): React.JSX.Element {
             active={activeKey === OTHER_LIMITS}
             onSelect={() => select(OTHER_LIMITS)}
           />
+          {/* Custom build (hq-scout-digest): Slack read and set aside without a card. */}
+          <OtherRow
+            label={translate('auto.hq.inbox.quiet', 'Quiet in Slack ({{value0}})', {
+              value0: quiet.length
+            })}
+            active={activeKey === OTHER_QUIET}
+            onSelect={() => select(OTHER_QUIET)}
+          />
         </ul>
       </aside>
       <div className="scrollbar-sleek min-h-0 min-w-0 flex-1 overflow-y-auto p-4">
@@ -356,6 +369,8 @@ export function HqTodayInbox(): React.JSX.Element {
           <HqTodayReviews workspaces={workspaces ?? []} />
         ) : activeKey === OTHER_LIMITS ? (
           <HqTodayLimits />
+        ) : activeKey === OTHER_QUIET ? (
+          <HqTodayQuiet items={quiet} now={now} />
         ) : active ? (
           <ItemDetail
             key={active.key}
