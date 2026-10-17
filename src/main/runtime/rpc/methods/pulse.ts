@@ -5,6 +5,7 @@ import {
   PulseAddWaitingParams,
   PulseCloseWaitingParams,
   PulseEventsParams,
+  PulseFeedParams,
   PulseInboxItemRef,
   PulseListDecisionsParams,
   PulseListDraftsParams,
@@ -32,6 +33,13 @@ export const PULSE_METHODS = [
     permission: 'workspace',
     params: PulseEventsParams,
     handler: async (params, { runtime }) => runtime.pulseEvents(params.afterSeq, params.limit)
+  }),
+  defineMethod({
+    name: 'pulse.feed',
+
+    permission: 'workspace',
+    params: PulseFeedParams,
+    handler: async (params, { runtime }) => runtime.pulseFeed(params)
   }),
   defineMethod({
     name: 'pulse.upsertPerson',
