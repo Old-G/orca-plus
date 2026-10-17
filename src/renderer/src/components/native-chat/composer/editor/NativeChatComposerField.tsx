@@ -80,7 +80,8 @@ export function NativeChatComposerField({
   agent,
   launchPrompt,
   workspaceFooter,
-  sideChat
+  sideChat,
+  readAloud
 }: NativeChatComposerFieldProps): React.JSX.Element {
   const t = useTranslate()
   const draftNotSaved = useNativeChatComposerDraftUnsaved(draftScopeKey)
@@ -340,6 +341,7 @@ export function NativeChatComposerField({
                 onExitGoalMode={goalMode?.active ? exitGoalMode : undefined}
                 launchPrompt={launch}
                 {...(agent ? { agent } : {})}
+                {...(readAloud ? { readAloud } : {})}
               />
             </div>
           </div>
