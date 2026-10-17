@@ -1,7 +1,7 @@
 // Custom build (hq-triage): one «New tasks» row — the task, a project picker, Take / Questions /
 // Not now / Hide, and the questions panel: Claude's draft, edited by hand or by voice, sent on click.
 import { useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { Moon, X } from 'lucide-react'
 import type { ClickUpTaskSummary } from '../../../../../shared/clickup-types'
 import type { HqTaskQuestionsResult } from '../../../../../shared/hq-triage'
 import type { Repo } from '../../../../../shared/repo-types'
@@ -107,6 +107,7 @@ export function HqTodayTriageRow({
   busy,
   onOpen,
   onTake,
+  onTonight,
   onDraftQuestions,
   onSendQuestions,
   onSnooze,
@@ -119,6 +120,8 @@ export function HqTodayTriageRow({
   onOpen: () => void
   /** The first id is the main project; more than one starts a coordinator. */
   onTake: (repoIds: string[]) => void
+  /** Custom build (hq-night-shift): queue it to start at night in these projects. */
+  onTonight: (repoIds: string[]) => void
   onDraftQuestions: () => Promise<HqTaskQuestionsResult>
   /** Resolves to an error to show, or null once the comment is in ClickUp. */
   onSendQuestions: (text: string) => Promise<string | null>
@@ -230,6 +233,20 @@ export function HqTodayTriageRow({
           {busy
             ? translate('auto.hq.triage.taking', 'Starting…')
             : translate('auto.hq.triage.take', 'Take')}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          disabled={!repoId || locked}
+          title={translate(
+            'auto.hq.night.tonightHint',
+            'Start it at night: the agent works in a worktree only, and the result waits in «Ready for you» by morning.'
+          )}
+          onClick={() => (chosen.length > 0 ? onTonight(chosen) : undefined)}
+        >
+          <Moon />
+          {translate('auto.hq.night.tonight', 'Tonight')}
         </Button>
         <Button
           type="button"
