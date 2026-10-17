@@ -1,5 +1,6 @@
 // Custom build (hq-read-aloud): a speaker beside the model picker — reads the agent's latest answer in
-// Russian at the chosen speed, or every new answer when «Read new answers» is on.
+// Russian (a natural OpenAI voice, or a system one) at the chosen speed, or every new answer when
+// «Read new answers» is on.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Square, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,10 +19,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import type { NativeChatMessage } from '../../../../../shared/native-chat-types'
+import { HQ_READ_ALOUD_NEURAL_VOICES } from '../../../../../shared/hq-read-aloud'
 import {
+  DEFAULT_READ_ALOUD_VOICE,
   READ_ALOUD_RATES,
   readAloudAvailable,
   russianVoices,
+  setReadAloudRate,
   startReadAloud,
   stopReadAloud,
   useReadAloudKey
@@ -56,7 +60,7 @@ export function NativeChatReadAloudButton({
   const answer = useMemo(() => speakableText(lastAnswerText(source.messages)), [source.messages])
 
   useEffect(() => {
-    const speech = readAloudAvailable() ? window.speechSynthesis : null
+    const speech = 'speechSynthesis' in window ? window.speechSynthesis : null
     if (!speech) {
       return
     }
@@ -66,8 +70,8 @@ export function NativeChatReadAloudButton({
     return () => speech.removeEventListener('voiceschanged', refresh)
   }, [])
 
-  const read = (): void =>
-    startReadAloud(source.key, answer, { rate: settings.rate, voiceURI: settings.voiceURI })
+  const voice = settings.voiceURI ?? DEFAULT_READ_ALOUD_VOICE
+  const read = (): void => startReadAloud(source.key, answer, { rate: settings.rate, voice })
   const change = (next: Partial<ReadAloudSettings>): void =>
     void updateSettings({ hqReadAloud: { ...settings, ...next } })
 
@@ -145,7 +149,10 @@ export function NativeChatReadAloudButton({
         <DropdownMenuLabel>{translate('auto.hq.readAloud.speed', 'Speed')}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={String(settings.rate)}
-          onValueChange={(value) => change({ rate: Number(value) })}
+          onValueChange={(value) => {
+            setReadAloudRate(Number(value))
+            change({ rate: Number(value) })
+          }}
         >
           {READ_ALOUD_RATES.map((rate) => (
             <DropdownMenuRadioItem key={rate} value={String(rate)}>
@@ -153,22 +160,25 @@ export function NativeChatReadAloudButton({
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
-        {voices.length > 1 ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>{translate('auto.hq.readAloud.voice', 'Voice')}</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={settings.voiceURI ?? voices[0]?.voiceURI ?? ''}
-              onValueChange={(value) => change({ voiceURI: value })}
-            >
-              {voices.map((voice) => (
-                <DropdownMenuRadioItem key={voice.voiceURI} value={voice.voiceURI}>
-                  {voice.name}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </>
-        ) : null}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>{translate('auto.hq.readAloud.voice', 'Voice')}</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={voice}
+          onValueChange={(value) => change({ voiceURI: value })}
+        >
+          {HQ_READ_ALOUD_NEURAL_VOICES.map((entry) => (
+            <DropdownMenuRadioItem key={entry} value={`neural:${entry}`}>
+              {translate('auto.hq.readAloud.natural', 'Natural · {{value0}}', {
+                value0: entry[0].toUpperCase() + entry.slice(1)
+              })}
+            </DropdownMenuRadioItem>
+          ))}
+          {voices.map((entry) => (
+            <DropdownMenuRadioItem key={entry.voiceURI} value={`system:${entry.voiceURI}`}>
+              {translate('auto.hq.readAloud.system', 'System · {{value0}}', { value0: entry.name })}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )

@@ -13,6 +13,7 @@ export const hqProjectsApi = {
   voiceRewrite: (request) => ipcRenderer.invoke('hqProjects:voiceRewrite', request),
   saveIdea: (request) => ipcRenderer.invoke('hqProjects:saveIdea', request),
   createVoiceTask: (request) => ipcRenderer.invoke('hqProjects:createVoiceTask', request),
+  readAloudSpeech: (request) => ipcRenderer.invoke('hqProjects:readAloudSpeech', request),
   slackDrafts: () => ipcRenderer.invoke('hqProjects:slackDrafts'),
   rejectSlackDraft: (ref) => ipcRenderer.invoke('hqProjects:rejectSlackDraft', ref),
   createSlackDraftTask: (draft) => ipcRenderer.invoke('hqProjects:createSlackDraftTask', draft),
