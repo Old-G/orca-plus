@@ -19028,6 +19028,18 @@
         "description": "Nothing was lost. Orca will reload when the host answers, and won't save changes until then.",
         "retry": "Retry now"
       }
+    },
+    "orcaPlus": {
+      "quietHours": {
+        "title": "Quiet Hours",
+        "description": "No phone pushes or Slack messages in these hours, except urgent bell items such as an Approve. Desktop notifications still show; the rest waits in the bell and HQ.",
+        "from": "From",
+        "to": "To",
+        "hint": "hour of the day, 0–23, local time",
+        "searchDescription": "Hours when Orca+ sends nothing to your phone or Slack except urgent items.",
+        "keywordNight": "night",
+        "keywordPhone": "phone"
+      }
     }
   },
   "components": {

@@ -39,6 +39,7 @@ describe('web push service', () => {
   let send: ReturnType<typeof vi.fn<typeof sendWebPush>>
   let paired: Set<string>
   let atMac: boolean
+  let quiet: boolean
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'web-push-'))
@@ -46,6 +47,7 @@ describe('web push service', () => {
     send = vi.fn<typeof sendWebPush>(async () => 'sent')
     paired = new Set(['phone'])
     atMac = false
+    quiet = false
   })
 
   afterEach(() => {
@@ -57,6 +59,7 @@ describe('web push service', () => {
       store,
       isDevicePaired: (deviceId) => paired.has(deviceId),
       isOwnerAtMac: () => atMac,
+      isQuietHour: () => quiet,
       openBellCount: () => 3,
       now: () => 42,
       send
@@ -90,6 +93,16 @@ describe('web push service', () => {
       appUrl: 'http://127.0.0.1:6768/web-index.html'
     })
     expect(store.get('phone')?.appUrl).toBe('http://127.0.0.1:6768/web-index.html')
+  })
+
+  it('pushes only urgent items in quiet hours', async () => {
+    quiet = true
+    const push = service()
+    push.subscribe('phone', SUBSCRIPTION)
+    await push.notifyBellItem(item({ id: 'calm', dedupeKey: 'calm', urgency: 'normal' }))
+    expect(send).not.toHaveBeenCalled()
+    await push.notifyBellItem(item())
+    expect(send).toHaveBeenCalledTimes(1)
   })
 
   it('pushes a bell item once, urgent items at high urgency, with a tap back into the app', async () => {
