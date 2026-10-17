@@ -2,6 +2,7 @@
 // 10-minute automation) writes requests to the owner it found in Slack; HQ shows them, and the owner's
 // decision is written back so the scout never drafts that thread again.
 import { z } from 'zod'
+import type { HqSlackQuietItem } from './hq-slack-digest'
 
 export const HQ_SLACK_SCOUT_DIR = 'slack-scout'
 export const HQ_SLACK_SCOUT_DRAFTS_FILE = 'drafts.json'
@@ -215,9 +216,12 @@ export type HqSlackScoutTuning = {
   clickUpIgnoreAuthors: string[]
   /** A request nobody decided disappears after this many days. */
   cardTtlDays: number
+  /** Local hours the Slack digest lands in the bell. */
+  digestHours: number[]
 }
 
 export const DEFAULT_HQ_CARD_TTL_DAYS = 3
+export const DEFAULT_HQ_DIGEST_HOURS = [10, 14, 18]
 
 function configValues(text: string): Map<string, string> {
   const values = new Map<string, string>()
@@ -230,14 +234,19 @@ function configValues(text: string): Map<string, string> {
   return values
 }
 
-/** `clickup_ignore_authors: [50190479]`, `card_ttl_days: 3`; anything unreadable keeps the default. */
+/** `clickup_ignore_authors: [50190479]`, `card_ttl_days: 3`, `digest_hours: [10, 14, 18]`; anything
+ *  unreadable keeps the default. */
 export function parseHqSlackScoutTuning(text: string): HqSlackScoutTuning {
   const values = configValues(text)
   const ignore = values.get('clickup_ignore_authors') ?? ''
   const ttl = Number(values.get('card_ttl_days'))
+  const hours = [...(values.get('digest_hours') ?? '').matchAll(/\d+/g)]
+    .map((match) => Number(match[0]))
+    .filter((hour) => hour >= 0 && hour <= 23)
   return {
     clickUpIgnoreAuthors: [...ignore.matchAll(/\d+/g)].map((match) => match[0]),
-    cardTtlDays: Number.isFinite(ttl) && ttl > 0 ? ttl : DEFAULT_HQ_CARD_TTL_DAYS
+    cardTtlDays: Number.isFinite(ttl) && ttl > 0 ? ttl : DEFAULT_HQ_CARD_TTL_DAYS,
+    digestHours: values.has('digest_hours') ? hours.sort((a, b) => a - b) : DEFAULT_HQ_DIGEST_HOURS
   }
 }
 
@@ -261,6 +270,8 @@ export type HqSlackScoutResult =
       drafts: HqSlackScoutDraft[]
       /** Custom build (hq-done-journal): the last week's decisions; absent from older hosts. */
       done?: HqSlackScoutDone[]
+      /** Custom build (hq-scout-digest): what the scout set aside as quiet, newest first. */
+      quiet?: HqSlackQuietItem[]
     }
   | { ok: false; error: string }
 
