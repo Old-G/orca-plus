@@ -149,8 +149,9 @@ const SHELL_RULES: ShellRule[] = [
 const SSH_CONTROL =
   /^(?:\S*\/)?ssh\s+(?:(?:-[oFiSpl]\s+\S+|-\S+)\s+)*-O\s*(?:check|exit|stop|cancel)\s+[\w.@-]+$/
 const DB_CLIENT = /^(?:\S*\/)?(?:psql|mysql|mongosh)\s/
-const DB_HOST =
-  /(?:\s-h\s*|--host[=\s]+)['"]?([^\s'"]+)|\b[a-z]+(?:\+\w+)?:\/\/[^@\s'"/]*@([^\s'"/:?]+)/gi
+const DB_HOST = /(?:\s-h\s*|--host[=\s]+)['"]?([^\s'"]+)/gi
+// Why: a URI, a conninfo string or a variable can name another server that -h does not override.
+const DB_OTHER_TARGET = /:\/\/|(?<![-\w])(?:host|hostaddr|service)\s*=|[$`]/i
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
 // Why: a target the shell would expand or unquote cannot be judged from its text.
 const SHELL_EXPANSION = /[$`\\'"{}~]/
@@ -176,10 +177,12 @@ function withoutTempCleanup(command: string): string {
   return command.replace(/\brm\s+[^\n;|&'"]+/g, (rm) => (isTempCleanup(rm) ? ' ' : rm))
 }
 
-/** Every host a database command names is loopback — and it names at least one. */
+/** The command names exactly one host, a loopback one, and nothing else that could pick a server. */
 function onlyLoopbackDb(segment: string): boolean {
-  const hosts = [...segment.matchAll(DB_HOST)].map((match) => match[1] ?? match[2] ?? '')
-  return hosts.length > 0 && hosts.every((host) => LOOPBACK.has(host.toLowerCase()))
+  const hosts = [...segment.matchAll(DB_HOST)].map((match) => match[1] ?? '')
+  return (
+    hosts.length === 1 && LOOPBACK.has(hosts[0].toLowerCase()) && !DB_OTHER_TARGET.test(segment)
+  )
 }
 
 function holdsRemoteDestruction(segment: string, command: string): boolean {
