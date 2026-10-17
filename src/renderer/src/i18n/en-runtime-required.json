@@ -2899,6 +2899,9 @@
       }
     },
     "hq": {
+      "feed": {
+        "hint": "Everything around you in one timeline: Slack conversations and requests, ClickUp comments, reviews waiting on you, and what Orca+ sent for you."
+      },
       "inbox": {
         "agentWaits": "waits for you"
       },
