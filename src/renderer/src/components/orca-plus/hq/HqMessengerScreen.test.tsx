@@ -271,6 +271,20 @@ describe('HqMessengerScreen', () => {
     expect(screen.getByTestId('pinned-pane').textContent).toBe('today')
   })
 
+  it('closes a pinned page on a second press, back to the chat or page shown before', () => {
+    setItems([card({ tabId: 'work', paneKey: 'work:l' })], [chatTab('work', 'Review')])
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: /Review/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Feed/ }))
+    expect(screen.getByTestId('pinned-pane').textContent).toBe('feed')
+    fireEvent.click(screen.getByRole('button', { name: /^Feed/ }))
+    expect(screen.getByTestId('native-chat').textContent).toBe('session-work')
+    fireEvent.click(screen.getByRole('button', { name: /Notes/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Feed/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Feed/ }))
+    expect(screen.getByTestId('pinned-pane').textContent).toBe('waiting')
+  })
+
   it('answers a waiting chat from its row, and steps to the next waiting one by key', () => {
     mocks.prompt.current = {
       kind: 'question',
