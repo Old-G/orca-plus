@@ -25,7 +25,7 @@ import {
 } from './pulse-decisions'
 import { abandonDraft, addDraft, getDraft, listDrafts, markDraftDelivery } from './pulse-drafts'
 import { latestEventSeq, listEventsSince, pruneEvents } from './pulse-events'
-import { listFeed, pruneFeed, upsertFeed } from './pulse-feed'
+import { listFeed, listFeedWithoutPost, pruneFeed, setFeedPosts, upsertFeed } from './pulse-feed'
 import type { HqFeedItem, HqFeedQuery } from '../../../shared/hq-feed'
 import {
   addInboxItem,
@@ -163,6 +163,12 @@ export class PulseDb {
   }
   pruneFeed(beforeAt: number) {
     return pruneFeed(this.core, beforeAt)
+  }
+  listFeedWithoutPost(limit: number) {
+    return listFeedWithoutPost(this.core, limit)
+  }
+  setFeedPosts(posts: ReadonlyMap<string, string>) {
+    setFeedPosts(this.core, posts)
   }
 
   close(): void {

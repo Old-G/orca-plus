@@ -1,6 +1,6 @@
 // Custom build (hq-feed): fills HQ's feed from what Orca+ already gathers — the Slack scout's
 // requests, conversations and quiet notes, the owner's ClickUp tasks' comments, the reviews waiting
-// on him, and what Approve let out. No model and no new reads of Slack or ClickUp.
+// on him, what Approve let out, commits and finished agent sessions. No new reads of Slack or ClickUp.
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { HqFeedItem } from '../../shared/hq-feed'
@@ -12,18 +12,24 @@ import {
   HQ_SLACK_SCOUT_DIR,
   parseHqSlackScoutDrafts
 } from '../../shared/hq-slack-scout'
-import type { PulseDecision } from '../../shared/pulse-types'
+import type { PulseDecision, PulseDraft, PulseInboxItem } from '../../shared/pulse-types'
+import { BODY_MAX, TITLE_MAX, clip, time, webUrl } from './hq-feed-fields'
+import { commitFeedItems, sentFeedItems, sessionFeedItems, type HqFeedCommit } from './hq-feed-work'
 
 const DRAFTS_FILE = 'drafts.json'
 const TOPICS_FILE = 'topics.json'
-const TITLE_MAX = 300
-const BODY_MAX = 2000
 // Why: the scout writes every ten minutes and reviews are cached for two; the feed need not be faster.
 const COLLECT_EVERY_MS = 5 * 60_000
 
 export type HqFeedCollectorDeps = {
   hqPath: () => string | null
   decisions: () => PulseDecision[]
+  /** Approve's drafts, so «sent» keeps only messages that went out. */
+  drafts: () => PulseDraft[]
+  /** Recent commits across the projects in Orca; absent = none. */
+  commits?: () => Promise<HqFeedCommit[]>
+  /** The bell's «An agent finished» items, read ones too. */
+  finishedAgents?: () => PulseInboxItem[]
   reviews: () => Promise<HqReview[]>
   upsert: (items: HqFeedItem[]) => void
   now: () => number
@@ -35,24 +41,6 @@ async function readOptional(path: string): Promise<string | null> {
   } catch {
     return null
   }
-}
-
-function clip(value: unknown, max: number): string | null {
-  if (typeof value !== 'string') {
-    return null
-  }
-  const flat = value.trim()
-  return flat ? flat.slice(0, max) : null
-}
-
-function webUrl(value: unknown): string | null {
-  return typeof value === 'string' && /^https:\/\/[^\s]+$/.test(value) ? value.slice(0, 1000) : null
-}
-
-function time(value: unknown, fallback: number): number {
-  const at =
-    typeof value === 'number' ? value : typeof value === 'string' ? Date.parse(value) : Number.NaN
-  return Number.isFinite(at) && at > 0 ? Math.round(at) : fallback
 }
 
 function requests(text: string | null, now: number): HqFeedItem[] {
@@ -160,27 +148,6 @@ function ownComments(text: string | null): HqFeedItem[] {
   })
 }
 
-function sent(decisions: readonly PulseDecision[]): HqFeedItem[] {
-  return decisions.flatMap((decision): HqFeedItem[] =>
-    decision.kind === 'approval' &&
-    (decision.outcome === 'approved' || decision.outcome === 'edited')
-      ? [
-          {
-            id: `orca:${decision.id}`,
-            source: 'orca',
-            kind: 'sent',
-            at: decision.decidedAt,
-            title: clip(decision.sentContext?.targetName ?? decision.title, TITLE_MAX) ?? 'Sent',
-            body: clip(decision.body, BODY_MAX),
-            url: webUrl(decision.sentContext?.taskUrl),
-            project: clip(decision.sentContext?.project ?? decision.project, 200),
-            person: clip(decision.sentContext?.replyingTo, 200)
-          }
-        ]
-      : []
-  )
-}
-
 function reviews(list: readonly HqReview[], now: number): HqFeedItem[] {
   return list.map((review) => ({
     id: `git:${review.url}`,
@@ -202,22 +169,26 @@ export async function collectHqFeed(deps: HqFeedCollectorDeps): Promise<number> 
   const dir = hq ? join(hq, HQ_SLACK_SCOUT_DIR) : null
   const read = (name: string): Promise<string | null> =>
     dir ? readOptional(join(dir, name)) : Promise.resolve(null)
-  const [drafts, clickup, topicsText, quietText, own, waitingReviews] = await Promise.all([
-    read(DRAFTS_FILE),
-    read(HQ_CLICKUP_REQUESTS_FILE),
-    read(TOPICS_FILE),
-    read(HQ_SLACK_QUIET_FILE),
-    read(HQ_CLICKUP_OWN_FILE),
-    deps.reviews().catch(() => [])
-  ])
+  const [drafts, clickup, topicsText, quietText, own, waitingReviews, recentCommits] =
+    await Promise.all([
+      read(DRAFTS_FILE),
+      read(HQ_CLICKUP_REQUESTS_FILE),
+      read(TOPICS_FILE),
+      read(HQ_SLACK_QUIET_FILE),
+      read(HQ_CLICKUP_OWN_FILE),
+      deps.reviews().catch(() => []),
+      (deps.commits?.() ?? Promise.resolve([])).catch(() => [])
+    ])
   const items = [
     ...requests(drafts, now),
     ...requests(clickup, now),
     ...topics(topicsText, now),
     ...quiet(quietText).filter((item) => item.at > 0),
     ...ownComments(own).filter((item) => item.at > 0),
-    ...sent(deps.decisions()),
-    ...reviews(waitingReviews, now)
+    ...sentFeedItems(deps.decisions(), deps.drafts()),
+    ...reviews(waitingReviews, now),
+    ...commitFeedItems(recentCommits),
+    ...sessionFeedItems(deps.finishedAgents?.() ?? [])
   ]
   deps.upsert(items)
   return items.length
