@@ -19375,7 +19375,10 @@
         "yourPrs": "Your open PRs and MRs",
         "limits": "Limits",
         "emptyDetail": "Pick an item on the left.",
-        "quiet": "Quiet in Slack ({{value0}})"
+        "quiet": "Quiet in Slack ({{value0}})",
+        "more": "More",
+        "agentWaitsChip": "Agent waits",
+        "readyChip": "Ready"
       },
       "notes": {
         "previewDue": " · due {{value0}}",
@@ -19455,6 +19458,10 @@
         "empty": "Nothing went by quietly in the last three days.",
         "hint": "What the Slack scout read and set aside without a card: news, answers to what the chats asked, updates on tasks that exist.",
         "open": "Open in Slack"
+      },
+      "status": {
+        "button": "Status update",
+        "hint": "Draft one status message for the client across all projects. You review it in the chat, and it goes out only after your Approve."
       }
     },
     "claudeSubscriptions": {
