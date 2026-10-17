@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => {
     settings,
     targets,
     updateSettings: vi.fn(async () => undefined),
+    setTabCustomLabel: vi.fn(),
     launch: vi.fn(() => true),
     send: vi.fn(async () => ({ ok: true }) as const),
     waitForPane: vi.fn(async () => 'tab-new:leaf'),
@@ -17,7 +18,11 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('@/store', () => ({
   useAppStore: {
-    getState: () => ({ settings: mocks.settings, updateSettings: mocks.updateSettings })
+    getState: () => ({
+      settings: mocks.settings,
+      updateSettings: mocks.updateSettings,
+      setTabCustomLabel: mocks.setTabCustomLabel
+    })
   }
 }))
 vi.mock('@/lib/running-agent-targets', () => ({
@@ -62,17 +67,20 @@ describe('askHq', () => {
       })
     )
     expect(mocks.updateSettings).toHaveBeenCalledWith({ hqAskSessionId: 's-new' })
+    expect(mocks.setTabCustomLabel).toHaveBeenCalledWith('tab-new', 'Ask HQ', {
+      recordInteraction: false
+    })
     expect(mocks.openShown).toHaveBeenCalledWith('wt-hq', 'tab-new')
   })
 
   it('sends later questions to the same chat instead of starting another', async () => {
     mocks.settings.hqAskSessionId = 's-ask'
     mocks.targets.push(chat('s-other', 'tab-o:leaf', 'tab-o'), chat('s-ask', 'tab-a:leaf', 'tab-a'))
-    await askHq('wt-hq', 'а что Женя ответила?')
+    await askHq('wt-hq', 'а что Женя ответил?')
     expect(mocks.launch).not.toHaveBeenCalled()
     expect(mocks.send).toHaveBeenCalledWith(
       { paneKey: 'tab-a:leaf', worktreeId: 'wt-hq' },
-      'а что Женя ответила?'
+      'а что Женя ответил?'
     )
     expect(mocks.openShown).toHaveBeenCalledWith('wt-hq', 'tab-a')
   })
@@ -96,6 +104,9 @@ describe('startHqStatusUpdate', () => {
     )
     expect(HQ_STATUS_UPDATE_PROMPT).toContain('status-update')
     expect(mocks.updateSettings).not.toHaveBeenCalled()
+    expect(mocks.setTabCustomLabel).toHaveBeenCalledWith('tab-new', 'Status update', {
+      recordInteraction: false
+    })
     expect(mocks.openShown).toHaveBeenCalledWith('wt-hq', 'tab-new')
   })
 })
