@@ -6,11 +6,21 @@ import type { HqProjectClickUpLists } from './hq-project-clickup'
 import type { PersistedNativeChatSessionOptions } from './native-chat-session-options'
 
 export type HqTriageDecision = {
-  /** `asked`: questions went to the author; the task waits for an answer. `closed`: set to «check». */
-  decision: 'taken' | 'hidden' | 'asked' | 'closed'
+  /** `asked`: questions went to the author; the task waits for an answer. `closed`: set to «check».
+   *  `night` (hq-night-shift): queued to start at night in `repoIds`. */
+  decision: 'taken' | 'hidden' | 'asked' | 'closed' | 'night'
   at: number
   /** The project a taken task went to. */
   repoId?: string
+  /** Custom build (hq-night-shift): the projects a queued task starts in, its last night try, and that
+   *  a taken task was started by the night shift. */
+  repoIds?: string[]
+  nightTriedAt?: number
+  night?: boolean
+  /** The task's ClickUp `updatedAt` when it was queued; a task edited since is not started unattended. */
+  queuedUpdatedAt?: number | null
+  /** The night shift left it: the task changed after the owner queued it. */
+  nightSkipped?: 'changed'
   /** Custom build (hq-closing): where the taken task's agent runs (the HQ workspace for a coordinator). */
   worktreeId?: string
   paneKey?: string
