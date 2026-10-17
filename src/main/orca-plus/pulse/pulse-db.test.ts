@@ -52,6 +52,8 @@ function dropWaitingReplyColumns(raw: Database.Database): void {
   for (const column of WAITING_REPLY_COLUMNS) {
     raw.exec(`ALTER TABLE waitings DROP COLUMN ${column}`)
   }
+  // Why: version 4 (hq-sent-history) came after; an older file has none of it either.
+  raw.exec('ALTER TABLE decisions DROP COLUMN context')
 }
 
 describe('PulseDb schema', () => {
