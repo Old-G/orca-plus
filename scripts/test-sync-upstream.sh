@@ -207,7 +207,7 @@ STUB
 chmod +x "$WORK/bin/orca-plus"
 sched_run() {
   set +e
-  OUT=$(cd "$S" && PATH="$WORK/bin:$PATH" SYNC_NO_NOTIFY=1 SYNC_EVERY_DAYS="${EVERY:-0}" \
+  OUT=$(cd "$S" && PATH="$WORK/bin:$PATH" SYNC_NO_NOTIFY=1 SYNC_UPSTREAM_CHECK= SYNC_EVERY_DAYS="${EVERY:-0}" \
     bash scripts/sync-upstream-scheduled.sh 2>&1)
   RC=$?
   set -e
@@ -216,6 +216,11 @@ sched_run() {
 (cd "$S" && printf 'b\n' >f.txt)
 sched_run
 check "T12 dirty tree → skip, sync not run" '[ "$RC" = 0 ] && printf "%s" "$OUT" | grep -q "skip: uncommitted" && ! printf "%s" "$OUT" | grep -q "stub sync"'
+printf '#!/bin/sh\necho ran >>"%s"\n' "$WORK/upstream.log" >"$WORK/upstream-check.sh"
+chmod +x "$WORK/upstream-check.sh"
+OUT=$(cd "$S" && PATH="$WORK/bin:$PATH" SYNC_NO_NOTIFY=1 SYNC_UPSTREAM_CHECK="$WORK/upstream-check.sh" \
+  bash scripts/sync-upstream-scheduled.sh 2>&1)
+check "T12b the weekly upstream check runs even when the sync skips" 'grep -q ran "$WORK/upstream.log" && printf "%s" "$OUT" | grep -q "skip: uncommitted"'
 (cd "$S" && git checkout -q f.txt && git checkout -q -b topic)
 sched_run
 check "T13 other branch → skip" '[ "$RC" = 0 ] && printf "%s" "$OUT" | grep -q "skip: checked out on .topic."'
