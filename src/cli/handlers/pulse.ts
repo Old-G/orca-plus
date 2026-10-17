@@ -11,13 +11,16 @@ import { getOptionalStringFlag, getRequiredStringFlag } from '../flags'
 import { printResult } from '../format'
 import type { RuntimeClient } from '../runtime-client'
 import {
+  formatDecisionList,
   formatDraftList,
   formatPersonShow,
   formatWaitingList,
+  matchesDecisionQuery,
   type PulsePersonShow
 } from '../pulse-format'
 
 const DEFAULT_SOURCE = 'agent'
+const DECISION_SEARCH_DEPTH = 2000
 
 function oneOfFlag<T extends string>(
   flags: Map<string, string | boolean>,
@@ -156,6 +159,28 @@ export const PULSE_HANDLERS: Record<string, CommandHandler> = {
       source: source(flags)
     })
     printResult(result, json, (d) => `Decision ${d.id}: ${d.title}`)
+  },
+
+  // Custom build (hq-ask): «what did we decide about X» reads decisions and sent messages here.
+  'pulse decision list': async ({ flags, client, json }) => {
+    const query = getOptionalStringFlag(flags, 'query')
+    const project = getOptionalStringFlag(flags, 'project')
+    const limitFlag = getOptionalStringFlag(flags, 'limit')
+    const limit = limitFlag === undefined ? 30 : Number(limitFlag)
+    if (!Number.isInteger(limit) || limit < 1) {
+      throw new Error('--limit must be a positive whole number')
+    }
+    const response = await client.call<PulseDecision[]>('pulse.listDecisions', {
+      limit: query || project ? DECISION_SEARCH_DEPTH : limit
+    })
+    const found = response.result
+      .filter(
+        (decision) =>
+          !project || decision.project === project || decision.sentContext?.project === project
+      )
+      .filter((decision) => !query || matchesDecisionQuery(decision, query))
+      .slice(0, limit)
+    printResult({ ...response, result: found }, json, (rows) => formatDecisionList(rows))
   },
 
   'pulse draft add': async ({ flags, client, json }) => {
