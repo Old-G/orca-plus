@@ -18,7 +18,7 @@ const MAX_ENTRIES = 2000
 const MAX_DEPTH = 4
 const MAX_PAGE_BYTES = 2 * 1024 * 1024
 
-function headingOf(markdown: string): string | null {
+export function headingOf(markdown: string): string | null {
   const body = markdown.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '')
   const match = /^# (.+)$/m.exec(body)
   return match ? match[1].trim() : null

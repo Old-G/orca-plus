@@ -70,6 +70,16 @@ export const HqBellActionOnDesktopParams = z.object({
   actionId: z.string().min(1).max(100)
 })
 
+// Custom build (hq-reports): a report by its HQ path and the owner's decisions on it.
+export const HqReportDecisionsParams = z.object({
+  path: z
+    .string()
+    .min(1)
+    .max(500)
+    .regex(/^(?:improvements|meetings|status-update)\/[^/\\]+\.md$/, 'Not an HQ report'),
+  text: z.string().trim().min(1).max(8000)
+})
+
 export const HqClickUpReplyParams = z.object({
   id: z.string().min(1).max(200),
   text: z.string().trim().min(1).max(20_000),
