@@ -19,6 +19,11 @@ export function runHqRequestOnDesktop(id: string, action: HqRequestDesktopAction
   return sender?.('hqProjects:runRequest', { id, action }) ? { ok: true } : NO_WINDOW
 }
 
+/** Custom build (hq-reports): the owner's decisions on a report, for an HQ chat in the window. */
+export function runHqReportDecisionsOnDesktop(path: string, text: string): Run {
+  return sender?.('hqProjects:runReportDecisions', { path, text }) ? { ok: true } : NO_WINDOW
+}
+
 export function runHqBellActionOnDesktop(itemId: string, actionId: string): Run {
   return sender?.('hqProjects:runBellAction', { itemId, actionId }) ? { ok: true } : NO_WINDOW
 }

@@ -45,6 +45,7 @@ import { startHqScoutPromises } from '../../hq-today/hq-scout-promises'
 import { startHqFeed } from '../../hq-today/hq-feed-collector'
 import { HQ_FEED_COMMIT_LOG_ARGS, readHqFeedCommits } from '../../hq-today/hq-feed-work'
 import { startHqFeedPosts } from '../../hq-today/hq-feed-posts'
+import { startHqReportBell } from '../../hq-today/hq-reports'
 import { generateHqText } from '../../hq-today/hq-task-questions'
 import { gitExecFileAsync } from '../../git/runner'
 import { isGitRepoKind } from '../../../shared/repo-kind'
@@ -210,6 +211,18 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
           )
         : { ok: false, error: 'No HQ folder is set.' }
     },
+    now: Date.now
+  })
+  // Custom build (hq-reports): a new report in HQ reaches the bell and the phone.
+  startHqReportBell({
+    hqPath: () => store.getSettings().hqPath ?? null,
+    sync: (kind, items) => runtime.pulseSyncInboxKind(kind, items).raised,
+    notify: (report) =>
+      void runtime.dispatchPluginNotification({
+        pluginId: 'HQ',
+        title: 'New report',
+        body: report.title
+      }),
     now: Date.now
   })
   // Custom build (hq-promises): the owner's Slack promises into Notes, and a bell line the day before.

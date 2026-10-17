@@ -46,6 +46,7 @@ export function registerHqProjectPagesHandlers(
   ipcMain.handle('hqProjects:list', () => service.list())
   ipcMain.handle('hqProjects:wikiTree', () => service.wikiTree())
   ipcMain.handle('hqProjects:wikiPage', (_event, path: unknown) => service.wikiPage(path))
+  ipcMain.handle('hqProjects:reports', () => service.reports())
   ipcMain.handle('hqProjects:projectDiagram', (_event, repoId: unknown) =>
     service.projectDiagram(repoId)
   )

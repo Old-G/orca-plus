@@ -17,6 +17,10 @@ export function createWebHqProjectsApi(): Pick<PreloadApi, 'hqProjects' | 'click
       list: () => callRuntimeResult('hqProjects.list'),
       wikiTree: () => callRuntimeResult('hqProjects.wikiTree'),
       wikiPage: (path) => callRuntimeResult('hqProjects.wikiPage', { path }),
+      reports: () => callRuntimeResult('hqProjects.reports'),
+      // Custom build (hq-reports): the chat that carries out the decisions starts in the Mac's window.
+      reportDecisionsOnDesktop: (request) =>
+        callRuntimeResult('hqProjects.reportDecisionsOnDesktop', request),
       map: () => callRuntimeResult('hqProjects.map', undefined, MAP_TIMEOUT_MS),
       projectDiagram: (repoId) => callRuntimeResult('hqProjects.projectDiagram', { repoId }),
       reviews: (refresh) => callRuntimeResult('hqProjects.reviews', { refresh: refresh === true }),

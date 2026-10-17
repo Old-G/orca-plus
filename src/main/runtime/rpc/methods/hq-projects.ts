@@ -5,6 +5,7 @@ import {
   HqRequestOnDesktopParams,
   HqGitStateParams,
   HqProjectDiagramParams,
+  HqReportDecisionsParams,
   HqReviewsParams,
   HqClickUpReplyParams,
   HqSlackDraftCreateParams,
@@ -18,6 +19,7 @@ import {
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../shared/outgoing-approval/outgoing-approval-bell'
 import {
   runHqBellActionOnDesktop,
+  runHqReportDecisionsOnDesktop,
   runHqRequestOnDesktop
 } from '../../../hq-today/hq-request-on-desktop'
 import {
@@ -55,6 +57,21 @@ export const HQ_PROJECTS_METHODS = [
     permission: 'workspace',
     params: HqWikiPageParams,
     handler: async (params) => service().wikiPage(params.path)
+  }),
+  // Custom build (hq-reports): the phone's Reports tab, and its decisions run in the Mac's window.
+  defineMethod({
+    name: 'hqProjects.reports',
+
+    permission: 'workspace',
+    params: null,
+    handler: async () => service().reports()
+  }),
+  defineMethod({
+    name: 'hqProjects.reportDecisionsOnDesktop',
+
+    permission: 'workspace',
+    params: HqReportDecisionsParams,
+    handler: async (params) => runHqReportDecisionsOnDesktop(params.path, params.text)
   }),
   defineMethod({
     name: 'hqProjects.projectDiagram',
