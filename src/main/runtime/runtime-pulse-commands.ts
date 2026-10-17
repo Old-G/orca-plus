@@ -80,6 +80,15 @@ export class RuntimePulseCommands {
     return { items: this.db().listFeed(query) }
   }
 
+  /** Custom build (hq-feed-posts): work-done rows still waiting for their post. */
+  pulseFeedWithoutPost(limit: number): HqFeedItem[] {
+    return this.db().listFeedWithoutPost(limit)
+  }
+
+  pulseSetFeedPosts(posts: ReadonlyMap<string, string>): void {
+    this.db().setFeedPosts(posts)
+  }
+
   /** Custom build (hq-feed): what the feed collector found; old rows go after FEED_KEEP_MS. */
   pulseUpsertFeed(items: readonly HqFeedItem[]): number {
     const db = this.db()
