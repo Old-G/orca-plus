@@ -12,6 +12,8 @@ export type HqDoneWhat =
   | 'sent'
   | 'sent-edited'
   | 'not-sent'
+  | 'moved-to-clickup'
+  | 'moved-to-slack'
 
 export type HqDoneLink = { kind: 'task' | 'thread' | 'clickup'; url: string }
 
@@ -75,7 +77,10 @@ function fromApproval(decision: HqDecision): HqDoneEntry | null {
   return {
     key: `approval:${decision.id}`,
     at: decision.decidedAt,
-    what: APPROVAL_WHAT[decision.outcome],
+    // Custom build (outgoing-venue): a message the owner sent elsewhere was not refused.
+    what: decision.sent?.movedTo
+      ? `moved-to-${decision.sent.movedTo}`
+      : APPROVAL_WHAT[decision.outcome],
     title: decision.title,
     detail: body || null,
     links: [],

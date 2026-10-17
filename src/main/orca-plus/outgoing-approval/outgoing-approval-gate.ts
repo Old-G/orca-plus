@@ -22,6 +22,10 @@ export type GateReply =
 export type GateRelease = {
   /** Appended to the call's text field. */
   footer?: string | null
+  /** Custom build (outgoing-venue): a Slack thread the message goes into instead of the channel. */
+  threadTs?: string | null
+  /** A rejection that tells the agent where to send the text instead. */
+  denyReason?: string | null
 }
 
 export type GateSubmission = {
@@ -91,14 +95,15 @@ export function approvedToolInput(
   call: OutgoingDraftCall,
   release: GateRelease = {}
 ): Record<string, unknown> | null {
-  if (!call.editField) {
-    return null
+  const input = { ...call.toolInput }
+  if (call.editField) {
+    input[call.editField] = withOutgoingFooter(draft.body, release.footer ?? null)
   }
-  const text = withOutgoingFooter(draft.body, release.footer ?? null)
-  if (call.toolInput[call.editField] === text) {
-    return null
+  if (release.threadTs) {
+    input.thread_ts = release.threadTs
   }
-  return { ...call.toolInput, [call.editField]: text }
+  const changed = Object.keys(input).some((key) => input[key] !== call.toolInput[key])
+  return changed ? input : null
 }
 
 export class OutgoingApprovalGate {
@@ -205,7 +210,7 @@ export class OutgoingApprovalGate {
       outcome === 'edited' ? editedText : undefined,
       describe?.(draft) ?? null
     )
-    if (release && outcome !== 'rejected') {
+    if (release) {
       this.releases.set(id, release)
     }
     this.release(id)
@@ -286,7 +291,8 @@ export class OutgoingApprovalGate {
           state: 'final',
           output: preToolUse(
             'deny',
-            this.abandoned.has(draft.id) ? ABANDONED_REASON : REJECTED_REASON
+            this.releases.get(draft.id)?.denyReason ??
+              (this.abandoned.has(draft.id) ? ABANDONED_REASON : REJECTED_REASON)
           )
         }
     }
