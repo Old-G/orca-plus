@@ -18,6 +18,8 @@ import {
   parseHqSlackScoutTaskTarget,
   hqSlackScoutDone,
   pendingHqSlackScoutDrafts,
+  freshHqSlackScoutDraft,
+  parseHqSlackScoutTuning,
   type HqSlackScoutCreateResult,
   type HqSlackScoutDecision,
   type HqSlackScoutEdit,
@@ -68,6 +70,7 @@ async function readScoutFiles(hqPath: string) {
     draft.clickupTaskId ? [{ ...draft, source: 'clickup' as const }] : []
   )
   return {
+    tuning: parseHqSlackScoutTuning(config ?? ''),
     configured: config !== null || clickupDrafts.length > 0,
     lastRunAt: file.lastRunAt,
     failedAt: parseHqSlackScoutFailedAt(status),
@@ -84,12 +87,16 @@ export async function readHqSlackScout(
   now: () => number = Date.now
 ): Promise<HqSlackScoutResult> {
   try {
-    const { all, decisions, ...run } = await readScoutFiles(hqPath)
+    const { all, decisions, tuning, ...run } = await readScoutFiles(hqPath)
+    const at = now()
     return {
       ok: true,
       ...run,
-      drafts: pendingHqSlackScoutDrafts(all, decisions),
-      done: hqSlackScoutDone(decisions, now())
+      // Custom build (hq-scout-quiet): a request nobody decided for days has gone quiet.
+      drafts: pendingHqSlackScoutDrafts(all, decisions).filter((draft) =>
+        freshHqSlackScoutDraft(draft, tuning, at)
+      ),
+      done: hqSlackScoutDone(decisions, at)
     }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }

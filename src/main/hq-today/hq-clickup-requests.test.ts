@@ -60,7 +60,7 @@ function deps(
   return {
     listMyTasks: async () => tasks,
     listComments: async (taskId) => comments[taskId] ?? [],
-    viewerId: async () => OWNER.id,
+    viewer: async () => ({ id: OWNER.id, username: OWNER.username }),
     projectForList: (listId) => (listId === 'L1' ? 'acme-flows' : null),
     now: () => now
   }
@@ -181,6 +181,72 @@ describe('collectHqClickUpRequests', () => {
 })
 
 describe('startHqClickUpRequests', () => {
+  it("skips the agents' account, Orca+'s footer and notes that ask nothing", async () => {
+    mkdirSync(join(hq, 'slack-scout'), { recursive: true })
+    writeFileSync(
+      join(hq, 'slack-scout', 'config.yaml'),
+      'clickup_ignore_authors: [50000001]   # Acme IT\n'
+    )
+    const ACME_IT = user('50000001', 'Acme IT')
+    const added = await collectHqClickUpRequests(
+      hq,
+      deps(
+        [
+          task('a', NOW - HOUR),
+          task('b', NOW - HOUR),
+          task('c', NOW - HOUR),
+          task('d', NOW - HOUR)
+        ],
+        {
+          a: [comment('c1', ACME_IT, NOW - 2 * HOUR, 'Дополнение 17.10: выкачено. Что дальше?')],
+          b: [comment('c2', PETYA, NOW - 2 * HOUR, 'Готово?\n\n_↳ hub · ref abc123_')],
+          c: [comment('c3', PETYA, NOW - 2 * HOUR, 'Решение CTO: включаем после доступов.')],
+          d: [comment('c4', PETYA, NOW - 2 * HOUR, '@Owner глянь эталоны, пожалуйста.')]
+        }
+      )
+    )
+    expect(added).toBe(1)
+    expect(requests().drafts.map((draft) => draft.id)).toEqual(['clickup:d:c4'])
+  })
+
+  it('drops a kept request whose author is ignored now', async () => {
+    mkdirSync(join(hq, 'slack-scout'), { recursive: true })
+    writeFileSync(
+      join(hq, 'slack-scout', 'clickup.json'),
+      JSON.stringify({
+        lastCheckAt: NOW - HOUR,
+        drafts: [
+          {
+            id: 'clickup:a:c1',
+            source: 'clickup',
+            clickupTaskId: 'a',
+            authorId: '50000001',
+            title: 'Task a',
+            foundAt: new Date(NOW - HOUR).toISOString()
+          }
+        ]
+      })
+    )
+    writeFileSync(join(hq, 'slack-scout', 'config.yaml'), 'clickup_ignore_authors: [50000001]\n')
+    await collectHqClickUpRequests(hq, deps([], {}))
+    expect(requests().drafts).toEqual([])
+  })
+
+  it("keeps a colleague's question when only the agents comment after it", async () => {
+    mkdirSync(join(hq, 'slack-scout'), { recursive: true })
+    writeFileSync(join(hq, 'slack-scout', 'config.yaml'), 'clickup_ignore_authors: [9]\n')
+    await collectHqClickUpRequests(
+      hq,
+      deps([task('a', NOW - HOUR)], {
+        a: [
+          comment('c1', PETYA, NOW - 3 * HOUR, 'Когда будет?'),
+          comment('c2', user('9', 'Acme IT'), NOW - 2 * HOUR, 'Отчёт: сделано то и это.')
+        ]
+      })
+    )
+    expect(requests().drafts.map((draft) => draft.id)).toEqual(['clickup:a:c1'])
+  })
+
   it('skips while HQ is off and tells listeners only when something was added', async () => {
     vi.useFakeTimers()
     try {
