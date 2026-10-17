@@ -19461,7 +19461,8 @@
       },
       "status": {
         "button": "Status update",
-        "hint": "Draft one status message for the client across all projects. You review it in the chat, and it goes out only after your Approve."
+        "hint": "Draft one status message for the client across all projects. You review it in the chat, and it goes out only after your Approve.",
+        "chatName": "Status update"
       },
       "night": {
         "chip": "Night shift",
@@ -19498,6 +19499,9 @@
         "taskCreated": "Task created in ClickUp.",
         "creatingTask": "Creating…",
         "createTask": "Create in ClickUp"
+      },
+      "ask": {
+        "chatName": "Ask HQ"
       }
     },
     "claudeSubscriptions": {
