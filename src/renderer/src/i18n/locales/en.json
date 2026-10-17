@@ -19257,7 +19257,8 @@
         "deferred": "{{count}} deferred",
         "notes": "Notes",
         "doneForYou": "Done for you",
-        "history": "History"
+        "history": "History",
+        "feed": "Feed"
       },
       "ready": {
         "noCheck": "The task list has no «check» status — move it by hand.",
@@ -19510,6 +19511,24 @@
         "auto": "Read new answers",
         "speed": "Speed",
         "voice": "Voice"
+      },
+      "feed": {
+        "request": "Asks you",
+        "conversation": "Conversation",
+        "fyi": "FYI",
+        "myComment": "You wrote",
+        "review": "Review",
+        "sent": "Sent for you",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "open": "Open",
+        "hint": "Everything around you in one timeline: Slack conversations and requests, ClickUp comments, reviews waiting on you, and what Orca+ sent for you.",
+        "source": "Source",
+        "all": "All",
+        "project": "Project",
+        "allProjects": "All projects",
+        "search": "Search the feed",
+        "empty": "Nothing in the feed yet."
       }
     },
     "claudeSubscriptions": {
