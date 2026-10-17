@@ -2744,6 +2744,9 @@
       }
     },
     "hq": {
+      "inbox": {
+        "agentWaits": "waits for you"
+      },
       "notes": {
         "hint": "Slack questions to you land in «Waiting on me» on their own. Remind writes to the person only after you approve it."
       },

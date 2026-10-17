@@ -49,13 +49,17 @@ export function findHqAskChat(
   return structuredTargets(worktreeId).find((target) => target.sessionId === sessionId) ?? null
 }
 
-async function startHqAskChat(worktreeId: string, question: string): Promise<HqActionResult> {
+/** A new chat in the HQ workspace with the prompt, shown in HQ once its tab appears. */
+async function startHqChatWithPrompt(
+  worktreeId: string,
+  prompt: string
+): Promise<{ ok: true; chat: StructuredAgentSendTarget | null } | { ok: false; message: string }> {
   const before = agentPaneKeys(worktreeId)
   const launched = launchAgentInNewTab({
     requestId: newAgentLaunchRequestId(),
     agent: 'claude',
     worktreeId,
-    prompt: hqAskFirstPrompt(question),
+    prompt,
     promptDelivery: 'submit-after-ready',
     launchSource: 'unknown'
   })
@@ -66,12 +70,29 @@ async function startHqAskChat(worktreeId: string, question: string): Promise<HqA
     }
   }
   const paneKey = await waitForNewAgentPane(worktreeId, before)
-  const chat = structuredTargets(worktreeId).find((target) => target.paneKey === paneKey)
+  const chat = structuredTargets(worktreeId).find((target) => target.paneKey === paneKey) ?? null
   if (chat) {
-    void useAppStore.getState().updateSettings({ hqAskSessionId: chat.sessionId })
     showHqAskChat(worktreeId, chat.tabId)
   }
-  return { ok: true }
+  return { ok: true, chat }
+}
+
+async function startHqAskChat(worktreeId: string, question: string): Promise<HqActionResult> {
+  const started = await startHqChatWithPrompt(worktreeId, hqAskFirstPrompt(question))
+  if (started.ok && started.chat) {
+    void useAppStore.getState().updateSettings({ hqAskSessionId: started.chat.sessionId })
+  }
+  return started.ok ? { ok: true } : started
+}
+
+// Custom build (hq-status-update): the owner presses the button; nothing drafts a status on its own.
+export const HQ_STATUS_UPDATE_PROMPT =
+  'Статус Жене (скилл status-update): собери статус по всем проектам с прошлого отправленного, покажи черновик и жди моего «да».'
+
+/** A fresh HQ chat that drafts the status update and waits for the owner's yes. */
+export async function startHqStatusUpdate(worktreeId: string): Promise<HqActionResult> {
+  const started = await startHqChatWithPrompt(worktreeId, HQ_STATUS_UPDATE_PROMPT)
+  return started.ok ? { ok: true } : started
 }
 
 /** Sends the question to the standing chat, or starts it when it is gone. */
