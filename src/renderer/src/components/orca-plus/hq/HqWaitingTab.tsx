@@ -1,4 +1,6 @@
 // Custom build (hq): the HQ «Waiting» tab — who waits on me, whom I wait on, and what was decided.
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
 import type { PulseWaitingDirection } from '../../../../../shared/pulse-types'
 import { useNow } from '@/hooks/use-now'
 import { translate } from '@/i18n/i18n'
@@ -70,12 +72,17 @@ function decisionTitle(decision: HqDecision): string {
 
 export function DecisionsColumn({
   decisions,
-  now
+  now,
+  initialLimit
 }: {
   decisions: readonly HqDecision[]
   now: number
+  /** Shows only the latest few until «Show all» is pressed. */
+  initialLimit?: number
 }): React.JSX.Element {
   const title = translate('auto.hq.waiting.decisions', 'Recent decisions')
+  const [showAll, setShowAll] = useState(false)
+  const shown = initialLimit === undefined || showAll ? decisions : decisions.slice(0, initialLimit)
   return (
     <section className="flex min-h-0 flex-col gap-3" aria-label={title}>
       <ColumnHeader title={title} count={decisions.length} />
@@ -85,7 +92,7 @@ export function DecisionsColumn({
         </p>
       ) : (
         <ul className="flex flex-col">
-          {decisions.map((decision) => (
+          {shown.map((decision) => (
             <li
               key={decision.id}
               className="flex items-baseline gap-2 border-b border-border py-1.5 text-[13px] last:border-b-0"
@@ -106,6 +113,19 @@ export function DecisionsColumn({
           ))}
         </ul>
       )}
+      {shown.length < decisions.length ? (
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost"
+          className="self-start"
+          onClick={() => setShowAll(true)}
+        >
+          {translate('auto.hq.waiting.showAllDecisions', 'Show all {{value0}}', {
+            value0: decisions.length
+          })}
+        </Button>
+      ) : null}
     </section>
   )
 }

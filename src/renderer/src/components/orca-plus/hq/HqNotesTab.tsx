@@ -126,20 +126,17 @@ function SlackWaitingRows({ now }: { now: number }): React.JSX.Element | null {
       {drafts.map((draft) => {
         const at = Date.parse(draft.foundAt)
         return (
-          <li
-            key={draft.id}
-            className="flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-accent/50"
-          >
+          <li key={draft.id} className="flex items-start gap-2.5 px-3 py-2.5 hover:bg-accent/50">
             <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-semibold text-muted-foreground">
               {noteInitials(draft.author || draft.channelName)}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[11px] text-muted-foreground">
+              <span className="block truncate text-xs text-muted-foreground">
                 {[draft.author, Number.isNaN(at) ? null : formatShortTimeAgo(at, now), 'Slack']
                   .filter(Boolean)
                   .join(' · ')}
               </span>
-              <span className="block text-[13px]">{draft.ask || draft.title}</span>
+              <span className="block text-sm">{draft.ask || draft.title}</span>
             </span>
             <span className="flex shrink-0 items-center gap-1">
               <Button
@@ -174,22 +171,32 @@ function SlackWaitingRows({ now }: { now: number }): React.JSX.Element | null {
   )
 }
 
+// Why: the owner found the flat list hard to read — each group is a framed card, rows split by hairlines.
+const NOTE_CARD_CLASS =
+  'flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-card'
+
 function NoteSection({
   title,
   count,
   empty,
+  framed = true,
   children
 }: {
   title: string
   count: number
   empty: string
+  /** False when the children are cards of their own. */
+  framed?: boolean
   children: React.ReactNode
 }): React.JSX.Element {
   return (
-    <section className="flex flex-col gap-1" aria-label={title}>
+    <section className="flex flex-col gap-2" aria-label={title}>
       <ColumnHeader title={title} count={count} />
-      {count === 0 ? <p className="px-2 text-xs text-muted-foreground">{empty}</p> : null}
-      <ul className="flex flex-col">{children}</ul>
+      {count === 0 ? (
+        <p className="text-xs text-muted-foreground">{empty}</p>
+      ) : (
+        <ul className={framed ? NOTE_CARD_CLASS : 'flex flex-col gap-2'}>{children}</ul>
+      )}
     </section>
   )
 }
@@ -224,7 +231,7 @@ export function HqNotesTab(): React.JSX.Element {
           hqChatKey(waiting.worktreeId, structuredAgentSessionTabId(waiting.agentSessionId))
         ) ?? null)
       : null
-  const row = (waiting: HqWaiting): React.JSX.Element => (
+  const row = (waiting: HqWaiting, showPerson = true): React.JSX.Element => (
     <HqNoteRow
       key={waiting.id}
       waiting={waiting}
@@ -232,6 +239,7 @@ export function HqNotesTab(): React.JSX.Element {
       chat={chatFor(waiting)}
       now={now}
       hqWorktreeId={hqWorktreeId}
+      showPerson={showPerson}
     />
   )
   const board = buildHqNotesBoard(waitings, now)
@@ -247,7 +255,7 @@ export function HqNotesTab(): React.JSX.Element {
   }
   const shows = (section: HqNotesFilter): boolean => filter === null || filter === section
   return (
-    <div className="scrollbar-sleek flex h-full min-h-0 flex-col gap-5 overflow-y-auto p-4">
+    <div className="scrollbar-sleek flex h-full min-h-0 flex-col gap-6 overflow-y-auto p-4">
       <NoteInput people={people} now={now} />
       <HqNotesTiles counts={counts} selected={filter} onSelect={setFilter} />
       {filter === 'overdue' ? (
@@ -256,7 +264,7 @@ export function HqNotesTab(): React.JSX.Element {
           count={board.overdue.length}
           empty={translate('auto.hq.notes.emptyOverdue', 'Nothing is overdue.')}
         >
-          {board.overdue.map(row)}
+          {board.overdue.map((waiting) => row(waiting))}
         </NoteSection>
       ) : null}
       {shows('answered') && (filter !== null || board.answered.length > 0) ? (
@@ -265,7 +273,7 @@ export function HqNotesTab(): React.JSX.Element {
           count={board.answered.length}
           empty={translate('auto.hq.notes.emptyAnswered', 'No answers yet.')}
         >
-          {board.answered.map(row)}
+          {board.answered.map((waiting) => row(waiting))}
         </NoteSection>
       ) : null}
       {shows('waiting') ? (
@@ -273,11 +281,12 @@ export function HqNotesTab(): React.JSX.Element {
           title={translate('auto.hq.waiting.onThem', "I'm waiting on")}
           count={board.waiting.length}
           empty={translate('auto.hq.waiting.emptyOnThem', "You're not waiting on anyone.")}
+          framed={false}
         >
           {groupHqNotesByPerson(board.waiting, personName).map((group) => (
-            <li key={group.key} className="flex flex-col">
-              <span className="flex items-center gap-2 px-2 pt-2 pb-0.5 text-xs font-semibold">
-                <span className="flex size-5 items-center justify-center rounded-full bg-status-warning-background text-3xs text-status-warning">
+            <li key={group.key} className="overflow-hidden rounded-lg border border-border bg-card">
+              <span className="flex items-center gap-2 bg-muted/40 px-3 py-2 text-sm font-semibold">
+                <span className="flex size-6 items-center justify-center rounded-full bg-status-warning-background text-2xs text-status-warning">
                   {noteInitials(group.name ?? '?')}
                 </span>
                 {group.name ?? translate('auto.hq.notes.nobody', 'No one named')}
@@ -285,7 +294,9 @@ export function HqNotesTab(): React.JSX.Element {
                   {group.items.length}
                 </span>
               </span>
-              <ul className="flex flex-col">{group.items.map(row)}</ul>
+              <ul className="flex flex-col divide-y divide-border border-t border-border">
+                {group.items.map((waiting) => row(waiting, group.name === null))}
+              </ul>
             </li>
           ))}
         </NoteSection>
@@ -297,7 +308,7 @@ export function HqNotesTab(): React.JSX.Element {
           empty={translate('auto.hq.waiting.emptyOnMe', 'Nobody is waiting on you.')}
         >
           <SlackWaitingRows now={now} />
-          {board.onMe.map(row)}
+          {board.onMe.map((waiting) => row(waiting))}
         </NoteSection>
       ) : null}
       {filter === null ? (
@@ -307,9 +318,9 @@ export function HqNotesTab(): React.JSX.Element {
             count={board.notes.length}
             empty={translate('auto.hq.notes.empty', 'No notes.')}
           >
-            {board.notes.map(row)}
+            {board.notes.map((waiting) => row(waiting))}
           </NoteSection>
-          <DecisionsColumn decisions={decisions} now={now} />
+          <DecisionsColumn decisions={decisions} now={now} initialLimit={5} />
         </>
       ) : null}
       <p className="text-xs text-muted-foreground">
