@@ -1,5 +1,6 @@
-// Custom build (hq-promises): what the owner promised people in Slack («сделаю», «пришлю до пт»),
-// found by the Slack scout and kept in HQ → Notes as «waiting on me», with a reminder the day before.
+// Custom build (hq-promises): what the owner promised people in Slack or ClickUp comments («сделаю»,
+// «пришлю до пт»), found by the Slack scout and kept in HQ → Notes as «waiting on me», with a reminder
+// the day before.
 import type { PulseBellInput } from './pulse-bell'
 import type { PulseWaiting } from './pulse-types'
 
@@ -27,9 +28,12 @@ function text(value: unknown, max = TEXT_MAX): string | null {
   return typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
 }
 
-function slackPermalink(value: unknown): string | null {
+/** A Slack message or a ClickUp comment link — nothing else is opened from Notes. */
+function promiseLink(value: unknown): string | null {
   const link = text(value, 500)
-  return link && /^https:\/\/[a-z0-9-]+\.slack\.com\/archives\//.test(link) ? link : null
+  return link && /^https:\/\/([a-z0-9-]+\.slack\.com\/archives\/|app\.clickup\.com\/t\/)/.test(link)
+    ? link
+    : null
 }
 
 /** The scout's file, with anything malformed dropped rather than trusted. */
@@ -51,7 +55,7 @@ export function parseHqScoutPromises(raw: string): {
     if (!entry || typeof entry !== 'object') {
       return []
     }
-    const permalink = slackPermalink(Reflect.get(entry, 'permalink'))
+    const permalink = promiseLink(Reflect.get(entry, 'permalink'))
     const person = text(Reflect.get(entry, 'person'), 80)
     const what = text(Reflect.get(entry, 'what'))
     const due = text(Reflect.get(entry, 'due'), 10)
@@ -72,7 +76,7 @@ export function parseHqScoutPromises(raw: string): {
     if (!entry || typeof entry !== 'object') {
       return []
     }
-    const permalink = slackPermalink(Reflect.get(entry, 'permalink'))
+    const permalink = promiseLink(Reflect.get(entry, 'permalink'))
     return permalink ? [{ permalink, reason: text(Reflect.get(entry, 'reason')) ?? 'done' }] : []
   })
   return { promises, done }
