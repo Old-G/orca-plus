@@ -12,7 +12,8 @@ import type { HqTaskQuestionsResult } from '../../shared/hq-triage'
 import type {
   HqVoiceIdeaResult,
   HqVoiceRewriteMode,
-  HqVoiceRewriteResult
+  HqVoiceRewriteResult,
+  HqVoiceTaskResult
 } from '../../shared/hq-voice-prompts'
 import type {
   HqSlackScoutCreateResult,
@@ -42,6 +43,8 @@ export type HqProjectsApi = {
     text: string
   }) => Promise<HqVoiceRewriteResult>
   saveIdea: (request: { text: string }) => Promise<HqVoiceIdeaResult>
+  /** The ClickUp-mode text as a task where slack-scout/config.yaml says; only on the owner's press. */
+  createVoiceTask: (request: { text: string }) => Promise<HqVoiceTaskResult>
   /** Custom build (hq-slack-scout): drafts the Slack scout wrote; Create makes the ClickUp task. */
   slackDrafts: () => Promise<HqSlackScoutResult>
   rejectSlackDraft: (ref: { id: string }) => Promise<HqSlackScoutCreateResult | { ok: true }>
