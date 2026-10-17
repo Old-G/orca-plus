@@ -3,6 +3,7 @@
 // from the renderer's IPC — never from the hook server, whose token every agent can read.
 import { classifyOutgoingToolCall } from '../../../shared/outgoing-approval/outgoing-action-classifier'
 import type { OutgoingDraftCall } from '../../../shared/outgoing-approval/outgoing-action'
+import type { OutgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
 import { outgoingWaitingFollowUp } from '../../../shared/outgoing-approval/outgoing-waiting-prompt'
 import type { PulseApprovalOutcome, PulseDraft } from '../../../shared/pulse-types'
 import type { PulseDb } from '../pulse/pulse-db'
@@ -167,8 +168,14 @@ export class OutgoingApprovalGate {
     return this.replyFor(draft)
   }
 
-  /** The owner's answer from the bell; `editedText` replaces the call's editable field. */
-  decide(id: string, outcome: PulseApprovalOutcome, editedText?: string): PulseDraft {
+  /** The owner's answer from the bell; `editedText` replaces the call's editable field.
+   *  `describe` names where the call goes and who sends it, kept with the decision. */
+  decide(
+    id: string,
+    outcome: PulseApprovalOutcome,
+    editedText?: string,
+    describe?: (draft: PulseDraft) => OutgoingSentContext
+  ): PulseDraft {
     const db = this.deps.db()
     const draft = db.getDraft(id)
     if (!draft?.call || draft.source !== GATE_DRAFT_SOURCE) {
@@ -180,7 +187,8 @@ export class OutgoingApprovalGate {
     const { draft: decided } = db.decideDraft(
       id,
       outcome,
-      outcome === 'edited' ? editedText : undefined
+      outcome === 'edited' ? editedText : undefined,
+      describe?.(draft) ?? null
     )
     this.release(id)
     return decided

@@ -1,5 +1,9 @@
 // Custom build (hq): the part of the pulse snapshot HQ shows, read field by field — the runtime's
 // answer arrives untyped, and a record that does not fit is dropped rather than trusted.
+import {
+  readOutgoingSentContext,
+  type OutgoingSentContext
+} from './outgoing-approval/outgoing-sent-context'
 import type { PulseApprovalOutcome, PulseDecision, PulsePerson, PulseWaiting } from './pulse-types'
 
 export type HqPerson = Pick<PulsePerson, 'id' | 'name'>
@@ -22,6 +26,8 @@ export type HqDecision = Pick<
 > & {
   /** Custom build (hq-done-journal): what was sent, for «Done for you». */
   body?: string
+  /** Custom build (hq-sent-history): where an approval's call went and which chat sent it. */
+  sent?: OutgoingSentContext
 }
 
 export type HqPulse = {
@@ -132,6 +138,7 @@ function readDecision(record: object): HqDecision | null {
   }
   const outcome = OUTCOMES.find((candidate) => candidate === field(record, 'outcome')) ?? null
   const body = nullableString(field(record, 'body'))
+  const sent = readOutgoingSentContext(field(record, 'sentContext'))
   return {
     id,
     title,
@@ -139,7 +146,8 @@ function readDecision(record: object): HqDecision | null {
     outcome,
     project: nullableString(field(record, 'project')),
     decidedAt,
-    ...(body ? { body } : {})
+    ...(body ? { body } : {}),
+    ...(sent ? { sent } : {})
   }
 }
 

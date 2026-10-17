@@ -13,15 +13,20 @@ import { agentHookServer } from '../../agent-hooks/server'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import { readHqSlackScoutIndex } from '../../hq-today/hq-slack-scout-index'
 import { PulseDb, pulseDbPath } from '../pulse/pulse-db'
+import { outgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
 import { describeOutgoingDraft, type OutgoingContextSources } from './outgoing-approval-context'
 import { OutgoingApprovalGate } from './outgoing-approval-gate'
 import { bindOutgoingGateEndpoint } from './outgoing-gate-endpoint'
 import { createOutgoingGateRequestHandler } from './outgoing-gate-http'
+import { backfillLegacySentContext } from './outgoing-sent-history'
 import { slackConversationName } from './outgoing-slack-names'
 
 const SWEEP_INTERVAL_MS = 30_000
 // Why: the card waits this long for names at most; the agent is held either way.
 const DESCRIBE_TIMEOUT_MS = 3_000
+// Why: Slack and the chat records are up by then, so older approvals can be named.
+const BACKFILL_DELAY_MS = 30_000
+const BACKFILL_DECISIONS = 100
 const OUTCOMES: readonly PulseApprovalOutcome[] = ['approved', 'edited', 'rejected']
 
 type DecidedListener = (decided: PulseDraft, outcome: PulseApprovalOutcome) => void
@@ -52,6 +57,10 @@ export function onOutgoingApprovalDecided(listener: DecidedListener): () => void
 
 export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
   let db: PulseDb | null = null
+  const pulseDb = (): PulseDb =>
+    (db ??= new PulseDb(pulseDbPath(getAppEnvironment().getPath('userData'))))
+  const workspaceOf = (agentSessionId: string): string | null =>
+    runtime.openedAgentSessionRecordStore()?.getRecord(agentSessionId)?.location.workspaceId ?? null
   const contexts = new Map<string, OutgoingApprovalContext>()
   const sources: OutgoingContextSources = {
     slackName: (id) => slackConversationName(id),
@@ -94,7 +103,7 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
       .then(syncBell)
   }
   const gate = new OutgoingApprovalGate({
-    db: () => (db ??= new PulseDb(pulseDbPath(getAppEnvironment().getPath('userData')))),
+    db: pulseDb,
     onChanged: describeThenSync
   })
   agentHookServer.setOutgoingGateHandler(createOutgoingGateRequestHandler(() => gate))
@@ -109,6 +118,19 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
   sweep.unref?.()
   // Why: cards from the last run come back for calls whose hooks reconnect; the sweep drops the rest.
   syncBell()
+  // Custom build (hq-sent-history): approvals whose card showed a bare id get named once.
+  const backfill = setTimeout(() => {
+    const pulse = pulseDb()
+    backfillLegacySentContext(pulse.listDecisions({ kind: 'approval', limit: BACKFILL_DECISIONS }), {
+      getDraft: (id) => pulse.getDraft(id),
+      approvalCards: (since) =>
+        pulse.listInbox({ includeDone: true, kind: OUTGOING_APPROVAL_BELL_KIND, since }),
+      describe: (draft) => withTimeout(describeOutgoingDraft(draft, sources), {}),
+      workspaceOf,
+      save: (id, context) => pulse.setDecisionContext(id, context)
+    }).catch((error: unknown) => console.warn('[outgoing-approval] history naming failed:', error))
+  }, BACKFILL_DELAY_MS)
+  backfill.unref?.()
 
   ipcMain.handle(
     'outgoingApproval:decide',
@@ -117,7 +139,14 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
       if (typeof id !== 'string' || !known) {
         throw new Error('outgoingApproval:decide needs a draft id and an outcome')
       }
-      const decided = gate.decide(id, known, typeof text === 'string' ? text : undefined)
+      // Custom build (hq-sent-history): the history keeps what the card showed and the chat that sent it.
+      const decided = gate.decide(id, known, typeof text === 'string' ? text : undefined, (draft) =>
+        outgoingSentContext(
+          draft,
+          contexts.get(draft.id),
+          draft.call?.agentSessionId ? workspaceOf(draft.call.agentSessionId) : null
+        )
+      )
       for (const listener of decidedListeners) {
         try {
           listener(decided, known)

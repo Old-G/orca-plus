@@ -7,6 +7,10 @@ import type {
   PulseDecisionKind,
   PulseDraft
 } from '../../../shared/pulse-types'
+import {
+  parseOutgoingSentContext,
+  type OutgoingSentContext
+} from '../../../shared/outgoing-approval/outgoing-sent-context'
 import type { PulseCore } from './pulse-core'
 import { moveDraft } from './pulse-drafts'
 import { integer, oneOf, optionalOneOf, optionalText, text } from './pulse-row-fields'
@@ -32,7 +36,8 @@ function toDecision(row: SqliteRow): PulseDecision {
     draftId: optionalText(row, 'draft_id'),
     source: text(row, 'source'),
     decidedAt: integer(row, 'decided_at'),
-    mirroredPath: optionalText(row, 'mirrored_path')
+    mirroredPath: optionalText(row, 'mirrored_path'),
+    sentContext: parseOutgoingSentContext(optionalText(row, 'context'))
   }
 }
 
@@ -40,7 +45,7 @@ function insertDecision(core: PulseCore, decision: PulseDecision): void {
   core.db
     .prepare(
       'INSERT INTO decisions (id, kind, title, body, outcome, project, person_id, draft_id, ' +
-        'source, decided_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        'source, decided_at, context) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
     .run(
       decision.id,
@@ -52,7 +57,8 @@ function insertDecision(core: PulseCore, decision: PulseDecision): void {
       decision.personId,
       decision.draftId,
       decision.source,
-      decision.decidedAt
+      decision.decidedAt,
+      decision.sentContext ? JSON.stringify(decision.sentContext) : null
     )
   core.emit('decision.logged', 'decision', decision.id, decision)
 }
@@ -70,7 +76,8 @@ export function logDecision(core: PulseCore, input: PulseDecisionInput): PulseDe
       draftId: null,
       source: input.source,
       decidedAt: core.clock.now(),
-      mirroredPath: null
+      mirroredPath: null,
+      sentContext: null
     }
     insertDecision(core, decision)
     return decision
@@ -85,7 +92,8 @@ export function decideDraft(
   core: PulseCore,
   draftId: string,
   outcome: PulseApprovalOutcome,
-  editedBody?: string
+  editedBody?: string,
+  sentContext: OutgoingSentContext | null = null
 ): { draft: PulseDraft; decision: PulseDecision } {
   if (outcome === 'edited' && !editedBody?.trim()) {
     throw new Error('pulse: an edited approval needs the edited text')
@@ -108,12 +116,18 @@ export function decideDraft(
       draftId: draft.id,
       source: 'owner',
       decidedAt: core.clock.now(),
-      mirroredPath: null
+      mirroredPath: null,
+      sentContext
     }
     core.emit('draft.decided', 'draft', draft.id, draft)
     insertDecision(core, decision)
     return { draft, decision }
   })
+}
+
+/** Custom build (hq-sent-history): where an older approval went, worked out after it was decided. */
+export function setDecisionContext(core: PulseCore, id: string, context: OutgoingSentContext): void {
+  core.db.prepare('UPDATE decisions SET context = ? WHERE id = ?').run(JSON.stringify(context), id)
 }
 
 /** Records where the decision was mirrored in HQ (4.4). */
