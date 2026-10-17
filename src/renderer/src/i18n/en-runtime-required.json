@@ -2926,11 +2926,24 @@
       "feed": {
         "hint": "Everything around you in one timeline: Slack conversations and requests, ClickUp comments, reviews waiting on you, and what Orca+ sent for you."
       },
+      "history": {
+        "closed": "Closed",
+        "empty": "No agent chats finished this week.",
+        "gone": "Terminal closed",
+        "hint": "Agent chats that finished over the last week, closed ones included. Click one to open it here.",
+        "today": "Today",
+        "turns": "· {{count}} turns",
+        "untitled": "Agent chat",
+        "yesterday": "Yesterday"
+      },
       "inbox": {
         "agentWaits": "waits for you"
       },
       "notes": {
         "hint": "Slack questions to you land in «Waiting on me» on their own. Remind writes to the person only after you approve it."
+      },
+      "pinned": {
+        "history": "History"
       },
       "today": {
         "askPlaceholder": "Ask HQ anything — what we decided, what you wrote to whom, a task — or give it a command",

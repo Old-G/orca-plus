@@ -19730,7 +19730,8 @@
         "done": "Done",
         "incoming": "Incoming",
         "doneHint": "What was done: commits, finished agent sessions and messages sent for you.",
-        "incomingHint": "What came in: Slack conversations and requests, ClickUp comments, reviews waiting on you."
+        "incomingHint": "What came in: Slack conversations and requests, ClickUp comments, reviews waiting on you.",
+        "openChat": "Open chat"
       },
       "reports": {
         "noHq": "Add the HQ folder as a project to send decisions.",
