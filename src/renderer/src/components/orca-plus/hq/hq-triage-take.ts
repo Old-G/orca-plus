@@ -73,13 +73,12 @@ export function buildHqCoordinatorWorkItem(
     projects: readonly { name: string; path: string; level: HqAutonomyLevel }[]
     model: string
     effort: string
-  }
+  },
+  /** Custom build (hq-night-shift): owner-written instructions placed before the task's data. */
+  extra?: string
 ): LaunchableWorkItem {
-  return withTaskData(
-    task,
-    full,
-    hqCoordinatorPrompt({ identifier: task.identifier, url: task.url, ...coordinator })
-  )
+  const prompt = hqCoordinatorPrompt({ identifier: task.identifier, url: task.url, ...coordinator })
+  return withTaskData(task, full, extra ? `${prompt}\n${extra}` : prompt)
 }
 
 export async function takeHqTriageTask(
