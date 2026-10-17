@@ -19045,7 +19045,8 @@
         "outcomeRejected": "Rejected",
         "kindDecision": "Decision",
         "loading": "Loading…",
-        "loadFailed": "Couldn't read waitings: {{value0}}"
+        "loadFailed": "Couldn't read waitings: {{value0}}",
+        "showAllDecisions": "Show all {{value0}}"
       },
       "projects": {
         "ungrouped": "Other projects",
