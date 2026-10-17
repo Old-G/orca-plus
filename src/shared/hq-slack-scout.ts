@@ -12,6 +12,8 @@ export const HQ_SLACK_SCOUT_CONFIG_FILE = 'config.yaml'
 export const HQ_SLACK_SCOUT_EDITS_FILE = 'edits.json'
 /** Custom build (hq-clickup-requests): comments to the owner's ClickUp tasks, written by Orca+ itself. */
 export const HQ_CLICKUP_REQUESTS_FILE = 'clickup.json'
+/** Custom build (hq-promises): the owner's own recent ClickUp comments, where the scout finds his promises. */
+export const HQ_CLICKUP_OWN_FILE = 'clickup-own.json'
 /** Custom build (hq-clickup-requests): the owner's draft-vs-sent pairs, read back as tone examples. */
 export const HQ_REPLY_CORRECTIONS_FILE = 'corrections.jsonl'
 /** Written by the scout's run.sh after every run: `{at, ok, exitCode, lastRunAt}`. */
