@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     text: `[${mode}] готово`
   })),
   saveIdea: vi.fn(async () => ({ ok: true, path: 'ideas/x.md' })),
+  createVoiceTask: vi.fn(async () => ({ ok: true, url: 'https://app.clickup.com/t/1' })),
   settings: { hqVoicePromptsEnabled: true }
 }))
 
@@ -29,7 +30,11 @@ const target = {
 
 beforeEach(() => {
   vi.stubGlobal('api', {
-    hqProjects: { voiceRewrite: mocks.voiceRewrite, saveIdea: mocks.saveIdea }
+    hqProjects: {
+      voiceRewrite: mocks.voiceRewrite,
+      saveIdea: mocks.saveIdea,
+      createVoiceTask: mocks.createVoiceTask
+    }
   })
   mocks.settings.hqVoicePromptsEnabled = true
 })
@@ -62,6 +67,18 @@ describe('HqVoicePreviewDialog', () => {
     await waitFor(() => expect(screen.getByDisplayValue('[idea] готово')).toBeTruthy())
     fireEvent.click(screen.getByRole('button', { name: 'Save to HQ ideas' }))
     await waitFor(() => expect(mocks.saveIdea).toHaveBeenCalledWith({ text: '[idea] готово' }))
+  })
+
+  it('creates the ClickUp task only when Create is pressed', async () => {
+    render(<HqVoicePreviewDialog />)
+    act(() => offerHqVoicePreview('в кликап голос из окна', target))
+    await waitFor(() => expect(screen.getByDisplayValue('[clickup] готово')).toBeTruthy())
+    expect(mocks.createVoiceTask).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Create in ClickUp' }))
+    await waitFor(() =>
+      expect(mocks.createVoiceTask).toHaveBeenCalledWith({ text: '[clickup] готово' })
+    )
+    await waitFor(() => expect(screen.queryByText('Voice prompt')).toBeNull())
   })
 
   it('opens nothing while voice prompts are off', () => {

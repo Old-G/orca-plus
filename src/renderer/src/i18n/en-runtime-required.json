@@ -2911,6 +2911,9 @@
         "commandPlaceholder": "Give HQ a command — Claude starts in the HQ workspace with it…",
         "commandShort": "Command to HQ…",
         "run": "Run"
+      },
+      "voice": {
+        "description": "Pick what your dictation becomes, edit it, and insert it where the cursor was. Nothing is sent from here."
       }
     },
     "lib": {
