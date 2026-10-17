@@ -15,6 +15,7 @@ import type { NativeChatComposerNotice } from '../controls/native-chat-composer-
 import type { NativeChatContextUsageSummary } from '../../../../../../shared/native-chat/native-chat-context-usage-summary'
 import { nativeChatComposerPlaceholder } from '../controls/native-chat-composer-placeholder'
 import type { NativeChatAfterStopSend } from '../submit/native-chat-composer-target'
+import type { NativeChatReadAloudSource } from '../../../orca-plus/read-aloud/NativeChatReadAloudButton'
 import type {
   SessionOptionDescriptor,
   SessionOptionsSurface
@@ -93,6 +94,8 @@ export type NativeChatComposerFieldProps = {
   sessionOptionsPickerRequest?: NativeChatOptionPickerRequest | null
   goalMode?: NativeChatComposerGoalMode
   agent?: string
+  /** Custom build (hq-read-aloud). */
+  readAloud?: NativeChatReadAloudSource
   launchPrompt?: { placeholder: string }
   workspaceFooter?: React.ReactNode
 }
@@ -168,7 +171,8 @@ export function NativeChatComposerField({
   goalMode,
   agent,
   launchPrompt,
-  workspaceFooter
+  workspaceFooter,
+  readAloud
 }: NativeChatComposerFieldProps): React.JSX.Element {
   const t = useTranslate()
   const draftNotSaved = useNativeChatComposerDraftUnsaved(draftScopeKey)
@@ -419,6 +423,7 @@ export function NativeChatComposerField({
                 onExitGoalMode={goalMode?.active ? exitGoalMode : undefined}
                 launchPrompt={launch}
                 {...(agent ? { agent } : {})}
+                {...(readAloud ? { readAloud } : {})}
               />
             </div>
           </div>

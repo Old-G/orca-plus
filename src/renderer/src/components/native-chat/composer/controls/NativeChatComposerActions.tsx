@@ -23,6 +23,10 @@ import { NativeChatContextUsageRing } from '../../usage/NativeChatContextUsageRi
 import type { NativeChatContextUsageSummary } from '../../../../../../shared/native-chat/native-chat-context-usage-summary'
 import type { NativeChatOptionPickerRequest } from '../../session/options/controls/native-chat-option-picker-request'
 import type { NativeChatSteerChordPreview } from '../../../../../../shared/native-chat/input/use-native-chat-steer-chord-preview'
+import {
+  NativeChatReadAloudButton,
+  type NativeChatReadAloudSource
+} from '../../../orca-plus/read-aloud/NativeChatReadAloudButton'
 
 export type NativeChatComposerActionsProps = {
   editSession?: { cancel: () => void }
@@ -63,6 +67,8 @@ export type NativeChatComposerActionsProps = {
   agent?: string
   /** A launch prompt: Attach and dictation are its only controls; launching is the panel's. */
   launchPrompt?: boolean
+  /** Custom build (hq-read-aloud): the transcript «Read aloud» reads the latest answer from. */
+  readAloud?: NativeChatReadAloudSource
 }
 
 // Memoized: typing re-renders the composer per keystroke, and these controls rarely change with it.
@@ -94,7 +100,8 @@ export const NativeChatComposerActions = memo(function NativeChatComposerActions
   contextUsage,
   focusComposer,
   agent,
-  launchPrompt = false
+  launchPrompt = false,
+  readAloud
 }: NativeChatComposerActionsProps): React.JSX.Element {
   const t = useTranslate()
   useUiLanguageRevision()
@@ -304,6 +311,16 @@ export const NativeChatComposerActions = memo(function NativeChatComposerActions
         />
       )
     },
+    // Custom build (hq-read-aloud): the speaker beside the model picker; gives way like the draft mark.
+    ...(readAloud
+      ? [
+          {
+            id: 'read-aloud',
+            priority: 1,
+            content: <NativeChatReadAloudButton source={readAloud} isWorking={isWorking} />
+          }
+        ]
+      : []),
     ...(contextUsage
       ? [
           {
