@@ -1125,6 +1125,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
   'hqProjects.answerSlackDraft': HqSlackDraftRefParams,
+  'hqProjects.chatList': null,
   'hqProjects.createSlackDraftTask': HqSlackDraftCreateParams,
   'hqProjects.createVoiceTask': HqVoiceIdeaParams,
   'hqProjects.draftClickUpReply': HqSlackDraftRefParams,

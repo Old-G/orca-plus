@@ -1,77 +1,112 @@
-// Custom build (hq-mobile): HQ on the phone — the requests to the owner and what was done for him,
-// his notes, and the bell. Approvals of outgoing messages stay on the Mac.
+// Custom build (hq-mobile): HQ on the phone. Custom build (hq-mobile-messenger): laid out as the
+// desktop's messenger — the pinned pages (Today, Notes, Done for you, Feed, Reports, Inbox) above
+// the chats in their sections; a page opens over the list with a back button, a chat opens the
+// phone's session. Approvals of outgoing messages stay on the Mac.
 import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import type { HqChatWireItem } from '../../../src/shared/hq-chat-wire'
 import { hostStackHostRoute } from '../navigation/host-stack-navigation'
 import { useRouteHandoff } from '../navigation/route-handoff'
 import { firstParam } from '../navigation/route-param-reader'
 import { useHostClient } from '../transport/host-client-hooks'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { hqStyles } from './mobile-hq-parts'
+import { MobileHqChatList, hqChatSessionHref } from './MobileHqChatList'
+import { MobileHqFeedPage } from './MobileHqFeedPage'
 import { MobileHqInboxTab } from './MobileHqInboxTab'
 import { MobileHqNotesTab } from './MobileHqNotesTab'
+import { MobileHqReportsPage } from './MobileHqReportsPage'
 import { MobileHqRequestsTab } from './MobileHqRequestsTab'
 
-const TABS = [
-  { id: 'requests', label: 'Requests' },
-  { id: 'notes', label: 'Notes' },
-  { id: 'inbox', label: 'Inbox' }
+const PAGES = [
+  { id: 'today', label: 'Today', icon: '☀︎' },
+  { id: 'notes', label: 'Notes', icon: '✎' },
+  { id: 'done', label: 'Done for you', icon: '✓' },
+  { id: 'feed', label: 'Feed', icon: '≋' },
+  { id: 'reports', label: 'Reports', icon: '▤' },
+  { id: 'inbox', label: 'Inbox', icon: '◉' }
 ] as const
 
-type TabId = (typeof TABS)[number]['id']
+type PageId = (typeof PAGES)[number]['id']
 
 export function MobileHqScreen() {
   const params = useLocalSearchParams<{ hostId?: string | string[] }>()
   const hostId = firstParam(params.hostId)
   const router = useRouteHandoff()
   const { client } = useHostClient(hostId)
-  const [tab, setTab] = useState<TabId>('requests')
+  const [page, setPage] = useState<PageId | null>(null)
+  const [report, setReport] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const select = (next: TabId): void => {
+  const open = (next: PageId): void => {
     setNotice(null)
-    setTab(next)
+    setReport(null)
+    setPage(next)
   }
+  const back = (): void => {
+    if (report) {
+      setReport(null)
+      return
+    }
+    if (page) {
+      setPage(null)
+      return
+    }
+    if (router.canGoBack()) {
+      router.back()
+    } else {
+      router.replace(hostStackHostRoute(hostId))
+    }
+  }
+  const openChat = (item: HqChatWireItem): void => {
+    const href = hostId ? hqChatSessionHref(hostId, item) : null
+    if (href) {
+      router.push(href)
+    }
+  }
+  const title = page ? (PAGES.find((entry) => entry.id === page)?.label ?? 'HQ') : 'HQ'
 
   return (
     <SafeAreaView style={styles.root} edges={['top']} testID="mobile-hq-screen">
       <View style={styles.header}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back to workspaces"
-          onPress={() =>
-            router.canGoBack() ? router.back() : router.replace(hostStackHostRoute(hostId))
-          }
-        >
-          <Text style={hqStyles.link}>‹ Workspaces</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back}>
+          <Text style={hqStyles.link}>‹ {page ? 'HQ' : 'Workspaces'}</Text>
         </Pressable>
-        <Text style={styles.title}>HQ</Text>
-      </View>
-      <View style={styles.tabs} accessibilityRole="tablist">
-        {TABS.map((entry) => (
-          <Pressable
-            key={entry.id}
-            accessibilityRole="tab"
-            accessibilityLabel={entry.label}
-            accessibilityState={{ selected: tab === entry.id }}
-            onPress={() => select(entry.id)}
-            style={[styles.tab, tab === entry.id && styles.tabSelected]}
-          >
-            <Text style={[styles.tabLabel, tab === entry.id && styles.tabLabelSelected]}>
-              {entry.label}
-            </Text>
-          </Pressable>
-        ))}
+        <Text style={styles.title}>{title}</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
         {!client ? (
           <Text style={hqStyles.meta}>Loading…</Text>
-        ) : tab === 'requests' ? (
-          <MobileHqRequestsTab client={client} onNotice={setNotice} />
-        ) : tab === 'notes' ? (
+        ) : page === null ? (
+          <>
+            <View style={styles.pinned} accessibilityRole="menu">
+              {PAGES.map((entry) => (
+                <Pressable
+                  key={entry.id}
+                  accessibilityRole="menuitem"
+                  accessibilityLabel={entry.label}
+                  onPress={() => open(entry.id)}
+                  style={({ pressed }) => [styles.pin, pressed && hqStyles.pressed]}
+                >
+                  <Text style={styles.pinIcon}>{entry.icon}</Text>
+                  <Text style={styles.pinLabel}>{entry.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <MobileHqChatList client={client} onOpen={openChat} />
+          </>
+        ) : page === 'today' ? (
+          <MobileHqRequestsTab client={client} onNotice={setNotice} show="requests" />
+        ) : page === 'done' ? (
+          <MobileHqRequestsTab client={client} onNotice={setNotice} show="done" />
+        ) : page === 'notes' ? (
           <MobileHqNotesTab client={client} />
+        ) : page === 'feed' ? (
+          <MobileHqFeedPage client={client} />
+        ) : page === 'reports' ? (
+          <MobileHqReportsPage client={client} path={report} onOpen={setReport} />
         ) : (
           <MobileHqInboxTab client={client} onNotice={setNotice} />
         )}
@@ -92,22 +127,23 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.borderSubtle
   },
   title: { fontSize: typography.titleSize, fontWeight: '600', color: colors.textPrimary },
-  tabs: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md
+  content: { padding: spacing.lg, gap: spacing.md },
+  pinned: {
+    gap: 1,
+    borderRadius: radii.row,
+    overflow: 'hidden',
+    backgroundColor: colors.borderSubtle
   },
-  tab: {
-    paddingVertical: spacing.xs + 2,
+  pin: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.md,
-    borderRadius: radii.button,
     backgroundColor: colors.bgPanel
   },
-  tabSelected: { backgroundColor: colors.bgRaised },
-  tabLabel: { fontSize: typography.bodySize, color: colors.textSecondary },
-  tabLabelSelected: { color: colors.textPrimary, fontWeight: '600' },
-  content: { padding: spacing.lg, gap: spacing.md },
+  pinIcon: { width: 20, textAlign: 'center', color: colors.textSecondary },
+  pinLabel: { fontSize: typography.bodySize, color: colors.textPrimary, fontWeight: '500' },
   notice: {
     fontSize: typography.metaSize,
     color: colors.textPrimary,

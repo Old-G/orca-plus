@@ -16,6 +16,7 @@ import {
 import { synthesizeHqReadAloud } from '../hq-today/hq-read-aloud-speech'
 import { keepHqApprovalEdits } from '../hq-today/hq-reply-corrections'
 import { setHqDesktopSender } from '../hq-today/hq-request-on-desktop'
+import { publishHqChatList } from '../hq-today/hq-chat-list-snapshot'
 import {
   bindOutgoingApprovalHqPath,
   onOutgoingApprovalDecided
@@ -47,6 +48,9 @@ export function registerHqProjectPagesHandlers(
   ipcMain.handle('hqProjects:wikiTree', () => service.wikiTree())
   ipcMain.handle('hqProjects:wikiPage', (_event, path: unknown) => service.wikiPage(path))
   ipcMain.handle('hqProjects:reports', () => service.reports())
+  ipcMain.handle('hqProjects:publishChatList', (_event, items: unknown) => {
+    publishHqChatList(items)
+  })
   ipcMain.handle('hqProjects:projectDiagram', (_event, repoId: unknown) =>
     service.projectDiagram(repoId)
   )
