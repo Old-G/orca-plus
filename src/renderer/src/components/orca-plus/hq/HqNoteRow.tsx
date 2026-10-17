@@ -86,10 +86,13 @@ export function HqNoteRow({
   personName,
   chat,
   now,
-  hqWorktreeId
+  hqWorktreeId,
+  showPerson = true
 }: {
   waiting: HqWaiting
   personName: string | null
+  /** False inside a person's card, whose header already names them. */
+  showPerson?: boolean
   /** The chat that waits, while it is in the chat list. */
   chat: HqChatItem | null
   now: number
@@ -108,7 +111,9 @@ export function HqNoteRow({
     })
   }
   const isNote = waiting.source === HQ_NOTE_SOURCE
-  const who = personName ?? (isNote ? translate('auto.hq.notes.self', 'Me') : null)
+  const who = showPerson
+    ? (personName ?? (isNote ? translate('auto.hq.notes.self', 'Me') : null))
+    : null
   const project = chat?.projectName ?? waiting.project
   const canRemind =
     waiting.direction === 'on-them' &&
@@ -120,7 +125,7 @@ export function HqNoteRow({
   const clickUpUrl = clickUpWaitingUrl(waiting.sourceRef, clickUpWorkspaceId)
   const { agentSessionId, worktreeId } = waiting
   return (
-    <li className="flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-accent/50">
+    <li className="flex items-start gap-2.5 px-3 py-2.5 hover:bg-accent/50">
       <Checkbox
         className="mt-1"
         disabled={busy}
@@ -128,8 +133,8 @@ export function HqNoteRow({
         aria-label={translate('auto.hq.waiting.done', 'Done')}
       />
       <span className="min-w-0 flex-1">
-        <span className="block text-[13px]">{waiting.title}</span>
-        <span className="flex items-baseline gap-2 text-2xs text-muted-foreground">
+        <span className="block text-sm">{waiting.title}</span>
+        <span className="mt-0.5 flex items-baseline gap-2 text-xs text-muted-foreground">
           <span className="min-w-0 truncate">
             {who ? `${who} · ` : null}
             {chat ? (
