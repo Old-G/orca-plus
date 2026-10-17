@@ -147,7 +147,8 @@ export function mapClickUpComments(value: unknown): ClickUpComment[] {
         id,
         body: typeof raw.comment_text === 'string' ? raw.comment_text : '',
         author: mapClickUpUser(raw.user),
-        createdAt: asTimestamp(raw.date)
+        createdAt: asTimestamp(raw.date),
+        ...(typeof raw.reply_count === 'number' ? { replyCount: raw.reply_count } : {})
       }
     ]
   })
