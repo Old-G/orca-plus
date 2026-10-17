@@ -2,6 +2,7 @@ import {
   clearAgentFinished,
   recordAgentFinished
 } from '../orca-plus/pulse-bell/pulse-bell-agent-finished'
+import { isOrcaPlusQuietHour, orcaPlusQuietHours } from '../../shared/orca-plus-quiet-hours'
 import { BrowserWindow, Notification, ipcMain, powerMonitor } from 'electron'
 import { readDesktopAwayState } from '../notifications/desktop-away-state'
 import type { Store } from '../persistence'
@@ -166,8 +167,13 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
     isWindowVisible: isMainWindowVisible,
     setTrayAttention,
     isNotificationSupported: () => Notification.isSupported(),
+    // Custom build (quiet-hours): the phone and Slack stay silent in the owner's quiet hours.
     dispatchMobileNotification: runtime
-      ? (payload) => runtime.dispatchMobileNotification(payload)
+      ? (payload) => {
+          if (!isOrcaPlusQuietHour(orcaPlusQuietHours(store.getSettings()), new Date())) {
+            runtime.dispatchMobileNotification(payload)
+          }
+        }
       : null,
     readAuthorizationStatus: readNotificationAuthorizationStatus,
     recordDeliveryOutcome: recordNotificationDeliveryOutcome,
@@ -179,7 +185,11 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
         announced.record(request.paneKey, request.notificationId, request.structuredOrigin)
       }
     },
-    dispatchSlackNotification: (request) => void slackChannel.notify(request),
+    dispatchSlackNotification: (request) => {
+      if (!isOrcaPlusQuietHour(orcaPlusQuietHours(store.getSettings()), new Date())) {
+        void slackChannel.notify(request)
+      }
+    },
     isDesktopAway: () => {
       try {
         return readDesktopAwayState(powerMonitor)

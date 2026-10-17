@@ -200,5 +200,21 @@ export const getNotificationsPaneSearchEntries = createLocalizedCatalog(() => [
       ),
       ...translateSearchKeyword('auto.components.settings.notifications.search.aa288005c3', 'test')
     ]
+  },
+  // Custom build (quiet-hours)
+  {
+    title: translate('auto.orcaPlus.quietHours.title', 'Quiet Hours'),
+    description: translate(
+      'auto.orcaPlus.quietHours.searchDescription',
+      'Hours when Orca+ sends nothing to your phone or Slack except urgent items.'
+    ),
+    keywords: [
+      ...translateSearchKeyword('auto.orcaPlus.quietHours.keywordNight', 'night'),
+      ...translateSearchKeyword('auto.orcaPlus.quietHours.keywordPhone', 'phone'),
+      ...translateSearchKeyword(
+        'auto.components.settings.notifications.search.ca8faa40d7',
+        'notifications'
+      )
+    ]
   }
 ])
