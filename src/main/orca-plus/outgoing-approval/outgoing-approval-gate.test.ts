@@ -205,6 +205,26 @@ describe('OutgoingApprovalGate', () => {
     expect(answer.permissionDecisionReason).toBe('The user approved this action in the Orca+ bell.')
   })
 
+  it('puts an approved message into the thread the owner picked', async () => {
+    const { gate } = setup()
+    const id = pendingId(gate.submit(slackHook()))
+    gate.decide(id, 'approved', undefined, undefined, { threadTs: '1792156555.418929' })
+    expect(output(await gate.wait(id)).updatedInput).toEqual({
+      channel_id: 'D1',
+      message: 'Привет, Анна',
+      thread_ts: '1792156555.418929'
+    })
+  })
+
+  it('tells the agent where to send a moved message instead of «rejected»', async () => {
+    const { gate } = setup()
+    const id = pendingId(gate.submit(slackHook()))
+    gate.decide(id, 'rejected', undefined, undefined, { denyReason: 'Post it in DEV-1 instead.' })
+    const answer = output(await gate.wait(id))
+    expect(answer.permissionDecision).toBe('deny')
+    expect(answer.permissionDecisionReason).toBe('Post it in DEV-1 instead.')
+  })
+
   it('denies a rejected call and tells the agent not to retry', async () => {
     const { gate, db } = setup()
     const id = pendingId(gate.submit(slackHook()))
