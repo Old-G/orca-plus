@@ -13,7 +13,12 @@ const empty: OutgoingSentContext = {
   agentSessionId: null,
   worktreeId: null,
   project: null,
-  head: null
+  head: null,
+  taskId: null,
+  taskUrl: null,
+  taskName: null,
+  ref: null,
+  footer: null
 }
 
 describe('hqSentNames', () => {
