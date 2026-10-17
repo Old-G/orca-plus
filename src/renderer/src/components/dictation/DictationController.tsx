@@ -2,7 +2,7 @@ import { useRef, useCallback, useState } from 'react'
 import { useAppStore } from '@/store'
 import { useAudioCapture } from '@/hooks/use-audio-capture'
 import { DictationIndicator } from './DictationIndicator'
-import { captureInsertionTarget } from './dictation-insertion-target'
+import { captureInsertionTarget, type DictationInsertionTarget } from './dictation-insertion-target'
 import { captureDictationContext } from './dictation-context'
 import { dictationPillAnchorFor, type DictationPillAnchor } from './dictation-pill-anchor'
 import {
@@ -43,6 +43,7 @@ import {
   type DictationSession,
   type DictationSessionEvent
 } from '../../../../shared/dictation-session-machine'
+import { holdsHqVoicePreview, offerHqVoicePreview } from '../orca-plus/voice/hq-voice-preview'
 
 export function DictationController() {
   const dictationState = useAppStore((s) => s.dictationState)
@@ -64,6 +65,10 @@ export function DictationController() {
   const sessionRef = useRef<DictationSession>(initialDictationSession)
   // Inserts the current session's finals where dictation started.
   const deliverRef = useRef<((text: string) => void) | null>(null)
+  // Custom build (hq-voice-prompts): finals held back for the preview, and where they would have gone.
+  const hqVoiceHeldRef = useRef<{ text: string; target: DictationInsertionTarget | null } | null>(
+    null
+  )
   const [stoppedSessions] = useState(createDictationStoppedSessions)
   // Push-to-talk restarts per utterance; report a missing preferred microphone once per preference.
   const micFallbackNotifiedForRef = useRef<string | null>(null)
@@ -134,6 +139,11 @@ export function DictationController() {
       }
       if (!sessionRef.current.heardFinalText && getCapturedChunkCount() > 0) {
         showNoSpeechDetectedToast()
+      }
+      const heldVoice = hqVoiceHeldRef.current
+      hqVoiceHeldRef.current = null
+      if (heldVoice) {
+        offerHqVoicePreview(heldVoice.text, heldVoice.target)
       }
       beforeEnd?.()
       await landCleanup()
@@ -229,7 +239,19 @@ export function DictationController() {
     const isCurrent = (): boolean => sessionRef.current.run === run
     const insertionTarget = captureInsertionTarget()
     const deliver = createDictationTranscriptDelivery(shouldHoldForCleanup())
-    deliverRef.current = (text) => deliver(text, insertionTarget)
+    hqVoiceHeldRef.current = null
+    deliverRef.current = (text) => {
+      // Custom build (hq-voice-prompts): held back until the owner picks what it becomes.
+      if (holdsHqVoicePreview()) {
+        const held = hqVoiceHeldRef.current?.text ?? ''
+        hqVoiceHeldRef.current = {
+          text: held ? `${held} ${text}` : text,
+          target: insertionTarget
+        }
+        return
+      }
+      deliver(text, insertionTarget)
+    }
     const context = captureDictationContext()
     const kept = createDictationKeptRecording(insertionTarget, deliver, context)
     keptRef.current = kept

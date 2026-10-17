@@ -10,6 +10,8 @@ export const hqProjectsApi = {
   reviews: (refresh) => ipcRenderer.invoke('hqProjects:reviews', refresh === true),
   gitState: (paths) => ipcRenderer.invoke('hqProjects:gitState', paths),
   draftTaskQuestions: (task) => ipcRenderer.invoke('hqProjects:draftTaskQuestions', task),
+  voiceRewrite: (request) => ipcRenderer.invoke('hqProjects:voiceRewrite', request),
+  saveIdea: (request) => ipcRenderer.invoke('hqProjects:saveIdea', request),
   slackDrafts: () => ipcRenderer.invoke('hqProjects:slackDrafts'),
   rejectSlackDraft: (ref) => ipcRenderer.invoke('hqProjects:rejectSlackDraft', ref),
   createSlackDraftTask: (draft) => ipcRenderer.invoke('hqProjects:createSlackDraftTask', draft),

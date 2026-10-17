@@ -1,5 +1,6 @@
 import { UnsealedCredentialNotice } from '../../provider-accounts/UnsealedCredentialNotice'
 import type { SecretAtRestProtection } from '../../../../../shared/secret-at-rest-protection'
+import { HqVoicePromptsSetting } from './HqVoicePromptsSetting'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GlobalSettings } from '../../../../../shared/global-settings-types'
 import { getDefaultVoiceSettings } from '../../../../../shared/constants'
@@ -348,6 +349,11 @@ export function VoicePane({
         onUpdateVoiceSettings={updateVoiceSettings}
         writeSourceControlAiSettings={writeSourceControlAiSettings}
       />
+
+      {/* Custom build (hq-voice-prompts): the preview switch, in its own card like the sections around it. */}
+      <SettingsGroup>
+        <HqVoicePromptsSetting />
+      </SettingsGroup>
 
       <SettingsGroup title={t('components.settings.voice.advanced.title', 'Advanced')}>
         <VoiceSpeechGpuSetting
