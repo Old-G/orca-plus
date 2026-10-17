@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef } from 'react'
 import { AppState } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
+import { offerMobileVoicePrompt } from '../hq/mobile-voice-prompt'
 import { triggerError } from '../platform/haptics'
 import { useClipboardWriter } from '../platform/clipboard'
 import { routeDictationTranscript } from '../terminal/terminal-live-dictation-routing'
@@ -145,9 +146,12 @@ export function useMobileSessionNativeChatDictation(
     onTranscript: (text) => {
       // Chat dictation is inserted locally; terminal mode retains live-input routing.
       if (destination.landsInChat(showNativeChatRef.current)) {
-        if (!destination.insertInChat(text)) {
-          keepUndeliveredDictation(text)
-        }
+        // Custom build (hq-voice-prompts): with the Mac's Voice Prompts on, the owner picks first.
+        void offerMobileVoicePrompt(client, text, (picked) => {
+          if (!destination.insertInChat(picked)) {
+            keepUndeliveredDictation(picked)
+          }
+        })
         return
       }
       const routeContext = dictationRouteContextRef.current
@@ -174,7 +178,10 @@ export function useMobileSessionNativeChatDictation(
       }
       // The draft written is the active terminal's; a selection read in another terminal only appends there.
       const anchor = routeContext?.handle === activeHandleRef.current ? routeContext.anchor : null
-      setInput((current) => insertDictationText(current, route.text, anchor).text)
+      // Custom build (hq-voice-prompts): with the Mac's Voice Prompts on, the owner picks first.
+      void offerMobileVoicePrompt(client, route.text, (picked) => {
+        setInput((current) => insertDictationText(current, picked, anchor).text)
+      })
     },
     onError: (err) => {
       dictationRouteContextRef.current = null
