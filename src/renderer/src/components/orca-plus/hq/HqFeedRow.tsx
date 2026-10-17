@@ -1,7 +1,16 @@
-// Custom build (hq-feed): one feed row. Work done reads as a short post; what came in keeps its
-// source, kind and the first lines of the text.
-import { useState } from 'react'
-import { ExternalLink } from 'lucide-react'
+// Custom build (hq-feed): one «Incoming» feed row — its source, kind and the first lines of the text.
+import {
+  Bot,
+  ExternalLink,
+  GitCommitHorizontal,
+  GitPullRequest,
+  Info,
+  MessageCircleQuestion,
+  MessageSquare,
+  MessagesSquare,
+  Send,
+  type LucideIcon
+} from 'lucide-react'
 import { hqFeedUrl, type HqFeedItem, type HqFeedSource } from '../../../../../shared/hq-feed'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,7 +30,7 @@ export function hqFeedSourceLabel(source: HqFeedSource): string {
   }
 }
 
-function kindLabel(kind: string): string {
+export function hqFeedKindLabel(kind: string): string {
   switch (kind) {
     case 'request':
       return translate('auto.hq.feed.request', 'Asks you')
@@ -44,7 +53,32 @@ function kindLabel(kind: string): string {
   }
 }
 
-function OpenLink({ url }: { url: string | null }): React.JSX.Element | null {
+const KIND_ICONS: Record<string, LucideIcon> = {
+  commit: GitCommitHorizontal,
+  session: Bot,
+  sent: Send,
+  request: MessageCircleQuestion,
+  conversation: MessagesSquare,
+  fyi: Info,
+  'my-comment': MessageSquare,
+  review: GitPullRequest
+}
+
+/** What kind of event, with its own hue: work done in blue/purple/green, asks in amber. */
+export function HqFeedKindChip({ kind }: { kind: string }): React.JSX.Element {
+  const Icon = KIND_ICONS[kind] ?? Info
+  return (
+    <span
+      data-kind={kind}
+      className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground data-[kind=commit]:bg-callout-note/10 data-[kind=commit]:text-callout-note data-[kind=request]:bg-status-warning-background data-[kind=request]:text-status-warning data-[kind=review]:bg-callout-note/10 data-[kind=review]:text-callout-note data-[kind=sent]:bg-status-success-background data-[kind=sent]:text-status-success data-[kind=session]:bg-callout-important/10 data-[kind=session]:text-callout-important"
+    >
+      <Icon className="size-3" />
+      {hqFeedKindLabel(kind)}
+    </span>
+  )
+}
+
+export function HqFeedOpenLink({ url }: { url: string | null }): React.JSX.Element | null {
   return url ? (
     <Button
       type="button"
@@ -66,56 +100,17 @@ export function HqFeedRow({ item, now }: { item: HqFeedItem; now: number }): Rea
         <Badge variant="outline" className="shrink-0">
           {hqFeedSourceLabel(item.source)}
         </Badge>
-        <Badge variant="secondary" className="shrink-0">
-          {kindLabel(item.kind)}
-        </Badge>
+        <HqFeedKindChip kind={item.kind} />
         <span className="min-w-0 flex-1 truncate text-[13px]" title={item.title}>
           {item.title}
         </span>
         <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
           {formatShortTimeAgo(item.at, now)}
         </span>
-        <OpenLink url={hqFeedUrl(item.url)} />
+        <HqFeedOpenLink url={hqFeedUrl(item.url)} />
       </div>
       {item.body ? <p className="line-clamp-2 text-xs text-muted-foreground">{item.body}</p> : null}
       {meta ? <p className="text-[11px] text-muted-foreground">{meta}</p> : null}
-    </li>
-  )
-}
-
-/** Work done as a post: the readable line first, where and when under it, the original on demand. */
-export function HqFeedPost({ item, now }: { item: HqFeedItem; now: number }): React.JSX.Element {
-  const [open, setOpen] = useState(false)
-  const meta = [item.project, kindLabel(item.kind), item.person].filter(Boolean).join(' · ')
-  return (
-    <li className="flex flex-col gap-1 border-b border-border py-2.5 last:border-b-0">
-      <div className="flex items-start gap-2">
-        <p className="min-w-0 flex-1 text-[13px] leading-snug">{item.post ?? item.title}</p>
-        <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
-          {formatShortTimeAgo(item.at, now)}
-        </span>
-        <OpenLink url={hqFeedUrl(item.url)} />
-      </div>
-      <div className="flex items-center gap-2">
-        <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">{meta}</p>
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          aria-expanded={open}
-          onClick={() => setOpen((value) => !value)}
-        >
-          {open
-            ? translate('auto.hq.feed.hideOriginal', 'Hide original')
-            : translate('auto.hq.feed.showOriginal', 'Original')}
-        </Button>
-      </div>
-      {open ? (
-        <div className="flex flex-col gap-1 rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
-          <p className="break-words">{item.title}</p>
-          {item.body ? <p className="break-words whitespace-pre-wrap">{item.body}</p> : null}
-        </div>
-      ) : null}
     </li>
   )
 }
