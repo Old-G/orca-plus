@@ -1235,6 +1235,11 @@
         "nativeDropTempCopyFailed_other": "Orca couldn't copy {{count}} dropped files."
       }
     },
+    "hq": {
+      "notes": {
+        "hint": "Slack questions to you land in «Waiting on me» on their own. Remind writes to the person only after you approve it."
+      }
+    },
     "lib": {
       "dropFailureReason": {
         "changed": "The file changed while it was uploading. Try again.",

@@ -11,6 +11,7 @@ import {
 import { NotificationSettingToggle } from './NotificationSettingToggle'
 import { NotificationHostToggles } from './NotificationHostToggles'
 import { NotificationSoundSection } from './NotificationSoundSection'
+import { OrcaPlusQuietHoursSetting } from './OrcaPlusQuietHoursSetting'
 import {
   createNotificationVolumeDraftState,
   resolveNotificationVolumeDraftState,
@@ -199,6 +200,10 @@ export function NotificationsPane({
           })
         }
       />
+
+      <Separator />
+
+      <OrcaPlusQuietHoursSetting settings={settings} updateSettings={updateSettings} />
 
       <Separator />
 

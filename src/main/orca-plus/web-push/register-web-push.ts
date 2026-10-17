@@ -1,6 +1,11 @@
 // Custom build (web-push): turns new bell items into pushes for paired phones.
 import { powerMonitor } from 'electron'
 import { getAppEnvironment } from '../../../shared/app-environment'
+import {
+  isOrcaPlusQuietHour,
+  orcaPlusQuietHours,
+  type OrcaPlusQuietHours
+} from '../../../shared/orca-plus-quiet-hours'
 import type { PulseInboxItem } from '../../../shared/pulse-types'
 import { readDesktopAwayState } from '../../notifications/desktop-away-state'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
@@ -24,7 +29,11 @@ function isInboxItem(payload: unknown): payload is PulseInboxItem {
   )
 }
 
-export function registerWebPush(runtime: OrcaRuntimeService): void {
+export function registerWebPush(
+  runtime: OrcaRuntimeService,
+  /** Custom build (quiet-hours): the owner's settings, read on every push. */
+  readSettings: () => { orcaPlusQuietHours?: OrcaPlusQuietHours | null } = () => ({})
+): void {
   const service = new WebPushService({
     store: new WebPushStore(webPushFilePath(getAppEnvironment().getPath('userData'))),
     isDevicePaired: (deviceId) => {
@@ -33,6 +42,7 @@ export function registerWebPush(runtime: OrcaRuntimeService): void {
     },
     // Unknown presence counts as away, like the native phone app's pushes.
     isOwnerAtMac: () => readDesktopAwayState(powerMonitor) === false,
+    isQuietHour: () => isOrcaPlusQuietHour(orcaPlusQuietHours(readSettings()), new Date()),
     openBellCount: () => runtime.pulseListInbox(false).length,
     now: Date.now
   })
