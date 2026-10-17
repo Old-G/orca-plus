@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { detectHqVoiceMode, hqIdeaFileName, hqVoicePrompt } from './hq-voice-prompts'
+import {
+  detectHqVoiceMode,
+  hqIdeaFileName,
+  hqVoicePrompt,
+  splitHqVoiceTask
+} from './hq-voice-prompts'
 
 describe('detectHqVoiceMode', () => {
   it('reads the mode from the first words and strips them', () => {
@@ -39,5 +44,15 @@ describe('hqIdeaFileName', () => {
       '2026-10-17-сводка-по-почте.md'
     )
     expect(hqIdeaFileName('', new Date(2026, 0, 2))).toBe('2026-01-02-idea.md')
+  })
+})
+
+describe('splitHqVoiceTask', () => {
+  it('takes the first line as the name and the rest as the description', () => {
+    expect(splitHqVoiceTask('## [hq] Голос\n\n## Зачем\nчтобы')).toEqual({
+      name: '[hq] Голос',
+      description: '## Зачем\nчтобы'
+    })
+    expect(splitHqVoiceTask('# \nтекст')).toBeNull()
   })
 })
