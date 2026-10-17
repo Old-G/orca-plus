@@ -261,6 +261,8 @@ export function HqSlackRequestCard({
             .join(' · ')}
         </span>
       </div>
+      {/* Custom build (hq-scout-context): why the scout thinks this needs the owner. */}
+      {draft.why ? <p className="text-xs text-foreground">→ {draft.why}</p> : null}
       {draft.quote ? (
         <p className="line-clamp-2 text-xs text-muted-foreground">«{draft.quote}»</p>
       ) : null}
