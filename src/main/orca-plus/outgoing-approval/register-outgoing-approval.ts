@@ -14,12 +14,18 @@ import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import { readHqSlackScoutIndex } from '../../hq-today/hq-slack-scout-index'
 import { PulseDb, pulseDbPath } from '../pulse/pulse-db'
 import { outgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
+import { outgoingFooterFor } from '../../../shared/outgoing-approval/outgoing-footer'
+import {
+  readOutgoingApprovalChoice,
+  type OutgoingApprovalOptions
+} from '../../../shared/outgoing-approval/outgoing-approval-options'
 import { describeOutgoingDraft, type OutgoingContextSources } from './outgoing-approval-context'
 import { OutgoingApprovalGate } from './outgoing-approval-gate'
 import { bindOutgoingGateEndpoint } from './outgoing-gate-endpoint'
 import { createOutgoingGateRequestHandler } from './outgoing-gate-http'
 import { backfillLegacySentContext } from './outgoing-sent-history'
 import { slackConversationName } from './outgoing-slack-names'
+import { clickUpTaskRef, lastChatTask } from './outgoing-task-sources'
 
 const SWEEP_INTERVAL_MS = 30_000
 // Why: the card waits this long for names at most; the agent is held either way.
@@ -69,7 +75,19 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
       return path ? readHqSlackScoutIndex(path) : null
     },
     chatName: (id) =>
-      runtime.openedAgentSessionRecordStore()?.getRecord(id)?.conversationName ?? null
+      runtime.openedAgentSessionRecordStore()?.getRecord(id)?.conversationName ?? null,
+    lastTask: (id) => lastChatTask(pulseDb(), id),
+    clickUpTask: clickUpTaskRef
+  }
+  // Why: a card restored after a restart was never named in this run.
+  const contextOf = async (draft: PulseDraft): Promise<OutgoingApprovalContext> => {
+    const kept = contexts.get(draft.id)
+    if (kept) {
+      return kept
+    }
+    const named = await withTimeout(describeOutgoingDraft(draft, sources), {})
+    contexts.set(draft.id, named)
+    return named
   }
   const syncBell = (): void => {
     try {
@@ -121,31 +139,57 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
   // Custom build (hq-sent-history): approvals whose card showed a bare id get named once.
   const backfill = setTimeout(() => {
     const pulse = pulseDb()
-    backfillLegacySentContext(pulse.listDecisions({ kind: 'approval', limit: BACKFILL_DECISIONS }), {
-      getDraft: (id) => pulse.getDraft(id),
-      approvalCards: (since) =>
-        pulse.listInbox({ includeDone: true, kind: OUTGOING_APPROVAL_BELL_KIND, since }),
-      describe: (draft) => withTimeout(describeOutgoingDraft(draft, sources), {}),
-      workspaceOf,
-      save: (id, context) => pulse.setDecisionContext(id, context)
-    }).catch((error: unknown) => console.warn('[outgoing-approval] history naming failed:', error))
+    backfillLegacySentContext(
+      pulse.listDecisions({ kind: 'approval', limit: BACKFILL_DECISIONS }),
+      {
+        getDraft: (id) => pulse.getDraft(id),
+        approvalCards: (since) =>
+          pulse.listInbox({ includeDone: true, kind: OUTGOING_APPROVAL_BELL_KIND, since }),
+        describe: (draft) => withTimeout(describeOutgoingDraft(draft, sources), {}),
+        workspaceOf,
+        save: (id, context) => pulse.setDecisionContext(id, context)
+      }
+    ).catch((error: unknown) => console.warn('[outgoing-approval] history naming failed:', error))
   }, BACKFILL_DELAY_MS)
   backfill.unref?.()
 
+  // Custom build (outgoing-footer): what the card offers beside Approve — the footer it adds.
+  ipcMain.handle(
+    'outgoingApproval:options',
+    async (_event, id: unknown): Promise<OutgoingApprovalOptions> => {
+      const draft = typeof id === 'string' ? gate.pending().find((held) => held.id === id) : null
+      if (!draft) {
+        return { footer: null }
+      }
+      return { footer: outgoingFooterFor(draft, await contextOf(draft)) }
+    }
+  )
+
   ipcMain.handle(
     'outgoingApproval:decide',
-    (_event, id: unknown, outcome: unknown, text: unknown) => {
+    (_event, id: unknown, outcome: unknown, text: unknown, choice: unknown) => {
       const known = OUTCOMES.find((candidate) => candidate === outcome)
       if (typeof id !== 'string' || !known) {
         throw new Error('outgoingApproval:decide needs a draft id and an outcome')
       }
+      const draft = gate.pending().find((held) => held.id === id)
+      const context = contexts.get(id)
+      // Why: the footer goes unless the owner unticked it.
+      const footer =
+        draft && readOutgoingApprovalChoice(choice).footer !== false
+          ? outgoingFooterFor(draft, context)
+          : null
       // Custom build (hq-sent-history): the history keeps what the card showed and the chat that sent it.
-      const decided = gate.decide(id, known, typeof text === 'string' ? text : undefined, (draft) =>
-        outgoingSentContext(
-          draft,
-          contexts.get(draft.id),
-          draft.call?.agentSessionId ? workspaceOf(draft.call.agentSessionId) : null
-        )
+      const decided = gate.decide(
+        id,
+        known,
+        typeof text === 'string' ? text : undefined,
+        (held) =>
+          outgoingSentContext(held, context, {
+            worktreeId: held.call?.agentSessionId ? workspaceOf(held.call.agentSessionId) : null,
+            footer
+          }),
+        { footer }
       )
       for (const listener of decidedListeners) {
         try {
