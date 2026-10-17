@@ -63,13 +63,17 @@ export function slackRequestBellItem(
     .filter(Boolean)
     .join(' · ')
   const quote = draft.quote.replace(/\s+/g, ' ').trim()
+  const why = draft.why?.replace(/\s+/g, ' ').trim()
   const ref: HqSlackRequestRef = { id: draft.id, kind }
   const title = draft.author ? `${draft.author}: ${ask}` : ask
-  const body = quote ? `${meta}\n«${quote.slice(0, 200)}»` : meta
+  // Custom build (hq-scout-context): the scout's reason says more than the quote does.
+  const second = why ? `→ ${why.slice(0, 200)}` : quote ? `«${quote.slice(0, 200)}»` : null
+  const body = second ? `${meta}\n${second}` : meta
   return {
     kind: HQ_SLACK_REQUEST_BELL_KIND,
     title,
     body,
+    urgency: draft.urgent ? 'urgent' : 'normal',
     refKind: 'slack-request',
     refId: JSON.stringify(ref),
     actions: ACTION_ORDER[kind].map((key) =>
