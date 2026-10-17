@@ -20,6 +20,8 @@ import type {
 } from '../../shared/pulse-types'
 import { getAppEnvironment } from '../../shared/app-environment'
 import { PulseDb, pulseDbPath } from '../orca-plus/pulse/pulse-db'
+import { withLegacySentContext } from '../orca-plus/outgoing-approval/outgoing-sent-history'
+import { OUTGOING_APPROVAL_BELL_KIND } from '../../shared/outgoing-approval/outgoing-approval-bell'
 
 export type PulseSnapshot = {
   people: PulsePerson[]
@@ -31,7 +33,8 @@ export type PulseSnapshot = {
   latestSeq: number
 }
 
-const SNAPSHOT_DECISIONS = 20
+// Why: HQ's «Done for you» shows a week of what was sent; 20 ran out within a busy day.
+const SNAPSHOT_DECISIONS = 100
 
 export class RuntimePulseCommands {
   private opened: PulseDb | null = null
@@ -53,7 +56,12 @@ export class RuntimePulseCommands {
       people: db.listPeople(),
       waitings: db.listWaitings({ status: 'open' }),
       drafts: db.listDrafts('pending'),
-      decisions: db.listDecisions({ limit: SNAPSHOT_DECISIONS }),
+      // Custom build (hq-sent-history): older approvals get where they went from their card.
+      decisions: withLegacySentContext(db.listDecisions({ limit: SNAPSHOT_DECISIONS }), {
+        getDraft: (id) => db.getDraft(id),
+        approvalCards: (since) =>
+          db.listInbox({ includeDone: true, kind: OUTGOING_APPROVAL_BELL_KIND, since })
+      }),
       inbox: db.listInbox(),
       latestSeq: db.latestEventSeq()
     }
