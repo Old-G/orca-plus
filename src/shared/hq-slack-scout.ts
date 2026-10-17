@@ -57,7 +57,11 @@ export const HqSlackScoutDraftSchema = z.object({
   /** Custom build (hq-clickup-requests): absent = Slack. */
   source: z.enum(['slack', 'clickup']).optional().catch(undefined),
   /** The ClickUp task a `clickup` request is a comment on. */
-  clickupTaskId: z.string().max(100).optional().catch(undefined)
+  clickupTaskId: z.string().max(100).optional().catch(undefined),
+  /** Custom build (hq-scout-context): why this needs the owner, one line, after the scout's checks. */
+  why: z.string().max(300).optional().catch(undefined),
+  /** A blocker, a deadline today or a direct question long unanswered: the only kind that pops up. */
+  urgent: z.boolean().optional().catch(undefined)
 })
 
 export type HqSlackScoutDraft = z.infer<typeof HqSlackScoutDraftSchema>

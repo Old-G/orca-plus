@@ -75,7 +75,8 @@ function HqSlackRequestToast({ item }: { item: PulseInboxItem }): React.JSX.Elem
   )
 }
 
-/** Pops requests that arrived after launch (not FYIs) and closes the ones decided since. */
+/** Pops urgent requests that arrived after launch and closes the ones decided since; the rest wait
+ *  in the bell and the digest. */
 export function syncHqSlackRequestToasts(
   items: readonly PulseInboxItem[],
   memory: HqSlackRequestToastMemory
@@ -99,6 +100,8 @@ export function syncHqSlackRequestToasts(
     if (
       !ref ||
       ref.kind === 'fyi' ||
+      // Custom build (hq-scout-context): only what the scout marked urgent interrupts.
+      item.urgency !== 'urgent' ||
       item.createdAt < memory.since ||
       memory.shown.size >= MAX_SHOWN
     ) {

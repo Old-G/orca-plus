@@ -11,12 +11,17 @@ vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => f
 const { createHqSlackRequestToastMemory, syncHqSlackRequestToasts } =
   await import('./hq-slack-request-toasts')
 
-const item = (id: string, kind: string, createdAt: number): PulseInboxItem => ({
+const item = (
+  id: string,
+  kind: string,
+  createdAt: number,
+  urgency: PulseInboxItem['urgency'] = 'urgent'
+): PulseInboxItem => ({
   id,
   kind: 'slack-request',
   title: 'Вера: проверь тикеты',
   body: 'Reply · project? · DM Вера',
-  urgency: 'normal',
+  urgency,
   refKind: 'slack-request',
   refId: JSON.stringify({ id: `D:${id}`, kind }),
   actions: [],
@@ -40,6 +45,12 @@ describe('Slack request toasts', () => {
     )
     expect(toast.custom).toHaveBeenCalledTimes(1)
     expect(toast.custom.mock.calls[0]![1]).toMatchObject({ id: 'slack-request-toast-new' })
+  })
+
+  it('leaves a request the scout did not mark urgent to the bell and the digest', () => {
+    const memory = createHqSlackRequestToastMemory(0)
+    syncHqSlackRequestToasts([item('calm', 'do', 120_000, 'normal')], memory)
+    expect(toast.custom).not.toHaveBeenCalled()
   })
 
   it('closes the toast once the request is decided anywhere', () => {
