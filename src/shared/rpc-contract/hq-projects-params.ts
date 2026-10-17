@@ -23,7 +23,7 @@ export const HqDraftTaskQuestionsParams = z.object({
   description: z.string().max(50_000)
 })
 
-/** Custom build (hq-voice-prompts): a dictation to rewrite, and an idea to file. */
+/** Custom build (hq-voice-prompts): a dictation to rewrite, and an idea or a ClickUp task to file. */
 export const HqVoiceRewriteParams = z.object({
   mode: z.enum(['agent', 'person', 'clickup', 'idea']),
   text: z.string().min(1).max(20_000)
