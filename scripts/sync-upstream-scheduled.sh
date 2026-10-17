@@ -34,6 +34,11 @@ if ! mkdir "$LOCK" 2>/dev/null; then
 fi
 trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
+# Custom build (upstream-updates): the weekly check of plugins, archify, CLIs and brew tools rides this
+# run, whatever the sync decides below; it gates itself to once a week and never fails the sync.
+UPSTREAM_CHECK=${SYNC_UPSTREAM_CHECK-$HOME/.claude/skills/upstream-updates/run.sh}
+[ -x "$UPSTREAM_CHECK" ] && "$UPSTREAM_CHECK" || true
+
 # Why: the rebase rewrites files under a running dev build (HMR) and `build` replaces out/.
 # Only the main process (`Electron .`): orphaned helpers of a killed build must not block syncs.
 if pgrep -f "$ROOT/out/electron-dev/.*/Contents/MacOS/Electron \." >/dev/null 2>&1; then
