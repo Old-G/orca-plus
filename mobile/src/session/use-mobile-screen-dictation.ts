@@ -29,6 +29,7 @@ import type {
   MobileDictationScreenRoute,
   MobileScreenDictationScope
 } from './mobile-screen-dictation-scope'
+import { offerMobileVoicePrompt } from '../hq/mobile-voice-prompt'
 
 // A screen's side of the page's one dictation: start it here, show it in place while this screen is in front, and insert where it started.
 export function useMobileScreenDictation(
@@ -111,11 +112,14 @@ export function useMobileScreenDictation(
   // Chat dictation is inserted locally; a terminal's words are typed into it live, while it is the active one.
   const insertHere = (text: string): boolean => {
     if (destination.landsInChat(showNativeChatRef.current)) {
-      if (destination.insertInChat(text)) {
-        host.announce(dictationAnnounceCopy.inserted())
-      } else {
-        keepUndeliveredDictation(text)
-      }
+      // Custom build (hq-voice-prompts): with the Mac's Voice Prompts on, the owner picks first.
+      void offerMobileVoicePrompt(client, text, (picked) => {
+        if (destination.insertInChat(picked)) {
+          host.announce(dictationAnnounceCopy.inserted())
+        } else {
+          keepUndeliveredDictation(picked)
+        }
+      })
       return true
     }
     const routeContext = dictationRouteContextRef.current
@@ -125,17 +129,20 @@ export function useMobileScreenDictation(
       return false
     }
     dictationRouteContextRef.current = null
-    void (async () => {
-      const sent =
-        (await flushPendingLiveInputBeforeExternalSend(insertHandle)) &&
-        (await sendLiveTerminalInput(insertHandle, text))
-      // Live input lands in a terminal the keyboard may cover, so say where the words went.
-      if (sent) {
-        tell(nativeChatDictationCopy.inserted())
-      } else {
-        keepUndeliveredDictation(text)
-      }
-    })().catch(() => keepUndeliveredDictation(text))
+    // Custom build (hq-voice-prompts): with the Mac's Voice Prompts on, the owner picks first.
+    void offerMobileVoicePrompt(client, text, (picked) => {
+      void (async () => {
+        const sent =
+          (await flushPendingLiveInputBeforeExternalSend(insertHandle)) &&
+          (await sendLiveTerminalInput(insertHandle, picked))
+        // Live input lands in a terminal the keyboard may cover, so say where the words went.
+        if (sent) {
+          tell(nativeChatDictationCopy.inserted())
+        } else {
+          keepUndeliveredDictation(picked)
+        }
+      })().catch(() => keepUndeliveredDictation(picked))
+    })
     return true
   }
 
