@@ -2,6 +2,7 @@
 // owner's decisions on them and corrections to them, and the task a Create makes in ClickUp.
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { HQ_SLACK_QUIET_FILE, parseHqSlackQuiet } from '../../shared/hq-slack-digest'
 import {
   HQ_CLICKUP_REQUESTS_FILE,
   HQ_SLACK_SCOUT_CONFIG_FILE,
@@ -51,13 +52,14 @@ function scoutPath(hqPath: string, file: string): string {
 
 /** Every request in the scout's files and Orca+'s own, with the owner's corrections over them. */
 async function readScoutFiles(hqPath: string) {
-  const [config, drafts, decisions, status, edits, clickup] = await Promise.all([
+  const [config, drafts, decisions, status, edits, clickup, quiet] = await Promise.all([
     readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_CONFIG_FILE)),
     readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DRAFTS_FILE)),
     readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DECISIONS_FILE)),
     readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_STATUS_FILE)),
     readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_EDITS_FILE)),
-    readOptional(scoutPath(hqPath, HQ_CLICKUP_REQUESTS_FILE))
+    readOptional(scoutPath(hqPath, HQ_CLICKUP_REQUESTS_FILE)),
+    readOptional(scoutPath(hqPath, HQ_SLACK_QUIET_FILE))
   ])
   const file = parseHqSlackScoutDrafts(drafts ?? '{}')
   // Custom build (hq-clickup-requests): comments on the owner's tasks sit beside the Slack requests.
@@ -70,6 +72,7 @@ async function readScoutFiles(hqPath: string) {
     draft.clickupTaskId ? [{ ...draft, source: 'clickup' as const }] : []
   )
   return {
+    quietItems: parseHqSlackQuiet(quiet ?? '{}'),
     tuning: parseHqSlackScoutTuning(config ?? ''),
     configured: config !== null || clickupDrafts.length > 0,
     lastRunAt: file.lastRunAt,
@@ -87,7 +90,7 @@ export async function readHqSlackScout(
   now: () => number = Date.now
 ): Promise<HqSlackScoutResult> {
   try {
-    const { all, decisions, tuning, ...run } = await readScoutFiles(hqPath)
+    const { all, decisions, tuning, quietItems, ...run } = await readScoutFiles(hqPath)
     const at = now()
     return {
       ok: true,
@@ -96,12 +99,20 @@ export async function readHqSlackScout(
       drafts: pendingHqSlackScoutDrafts(all, decisions).filter((draft) =>
         freshHqSlackScoutDraft(draft, tuning, at)
       ),
-      done: hqSlackScoutDone(decisions, at)
+      done: hqSlackScoutDone(decisions, at),
+      // Custom build (hq-scout-digest): the quiet side of the same window, for HQ → Today.
+      quiet: quietItems
+        .filter((item) => at - Date.parse(item.at) <= QUIET_SHOWN_MS)
+        .toReversed()
+        .slice(0, QUIET_SHOWN_MAX)
     }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }
 }
+
+const QUIET_SHOWN_MS = 3 * 24 * 60 * 60_000
+const QUIET_SHOWN_MAX = 30
 
 const changeListeners = new Set<() => void>()
 
