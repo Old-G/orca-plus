@@ -18995,6 +18995,16 @@
       "status": {
         "button": "Status update",
         "hint": "Draft one status message for the client across all projects. You review it in the chat, and it goes out only after your Approve."
+      },
+      "night": {
+        "chip": "Night shift",
+        "title": "Tonight",
+        "hint": "Starts at {{value0}}:00 while the Mac is awake; agents stay in their worktrees and nothing leaves the Mac.",
+        "startNow": "Start now",
+        "cancel": "Cancel",
+        "tonightHint": "Start it at night: the agent works in a worktree only, and the result waits in «Ready for you» by morning.",
+        "tonight": "Tonight",
+        "changed": "Not started: the task changed after you queued it. Read it, then Start now or Cancel."
       }
     },
     "claudeSubscriptions": {
