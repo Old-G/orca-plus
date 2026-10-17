@@ -17,6 +17,7 @@ import type {
 } from '../../shared/hq-voice-prompts'
 import type { HqReadAloudSpeechResult } from '../../shared/hq-read-aloud'
 import type { HqReportsResult } from '../../shared/hq-reports'
+import type { HqChatWireItem } from '../../shared/hq-chat-wire'
 import type {
   HqSlackScoutCreateResult,
   HqSlackScoutEdit,
@@ -27,6 +28,8 @@ export type HqProjectsApi = {
   list: () => Promise<HqProjectPagesResult>
   wikiTree: () => Promise<HqWikiTreeResult>
   wikiPage: (path: string) => Promise<HqWikiPageResult>
+  /** Custom build (hq-mobile-messenger): the window's HQ chat list, kept by main for the phone. */
+  publishChatList?: (items: HqChatWireItem[]) => Promise<void>
   /** Custom build (hq-reports): the reports in HQ's report folders, newest first. */
   reports: () => Promise<HqReportsResult>
   map: () => Promise<HqProjectMapResult>

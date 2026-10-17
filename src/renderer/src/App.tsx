@@ -50,6 +50,7 @@ import { PlainSshTerminalPanels } from './components/plain-ssh-terminal/PlainSsh
 import { PluginShotReplayMount } from './components/plugins/view/PluginShotReplayMount'
 import { AddToChatPointMenuHost } from './components/native-chat/selection-quotes/AddToChatMenu'
 import { installActiveWorktreeRemovalSuccessor } from './lib/workspace/activation/active-worktree-removal-successor'
+import { HqChatListPublisher } from './components/orca-plus/hq/HqChatListPublisher'
 
 function App(): React.JSX.Element {
   const layout = useAppChromeLayout()
@@ -119,6 +120,8 @@ function App(): React.JSX.Element {
         } as React.CSSProperties
       }
     >
+      {/* Custom build (hq-mobile-messenger): HQ's chat list for the phone. */}
+      <HqChatListPublisher />
       <TooltipProvider>
         <ConfirmationDialogProvider>
           <BrowserPagePrompts />
