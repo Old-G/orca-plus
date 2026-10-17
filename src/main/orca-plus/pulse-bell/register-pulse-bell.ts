@@ -33,7 +33,6 @@ import {
 import {
   getClickUpTask,
   getClickUpViewer,
-  getClickUpViewerId,
   listClickUpCommentReplies,
   listClickUpTaskComments,
   listClickUpTasks
@@ -117,7 +116,7 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
       return collectHqClickUpRequests(hq, {
         listMyTasks: () => listClickUpTasks({ scope: 'mine', includeDone: true }, 50),
         listComments: listClickUpTaskComments,
-        viewerId: getClickUpViewerId,
+        viewer: getClickUpViewer,
         projectForList: (listId) => {
           const repoId = Object.entries(bindings).find(
             ([, binding]) => listId && binding.listId === listId
