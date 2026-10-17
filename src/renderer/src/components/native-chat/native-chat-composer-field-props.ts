@@ -14,6 +14,7 @@ import type { NativeChatComposerGoalMode } from './composer/submit/use-native-ch
 import type { NativeChatFollowUpBehavior } from '../../../../shared/native-chat/input/composer/native-chat-follow-up-behavior'
 import type { NativeChatSteerChordPreview } from '../../../../shared/native-chat/input/composer/use-native-chat-steer-chord-preview'
 import type { NativeChatComposerImageAttachment } from './attachments/chips/native-chat-image-attachment'
+import type { NativeChatReadAloudSource } from '../orca-plus/read-aloud/NativeChatReadAloudButton'
 import type { NativeChatOptionPickerRequest } from './session/options/controls/native-chat-option-picker-request'
 
 export type NativeChatComposerFieldProps = {
@@ -83,6 +84,8 @@ export type NativeChatComposerFieldProps = {
   sessionOptionsPickerRequest?: NativeChatOptionPickerRequest | null
   goalMode?: NativeChatComposerGoalMode
   agent?: string
+  /** Custom build (hq-read-aloud). */
+  readAloud?: NativeChatReadAloudSource
   launchPrompt?: { placeholder: string }
   workspaceFooter?: React.ReactNode
 }
