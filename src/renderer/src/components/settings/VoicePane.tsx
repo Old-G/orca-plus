@@ -1,4 +1,5 @@
 import { UnsealedCredentialNotice } from './UnsealedCredentialNotice'
+import { HqVoicePromptsSetting } from './HqVoicePromptsSetting'
 import type { SecretAtRestProtection } from '../../../../shared/secret-at-rest-protection'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
@@ -242,6 +243,9 @@ export function VoicePane({ settings, updateSettings }: VoicePaneProps): React.J
         voiceSettings={voiceSettings}
         onUpdateVoiceSettings={updateVoiceSettings}
       />
+
+      <Separator />
+      <HqVoicePromptsSetting />
 
       {showOpenAiSettingsRow && (
         <>

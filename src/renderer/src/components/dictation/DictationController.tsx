@@ -15,6 +15,7 @@ import { showDictationStartErrorToast } from './dictation-start-error-toast'
 import { useHoldDictationGesture } from './use-hold-dictation-gesture'
 import { DICTATION_CONTROL_EVENT, type DictationControlAction } from './dictation-control-events'
 import { publishDictationMeter } from './dictation-meter-store'
+import { holdsHqVoicePreview, offerHqVoicePreview } from '../orca-plus/voice/hq-voice-preview'
 
 export function DictationController() {
   const dictationState = useAppStore((s) => s.dictationState)
@@ -76,6 +77,7 @@ export function DictationController() {
           )
         )
       }
+      offerHqVoicePreview(insertedFinalTranscriptRef.current, insertionTargetRef.current)
       insertionTargetRef.current = null
       finalTranscriptReceivedRef.current = false
       insertedFinalTranscriptRef.current = ''
@@ -371,7 +373,10 @@ export function DictationController() {
           data.text,
           insertedFinalTranscriptRef.current
         )
-        insertText(textToInsert, target)
+        // Custom build (hq-voice-prompts): held back until the owner picks what it becomes.
+        if (!holdsHqVoicePreview()) {
+          insertText(textToInsert, target)
+        }
         insertedFinalTranscriptRef.current += textToInsert
       } else if (!intentionalTargetCancellationRef.current) {
         toast.message(

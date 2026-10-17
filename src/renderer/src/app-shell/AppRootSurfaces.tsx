@@ -2,6 +2,7 @@ import { ModalBoundary, OverlayBoundary } from './app-root-surface-boundaries'
 import { OnboardingLanguageLoading } from '../components/onboarding/OnboardingLanguageLoading'
 import { useLanguageReadiness } from '../i18n/language-readiness'
 import { NotificationCardStack } from '../components/NotificationCardStack'
+import { HqVoicePreviewDialog } from '../components/orca-plus/voice/HqVoicePreviewDialog'
 import { Suspense } from 'react'
 import { lazyWithRetry as lazy } from '@/lib/lazy-with-retry'
 import { translate } from '@/i18n/i18n'
@@ -377,6 +378,8 @@ export function AppRootSurfaces(props: {
         <Suspense fallback={null}>
           <OverlayBoundary boundaryId="overlay.dictation" resetKey={activeView}>
             <DictationController />
+            {/* Custom build (hq-voice-prompts) */}
+            <HqVoicePreviewDialog />
           </OverlayBoundary>
         </Suspense>
       ) : null}
