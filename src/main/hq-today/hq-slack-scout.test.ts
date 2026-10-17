@@ -55,6 +55,23 @@ describe('HQ Slack scout files', () => {
     })
   })
 
+  it('hides a request nobody decided for longer than card_ttl_days', async () => {
+    const DAY = 24 * 60 * 60_000
+    const now = Date.parse('2026-10-17T12:00:00Z')
+    scoutFile('config.yaml', 'card_ttl_days: 2\n')
+    scoutFile(
+      'drafts.json',
+      JSON.stringify({
+        drafts: [
+          { ...draft('D1:1'), foundAt: new Date(now - DAY).toISOString() },
+          { ...draft('D1:2'), foundAt: new Date(now - 3 * DAY).toISOString() }
+        ]
+      })
+    )
+    const result = await readHqSlackScout(hq, () => now)
+    expect(result.ok ? result.drafts.map((entry) => entry.id) : []).toEqual(['D1:1'])
+  })
+
   it("lets only clickup.json name a ClickUp task, never the scout's drafts.json", async () => {
     scoutFile(
       'drafts.json',
