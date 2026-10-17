@@ -41,9 +41,13 @@ import {
 } from '../../clickup/clickup-tasks'
 import { listHqProjectPages } from '../../hq-project-pages/hq-project-pages'
 import { startHqWaitingReplyRelay } from '../../hq-today/hq-waiting-reply-relay'
+import { startHqScoutPromises } from '../../hq-today/hq-scout-promises'
+import { HQ_PROMISE_DUE_KIND, hqPromiseDueBellItems } from '../../../shared/hq-promises'
 import { deliverWaitingReply } from '../waiting-replies/deliver-waiting-reply'
 
 const BROADCAST_DEBOUNCE_MS = 50
+// Why: a promise turns «due by tomorrow» with the clock, not with a pulse change.
+const PROMISE_DUE_CHECK_MS = 30 * 60_000
 
 function broadcastChanged(): void {
   for (const window of BrowserWindow.getAllWindows()) {
@@ -154,8 +158,30 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
     hqPath: () => store.getSettings().hqPath ?? null,
     listWaitings: () => runtime.pulseListWaitings({ status: 'open' }),
     listDecisions: () => runtime.pulseListDecisions(100),
-    personName: (id) => runtime.pulseListPeople().find((person) => person.id === id)?.name ?? null
+    personName: (id) => runtime.pulseListPeople().find((person) => person.id === id)?.name ?? null,
+    peopleNames: () => runtime.pulseListPeople().map((person) => person.name)
   })
+  // Custom build (hq-promises): the owner's Slack promises into Notes, and a bell line the day before.
+  startHqScoutPromises({
+    hqPath: () => store.getSettings().hqPath ?? null,
+    listWaitings: () => runtime.pulseListWaitings(),
+    listPeople: () => runtime.pulseListPeople(),
+    upsertPerson: (input) => runtime.pulseUpsertPerson(input),
+    addWaiting: (input) => runtime.pulseAddWaiting(input),
+    closeWaiting: (id, resolution) => void runtime.pulseCloseWaiting(id, 'resolved', resolution)
+  })
+  const syncPromisesDue = (): void =>
+    sync(
+      HQ_PROMISE_DUE_KIND,
+      hqPromiseDueBellItems(
+        runtime.pulseListWaitings({ status: 'open', direction: 'on-me' }),
+        (id) => runtime.pulseListPeople().find((person) => person.id === id)?.name ?? null,
+        Date.now()
+      )
+    )
+  onPulseChanged(syncPromisesDue)
+  setInterval(syncPromisesDue, PROMISE_DUE_CHECK_MS).unref?.()
+  syncPromisesDue()
   // Custom build (hq-clickup-waiting): answers to questions asked in ClickUp comments, the same way.
   const clickUpTaskIds = new Map<string, string>()
   startHqClickUpWaitingReplies({
