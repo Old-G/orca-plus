@@ -1,14 +1,17 @@
 // Custom build (hq): the HQ «Today» tab — the morning briefing kept live: a command line to HQ's
 // Claude (typed or dictated), agents and waitings that need a move, new ClickUp tasks and deadlines, open reviews and limits.
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
+import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useNow } from '@/hooks/use-now'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { useLiveDashboardSnapshot } from '../../dashboard/useLiveDashboardSnapshot'
 import { HqCommandDictation } from './HqCommandDictation'
-import { findHqWorktreeId, launchHqCommand } from './hq-today-actions'
+import { askHq } from './hq-ask-chat'
+import { findHqWorktreeId } from './hq-today-actions'
 import { HqTodayAgents, HqTodayWaitings } from './HqTodayPeople'
 import { HqTodayReviewRequests } from './HqTodayReviewRequests'
 import { HqTodayTriage } from './HqTodayTriage'
@@ -28,19 +31,27 @@ export function HqCommandBox({
   compact?: boolean
 }): React.JSX.Element {
   const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const inputId = useId()
+  // Custom build (hq-ask): every question goes to the one standing «Ask HQ» chat.
   const submit = (): void => {
-    if (!hqWorktreeId || !text.trim()) {
+    const question = text
+    if (!hqWorktreeId || !question.trim() || busy) {
       return
     }
-    const result = launchHqCommand(hqWorktreeId, text)
-    if (result.ok) {
-      setText('')
-      setError(null)
-    } else {
-      setError(result.message)
-    }
+    setBusy(true)
+    setText('')
+    setError(null)
+    void askHq(hqWorktreeId, question)
+      .then((result) => {
+        if (!result.ok) {
+          setText(question)
+          setError(result.message)
+        }
+      })
+      .finally(() => setBusy(false))
   }
   return (
     <form
@@ -51,7 +62,13 @@ export function HqCommandBox({
       }}
     >
       <div className="flex items-end gap-2">
+        {/* Why: without a visible name the box read as an empty bar and the owner could not find it. */}
+        <span className="flex h-9 shrink-0 items-center gap-1.5">
+          <Sparkles className="size-4 text-primary" />
+          <Label htmlFor={inputId}>{translate('auto.hq.today.ask', 'Ask HQ')}</Label>
+        </span>
         <Textarea
+          id={inputId}
           ref={textareaRef}
           className="min-h-9 flex-1 resize-none"
           rows={1}
@@ -65,18 +82,17 @@ export function HqCommandBox({
           }}
           placeholder={
             compact
-              ? translate('auto.hq.today.commandShort', 'Command to HQ…')
+              ? translate('auto.hq.today.askShort', 'Ask HQ anything…')
               : translate(
-                  'auto.hq.today.commandPlaceholder',
-                  'Give HQ a command — Claude starts in the HQ workspace with it…'
+                  'auto.hq.today.askPlaceholder',
+                  'What did we decide about…, what did I write to…, a task — or a command'
                 )
           }
-          aria-label={translate('auto.hq.today.command', 'Command')}
           disabled={!hqWorktreeId}
         />
         <HqCommandDictation textareaRef={textareaRef} disabled={!hqWorktreeId} />
-        <Button type="submit" disabled={!hqWorktreeId || !text.trim()}>
-          {translate('auto.hq.today.run', 'Run')}
+        <Button type="submit" disabled={!hqWorktreeId || !text.trim() || busy}>
+          {translate('auto.hq.today.askButton', 'Ask')}
         </Button>
       </div>
       {hqWorktreeId ? null : (
