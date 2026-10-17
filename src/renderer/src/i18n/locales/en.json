@@ -19369,7 +19369,8 @@
         "empty": "Nothing needs you right now.",
         "yourPrs": "Your open PRs and MRs",
         "limits": "Limits",
-        "emptyDetail": "Pick an item on the left."
+        "emptyDetail": "Pick an item on the left.",
+        "quiet": "Quiet in Slack ({{value0}})"
       },
       "notes": {
         "previewDue": " · due {{value0}}",
@@ -19444,6 +19445,11 @@
         "gone": "Terminal closed",
         "hint": "Agent chats that finished over the last week, closed ones included. Click one to open it here.",
         "empty": "No agent chats finished this week."
+      },
+      "quiet": {
+        "empty": "Nothing went by quietly in the last three days.",
+        "hint": "What the Slack scout read and set aside without a card: news, answers to what the chats asked, updates on tasks that exist.",
+        "open": "Open in Slack"
       }
     },
     "claudeSubscriptions": {
