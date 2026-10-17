@@ -17,6 +17,7 @@ import {
 import type { PulseInboxItem } from '../../../shared/pulse-types'
 import { onPulseChanged } from '../pulse/pulse-change-events'
 import { startHqClickUpWaitingReplies } from '../../hq-today/hq-clickup-waiting-replies'
+import { startHqScoutContext } from '../../hq-today/hq-scout-context'
 import { bindAgentFinishedInbox, clearAgentFinished } from './pulse-bell-agent-finished'
 import { createWaitingAgentsTracker } from './pulse-bell-waiting-agents'
 import { readPulseBellInputs } from './pulse-bell-input-validation'
@@ -138,6 +139,13 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
     markDelivered: (id) => void runtime.pulseMarkWaitingReplyDelivered(id),
     deliver: deliverWaitingReply,
     onChanged: onPulseChanged
+  })
+  // Custom build (hq-scout-context): whom the chats wait for and what was sent, for the Slack scout.
+  startHqScoutContext({
+    hqPath: () => store.getSettings().hqPath ?? null,
+    listWaitings: () => runtime.pulseListWaitings({ status: 'open' }),
+    listDecisions: () => runtime.pulseListDecisions(100),
+    personName: (id) => runtime.pulseListPeople().find((person) => person.id === id)?.name ?? null
   })
   // Custom build (hq-clickup-waiting): answers to questions asked in ClickUp comments, the same way.
   const clickUpTaskIds = new Map<string, string>()
