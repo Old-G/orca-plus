@@ -112,7 +112,10 @@ ALTER TABLE waitings ADD COLUMN replied_at INTEGER;
 ALTER TABLE waitings ADD COLUMN reply_delivered_at INTEGER;
 `
 
-const STEPS: readonly string[] = [V1, V2, V3]
+// Custom build (hq-sent-history): where an approved call went and who sent it, as JSON.
+const V4 = `ALTER TABLE decisions ADD COLUMN context TEXT;`
+
+const STEPS: readonly string[] = [V1, V2, V3, V4]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 
