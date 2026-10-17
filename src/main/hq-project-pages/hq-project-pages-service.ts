@@ -30,6 +30,8 @@ import { ensureHqProjectMap } from '../hq-project-map/hq-project-map'
 import { readHqProjectDiagram } from './hq-project-diagram'
 import { listHqProjectPages } from './hq-project-pages'
 import { listHqWikiEntries, readHqWikiPage } from './hq-wiki-files'
+import { listHqReports } from '../hq-today/hq-reports'
+import type { HqReportsResult } from '../../shared/hq-reports'
 import { draftHqTaskQuestions } from '../hq-today/hq-task-questions'
 import type { HqTaskQuestionsResult } from '../../shared/hq-triage'
 import type {
@@ -77,6 +79,8 @@ export type HqProjectPagesService = {
   list(): Promise<HqProjectPagesResult>
   wikiTree(): Promise<HqWikiTreeResult>
   wikiPage(path: unknown): Promise<HqWikiPageResult>
+  /** Custom build (hq-reports). */
+  reports(): Promise<HqReportsResult>
   projectDiagram(repoId: unknown): Promise<HqProjectDiagramResult>
   reviews(refresh: unknown): Promise<HqReviewsResult>
   gitState(paths: unknown): Promise<HqWorktreeGitStates>
@@ -210,6 +214,18 @@ export function createHqProjectPagesService(
       }
       try {
         return { ok: true, entries: await listHqWikiEntries(hq) }
+      } catch (error) {
+        return { ok: false, error: errorText(error) }
+      }
+    },
+
+    async reports() {
+      const hq = hqPath()
+      if (!hq) {
+        return { ok: true, reports: [] }
+      }
+      try {
+        return { ok: true, reports: await listHqReports(hq) }
       } catch (error) {
         return { ok: false, error: errorText(error) }
       }

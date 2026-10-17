@@ -4,6 +4,7 @@ import {
   Activity,
   BookOpen,
   Clock,
+  FileText,
   History,
   KanbanSquare,
   LayoutGrid,
@@ -27,6 +28,8 @@ const PINNED: readonly Pinned[] = [
   },
   // Custom build (hq-feed): one timeline of Slack, ClickUp, reviews and what was sent.
   { id: 'feed', icon: Activity, label: () => translate('auto.hq.pinned.feed', 'Feed') },
+  // Custom build (hq-reports): the reports agents leave in HQ, with the owner's dictated decisions.
+  { id: 'reports', icon: FileText, label: () => translate('auto.hq.pinned.reports', 'Reports') },
   { id: 'history', icon: Clock, label: () => translate('auto.hq.pinned.history', 'History') },
   { id: 'projects', icon: LayoutGrid, label: () => translate('auto.hq.tab.projects', 'Projects') },
   { id: 'wiki', icon: BookOpen, label: () => translate('auto.hq.tab.wiki', 'Wiki') },

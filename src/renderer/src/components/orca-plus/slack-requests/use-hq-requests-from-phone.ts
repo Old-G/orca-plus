@@ -1,10 +1,15 @@
 // Custom build (hq-mobile): what the paired phone presses runs here, the same as the bell's buttons —
-// Do / Just reply on a request, or a bell item's button — because that code lives in this window.
+// Do / Just reply on a request, a bell item's button, decisions on a report — because that code lives
+// in this window.
 import { useEffect } from 'react'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../../shared/outgoing-approval/outgoing-approval-bell'
 import { HQ_SLACK_REQUEST_ACTION } from '../../../../../shared/hq-slack-request-bell'
 import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
 import { runHqSlackRequestAction } from './hq-slack-request-actions'
+import { HQ_REPORT_FOLDERS } from '../../../../../shared/hq-reports'
+import { useAppStore } from '@/store'
+import { startHqReportDecisions } from '../hq/hq-ask-chat'
+import { findHqWorktreeId } from '../hq/hq-today-actions'
 
 const warn = (error: unknown): void =>
   console.warn('[hq-mobile] request from the phone failed:', error)
@@ -20,6 +25,20 @@ async function runBellAction(itemId: string, actionId: string): Promise<void> {
   }
 }
 
+/** Custom build (hq-reports): decisions sent from the phone's Reports page start their HQ chat here. */
+async function runReportDecisions(path: string, text: string): Promise<void> {
+  const folder = HQ_REPORT_FOLDERS.find((entry) => path.startsWith(`${entry}/`))
+  const state = useAppStore.getState()
+  const worktreeId = findHqWorktreeId(state.settings?.hqPath, state.repos, state.worktreesByRepo)
+  if (!folder || !worktreeId) {
+    return
+  }
+  const result = await startHqReportDecisions(worktreeId, { path, folder }, text)
+  if (!result.ok) {
+    warn(result.message)
+  }
+}
+
 export function useHqRequestsFromPhone(): void {
   useEffect(() => {
     const offRequest = window.api.hqProjects.onRunRequest?.(({ id, action }) => {
@@ -29,9 +48,13 @@ export function useHqRequestsFromPhone(): void {
     const offBell = window.api.hqProjects.onRunBellAction?.(({ itemId, actionId }) => {
       void runBellAction(itemId, actionId).catch(warn)
     })
+    const offReport = window.api.hqProjects.onRunReportDecisions?.(({ path, text }) => {
+      void runReportDecisions(path, text).catch(warn)
+    })
     return () => {
       offRequest?.()
       offBell?.()
+      offReport?.()
     }
   }, [])
 }
