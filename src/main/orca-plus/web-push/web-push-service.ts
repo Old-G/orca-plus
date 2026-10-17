@@ -30,6 +30,8 @@ export type WebPushServiceDeps = {
   isDevicePaired: (deviceId: string) => boolean | null
   /** The owner is at this Mac now, so the phone stays quiet. */
   isOwnerAtMac: () => boolean
+  /** Custom build (quiet-hours): only urgent items push now. */
+  isQuietHour?: () => boolean
   openBellCount: () => number
   now: () => number
   send?: typeof sendWebPush
@@ -106,7 +108,11 @@ export class WebPushService {
   /** A new bell item: once per dedupe key, and only while the owner is away. */
   async notifyBellItem(item: PulseInboxItem): Promise<void> {
     const key = item.dedupeKey ?? item.id
-    if (this.pushedKeys.includes(key) || this.deps.isOwnerAtMac()) {
+    if (
+      this.pushedKeys.includes(key) ||
+      this.deps.isOwnerAtMac() ||
+      (item.urgency !== 'urgent' && this.deps.isQuietHour?.())
+    ) {
       return
     }
     this.pushedKeys.push(key)
