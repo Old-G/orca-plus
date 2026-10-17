@@ -10,10 +10,15 @@ import { translate } from '@/i18n/i18n'
 import { formatShortTimeAgo } from '@/lib/short-time-ago'
 import {
   buildHqDoneJournal,
+  hqDoneProjects,
   type HqDoneEntry,
   type HqDoneLink,
   type HqDoneWhat
 } from './hq-done-journal'
+import type { HqChatItem } from './hq-chat-list'
+import { HqDoneSentDetails } from './HqDoneSentDetails'
+import { hqSentNames } from './hq-sent-names'
+import { useHqChatList } from './use-hq-chat-list'
 import { useHqPulse } from './use-hq-pulse'
 
 const AGE_TICK_MS = 60_000
@@ -75,13 +80,25 @@ function useHqRequestDecisions(): {
   return { requests, error, refresh }
 }
 
+/** Custom build (hq-sent-history): «Slack → DM with Женя» instead of «Slack · send message». */
+function entryTitle(entry: HqDoneEntry): string {
+  if (!entry.sent) {
+    return entry.title
+  }
+  const target = hqSentNames(entry.sent).target
+  const service = entry.sent.service ?? entry.title.split(' · ')[0] ?? entry.title
+  return target ? `${service} → ${target}` : entry.title
+}
+
 function JournalRow({
   entry,
   now,
+  chats,
   onRestored
 }: {
   entry: HqDoneEntry
   now: number
+  chats: readonly HqChatItem[]
   onRestored: () => void
 }): React.JSX.Element {
   const [busy, setBusy] = useState(false)
@@ -107,14 +124,20 @@ function JournalRow({
         >
           {whatLabel(entry.what)}
         </Badge>
-        <span className="min-w-0 flex-1 truncate text-[13px]" title={entry.title}>
-          {entry.title}
+        <span
+          data-sent={Boolean(entry.sent)}
+          className="min-w-0 flex-1 truncate text-[13px] data-[sent=true]:font-semibold"
+          title={entryTitle(entry)}
+        >
+          {entryTitle(entry)}
         </span>
         <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
           {formatShortTimeAgo(entry.at, now)}
         </span>
       </div>
-      {entry.detail ? (
+      {entry.sent ? (
+        <HqDoneSentDetails sent={entry.sent} message={entry.message ?? null} chats={chats} />
+      ) : entry.detail ? (
         <p className="line-clamp-2 text-xs text-muted-foreground">{entry.detail}</p>
       ) : null}
       {entry.links.length > 0 || entry.restoreId ? (
@@ -152,10 +175,14 @@ export function HqDoneJournalTab(): React.JSX.Element {
   const pulse = useHqPulse()
   const { requests, error, refresh } = useHqRequestDecisions()
   const decisions = pulse.status === 'ready' ? pulse.pulse.decisions : null
-  const entries = useMemo(
+  const { items: chats } = useHqChatList()
+  const [project, setProject] = useState<string | null>(null)
+  const all = useMemo(
     () => buildHqDoneJournal(requests, decisions ?? [], now),
     [requests, decisions, now]
   )
+  const projects = useMemo(() => hqDoneProjects(all), [all])
+  const entries = project ? all.filter((entry) => entry.sent?.project === project) : all
   return (
     <div className="scrollbar-sleek flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-4">
       <p className="text-xs text-muted-foreground">
@@ -164,6 +191,32 @@ export function HqDoneJournalTab(): React.JSX.Element {
           'What Orca+ did in your name over the last week: tasks it made or took, replies, and messages sent after your Approve.'
         )}
       </p>
+      {projects.length > 0 ? (
+        <div
+          className="flex flex-wrap gap-1.5"
+          aria-label={translate('auto.hq.done.byProject', 'By project')}
+        >
+          <Button
+            type="button"
+            size="xs"
+            variant={project === null ? 'secondary' : 'ghost'}
+            onClick={() => setProject(null)}
+          >
+            {translate('auto.hq.done.allProjects', 'All')}
+          </Button>
+          {projects.map((name) => (
+            <Button
+              key={name}
+              type="button"
+              size="xs"
+              variant={project === name ? 'secondary' : 'ghost'}
+              onClick={() => setProject(project === name ? null : name)}
+            >
+              {name}
+            </Button>
+          ))}
+        </div>
+      ) : null}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
       {entries.length === 0 ? (
         <p className="text-xs text-muted-foreground">
@@ -172,7 +225,13 @@ export function HqDoneJournalTab(): React.JSX.Element {
       ) : (
         <ul className="flex flex-col">
           {entries.map((entry) => (
-            <JournalRow key={entry.key} entry={entry} now={now} onRestored={refresh} />
+            <JournalRow
+              key={entry.key}
+              entry={entry}
+              now={now}
+              chats={chats}
+              onRestored={refresh}
+            />
           ))}
         </ul>
       )}
