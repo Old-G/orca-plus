@@ -2,7 +2,6 @@
 // a suggested project. Take starts Claude in a new worktree there; Questions asks the author first.
 // Nothing starts or is sent on its own.
 import { useState } from 'react'
-import { toast } from 'sonner'
 import type { ClickUpTaskSummary } from '../../../../../shared/clickup-types'
 import type { DashboardCard } from '../../../../../shared/dashboard-snapshot'
 import type { HqAutonomyLevel } from '../../../../../shared/hq-autonomy'
@@ -10,9 +9,7 @@ import { isGitRepoKind } from '../../../../../shared/repo-kind'
 import type { Repo } from '../../../../../shared/repo-types'
 import type { TaskSourceContext } from '../../../../../shared/task-source-context'
 import {
-  HQ_TAKE_EFFORT,
   hqTasksAwaitingAuthor,
-  withHqTakeEffort,
   pendingHqTriageTasks,
   suggestHqTriageProject,
   type HqTaskQuestionsResult,
@@ -27,20 +24,13 @@ import {
 import {
   clickUpAddTaskComment,
   clickUpGetTask,
-  clickUpListStatuses,
-  clickUpTaskComments,
-  clickUpUpdateTaskStatus
+  clickUpTaskComments
 } from '@/runtime/runtime-clickup-client'
 import { useAppStore } from '@/store'
-import { agentPaneKeys, findHqWorktreeId, launchHqCommand } from './hq-today-actions'
-import { rememberHqTake, updateHqTriageDecisions, type HqTakenSession } from './hq-triage-decisions'
-import {
-  buildHqCoordinatorWorkItem,
-  buildHqTriageWorkItem,
-  takeHqTriageTask,
-  type HqTriageTakeResult
-} from './hq-triage-take'
-import { launchHqTakeInRepo } from './hq-take-launch'
+import { updateHqTriageDecisions } from './hq-triage-decisions'
+import { reportHqTake, runHqTake } from './hq-triage-run-take'
+import { HqTodayTonight } from './HqTodayTonight'
+import { HQ_NIGHT_SHIFT_DEFAULT_HOUR } from '../../../../../shared/hq-night-shift'
 import { HqTodayAwaitingAuthor } from './HqTodayAwaitingAuthor'
 import { HqTodayReady } from './HqTodayReady'
 import { HqTodayTriageRow } from './HqTodayTriageRow'
@@ -55,29 +45,6 @@ const NO_REPOS: Repo[] = []
 
 function triageDecision(decision: HqTriageDecision['decision'], repoId?: string): HqTriageDecision {
   return { decision, at: Date.now(), ...(repoId ? { repoId } : {}) }
-}
-
-function reportTake(result: HqTriageTakeResult, task: ClickUpTaskSummary): void {
-  if (!result.launched) {
-    return
-  }
-  if (result.status.kind === 'missing') {
-    toast.warning(
-      translate(
-        'auto.hq.triage.noInProcess',
-        '{{value0}}: Claude started, but its ClickUp list has no «in process» status — move it by hand.',
-        { value0: task.identifier }
-      )
-    )
-  } else if (result.status.kind === 'failed') {
-    toast.warning(
-      translate(
-        'auto.hq.triage.statusFailed',
-        '{{value0}}: Claude started, but ClickUp kept the old status: {{value1}}',
-        { value0: task.identifier, value1: result.status.message }
-      )
-    )
-  }
 }
 
 export function HqTodayTriage({
@@ -105,6 +72,7 @@ export function HqTodayTriage({
     connection.status === 'ready' ? connection.sourceContext : null
   const repos = allRepos.filter(isGitRepoKind)
   const ownerId = useAppStore((s) => s.clickUpStatus.viewer?.id ?? null)
+  const nightHour = useAppStore((s) => s.settings?.hqNightShiftHour ?? HQ_NIGHT_SHIFT_DEFAULT_HOUR)
   const allTasks = tasks.state.status === 'ready' ? tasks.state.tasks : []
   const awaiting = hqTasksAwaitingAuthor(allTasks, decisions)
   const pending = pendingHqTriageTasks(allTasks, decisions, snoozed).filter(
@@ -167,81 +135,23 @@ export function HqTodayTriage({
     DEFAULT_LEVEL
 
   const take = async (task: ClickUpTaskSummary, repoIds: string[]): Promise<void> => {
-    const chosen = repoIds.flatMap((id) => repos.filter((repo) => repo.id === id))
-    const [main] = chosen
-    if (!main) {
-      return
-    }
-    const sessionOptions = withHqTakeEffort(
-      useAppStore.getState().settings?.nativeChatSessionOptions
-    )
-    const coordinate = chosen.length > 1
-    let session: HqTakenSession | null = null
     setBusyId(task.id)
     try {
-      const result = await takeHqTriageTask(
-        task,
-        (full) =>
-          coordinate
-            ? buildHqCoordinatorWorkItem(task, full, {
-                projects: chosen.map((repo) => ({
-                  name: repo.displayName,
-                  path: repo.path,
-                  level: levelOf(repo.id)
-                })),
-                model: sessionOptions.claude?.model ?? 'opus',
-                effort: HQ_TAKE_EFFORT
-              })
-            : buildHqTriageWorkItem(task, full, {
-                name: main.displayName,
-                level: levelOf(main.id)
-              }),
-        {
-          getTask: (taskId) => clickUpGetTask(sourceContext, taskId),
-          launch: async (item) => {
-            if (!coordinate) {
-              const launched = await launchHqTakeInRepo({
-                item,
-                repoId: main.id,
-                sessionOptions,
-                openModalFallback: () => openComposer(task, main.id)
-              })
-              session = launched.session
-              return launched.launched
-            }
-            const state = useAppStore.getState()
-            const hqWorktreeId = findHqWorktreeId(
-              state.settings?.hqPath,
-              state.repos,
-              state.worktreesByRepo
-            )
-            const before = hqWorktreeId ? agentPaneKeys(hqWorktreeId) : new Set<string>()
-            const launched = hqWorktreeId
-              ? launchHqCommand(hqWorktreeId, item.pasteContent ?? '')
-              : {
-                  ok: false as const,
-                  message: translate(
-                    'auto.hq.today.addHqProject',
-                    'Add the HQ folder as a project in Orca to run reminders and commands.'
-                  )
-                }
-            if (!launched.ok) {
-              toast.error(launched.message)
-            } else if (hqWorktreeId) {
-              session = { worktreeId: hqWorktreeId, before, coordinator: true }
-            }
-            return launched.ok
-          },
-          listStatuses: (listId) => clickUpListStatuses(sourceContext, listId),
-          setStatus: (taskId, status) => clickUpUpdateTaskStatus(sourceContext, taskId, status),
-          remember: () => rememberHqTake(task.id, main.id, session)
-        }
+      reportHqTake(
+        await runHqTake(task, repoIds, { sourceContext, repos, levelOf, openComposer }),
+        task
       )
-      reportTake(result, task)
     } finally {
       setBusyId(null)
     }
   }
+
+  // Custom build (hq-night-shift): the night shift starts it; until then it waits under «Tonight».
+  const tonight = (task: ClickUpTaskSummary, repoIds: string[]): Promise<void> =>
+    updateHqTriageDecisions((current) => ({
+      ...current,
+      [task.id]: { decision: 'night', at: Date.now(), repoIds, queuedUpdatedAt: task.updatedAt }
+    }))
 
   if (connection.status === 'disconnected') {
     // Why: the deadlines block below already offers to connect ClickUp.
@@ -280,6 +190,7 @@ export function HqTodayTriage({
             busy={busyId === task.id}
             onOpen={() => setSelected(task)}
             onTake={(repoIds) => void take(task, repoIds)}
+            onTonight={(repoIds) => void tonight(task, repoIds)}
             onDraftQuestions={() => draftQuestions(task)}
             onSendQuestions={(text) => sendQuestions(task, text)}
             onSnooze={() => setSnoozed((current) => new Set(current).add(task.id))}
@@ -299,6 +210,16 @@ export function HqTodayTriage({
         levelOf={levelOf}
         focusTaskId={focusTaskId}
       />
+      {focusTaskId ? null : (
+        <HqTodayTonight
+          tasks={allTasks}
+          decisions={decisions}
+          repos={repos}
+          startHour={nightHour}
+          onStartNow={(task, repoIds) => void take(task, repoIds)}
+          onCancel={(taskId) => void forget([taskId])}
+        />
+      )}
       {focusTaskId && pending.length === 0 ? null : (
         <section className="flex flex-col gap-2" aria-label={title}>
           <ColumnHeader title={title} count={pending.length} />

@@ -141,6 +141,12 @@ export function HqTodayReadyRow({
           {task.identifier}
         </span>
         <span className="min-w-0 flex-1 truncate text-[13px]">{task.title}</span>
+        {/* Custom build (hq-night-shift): done while the owner slept. */}
+        {decision.night ? (
+          <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-2xs font-medium text-muted-foreground">
+            {translate('auto.hq.night.chip', 'Night shift')}
+          </span>
+        ) : null}
         {review ? (
           <a
             href={review.url}
