@@ -159,10 +159,27 @@ export function getClickUpViewerId(): Promise<string> {
   return withClickUpSession(async (session) => session.viewer.id)
 }
 
+/** Custom build (hq-clickup-waiting): the connected account's id and the name @mentions use. */
+export function getClickUpViewer(): Promise<{ id: string; username: string }> {
+  return withClickUpSession(async (session) => ({
+    id: session.viewer.id,
+    username: session.viewer.username
+  }))
+}
+
 export function listClickUpTaskComments(taskId: string): Promise<ClickUpComment[]> {
   return withClickUpSession(async (session) =>
     mapClickUpComments(
       await clickUpRequest(session.token, `/task/${encodeURIComponent(taskId)}/comment`)
+    ).sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0))
+  )
+}
+
+/** Custom build (hq-clickup-waiting): the threaded replies under one comment, oldest first. */
+export function listClickUpCommentReplies(commentId: string): Promise<ClickUpComment[]> {
+  return withClickUpSession(async (session) =>
+    mapClickUpComments(
+      await clickUpRequest(session.token, `/comment/${encodeURIComponent(commentId)}/reply`)
     ).sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0))
   )
 }
