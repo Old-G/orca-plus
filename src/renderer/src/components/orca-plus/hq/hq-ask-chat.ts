@@ -1,5 +1,10 @@
 // Custom build (hq-ask): «Ask HQ» — one standing chat in the HQ workspace for questions about
 // everything; the first question starts it, later ones go to the same chat, and HQ stays in front.
+import {
+  hqReportChatName,
+  hqReportDecisionsPrompt,
+  type HqReport
+} from '../../../../../shared/hq-reports'
 import { translate } from '@/i18n/i18n'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
@@ -102,6 +107,20 @@ export async function startHqStatusUpdate(worktreeId: string): Promise<HqActionR
     worktreeId,
     HQ_STATUS_UPDATE_PROMPT,
     translate('auto.hq.status.chatName', 'Status update')
+  )
+  return started.ok ? { ok: true } : started
+}
+
+/** Custom build (hq-reports): a fresh HQ chat that carries out the owner's decisions on a report. */
+export async function startHqReportDecisions(
+  worktreeId: string,
+  report: Pick<HqReport, 'path' | 'folder'>,
+  text: string
+): Promise<HqActionResult> {
+  const started = await startHqChatWithPrompt(
+    worktreeId,
+    hqReportDecisionsPrompt(report, text),
+    hqReportChatName(report.path)
   )
   return started.ok ? { ok: true } : started
 }

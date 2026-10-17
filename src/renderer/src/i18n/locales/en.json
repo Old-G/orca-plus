@@ -18791,7 +18791,8 @@
         "notes": "Notes",
         "doneForYou": "Done for you",
         "history": "History",
-        "feed": "Feed"
+        "feed": "Feed",
+        "reports": "Reports"
       },
       "ready": {
         "noCheck": "The task list has no «check» status — move it by hand.",
@@ -19073,6 +19074,20 @@
         "incoming": "Incoming",
         "doneHint": "What was done: commits, finished agent sessions and messages sent for you.",
         "incomingHint": "What came in: Slack conversations and requests, ClickUp comments, reviews waiting on you."
+      },
+      "reports": {
+        "noHq": "Add the HQ folder as a project to send decisions.",
+        "sent": "Sent to an HQ chat — it carries out your decisions.",
+        "placeholder": "Your decisions: «1 yes, 2 no, 3 change to …» — say it or type it",
+        "decisions": "Decisions on this report",
+        "sending": "Sending…",
+        "send": "Send decisions",
+        "sendHint": "Opens a new HQ chat with the report and your words. Messages to people still wait for your Approve.",
+        "improvements": "Week review",
+        "meetings": "Meeting",
+        "status": "Status update",
+        "empty": "No reports yet. The week review, meeting follow-ups and status updates land here.",
+        "list": "Reports"
       }
     },
     "claudeSubscriptions": {

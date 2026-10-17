@@ -203,10 +203,10 @@ describe('HqMessengerScreen', () => {
         }),
         card({ tabId: 'work', paneKey: 'work:l' })
       ],
-      [chatTab('fresh', 'Report'), chatTab('work', 'Review')]
+      [chatTab('fresh', 'Weekly sync'), chatTab('work', 'Review')]
     )
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: /Report/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Weekly sync/ }))
     expect(screen.getByTestId('native-chat').textContent).toBe('session-fresh')
     // Why: opening a finished chat answers its «An agent finished» toast, as its Open would.
     expect(mocks.closeFinishToast).toHaveBeenLastCalledWith('wt-1', 'fresh')

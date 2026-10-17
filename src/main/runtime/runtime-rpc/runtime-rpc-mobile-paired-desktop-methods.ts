@@ -8,6 +8,9 @@ export const PAIRED_DESKTOP_METHODS = [
   'hqProjects.sendClickUpReply',
   'hqProjects.runRequestOnDesktop',
   'hqProjects.runBellActionOnDesktop',
+  // Custom build (hq-reports): HQ's reports and the decisions on them.
+  'hqProjects.reports',
+  'hqProjects.reportDecisionsOnDesktop',
   // Its notes, waitings and bell, which live in the Mac's pulse database.
   'pulse.snapshot',
   'pulse.upsertPerson',
