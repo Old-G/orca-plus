@@ -33,6 +33,17 @@ describe('outgoingWaitingFollowUp', () => {
     expect(text).toContain('--source-ref "slack:C0AAAAAAAAA:1792184213.178000"')
   })
 
+  it('asks to wait on a ClickUp comment by its task and new comment id', () => {
+    const text = outgoingWaitingFollowUp(
+      { ...call({}), service: 'ClickUp', operation: 'create comment', editField: 'comment_text' },
+      'DEV-18114'
+    )
+    expect(text).toContain('--source clickup')
+    expect(text).toContain(
+      `--source-ref "clickup:DEV-18114:<the new comment's id from the tool result>"`
+    )
+  })
+
   it('says nothing for other services', () => {
     expect(outgoingWaitingFollowUp({ ...call({}), service: 'Gmail' }, 'a@b.c')).toBeNull()
   })
