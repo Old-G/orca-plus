@@ -205,6 +205,48 @@ export function parseHqSlackScoutTaskTarget(text: string): HqSlackScoutTaskTarge
     : null
 }
 
+/** Custom build (hq-scout-quiet): how loud the requests are, from config.yaml. */
+export type HqSlackScoutTuning = {
+  /** ClickUp accounts whose comments are never requests — the agents' own account. */
+  clickUpIgnoreAuthors: string[]
+  /** A request nobody decided disappears after this many days. */
+  cardTtlDays: number
+}
+
+export const DEFAULT_HQ_CARD_TTL_DAYS = 3
+
+function configValues(text: string): Map<string, string> {
+  const values = new Map<string, string>()
+  for (const line of text.split('\n')) {
+    const match = /^([a-z_]+):\s*([^#]*?)\s*(?:#.*)?$/.exec(line.trim())
+    if (match?.[1] && match[2]) {
+      values.set(match[1], match[2])
+    }
+  }
+  return values
+}
+
+/** `clickup_ignore_authors: [50190479]`, `card_ttl_days: 3`; anything unreadable keeps the default. */
+export function parseHqSlackScoutTuning(text: string): HqSlackScoutTuning {
+  const values = configValues(text)
+  const ignore = values.get('clickup_ignore_authors') ?? ''
+  const ttl = Number(values.get('card_ttl_days'))
+  return {
+    clickUpIgnoreAuthors: [...ignore.matchAll(/\d+/g)].map((match) => match[0]),
+    cardTtlDays: Number.isFinite(ttl) && ttl > 0 ? ttl : DEFAULT_HQ_CARD_TTL_DAYS
+  }
+}
+
+/** A request is shown for `cardTtlDays` after it was found; an older one has gone quiet. */
+export function freshHqSlackScoutDraft(
+  draft: Pick<HqSlackScoutDraft, 'foundAt'>,
+  tuning: HqSlackScoutTuning,
+  now: number
+): boolean {
+  const found = Date.parse(draft.foundAt ?? '')
+  return !Number.isFinite(found) || now - found <= tuning.cardTtlDays * 24 * 60 * 60_000
+}
+
 export type HqSlackScoutResult =
   | {
       ok: true
