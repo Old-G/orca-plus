@@ -6,6 +6,7 @@ export const hqProjectsApi = {
   wikiTree: () => ipcRenderer.invoke('hqProjects:wikiTree'),
   wikiPage: (path) => ipcRenderer.invoke('hqProjects:wikiPage', path),
   reports: () => ipcRenderer.invoke('hqProjects:reports'),
+  publishChatList: (items) => ipcRenderer.invoke('hqProjects:publishChatList', items),
   map: () => ipcRenderer.invoke('hqProjects:map'),
   projectDiagram: (repoId) => ipcRenderer.invoke('hqProjects:projectDiagram', repoId),
   reviews: (refresh) => ipcRenderer.invoke('hqProjects:reviews', refresh === true),
