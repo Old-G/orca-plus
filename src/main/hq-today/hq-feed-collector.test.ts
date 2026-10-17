@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { HqFeedItem } from '../../shared/hq-feed'
-import type { PulseDecision } from '../../shared/pulse-types'
+import type { PulseDecision, PulseDraft } from '../../shared/pulse-types'
 import { collectHqFeed } from './hq-feed-collector'
 
 const NOW = Date.parse('2026-10-17T12:00:00Z')
@@ -27,13 +27,29 @@ const decision = (over: Partial<PulseDecision>): PulseDecision => ({
   outcome: 'approved',
   project: null,
   personId: null,
-  draftId: null,
+  draftId: 'r1',
   source: 'outgoing-approval',
   decidedAt: NOW - 1_000,
   mirroredPath: null,
   sentContext: null,
   ...over
 })
+
+const sentDraft: PulseDraft = {
+  id: 'r1',
+  kind: 'message',
+  target: 'D1',
+  title: null,
+  body: 'Петя, готово',
+  project: null,
+  personId: null,
+  source: 'outgoing-approval',
+  sourceRef: null,
+  fingerprint: null,
+  status: 'sent',
+  createdAt: NOW - 2_000,
+  updatedAt: NOW - 1_000
+}
 
 describe('collectHqFeed', () => {
   it('turns every source into feed rows with person and project, skipping what was not sent', async () => {
@@ -90,6 +106,7 @@ describe('collectHqFeed', () => {
     await collectHqFeed({
       hqPath: () => hq,
       decisions: () => [decision({}), decision({ id: 'd2', outcome: 'rejected' })],
+      drafts: () => [sentDraft],
       reviews: async () => [
         {
           provider: 'gitlab',
@@ -132,6 +149,7 @@ describe('collectHqFeed', () => {
     const upserted: HqFeedItem[][] = []
     const deps = {
       decisions: () => [],
+      drafts: () => [],
       reviews: async () => {
         throw new Error('gh down')
       },
