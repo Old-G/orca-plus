@@ -13,10 +13,10 @@ import { agentHookServer } from '../../agent-hooks/server'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import { readHqSlackScoutIndex } from '../../hq-today/hq-slack-scout-index'
 import { PulseDb, pulseDbPath } from '../pulse/pulse-db'
-import { outgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
-import { outgoingFooterFor } from '../../../shared/outgoing-approval/outgoing-footer'
 import {
+  NO_OUTGOING_APPROVAL_OPTIONS,
   readOutgoingApprovalChoice,
+  type OutgoingApprovalChoice,
   type OutgoingApprovalOptions
 } from '../../../shared/outgoing-approval/outgoing-approval-options'
 import { describeOutgoingDraft, type OutgoingContextSources } from './outgoing-approval-context'
@@ -26,6 +26,12 @@ import { createOutgoingGateRequestHandler } from './outgoing-gate-http'
 import { backfillLegacySentContext } from './outgoing-sent-history'
 import { slackConversationName } from './outgoing-slack-names'
 import { clickUpTaskRef, lastChatTask } from './outgoing-task-sources'
+import {
+  decideOutgoingCall,
+  outgoingApprovalOptions,
+  type OutgoingDecideDeps
+} from './outgoing-approval-decide'
+import { MovedApprovals } from './outgoing-moved-approvals'
 
 const SWEEP_INTERVAL_MS = 30_000
 // Why: the card waits this long for names at most; the agent is held either way.
@@ -68,6 +74,7 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
   const workspaceOf = (agentSessionId: string): string | null =>
     runtime.openedAgentSessionRecordStore()?.getRecord(agentSessionId)?.location.workspaceId ?? null
   const contexts = new Map<string, OutgoingApprovalContext>()
+  const moved = new MovedApprovals()
   const sources: OutgoingContextSources = {
     slackName: (id) => slackConversationName(id),
     scout: async () => {
@@ -114,6 +121,11 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
         for (const draft of gate.pending()) {
           if (!contexts.has(draft.id)) {
             contexts.set(draft.id, await withTimeout(describeOutgoingDraft(draft, sources), {}))
+            // Custom build (outgoing-venue): the text the owner moved here was approved already.
+            const fulfils = moved.take(draft)
+            if (fulfils) {
+              decide(draft.id, 'approved', undefined, { footer: fulfils.footer })
+            }
           }
         }
       })
@@ -124,6 +136,29 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
     db: pulseDb,
     onChanged: describeThenSync
   })
+  const decideDeps: OutgoingDecideDeps = {
+    gate,
+    context: (id) => contexts.get(id),
+    workspaceOf,
+    moved,
+    decisions: (limit) => pulseDb().listDecisions({ kind: 'approval', limit }),
+    waitings: () => pulseDb().listWaitings()
+  }
+  function decide(
+    id: string,
+    outcome: PulseApprovalOutcome,
+    text: string | undefined,
+    choice: OutgoingApprovalChoice
+  ): void {
+    const { decided, outcome: recorded } = decideOutgoingCall(decideDeps, id, outcome, text, choice)
+    for (const listener of decidedListeners) {
+      try {
+        listener(decided, recorded)
+      } catch (error) {
+        console.warn('[outgoing-approval] decided listener failed:', error)
+      }
+    }
+  }
   agentHookServer.setOutgoingGateHandler(createOutgoingGateRequestHandler(() => gate))
   bindOutgoingGateEndpoint(() => agentHookServer.endpointFilePath)
   const sweep = setInterval(() => {
@@ -153,15 +188,14 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
   }, BACKFILL_DELAY_MS)
   backfill.unref?.()
 
-  // Custom build (outgoing-footer): what the card offers beside Approve — the footer it adds.
+  // Custom build (outgoing-footer, outgoing-venue): what the card offers beside Approve.
   ipcMain.handle(
     'outgoingApproval:options',
     async (_event, id: unknown): Promise<OutgoingApprovalOptions> => {
       const draft = typeof id === 'string' ? gate.pending().find((held) => held.id === id) : null
-      if (!draft) {
-        return { footer: null }
-      }
-      return { footer: outgoingFooterFor(draft, await contextOf(draft)) }
+      return draft
+        ? outgoingApprovalOptions(draft, await contextOf(draft), decideDeps)
+        : NO_OUTGOING_APPROVAL_OPTIONS
     }
   )
 
@@ -172,32 +206,12 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
       if (typeof id !== 'string' || !known) {
         throw new Error('outgoingApproval:decide needs a draft id and an outcome')
       }
-      const draft = gate.pending().find((held) => held.id === id)
-      const context = contexts.get(id)
-      // Why: the footer goes unless the owner unticked it.
-      const footer =
-        draft && readOutgoingApprovalChoice(choice).footer !== false
-          ? outgoingFooterFor(draft, context)
-          : null
-      // Custom build (hq-sent-history): the history keeps what the card showed and the chat that sent it.
-      const decided = gate.decide(
+      decide(
         id,
         known,
         typeof text === 'string' ? text : undefined,
-        (held) =>
-          outgoingSentContext(held, context, {
-            worktreeId: held.call?.agentSessionId ? workspaceOf(held.call.agentSessionId) : null,
-            footer
-          }),
-        { footer }
+        readOutgoingApprovalChoice(choice)
       )
-      for (const listener of decidedListeners) {
-        try {
-          listener(decided, known)
-        } catch (error) {
-          console.warn('[outgoing-approval] decided listener failed:', error)
-        }
-      }
     }
   )
 }
