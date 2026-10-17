@@ -13,6 +13,7 @@ import { ColumnHeader } from './hq-waiting-parts'
 import { useHqProjectPages } from './use-hq-project-pages'
 import { useOrcaPlusNewView } from '@/lib/orca-plus-new-view'
 import { HqSlackRequestCard } from '../slack-requests/HqSlackRequestCard'
+import type { HqSlackQuietItem } from '../../../../../shared/hq-slack-digest'
 import { useHqSlackRequestEditTarget } from '../slack-requests/hq-slack-request-actions'
 
 // Why: the scout runs every 10 minutes; a minute keeps the block fresh without a watcher.
@@ -22,7 +23,13 @@ type Drafts =
   | { status: 'loading' }
   | { status: 'hidden' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; drafts: HqSlackScoutDraft[]; failedAt: string | null }
+  | {
+      status: 'ready'
+      drafts: HqSlackScoutDraft[]
+      failedAt: string | null
+      /** Custom build (hq-scout-digest): what the scout set aside as quiet. */
+      quiet: HqSlackQuietItem[]
+    }
 
 export function useHqSlackDrafts(): {
   state: Drafts
@@ -39,7 +46,12 @@ export function useHqSlackDrafts(): {
             ? { status: 'error', message: result.error }
             : !result.configured && result.drafts.length === 0
               ? { status: 'hidden' }
-              : { status: 'ready', drafts: result.drafts, failedAt: result.failedAt }
+              : {
+                  status: 'ready',
+                  drafts: result.drafts,
+                  failedAt: result.failedAt,
+                  quiet: result.quiet ?? []
+                }
         )
       )
       .catch((error: unknown) => setState({ status: 'error', message: String(error) }))
