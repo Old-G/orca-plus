@@ -49,10 +49,11 @@ export function findHqAskChat(
   return structuredTargets(worktreeId).find((target) => target.sessionId === sessionId) ?? null
 }
 
-/** A new chat in the HQ workspace with the prompt, shown in HQ once its tab appears. */
+/** A new chat in the HQ workspace with the prompt and a short name, shown in HQ once its tab appears. */
 async function startHqChatWithPrompt(
   worktreeId: string,
-  prompt: string
+  prompt: string,
+  name: string
 ): Promise<{ ok: true; chat: StructuredAgentSendTarget | null } | { ok: false; message: string }> {
   const before = agentPaneKeys(worktreeId)
   const launched = launchAgentInNewTab({
@@ -72,13 +73,19 @@ async function startHqChatWithPrompt(
   const paneKey = await waitForNewAgentPane(worktreeId, before)
   const chat = structuredTargets(worktreeId).find((target) => target.paneKey === paneKey) ?? null
   if (chat) {
+    // Why: otherwise the chat is named after its first prompt, skill prefix included.
+    useAppStore.getState().setTabCustomLabel(chat.tabId, name, { recordInteraction: false })
     showHqAskChat(worktreeId, chat.tabId)
   }
   return { ok: true, chat }
 }
 
 async function startHqAskChat(worktreeId: string, question: string): Promise<HqActionResult> {
-  const started = await startHqChatWithPrompt(worktreeId, hqAskFirstPrompt(question))
+  const started = await startHqChatWithPrompt(
+    worktreeId,
+    hqAskFirstPrompt(question),
+    translate('auto.hq.ask.chatName', 'Ask HQ')
+  )
   if (started.ok && started.chat) {
     void useAppStore.getState().updateSettings({ hqAskSessionId: started.chat.sessionId })
   }
@@ -91,7 +98,11 @@ export const HQ_STATUS_UPDATE_PROMPT =
 
 /** A fresh HQ chat that drafts the status update and waits for the owner's yes. */
 export async function startHqStatusUpdate(worktreeId: string): Promise<HqActionResult> {
-  const started = await startHqChatWithPrompt(worktreeId, HQ_STATUS_UPDATE_PROMPT)
+  const started = await startHqChatWithPrompt(
+    worktreeId,
+    HQ_STATUS_UPDATE_PROMPT,
+    translate('auto.hq.status.chatName', 'Status update')
+  )
   return started.ok ? { ok: true } : started
 }
 
