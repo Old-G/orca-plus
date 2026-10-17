@@ -1,5 +1,6 @@
 import { UnsealedCredentialNotice } from '../../provider-accounts/UnsealedCredentialNotice'
 import type { SecretAtRestProtection } from '../../../../../shared/secret-at-rest-protection'
+import { HqVoicePromptsSetting } from './HqVoicePromptsSetting'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GlobalSettings } from '../../../../../shared/global-settings-types'
 import { getDefaultVoiceSettings } from '../../../../../shared/constants'
@@ -376,6 +377,8 @@ export function VoicePane({ settings, updateSettings }: VoicePaneProps): React.J
       />
 
       <Separator />
+      <HqVoicePromptsSetting />
+
 
       <div className="space-y-1">
         <SettingsSubsectionHeader
