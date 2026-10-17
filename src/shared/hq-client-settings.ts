@@ -10,6 +10,7 @@ export type HqClientSettings = Pick<
   | 'hqTriageDecisions'
   | 'hqChatsView'
   | 'hqKeptProjectIds'
+  | 'hqVoicePromptsEnabled'
 >
 
 /** The HQ settings a paired client may change. */
