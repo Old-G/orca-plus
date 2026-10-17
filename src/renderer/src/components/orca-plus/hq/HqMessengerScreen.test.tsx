@@ -77,6 +77,9 @@ vi.mock('./hq-chat-actions', async (importOriginal) => ({
   acknowledgeHqChat: mocks.acknowledge,
   acknowledgeHqChats: mocks.acknowledgeMany
 }))
+vi.mock('../pulse-bell/PulseBellButton', () => ({
+  PulseBellButton: () => <button type="button">Inbox</button>
+}))
 vi.mock('../pulse-bell/pulse-bell-actions', () => ({
   closeFinishedPulseBellItemsForHqChat: mocks.closeFinishToast
 }))
