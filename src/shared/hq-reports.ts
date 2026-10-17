@@ -4,7 +4,7 @@
 import { z } from 'zod'
 
 /** HQ folders that hold reports, newest file first in each. */
-export const HQ_REPORT_FOLDERS = ['improvements', 'meetings', 'status-update'] as const
+export const HQ_REPORT_FOLDERS = ['improvements', 'meetings', 'status-update', 'updates'] as const
 export type HqReportFolder = (typeof HQ_REPORT_FOLDERS)[number]
 
 export const HqReportSchema = z.object({
@@ -40,7 +40,9 @@ export function hqReportDecisionsPrompt(
   const how =
     report.folder === 'improvements'
       ? 'Примени по скиллу weekly-improve, шаг 5: только то, на что я сказал «да», и отметь в отчёте «Применено».'
-      : 'Прочитай отчёт и выполни решения. Сообщения людям — только через Approve.'
+      : report.folder === 'updates'
+        ? 'Примени по скиллу upstream-updates: по одному, с проверкой и откатом, итог допиши в отчёт.'
+        : 'Прочитай отчёт и выполни решения. Сообщения людям — только через Approve.'
   return `Решения по отчёту ${report.path}:\n${decisions}\n\n${how}`
 }
 

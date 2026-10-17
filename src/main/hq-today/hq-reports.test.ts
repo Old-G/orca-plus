@@ -30,6 +30,7 @@ describe('HQ reports', () => {
     )
     report('improvements/2026-W42-input.json', '{}', NOW)
     report('meetings/2026-10-17-sync.md', 'без заголовка', NOW - 500)
+    report('updates/2026-10-18.md', '# Обновления', NOW - 2_000)
     report('wiki/index.md', '# Wiki', NOW)
     expect(await listHqReports(hq)).toEqual([
       {
@@ -43,7 +44,8 @@ describe('HQ reports', () => {
         title: 'Неделя 42: что улучшить',
         folder: 'improvements',
         at: NOW - 1_000
-      }
+      },
+      { path: 'updates/2026-10-18.md', title: 'Обновления', folder: 'updates', at: NOW - 2_000 }
     ])
   })
 
@@ -82,6 +84,9 @@ describe('HQ reports', () => {
     expect(hqReportDecisionsPrompt({ path: 'meetings/a.md', folder: 'meetings' }, 'ок')).toContain(
       'только через Approve'
     )
+    expect(
+      hqReportDecisionsPrompt({ path: 'updates/2026-10-18.md', folder: 'updates' }, 'да')
+    ).toContain('скиллу upstream-updates')
     expect(hqReportChatName('improvements/2026-W42.md')).toBe('Report · 2026-W42')
   })
 })
