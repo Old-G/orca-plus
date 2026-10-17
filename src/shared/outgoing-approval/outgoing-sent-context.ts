@@ -31,12 +31,17 @@ export type OutgoingSentContext = {
   ref: string | null
   /** The footer line it was sent with; null when sent without one. */
   footer: string | null
+  /** Custom build (outgoing-venue): the owner sent it to the task or to Slack instead. */
+  movedTo: 'clickup' | 'slack' | null
 }
 
 export type OutgoingSentExtras = {
   worktreeId?: string | null
   head?: string | null
   footer?: string | null
+  movedTo?: 'clickup' | 'slack' | null
+  /** The thread the owner put it in, over the one the call named. */
+  threadTs?: string | null
 }
 
 export function outgoingSentContext(
@@ -50,7 +55,7 @@ export function outgoingSentContext(
     operation: call?.operation || null,
     targetName: named.targetName ?? null,
     targetId: draft.target,
-    threadTs: readInputString(call?.toolInput, 'thread_ts') || null,
+    threadTs: extras.threadTs ?? (readInputString(call?.toolInput, 'thread_ts') || null),
     replyingTo: named.replyingTo ?? null,
     chatName: named.chatName ?? null,
     agentSessionId: call?.agentSessionId ?? null,
@@ -61,7 +66,8 @@ export function outgoingSentContext(
     taskUrl: named.task?.url ?? null,
     taskName: named.task?.name ?? null,
     ref: outgoingRef(draft.id),
-    footer: extras.footer ?? null
+    footer: extras.footer ?? null,
+    movedTo: extras.movedTo ?? null
   }
 }
 
@@ -104,6 +110,8 @@ export function readOutgoingSentContext(value: unknown): OutgoingSentContext | n
     taskUrl: field('taskUrl'),
     taskName: field('taskName'),
     ref: field('ref'),
-    footer: field('footer')
+    footer: field('footer'),
+    movedTo:
+      field('movedTo') === 'clickup' ? 'clickup' : field('movedTo') === 'slack' ? 'slack' : null
   }
 }
