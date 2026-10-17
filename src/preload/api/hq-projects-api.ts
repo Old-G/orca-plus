@@ -10,6 +10,11 @@ import type {
 import type { HqClientSettings } from '../../shared/hq-client-settings'
 import type { HqTaskQuestionsResult } from '../../shared/hq-triage'
 import type {
+  HqVoiceIdeaResult,
+  HqVoiceRewriteMode,
+  HqVoiceRewriteResult
+} from '../../shared/hq-voice-prompts'
+import type {
   HqSlackScoutCreateResult,
   HqSlackScoutEdit,
   HqSlackScoutResult
@@ -31,6 +36,12 @@ export type HqProjectsApi = {
     title: string
     description: string
   }) => Promise<HqTaskQuestionsResult>
+  /** Custom build (hq-voice-prompts): a dictation rewritten by Claude; an idea filed in HQ/ideas. */
+  voiceRewrite: (request: {
+    mode: HqVoiceRewriteMode
+    text: string
+  }) => Promise<HqVoiceRewriteResult>
+  saveIdea: (request: { text: string }) => Promise<HqVoiceIdeaResult>
   /** Custom build (hq-slack-scout): drafts the Slack scout wrote; Create makes the ClickUp task. */
   slackDrafts: () => Promise<HqSlackScoutResult>
   rejectSlackDraft: (ref: { id: string }) => Promise<HqSlackScoutCreateResult | { ok: true }>

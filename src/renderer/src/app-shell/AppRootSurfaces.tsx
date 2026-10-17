@@ -3,6 +3,7 @@ import { ModalBoundary, OverlayBoundary } from './app-root-surface-boundaries'
 import { OnboardingLanguageLoading } from '../components/onboarding/OnboardingLanguageLoading'
 import { useLanguageReadiness } from '../i18n/language-readiness'
 import { NotificationCardStack } from '../components/NotificationCardStack'
+import { HqVoicePreviewDialog } from '../components/orca-plus/voice/HqVoicePreviewDialog'
 import { memo, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { lazyWithRetry as lazy } from '@/lib/lazy-with-retry'
@@ -388,6 +389,8 @@ export const AppRootSurfaces = memo(function AppRootSurfaces(props: {
         <Suspense fallback={null}>
           <OverlayBoundary boundaryId="overlay.dictation" resetKey={activeView}>
             <DictationController />
+            {/* Custom build (hq-voice-prompts) */}
+            <HqVoicePreviewDialog />
           </OverlayBoundary>
         </Suspense>
       ) : null}

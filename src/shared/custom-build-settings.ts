@@ -34,6 +34,8 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqTriageDecisions?: HqTriageDecisions
     /** Custom build (hq-ask): the standing «Ask HQ» chat questions go to, while it stays open. */
     hqAskSessionId?: string | null
+    /** Custom build (hq-voice-prompts): a finished dictation opens a preview to pick what it becomes. */
+    hqVoicePromptsEnabled?: boolean
     /** Custom build (hq-night-shift): hour the night shift starts tasks queued «Tonight»; default 23. */
     hqNightShiftHour?: number
     /** Custom build (quiet-hours): no phone or Slack alerts but urgent ones; unset = 21–9, null = off. */
