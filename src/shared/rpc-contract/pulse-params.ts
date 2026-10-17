@@ -8,6 +8,7 @@ import {
   OptionalString,
   requiredString
 } from './rpc-param-primitives'
+import { HQ_FEED_SOURCES } from '../hq-feed'
 
 const NullableText = z.string().nullable().optional()
 
@@ -106,3 +107,14 @@ export const PulseInboxItemRef = z.object({
   id: requiredString('Inbox item id is required'),
   action: OptionalString
 })
+
+/** Custom build (hq-feed): a page of HQ's feed. */
+export const PulseFeedParams = z
+  .object({
+    limit: z.number().int().min(1).max(500).optional(),
+    before: z.number().int().nonnegative().optional(),
+    source: z.enum(HQ_FEED_SOURCES).optional(),
+    project: z.string().min(1).max(200).optional(),
+    query: z.string().max(200).optional()
+  })
+  .optional()
