@@ -123,6 +123,10 @@ describe('clickUpWaitingUrl', () => {
     )
     expect(clickUpWaitingUrl('clickup:DEV-18114', null)).toBeNull()
     expect(clickUpWaitingUrl('slack:C1:1.2', '9015')).toBeNull()
+    expect(clickUpWaitingUrl('https://app.clickup.com/t/86abc?comment=9', null)).toBe(
+      'https://app.clickup.com/t/86abc?comment=9'
+    )
+    expect(clickUpWaitingUrl('https://evil.example/t/1', null)).toBeNull()
   })
 })
 
