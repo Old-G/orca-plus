@@ -8,8 +8,9 @@ const generate = vi.hoisted(() =>
   vi.fn(async (_prompt: string) => ({ ok: true as const, text: 'готово' }))
 )
 vi.mock('./hq-task-questions', () => ({ generateHqText: generate }))
+vi.mock('../clickup/clickup-tasks', () => ({ createClickUpTask: vi.fn() }))
 
-import { rewriteHqVoiceText, saveHqIdea } from './hq-voice-prompts-service'
+import { createHqVoiceTask, rewriteHqVoiceText, saveHqIdea } from './hq-voice-prompts-service'
 
 let dir: string | null = null
 afterEach(async () => {
@@ -59,5 +60,42 @@ describe('saveHqIdea', () => {
 
   it('refuses without an HQ folder', async () => {
     expect(await saveHqIdea('x', null)).toEqual({ ok: false, error: 'No HQ folder is set.' })
+  })
+})
+
+describe('createHqVoiceTask', () => {
+  it('creates the task in the list the scout config names, name from the first line', async () => {
+    const path = await hq()
+    await mkdir(join(path, 'slack-scout'))
+    await writeFile(
+      join(path, 'slack-scout', 'config.yaml'),
+      'list_id: 900000000001   # IT\nassignee_id: 700000001\nstatus: future\n'
+    )
+    const createTask = vi.fn(async () => ({
+      ok: true as const,
+      url: 'https://app.clickup.com/t/1'
+    }))
+    const result = await createHqVoiceTask('# [orca] Голос\n## Зачем\nчтобы', path, createTask)
+    expect(result).toEqual({ ok: true, url: 'https://app.clickup.com/t/1' })
+    expect(createTask).toHaveBeenCalledWith({
+      listId: '900000000001',
+      name: '[orca] Голос',
+      markdownDescription: '## Зачем\nчтобы',
+      assigneeId: '700000001',
+      status: 'future'
+    })
+  })
+
+  it('creates nothing without a list in the config', async () => {
+    const createTask = vi.fn()
+    expect(await createHqVoiceTask('# Задача', await hq(), createTask)).toEqual({
+      ok: false,
+      error: 'No list_id in slack-scout/config.yaml.'
+    })
+    expect(await createHqVoiceTask('   ', await hq(), createTask)).toEqual({
+      ok: false,
+      error: 'The task has no name.'
+    })
+    expect(createTask).not.toHaveBeenCalled()
   })
 })

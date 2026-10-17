@@ -7,6 +7,7 @@ export type HqVoiceRewriteMode = Exclude<HqVoiceMode, 'raw'>
 
 export type HqVoiceRewriteResult = { ok: true; text: string } | { ok: false; error: string }
 export type HqVoiceIdeaResult = { ok: true; path: string } | { ok: false; error: string }
+export type HqVoiceTaskResult = { ok: true; url: string } | { ok: false; error: string }
 
 const TONE_MAX = 6000
 const TEXT_MAX = 20_000
@@ -89,4 +90,11 @@ export function hqIdeaFileName(text: string, now: Date): string {
       .slice(0, 50) || 'idea'
   const pad = (n: number): string => String(n).padStart(2, '0')
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${slug}.md`
+}
+
+/** A ClickUp-mode text as a task: the first line is the name, the rest the description. */
+export function splitHqVoiceTask(text: string): { name: string; description: string } | null {
+  const lines = text.trim().split('\n')
+  const name = (lines[0] ?? '').replace(/^#+\s*/, '').trim()
+  return name ? { name, description: lines.slice(1).join('\n').trim() } : null
 }

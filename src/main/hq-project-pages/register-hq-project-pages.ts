@@ -13,7 +13,11 @@ import {
   HqVoiceIdeaParams,
   HqVoiceRewriteParams
 } from '../../shared/rpc-contract/hq-projects-params'
-import { rewriteHqVoiceText, saveHqIdea } from '../hq-today/hq-voice-prompts-service'
+import {
+  createHqVoiceTask,
+  rewriteHqVoiceText,
+  saveHqIdea
+} from '../hq-today/hq-voice-prompts-service'
 import { keepHqApprovalEdits } from '../hq-today/hq-reply-corrections'
 import { setHqDesktopSender } from '../hq-today/hq-request-on-desktop'
 import {
@@ -65,6 +69,9 @@ export function registerHqProjectPagesHandlers(
   )
   ipcMain.handle('hqProjects:saveIdea', (_event, request: unknown) =>
     saveHqIdea(HqVoiceIdeaParams.parse(request).text, store.getSettings().hqPath ?? null)
+  )
+  ipcMain.handle('hqProjects:createVoiceTask', (_event, request: unknown) =>
+    createHqVoiceTask(HqVoiceIdeaParams.parse(request).text, store.getSettings().hqPath ?? null)
   )
   ipcMain.handle('hqProjects:slackDrafts', () => service.slackDrafts())
   ipcMain.handle('hqProjects:rejectSlackDraft', (_event, ref: unknown) =>
