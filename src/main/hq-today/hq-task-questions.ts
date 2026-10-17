@@ -43,7 +43,10 @@ export type HqTextGenerationDeps = {
 /** One short Claude run with no tools on text other people wrote; the raw answer, trimmed. */
 export async function generateHqText(
   prompt: string,
-  what: { emptyResultName: string; operation: 'hq-task-questions' | 'hq-clickup-reply' },
+  what: {
+    emptyResultName: string
+    operation: 'hq-task-questions' | 'hq-clickup-reply' | 'hq-voice-rewrite'
+  },
   deps: HqTextGenerationDeps
 ): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const params = hqTaskQuestionsParams(deps.settings)
