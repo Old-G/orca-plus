@@ -73,6 +73,29 @@ describe('MCP call details', () => {
     }
   })
 
+  it('holds a ClickUp comment addressed to a person, passes one to nobody', () => {
+    const comment = (tool: string, input: Record<string, unknown>) =>
+      classifyOutgoingToolCall(`mcp__claude_ai_ClickUp__${tool}`, input)
+    expect(
+      comment('clickup_create_comment', {
+        entity_id: 'DEV-18114',
+        comment_text: '[@Женя](#user_mention#81344), эталоны готовы?'
+      })
+    ).toMatchObject({
+      service: 'ClickUp',
+      operation: 'create comment',
+      draftKind: 'clickup-comment',
+      target: 'DEV-18114',
+      editField: 'comment_text'
+    })
+    expect(
+      comment('clickup_create_task_comment', { task_id: '1', comment_text: 'Да', assignee: 7 })
+    ).not.toBeNull()
+    expect(
+      comment('clickup_create_comment', { entity_id: '1', comment_text: 'Сделано: …' })
+    ).toBeNull()
+  })
+
   it('holds what the ClickUp operator tool deletes, merges, messages or retitles', () => {
     const run = (input: Record<string, unknown>) =>
       classifyOutgoingToolCall('mcp__claude_ai_ClickUp__clickup_execute_operator', input)
