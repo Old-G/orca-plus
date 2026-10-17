@@ -24,12 +24,9 @@ export function createWebHqProjectsApi(): Pick<PreloadApi, 'hqProjects' | 'click
       draftTaskQuestions: (task) =>
         callRuntimeResult('hqProjects.draftTaskQuestions', task, QUESTIONS_TIMEOUT_MS),
       // Custom build (hq-voice-prompts): the web client has no dictation to rewrite.
-      voiceRewrite: async () => ({ ok: false, error: 'Voice prompts run on the desktop app.' }),
-      saveIdea: async () => ({ ok: false, error: 'Voice prompts run on the desktop app.' }),
-      createVoiceTask: async () => ({
-        ok: false,
-        error: 'Voice prompts run on the desktop app.'
-      }),
+      voiceRewrite: (request) => callRuntimeResult('hqProjects.voiceRewrite', request),
+      saveIdea: (request) => callRuntimeResult('hqProjects.saveIdea', request),
+      createVoiceTask: (request) => callRuntimeResult('hqProjects.createVoiceTask', request),
       slackDrafts: () => callRuntimeResult('hqProjects.slackDrafts'),
       rejectSlackDraft: (ref) => callRuntimeResult('hqProjects.rejectSlackDraft', ref),
       createSlackDraftTask: (draft) => callRuntimeResult('hqProjects.createSlackDraftTask', draft),
