@@ -45,6 +45,7 @@ import { useWindowVisibilityEffects } from './app-shell/use-window-visibility-ef
 import { SpaceWindowStatePublisher } from './components/workspace-space/SpaceWindowStatePublisher'
 import { PlainSshTerminalPanels } from './components/plain-ssh-terminal/PlainSshTerminalPanels'
 import { installActiveWorktreeRemovalSuccessor } from './lib/active-worktree-removal-successor'
+import { HqChatListPublisher } from './components/orca-plus/hq/HqChatListPublisher'
 
 function App(): React.JSX.Element {
   const layout = useAppChromeLayout()
@@ -112,6 +113,8 @@ function App(): React.JSX.Element {
         } as React.CSSProperties
       }
     >
+      {/* Custom build (hq-mobile-messenger): HQ's chat list for the phone. */}
+      <HqChatListPublisher />
       <TooltipProvider delayDuration={400}>
         <ConfirmationDialogProvider>
           <DocPreviewExternalLinkConfirmation />
