@@ -352,6 +352,8 @@ import {
   HqSlackDraftEditParams,
   HqSlackDraftRefParams,
   HqUpdateSettingsParams,
+  HqVoiceIdeaParams,
+  HqVoiceRewriteParams,
   HqWikiPageParams
 } from './hq-projects-params'
 import { JiraFavouriteFilterParams } from './jira-favourite-filter-params'
@@ -1122,6 +1124,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
   'hqProjects.answerSlackDraft': HqSlackDraftRefParams,
   'hqProjects.createSlackDraftTask': HqSlackDraftCreateParams,
+  'hqProjects.createVoiceTask': HqVoiceIdeaParams,
   'hqProjects.draftClickUpReply': HqSlackDraftRefParams,
   'hqProjects.draftTaskQuestions': HqDraftTaskQuestionsParams,
   'hqProjects.editSlackDraft': HqSlackDraftEditParams,
@@ -1134,11 +1137,13 @@ export const RPC_PARAMS_BY_METHOD = {
   'hqProjects.reviews': HqReviewsParams,
   'hqProjects.runBellActionOnDesktop': HqBellActionOnDesktopParams,
   'hqProjects.runRequestOnDesktop': HqRequestOnDesktopParams,
+  'hqProjects.saveIdea': HqVoiceIdeaParams,
   'hqProjects.sendClickUpReply': HqClickUpReplyParams,
   'hqProjects.settings': null,
   'hqProjects.slackDrafts': null,
   'hqProjects.takeSlackDraft': HqSlackDraftRefParams,
   'hqProjects.updateSettings': HqUpdateSettingsParams,
+  'hqProjects.voiceRewrite': HqVoiceRewriteParams,
   'hqProjects.wikiPage': HqWikiPageParams,
   'hqProjects.wikiTree': null,
   'jira.addIssueComment': IssueCommentOfJiraParams,

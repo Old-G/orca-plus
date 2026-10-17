@@ -128,3 +128,39 @@ export const hqBellActionOnDesktop = defineRpcOperation({
   barrier: 'on-settle',
   read: rpcResultVariant('hq-bell-action-on-desktop', HqWriteReplySchema)
 })
+
+// Custom build (hq-voice-prompts): the phone's dictation goes through the Mac's voice prompts.
+export const hqSettingsRead = defineRpcOperation({
+  name: 'hq.settings',
+  method: 'hqProjects.settings',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant(
+    'hq-settings',
+    z.object({ hqVoicePromptsEnabled: z.boolean().optional() }).passthrough()
+  )
+})
+
+export const hqVoiceRewrite = defineRpcOperation({
+  name: 'hq.voice-rewrite',
+  method: 'hqProjects.voiceRewrite',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-voice-rewrite', HqDraftReplySchema)
+})
+
+export const hqVoiceIdea = defineRpcOperation({
+  name: 'hq.voice-idea',
+  method: 'hqProjects.saveIdea',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-voice-idea', HqWriteReplySchema)
+})
+
+export const hqVoiceTask = defineRpcOperation({
+  name: 'hq.voice-task',
+  method: 'hqProjects.createVoiceTask',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-voice-task', HqWriteReplySchema)
+})
