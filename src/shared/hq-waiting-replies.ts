@@ -75,11 +75,16 @@ export function parseClickUpCommentRef(ref: string | null | undefined): ClickUpC
   return match ? { taskRef: match[1], commentId: match[2] ?? null } : null
 }
 
-/** Where «Open in ClickUp» goes; a custom id (DEV-1) needs the workspace in its link. */
+/** Where «Open in ClickUp» goes; a custom id (DEV-1) needs the workspace in its link. A ClickUp
+ *  link itself (a promise in a comment) opens as it is. */
 export function clickUpWaitingUrl(
   ref: string | null | undefined,
   workspaceId: string | null
 ): string | null {
+  const link = ref?.trim() ?? ''
+  if (/^https:\/\/app\.clickup\.com\/t\/[^\s]+$/.test(link)) {
+    return link
+  }
   const parsed = parseClickUpCommentRef(ref)
   if (!parsed) {
     return null
