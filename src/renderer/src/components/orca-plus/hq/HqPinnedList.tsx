@@ -1,6 +1,7 @@
 // Custom build (hq-chats): the pinned items above HQ's chat list — the earlier tabs, each one row
 // with a short count where one is cheap to know.
 import {
+  Activity,
   BookOpen,
   Clock,
   History,
@@ -24,6 +25,8 @@ const PINNED: readonly Pinned[] = [
     icon: History,
     label: () => translate('auto.hq.pinned.doneForYou', 'Done for you')
   },
+  // Custom build (hq-feed): one timeline of Slack, ClickUp, reviews and what was sent.
+  { id: 'feed', icon: Activity, label: () => translate('auto.hq.pinned.feed', 'Feed') },
   { id: 'history', icon: Clock, label: () => translate('auto.hq.pinned.history', 'History') },
   { id: 'projects', icon: LayoutGrid, label: () => translate('auto.hq.tab.projects', 'Projects') },
   { id: 'wiki', icon: BookOpen, label: () => translate('auto.hq.tab.wiki', 'Wiki') },
