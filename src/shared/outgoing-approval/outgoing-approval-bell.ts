@@ -2,6 +2,7 @@
 import type { PulseBellInput } from '../pulse-bell'
 import type { PulseDraft } from '../pulse-types'
 import { readInputString } from './outgoing-action'
+import type { OutgoingTaskRef } from './outgoing-footer'
 
 export const OUTGOING_APPROVAL_BELL_KIND = 'outgoing-approval'
 
@@ -20,6 +21,8 @@ export type OutgoingApprovalContext = {
   replyingTo?: string | null
   /** The agent chat that wants to send it. */
   chatName?: string | null
+  /** Custom build (outgoing-footer): the ClickUp task the message is about, when one is known. */
+  task?: OutgoingTaskRef | null
 }
 
 export function lastPathSegment(path: string | null | undefined): string | null {

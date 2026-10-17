@@ -3,7 +3,7 @@
 import type { PulseDraftKind } from '../pulse-types'
 import { MAX_OUTGOING_BODY_LENGTH, type OutgoingAction } from './outgoing-action'
 import { heldClickUpOperatorCall } from './outgoing-clickup-operator-rules'
-import { rewritesClickUpTaskText } from './outgoing-clickup-text-rules'
+import { clickUpCommentToAPerson, rewritesClickUpTaskText } from './outgoing-clickup-text-rules'
 
 // Why: local or private-only servers — the IDE bridge, browser automation (not covered in v1)
 // and Claude Docs, which stay private until shared.
@@ -64,6 +64,7 @@ const TARGET_KEYS = [
   'recipient',
   'email',
   'task_id',
+  'entity_id',
   'list_id',
   'ticket_id',
   'ticketId',
@@ -104,6 +105,7 @@ export function classifyMcpCall(name: McpToolName, input: unknown): OutgoingActi
     verbs.some((token) => DELETE_TOKENS.has(token)) ||
     messagesAPerson(name.server, verbs, input) ||
     rewritesClickUpTaskText(name.server, name.tool, input) ||
+    clickUpCommentToAPerson(name.server, name.tool, input) ||
     heldClickUpOperatorCall(name.server, name.tool, input)
   if (!held) {
     return null

@@ -4,6 +4,7 @@
 import type { PulseDraft } from '../pulse-types'
 import { readInputString } from './outgoing-action'
 import { lastPathSegment, type OutgoingApprovalContext } from './outgoing-approval-bell'
+import { outgoingRef } from './outgoing-footer'
 
 export type OutgoingSentContext = {
   service: string | null
@@ -22,13 +23,26 @@ export type OutgoingSentContext = {
   project: string | null
   /** A decision from before this was kept: the approval card's first line, as the owner saw it. */
   head: string | null
+  /** Custom build (outgoing-footer): the ClickUp task it was about. */
+  taskId: string | null
+  taskUrl: string | null
+  taskName: string | null
+  /** The short code its footer carries; the history finds the message by it. */
+  ref: string | null
+  /** The footer line it was sent with; null when sent without one. */
+  footer: string | null
+}
+
+export type OutgoingSentExtras = {
+  worktreeId?: string | null
+  head?: string | null
+  footer?: string | null
 }
 
 export function outgoingSentContext(
   draft: PulseDraft,
   named: OutgoingApprovalContext = {},
-  worktreeId: string | null = null,
-  head: string | null = null
+  extras: OutgoingSentExtras = {}
 ): OutgoingSentContext {
   const call = draft.call
   return {
@@ -40,9 +54,14 @@ export function outgoingSentContext(
     replyingTo: named.replyingTo ?? null,
     chatName: named.chatName ?? null,
     agentSessionId: call?.agentSessionId ?? null,
-    worktreeId,
+    worktreeId: extras.worktreeId ?? null,
     project: lastPathSegment(call?.cwd),
-    head
+    head: extras.head ?? null,
+    taskId: named.task?.id ?? null,
+    taskUrl: named.task?.url ?? null,
+    taskName: named.task?.name ?? null,
+    ref: outgoingRef(draft.id),
+    footer: extras.footer ?? null
   }
 }
 
@@ -80,6 +99,11 @@ export function readOutgoingSentContext(value: unknown): OutgoingSentContext | n
     agentSessionId: field('agentSessionId'),
     worktreeId: field('worktreeId'),
     project: field('project'),
-    head: field('head')
+    head: field('head'),
+    taskId: field('taskId'),
+    taskUrl: field('taskUrl'),
+    taskName: field('taskName'),
+    ref: field('ref'),
+    footer: field('footer')
   }
 }
