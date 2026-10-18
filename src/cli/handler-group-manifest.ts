@@ -43,6 +43,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     name: 'pulse',
     keys: [
       'pulse wait add',
+      'pulse wait update',
       'pulse wait resolve',
       'pulse wait list',
       'pulse decision log',
