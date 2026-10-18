@@ -3,11 +3,8 @@
 import type { HqFeedItem, HqFeedQuery } from '../../shared/hq-feed'
 import type { HqClientSettings, HqClientSettingsUpdate } from '../../shared/hq-client-settings'
 import type { HqReportsResult } from '../../shared/hq-reports'
-import {
-  computeHqPinnedCounts,
-  type HqPinnedCounts,
-  type HqPinnedSeenId
-} from '../../shared/hq-pinned-counts'
+import { computeHqPinnedCounts } from '../../shared/hq-pinned-counts'
+import type { HqPinnedCounts, HqPinnedSeenId } from '../../shared/hq-pinned-counts-wire'
 import type { PulseDecision, PulseInboxItem, PulseWaiting } from '../../shared/pulse-types'
 
 // Why: the counts show «99+» past two digits, so more rows would add nothing.

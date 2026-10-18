@@ -2,7 +2,7 @@
 // paired web client can open HQ too. Every method only reads.
 import { z } from 'zod'
 import { OptionalBoolean, requiredString } from './rpc-param-primitives'
-import { HQ_PINNED_SEEN_IDS } from '../hq-pinned-counts'
+import { HQ_PINNED_SEEN_IDS } from '../hq-pinned-counts-wire'
 
 export const HqWikiPageParams = z.object({ path: requiredString('Wiki page path is required') })
 
