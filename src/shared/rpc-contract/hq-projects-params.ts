@@ -2,6 +2,7 @@
 // paired web client can open HQ too. Every method only reads.
 import { z } from 'zod'
 import { OptionalBoolean, requiredString } from './rpc-param-primitives'
+import { HQ_PINNED_SEEN_IDS } from '../hq-pinned-counts'
 
 export const HqWikiPageParams = z.object({ path: requiredString('Wiki page path is required') })
 
@@ -76,7 +77,10 @@ export const HqReportDecisionsParams = z.object({
     .string()
     .min(1)
     .max(500)
-    .regex(/^(?:improvements|meetings|status-update|updates)\/[^/\\]+\.md$/, 'Not an HQ report'),
+    .regex(
+      /^(?:improvements|meetings|status-update|updates|daily)\/[^/\\]+\.md$/,
+      'Not an HQ report'
+    ),
   text: z.string().trim().min(1).max(8000)
 })
 
@@ -88,6 +92,7 @@ export const HqClickUpReplyParams = z.object({
 
 /** Only what HQ itself edits; the HQ folder and the quiet threshold stay Settings-only on the Mac. */
 export const HqUpdateSettingsParams = z.object({
+  hqPinnedSeenAt: z.record(z.string(), z.number()).optional(),
   hqProjectClickUpLists: z.record(z.string(), HqClickUpListBindingParam).optional(),
   hqDeferredDismissed: z.record(z.string(), z.number()).optional(),
   hqTriageDecisions: z
@@ -110,3 +115,6 @@ export const HqUpdateSettingsParams = z.object({
     )
     .optional()
 })
+
+/** Custom build (hq-pinned-counts): the pinned item just opened, so its «new» count starts over. */
+export const HqPinnedSeenParams = z.object({ id: z.enum(HQ_PINNED_SEEN_IDS) })
