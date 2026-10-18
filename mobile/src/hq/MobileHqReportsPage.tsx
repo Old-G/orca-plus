@@ -16,7 +16,8 @@ const FOLDER_LABEL: Record<HqReport['folder'], string> = {
   improvements: 'Week review',
   meetings: 'Meeting',
   'status-update': 'Status update',
-  updates: 'Updates'
+  updates: 'Updates',
+  daily: 'Day review'
 }
 
 async function readReports(client: RpcClient): Promise<{ value: HqReport[] } | { error: string }> {

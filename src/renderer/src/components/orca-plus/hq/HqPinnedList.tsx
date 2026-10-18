@@ -14,6 +14,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import type { HqPinnedId } from './hq-messenger-selection'
+import type { HqPinnedNote } from './use-hq-pinned-notes'
 
 type Pinned = { id: HqPinnedId; icon: LucideIcon; label: () => string }
 
@@ -49,8 +50,8 @@ export function HqPinnedList({
   onSelect
 }: {
   selected: HqPinnedId | null
-  /** Short trailing text per item, e.g. «2 on you». */
-  notes: Partial<Record<HqPinnedId, string>>
+  /** Short trailing count per item, e.g. «2 on you». */
+  notes: Partial<Record<HqPinnedId, HqPinnedNote>>
   onSelect: (id: HqPinnedId) => void
 }): React.JSX.Element {
   return (
@@ -69,8 +70,11 @@ export function HqPinnedList({
             </span>
             <span className="min-w-0 flex-1 truncate font-medium">{label()}</span>
             {notes[id] ? (
-              <span className="max-w-36 shrink-0 truncate text-[11px] text-muted-foreground">
-                {notes[id]}
+              <span
+                data-tone={notes[id].tone}
+                className="max-w-36 shrink-0 truncate text-[11px] text-muted-foreground data-[tone=needs]:font-medium data-[tone=needs]:text-chat-unread"
+              >
+                {notes[id].text}
               </span>
             ) : null}
           </button>
