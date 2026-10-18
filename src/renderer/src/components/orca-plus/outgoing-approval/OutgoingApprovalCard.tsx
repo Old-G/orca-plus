@@ -5,8 +5,10 @@ import { TriangleAlert } from 'lucide-react'
 import type { PulseApprovalOutcome, PulseInboxItem } from '../../../../../shared/pulse-types'
 import {
   OUTGOING_APPROVAL_ACTION,
+  outgoingApprovalHeadChannel,
   outgoingApprovalHeadProject
 } from '../../../../../shared/outgoing-approval/outgoing-approval-bell'
+import { hqSpaceWrongChannel } from '../../../../../shared/hq-spaces'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
@@ -37,6 +39,10 @@ function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): React.JSX
   const [threadTs, setThreadTs] = useState<string | null>(null)
   const options = useOutgoingApprovalOptions(item.refId)
   const { head, text } = splitOutgoingApprovalBody(item.body)
+  // Custom build (hq-spaces): a message about to leave through another workspace's messenger.
+  const { spaces } = useHqSpaces()
+  const channel = outgoingApprovalHeadChannel(head)
+  const wrongSpace = hqSpaceWrongChannel(spaces, outgoingApprovalHeadProject(head), channel)
   const canEdit = item.actions.some((action) => action.id === OUTGOING_APPROVAL_ACTION.edit)
 
   const decide = (
@@ -76,6 +82,18 @@ function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): React.JSX
           {formatRelativeTime(item.createdAt)}
         </span>
       </div>
+      {wrongSpace ? (
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/50 bg-destructive/10 px-2 py-1 text-xs text-destructive"
+        >
+          {translate(
+            'auto.outgoingApproval.wrongChannel',
+            '{{space}} does not use {{channel}} — this goes out from the {{channel}} connected to Orca+.',
+            { space: wrongSpace.name, channel: head.split(' · ')[0] ?? channel ?? '' }
+          )}
+        </p>
+      ) : null}
       {editing === null ? (
         <pre className="scrollbar-sleek max-h-40 overflow-auto rounded-md border border-border/60 bg-muted/40 px-2 py-1.5 font-mono text-[11px] leading-4 whitespace-pre-wrap [overflow-wrap:anywhere] text-foreground">
           {text}
