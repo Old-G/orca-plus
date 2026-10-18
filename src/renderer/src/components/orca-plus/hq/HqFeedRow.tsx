@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { formatShortTimeAgo } from '@/lib/short-time-ago'
+import { hqSpaceStripeStyle } from './use-hq-spaces'
 
 export function hqFeedSourceLabel(source: HqFeedSource): string {
   switch (source) {
@@ -92,10 +93,22 @@ export function HqFeedOpenLink({ url }: { url: string | null }): React.JSX.Eleme
   ) : null
 }
 
-export function HqFeedRow({ item, now }: { item: HqFeedItem; now: number }): React.JSX.Element {
+export function HqFeedRow({
+  item,
+  now,
+  stripe = null
+}: {
+  item: HqFeedItem
+  now: number
+  /** Custom build (hq-spaces): the workspace's colour while all are shown. */
+  stripe?: string | null
+}): React.JSX.Element {
   const meta = [item.person, item.project].filter(Boolean).join(' · ')
   return (
-    <li className="flex flex-col gap-1 border-b border-border py-2 last:border-b-0">
+    <li
+      style={hqSpaceStripeStyle(stripe)}
+      className="flex flex-col gap-1 border-b border-border py-2 pl-2 last:border-b-0"
+    >
       <div className="flex items-baseline gap-2">
         <Badge variant="outline" className="shrink-0">
           {hqFeedSourceLabel(item.source)}
