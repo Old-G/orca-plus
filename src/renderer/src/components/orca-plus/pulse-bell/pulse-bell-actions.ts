@@ -38,6 +38,8 @@ import {
   HQ_SLACK_DIGEST_OPEN_ACTION
 } from '../../../../../shared/hq-slack-digest'
 import { runHqSlackRequestAction } from '../slack-requests/hq-slack-request-actions'
+import { HQ_REMIND_ACTION, HQ_REMIND_KIND } from '../../../../../shared/hq-remind'
+import { startHqRemind } from '../hq/hq-remind-chat'
 
 function paneRefTabId(ref: PulseBellPaneRef): string | undefined {
   return ref.tabId ?? parsePaneKey(ref.paneKey)?.tabId
@@ -100,7 +102,7 @@ export function openPulseBellItemTarget(item: PulseInboxItem): boolean {
     return true
   }
   // Custom build (hq-promises): a promise due soon leads to Notes, where it sits under «on me».
-  if (item.kind === HQ_PROMISE_DUE_KIND) {
+  if (item.kind === HQ_PROMISE_DUE_KIND || item.kind === HQ_REMIND_KIND) {
     openHqScreen('waiting')
     return true
   }
@@ -167,6 +169,14 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
   }
   if (item.kind === HQ_REPORT_BELL_KIND && actionId === HQ_REPORT_OPEN_ACTION && item.refId) {
     openHqReport(item.refId)
+  }
+  // Custom build (hq-remind): a failed start keeps the line for another try.
+  if (item.kind === HQ_REMIND_KIND && actionId === HQ_REMIND_ACTION && item.refId) {
+    const started = await startHqRemind(item.refId)
+    if (!started.ok) {
+      toast.error(started.message)
+      return
+    }
   }
   // Custom build (hq-scout-digest): the digest leads to HQ → Today, where the requests wait.
   if (item.kind === HQ_SLACK_DIGEST_KIND && actionId === HQ_SLACK_DIGEST_OPEN_ACTION) {
