@@ -17,8 +17,15 @@ import {
   HqWikiPageParams,
   HqPinnedSeenParams,
   HqPinnedCountsParams,
-  HqSpaceKeyParams
+  HqSpaceKeyParams,
+  HqPersonParams
 } from '../../../../shared/rpc-contract/hq-projects-params'
+import type { OrcaRuntimeService } from '../../orca-runtime'
+import {
+  buildHqPeopleRows,
+  buildHqPersonCard,
+  readHqPeopleFiles
+} from '../../../hq-today/hq-people'
 import { markHqPinnedSeen, readHqPinnedCounts } from '../../../hq-today/hq-pinned-counts'
 import { listHqSpaces } from '../../../hq-today/hq-spaces'
 import { listHqSpaceKeys, setHqSpaceKey } from '../../../hq-today/hq-space-keys'
@@ -40,6 +47,16 @@ function service(): HqProjectPagesService {
     throw new Error('HQ is not available on this host.')
   }
   return provided
+}
+
+// Custom build (hq-people): the org matrix and person pages joined with the pulse's people.
+async function peopleSources(runtime: OrcaRuntimeService) {
+  const hqPath = service().settings().hqPath
+  return {
+    files: hqPath ? await readHqPeopleFiles(hqPath) : { org: [], pages: [] },
+    people: runtime.pulseListPeople(),
+    waitings: runtime.pulseListWaitings({ status: 'open' })
+  }
 }
 
 // Custom build (hq): the same reads desktop HQ makes over IPC, for the paired web client.
@@ -99,6 +116,32 @@ export const HQ_PROJECTS_METHODS = [
     handler: async () => {
       const hqPath = service().settings().hqPath
       return { ok: true, spaces: hqPath ? await listHqSpaces(hqPath) : [] }
+    }
+  }),
+  // Custom build (hq-people): HQ's People list, and one person's card.
+  defineMethod({
+    name: 'hqProjects.people',
+
+    permission: 'workspace',
+    params: null,
+    handler: async (_params, { runtime }) => ({
+      ok: true,
+      people: buildHqPeopleRows(await peopleSources(runtime))
+    })
+  }),
+  defineMethod({
+    name: 'hqProjects.person',
+
+    permission: 'workspace',
+    params: HqPersonParams,
+    handler: async (params, { runtime }) => {
+      const sources = await peopleSources(runtime)
+      const row = buildHqPeopleRows(sources).find((entry) => entry.key === params.key)
+      if (!row) {
+        return { ok: false, error: 'No such person.' }
+      }
+      const decisions = runtime.pulseListDecisions(500)
+      return { ok: true, ...buildHqPersonCard(row, { ...sources, decisions }) }
     }
   }),
   defineMethod({

@@ -18,6 +18,7 @@ import type { PulseInboxItem } from '../../../shared/pulse-types'
 import { onPulseChanged } from '../pulse/pulse-change-events'
 import { startHqClickUpWaitingReplies } from '../../hq-today/hq-clickup-waiting-replies'
 import { startHqScoutContext } from '../../hq-today/hq-scout-context'
+import { startHqPeopleSync } from '../../hq-today/hq-people'
 import { startHqSlackDigest } from '../../hq-today/hq-slack-digest'
 import { bindAgentFinishedInbox, clearAgentFinished } from './pulse-bell-agent-finished'
 import { createWaitingAgentsTracker } from './pulse-bell-waiting-agents'
@@ -231,6 +232,12 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
     upsertPerson: (input) => runtime.pulseUpsertPerson(input),
     addWaiting: (input) => runtime.pulseAddWaiting(input),
     closeWaiting: (id, resolution) => void runtime.pulseCloseWaiting(id, 'resolved', resolution)
+  })
+  // Custom build (hq-people): pulse people get their Slack/ClickUp ids and role from HQ's org matrix.
+  startHqPeopleSync({
+    hqPath: () => store.getSettings().hqPath ?? null,
+    listPeople: () => runtime.pulseListPeople(),
+    upsertPerson: (input) => runtime.pulseUpsertPerson(input)
   })
   // Custom build (hq-remind): and people who have not answered for two working days.
   startHqWaitingBells({
