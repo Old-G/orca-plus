@@ -10,13 +10,14 @@ import { HQ_NOTE_SOURCE } from '../../../../../shared/hq-note-parse'
 import type { HqWaiting } from '../../../../../shared/hq-pulse-snapshot'
 import { clickUpWaitingUrl, slackThreadUrl } from '../../../../../shared/hq-waiting-replies'
 import { useAppStore } from '@/store'
-import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
+import { structuredAgentSessionTabId } from '../../../../../shared/agent-session/view/structured-agent-session-projection'
 import type { HqChatItem } from './hq-chat-list'
 import { openHqHistoryEntry } from './hq-history-open'
 import { useHqChatTitle } from './HqChatAvatar'
 import { RemindButton } from './HqTodayPeople'
 import { errorText } from './hq-waiting-parts'
 import { closeHqWaiting } from './use-hq-pulse'
+import { hqSpaceStripeStyle } from './use-hq-spaces'
 
 // Why: a day without an answer is when a nudge stops being pushy.
 const REMIND_AFTER_MS = 24 * 60 * 60_000
@@ -87,9 +88,12 @@ export function HqNoteRow({
   chat,
   now,
   hqWorktreeId,
-  showPerson = true
+  showPerson = true,
+  stripe = null
 }: {
   waiting: HqWaiting
+  /** Custom build (hq-spaces): the workspace's colour while all are shown. */
+  stripe?: string | null
   personName: string | null
   /** False inside a person's card, whose header already names them. */
   showPerson?: boolean
@@ -125,7 +129,10 @@ export function HqNoteRow({
   const clickUpUrl = clickUpWaitingUrl(waiting.sourceRef, clickUpWorkspaceId)
   const { agentSessionId, worktreeId } = waiting
   return (
-    <li className="flex items-start gap-2.5 px-3 py-2.5 hover:bg-accent/50">
+    <li
+      style={hqSpaceStripeStyle(stripe)}
+      className="flex items-start gap-2.5 px-3 py-2.5 hover:bg-accent/50"
+    >
       <Checkbox
         className="mt-1"
         disabled={busy}

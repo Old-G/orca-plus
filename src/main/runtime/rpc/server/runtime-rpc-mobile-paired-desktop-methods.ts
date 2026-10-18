@@ -17,6 +17,7 @@ export const PAIRED_DESKTOP_METHODS = [
   'hqProjects.chatList',
   'hqProjects.pinnedCounts',
   'hqProjects.markPinnedSeen',
+  'hqProjects.spaces',
   'hqProjects.list',
   'hqProjects.wikiTree',
   'hqProjects.wikiPage',

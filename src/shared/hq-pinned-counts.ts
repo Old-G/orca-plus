@@ -33,12 +33,17 @@ export type HqPinnedCountsInput = {
   reports: readonly HqReport[]
   seenAt: Partial<Record<string, number>>
   now: number
+  /** Custom build (hq-spaces): only what the chosen workspace shows. */
+  shows?: (project: string | null) => boolean
 }
 
 export function computeHqPinnedCounts(input: HqPinnedCountsInput): HqPinnedCounts {
   const since = (id: HqPinnedSeenId): number =>
     Math.max(input.seenAt[id] ?? 0, input.now - FIRST_LOOK_DAYS * DAY_MS)
-  const open = input.waitings.filter((waiting) => waiting.status === 'open')
+  const shows = input.shows ?? (() => true)
+  const open = input.waitings.filter(
+    (waiting) => waiting.status === 'open' && shows(waiting.project)
+  )
   return {
     today: input.inbox.filter(
       (item) => item.kind === HQ_SLACK_REQUEST_BELL_KIND && item.doneAt === null
@@ -46,7 +51,9 @@ export function computeHqPinnedCounts(input: HqPinnedCountsInput): HqPinnedCount
     onYou: open.filter((waiting) => waiting.direction === 'on-me').length,
     remind: hqRemindDue(open, input.now).length,
     reports: input.reports.filter((report) => report.at > since('reports')).length,
-    feed: input.feed.filter((item) => item.at > since('feed')).length,
-    journal: input.decisions.filter((decision) => decision.decidedAt > since('journal')).length
+    feed: input.feed.filter((item) => item.at > since('feed') && shows(item.project)).length,
+    journal: input.decisions.filter(
+      (decision) => decision.decidedAt > since('journal') && shows(decision.project)
+    ).length
   }
 }

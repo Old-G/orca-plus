@@ -49,9 +49,18 @@ vi.mock('@/store', () => {
   useAppStore.getState = state
   return { useAppStore }
 })
-vi.mock('@/lib/web-client-location', () => ({ isWebClientLocation: () => false }))
+vi.mock('@/app-shell/platform/web-client-location', () => ({ isWebClientLocation: () => false }))
 vi.mock('./HqPinnedPane', () => ({
   HqPinnedPane: ({ id }: { id: string }) => <div data-testid="pinned-pane">{id}</div>
+}))
+vi.mock('./use-hq-spaces', () => ({
+  useHqSpaces: () => ({
+    spaces: [],
+    active: null,
+    setActive: () => {},
+    shows: () => true,
+    stripeOf: () => null
+  })
 }))
 vi.mock('./HqContextPanel', () => ({ HqContextPanel: () => <aside>context panel</aside> }))
 vi.mock('./use-hq-pinned-notes', () => ({

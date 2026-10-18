@@ -38,14 +38,22 @@ import { PulseBellButton } from '../pulse-bell/PulseBellButton'
 import { useHqChatList, useHqProjectColor } from './use-hq-chat-list'
 import { markHqPinnedSeen, useHqPinnedNotes } from './use-hq-pinned-notes'
 import { useHqNextWaitingShortcut } from './use-hq-next-waiting-shortcut'
+import { useHqSpaces } from './use-hq-spaces'
+import { HqSpaceSwitch } from './HqSpaceSwitch'
 
 const AGE_TICK_MS = 30_000
 const NO_KEPT: string[] = []
 
 export function HqMessengerScreen(): React.JSX.Element {
-  const { items, cards } = useHqChatList()
+  const { items: allItems, cards } = useHqChatList()
+  // Custom build (hq-spaces): only the chosen workspace's chats.
+  const spaces = useHqSpaces()
+  const items = useMemo(
+    () => allItems.filter((item) => spaces.shows({ repoId: item.repoId })),
+    [allItems, spaces]
+  )
   const colorFor = useHqProjectColor()
-  const notes = useHqPinnedNotes(cards)
+  const notes = useHqPinnedNotes(cards, spaces.active?.slug ?? null)
   const now = useNow(AGE_TICK_MS)
   const [selection, setSelection] = useState<HqSelection>(
     () => hqSelectionForRequest(takeRequestedHqTab()) ?? rememberedHqSelection()
@@ -163,6 +171,7 @@ export function HqMessengerScreen(): React.JSX.Element {
           <div className="flex h-full min-h-0 flex-col">
             <header className="flex shrink-0 items-center gap-2 px-4 pt-3 pb-2">
               <h1 className="text-sm font-semibold">{translate('auto.hq.title', 'HQ')}</h1>
+              <HqSpaceSwitch view={spaces} />
               {/* Why: with the sidebar collapsed its bell is out of sight; HQ keeps one of its own. */}
               <div className="ml-auto flex items-center gap-1">
                 <PulseBellButton />
