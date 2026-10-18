@@ -47,6 +47,7 @@ export function buildHqChatWire(
       (item.kind === 'chat' ? item.tab.executionHostId : null) ??
       null,
     projectName: item.projectName,
+    repoId: item.repoId,
     worktreeName: item.worktreeName,
     title: title(item, generatedTitles).slice(0, 300),
     preview: preview(item).replace(/\s+/g, ' ').trim().slice(0, PREVIEW_MAX),

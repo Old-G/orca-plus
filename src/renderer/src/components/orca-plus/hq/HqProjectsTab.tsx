@@ -13,6 +13,7 @@ import type { HqWaiting } from '../../../../../shared/hq-pulse-snapshot'
 import type { Worktree } from '../../../../../shared/worktree/types'
 import { useHqProjectPages, type HqProjectPagesState } from './use-hq-project-pages'
 import { useHqPulse } from './use-hq-pulse'
+import { useHqSpaces } from './use-hq-spaces'
 
 const AGE_TICK_MS = 60_000
 const NO_WAITINGS: readonly HqWaiting[] = []
@@ -130,7 +131,13 @@ function pagesNote(pages: HqProjectPagesState): string | null {
 }
 
 export function HqProjectsTab(): React.JSX.Element {
-  const repos = useAppStore((s) => s.repos)
+  const allRepos = useAppStore((s) => s.repos)
+  // Custom build (hq-spaces): only the chosen workspace's projects.
+  const spaces = useHqSpaces()
+  const repos = useMemo(
+    () => allRepos.filter((repo) => spaces.shows({ repoId: repo.id })),
+    [allRepos, spaces]
+  )
   const projectGroups = useAppStore((s) => s.projectGroups)
   const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
   const snapshot = useLiveDashboardSnapshot()
