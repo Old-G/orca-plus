@@ -3,6 +3,7 @@ import type { PulseDraft } from '../pulse-types'
 import {
   outgoingApprovalBellItem,
   outgoingApprovalHead,
+  outgoingApprovalHeadChannel,
   outgoingApprovalHeadProject
 } from './outgoing-approval-bell'
 
@@ -75,5 +76,13 @@ describe('outgoingApprovalHeadProject', () => {
     expect(outgoingApprovalHeadProject('ClickUp comment · from acme-flows')).toBe('acme-flows')
     expect(outgoingApprovalHeadProject('Slack message → Петя · from «Ask HQ»')).toBeNull()
     expect(outgoingApprovalHeadProject('Slack message → Петя')).toBeNull()
+  })
+})
+
+describe('outgoingApprovalHeadChannel', () => {
+  it('reads where the call goes from the first word', () => {
+    expect(outgoingApprovalHeadChannel('Slack · send message → #it · from x')).toBe('slack')
+    expect(outgoingApprovalHeadChannel('ClickUp · create comment → 1')).toBe('clickup')
+    expect(outgoingApprovalHeadChannel('rm -rf build')).toBeNull()
   })
 })
