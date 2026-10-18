@@ -39,15 +39,17 @@ state_files=(
 step() { echo "[$(date +%T)] $*"; }
 # Why: `open` hands this shell's env to Orca+; started from an agent chat that env names the chat's
 # Claude subscription dir, and Orca+ then treated it as the base login and overwrote that sign-in.
+# By path, not -b: LaunchServices picks the highest version, often the dist/ copy just built.
 launch_orca_plus() {
   env $(env | sed -nE 's/^((ORCA|CLAUDE|ANTHROPIC)_[A-Z0-9_]*|CODEX_HOME)=.*/-u \1/p') \
-    open -b "$bundle_id"
+    open "$app"
 }
 run() { if [ "$dry" = 1 ]; then echo "  would run: $*"; else "$@"; fi; }
 # Why: anchored — the terminal daemon outlives the app by design and carries this path in its
 # --spawner-exec-path argument, so a plain substring match waits on it forever. `-a`: pgrep skips
-# its own ancestors, and Orca+ is one whenever the ship starts from an Orca+ session.
-app_running() { pgrep -a -f "^$app/Contents/MacOS/Orca Plus( |\$)" >/dev/null; }
+# its own ancestors, and Orca+ is one whenever the ship starts from an Orca+ session. Any copy
+# counts: Orca+ is often running from dist/, and the quit reaches it by bundle id.
+app_running() { pgrep -a -f "^($app|$repo/dist/mac[^/]*/Orca Plus\.app)/Contents/MacOS/Orca Plus( |\$)" >/dev/null; }
 # Why: the CLI asks the running app — since upstream moved profiles to SQLite, orca-data.json is
 # only a compatibility export refreshed on clean quit, so reading it would compare stale copies.
 orca_plus_cli() { env -u ORCA_USER_DATA_PATH -u ORCA_PLUS_USER_DATA_PATH /usr/local/bin/orca-plus "$@"; }
@@ -126,6 +128,13 @@ if [ "$dry" = 0 ] && [ "$detached" = 0 ]; then
   exit 0
 fi
 
+# Why: the repo count and Claude org below are read from the running app.
+if [ "$dry" = 0 ] && ! app_running; then
+  step "Orca+ is not running — launch the installed one first"
+  launch_orca_plus
+  wait_runtime_ready || { step "runtime not ready after 15 minutes — abort, nothing changed"; exit 1; }
+fi
+
 step "backup profile → $backup"
 run mkdir -p "$backup"
 # Why: the profile is live — an agent can delete a temp file mid-copy (rsync 24, or 23 when it goes
@@ -173,6 +182,10 @@ if [ "$dry" = 0 ] && ! ditto "$new" "$app"; then
   exit 1
 fi
 [ "$dry" = 1 ] && echo "  would run: ditto $new $app"
+
+# Why: a registered dist/ copy is what Spotlight, Raycast and `open -b` start next time.
+run /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$new"
+run "$repo/scripts/orca-plus-open-at-login.sh"
 
 step "launch"
 run launch_orca_plus
