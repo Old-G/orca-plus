@@ -44,6 +44,11 @@ export function outgoingApprovalHeadProject(head: string): string | null {
   return match ? (match[1] ?? match[2] ?? null) : null
 }
 
+/** Custom build (hq-spaces): where the card's call goes — `slack`, `clickup`… — from its first word. */
+export function outgoingApprovalHeadChannel(head: string): string | null {
+  return /^([A-Za-z][\w-]*) ·/.exec(head)?.[1]?.toLowerCase() ?? null
+}
+
 /** The card's first line: what, to whom, in which thread, from which chat. */
 export function outgoingApprovalHead(
   draft: PulseDraft,

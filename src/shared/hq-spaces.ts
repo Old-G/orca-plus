@@ -1,5 +1,5 @@
-// Custom build (hq-spaces): workspaces above projects — a company (Acme) or a venture of its
-// own (Hobby, OG News, personal) — each a folder under the global HQ, `workspaces/<slug>/`, with a
+// Custom build (hq-spaces): workspaces above projects — a company or a venture of the owner's
+// own (a side project, a personal one) — each a folder under the global HQ, `workspaces/<slug>/`, with a
 // `workspace.yaml` naming its colour and which project groups and projects belong to it. HQ shows
 // one of them or all; skills read the same file. Called «space» in code: Orca's «workspace» is a
 // worktree.
@@ -179,4 +179,36 @@ export function hqSpaceUsesSource(
 /** `group/acme-api!34`, `owner/repo#12` → `acme-api`, `repo`: a review's project, by its repo name. */
 export function hqReviewProject(ref: string): string | null {
   return /([^/#!]+)[#!]\d+$/.exec(ref)?.[1] ?? null
+}
+
+/** The workspace a message goes out from, when it names neither this messenger nor this tracker —
+ *  e.g. a side project's chat writing through the company's Slack; null when nothing is wrong or unknown. */
+export function hqSpaceWrongChannel(
+  spaces: readonly HqSpace[],
+  project: string | null,
+  channel: string | null
+): HqSpace | null {
+  const space = project && channel ? hqSpaceOf(spaces, { project }) : null
+  return space && space.messenger !== channel && space.tasks !== channel ? space : null
+}
+
+/** Custom build (hq-space-keys): the tokens a workspace may keep of its own, one per kind. */
+export const HQ_SPACE_KEY_KINDS = [
+  'slack',
+  'telegram',
+  'clickup',
+  'jira',
+  'trello',
+  'asana'
+] as const
+export type HqSpaceKeyKind = (typeof HQ_SPACE_KEY_KINDS)[number]
+
+/** Which kinds each workspace has a saved key for, by slug; never the keys themselves. */
+export type HqSpaceKeysResult = { keys: Record<string, HqSpaceKeyKind[]> }
+
+export function readHqSpaceKeys(value: unknown): Record<string, HqSpaceKeyKind[]> {
+  const parsed = z
+    .object({ keys: z.record(z.string(), z.array(z.enum(HQ_SPACE_KEY_KINDS))) })
+    .safeParse(value)
+  return parsed.success ? parsed.data.keys : {}
 }
