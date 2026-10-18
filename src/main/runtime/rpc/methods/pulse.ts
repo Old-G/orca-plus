@@ -3,6 +3,7 @@ import {
   PulseAddDraftParams,
   PulseAddInboxItemParams,
   PulseAddWaitingParams,
+  PulseUpdateWaitingParams,
   PulseCloseWaitingParams,
   PulseEventsParams,
   PulseFeedParams,
@@ -71,6 +72,14 @@ export const PULSE_METHODS = [
         worktreeId: record?.location.workspaceId ?? null
       })
     }
+  }),
+  defineMethod({
+    // Custom build (hq-notes-dedup)
+    name: 'pulse.updateWaiting',
+
+    permission: 'workspace',
+    params: PulseUpdateWaitingParams,
+    handler: async ({ id, ...patch }, { runtime }) => runtime.pulseUpdateWaiting(id, patch)
   }),
   defineMethod({
     name: 'pulse.closeWaiting',
