@@ -55,7 +55,7 @@ export function findHqAskChat(
 }
 
 /** A new chat in the HQ workspace with the prompt and a short name, shown in HQ once its tab appears. */
-async function startHqChatWithPrompt(
+export async function startHqChatWithPrompt(
   worktreeId: string,
   prompt: string,
   name: string

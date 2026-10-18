@@ -50,12 +50,10 @@ import { generateHqText } from '../../hq-today/hq-task-questions'
 import { gitExecFileAsync } from '../../git/runner'
 import { isGitRepoKind } from '../../../shared/repo-kind'
 import { getHqProjectPagesService } from '../../hq-project-pages/hq-project-pages-service'
-import { HQ_PROMISE_DUE_KIND, hqPromiseDueBellItems } from '../../../shared/hq-promises'
+import { startHqWaitingBells } from '../../hq-today/hq-waiting-bells'
 import { deliverWaitingReply } from '../waiting-replies/deliver-waiting-reply'
 
 const BROADCAST_DEBOUNCE_MS = 50
-// Why: a promise turns «due by tomorrow» with the clock, not with a pulse change.
-const PROMISE_DUE_CHECK_MS = 30 * 60_000
 const FEED_DAYS_MS = 3 * 24 * 60 * 60_000
 
 function broadcastChanged(): void {
@@ -234,18 +232,14 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
     addWaiting: (input) => runtime.pulseAddWaiting(input),
     closeWaiting: (id, resolution) => void runtime.pulseCloseWaiting(id, 'resolved', resolution)
   })
-  const syncPromisesDue = (): void =>
-    sync(
-      HQ_PROMISE_DUE_KIND,
-      hqPromiseDueBellItems(
-        runtime.pulseListWaitings({ status: 'open', direction: 'on-me' }),
-        (id) => runtime.pulseListPeople().find((person) => person.id === id)?.name ?? null,
-        Date.now()
-      )
-    )
-  onPulseChanged(syncPromisesDue)
-  setInterval(syncPromisesDue, PROMISE_DUE_CHECK_MS).unref?.()
-  syncPromisesDue()
+  // Custom build (hq-remind): and people who have not answered for two working days.
+  startHqWaitingBells({
+    listOpen: () => runtime.pulseListWaitings({ status: 'open' }),
+    personName: (id) => runtime.pulseListPeople().find((person) => person.id === id)?.name ?? null,
+    sync,
+    onChanged: onPulseChanged,
+    now: Date.now
+  })
   // Custom build (hq-clickup-waiting): answers to questions asked in ClickUp comments, the same way.
   const clickUpTaskIds = new Map<string, string>()
   startHqClickUpWaitingReplies({
