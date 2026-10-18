@@ -35,6 +35,7 @@ import {
 } from '../ownership/orcad-fenced-automation'
 import { AutomationDispatchCancelledError } from './automation-dispatch-cancelled-error'
 import { isTuiAgent } from '../../../shared/agent-launch/catalog/tui-agent-config'
+import { withAutomationDispatchSurface } from '../automation-default-chat-surface'
 
 export { AutomationDispatchCancelledError }
 
@@ -138,11 +139,13 @@ export async function requestAutomationDispatch(
     return returnDurable(run)
   }
   let target = resolveCurrentTarget()
+  // Custom build (automations-native-chat): the surface the run dispatches on; the stored definition stays as is.
+  const dispatched = withAutomationDispatchSurface(automation, ctx.store)
   const refusal = describeScheduledRefusal({
     target,
     canDispatch: canDispatchTo(
       {
-        repo: Boolean(automation.surface === 'chat' ? ctx.chatDispatcher : ctx.launcher()),
+        repo: Boolean(dispatched.surface === 'chat' ? ctx.chatDispatcher : ctx.launcher()),
         bot: Boolean(ctx.botDispatcher)
       },
       target
@@ -182,7 +185,7 @@ export async function requestAutomationDispatch(
   ) =>
     runAutomationLaunch({
       ...ctx,
-      automation,
+      automation: dispatched,
       run,
       target: launchTarget,
       // The status check and the store write share one synchronous step, so a settled run stays settled.
@@ -239,7 +242,7 @@ export async function requestAutomationDispatch(
         )
       : refuse(automationRunFailure('noDispatchHost'))
   }
-  const dispatcher = automation.surface === 'chat' ? ctx.chatDispatcher : ctx.launcher()
+  const dispatcher = dispatched.surface === 'chat' ? ctx.chatDispatcher : ctx.launcher()
   return dispatcher
     ? launchInMain(
         target,
