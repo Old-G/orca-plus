@@ -6,11 +6,12 @@ import { hqFeedUrl, type HqFeedItem } from '../../../../../shared/hq-feed'
 import { projectAccentColor } from '../../../../../shared/project-accent-color'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
-import { formatShortTimeAgo } from '@/lib/short-time-ago'
+import { formatShortTimeAgo } from '@/lib/time-format/short-time-ago'
 import { useAppStore } from '@/store'
 import { hqProjectInitials } from './hq-chat-list'
 import { HqFeedKindChip, HqFeedOpenLink } from './HqFeedRow'
 import { isHqFeedSession, openHqFeedSessionChat } from './hq-feed-open-chat'
+import { hqSpaceStripeStyle } from './use-hq-spaces'
 
 /** A feed row names its project by display name; the color is the repo's, as the chat list shows it. */
 export function useHqFeedProjectColor(): (project: string) => string {
@@ -27,15 +28,21 @@ export function useHqFeedProjectColor(): (project: string) => string {
 export function HqFeedPost({
   item,
   now,
-  color
+  color,
+  stripe = null
 }: {
   item: HqFeedItem
   now: number
   color: string | null
+  /** Custom build (hq-spaces): the workspace's colour while all are shown. */
+  stripe?: string | null
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   return (
-    <li className="flex gap-3 rounded-lg border border-border bg-card/40 p-3 transition-colors hover:bg-accent/30">
+    <li
+      style={hqSpaceStripeStyle(stripe)}
+      className="flex gap-3 rounded-lg border border-border bg-card/40 p-3 transition-colors hover:bg-accent/30"
+    >
       <span
         aria-hidden
         className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted-foreground text-[11px] font-bold text-background"
