@@ -4,17 +4,12 @@ import React from 'react'
 import { Check, Pin } from 'lucide-react'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { translate } from '@/i18n/i18n'
-import { useOrcaPlusNewView } from '@/lib/orca-plus-new-view'
 import { useAppStore } from '@/store'
 import type { Repo } from '../../../../../../shared/repo-types'
 import { setHqProjectKept } from '../../../orca-plus/hq/hq-chat-actions'
 
 export function HqKeepProjectMenuItem({ repo }: { repo: Repo }): React.JSX.Element | null {
-  const newView = useOrcaPlusNewView()
   const kept = useAppStore((state) => state.settings?.hqKeptProjectIds?.includes(repo.id) === true)
-  if (!newView) {
-    return null
-  }
   return (
     <DropdownMenuItem onSelect={() => setHqProjectKept(repo.id, !kept)}>
       <Pin className="size-3.5" />

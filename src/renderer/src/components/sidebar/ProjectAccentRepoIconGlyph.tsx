@@ -2,7 +2,6 @@
 // view» a project left on the neutral default shows the palette color HQ gives it.
 import type React from 'react'
 import { RepoIconGlyph } from '@/components/repo/repo-icon'
-import { useOrcaPlusNewView } from '@/lib/orca-plus-new-view'
 import { DEFAULT_REPO_BADGE_COLOR } from '../../../../shared/constants'
 import { projectAccentColor } from '../../../../shared/project-accent-color'
 
@@ -11,10 +10,7 @@ export function ProjectAccentRepoIconGlyph({
   color,
   ...props
 }: React.ComponentProps<typeof RepoIconGlyph> & { projectId: string }): React.JSX.Element {
-  const newView = useOrcaPlusNewView()
   const accent =
-    newView && color?.toLowerCase() === DEFAULT_REPO_BADGE_COLOR
-      ? projectAccentColor(projectId)
-      : color
+    color?.toLowerCase() === DEFAULT_REPO_BADGE_COLOR ? projectAccentColor(projectId) : color
   return <RepoIconGlyph {...props} color={accent} />
 }

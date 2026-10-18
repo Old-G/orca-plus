@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 type BoardProps = {
@@ -9,7 +9,6 @@ type BoardProps = {
 }
 
 const mocks = vi.hoisted(() => {
-  const chatsView: { current: boolean | undefined } = { current: undefined }
   const board: { props: BoardProps | null } = { props: null }
   return {
     acknowledgeAgents: vi.fn(),
@@ -17,7 +16,6 @@ const mocks = vi.hoisted(() => {
     board,
     activeView: 'terminal',
     setActiveView: vi.fn(),
-    chatsView,
     updateSettings: vi.fn(async () => {})
   }
 })
@@ -29,7 +27,7 @@ vi.mock('@/store', () => {
     activeView: mocks.activeView,
     setActiveView: mocks.setActiveView,
     acknowledgeAgents: mocks.acknowledgeAgents,
-    settings: { hqChatsView: mocks.chatsView.current },
+    settings: {},
     updateSettings: mocks.updateSettings
   })
   const useAppStore = (selector: (s: ReturnType<typeof state>) => unknown) => selector(state())
@@ -37,16 +35,13 @@ vi.mock('@/store', () => {
   return { useAppStore }
 })
 vi.mock('../../dashboard/useLiveDashboardSnapshot', () => ({
-  useLiveDashboardSnapshot: () => ({})
+  useLiveDashboardSnapshot: () => ({ cards: [] })
+}))
+vi.mock('./use-hq-spaces', () => ({
+  useHqSpaces: () => ({ active: null, shows: () => true })
 }))
 vi.mock('./HqMessengerScreen', () => ({ HqMessengerScreen: () => <div>messenger view</div> }))
-vi.mock('./HqWaitingTab', () => ({ HqWaitingTab: () => <div>waiting tab</div> }))
-vi.mock('./HqProjectsTab', () => ({ HqProjectsTab: () => <div>projects tab</div> }))
-vi.mock('./HqWikiTab', () => ({ HqWikiTab: () => <div>wiki tab</div> }))
-vi.mock('./HqMapTab', () => ({ HqMapTab: () => <div>map tab</div> }))
-vi.mock('./HqTodayTab', () => ({ HqTodayTab: () => <div>today tab</div> }))
 vi.mock('./HqDeferredStrip', () => ({ HqDeferredStrip: () => null }))
-vi.mock('./HqDeferredBell', () => ({ HqDeferredBell: () => null }))
 vi.mock('./use-hq-deferred-sessions', () => ({
   useHqDeferredSessions: () => ({ sessions: [], close: () => {} })
 }))
@@ -61,62 +56,30 @@ vi.mock('../../dashboard-popout/AgentKanbanBoard', () => ({
 }))
 
 import HqScreen from './HqScreen'
+import { HqAgentsTab } from './HqAgentsTab'
 import { HqSidebarEntry } from './HqSidebarEntry'
-import { openHqScreen } from './hq-view'
 
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
   mocks.activeView = 'terminal'
-  mocks.chatsView.current = undefined
-})
-
-describe('HqScreen views', () => {
-  it('shows the messenger view unless it was switched off', () => {
-    render(<HqScreen />)
-    expect(screen.getByText('messenger view')).toBeTruthy()
-    cleanup()
-    mocks.chatsView.current = false
-    render(<HqScreen />)
-    expect(screen.getByText('agent board')).toBeTruthy()
-    expect(screen.queryByText('messenger view')).toBeNull()
-  })
-
-  it("switches back to the new view from the earlier one's header", () => {
-    mocks.chatsView.current = false
-    render(<HqScreen />)
-    fireEvent.click(screen.getByRole('switch', { name: 'New view' }))
-    expect(mocks.updateSettings).toHaveBeenCalledWith({ hqChatsView: true })
-  })
 })
 
 describe('HqScreen', () => {
-  it('shows the agent board on its Agents tab, acting on this window', () => {
-    mocks.chatsView.current = false
+  it('shows the messenger view', () => {
     render(<HqScreen />)
+    expect(screen.getByText('messenger view')).toBeTruthy()
+  })
+})
+
+describe('HqAgentsTab', () => {
+  it('shows the agent board, acting on this window', () => {
+    render(<HqAgentsTab />)
     expect(screen.getByText('agent board')).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'Agents' }).getAttribute('aria-selected')).toBe('true')
-    expect(screen.getByRole('tab', { name: 'Projects' }).hasAttribute('disabled')).toBe(false)
-    expect(screen.getByRole('tab', { name: 'Today' }).hasAttribute('disabled')).toBe(false)
     mocks.board.props?.onAckAgent('tab-1:leaf-1')
     expect(mocks.acknowledgeAgents).toHaveBeenCalledWith(['tab-1:leaf-1'])
     mocks.board.props?.onRevealAgent({ worktreeId: 'wt-1' })
     expect(mocks.revealDashboardAgent).toHaveBeenCalledWith({ worktreeId: 'wt-1' })
-  })
-})
-
-describe('opening HQ on a tab', () => {
-  it('starts a new screen on the asked tab, and switches an open one', () => {
-    mocks.chatsView.current = false
-    openHqScreen('today')
-    const { unmount } = render(<HqScreen />)
-    expect(screen.getByText('today tab')).toBeTruthy()
-    unmount()
-
-    render(<HqScreen />)
-    expect(screen.getByText('agent board')).toBeTruthy()
-    act(() => openHqScreen('today'))
-    expect(screen.getByText('today tab')).toBeTruthy()
   })
 })
 
