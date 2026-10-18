@@ -110,16 +110,23 @@ export async function addHqWaiting(args: {
   /** Custom build (hq-notes): `note` for a plain note; `manual` otherwise. */
   source?: string
   dueAt?: number | null
-}): Promise<void> {
+  /** Custom build (hq-notes-dedup): add even when an open note already says the same. */
+  allowDuplicate?: boolean
+}): Promise<{ duplicateTitle: string | null }> {
   const personId = await personIdFor(args.people, args.personName)
-  await writePulse('pulse.addWaiting', {
+  const added = await writePulse('pulse.addWaiting', {
     direction: args.direction,
     title: args.title.trim(),
     source: args.source ?? 'manual',
     ...(personId ? { personId } : {}),
     ...(args.project ? { project: args.project } : {}),
-    ...(args.dueAt ? { dueAt: args.dueAt } : {})
+    ...(args.dueAt ? { dueAt: args.dueAt } : {}),
+    ...(args.allowDuplicate ? { allowDuplicate: true } : {})
   })
+  const duplicate =
+    typeof added === 'object' && added !== null && Reflect.get(added, 'duplicate') === true
+  const title = duplicate ? Reflect.get(added, 'title') : null
+  return { duplicateTitle: typeof title === 'string' ? title : null }
 }
 
 export async function closeHqWaiting(id: string, status: 'resolved' | 'cancelled'): Promise<void> {

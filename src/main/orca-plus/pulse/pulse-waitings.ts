@@ -2,11 +2,14 @@
 import type { SqliteBindings, SqliteRow } from '../../sqlite/sqlite-statement'
 import type {
   PulseWaiting,
+  PulseWaitingAdded,
   PulseWaitingFilter,
   PulseWaitingInput,
+  PulseWaitingPatch,
   PulseWaitingReply,
   PulseWaitingStatus
 } from '../../../shared/pulse-types'
+import { findDuplicateWaiting } from '../../../shared/pulse-waiting-similarity'
 import type { PulseCore } from './pulse-core'
 import { integer, oneOf, optionalInteger, optionalText, text } from './pulse-row-fields'
 
@@ -44,8 +47,15 @@ export function getWaiting(core: PulseCore, id: string): PulseWaiting | null {
   return row ? toWaiting(row) : null
 }
 
-export function addWaiting(core: PulseCore, input: PulseWaitingInput): PulseWaiting {
+export function addWaiting(core: PulseCore, input: PulseWaitingInput): PulseWaitingAdded {
   return core.transaction(() => {
+    if (!input.allowDuplicate) {
+      const open = listWaitings(core, { status: 'open' })
+      const duplicate = findDuplicateWaiting(open, input)
+      if (duplicate) {
+        return { ...duplicate, duplicate: true }
+      }
+    }
     const waiting: PulseWaiting = {
       id: core.clock.newId(),
       direction: input.direction,
@@ -93,6 +103,30 @@ export function addWaiting(core: PulseCore, input: PulseWaitingInput): PulseWait
       )
     core.emit('waiting.added', 'waiting', waiting.id, waiting)
     return waiting
+  })
+}
+
+/** Custom build (hq-notes-dedup): the same note with a new date or detail updates, not repeats. */
+export function updateWaiting(core: PulseCore, id: string, patch: PulseWaitingPatch): PulseWaiting {
+  return core.transaction(() => {
+    const existing = getWaiting(core, id)
+    if (!existing) {
+      throw new Error(`pulse: no waiting ${id}`)
+    }
+    if (existing.status !== 'open') {
+      throw new Error(`pulse: waiting ${id} is already ${existing.status}`)
+    }
+    const updated: PulseWaiting = {
+      ...existing,
+      title: patch.title ?? existing.title,
+      detail: patch.detail === undefined ? existing.detail : patch.detail,
+      dueAt: patch.dueAt === undefined ? existing.dueAt : patch.dueAt
+    }
+    core.db
+      .prepare('UPDATE waitings SET title = ?, detail = ?, due_at = ? WHERE id = ?')
+      .run(updated.title, updated.detail, updated.dueAt, id)
+    core.emit('waiting.updated', 'waiting', id, updated)
+    return updated
   })
 }
 

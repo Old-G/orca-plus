@@ -10,6 +10,7 @@ import type {
   PulsePersonInput,
   PulseWaitingFilter,
   PulseWaitingInput,
+  PulseWaitingPatch,
   PulseWaitingReply,
   PulseWaitingStatus
 } from '../../../shared/pulse-types'
@@ -43,7 +44,8 @@ import {
   getWaiting,
   listWaitings,
   markWaitingReplyDelivered,
-  recordWaitingReply
+  recordWaitingReply,
+  updateWaiting
 } from './pulse-waitings'
 
 export const PULSE_DB_FILE = 'orca-plus-pulse.db'
@@ -74,6 +76,9 @@ export class PulseDb {
   }
   getWaiting(id: string) {
     return getWaiting(this.core, id)
+  }
+  updateWaiting(id: string, patch: PulseWaitingPatch) {
+    return updateWaiting(this.core, id, patch)
   }
   closeWaiting(id: string, status: Exclude<PulseWaitingStatus, 'open'>, resolution?: string) {
     return closeWaiting(this.core, id, status, resolution)

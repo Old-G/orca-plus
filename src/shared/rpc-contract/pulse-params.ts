@@ -39,7 +39,17 @@ export const PulseAddWaitingParams = z.object({
   dueAt: OptionalFiniteNumber,
   // Custom build (hq-waiting-replies): the chat that waits; the CLI reads them from the agent's env.
   agentSessionId: OptionalString,
-  paneKey: OptionalString
+  paneKey: OptionalString,
+  // Custom build (hq-notes-dedup)
+  allowDuplicate: z.boolean().optional()
+})
+
+// Custom build (hq-notes-dedup): null clears detail or due; an omitted field stays.
+export const PulseUpdateWaitingParams = z.object({
+  id: requiredString('Waiting id is required'),
+  title: OptionalString,
+  detail: NullableText,
+  dueAt: z.number().finite().nullable().optional()
 })
 
 export const PulseCloseWaitingParams = z.object({

@@ -41,6 +41,45 @@ describe('people', () => {
 })
 
 describe('waitings', () => {
+  it('returns the open note that says the same instead of adding it again', () => {
+    const db = openDb()
+    const timur = db.upsertPerson({ name: 'Timur' })
+    const first = db.addWaiting({
+      direction: 'on-them',
+      title: 'Выгрузка за март готова?',
+      personId: timur.id,
+      source: 'slack'
+    })
+    const again = db.addWaiting({
+      direction: 'on-them',
+      title: 'готовность выгрузки за март',
+      personId: timur.id,
+      source: 'agent'
+    })
+    expect(again).toMatchObject({ id: first.id, duplicate: true })
+    expect(db.listWaitings()).toHaveLength(1)
+    const forced = db.addWaiting({
+      direction: 'on-them',
+      title: 'готовность выгрузки за март',
+      personId: timur.id,
+      source: 'agent',
+      allowDuplicate: true
+    })
+    expect(forced.id).not.toBe(first.id)
+    expect(forced.duplicate).toBeUndefined()
+  })
+
+  it('updates an open note in place and refuses a closed one', () => {
+    const db = openDb()
+    const note = db.addWaiting({ direction: 'on-them', title: 'Export', source: 'note', dueAt: 5 })
+    const updated = db.updateWaiting(note.id, { title: 'Export for March', detail: 'csv' })
+    expect(updated).toMatchObject({ title: 'Export for March', detail: 'csv', dueAt: 5 })
+    expect(db.updateWaiting(note.id, { dueAt: null }).dueAt).toBeNull()
+    expect(db.getWaiting(note.id)).toMatchObject({ title: 'Export for March', dueAt: null })
+    db.closeWaiting(note.id, 'resolved')
+    expect(() => db.updateWaiting(note.id, { title: 'x' })).toThrow(/already resolved/)
+  })
+
   it('keeps the chat that waits and only the newest answer from the thread', () => {
     const db = openDb()
     const waiting = db.addWaiting({

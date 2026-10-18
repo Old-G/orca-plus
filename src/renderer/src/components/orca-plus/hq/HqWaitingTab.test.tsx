@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, options?: Record<string, string>) =>
-    fallback.replace('{{value0}}', options?.value0 ?? '')
+    fallback.replace(/\{\{(\w+)\}\}/g, (_match, name: string) => options?.[name] ?? '')
 }))
 vi.mock('@/lib/web-client-location', () => ({ isWebClientLocation: () => false }))
 
@@ -37,6 +37,9 @@ function installPulse(snapshot: {
       return { id: 'r', ok: true, result: person }
     }
     if (method === 'pulse.addWaiting') {
+      if (field(params, 'title') === 'Contract again' && !field(params, 'allowDuplicate')) {
+        return { id: 'r', ok: true, result: { id: 'w-1', title: 'Contract', duplicate: true } }
+      }
       snapshot.waitings.unshift({
         id: 'w-new',
         createdAt: Date.now(),
@@ -139,6 +142,26 @@ describe('HqWaitingTab', () => {
         params: { direction: 'on-them', title: 'Contract draft', source: 'manual', personId: 'p-2' }
       }
     ])
+  })
+
+  it('names the open note that already says the same, and adds anyway on request', async () => {
+    render(<HqWaitingTab />)
+    const onThem = await screen.findByRole('region', { name: "I'm waiting on" })
+    fireEvent.change(within(onThem).getByLabelText('What is waiting'), {
+      target: { value: 'Contract again' }
+    })
+    fireEvent.click(within(onThem).getByRole('button', { name: 'Add' }))
+
+    expect(await within(onThem).findByText(/Already noted: «Contract»/)).toBeTruthy()
+    expect(within(onThem).getByLabelText<HTMLInputElement>('What is waiting').value).toBe(
+      'Contract again'
+    )
+    fireEvent.click(within(onThem).getByRole('button', { name: 'Add anyway' }))
+
+    expect(await within(onThem).findByText('Contract again')).toBeTruthy()
+    expect(within(onThem).queryByText(/Already noted/)).toBeNull()
+    const adds = pulse.calls.filter((c) => c.method === 'pulse.addWaiting').map((c) => c.params)
+    expect(adds.map((params) => field(params, 'allowDuplicate'))).toEqual([undefined, true])
   })
 
   it('reuses a known person whatever the case, and needs no person at all', async () => {

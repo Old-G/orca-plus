@@ -4,7 +4,8 @@ import type {
   PulseDecision,
   PulseDraft,
   PulsePerson,
-  PulseWaiting
+  PulseWaiting,
+  PulseWaitingAdded
 } from '../../shared/pulse-types'
 import type { CommandHandler } from '../dispatch'
 import { getOptionalStringFlag, getRequiredStringFlag } from '../flags'
@@ -111,7 +112,7 @@ const source = (flags: Map<string, string | boolean>): string =>
 
 export const PULSE_HANDLERS: Record<string, CommandHandler> = {
   'pulse wait add': async ({ flags, client, json }) => {
-    const result = await client.call<PulseWaiting>('pulse.addWaiting', {
+    const result = await client.call<PulseWaitingAdded>('pulse.addWaiting', {
       direction: requiredDirection(flags),
       title: getRequiredStringFlag(flags, 'title'),
       personId: await personIdFlag(client, flags, true),
@@ -122,9 +123,25 @@ export const PULSE_HANDLERS: Record<string, CommandHandler> = {
       sourceRef: getOptionalStringFlag(flags, 'source-ref'),
       // Custom build (hq-waiting-replies): an answer reaches the chat that recorded the waiting.
       agentSessionId: process.env.ORCA_AGENT_SESSION_ID || undefined,
-      paneKey: process.env.ORCA_PANE_KEY || undefined
+      paneKey: process.env.ORCA_PANE_KEY || undefined,
+      allowDuplicate: flags.get('force') === true || undefined
     })
-    printResult(result, json, (w) => `Waiting ${w.id}: [${w.direction}] ${w.title}`)
+    printResult(result, json, (w) =>
+      w.duplicate
+        ? `Already open, not added again: waiting ${w.id}: [${w.direction}] ${w.title} (--force adds anyway; pulse wait update changes it)`
+        : `Waiting ${w.id}: [${w.direction}] ${w.title}`
+    )
+  },
+
+  'pulse wait update': async ({ flags, client, json }) => {
+    const due = getOptionalStringFlag(flags, 'due')
+    const result = await client.call<PulseWaiting>('pulse.updateWaiting', {
+      id: getRequiredStringFlag(flags, 'id'),
+      title: getOptionalStringFlag(flags, 'title'),
+      detail: getOptionalStringFlag(flags, 'detail'),
+      ...(due === undefined ? {} : { dueAt: due === 'none' ? null : dueFlag(flags) })
+    })
+    printResult(result, json, (w) => `Waiting ${w.id} updated: [${w.direction}] ${w.title}`)
   },
 
   'pulse wait resolve': async ({ flags, client, json }) => {
