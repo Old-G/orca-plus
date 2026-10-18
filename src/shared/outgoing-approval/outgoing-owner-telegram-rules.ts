@@ -21,6 +21,8 @@ const OWNER_REF_ONLY = new RegExp(String.raw`^(?:${SCRIPT_REF}|${SHELL_REF})\s*(
 const OWNER_OVERRIDE = new RegExp(
   String.raw`OWNER_CHAT_ID(?:${Q})?\]?\s*(?:=(?!=)|:)|(?:setdefault|putenv)\s*\(\s*${Q}OWNER_CHAT_ID`
 )
+// Why: a body read from a file or unpacked from a dict can carry a chat_id this text never shows.
+const HIDDEN_PARAMS = /\*\*\s*[\w(]|(?:\s-d|--data[\w-]*|--json)[=\s]+['"]?@/
 
 function inPreviewProject(cwd: string | null): boolean {
   return !!cwd && cwd.split(/[\\/]/).some((part) => OWNER_PREVIEW_PROJECTS.has(part))
@@ -50,7 +52,7 @@ export function isOwnerTelegramPreview(
   hosts: readonly string[],
   cwd: string | null
 ): boolean {
-  if (!inPreviewProject(cwd) || OWNER_OVERRIDE.test(command)) {
+  if (!inPreviewProject(cwd) || OWNER_OVERRIDE.test(command) || HIDDEN_PARAMS.test(command)) {
     return false
   }
   const remote = hosts.filter((host) => !LOCAL_HOST.test(host))
