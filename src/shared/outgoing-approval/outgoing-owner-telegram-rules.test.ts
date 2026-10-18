@@ -95,6 +95,9 @@ describe('Telegram sends that still need approval', () => {
       'the shell variable of a loop',
       'for c in -100123 @x; do curl -s https://api.telegram.org/bot$T/sendMessage -d chat_id=$c -d text=hi; done'
     ],
+    ['a body read from a file', `${CURL_SHELL_VAR} -d @extra.txt`],
+    ['a JSON body read from a file', `${CURL_SHELL_VAR} --json @payload.json`],
+    ['a dict unpacked into the payload', swap('"width": 1080', '**extra')],
     [
       'a send with no chat_id in sight',
       'curl -s https://api.telegram.org/bot$T/sendMessage -d @payload.json'
