@@ -37,6 +37,13 @@ function fromLabel(chatName: string | null, project: string | null): string | nu
   return project ? `from ${project}` : null
 }
 
+/** Custom build (hq-spaces): the project a card's first line names — its workspace's stripe. */
+export function outgoingApprovalHeadProject(head: string): string | null {
+  const from = head.split(' · ').at(-1) ?? ''
+  const match = /^from (?:«.*» \((.+)\)|([^«\s][^\s]*))$/.exec(from)
+  return match ? (match[1] ?? match[2] ?? null) : null
+}
+
 /** The card's first line: what, to whom, in which thread, from which chat. */
 export function outgoingApprovalHead(
   draft: PulseDraft,
