@@ -25,6 +25,10 @@ import {
   createHqProjectPagesService,
   provideHqProjectPagesService
 } from './hq-project-pages-service'
+import { startHqSpaceGitAuthors } from '../hq-today/hq-space-git-authors'
+import { listHqSpaces } from '../hq-today/hq-spaces'
+import { gitExecFileAsync } from '../git/runner'
+import { isGitRepoKind } from '../../shared/repo-kind'
 
 export function registerHqProjectPagesHandlers(
   store: Store,
@@ -36,6 +40,34 @@ export function registerHqProjectPagesHandlers(
   onOutgoingApprovalDecided(keepHqApprovalEdits(() => store.getSettings().hqPath ?? null))
   // Custom build (outgoing-approval-target): the scout's files name the DMs approval cards send to.
   bindOutgoingApprovalHqPath(() => store.getSettings().hqPath ?? null)
+  // Custom build (hq-space-git): each workspace's commit author in its projects' local git config.
+  startHqSpaceGitAuthors({
+    spaces: async () => {
+      const hqPath = store.getSettings().hqPath
+      return hqPath ? listHqSpaces(hqPath) : []
+    },
+    repos: () =>
+      store.getRepos().map((repo) => ({
+        id: repo.id,
+        path: repo.path,
+        local: !repo.connectionId && isGitRepoKind(repo)
+      })),
+    readLocal: async (path, key) => {
+      try {
+        return (
+          (
+            await gitExecFileAsync(['config', '--local', '--get', key], { cwd: path })
+          ).stdout.trim() || null
+        )
+      } catch {
+        // Why: `--get` exits 1 for an unset key.
+        return null
+      }
+    },
+    writeLocal: async (path, key, value) => {
+      await gitExecFileAsync(['config', '--local', key, value], { cwd: path })
+    }
+  })
   // Custom build (hq-mobile): one window only, so a phone's Do never runs twice.
   setHqDesktopSender((channel, payload) => {
     const window =

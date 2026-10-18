@@ -24,7 +24,12 @@ export const HqSpaceSchema = z.object({
   projects: z.array(z.string().max(200)).max(500),
   /** Where its people write (`slack`, `telegram`…) and its tasks live (`clickup`, `jira`…); null = none. */
   messenger: z.string().max(40).nullable().optional(),
-  tasks: z.string().max(40).nullable().optional()
+  tasks: z.string().max(40).nullable().optional(),
+  /** Custom build (hq-space-git): the commit author its projects use; null = the global one. */
+  git: z
+    .object({ name: z.string().max(100), email: z.string().max(200) })
+    .nullable()
+    .optional()
 })
 export type HqSpace = z.infer<typeof HqSpaceSchema>
 
@@ -45,6 +50,24 @@ export type HqSpaceFile = {
   order: number
   messenger: string | null
   tasks: string | null
+  git: HqSpaceGitAuthor | null
+}
+
+export type HqSpaceGitAuthor = { name: string; email: string }
+
+const EMAIL = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/
+
+/** `git: { name, email }`; anything that would not make a sane `user.name` / `user.email` is none. */
+function readGitAuthor(value: unknown): HqSpaceGitAuthor | null {
+  const name = value && typeof value === 'object' ? Reflect.get(value, 'name') : null
+  const email = value && typeof value === 'object' ? Reflect.get(value, 'email') : null
+  return typeof name === 'string' &&
+    /^[^\n\r<>]{1,100}$/.test(name.trim()) &&
+    typeof email === 'string' &&
+    email.length <= 200 &&
+    EMAIL.test(email.trim())
+    ? { name: name.trim(), email: email.trim() }
+    : null
 }
 
 function stringList(value: unknown): string[] {
@@ -76,7 +99,8 @@ export function readHqSpaceFile(slug: string, data: unknown): HqSpaceFile | null
     projects: stringList(field('projects')),
     order: typeof order === 'number' ? order : 100,
     messenger: source('messenger'),
-    tasks: source('tasks')
+    tasks: source('tasks'),
+    git: readGitAuthor(field('git'))
   }
 }
 
@@ -107,7 +131,8 @@ export function resolveHqSpaces(
         repoIds: mine.map((project) => project.repoId),
         projects: [...new Set([...mine.map((project) => project.slug), ...file.projects])].sort(),
         messenger: file.messenger,
-        tasks: file.tasks
+        tasks: file.tasks,
+        git: file.git
       }
     })
 }
