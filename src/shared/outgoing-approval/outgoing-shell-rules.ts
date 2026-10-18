@@ -4,6 +4,7 @@
 // feature branch (gate-narrow).
 import { MAX_OUTGOING_BODY_LENGTH, type OutgoingAction } from './outgoing-action'
 import { curlRewritesClickUpTaskText } from './outgoing-clickup-text-rules'
+import { isOwnerTelegramPreview } from './outgoing-owner-telegram-rules'
 
 type ShellRule = {
   service: string
@@ -12,7 +13,7 @@ type ShellRule = {
   /** Loopback-only calls are exempt: `segment` checks each matched command, `command` the whole text. */
   hostScope?: 'segment' | 'command'
   /** Narrows a match: only matched commands this accepts are held. */
-  holds?: (segment: string, command: string) => boolean
+  holds?: (segment: string, command: string, cwd: string | null) => boolean
 }
 
 // Why: a command word starts the text or follows a separator, a subshell, whitespace, a quote
@@ -96,7 +97,8 @@ const SHELL_RULES: ShellRule[] = [
     service: 'HTTP',
     operation: 'message',
     pattern: CURL_SEND,
-    holds: (segment) => urlsIn(segment).some(isMessageUrl)
+    holds: (segment, command, cwd) =>
+      urlsIn(segment).some(isMessageUrl) && !isOwnerTelegramPreview(command, urlHosts(command), cwd)
   },
   {
     service: 'ClickUp',
@@ -127,7 +129,8 @@ const SHELL_RULES: ShellRule[] = [
     service: 'HTTP',
     operation: 'script message',
     pattern: SCRIPT_SEND,
-    holds: (_segment, command) => urlsIn(command).some(isMessageUrl)
+    holds: (_segment, command, cwd) =>
+      urlsIn(command).some(isMessageUrl) && !isOwnerTelegramPreview(command, urlHosts(command), cwd)
   },
   {
     service: 'remote',
@@ -240,13 +243,17 @@ export function isDestructiveGitPush(segment: string): boolean {
   )
 }
 
-export function classifyShellCommand(command: string | null): OutgoingAction | null {
+/** `cwd` is where the agent runs; it scopes the project-only passes. */
+export function classifyShellCommand(
+  command: string | null,
+  cwd: string | null = null
+): OutgoingAction | null {
   if (!command?.trim()) {
     return null
   }
   // Why: a backslash-newline continues one command, so a flag on the next line still belongs to it.
   const normalized = command.replace(/\\\r?\n/g, ' ')
-  const rule = SHELL_RULES.find((candidate) => isHeld(candidate, normalized))
+  const rule = SHELL_RULES.find((candidate) => isHeld(candidate, normalized, cwd))
   if (!rule) {
     return null
   }
@@ -284,7 +291,7 @@ function isMessageUrl(url: URL): boolean {
   )
 }
 
-function isHeld(rule: ShellRule, command: string): boolean {
+function isHeld(rule: ShellRule, command: string, cwd: string | null): boolean {
   if (rule.hostScope === 'command') {
     return rule.pattern.test(command) && !onlyLocalHosts(command)
   }
@@ -297,7 +304,7 @@ function isHeld(rule: ShellRule, command: string): boolean {
     const segment = segmentAt(command, match.index)
     return (
       !(rule.hostScope === 'segment' && onlyLocalHosts(segment)) &&
-      (rule.holds?.(segment, command) ?? true)
+      (rule.holds?.(segment, command, cwd) ?? true)
     )
   })
 }
