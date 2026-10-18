@@ -54,7 +54,10 @@ vi.mock('./HqPinnedPane', () => ({
   HqPinnedPane: ({ id }: { id: string }) => <div data-testid="pinned-pane">{id}</div>
 }))
 vi.mock('./HqContextPanel', () => ({ HqContextPanel: () => <aside>context panel</aside> }))
-vi.mock('./use-hq-pinned-notes', () => ({ useHqPinnedNotes: () => ({ waiting: '2 on you' }) }))
+vi.mock('./use-hq-pinned-notes', () => ({
+  useHqPinnedNotes: () => ({ waiting: { text: '2 on you', tone: 'needs' } }),
+  markHqPinnedSeen: () => {}
+}))
 vi.mock('./use-hq-pending-prompt', () => ({
   useHqPendingPrompt: () => ({ prompt: mocks.prompt.current, respond: mocks.respond })
 }))

@@ -141,7 +141,8 @@ export function createHqProjectPagesService(
       hqTriageDecisions: current.hqTriageDecisions ?? {},
       hqChatsView: current.hqChatsView,
       hqKeptProjectIds: current.hqKeptProjectIds ?? [],
-      hqVoicePromptsEnabled: current.hqVoicePromptsEnabled === true
+      hqVoicePromptsEnabled: current.hqVoicePromptsEnabled === true,
+      hqPinnedSeenAt: current.hqPinnedSeenAt ?? {}
     }
   }
 
