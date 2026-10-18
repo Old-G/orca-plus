@@ -22,6 +22,7 @@ import {
   ORCAD_FENCED_AUTOMATION
 } from '../ownership/orcad-fenced-automation'
 import { AutomationDispatchCancelledError } from './automation-dispatch-cancelled-error'
+import { withAutomationDispatchSurface } from '../automation-default-chat-surface'
 
 type DispatchContext = Pick<
   AutomationLaunchContext,
@@ -110,10 +111,12 @@ export async function requestAutomationDispatch(
     return returnDurable(run)
   }
   let target = resolveCurrentTarget()
+  // Custom build (automations-native-chat): the surface the run dispatches on; the stored definition stays as is.
+  const dispatched = withAutomationDispatchSurface(automation, ctx.store)
   const refusal = describeScheduledRefusal({
     target,
     canDispatch:
-      automation.surface === 'chat' ? Boolean(ctx.chatDispatcher) : Boolean(ctx.launcher())
+      dispatched.surface === 'chat' ? Boolean(ctx.chatDispatcher) : Boolean(ctx.launcher())
   })
   if (refusal || !target.ok) {
     return refuse(refusal ?? automationRunFailure('noDispatchHost'))
@@ -141,13 +144,13 @@ export async function requestAutomationDispatch(
   if (lateRefusal || !target.ok) {
     return refuse(lateRefusal ?? automationRunFailure('noDispatchHost'))
   }
-  const dispatcher = automation.surface === 'chat' ? ctx.chatDispatcher : ctx.launcher()
+  const dispatcher = dispatched.surface === 'chat' ? ctx.chatDispatcher : ctx.launcher()
   if (!dispatcher) {
     return refuse(automationRunFailure('noDispatchHost'))
   }
   return runAutomationLaunch({
     ...ctx,
-    automation,
+    automation: dispatched,
     run,
     target,
     // The status check and the store write share one synchronous step, so a settled run stays settled.
