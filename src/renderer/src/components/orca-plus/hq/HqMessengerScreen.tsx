@@ -33,7 +33,6 @@ import { HqChatPane } from './HqChatPane'
 import { HqContextPanel } from './HqContextPanel'
 import { HqPinnedList } from './HqPinnedList'
 import { HqPinnedPane } from './HqPinnedPane'
-import { HqViewSwitch } from './HqViewSwitch'
 import { PulseBellButton } from '../pulse-bell/PulseBellButton'
 import { useHqChatList, useHqProjectColor } from './use-hq-chat-list'
 import { markHqPinnedSeen, useHqPinnedNotes } from './use-hq-pinned-notes'
@@ -179,7 +178,6 @@ export function HqMessengerScreen(): React.JSX.Element {
               {/* Why: with the sidebar collapsed its bell is out of sight; HQ keeps one of its own. */}
               <div className="ml-auto flex items-center gap-1">
                 <PulseBellButton />
-                <HqViewSwitch />
               </div>
             </header>
             <div className="shrink-0 px-2 pb-2">
