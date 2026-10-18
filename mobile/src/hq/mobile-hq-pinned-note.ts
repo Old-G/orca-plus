@@ -1,6 +1,6 @@
 // Custom build (hq-pinned-counts): the count beside each of the phone's pinned HQ pages, as the
 // desktop shows it.
-import { hqCountText, type HqPinnedCounts } from '../../../src/shared/hq-pinned-counts'
+import { hqCountText, type HqPinnedCounts } from '../../../src/shared/hq-pinned-counts-wire'
 
 export type MobileHqPageId = 'today' | 'notes' | 'done' | 'feed' | 'reports' | 'inbox'
 
