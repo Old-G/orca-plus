@@ -125,3 +125,6 @@ export const HqSpaceKeyParams = z.object({
   kind: z.enum(HQ_SPACE_KEY_KINDS),
   value: z.string().max(4000).nullable()
 })
+
+/** Custom build (hq-people): one person of HQ's People list, by its row key. */
+export const HqPersonParams = z.object({ key: z.string().min(1).max(200) })
