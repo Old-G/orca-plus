@@ -21,12 +21,27 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
       'detail',
       'due',
       'source',
-      'source-ref'
+      'source-ref',
+      'force'
     ],
-    notes: [PERSON_NOTE, '--due takes an ISO date or date-time; --source defaults to agent.'],
+    notes: [
+      PERSON_NOTE,
+      '--due takes an ISO date or date-time; --source defaults to agent.',
+      'An open waiting about the same person that says the same is returned instead of a new one (marked duplicate); --force adds anyway.'
+    ],
     examples: [
       'orca pulse wait add --direction on-them --person Ann --title "Signed contract" --project app-a'
     ]
+  },
+  {
+    // Custom build (hq-notes-dedup)
+    path: ['pulse', 'wait', 'update'],
+    summary: 'Change an open waiting: its text, detail or due date',
+    usage:
+      'orca pulse wait update <id> [--title <text>] [--detail <text>] [--due <date|none>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'id', 'title', 'detail', 'due'],
+    positionalArgs: ['id'],
+    notes: ['--due none clears the due date.']
   },
   {
     path: ['pulse', 'wait', 'resolve'],
