@@ -135,7 +135,7 @@ export class OutgoingApprovalGate {
       return { state: 'pass' }
     }
     const cwd = stringField(hook, 'cwd')
-    const action = classifyOutgoingToolCall(toolName, toolInput)
+    const action = classifyOutgoingToolCall(toolName, toolInput, cwd)
     if (!action) {
       return { state: 'pass' }
     }
