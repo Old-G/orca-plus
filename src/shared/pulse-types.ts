@@ -77,6 +77,18 @@ export type PulseWaitingInput = {
   agentSessionId?: string | null
   paneKey?: string | null
   worktreeId?: string | null
+  /** Custom build (hq-notes-dedup): add even when an open waiting already says the same. */
+  allowDuplicate?: boolean
+}
+
+/** What adding returns: the new waiting, or the open one that already says the same (`duplicate`). */
+export type PulseWaitingAdded = PulseWaiting & { duplicate?: boolean }
+
+/** Custom build (hq-notes-dedup): what an update may change; omitted fields stay. */
+export type PulseWaitingPatch = {
+  title?: string
+  detail?: string | null
+  dueAt?: number | null
 }
 
 export type PulseWaitingFilter = {
