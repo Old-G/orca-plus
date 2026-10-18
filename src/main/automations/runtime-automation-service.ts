@@ -2,6 +2,8 @@ import { observeAutomationChatRun } from './runtime-chat-run-observer'
 import { readAutomationRunReceipt } from './automation-run-receipt'
 import { publishedLaunchTarget } from './automation-agent-run-result'
 import { launchAutomationChatAgent } from './automation-chat-agent-launch'
+import { withAutomationDispatchSurface } from './automation-default-chat-surface'
+import type { Automation } from '../../shared/automations/automation-definition'
 import { tuiAgentDisplayName } from '../../shared/agent-launch/catalog/tui-agent-display-names'
 import type { ClaudeUsageStore } from '../claude-usage/store'
 import type { CodexUsageStore } from '../codex-usage/store'
@@ -34,6 +36,9 @@ export function createRuntimeAutomationService(input: {
   allowRemoteHostScheduling: boolean
 }): AutomationService {
   const { store, runtime, claudeUsage, codexUsage } = input
+  // Custom build (automations-native-chat): a run without a named surface that the chat default sent to a chat.
+  const dispatchesAsChat = (automation: Automation | undefined): boolean =>
+    automation !== undefined && withAutomationDispatchSurface(automation, store).surface === 'chat'
   // Launch handles remain usable before pane-key lookup resolves.
   const launchedHandles = new Map<string, string>()
   const observer = createRuntimeAutomationRunTerminalObserver(runtime, {
@@ -58,8 +63,8 @@ export function createRuntimeAutomationService(input: {
           const records = runtime.openedAgentSessionRecordStore()
           if (
             (records && readAutomationRunReceipt(records, run)) ||
-            store.listAutomations().find((entry) => entry.id === run.automationId)?.surface ===
-              'chat'
+            // Custom build (automations-native-chat): a run the chat default dispatched as a chat.
+            dispatchesAsChat(store.listAutomations().find((entry) => entry.id === run.automationId))
           ) {
             return `automation:${run.id}`
           }

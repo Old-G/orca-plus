@@ -5,6 +5,7 @@ import type { AutomationRun } from '../../shared/automations/history/automation-
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { launchAgentOnHost } from '../runtime/rpc/methods/agent-launch/agent-launch'
 import { reuseAutomationChat } from './automation-chat-session-reuse'
+import { nameAutomationRunChat } from './automation-run-chat-name'
 import { buildHeadlessAutomationWorkspaceName } from './automation-workspace-create'
 import type { AutomationRunTargetResult } from './run-target-resolution'
 import { AutomationRunLaunchError, type AutomationLaunch } from './automation-launch'
@@ -109,6 +110,7 @@ async function launchChat(
         published ?? publishedLaunchTarget(runtime, result)
       )
     }
+    await nameAutomationRunChat(runtime, result, run.title)
     return publishedLaunchTarget(runtime, result)
   } catch (error) {
     if (
