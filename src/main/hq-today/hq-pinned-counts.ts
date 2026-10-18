@@ -6,8 +6,9 @@ import type { HqReportsResult } from '../../shared/hq-reports'
 import { computeHqPinnedCounts } from '../../shared/hq-pinned-counts'
 import type { HqPinnedCounts, HqPinnedSeenId } from '../../shared/hq-pinned-counts-wire'
 import type { PulseDecision, PulseInboxItem, PulseWaiting } from '../../shared/pulse-types'
-import { hqSpaceShows } from '../../shared/hq-spaces'
+import { hqSpaceShows, hqSpaceUsesSource } from '../../shared/hq-spaces'
 import { listHqSpaces } from './hq-spaces'
+import { readHqSlackScout } from './hq-slack-scout'
 
 // Why: the counts show «99+» past two digits, so more rows would add nothing.
 const FEED_LIMIT = 100
@@ -35,15 +36,30 @@ export async function readHqPinnedCounts(
   const reports = await hq.reports().catch(() => null)
   const hqPath = hq.settings().hqPath
   const spaces = space && hqPath ? await listHqSpaces(hqPath).catch(() => []) : []
+  // Why: a request's bell line does not carry its project; the scout's draft does.
+  const scout =
+    spaces.length > 0 && hqPath && hq.settings().hqChatsView !== false
+      ? await readHqSlackScout(hqPath).catch(() => null)
+      : null
+  const today = scout?.ok
+    ? scout.drafts.filter((draft) =>
+        draft.project
+          ? hqSpaceShows(spaces, space, { project: draft.project })
+          : hqSpaceUsesSource(spaces, space, draft.source ?? 'slack')
+      ).length
+    : undefined
   return computeHqPinnedCounts({
     inbox: pulse.pulseListInbox(),
     waitings: pulse.pulseListWaitings({ status: 'open' }),
     decisions: pulse.pulseListDecisions(DECISIONS_LIMIT),
     feed: pulse.pulseFeed({ limit: FEED_LIMIT }).items,
-    reports: reports?.ok ? reports.reports : [],
+    reports: reports?.ok
+      ? reports.reports.filter((report) => !report.space || !space || report.space === space)
+      : [],
     seenAt: hq.settings().hqPinnedSeenAt ?? {},
     now,
-    shows: (project) => hqSpaceShows(spaces, space, { project })
+    shows: (project) => hqSpaceShows(spaces, space, { project }),
+    today
   })
 }
 

@@ -4,11 +4,12 @@ import { useCallback, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { HqFeedItem } from '../../../src/shared/hq-feed'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
-import { runRpcOperation } from '../transport/rpc-operation'
-import type { RpcClient } from '../transport/rpc-client'
+import { runRpcOperation } from '../transport/rpc/rpc-operation'
+import type { RpcClient } from '../transport/rpc/rpc-client-contract'
 import { hqFeedRead } from './hq-messenger-operations'
 import { hqAgo, hqStyles } from './mobile-hq-parts'
 import { useMobileHqPoll } from './use-mobile-hq-poll'
+import { ALL_HQ_SPACES, mobileHqShows, type MobileHqSpaceFilter } from './mobile-hq-spaces'
 
 type Scope = 'done' | 'incoming'
 
@@ -53,7 +54,13 @@ function Post({ item, now }: { item: HqFeedItem; now: number }) {
   )
 }
 
-export function MobileHqFeedPage({ client }: { client: RpcClient }) {
+export function MobileHqFeedPage({
+  client,
+  spaces = ALL_HQ_SPACES
+}: {
+  client: RpcClient
+  spaces?: MobileHqSpaceFilter
+}) {
   const [scope, setScope] = useState<Scope>('done')
   const read = useCallback(
     async (rpc: RpcClient) => ({
@@ -62,6 +69,10 @@ export function MobileHqFeedPage({ client }: { client: RpcClient }) {
     [scope]
   )
   const { state } = useMobileHqPoll(client, read)
+  const items =
+    state.status === 'ready'
+      ? state.value.filter((item) => mobileHqShows(spaces, { project: item.project }))
+      : []
   return (
     <View style={styles.page}>
       <View style={styles.toggle} accessibilityRole="tablist">
@@ -83,10 +94,10 @@ export function MobileHqFeedPage({ client }: { client: RpcClient }) {
         <Text style={hqStyles.meta}>Loading…</Text>
       ) : state.status === 'error' ? (
         <Text style={hqStyles.error}>{state.message}</Text>
-      ) : state.value.length === 0 ? (
+      ) : items.length === 0 ? (
         <Text style={hqStyles.meta}>Nothing in the feed yet.</Text>
       ) : (
-        state.value.map((item) => <Post key={item.id} item={item} now={state.loadedAt} />)
+        items.map((item) => <Post key={item.id} item={item} now={state.loadedAt} />)
       )}
     </View>
   )
