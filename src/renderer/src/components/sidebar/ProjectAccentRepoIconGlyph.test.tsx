@@ -5,8 +5,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_REPO_BADGE_COLOR } from '../../../../shared/constants'
 import { projectAccentColor } from '../../../../shared/project-accent-color'
 
-const mocks = vi.hoisted(() => ({ newView: true }))
-vi.mock('@/lib/orca-plus-new-view', () => ({ useOrcaPlusNewView: () => mocks.newView }))
 vi.mock('@/components/repo/repo-icon', () => ({
   RepoIconGlyph: ({ color }: { color?: string }) => <span data-color={color ?? ''} />
 }))
@@ -15,7 +13,6 @@ import { ProjectAccentRepoIconGlyph } from './ProjectAccentRepoIconGlyph'
 
 afterEach(() => {
   cleanup()
-  mocks.newView = true
 })
 
 function shownColor(color: string): string | null {
@@ -26,14 +23,11 @@ function shownColor(color: string): string | null {
 }
 
 describe('ProjectAccentRepoIconGlyph', () => {
-  it('shows the palette accent for a project on the neutral default under the new view', () => {
+  it('shows the palette accent for a project on the neutral default', () => {
     expect(shownColor(DEFAULT_REPO_BADGE_COLOR)).toBe(projectAccentColor('repo-1'))
   })
 
-  it('keeps a picked color, and the old look when the new view is off', () => {
+  it('keeps a picked color', () => {
     expect(shownColor('#ef4444')).toBe('#ef4444')
-    cleanup()
-    mocks.newView = false
-    expect(shownColor(DEFAULT_REPO_BADGE_COLOR)).toBe(DEFAULT_REPO_BADGE_COLOR)
   })
 })

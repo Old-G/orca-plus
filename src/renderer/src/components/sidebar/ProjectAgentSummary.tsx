@@ -2,7 +2,6 @@
 // wait for the user, work, and finished unread — under Orca+'s «New view» only.
 import { AgentStateDot } from '@/components/AgentStateDot'
 import { translate } from '@/i18n/i18n'
-import { useOrcaPlusNewView } from '@/lib/orca-plus-new-view'
 import { useProjectAgentCounts } from './project-agent-counts'
 
 function Count({
@@ -30,9 +29,8 @@ export function ProjectAgentSummary({
 }: {
   projectId: string
 }): React.JSX.Element | null {
-  const newView = useOrcaPlusNewView()
   const counts = useProjectAgentCounts(projectId)
-  if (!newView || !counts || counts.attention + counts.working + counts.done === 0) {
+  if (!counts || counts.attention + counts.working + counts.done === 0) {
     return null
   }
   return (

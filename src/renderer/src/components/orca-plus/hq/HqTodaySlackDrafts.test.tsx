@@ -10,8 +10,6 @@ vi.mock('@/i18n/i18n', () => ({
 }))
 vi.mock('./HqCommandDictation', () => ({ HqCommandDictation: () => null }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }))
-let newView = false
-vi.mock('@/lib/orca-plus-new-view', () => ({ useOrcaPlusNewView: () => newView }))
 vi.mock('./use-hq-project-pages', () => ({
   useHqProjectPages: () => ({
     status: 'ready',
@@ -64,7 +62,6 @@ const request: HqSlackScoutDraft = {
 }
 
 beforeEach(() => {
-  newView = false
   api.slackDrafts.mockResolvedValue({
     ok: true,
     configured: true,
@@ -107,34 +104,8 @@ describe('HqTodaySlackDrafts', () => {
     expect(await screen.findByText(/The scout did not run at/)).toBeTruthy()
   })
 
-  it('creates the task from the draft as the owner edited it', async () => {
-    render(<HqTodaySlackDrafts />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Review draft' }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Task title' }), {
-      target: { value: 'Fix the cart checkout' }
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Create task' }))
-    await waitFor(() =>
-      expect(api.createSlackDraftTask).toHaveBeenCalledWith({
-        id: 'C1:1',
-        title: 'Fix the cart checkout',
-        description: '## Зачем'
-      })
-    )
-    await waitFor(() => expect(screen.queryByText('Fix the cart')).toBeNull())
-  })
-
-  it('rejects a draft for good without creating anything', async () => {
-    render(<HqTodaySlackDrafts />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Reject' }))
-    await waitFor(() => expect(api.rejectSlackDraft).toHaveBeenCalledWith({ id: 'C1:1' }))
-    expect(api.createSlackDraftTask).not.toHaveBeenCalled()
-    await waitFor(() => expect(screen.getByText('Nothing new from Slack.')).toBeTruthy())
-  })
-
-  describe('as Slack requests («New view»)', () => {
+  describe('as Slack requests', () => {
     beforeEach(() => {
-      newView = true
       api.slackDrafts.mockResolvedValue({
         ok: true,
         configured: true,
