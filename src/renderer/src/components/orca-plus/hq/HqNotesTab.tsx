@@ -22,7 +22,7 @@ import { HqNoteRow, noteDueLabel, noteInitials } from './HqNoteRow'
 import { HqNotesTiles } from './HqNotesTiles'
 import { useHqSlackDrafts } from './HqTodaySlackDrafts'
 import { DecisionsColumn } from './HqWaitingTab'
-import { ColumnHeader, errorText } from './hq-waiting-parts'
+import { ColumnHeader, DuplicateNoteHint, errorText } from './hq-waiting-parts'
 import { useHqChatList } from './use-hq-chat-list'
 import { addHqWaiting, useHqPulse } from './use-hq-pulse'
 import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
@@ -63,23 +63,32 @@ function NoteInput({
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [duplicateTitle, setDuplicateTitle] = useState<string | null>(null)
   const preview = text.trim() ? parseHqNote(text, now) : null
-  const submit = (): void => {
+  const submit = (allowDuplicate = false): void => {
     const note = text.trim() ? parseHqNote(text, Date.now()) : null
     if (!note || busy) {
       return
     }
     setBusy(true)
     setError(null)
+    setDuplicateTitle(null)
     addHqWaiting({
       direction: note.direction ?? 'on-me',
       title: note.title,
       personName: note.personName ?? '',
       people,
       dueAt: note.dueAt,
+      allowDuplicate,
       ...(note.direction ? {} : { source: HQ_NOTE_SOURCE })
     })
-      .then(() => setText(''))
+      .then((added) => {
+        if (added.duplicateTitle) {
+          setDuplicateTitle(added.duplicateTitle)
+          return
+        }
+        setText('')
+      })
       .catch((reason: unknown) => setError(errorText(reason)))
       .finally(() => setBusy(false))
   }
@@ -108,6 +117,13 @@ function NoteInput({
         </Button>
       </div>
       {preview ? <p className="text-xs text-muted-foreground">→ {previewText(preview)}</p> : null}
+      {duplicateTitle ? (
+        <DuplicateNoteHint
+          title={duplicateTitle}
+          disabled={busy}
+          onAddAnyway={() => submit(true)}
+        />
+      ) : null}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </form>
   )

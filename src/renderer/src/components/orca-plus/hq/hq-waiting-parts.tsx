@@ -42,6 +42,26 @@ export function ColumnHeader({
   )
 }
 
+/** Custom build (hq-notes-dedup): the open note that already says the same, and a way past it. */
+export function DuplicateNoteHint({
+  title,
+  disabled,
+  onAddAnyway
+}: {
+  title: string
+  disabled: boolean
+  onAddAnyway: () => void
+}): React.JSX.Element {
+  return (
+    <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+      {translate('auto.hq.notes.duplicate', 'Already noted: «{{title}}»', { title })}
+      <Button type="button" variant="link" size="xs" disabled={disabled} onClick={onAddAnyway}>
+        {translate('auto.hq.notes.addAnyway', 'Add anyway')}
+      </Button>
+    </p>
+  )
+}
+
 export function QuickAdd({
   direction,
   people,
@@ -56,14 +76,20 @@ export function QuickAdd({
   const [personName, setPersonName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const submit = (): void => {
+  const [duplicateTitle, setDuplicateTitle] = useState<string | null>(null)
+  const submit = (allowDuplicate = false): void => {
     if (!title.trim() || busy) {
       return
     }
     setBusy(true)
     setError(null)
-    addHqWaiting({ direction, title, personName, people, project })
-      .then(() => {
+    setDuplicateTitle(null)
+    addHqWaiting({ direction, title, personName, people, project, allowDuplicate })
+      .then((added) => {
+        if (added.duplicateTitle) {
+          setDuplicateTitle(added.duplicateTitle)
+          return
+        }
         setTitle('')
         setPersonName('')
       })
@@ -99,6 +125,13 @@ export function QuickAdd({
           {translate('auto.hq.waiting.add', 'Add')}
         </Button>
       </div>
+      {duplicateTitle ? (
+        <DuplicateNoteHint
+          title={duplicateTitle}
+          disabled={busy}
+          onAddAnyway={() => submit(true)}
+        />
+      ) : null}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </form>
   )

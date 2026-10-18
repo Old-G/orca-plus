@@ -19602,7 +19602,9 @@
         "tileWaiting": "We wait on",
         "tileOnMe": "Wait on us",
         "replyHereOnly": "Only here — no chat to send it to",
-        "openClickUp": "Open in ClickUp"
+        "openClickUp": "Open in ClickUp",
+        "duplicate": "Already noted: «{{title}}»",
+        "addAnyway": "Add anyway"
       },
       "clickup": {
         "replySent": "Reply posted in ClickUp.",
