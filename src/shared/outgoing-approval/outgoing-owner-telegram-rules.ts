@@ -22,7 +22,7 @@ const OWNER_OVERRIDE = new RegExp(
   String.raw`OWNER_CHAT_ID(?:${Q})?\]?\s*(?:=(?!=)|:)|(?:setdefault|putenv)\s*\(\s*${Q}OWNER_CHAT_ID`
 )
 // Why: a body read from a file or unpacked from a dict can carry a chat_id this text never shows.
-const HIDDEN_PARAMS = /\*\*\s*[\w(]|(?:\s-d|--data[\w-]*|--json)[=\s]+['"]?@/
+const HIDDEN_PARAMS = /\*\*\s*[\w(]|(?:\s-d|--data[\w-]*|--json)[=\s]*['"]?@|\s(?:-K|--config)[=\s]/
 
 function inPreviewProject(cwd: string | null): boolean {
   return !!cwd && cwd.split(/[\\/]/).some((part) => OWNER_PREVIEW_PROJECTS.has(part))
