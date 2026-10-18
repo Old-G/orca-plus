@@ -11,13 +11,15 @@ export type HqClientSettings = Pick<
   | 'hqChatsView'
   | 'hqKeptProjectIds'
   | 'hqVoicePromptsEnabled'
+  | 'hqPinnedSeenAt'
 >
 
 /** The HQ settings a paired client may change. */
 export const HQ_CLIENT_WRITABLE_SETTING_KEYS = [
   'hqProjectClickUpLists',
   'hqDeferredDismissed',
-  'hqTriageDecisions'
+  'hqTriageDecisions',
+  'hqPinnedSeenAt'
 ] as const
 
 export type HqClientSettingsUpdate = Pick<

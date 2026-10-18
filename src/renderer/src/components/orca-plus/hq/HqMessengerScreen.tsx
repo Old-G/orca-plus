@@ -36,7 +36,7 @@ import { HqPinnedPane } from './HqPinnedPane'
 import { HqViewSwitch } from './HqViewSwitch'
 import { PulseBellButton } from '../pulse-bell/PulseBellButton'
 import { useHqChatList, useHqProjectColor } from './use-hq-chat-list'
-import { useHqPinnedNotes } from './use-hq-pinned-notes'
+import { markHqPinnedSeen, useHqPinnedNotes } from './use-hq-pinned-notes'
 import { useHqNextWaitingShortcut } from './use-hq-next-waiting-shortcut'
 
 const AGE_TICK_MS = 30_000
@@ -83,6 +83,15 @@ export function HqMessengerScreen(): React.JSX.Element {
     []
   )
   useEffect(() => rememberHqSelection(selection), [selection])
+  // Why: what arrived while the item was open is seen too, so it is marked on leaving as well.
+  const openPinned = selection.kind === 'pinned' ? selection.id : null
+  useEffect(() => {
+    if (!openPinned) {
+      return
+    }
+    markHqPinnedSeen(openPinned)
+    return () => markHqPinnedSeen(openPinned)
+  }, [openPinned])
 
   const itemsRef = useRef(items)
   useEffect(() => {
