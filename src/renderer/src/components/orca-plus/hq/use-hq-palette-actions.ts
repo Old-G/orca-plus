@@ -1,14 +1,10 @@
 // Custom build (hq-chats): HQ in the ⌘J palette — open HQ, switch back to Code, and every native chat
-// by name: under «New view» it opens in HQ, otherwise in its project.
+// by name, opened in HQ.
 import { useMemo } from 'react'
 import { Code2, LayoutDashboard, MessagesSquare } from 'lucide-react'
 import type { CmdJQuickAction } from '@/components/cmd-j/quick-actions'
 import { translate } from '@/i18n/i18n'
-import { useOrcaPlusNewView } from '@/lib/orca-plus-new-view'
-import { activateStructuredAgentSessionTab } from '@/lib/structured-agent-session-tab-activation'
-import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
 import { useAppStore } from '@/store'
-import type { Tab } from '../../../../../shared/tab-types'
 import { getStructuredAgentSessionTabs } from '../../native-chat/structured-agent-session-tabs'
 import { resolveAgentSessionTabTitle } from '../../tab-bar/tab-bar-item-model'
 import { switchHqToCode } from './hq-chat-actions'
@@ -18,14 +14,7 @@ import { openHqScreen } from './hq-view'
 
 const ALWAYS = (): { available: true } => ({ available: true })
 
-function openChatInProject(tab: Tab): void {
-  if (activateAndRevealWorkspace(tab.worktreeId) !== false) {
-    activateStructuredAgentSessionTab({ worktreeId: tab.worktreeId, tabId: tab.id })
-  }
-}
-
 export function useHqPaletteActions(): CmdJQuickAction[] {
-  const newView = useOrcaPlusNewView()
   const inHq = useAppStore((state) => state.activeView === 'hq')
   const unifiedTabsByWorktree = useAppStore((state) => state.unifiedTabsByWorktree)
   const repos = useAppStore((state) => state.repos)
@@ -48,7 +37,7 @@ export function useHqPaletteActions(): CmdJQuickAction[] {
         }
       }
     ]
-    if (newView && inHq) {
+    if (inHq) {
       actions.push({
         id: 'hq:code',
         kind: 'action',
@@ -79,15 +68,11 @@ export function useHqPaletteActions(): CmdJQuickAction[] {
         verbKeywords: [title, project, 'chat'],
         isAvailable: ALWAYS,
         run: async () => {
-          if (newView) {
-            openHqChat(hqChatKey(tab.worktreeId, tab.id))
-          } else {
-            openChatInProject(tab)
-          }
+          openHqChat(hqChatKey(tab.worktreeId, tab.id))
           return { status: 'ok' }
         }
       })
     }
     return actions
-  }, [generatedTitles, inHq, newView, repos, unifiedTabsByWorktree])
+  }, [generatedTitles, inHq, repos, unifiedTabsByWorktree])
 }

@@ -2,7 +2,6 @@ import React from 'react'
 import { AlertCircle, Server, ServerOff, Star, Trash2 } from 'lucide-react'
 
 import { ProjectAccentRepoIconGlyph } from './ProjectAccentRepoIconGlyph'
-import { useOrcaPlusNewView } from '@/lib/orca-plus-new-view'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -59,7 +58,6 @@ export function WorktreeCardHeader({
   card: WorktreeCardController
   presentation: WorktreeCardPresentation
 }): React.JSX.Element {
-  const newView = useOrcaPlusNewView()
   const {
     worktree,
     repo,
@@ -226,14 +224,8 @@ export function WorktreeCardHeader({
           </Tooltip>
         ) : null}
         {!compactCards && worktree.isMainWorktree && !isFolder && (
-          // Custom build (sidebar-summary): under «New view» the badge shows on hover only.
-          <span
-            className={cn(
-              'inline-flex shrink-0',
-              newView &&
-                'opacity-0 transition-opacity group-focus-within/worktree-card:opacity-100 group-hover/worktree-card:opacity-100'
-            )}
-          >
+          // Custom build (sidebar-summary): the badge shows on hover only.
+          <span className="inline-flex shrink-0 opacity-0 transition-opacity group-focus-within/worktree-card:opacity-100 group-hover/worktree-card:opacity-100">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Badge

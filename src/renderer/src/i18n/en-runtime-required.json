@@ -2921,12 +2921,27 @@
       "pinned": {
         "history": "History"
       },
+      "slack": {
+        "create": "Create task",
+        "createHint": "Goes to the list in slack-scout/config.yaml; nothing is created before you click.",
+        "created": "Task created in ClickUp",
+        "creating": "Creating…",
+        "reject": "Reject",
+        "review": "Review draft"
+      },
+      "tab": {
+        "agents": "Agents",
+        "waiting": "Waiting"
+      },
       "today": {
         "askPlaceholder": "Ask HQ anything — what we decided, what you wrote to whom, a task — or give it a command",
         "command": "Command",
         "commandPlaceholder": "Give HQ a command — Claude starts in the HQ workspace with it…",
         "commandShort": "Command to HQ…",
         "run": "Run"
+      },
+      "view": {
+        "newView": "New view"
       },
       "voice": {
         "description": "Pick what your dictation becomes, edit it, and insert it where the cursor was. Nothing is sent from here."
