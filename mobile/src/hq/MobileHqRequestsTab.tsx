@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { HqSlackScoutDone } from '../../../src/shared/hq-slack-scout'
-import { runRpcOperation } from '../transport/rpc-operation'
-import type { RpcClient } from '../transport/rpc-client'
+import { runRpcOperation } from '../transport/rpc/rpc-operation'
+import type { RpcClient } from '../transport/rpc/rpc-client-contract'
 import { hqRequestRestore } from './hq-operations'
 import { hqAgo, hqStyles } from './mobile-hq-parts'
 import { MobileHqRequestCard } from './MobileHqRequestCard'
 import { errorText, useMobileHqRequests } from './use-mobile-hq-requests'
+import { ALL_HQ_SPACES, mobileHqShowsSourced, type MobileHqSpaceFilter } from './mobile-hq-spaces'
 
 const DONE_LABEL: Record<HqSlackScoutDone['decision'], string> = {
   created: 'Task created',
@@ -57,9 +58,11 @@ function DoneRow({
 export function MobileHqRequestsTab({
   client,
   onNotice,
-  show = 'both'
+  show = 'both',
+  spaces = ALL_HQ_SPACES
 }: {
   client: RpcClient
+  spaces?: MobileHqSpaceFilter
   onNotice: (notice: string | null) => void
   /** Custom build (hq-mobile-messenger): Today shows the requests, Done for you the journal. */
   show?: 'requests' | 'done' | 'both'
@@ -71,7 +74,10 @@ export function MobileHqRequestsTab({
   if (state.status === 'error') {
     return <Text style={hqStyles.error}>{state.message}</Text>
   }
-  const { drafts, done } = state.value
+  const { done } = state.value
+  const drafts = state.value.drafts.filter((draft) =>
+    mobileHqShowsSourced(spaces, draft.project, draft.source ?? 'slack')
+  )
   const requests =
     show !== 'done' ? (
       <>
