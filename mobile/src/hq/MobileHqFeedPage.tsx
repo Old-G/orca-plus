@@ -3,29 +3,37 @@
 import { useCallback, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { HqFeedItem } from '../../../src/shared/hq-feed'
-import { colors, radii, spacing, typography } from '../theme/mobile-theme'
-import { runRpcOperation } from '../transport/rpc-operation'
-import type { RpcClient } from '../transport/rpc-client'
+import { radii, spacing, typography, type MobilePalette } from '../theme/mobile-theme'
+import { runRpcOperation } from '../transport/rpc/rpc-operation'
+import type { RpcClient } from '../transport/rpc/rpc-client-contract'
 import { hqFeedRead } from './hq-messenger-operations'
-import { hqAgo, hqStyles } from './mobile-hq-parts'
+import { hqAgo, hqStylesSheet } from './mobile-hq-parts'
 import { useMobileHqPoll } from './use-mobile-hq-poll'
+import { ALL_HQ_SPACES, mobileHqShows, type MobileHqSpaceFilter } from './mobile-hq-spaces'
+import { themedStyleSheet, useThemedStyles } from '../theme/themed-styles'
+import { useMobileColors } from '../theme/use-mobile-color-scheme'
 
 type Scope = 'done' | 'incoming'
 
-const KIND: Record<string, { label: string; color: string }> = {
-  commit: { label: 'Commit', color: colors.accentBlue },
-  session: { label: 'Agent session', color: colors.statusPurple },
-  sent: { label: 'Sent for you', color: colors.statusGreen },
-  request: { label: 'Asks you', color: colors.statusAmber },
-  review: { label: 'Review', color: colors.accentBlue },
-  conversation: { label: 'Conversation', color: colors.textSecondary },
-  fyi: { label: 'FYI', color: colors.textSecondary },
-  'my-comment': { label: 'You wrote', color: colors.textSecondary }
+// Why: the palette follows the phone's scheme, so a kind names its color and the post reads it.
+const KIND: Record<string, { label: string; color: keyof MobilePalette }> = {
+  commit: { label: 'Commit', color: 'accentBlue' },
+  session: { label: 'Agent session', color: 'statusPurple' },
+  sent: { label: 'Sent for you', color: 'statusGreen' },
+  request: { label: 'Asks you', color: 'statusAmber' },
+  review: { label: 'Review', color: 'accentBlue' },
+  conversation: { label: 'Conversation', color: 'textSecondary' },
+  fyi: { label: 'FYI', color: 'textSecondary' },
+  'my-comment': { label: 'You wrote', color: 'textSecondary' }
 }
 
 function Post({ item, now }: { item: HqFeedItem; now: number }) {
+  const styles = useThemedStyles(stylesSheet)
+  const hqStyles = useThemedStyles(hqStylesSheet)
+  const colors = useMobileColors()
   const [open, setOpen] = useState(false)
-  const kind = KIND[item.kind] ?? { label: item.kind, color: colors.textSecondary }
+  const known = KIND[item.kind]
+  const kind = { label: known?.label ?? item.kind, color: colors[known?.color ?? 'textSecondary'] }
   return (
     <Pressable
       accessibilityRole="button"
@@ -53,7 +61,15 @@ function Post({ item, now }: { item: HqFeedItem; now: number }) {
   )
 }
 
-export function MobileHqFeedPage({ client }: { client: RpcClient }) {
+export function MobileHqFeedPage({
+  client,
+  spaces = ALL_HQ_SPACES
+}: {
+  client: RpcClient
+  spaces?: MobileHqSpaceFilter
+}) {
+  const styles = useThemedStyles(stylesSheet)
+  const hqStyles = useThemedStyles(hqStylesSheet)
   const [scope, setScope] = useState<Scope>('done')
   const read = useCallback(
     async (rpc: RpcClient) => ({
@@ -62,6 +78,10 @@ export function MobileHqFeedPage({ client }: { client: RpcClient }) {
     [scope]
   )
   const { state } = useMobileHqPoll(client, read)
+  const items =
+    state.status === 'ready'
+      ? state.value.filter((item) => mobileHqShows(spaces, { project: item.project }))
+      : []
   return (
     <View style={styles.page}>
       <View style={styles.toggle} accessibilityRole="tablist">
@@ -83,16 +103,16 @@ export function MobileHqFeedPage({ client }: { client: RpcClient }) {
         <Text style={hqStyles.meta}>Loading…</Text>
       ) : state.status === 'error' ? (
         <Text style={hqStyles.error}>{state.message}</Text>
-      ) : state.value.length === 0 ? (
+      ) : items.length === 0 ? (
         <Text style={hqStyles.meta}>Nothing in the feed yet.</Text>
       ) : (
-        state.value.map((item) => <Post key={item.id} item={item} now={state.loadedAt} />)
+        items.map((item) => <Post key={item.id} item={item} now={state.loadedAt} />)
       )}
     </View>
   )
 }
 
-const styles = StyleSheet.create({
+const stylesSheet = themedStyleSheet((colors) => ({
   page: { gap: spacing.sm },
   toggle: { flexDirection: 'row', gap: spacing.xs },
   toggleItem: {
@@ -125,4 +145,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm
   },
   text: { fontSize: typography.bodySize, color: colors.textPrimary, lineHeight: 20 }
-})
+}))
