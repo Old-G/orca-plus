@@ -118,3 +118,8 @@ export const HqUpdateSettingsParams = z.object({
 
 /** Custom build (hq-pinned-counts): the pinned item just opened, so its «new» count starts over. */
 export const HqPinnedSeenParams = z.object({ id: z.enum(HQ_PINNED_SEEN_IDS) })
+
+/** Custom build (hq-spaces): the counts of one workspace; none or null counts them all. */
+export const HqPinnedCountsParams = z
+  .object({ space: z.string().max(80).nullable().optional() })
+  .optional()

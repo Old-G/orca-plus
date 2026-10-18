@@ -3,7 +3,10 @@
 import React, { useState } from 'react'
 import { TriangleAlert } from 'lucide-react'
 import type { PulseApprovalOutcome, PulseInboxItem } from '../../../../../shared/pulse-types'
-import { OUTGOING_APPROVAL_ACTION } from '../../../../../shared/outgoing-approval/outgoing-approval-bell'
+import {
+  OUTGOING_APPROVAL_ACTION,
+  outgoingApprovalHeadProject
+} from '../../../../../shared/outgoing-approval/outgoing-approval-bell'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
@@ -13,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { useOutgoingApprovalOptions } from './use-outgoing-approval-options'
 import { OutgoingApprovalVenue } from './OutgoingApprovalVenue'
 import type { OutgoingApprovalChoice } from '../../../../../shared/outgoing-approval/outgoing-approval-options'
+import { hqSpaceStripeStyle, useHqSpaces } from '../hq/use-hq-spaces'
 
 /** The card body is `<what · where>\n<full text>`; see outgoingApprovalBellItem. */
 export function splitOutgoingApprovalBody(body: string | null): { head: string; text: string } {
@@ -170,8 +174,14 @@ function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): React.JSX
 }
 
 export function OutgoingApprovalCard({ item }: { item: PulseInboxItem }): React.JSX.Element {
+  // Custom build (hq-spaces): the workspace the message goes out from, as a thin stripe.
+  const spaces = useHqSpaces()
+  const project = outgoingApprovalHeadProject(splitOutgoingApprovalBody(item.body).head)
   return (
-    <li className="flex flex-col gap-1.5 rounded-md px-2 py-2 hover:bg-accent">
+    <li
+      style={hqSpaceStripeStyle(spaces.stripeOf({ project }))}
+      className="flex flex-col gap-1.5 rounded-md px-2 py-2 hover:bg-accent"
+    >
       <OutgoingApprovalDecision item={item} />
     </li>
   )
@@ -180,8 +190,11 @@ export function OutgoingApprovalCard({ item }: { item: PulseInboxItem }): React.
 /** Custom build (approval-toast): the same decision popped bottom-right, so a held call is seen
  *  without opening the bell. */
 export function OutgoingApprovalToast({ item }: { item: PulseInboxItem }): React.JSX.Element {
+  const spaces = useHqSpaces()
+  const project = outgoingApprovalHeadProject(splitOutgoingApprovalBody(item.body).head)
   return (
     <div
+      style={hqSpaceStripeStyle(spaces.stripeOf({ project }))}
       role="alertdialog"
       aria-label={translate(`auto.pulseBell.kind.${item.kind}.${item.urgency}`, item.title)}
       className="flex w-[var(--width)] max-w-[calc(100vw-32px)] flex-col gap-1.5 rounded-lg border border-destructive/50 bg-popover p-3 text-popover-foreground shadow-xs"
