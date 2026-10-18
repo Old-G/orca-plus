@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { PulseDraft } from '../pulse-types'
-import { outgoingApprovalBellItem, outgoingApprovalHead } from './outgoing-approval-bell'
+import {
+  outgoingApprovalBellItem,
+  outgoingApprovalHead,
+  outgoingApprovalHeadProject
+} from './outgoing-approval-bell'
 
 function slackDraft(toolInput: Record<string, unknown>): PulseDraft {
   return {
@@ -60,5 +64,16 @@ describe('outgoingApprovalBellItem', () => {
       targetName: '#general'
     })
     expect(item.body).toBe('Slack · send message → #general · from acme-hub\nЛиза, разобрался.')
+  })
+})
+
+describe('outgoingApprovalHeadProject', () => {
+  it('reads the project from either form of the «from» part', () => {
+    expect(
+      outgoingApprovalHeadProject('Slack message → #it · in a thread · from «Fix» (acme-api)')
+    ).toBe('acme-api')
+    expect(outgoingApprovalHeadProject('ClickUp comment · from acme-flows')).toBe('acme-flows')
+    expect(outgoingApprovalHeadProject('Slack message → Петя · from «Ask HQ»')).toBeNull()
+    expect(outgoingApprovalHeadProject('Slack message → Петя')).toBeNull()
   })
 })
