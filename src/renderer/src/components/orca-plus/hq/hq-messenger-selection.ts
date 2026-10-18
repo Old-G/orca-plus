@@ -4,6 +4,8 @@
 export const HQ_PINNED_IDS = [
   'today',
   'waiting',
+  // Custom build (hq-people): the company's people and the owner's own on each one.
+  'people',
   'journal',
   'feed',
   'reports',
