@@ -39,7 +39,8 @@ function spaces() {
           groups: ['Acme Projects', 'Acme In Process'],
           order: 1,
           messenger: 'Slack',
-          tasks: 'clickup'
+          tasks: 'clickup',
+          git: { name: ' Alex Owner ', email: 'owner@acme.example' }
         })
       }
     ],
@@ -56,9 +57,17 @@ describe('readHqSpaceFile', () => {
       projects: [],
       order: 100,
       messenger: null,
-      tasks: null
+      tasks: null,
+      git: null
     })
     expect(readHqSpaceFile('../etc', {})).toBeNull()
+  })
+})
+
+describe('the git author in workspace.yaml', () => {
+  it('drops one that would not make a sane git identity', () => {
+    expect(file('x', { git: { name: 'A\nB', email: 'a@b.c' } }).git).toBeNull()
+    expect(file('x', { git: { name: 'A', email: 'not an email' } }).git).toBeNull()
   })
 })
 
@@ -72,7 +81,8 @@ describe('resolveHqSpaces', () => {
         repoIds: ['r-api', 'r-fb'],
         projects: ['acme-flows', 'acme-api'],
         messenger: 'slack',
-        tasks: 'clickup'
+        tasks: 'clickup',
+        git: { name: 'Alex Owner', email: 'owner@acme.example' }
       },
       {
         slug: 'personal',
@@ -81,7 +91,8 @@ describe('resolveHqSpaces', () => {
         repoIds: ['r-orca'],
         projects: ['orca-custom'],
         messenger: null,
-        tasks: null
+        tasks: null,
+        git: null
       }
     ])
   })
