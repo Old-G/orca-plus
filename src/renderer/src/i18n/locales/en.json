@@ -19449,7 +19449,10 @@
         "doneForYou": "Done for you",
         "history": "History",
         "feed": "Feed",
-        "reports": "Reports"
+        "reports": "Reports",
+        "new": "{{shown}} new",
+        "requests": "{{shown}} to decide",
+        "remind": "{{count}} to remind"
       },
       "ready": {
         "noCheck": "The task list has no «check» status — move it by hand.",
@@ -19746,7 +19749,13 @@
         "status": "Status update",
         "empty": "No reports yet. The week review, meeting follow-ups and status updates land here.",
         "list": "Reports",
-        "updates": "Updates"
+        "updates": "Updates",
+        "daily": "Day review"
+      },
+      "remind": {
+        "noHq": "Add the HQ folder as a project first.",
+        "gone": "This question is already closed.",
+        "chatName": "Remind {{name}}"
       }
     },
     "claudeSubscriptions": {

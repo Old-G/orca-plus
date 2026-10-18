@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import { HqChatWireListSchema } from '../../../src/shared/hq-chat-wire'
 import { HqFeedItemSchema } from '../../../src/shared/hq-feed'
+import { HqPinnedCountsSchema } from '../../../src/shared/hq-pinned-counts'
 import { HqReportSchema } from '../../../src/shared/hq-reports'
 import { HqWriteReplySchema } from '../../../src/shared/hq-requests-reply'
 import { defineRpcOperation } from '../transport/rpc-operation'
@@ -59,4 +60,21 @@ export const hqReportDecisions = defineRpcOperation({
   acceptance: 'require-result-or-throw',
   barrier: 'on-settle',
   read: rpcResultVariant('hq-report-decisions', HqWriteReplySchema)
+})
+
+/** Custom build (hq-pinned-counts): the counts beside the pinned pages, and a page just opened. */
+export const hqPinnedCountsRead = defineRpcOperation({
+  name: 'hq.pinned-counts',
+  method: 'hqProjects.pinnedCounts',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-pinned-counts', HqPinnedCountsSchema)
+})
+
+export const hqMarkPinnedSeen = defineRpcOperation({
+  name: 'hq.mark-pinned-seen',
+  method: 'hqProjects.markPinnedSeen',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-mark-pinned-seen', z.object({ ok: z.literal(true) }))
 })

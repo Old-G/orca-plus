@@ -30,6 +30,8 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqChatsView?: boolean
     /** Custom build (hq-chats): projects whose latest chats stay on view in HQ even when quiet. */
     hqKeptProjectIds?: string[]
+    /** Custom build (hq-pinned-counts): when each pinned item (reports, feed, journal) was last opened. */
+    hqPinnedSeenAt?: Record<string, number>
     /** Custom build (hq-triage): ClickUp tasks the owner took or hid in HQ «New tasks», by task id. */
     hqTriageDecisions?: HqTriageDecisions
     /** Custom build (hq-ask): the standing «Ask HQ» chat questions go to, while it stays open. */
