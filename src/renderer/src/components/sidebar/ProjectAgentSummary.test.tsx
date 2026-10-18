@@ -8,9 +8,8 @@ type Counts = { attention: number; working: number; done: number; idle: number }
 
 const mocks = vi.hoisted(() => {
   const counts: Counts | undefined = { attention: 2, working: 1, done: 0, idle: 5 }
-  return { newView: true, counts }
+  return { counts }
 })
-vi.mock('@/lib/orca-plus-new-view', () => ({ useOrcaPlusNewView: () => mocks.newView }))
 vi.mock('./project-agent-counts', () => ({ useProjectAgentCounts: () => mocks.counts }))
 
 import { ProjectAgentSummary } from './ProjectAgentSummary'
@@ -25,7 +24,6 @@ function renderSummary(): void {
 
 afterEach(() => {
   cleanup()
-  mocks.newView = true
   mocks.counts = { attention: 2, working: 1, done: 0, idle: 5 }
 })
 
@@ -37,14 +35,9 @@ describe('ProjectAgentSummary', () => {
     expect(screen.queryByLabelText(/done, unread/)).toBeNull()
   })
 
-  it('shows nothing for a quiet project or with the new view off', () => {
+  it('shows nothing for a quiet project', () => {
     mocks.counts = { attention: 0, working: 0, done: 0, idle: 3 }
     renderSummary()
     expect(screen.queryByLabelText(/need you|working/)).toBeNull()
-    cleanup()
-    mocks.counts = { attention: 1, working: 0, done: 0, idle: 0 }
-    mocks.newView = false
-    renderSummary()
-    expect(screen.queryByLabelText('1 need you')).toBeNull()
   })
 })
