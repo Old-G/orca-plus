@@ -15,6 +15,8 @@ export const PAIRED_DESKTOP_METHODS = [
   'hqProjects.reportDecisionsOnDesktop',
   // Custom build (hq-mobile-messenger): the rest of HQ's messenger on the phone, and its voice prompts.
   'hqProjects.chatList',
+  'hqProjects.pinnedCounts',
+  'hqProjects.markPinnedSeen',
   'hqProjects.list',
   'hqProjects.wikiTree',
   'hqProjects.wikiPage',

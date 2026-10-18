@@ -13,6 +13,8 @@ import { PULSE_BELL_ACTION } from '../../../../../shared/pulse-bell'
 import { HQ_SLACK_REQUEST_ACTION } from '../../../../../shared/hq-slack-request-bell'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../../shared/outgoing-approval/outgoing-approval-bell'
 import { OutgoingApprovalCard } from '../outgoing-approval/OutgoingApprovalCard'
+import { HQ_PAGE_BELL_KINDS } from '../../../../../shared/hq-pinned-counts'
+import { HQ_REMIND_ACTION } from '../../../../../shared/hq-remind'
 import { runPulseBellAction } from './pulse-bell-actions'
 import { usePulseBellInbox } from './use-pulse-bell-inbox'
 
@@ -28,7 +30,8 @@ function actionLabel(id: string, fallback: string): string {
 const NAVIGATING_ACTIONS: readonly string[] = [
   PULSE_BELL_ACTION.open,
   PULSE_BELL_ACTION.launch,
-  HQ_SLACK_REQUEST_ACTION.edit
+  HQ_SLACK_REQUEST_ACTION.edit,
+  HQ_REMIND_ACTION
 ]
 
 function PulseBellRow({
@@ -91,7 +94,10 @@ function PulseBellRow({
 export function PulseBellButton(): React.JSX.Element | null {
   const items = usePulseBellInbox()
   const [open, setOpen] = useState(false)
-  const unread = items.filter((item) => item.readAt === null)
+  // Custom build (hq-pinned-counts): what HQ counts beside its pinned items is not counted twice here.
+  const unread = items.filter(
+    (item) => item.readAt === null && !HQ_PAGE_BELL_KINDS.includes(item.kind)
+  )
   const urgentUnread = unread.some((item) => item.urgency === 'urgent')
   const label = translate('auto.pulseBell.title', 'Inbox')
   // Why: the paired web client has no bell bridge, so its inbox would always look empty.
