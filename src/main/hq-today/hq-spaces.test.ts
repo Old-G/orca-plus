@@ -34,7 +34,8 @@ describe('listHqSpaces', () => {
         repoIds: ['r-api'],
         projects: ['acme-api'],
         messenger: null,
-        tasks: null
+        tasks: null,
+        git: null
       }
     ])
   })
