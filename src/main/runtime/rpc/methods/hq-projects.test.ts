@@ -76,7 +76,8 @@ describe('hqProjects RPC methods', () => {
       hqTriageDecisions: {},
       hqChatsView: undefined,
       hqKeptProjectIds: [],
-      hqVoicePromptsEnabled: false
+      hqVoicePromptsEnabled: false,
+      hqPinnedSeenAt: {}
     })
 
     await call('hqProjects.updateSettings', {
