@@ -31,13 +31,13 @@ export function markHqPinnedSeen(id: HqPinnedId): void {
     .catch((error: unknown) => console.warn('[hq] marking a pinned item seen failed:', error))
 }
 
-function useHqPinnedCounts(): HqPinnedCounts | null {
+function useHqPinnedCounts(space: string | null): HqPinnedCounts | null {
   const [counts, setCounts] = useState<HqPinnedCounts | null>(null)
   useEffect(() => {
     let alive = true
     const load = (): void => {
       window.api.runtime
-        .call({ method: 'hqProjects.pinnedCounts' })
+        .call({ method: 'hqProjects.pinnedCounts', params: { space } })
         .then((response) => {
           if (alive && response.ok) {
             setCounts(readHqPinnedCounts(response.result))
@@ -55,7 +55,7 @@ function useHqPinnedCounts(): HqPinnedCounts | null {
       unsubscribe()
       clearInterval(poll)
     }
-  }, [])
+  }, [space])
   return counts
 }
 
@@ -104,9 +104,10 @@ export function hqPinnedNotes(
 }
 
 export function useHqPinnedNotes(
-  cards: readonly DashboardCard[]
+  cards: readonly DashboardCard[],
+  space: string | null = null
 ): Partial<Record<HqPinnedId, HqPinnedNote>> {
-  const counts = useHqPinnedCounts()
+  const counts = useHqPinnedCounts(space)
   const deferred = useHqDeferredSessions(cards).sessions.length
   return useMemo(() => hqPinnedNotes(counts, deferred), [counts, deferred])
 }

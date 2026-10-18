@@ -26,6 +26,7 @@ import { ColumnHeader, errorText } from './hq-waiting-parts'
 import { useHqChatList } from './use-hq-chat-list'
 import { addHqWaiting, useHqPulse } from './use-hq-pulse'
 import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
+import { useHqSpaces } from './use-hq-spaces'
 
 const AGE_TICK_MS = 60_000
 
@@ -203,6 +204,8 @@ function NoteSection({
 
 export function HqNotesTab(): React.JSX.Element {
   const state = useHqPulse()
+  // Custom build (hq-spaces): only the chosen workspace's notes.
+  const spaces = useHqSpaces()
   const now = useNow(AGE_TICK_MS)
   const slack = useHqSlackDrafts()
   const { items } = useHqChatList()
@@ -240,9 +243,13 @@ export function HqNotesTab(): React.JSX.Element {
       now={now}
       hqWorktreeId={hqWorktreeId}
       showPerson={showPerson}
+      stripe={spaces.stripeOf({ project: waiting.project })}
     />
   )
-  const board = buildHqNotesBoard(waitings, now)
+  const board = buildHqNotesBoard(
+    waitings.filter((waiting) => spaces.shows({ project: waiting.project })),
+    now
+  )
   const slackAnswers =
     slack.state.status === 'ready'
       ? slack.state.drafts.filter((draft) => hqSlackRequestKind(draft) === 'answer').length

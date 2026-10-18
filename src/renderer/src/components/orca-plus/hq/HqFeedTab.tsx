@@ -20,6 +20,7 @@ import { useNow } from '@/hooks/use-now'
 import { translate } from '@/i18n/i18n'
 import { HqFeedRow, hqFeedSourceLabel } from './HqFeedRow'
 import { HqFeedPost, useHqFeedProjectColor } from './HqFeedPost'
+import { useHqSpaces } from './use-hq-spaces'
 
 const REFRESH_MS = 60_000
 const AGE_TICK_MS = 60_000
@@ -92,7 +93,13 @@ export function HqFeedTab(): React.JSX.Element {
     project: null,
     query: ''
   })
-  const { items, error } = useHqFeed(filter)
+  const { items: feedItems, error } = useHqFeed(filter)
+  // Custom build (hq-spaces): only the chosen workspace's events.
+  const spaces = useHqSpaces()
+  const items = useMemo(
+    () => feedItems.filter((item) => spaces.shows({ project: item.project })),
+    [feedItems, spaces]
+  )
   const [projects, setProjects] = useState<string[]>([])
   useEffect(() => {
     // Why: the project list comes from the unfiltered feed, so picking one does not empty the menu.
@@ -222,9 +229,15 @@ export function HqFeedTab(): React.JSX.Element {
                     item={item}
                     now={now}
                     color={item.project ? projectColor(item.project) : null}
+                    stripe={spaces.stripeOf({ project: item.project })}
                   />
                 ) : (
-                  <HqFeedRow key={item.id} item={item} now={now} />
+                  <HqFeedRow
+                    key={item.id}
+                    item={item}
+                    now={now}
+                    stripe={spaces.stripeOf({ project: item.project })}
+                  />
                 )
               )}
             </ul>
