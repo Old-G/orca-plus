@@ -15,9 +15,11 @@ import {
   HqVoiceIdeaParams,
   HqVoiceRewriteParams,
   HqWikiPageParams,
-  HqPinnedSeenParams
+  HqPinnedSeenParams,
+  HqPinnedCountsParams
 } from '../../../../shared/rpc-contract/hq-projects-params'
 import { markHqPinnedSeen, readHqPinnedCounts } from '../../../hq-today/hq-pinned-counts'
+import { listHqSpaces } from '../../../hq-today/hq-spaces'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../shared/outgoing-approval/outgoing-approval-bell'
 import {
   runHqBellActionOnDesktop,
@@ -82,8 +84,20 @@ export const HQ_PROJECTS_METHODS = [
     name: 'hqProjects.pinnedCounts',
 
     permission: 'workspace',
+    params: HqPinnedCountsParams,
+    handler: async (params, { runtime }) =>
+      readHqPinnedCounts(runtime, service(), Date.now(), params?.space)
+  }),
+  // Custom build (hq-spaces): the workspaces under the global HQ, with their projects.
+  defineMethod({
+    name: 'hqProjects.spaces',
+
+    permission: 'workspace',
     params: null,
-    handler: async (_params, { runtime }) => readHqPinnedCounts(runtime, service(), Date.now())
+    handler: async () => {
+      const hqPath = service().settings().hqPath
+      return { ok: true, spaces: hqPath ? await listHqSpaces(hqPath) : [] }
+    }
   }),
   defineMethod({
     name: 'hqProjects.markPinnedSeen',
