@@ -3,7 +3,7 @@
 import { z } from 'zod'
 import { HqChatWireListSchema } from '../../../src/shared/hq-chat-wire'
 import { HqFeedItemSchema } from '../../../src/shared/hq-feed'
-import { HqPinnedCountsSchema } from '../../../src/shared/hq-pinned-counts'
+import { HqPinnedCountsSchema } from '../../../src/shared/hq-pinned-counts-wire'
 import { HqReportSchema } from '../../../src/shared/hq-reports'
 import { HqWriteReplySchema } from '../../../src/shared/hq-requests-reply'
 import { defineRpcOperation } from '../transport/rpc-operation'
