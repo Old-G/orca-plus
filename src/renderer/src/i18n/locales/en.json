@@ -19156,7 +19156,8 @@
       "threads": "Threads this chat already has here",
       "intoThread": "Into a thread:",
       "moveToTask": "Ask in {{value0}} instead",
-      "moveToSlack": "Send in Slack instead"
+      "moveToSlack": "Send in Slack instead",
+      "wrongChannel": "{{space}} does not use {{channel}} — this goes out from the {{channel}} connected to Orca+."
     },
     "pulseBell": {
       "title": "Inbox",
@@ -19760,6 +19761,18 @@
       "spaces": {
         "all": "All workspaces",
         "label": "Workspace"
+      },
+      "spaceKeys": {
+        "saved": "Own key saved",
+        "none": "Not set",
+        "orca": "Uses Orca's connection",
+        "needed": "Needed — not set",
+        "input": "{{kind}} key for {{space}}",
+        "save": "Save",
+        "remove": "Remove",
+        "title": "Workspace keys",
+        "hint": "Each workspace's own tokens, encrypted on this Mac. A workspace without one uses Orca's own connection.",
+        "open": "Workspace keys…"
       }
     },
     "claudeSubscriptions": {

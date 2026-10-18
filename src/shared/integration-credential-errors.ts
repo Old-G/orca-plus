@@ -1,4 +1,11 @@
-export type IntegrationCredentialService = 'Linear' | 'Jira' | 'Bitbucket' | 'ClickUp' | 'Slack'
+export type IntegrationCredentialService =
+  | 'Linear'
+  | 'Jira'
+  | 'Bitbucket'
+  | 'ClickUp'
+  | 'Slack'
+  // Custom build (hq-space-keys): a workspace's own token, of any kind.
+  | 'Workspace'
 
 export function credentialDecryptionMessage(service: IntegrationCredentialService): string {
   return `Could not decrypt saved ${service} credential. Approve Keychain access or reconnect ${service}.`
