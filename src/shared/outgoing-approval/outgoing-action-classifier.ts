@@ -5,10 +5,11 @@ import { classifyShellCommand } from './outgoing-shell-rules'
 
 export function classifyOutgoingToolCall(
   toolName: string,
-  toolInput: unknown
+  toolInput: unknown,
+  cwd: string | null = null
 ): OutgoingAction | null {
   if (toolName === 'Bash') {
-    return classifyShellCommand(readInputString(toolInput, 'command'))
+    return classifyShellCommand(readInputString(toolInput, 'command'), cwd)
   }
   const mcp = parseMcpToolName(toolName)
   return mcp ? classifyMcpCall(mcp, toolInput) : null
