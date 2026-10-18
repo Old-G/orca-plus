@@ -11,6 +11,7 @@ import type {
   AutomationDispatchRequest,
   AutomationDispatchResult
 } from '../../../shared/automations-types'
+import { automationRunsInChat } from './automation-dispatch-chat-gate'
 import { createAutomationDispatchCompletion } from './automation-dispatch-completion'
 import {
   prepareAutomationDispatchWorkspace,
@@ -57,6 +58,26 @@ export async function handleAutomationDispatchRequest({
     const ownership = terminalOwnership
     terminalOwnership = null
     return (await ownership?.finalize(options)) ?? null
+  }
+
+  // Why: Run Now and scheduled dispatches should create workspaces/tabs in
+  // the background; only an explicit row click should navigate there.
+  const restoreFocusBeforeDispatch = (worktreeId: string): void => {
+    const currentState = useAppStore.getState()
+    if (
+      focusBeforeDispatch.activeWorktreeId !== worktreeId &&
+      currentState.activeWorktreeId === worktreeId
+    ) {
+      currentState.setActiveView(focusBeforeDispatch.activeView)
+      restoreWorkspaceSelection(currentState, focusBeforeDispatch.selection)
+      if (focusBeforeDispatch.activeTabId) {
+        currentState.setActiveTab(focusBeforeDispatch.activeTabId)
+      }
+      currentState.setActiveTabType(
+        focusBeforeDispatch.activeTabType,
+        focusBeforeDispatch.activeWorktreeId
+      )
+    }
   }
 
   if (!resolved.repo) {
@@ -166,6 +187,37 @@ export async function handleAutomationDispatchRequest({
         }
       }
     }
+    if (automationRunsInChat(automation)) {
+      // Why lazy: the chat launch pulls the HQ action graph, which the terminal path never needs.
+      const { launchAutomationChat } = await import('./automation-dispatch-chat')
+      const chat = await launchAutomationChat({
+        automation,
+        worktreeId: worktree.id,
+        title: run.title
+      })
+      // Why: a chat publishes no status before its first turn, so only a done after working counts.
+      completion.observeAgentStatus(chat.paneKey, dispatchStartedAt, {
+        requireWorkingAfterStart: true
+      })
+      try {
+        await markDispatchResult({
+          runId: run.id,
+          status: 'dispatched',
+          workspaceId: worktree.id,
+          workspaceDisplayName: worktree.displayName,
+          // Why no pane key: main's watcher resolves it as a terminal and would fail the run.
+          terminalSessionId: chat.tabId,
+          precheckResult: resolved.context.precheckResult,
+          error: null
+        })
+        await completion.settlePendingAfterDispatch()
+      } catch (error) {
+        completion.cleanupRunObservers()
+        throw error
+      }
+      restoreFocusBeforeDispatch(worktree.id)
+      return
+    }
     const result = await launchAgentBackgroundSession({
       agent: automation.agentId,
       worktreeId: worktree.id,
@@ -215,23 +267,7 @@ export async function handleAutomationDispatchRequest({
       completion.cleanupRunObservers()
       throw error
     }
-    const currentState = useAppStore.getState()
-    // Why: Run Now and scheduled dispatches should create workspaces/tabs in
-    // the background; only an explicit row click should navigate there.
-    if (
-      focusBeforeDispatch.activeWorktreeId !== worktree.id &&
-      currentState.activeWorktreeId === worktree.id
-    ) {
-      currentState.setActiveView(focusBeforeDispatch.activeView)
-      restoreWorkspaceSelection(currentState, focusBeforeDispatch.selection)
-      if (focusBeforeDispatch.activeTabId) {
-        currentState.setActiveTab(focusBeforeDispatch.activeTabId)
-      }
-      currentState.setActiveTabType(
-        focusBeforeDispatch.activeTabType,
-        focusBeforeDispatch.activeWorktreeId
-      )
-    }
+    restoreFocusBeforeDispatch(worktree.id)
   } catch (error) {
     releaseTerminalOwnership()
     await markDispatchResult({
