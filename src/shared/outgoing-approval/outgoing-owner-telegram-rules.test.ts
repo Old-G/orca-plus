@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { classifyOutgoingToolCall } from './outgoing-action-classifier'
+import { parseOwnerPreviewProjects, setOwnerPreviewProjects } from './outgoing-owner-telegram-rules'
+
+beforeAll(() => setOwnerPreviewProjects(['news_bot']))
 
 const NEWS = '/Users/me/Projects/news_bot'
 const bash = (command: string, cwd: string | null = NEWS) =>
@@ -96,6 +99,8 @@ describe('Telegram sends that still need approval', () => {
       'for c in -100123 @x; do curl -s https://api.telegram.org/bot$T/sendMessage -d chat_id=$c -d text=hi; done'
     ],
     ['a body read from a file', `${CURL_SHELL_VAR} -d @extra.txt`],
+    ['a body read from a file with no space', `${CURL_SHELL_VAR} -d@extra.txt`],
+    ['a curl config file', `${CURL_SHELL_VAR} -K extra.cfg`],
     ['a JSON body read from a file', `${CURL_SHELL_VAR} --json @payload.json`],
     ['a dict unpacked into the payload', swap('"width": 1080', '**extra')],
     [
@@ -108,9 +113,7 @@ describe('Telegram sends that still need approval', () => {
 
   it('holds the owner preview from another project or an unknown folder', () => {
     expect(bash(DOTENV_INLINE, '/Users/me/Projects/Billing')).not.toBeNull()
-    expect(
-      bash(DOTENV_INLINE, '/Users/me/Projects/news_bot_fork')
-    ).not.toBeNull()
+    expect(bash(DOTENV_INLINE, '/Users/me/Projects/news_bot_fork')).not.toBeNull()
     expect(bash(DOTENV_INLINE, null)).not.toBeNull()
   })
 
@@ -134,5 +137,15 @@ describe('Telegram sends that still need approval', () => {
         'curl -X POST https://slack.com/api/chat.postMessage -d channel=$OWNER_CHAT_ID -d text=hi'
       )
     ).toMatchObject({ service: 'HTTP', operation: 'message' })
+  })
+})
+
+describe('owner preview projects from HQ config', () => {
+  it('reads the list, with or without brackets, and nothing when the key is absent', () => {
+    expect(
+      parseOwnerPreviewProjects('a: 1\nowner_preview_projects: [news_bot, other.bot]  # mine\n')
+    ).toEqual(['news_bot', 'other.bot'])
+    expect(parseOwnerPreviewProjects('owner_preview_projects: news_bot\n')).toEqual(['news_bot'])
+    expect(parseOwnerPreviewProjects('list_id: 1\n')).toEqual([])
   })
 })
