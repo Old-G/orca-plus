@@ -7,7 +7,7 @@ import {
   hqCountText,
   readHqPinnedCounts,
   type HqPinnedCounts
-} from '../../../../../shared/hq-pinned-counts'
+} from '../../../../../shared/hq-pinned-counts-wire'
 import { translate } from '@/i18n/i18n'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import type { HqPinnedId } from './hq-messenger-selection'
