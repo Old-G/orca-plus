@@ -2,6 +2,7 @@
 // with a short count where one is cheap to know.
 import {
   Activity,
+  Contact,
   BookOpen,
   FileText,
   History,
@@ -21,6 +22,8 @@ type Pinned = { id: HqPinnedId; icon: LucideIcon; label: () => string }
 const PINNED: readonly Pinned[] = [
   { id: 'today', icon: Sun, label: () => translate('auto.hq.tab.today', 'Today') },
   { id: 'waiting', icon: Users, label: () => translate('auto.hq.pinned.notes', 'Notes') },
+  // Custom build (hq-people): who is who in the company, and what is open with each.
+  { id: 'people', icon: Contact, label: () => translate('auto.hq.pinned.people', 'People') },
   {
     id: 'journal',
     icon: History,
