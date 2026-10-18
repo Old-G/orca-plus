@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  hqReviewProject,
+  hqSpaceUsesSource,
   hqSpaceOf,
   hqSpaceShows,
   readHqSpaceFile,
@@ -35,7 +37,9 @@ function spaces() {
           name: 'Acme',
           color: '#3b82f6',
           groups: ['Acme Projects', 'Acme In Process'],
-          order: 1
+          order: 1,
+          messenger: 'Slack',
+          tasks: 'clickup'
         })
       }
     ],
@@ -50,7 +54,9 @@ describe('readHqSpaceFile', () => {
       color: '#737373',
       groups: [],
       projects: [],
-      order: 100
+      order: 100,
+      messenger: null,
+      tasks: null
     })
     expect(readHqSpaceFile('../etc', {})).toBeNull()
   })
@@ -64,14 +70,18 @@ describe('resolveHqSpaces', () => {
         name: 'Acme',
         color: '#3b82f6',
         repoIds: ['r-api', 'r-fb'],
-        projects: ['acme-flows', 'acme-api']
+        projects: ['acme-flows', 'acme-api'],
+        messenger: 'slack',
+        tasks: 'clickup'
       },
       {
         slug: 'personal',
         name: 'Личное',
         color: '#737373',
         repoIds: ['r-orca'],
-        projects: ['orca-custom']
+        projects: ['orca-custom'],
+        messenger: null,
+        tasks: null
       }
     ])
   })
@@ -90,5 +100,22 @@ describe('hqSpaceShows', () => {
 
   it('matches a project named by its folder', () => {
     expect(hqSpaceOf(spaces(), { project: 'Billing' })?.slug).toBe('acme')
+  })
+})
+
+describe('hqSpaceUsesSource', () => {
+  it('keeps Slack and ClickUp without a project only where the workspace uses them', () => {
+    const all = spaces()
+    expect(hqSpaceUsesSource(all, 'acme', 'clickup')).toBe(true)
+    expect(hqSpaceUsesSource(all, 'personal', 'slack')).toBe(false)
+    expect(hqSpaceUsesSource(all, null, 'slack')).toBe(true)
+  })
+})
+
+describe('hqReviewProject', () => {
+  it('reads the repo name from a review ref', () => {
+    expect(hqReviewProject('acme/backend/acme-api!34')).toBe('acme-api')
+    expect(hqReviewProject('owner/repo#12')).toBe('repo')
+    expect(hqReviewProject('nonsense')).toBeNull()
   })
 })
