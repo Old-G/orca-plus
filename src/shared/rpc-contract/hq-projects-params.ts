@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import { OptionalBoolean, requiredString } from './rpc-param-primitives'
 import { HQ_PINNED_SEEN_IDS } from '../hq-pinned-counts-wire'
+import { HQ_REPORT_PATH } from '../hq-reports'
 
 export const HqWikiPageParams = z.object({ path: requiredString('Wiki page path is required') })
 
@@ -73,14 +74,7 @@ export const HqBellActionOnDesktopParams = z.object({
 
 // Custom build (hq-reports): a report by its HQ path and the owner's decisions on it.
 export const HqReportDecisionsParams = z.object({
-  path: z
-    .string()
-    .min(1)
-    .max(500)
-    .regex(
-      /^(?:improvements|meetings|status-update|updates|daily)\/[^/\\]+\.md$/,
-      'Not an HQ report'
-    ),
+  path: z.string().min(1).max(500).regex(HQ_REPORT_PATH, 'Not an HQ report'),
   text: z.string().trim().min(1).max(8000)
 })
 

@@ -35,6 +35,8 @@ export type HqPinnedCountsInput = {
   now: number
   /** Custom build (hq-spaces): only what the chosen workspace shows. */
   shows?: (project: string | null) => boolean
+  /** Custom build (hq-spaces): the chosen workspace's undecided requests, counted from the scout. */
+  today?: number
 }
 
 export function computeHqPinnedCounts(input: HqPinnedCountsInput): HqPinnedCounts {
@@ -45,9 +47,10 @@ export function computeHqPinnedCounts(input: HqPinnedCountsInput): HqPinnedCount
     (waiting) => waiting.status === 'open' && shows(waiting.project)
   )
   return {
-    today: input.inbox.filter(
-      (item) => item.kind === HQ_SLACK_REQUEST_BELL_KIND && item.doneAt === null
-    ).length,
+    today:
+      input.today ??
+      input.inbox.filter((item) => item.kind === HQ_SLACK_REQUEST_BELL_KIND && item.doneAt === null)
+        .length,
     onYou: open.filter((waiting) => waiting.direction === 'on-me').length,
     remind: hqRemindDue(open, input.now).length,
     reports: input.reports.filter((report) => report.at > since('reports')).length,

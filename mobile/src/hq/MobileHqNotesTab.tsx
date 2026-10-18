@@ -13,6 +13,7 @@ import type { RpcClient } from '../transport/rpc-client'
 import { hqPersonUpsert, hqPulseRead, hqWaitingAdd, hqWaitingClose } from './hq-operations'
 import { HqActionButton, hqStyles } from './mobile-hq-parts'
 import { errorText, useMobileHqPoll } from './use-mobile-hq-poll'
+import { ALL_HQ_SPACES, mobileHqShows, type MobileHqSpaceFilter } from './mobile-hq-spaces'
 
 async function readPulse(client: RpcClient): Promise<{ value: HqPulse }> {
   return { value: await runRpcOperation(client, hqPulseRead) }
@@ -146,7 +147,13 @@ function NoteRow({
   )
 }
 
-export function MobileHqNotesTab({ client }: { client: RpcClient }) {
+export function MobileHqNotesTab({
+  client,
+  spaces = ALL_HQ_SPACES
+}: {
+  client: RpcClient
+  spaces?: MobileHqSpaceFilter
+}) {
   const { state, refresh } = useMobileHqPoll(client, readPulse)
   if (state.status === 'loading') {
     return <Text style={hqStyles.meta}>Loading…</Text>
@@ -154,7 +161,13 @@ export function MobileHqNotesTab({ client }: { client: RpcClient }) {
   if (state.status === 'error') {
     return <Text style={hqStyles.error}>{state.message}</Text>
   }
-  const pulse = state.value
+  // Custom build (hq-spaces): only the chosen workspace's notes.
+  const pulse = {
+    ...state.value,
+    waitings: state.value.waitings.filter((waiting) =>
+      mobileHqShows(spaces, { project: waiting.project })
+    )
+  }
   const names = new Map(pulse.people.map((person) => [person.id, person.name]))
   const sections: { title: string; empty: string; rows: HqWaiting[] }[] = [
     {

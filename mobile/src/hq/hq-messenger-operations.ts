@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { HqChatWireListSchema } from '../../../src/shared/hq-chat-wire'
 import { HqFeedItemSchema } from '../../../src/shared/hq-feed'
 import { HqPinnedCountsSchema } from '../../../src/shared/hq-pinned-counts-wire'
+import { HqSpaceSchema } from '../../../src/shared/hq-spaces'
 import { HqReportSchema } from '../../../src/shared/hq-reports'
 import { HqWriteReplySchema } from '../../../src/shared/hq-requests-reply'
 import { defineRpcOperation } from '../transport/rpc-operation'
@@ -77,4 +78,16 @@ export const hqMarkPinnedSeen = defineRpcOperation({
   acceptance: 'require-result-or-throw',
   barrier: 'on-settle',
   read: rpcResultVariant('hq-mark-pinned-seen', z.object({ ok: z.literal(true) }))
+})
+
+/** Custom build (hq-spaces): the workspaces under the Mac's global HQ. */
+export const hqSpacesRead = defineRpcOperation({
+  name: 'hq.spaces',
+  method: 'hqProjects.spaces',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant(
+    'hq-spaces',
+    z.object({ ok: z.literal(true), spaces: z.array(HqSpaceSchema) })
+  )
 })

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import {
   hqSpaceOf,
   hqSpaceShows,
+  hqSpaceUsesSource,
   readHqSpaces,
   type HqSpace,
   type HqSpaceRef
@@ -52,6 +53,8 @@ export type HqSpacesView = {
   active: HqSpace | null
   setActive: (slug: string | null) => void
   shows: (ref: HqSpaceRef) => boolean
+  /** Whether something from `slack` / `clickup` with no project belongs in the chosen workspace. */
+  usesSource: (source: string) => boolean
   /** The stripe colour of a record's workspace, only while all of them are shown. */
   stripeOf: (ref: HqSpaceRef) => string | null
 }
@@ -72,6 +75,7 @@ export function useHqSpaces(): HqSpacesView {
       active,
       setActive,
       shows: (ref) => hqSpaceShows(spaces, active?.slug, ref),
+      usesSource: (source) => hqSpaceUsesSource(spaces, active?.slug, source),
       stripeOf: (ref) => (active ? null : (hqSpaceOf(spaces, ref)?.color ?? null))
     }
   }, [spaces, activeSlug, setActive])
