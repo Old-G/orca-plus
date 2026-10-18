@@ -49,6 +49,20 @@ describe('HQ reports', () => {
     ])
   })
 
+  it('lists a workspace’s own reports under its folder, marked with it', async () => {
+    report('workspaces/acme/status-update/2026-10-18.md', '# Статус', NOW)
+    report('workspaces/Bad Name/daily/x.md', '# x', NOW)
+    expect(await listHqReports(hq)).toEqual([
+      {
+        path: 'workspaces/acme/status-update/2026-10-18.md',
+        title: 'Статус',
+        folder: 'status-update',
+        at: NOW,
+        space: 'acme'
+      }
+    ])
+  })
+
   it('rings the bell for recent reports and pushes only one written after the first pass', async () => {
     report('improvements/2026-W41.md', '# W41', NOW - 10 * 86_400_000)
     report('improvements/2026-W42.md', '# W42', NOW - 1_000)

@@ -1,7 +1,7 @@
 // Custom build (hq-mobile-messenger): HQ's chats on the phone in the desktop's sections — needs you,
 // working, done, the active projects, then the quiet ones folded — each opening the phone's session.
 import { useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import {
   groupHqChatWire,
   readHqChatWireList,
@@ -9,12 +9,14 @@ import {
   type HqChatWireItem,
   type HqChatWireList
 } from '../../../src/shared/hq-chat-wire'
-import { colors, radii, spacing, typography } from '../theme/mobile-theme'
-import { runRpcOperation } from '../transport/rpc-operation'
-import type { RpcClient } from '../transport/rpc-client'
+import { radii, spacing, typography } from '../theme/mobile-theme'
+import { runRpcOperation } from '../transport/rpc/rpc-operation'
+import type { RpcClient } from '../transport/rpc/rpc-client-contract'
 import { hqChatListRead } from './hq-messenger-operations'
-import { hqAgo, hqStyles } from './mobile-hq-parts'
+import { hqAgo, hqStylesSheet } from './mobile-hq-parts'
 import { useMobileHqPoll } from './use-mobile-hq-poll'
+import { ALL_HQ_SPACES, mobileHqShows, type MobileHqSpaceFilter } from './mobile-hq-spaces'
+import { themedStyleSheet, useThemedStyles } from '../theme/themed-styles'
 
 const SECTIONS: { group: HqChatWireGroup; label: string }[] = [
   { group: 'needs', label: 'Needs you' },
@@ -58,6 +60,8 @@ function ChatRow({
   now: number
   onOpen: (item: HqChatWireItem) => void
 }) {
+  const styles = useThemedStyles(stylesSheet)
+  const hqStyles = useThemedStyles(hqStylesSheet)
   return (
     <Pressable
       accessibilityRole="button"
@@ -87,11 +91,15 @@ function ChatRow({
 
 export function MobileHqChatList({
   client,
-  onOpen
+  onOpen,
+  spaces = ALL_HQ_SPACES
 }: {
   client: RpcClient
   onOpen: (item: HqChatWireItem) => void
+  spaces?: MobileHqSpaceFilter
 }) {
+  const styles = useThemedStyles(stylesSheet)
+  const hqStyles = useThemedStyles(hqStylesSheet)
   const { state } = useMobileHqPoll(client, readChats)
   const [quietOpen, setQuietOpen] = useState(false)
   if (state.status === 'loading') {
@@ -107,7 +115,9 @@ export function MobileHqChatList({
       </Text>
     )
   }
-  const groups = groupHqChatWire(state.value.items)
+  const groups = groupHqChatWire(
+    state.value.items.filter((item) => mobileHqShows(spaces, { repoId: item.repoId }))
+  )
   const now = state.loadedAt
   return (
     <View style={styles.list}>
@@ -139,7 +149,7 @@ export function MobileHqChatList({
   )
 }
 
-const styles = StyleSheet.create({
+const stylesSheet = themedStyleSheet((colors) => ({
   list: { gap: spacing.md },
   section: { gap: 2 },
   row: {
@@ -160,4 +170,4 @@ const styles = StyleSheet.create({
   body: { flex: 1, gap: 2 },
   title: { flex: 1, fontSize: typography.bodySize, color: colors.textPrimary },
   unseen: { fontWeight: '700' }
-})
+}))

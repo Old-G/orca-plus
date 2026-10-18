@@ -3,7 +3,7 @@
 // the chats in their sections; a page opens over the list with a back button, a chat opens the
 // phone's session. Approvals of outgoing messages stay on the Mac.
 import { useLocalSearchParams } from 'expo-router'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { HqChatWireItem } from '../../../src/shared/hq-chat-wire'
@@ -11,20 +11,24 @@ import type { HqPinnedCounts, HqPinnedSeenId } from '../../../src/shared/hq-pinn
 import { hostStackHostRoute } from '../navigation/host-stack-navigation'
 import { useRouteHandoff } from '../navigation/route-handoff'
 import { firstParam } from '../navigation/route-param-reader'
-import { useHostClient } from '../transport/host-client-hooks'
-import { runRpcOperation } from '../transport/rpc-operation'
-import type { RpcClient } from '../transport/rpc-client'
-import { colors, radii, spacing, typography } from '../theme/mobile-theme'
-import { hqStyles } from './mobile-hq-parts'
+import { useHostClient } from '../transport/connection/host-client-hooks'
+import { runRpcOperation } from '../transport/rpc/rpc-operation'
+import type { RpcClient } from '../transport/rpc/rpc-client-contract'
+import { radii, spacing, typography } from '../theme/mobile-theme'
+import { hqStylesSheet } from './mobile-hq-parts'
 import { MobileHqChatList, hqChatSessionHref } from './MobileHqChatList'
 import { MobileHqFeedPage } from './MobileHqFeedPage'
 import { MobileHqInboxTab } from './MobileHqInboxTab'
 import { MobileHqNotesTab } from './MobileHqNotesTab'
 import { MobileHqReportsPage } from './MobileHqReportsPage'
 import { MobileHqRequestsTab } from './MobileHqRequestsTab'
-import { hqMarkPinnedSeen, hqPinnedCountsRead } from './hq-messenger-operations'
+import { hqMarkPinnedSeen, hqPinnedCountsRead, hqSpacesRead } from './hq-messenger-operations'
 import { useMobileHqPoll } from './use-mobile-hq-poll'
 import { mobileHqPinnedNote, type MobileHqPageId } from './mobile-hq-pinned-note'
+import type { HqSpace } from '../../../src/shared/hq-spaces'
+import type { MobileHqSpaceFilter } from './mobile-hq-spaces'
+import { MobileHqSpaceSwitch } from './MobileHqSpaceSwitch'
+import { themedStyleSheet, useThemedStyles } from '../theme/themed-styles'
 
 const PAGES = [
   { id: 'today', label: 'Today', icon: '☀︎' },
@@ -44,13 +48,16 @@ const SEEN_ID: Partial<Record<PageId, HqPinnedSeenId>> = {
   reports: 'reports'
 }
 
-async function readCounts(
-  client: RpcClient
-): Promise<{ value: HqPinnedCounts } | { error: string }> {
-  return { value: await runRpcOperation(client, hqPinnedCountsRead) }
+async function readSpaces(client: RpcClient): Promise<{ value: HqSpace[] }> {
+  return { value: (await runRpcOperation(client, hqSpacesRead)).spaces }
 }
 
+// Custom build (hq-spaces): the workspace picked stays while the app runs.
+let rememberedSpace: string | null = null
+
 export function MobileHqScreen() {
+  const styles = useThemedStyles(stylesSheet)
+  const hqStyles = useThemedStyles(hqStylesSheet)
   const params = useLocalSearchParams<{ hostId?: string | string[] }>()
   const hostId = firstParam(params.hostId)
   const router = useRouteHandoff()
@@ -58,6 +65,22 @@ export function MobileHqScreen() {
   const [page, setPage] = useState<PageId | null>(null)
   const [report, setReport] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const spacesPoll = useMobileHqPoll(client, readSpaces)
+  const [activeSpace, setActiveSpace] = useState<string | null>(rememberedSpace)
+  const pickSpace = (slug: string | null): void => {
+    rememberedSpace = slug
+    setActiveSpace(slug)
+  }
+  const spaces: MobileHqSpaceFilter = {
+    spaces: spacesPoll.state.status === 'ready' ? spacesPoll.state.value : [],
+    active: activeSpace
+  }
+  const readCounts = useCallback(
+    async (rpc: RpcClient): Promise<{ value: HqPinnedCounts }> => ({
+      value: await runRpcOperation(rpc, hqPinnedCountsRead, { space: activeSpace })
+    }),
+    [activeSpace]
+  )
   const counts = useMobileHqPoll(client, readCounts)
   const shownCounts = counts.state.status === 'ready' ? counts.state.value : null
   const markSeen = (id: PageId | null): void => {
@@ -113,6 +136,11 @@ export function MobileHqScreen() {
           <Text style={hqStyles.meta}>Loading…</Text>
         ) : page === null ? (
           <>
+            <MobileHqSpaceSwitch
+              spaces={spaces.spaces}
+              active={spaces.active}
+              onChange={pickSpace}
+            />
             <View style={styles.pinned} accessibilityRole="menu">
               {PAGES.map((entry) => {
                 const note = mobileHqPinnedNote(shownCounts, entry.id)
@@ -135,18 +163,23 @@ export function MobileHqScreen() {
                 )
               })}
             </View>
-            <MobileHqChatList client={client} onOpen={openChat} />
+            <MobileHqChatList client={client} onOpen={openChat} spaces={spaces} />
           </>
         ) : page === 'today' ? (
-          <MobileHqRequestsTab client={client} onNotice={setNotice} show="requests" />
+          <MobileHqRequestsTab
+            client={client}
+            onNotice={setNotice}
+            show="requests"
+            spaces={spaces}
+          />
         ) : page === 'done' ? (
           <MobileHqRequestsTab client={client} onNotice={setNotice} show="done" />
         ) : page === 'notes' ? (
-          <MobileHqNotesTab client={client} />
+          <MobileHqNotesTab client={client} spaces={spaces} />
         ) : page === 'feed' ? (
-          <MobileHqFeedPage client={client} />
+          <MobileHqFeedPage client={client} spaces={spaces} />
         ) : page === 'reports' ? (
-          <MobileHqReportsPage client={client} path={report} onOpen={setReport} />
+          <MobileHqReportsPage client={client} path={report} onOpen={setReport} spaces={spaces} />
         ) : (
           <MobileHqInboxTab client={client} onNotice={setNotice} />
         )}
@@ -155,7 +188,7 @@ export function MobileHqScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const stylesSheet = themedStyleSheet((colors) => ({
   root: { flex: 1, backgroundColor: colors.bgBase },
   header: {
     flexDirection: 'row',
@@ -198,4 +231,4 @@ const styles = StyleSheet.create({
     borderRadius: radii.control,
     padding: spacing.sm
   }
-})
+}))
