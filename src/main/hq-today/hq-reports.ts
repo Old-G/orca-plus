@@ -11,6 +11,7 @@ import {
 } from '../../shared/hq-reports'
 import { PULSE_BELL_ACTION, type PulseBellInput } from '../../shared/pulse-bell'
 import { headingOf } from '../hq-project-pages/hq-wiki-files'
+import { HQ_SPACE_SLUG, HQ_SPACES_DIR } from '../../shared/hq-spaces'
 
 const MAX_REPORTS = 60
 const HEAD_BYTES = 4096
@@ -27,32 +28,46 @@ async function readHead(path: string): Promise<string> {
   }
 }
 
-/** Every `.md` straight inside a report folder; a missing folder is just empty. */
+/** Every `.md` straight inside a report folder — the global HQ's and each workspace's
+ *  (`workspaces/<slug>/<folder>`); a missing folder is just empty. */
 export async function listHqReports(hqPath: string): Promise<HqReport[]> {
+  // Custom build (hq-spaces): a workspace's own reports live under its folder.
+  const spaces = (
+    await readdir(join(hqPath, HQ_SPACES_DIR), { withFileTypes: true }).catch(() => [])
+  )
+    .filter((entry) => entry.isDirectory() && HQ_SPACE_SLUG.test(entry.name))
+    .map((entry) => entry.name)
+  const roots: { prefix: string; space?: string }[] = [
+    { prefix: '' },
+    ...spaces.map((space) => ({ prefix: `${HQ_SPACES_DIR}/${space}/`, space }))
+  ]
   const perFolder = await Promise.all(
-    HQ_REPORT_FOLDERS.map(async (folder) => {
-      const names = await readdir(join(hqPath, folder)).catch(() => [])
-      return Promise.all(
-        names
-          .filter((name) => name.endsWith('.md'))
-          .map(async (name): Promise<HqReport | null> => {
-            const full = join(hqPath, folder, name)
-            try {
-              const [info, head] = await Promise.all([stat(full), readHead(full)])
-              return info.isFile()
-                ? {
-                    path: `${folder}/${name}`,
-                    title: (headingOf(head) ?? name.replace(/\.md$/, '')).slice(0, 300),
-                    folder,
-                    at: Math.round(info.mtimeMs)
-                  }
-                : null
-            } catch {
-              return null
-            }
-          })
-      )
-    })
+    roots
+      .flatMap((root) => HQ_REPORT_FOLDERS.map((folder) => ({ ...root, folder })))
+      .map(async ({ prefix, space, folder }) => {
+        const names = await readdir(join(hqPath, prefix, folder)).catch(() => [])
+        return Promise.all(
+          names
+            .filter((name) => name.endsWith('.md'))
+            .map(async (name): Promise<HqReport | null> => {
+              const full = join(hqPath, prefix, folder, name)
+              try {
+                const [info, head] = await Promise.all([stat(full), readHead(full)])
+                return info.isFile()
+                  ? {
+                      path: `${prefix}${folder}/${name}`,
+                      title: (headingOf(head) ?? name.replace(/\.md$/, '')).slice(0, 300),
+                      folder,
+                      at: Math.round(info.mtimeMs),
+                      ...(space ? { space } : {})
+                    }
+                  : null
+              } catch {
+                return null
+              }
+            })
+        )
+      })
   )
   return perFolder
     .flat()

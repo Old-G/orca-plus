@@ -8,7 +8,8 @@ import { z } from 'zod'
 export const HQ_SPACES_DIR = 'workspaces'
 export const HQ_SPACE_FILE = 'workspace.yaml'
 
-const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/
+export const HQ_SPACE_SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/
+const SLUG = HQ_SPACE_SLUG
 const COLOR = /^#[0-9a-fA-F]{6}$/
 const FALLBACK_COLOR = '#737373'
 
@@ -20,7 +21,10 @@ export const HqSpaceSchema = z.object({
   /** Orca repo ids of its projects. */
   repoIds: z.array(z.string().max(200)).max(500),
   /** HQ project slugs, as pulse records and the feed name them. */
-  projects: z.array(z.string().max(200)).max(500)
+  projects: z.array(z.string().max(200)).max(500),
+  /** Where its people write (`slack`, `telegram`…) and its tasks live (`clickup`, `jira`…); null = none. */
+  messenger: z.string().max(40).nullable().optional(),
+  tasks: z.string().max(40).nullable().optional()
 })
 export type HqSpace = z.infer<typeof HqSpaceSchema>
 
@@ -39,6 +43,8 @@ export type HqSpaceFile = {
   /** HQ project slugs that belong here besides the groups'. */
   projects: string[]
   order: number
+  messenger: string | null
+  tasks: string | null
 }
 
 function stringList(value: unknown): string[] {
@@ -57,12 +63,20 @@ export function readHqSpaceFile(slug: string, data: unknown): HqSpaceFile | null
   const name = field('name')
   const color = field('color')
   const order = field('order')
+  const source = (key: string): string | null => {
+    const value = field(key)
+    return typeof value === 'string' && value.trim()
+      ? value.trim().toLowerCase().slice(0, 40)
+      : null
+  }
   return {
     name: typeof name === 'string' && name.trim() ? name.trim().slice(0, 80) : slug,
     color: typeof color === 'string' && COLOR.test(color) ? color : FALLBACK_COLOR,
     groups: stringList(field('groups')),
     projects: stringList(field('projects')),
-    order: typeof order === 'number' ? order : 100
+    order: typeof order === 'number' ? order : 100,
+    messenger: source('messenger'),
+    tasks: source('tasks')
   }
 }
 
@@ -91,7 +105,9 @@ export function resolveHqSpaces(
         name: file.name,
         color: file.color,
         repoIds: mine.map((project) => project.repoId),
-        projects: [...new Set([...mine.map((project) => project.slug), ...file.projects])].sort()
+        projects: [...new Set([...mine.map((project) => project.slug), ...file.projects])].sort(),
+        messenger: file.messenger,
+        tasks: file.tasks
       }
     })
 }
@@ -122,4 +138,20 @@ export function hqSpaceShows(
   }
   const owner = hqSpaceOf(spaces, ref)
   return owner === null || owner.slug === active
+}
+
+/** Whether HQ shows what came from `source` (`slack`, `clickup`) with no project to place it by:
+ *  only in a workspace that uses it, and with all shown. */
+export function hqSpaceUsesSource(
+  spaces: readonly HqSpace[],
+  active: string | null | undefined,
+  source: string
+): boolean {
+  const space = active ? spaces.find((entry) => entry.slug === active) : undefined
+  return !space || space.messenger === source || space.tasks === source
+}
+
+/** `group/acme-api!34`, `owner/repo#12` → `acme-api`, `repo`: a review's project, by its repo name. */
+export function hqReviewProject(ref: string): string | null {
+  return /([^/#!]+)[#!]\d+$/.exec(ref)?.[1] ?? null
 }

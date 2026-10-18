@@ -32,6 +32,8 @@ import { CommentMarkdownAsync } from '../../sidebar/comment-markdown-lazy'
 import { HqInboxCard, HqInboxOtherRow, HqInboxRow, hqInboxSectionTitle } from './HqTodayInboxRow'
 import { HqStatusUpdateButton } from './HqStatusUpdateButton'
 import { useHqClickUpConnection, useHqMyClickUpTasks } from './use-hq-project-clickup'
+import { useHqSpaces, type HqSpacesView } from './use-hq-spaces'
+import { hqReviewProject } from '../../../../../shared/hq-spaces'
 
 const AGE_TICK_MS = 60_000
 const TODAY_SOURCE_PROJECT = 'hq-today'
@@ -128,6 +130,23 @@ function ItemDetail({
   }
 }
 
+function hqInboxItemShown(item: HqInboxItem, spaces: HqSpacesView): boolean {
+  switch (item.kind) {
+    case 'slack':
+      return item.draft.project
+        ? spaces.shows({ project: item.draft.project })
+        : spaces.usesSource(item.draft.source ?? 'slack')
+    case 'agent':
+      return spaces.shows({ repoId: item.card.repoId })
+    case 'review':
+      return spaces.shows({ project: hqReviewProject(item.review.ref) })
+    case 'ready':
+    case 'new-task':
+    case 'due':
+      return spaces.usesSource('clickup')
+  }
+}
+
 function useHqInboxItems(now: number): {
   items: HqInboxItem[]
   dropSlack: (id: string) => void
@@ -141,6 +160,8 @@ function useHqInboxItems(now: number): {
   const tasks = useHqMyClickUpTasks(connection)
   const reviews = useHqReviewRequests()
   const decisions = useAppStore((s) => s.settings?.hqTriageDecisions ?? NO_DECISIONS)
+  // Custom build (hq-spaces): only the chosen workspace's requests, agents, tasks and reviews.
+  const spaces = useHqSpaces()
   const items = useMemo(() => {
     const all = tasks.state.status === 'ready' ? tasks.state.tasks : []
     return buildHqInboxItems({
@@ -150,8 +171,8 @@ function useHqInboxItems(now: number): {
       newTasks: pendingHqTriageTasks(all, decisions, NO_SNOOZE),
       due: buildHqTodayTasks(all, now),
       reviews: reviews.state.status === 'ready' ? reviews.state.result.reviews : []
-    })
-  }, [slack.state, snapshot.cards, tasks.state, decisions, now, reviews.state])
+    }).filter((item) => hqInboxItemShown(item, spaces))
+  }, [slack.state, snapshot.cards, tasks.state, decisions, now, reviews.state, spaces])
   return {
     items,
     dropSlack: slack.drop,

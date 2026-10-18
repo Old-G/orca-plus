@@ -10,11 +10,12 @@ import {
   type HqChatWireList
 } from '../../../src/shared/hq-chat-wire'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
-import { runRpcOperation } from '../transport/rpc-operation'
-import type { RpcClient } from '../transport/rpc-client'
+import { runRpcOperation } from '../transport/rpc/rpc-operation'
+import type { RpcClient } from '../transport/rpc/rpc-client-contract'
 import { hqChatListRead } from './hq-messenger-operations'
 import { hqAgo, hqStyles } from './mobile-hq-parts'
 import { useMobileHqPoll } from './use-mobile-hq-poll'
+import { ALL_HQ_SPACES, mobileHqShows, type MobileHqSpaceFilter } from './mobile-hq-spaces'
 
 const SECTIONS: { group: HqChatWireGroup; label: string }[] = [
   { group: 'needs', label: 'Needs you' },
@@ -87,10 +88,12 @@ function ChatRow({
 
 export function MobileHqChatList({
   client,
-  onOpen
+  onOpen,
+  spaces = ALL_HQ_SPACES
 }: {
   client: RpcClient
   onOpen: (item: HqChatWireItem) => void
+  spaces?: MobileHqSpaceFilter
 }) {
   const { state } = useMobileHqPoll(client, readChats)
   const [quietOpen, setQuietOpen] = useState(false)
@@ -107,7 +110,9 @@ export function MobileHqChatList({
       </Text>
     )
   }
-  const groups = groupHqChatWire(state.value.items)
+  const groups = groupHqChatWire(
+    state.value.items.filter((item) => mobileHqShows(spaces, { repoId: item.repoId }))
+  )
   const now = state.loadedAt
   return (
     <View style={styles.list}>

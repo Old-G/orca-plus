@@ -53,7 +53,11 @@ export function HqMessengerScreen(): React.JSX.Element {
     [allItems, spaces]
   )
   const colorFor = useHqProjectColor()
-  const notes = useHqPinnedNotes(cards, spaces.active?.slug ?? null)
+  const spaceCards = useMemo(
+    () => cards.filter((card) => spaces.shows({ repoId: card.repoId })),
+    [cards, spaces]
+  )
+  const notes = useHqPinnedNotes(spaceCards, spaces.active?.slug ?? null)
   const now = useNow(AGE_TICK_MS)
   const [selection, setSelection] = useState<HqSelection>(
     () => hqSelectionForRequest(takeRequestedHqTab()) ?? rememberedHqSelection()

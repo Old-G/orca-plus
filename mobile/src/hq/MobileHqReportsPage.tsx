@@ -6,11 +6,12 @@ import { StyleSheet, Text, TextInput, View } from 'react-native'
 import type { HqReport } from '../../../src/shared/hq-reports'
 import { MobileMarkdown } from '../components/MobileMarkdown'
 import { colors, spacing } from '../theme/mobile-theme'
-import { runRpcOperation } from '../transport/rpc-operation'
-import type { RpcClient } from '../transport/rpc-client'
+import { runRpcOperation } from '../transport/rpc/rpc-operation'
+import type { RpcClient } from '../transport/rpc/rpc-client-contract'
 import { hqReportDecisions, hqReportsRead, hqWikiPageRead } from './hq-messenger-operations'
 import { HqActionButton, hqAgo, hqStyles } from './mobile-hq-parts'
 import { errorText, useMobileHqPoll } from './use-mobile-hq-poll'
+import { ALL_HQ_SPACES, mobileHqShowsReport, type MobileHqSpaceFilter } from './mobile-hq-spaces'
 
 const FOLDER_LABEL: Record<HqReport['folder'], string> = {
   improvements: 'Week review',
@@ -90,9 +91,11 @@ function Report({ client, report }: { client: RpcClient; report: HqReport }) {
 export function MobileHqReportsPage({
   client,
   path,
-  onOpen
+  onOpen,
+  spaces = ALL_HQ_SPACES
 }: {
   client: RpcClient
+  spaces?: MobileHqSpaceFilter
   /** The report shown, or null for the list. */
   path: string | null
   onOpen: (path: string) => void
@@ -108,12 +111,13 @@ export function MobileHqReportsPage({
   if (shown) {
     return <Report client={client} report={shown} />
   }
-  if (state.value.length === 0) {
+  const reports = state.value.filter((report) => mobileHqShowsReport(spaces, report.space))
+  if (reports.length === 0) {
     return <Text style={hqStyles.meta}>No reports yet.</Text>
   }
   return (
     <View>
-      {state.value.map((report) => (
+      {reports.map((report) => (
         <View key={report.path} style={hqStyles.row}>
           <Text
             style={hqStyles.title}

@@ -1,7 +1,7 @@
 // Custom build (hq-reports): HQ's «Reports» — the reports agents leave in HQ, newest first; one is
 // read at a time with a box under it for the owner's decisions. At phone width the list and the
 // report take turns on the whole width, as in the Wiki.
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { List } from 'lucide-react'
 import { readHqReports, type HqReport, type HqReportFolder } from '../../../../../shared/hq-reports'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { hqWikiBody } from './hq-wiki-tree'
 import { onHqReportRequested, takeRequestedHqReport } from './hq-report-target'
 import { HqReportDecisions } from './HqReportDecisions'
 import { useHqWikiPage } from './use-hq-wiki-page'
+import { hqSpaceStripeStyle, useHqSpaces } from './use-hq-spaces'
 
 const REFRESH_MS = 60_000
 
@@ -57,7 +58,16 @@ function useHqReports(): ListState {
 
 export function HqReportsTab(): React.JSX.Element {
   const now = useNow(REFRESH_MS)
-  const { reports, error, loaded } = useHqReports()
+  const { reports: allReports, error, loaded } = useHqReports()
+  // Custom build (hq-spaces): a workspace's own reports only in it; the global HQ's in every one.
+  const spaces = useHqSpaces()
+  const reports = useMemo(
+    () =>
+      allReports.filter(
+        (report) => !report.space || !spaces.active || report.space === spaces.active.slug
+      ),
+    [allReports, spaces.active]
+  )
   const [chosen, setChosen] = useState<string | null>(() => takeRequestedHqReport())
   const [listOpen, setListOpen] = useState(false)
   useEffect(
@@ -95,6 +105,11 @@ export function HqReportsTab(): React.JSX.Element {
             key={report.path}
             type="button"
             title={report.path}
+            style={hqSpaceStripeStyle(
+              spaces.active
+                ? null
+                : spaces.spaces.find((space) => space.slug === report.space)?.color
+            )}
             aria-current={report.path === current?.path ? 'page' : undefined}
             onClick={() => {
               setChosen(report.path)
