@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { computeHqPinnedCounts, hqCountText } from './hq-pinned-counts'
+import { computeHqPinnedCounts } from './hq-pinned-counts'
+import { hqCountText } from './hq-pinned-counts-wire'
 import { pulseWaitingFixture } from './hq-promises.test'
 import type { HqFeedItem } from './hq-feed'
 import type { PulseDecision, PulseInboxItem } from './pulse-types'
