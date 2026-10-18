@@ -34,7 +34,6 @@ import type { ActivityBarItem } from './activity-bar-buttons'
 import { useBotForWorkspace, useBotGroupForWorkspace } from '../../bots/bot-workspace'
 import { useFocusedChatWorkers } from '@/lib/focused-chat-workers'
 import { useBotNeedsYouCount, useBotNow } from '../../bots/use-bot-now'
-import { useOrcaPlusNewView } from '@/lib/orca-plus-new-view'
 import { CODE_CHAT_TAB } from '../../orca-plus/code-chat/code-chat-panel-state'
 
 export type RightSidebarActivityItems = {
@@ -92,7 +91,6 @@ export function useRightSidebarActivityItems({
   const installedPlugins = usePluginPanelsStore((s) => s.plugins)
   const pluginFetchStatus = usePluginPanelsStore((s) => s.fetchStatus)
   const pluginPanelErrors = usePluginPanelsStore((s) => s.panelErrors)
-  const newView = useOrcaPlusNewView()
   // Custom build (code-chat): the Chat tab rides a plugin-shaped key, so it counts as installed.
   const installedPluginTabKeys = useMemo(
     () => new Set([...collectInstalledPluginTabKeys(installedPlugins), CODE_CHAT_TAB]),
@@ -154,16 +152,12 @@ export function useRightSidebarActivityItems({
         botPageOnly: true,
         labeledTab: isBot
       },
-      ...(newView
-        ? [
-            {
-              id: CODE_CHAT_TAB,
-              icon: MessagesSquare,
-              title: translate('auto.codeChat.title', 'Chat'),
-              shortcut: ''
-            }
-          ]
-        : []),
+      {
+        id: CODE_CHAT_TAB,
+        icon: MessagesSquare,
+        title: t('auto.codeChat.title', 'Chat'),
+        shortcut: ''
+      },
       {
         id: 'vault',
         icon: AgentSessionHistoryIcon,
@@ -215,7 +209,6 @@ export function useRightSidebarActivityItems({
     [
       checksShortcut,
       explorerShortcut,
-      newView,
       pluginPanelErrors,
       visiblePluginPanels,
       portsShortcut,
