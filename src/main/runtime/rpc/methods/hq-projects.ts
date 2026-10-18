@@ -14,8 +14,10 @@ import {
   HqUpdateSettingsParams,
   HqVoiceIdeaParams,
   HqVoiceRewriteParams,
-  HqWikiPageParams
+  HqWikiPageParams,
+  HqPinnedSeenParams
 } from '../../../../shared/rpc-contract/hq-projects-params'
+import { markHqPinnedSeen, readHqPinnedCounts } from '../../../hq-today/hq-pinned-counts'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../shared/outgoing-approval/outgoing-approval-bell'
 import {
   runHqBellActionOnDesktop,
@@ -74,6 +76,21 @@ export const HQ_PROJECTS_METHODS = [
     permission: 'workspace',
     params: null,
     handler: async () => readHqChatList()
+  }),
+  // Custom build (hq-pinned-counts): the counts beside HQ's pinned items, and an item just opened.
+  defineMethod({
+    name: 'hqProjects.pinnedCounts',
+
+    permission: 'workspace',
+    params: null,
+    handler: async (_params, { runtime }) => readHqPinnedCounts(runtime, service(), Date.now())
+  }),
+  defineMethod({
+    name: 'hqProjects.markPinnedSeen',
+
+    permission: 'workspace',
+    params: HqPinnedSeenParams,
+    handler: async (params) => markHqPinnedSeen(service(), params.id, Date.now())
   }),
   defineMethod({
     name: 'hqProjects.reportDecisionsOnDesktop',
