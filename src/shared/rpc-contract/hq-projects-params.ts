@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { OptionalBoolean, requiredString } from './rpc-param-primitives'
 import { HQ_PINNED_SEEN_IDS } from '../hq-pinned-counts-wire'
 import { HQ_REPORT_PATH } from '../hq-reports'
+import { HQ_SPACE_KEY_KINDS, HQ_SPACE_SLUG } from '../hq-spaces'
 
 export const HqWikiPageParams = z.object({ path: requiredString('Wiki page path is required') })
 
@@ -117,3 +118,10 @@ export const HqPinnedSeenParams = z.object({ id: z.enum(HQ_PINNED_SEEN_IDS) })
 export const HqPinnedCountsParams = z
   .object({ space: z.string().max(80).nullable().optional() })
   .optional()
+
+/** Custom build (hq-space-keys): a workspace's own token to save, or null to remove it. */
+export const HqSpaceKeyParams = z.object({
+  space: z.string().regex(HQ_SPACE_SLUG),
+  kind: z.enum(HQ_SPACE_KEY_KINDS),
+  value: z.string().max(4000).nullable()
+})
