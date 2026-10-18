@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  hqSpaceWrongChannel,
   hqReviewProject,
   hqSpaceUsesSource,
   hqSpaceOf,
@@ -128,5 +129,16 @@ describe('hqReviewProject', () => {
     expect(hqReviewProject('acme/backend/acme-api!34')).toBe('acme-api')
     expect(hqReviewProject('owner/repo#12')).toBe('repo')
     expect(hqReviewProject('nonsense')).toBeNull()
+  })
+})
+
+describe('hqSpaceWrongChannel', () => {
+  it('names the workspace a message leaves through a messenger it does not use', () => {
+    const all = spaces()
+    expect(hqSpaceWrongChannel(all, 'orca-custom', 'slack')?.slug).toBe('personal')
+    expect(hqSpaceWrongChannel(all, 'acme-api', 'slack')).toBeNull()
+    expect(hqSpaceWrongChannel(all, 'acme-api', 'clickup')).toBeNull()
+    expect(hqSpaceWrongChannel(all, 'strata', 'slack')).toBeNull()
+    expect(hqSpaceWrongChannel(all, null, 'slack')).toBeNull()
   })
 })

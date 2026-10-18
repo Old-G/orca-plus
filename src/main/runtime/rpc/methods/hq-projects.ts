@@ -16,10 +16,12 @@ import {
   HqVoiceRewriteParams,
   HqWikiPageParams,
   HqPinnedSeenParams,
-  HqPinnedCountsParams
+  HqPinnedCountsParams,
+  HqSpaceKeyParams
 } from '../../../../shared/rpc-contract/hq-projects-params'
 import { markHqPinnedSeen, readHqPinnedCounts } from '../../../hq-today/hq-pinned-counts'
 import { listHqSpaces } from '../../../hq-today/hq-spaces'
+import { listHqSpaceKeys, setHqSpaceKey } from '../../../hq-today/hq-space-keys'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../shared/outgoing-approval/outgoing-approval-bell'
 import {
   runHqBellActionOnDesktop,
@@ -105,6 +107,21 @@ export const HQ_PROJECTS_METHODS = [
     permission: 'workspace',
     params: HqPinnedSeenParams,
     handler: async (params) => markHqPinnedSeen(service(), params.id, Date.now())
+  }),
+  // Custom build (hq-space-keys): which workspaces keep their own tokens, and saving one — on the Mac only.
+  defineMethod({
+    name: 'hqProjects.spaceKeys',
+
+    permission: 'workspace',
+    params: null,
+    handler: async () => listHqSpaceKeys()
+  }),
+  defineMethod({
+    name: 'hqProjects.setSpaceKey',
+
+    permission: 'settings-write',
+    params: HqSpaceKeyParams,
+    handler: async (params) => setHqSpaceKey(params.space, params.kind, params.value)
   }),
   defineMethod({
     name: 'hqProjects.reportDecisionsOnDesktop',
