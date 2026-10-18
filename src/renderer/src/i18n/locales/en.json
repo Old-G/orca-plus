@@ -19263,7 +19263,8 @@
         "reports": "Reports",
         "new": "{{shown}} new",
         "requests": "{{shown}} to decide",
-        "remind": "{{count}} to remind"
+        "remind": "{{count}} to remind",
+        "people": "People"
       },
       "ready": {
         "noCheck": "The task list has no «check» status — move it by hand.",
@@ -19583,6 +19584,27 @@
         "title": "Workspace keys",
         "hint": "Each workspace's own tokens, encrypted on this Mac. A workspace without one uses Orca's own connection.",
         "open": "Workspace keys…"
+      },
+      "people": {
+        "other": "Other",
+        "yours": "You work with",
+        "openCount": "Open between you",
+        "empty": "No people yet. Put the org matrix in HQ as people/org.csv.",
+        "search": "Name, role or department",
+        "searchLabel": "Search people",
+        "prepChat": "Meeting · {{name}}",
+        "prepare": "Prepare for a meeting",
+        "reportsTo": "Reports to",
+        "team": "Team",
+        "onMe": "Waiting on you",
+        "onMeEmpty": "Nothing.",
+        "onThem": "You're waiting on them",
+        "onThemEmpty": "Nothing.",
+        "sent": "Sent to them",
+        "sentEmpty": "Nothing through Approve yet.",
+        "notes": "Notes",
+        "notesEmpty": "No notes in {{path}} yet.",
+        "noPage": "No page in HQ yet."
       }
     },
     "claudeSubscriptions": {
