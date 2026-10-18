@@ -19756,6 +19756,10 @@
         "noHq": "Add the HQ folder as a project first.",
         "gone": "This question is already closed.",
         "chatName": "Remind {{name}}"
+      },
+      "spaces": {
+        "all": "All workspaces",
+        "label": "Workspace"
       }
     },
     "claudeSubscriptions": {

@@ -23,6 +23,7 @@ import { HqDoneSentDetails } from './HqDoneSentDetails'
 import { hqSentNames } from './hq-sent-names'
 import { useHqChatList } from './use-hq-chat-list'
 import { useHqPulse } from './use-hq-pulse'
+import { useHqSpaces } from './use-hq-spaces'
 
 const AGE_TICK_MS = 60_000
 // Why: decisions come from clicks in this app; a minute keeps the page fresh without a watcher.
@@ -184,9 +185,14 @@ export function HqDoneJournalTab(): React.JSX.Element {
   const decisions = pulse.status === 'ready' ? pulse.pulse.decisions : null
   const { items: chats } = useHqChatList()
   const [filter, setFilter] = useState(NO_HQ_DONE_FILTER)
+  // Custom build (hq-spaces): only what was done in the chosen workspace.
+  const spaces = useHqSpaces()
   const all = useMemo(
-    () => buildHqDoneJournal(requests, decisions ?? [], now),
-    [requests, decisions, now]
+    () =>
+      buildHqDoneJournal(requests, decisions ?? [], now).filter((entry) =>
+        spaces.shows({ project: entry.sent?.project })
+      ),
+    [requests, decisions, now, spaces]
   )
   const projects = useMemo(() => hqDoneProjects(all), [all])
   const tasks = useMemo(() => hqDoneTasks(all), [all])
