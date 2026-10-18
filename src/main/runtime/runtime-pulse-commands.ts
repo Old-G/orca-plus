@@ -14,7 +14,9 @@ import type {
   PulsePersonInput,
   PulseWaiting,
   PulseWaitingFilter,
+  PulseWaitingAdded,
   PulseWaitingInput,
+  PulseWaitingPatch,
   PulseWaitingReply,
   PulseWaitingStatus
 } from '../../shared/pulse-types'
@@ -104,8 +106,12 @@ export class RuntimePulseCommands {
     return this.db().listPeople(query)
   }
 
-  pulseAddWaiting(input: PulseWaitingInput): PulseWaiting {
+  pulseAddWaiting(input: PulseWaitingInput): PulseWaitingAdded {
     return this.db().addWaiting(input)
+  }
+
+  pulseUpdateWaiting(id: string, patch: PulseWaitingPatch): PulseWaiting {
+    return this.db().updateWaiting(id, patch)
   }
 
   pulseCloseWaiting(
