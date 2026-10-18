@@ -32,7 +32,9 @@ describe('listHqSpaces', () => {
         name: 'Acme',
         color: '#3b82f6',
         repoIds: ['r-api'],
-        projects: ['acme-api']
+        projects: ['acme-api'],
+        messenger: null,
+        tasks: null
       }
     ])
   })

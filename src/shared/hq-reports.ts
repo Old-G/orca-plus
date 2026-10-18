@@ -1,7 +1,7 @@
 // Custom build (hq-reports): HQ's «Reports» — the reports agents leave in HQ (the week's
 // improvements, meeting follow-ups, status updates) in one list, each read with the owner's decisions
 // dictated beside it and sent back to an HQ chat that carries them out.
-import { z } from 'zod'
+import * as z from 'zod'
 
 /** HQ folders that hold reports, newest file first in each. */
 export const HQ_REPORT_FOLDERS = [
@@ -20,9 +20,15 @@ export const HqReportSchema = z.object({
   title: z.string().max(300),
   folder: z.enum(HQ_REPORT_FOLDERS),
   /** Last change, epoch ms. */
-  at: z.number()
+  at: z.number(),
+  /** Custom build (hq-spaces): the workspace a report under `workspaces/<slug>/` belongs to. */
+  space: z.string().max(80).optional()
 })
 export type HqReport = z.infer<typeof HqReportSchema>
+
+/** `improvements/x.md` or `workspaces/<slug>/improvements/x.md`: what the decisions RPC accepts. */
+export const HQ_REPORT_PATH =
+  /^(?:workspaces\/[a-z0-9][a-z0-9-]{0,62}\/)?(?:improvements|meetings|status-update|updates|daily)\/[^/\\]+\.md$/
 
 export type HqReportsResult = { ok: true; reports: HqReport[] } | { ok: false; error: string }
 
