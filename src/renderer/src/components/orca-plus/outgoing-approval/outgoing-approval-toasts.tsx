@@ -30,6 +30,9 @@ export function syncOutgoingApprovalToasts(
       id: toastId(item.id),
       duration: Number.POSITIVE_INFINITY,
       unstyled: true,
+      // Why: sonner measures a toast while it sits scaled down in the stack and pins that height
+      // when the stack opens on hover, so a tall card slid down past the window (owner, 18.10).
+      className: 'data-[expanded=true]:h-auto!',
       dismissible: false,
       closeButton: false
     })
