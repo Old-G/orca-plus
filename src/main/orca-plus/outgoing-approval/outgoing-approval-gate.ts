@@ -44,6 +44,8 @@ type GateDeps = {
   /** A pending call nobody has polled for this long belongs to a hook that is gone. */
   abandonAfterMs?: number
   onChanged?: () => void
+  /** Custom build (clickup-untagged-nudge): why to hand a call back once, or null to judge it as usual. */
+  nudge?: (toolName: string, toolInput: Record<string, unknown>) => string | null
 }
 
 const DEFAULT_HOLD_MS = 25_000
@@ -118,6 +120,8 @@ export class OutgoingApprovalGate {
   private readonly holdMs: number
   private readonly abandonAfterMs: number
   private readonly startedAt: number
+  // Why: a nudge goes back once; the same call sent again is the agent's answer that no tag is needed.
+  private readonly nudged = new Set<string>()
 
   constructor(private readonly deps: GateDeps) {
     this.now = deps.now ?? Date.now
@@ -133,6 +137,12 @@ export class OutgoingApprovalGate {
     const toolInput = plainObject(field(hook, 'tool_input'))
     if (stringField(hook, 'hook_event_name') !== 'PreToolUse' || !toolName || !toolInput) {
       return { state: 'pass' }
+    }
+    const nudge = this.deps.nudge?.(toolName, toolInput)
+    const nudgeKey = `${stringField(hook, 'session_id') ?? ''}:${toolName}:${JSON.stringify(toolInput)}`
+    if (nudge && !this.nudged.has(nudgeKey)) {
+      this.nudged.add(nudgeKey)
+      return { state: 'final', output: preToolUse('deny', nudge) }
     }
     const cwd = stringField(hook, 'cwd')
     const action = classifyOutgoingToolCall(toolName, toolInput, cwd)
