@@ -19434,7 +19434,9 @@
         "moreChanges": "+{{count}} more",
         "review": "Review",
         "task": "Task",
-        "otherChats": "Other chats here"
+        "otherChats": "Other chats here",
+        "history": "History",
+        "moreHistory": "Show {{count}} more"
       },
       "mode": {
         "label": "Mode",
