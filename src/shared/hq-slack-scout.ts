@@ -220,6 +220,8 @@ export type HqSlackScoutTuning = {
   cardTtlDays: number
   /** Local hours the Slack digest lands in the bell. */
   digestHours: number[]
+  /** Custom build (hq-clickup-triage): HQ projects the ClickUp triage may answer for. */
+  clickUpTriageProjects: string[]
 }
 
 export const DEFAULT_HQ_CARD_TTL_DAYS = 3
@@ -248,7 +250,10 @@ export function parseHqSlackScoutTuning(text: string): HqSlackScoutTuning {
   return {
     clickUpIgnoreAuthors: [...ignore.matchAll(/\d+/g)].map((match) => match[0]),
     cardTtlDays: Number.isFinite(ttl) && ttl > 0 ? ttl : DEFAULT_HQ_CARD_TTL_DAYS,
-    digestHours: values.has('digest_hours') ? hours.sort((a, b) => a - b) : DEFAULT_HQ_DIGEST_HOURS
+    digestHours: values.has('digest_hours') ? hours.sort((a, b) => a - b) : DEFAULT_HQ_DIGEST_HOURS,
+    clickUpTriageProjects: [
+      ...(values.get('clickup_triage_projects') ?? '').matchAll(/[\w.-]+/g)
+    ].map((match) => match[0])
   }
 }
 
