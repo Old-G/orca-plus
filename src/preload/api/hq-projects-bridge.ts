@@ -38,6 +38,9 @@ export const hqProjectsApi = {
     ipcRenderer.on('hqProjects:runBellAction', handler)
     return () => ipcRenderer.removeListener('hqProjects:runBellAction', handler)
   },
+  autoEffortKeyStatus: () => ipcRenderer.invoke('hqProjects:autoEffortKeyStatus'),
+  saveAutoEffortKey: (key) => ipcRenderer.invoke('hqProjects:saveAutoEffortKey', key),
+  clearAutoEffortKey: () => ipcRenderer.invoke('hqProjects:clearAutoEffortKey'),
   onRunReportDecisions: (listener) => {
     const handler = (_event: unknown, request: { path: string; text: string }): void =>
       listener(request)

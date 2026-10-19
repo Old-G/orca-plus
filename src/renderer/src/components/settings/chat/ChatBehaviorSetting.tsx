@@ -9,6 +9,7 @@ import {
 } from '@/runtime/native-chat/host-capabilities/structured-agent-session-host-capability'
 import { useAppStore } from '../../../store/index'
 import { ChatPermissionSetting } from './ChatPermissionSetting'
+import { ChatAutoEffortSetting } from '../ChatAutoEffortSetting'
 import { NativeChatShellEnvironmentSetting } from './NativeChatShellEnvironmentSetting'
 import { NativeChatIdleStopSetting } from './NativeChatIdleStopSetting'
 import { SearchableSetting } from '../section-layout/SearchableSetting'
@@ -200,6 +201,8 @@ export function ChatBehaviorSetting({
       >
         <NativeChatShellEnvironmentSetting settings={settings} updateSettings={updateSettings} />
       </SearchableSetting>
+      {/* Custom build (chat-auto-effort) */}
+      <ChatAutoEffortSetting settings={settings} updateSettings={updateSettings} />
     </SettingsGroup>
   )
 }
