@@ -78,6 +78,8 @@ export type ClickUpComment = {
   body: string
   author: ClickUpUser | null
   createdAt: number | null
+  /** Threaded replies under it; only task-level comments carry it. */
+  replyCount?: number
 }
 
 export type ClickUpSpace = {
