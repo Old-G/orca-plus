@@ -153,7 +153,7 @@ export async function registerCoreHandlers(
     registerHqGroupChatHandlers(store, registerHqRosterSync(store))
     registerHqProjectPagesHandlers(store, () => runtime.getCommitMessageAgentEnvironmentResolvers())
     registerHqPulseMirror(store)
-    registerPulseBell(store, runtime)
+    registerPulseBell(store, runtime, rateLimits)
     startHqMorningBriefing({
       now: Date.now,
       listInbox: () => runtime.pulseListInbox(true),

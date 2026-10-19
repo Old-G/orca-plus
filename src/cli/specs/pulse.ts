@@ -1,5 +1,5 @@
-import type { CommandSpec } from '../args'
-import { GLOBAL_FLAGS } from '../args'
+import type { CommandSpec } from '../arguments/args'
+import { GLOBAL_FLAGS } from '../arguments/args'
 
 // Custom build (pulse): agents record what they wait on, what was decided and what they want to
 // send. A draft only waits for the owner's approval here; nothing in `orca pulse` sends it.
@@ -103,6 +103,16 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
     summary: 'List drafts, pending ones unless --status says otherwise',
     usage: 'orca pulse draft list [--status <pending|approved|rejected|sent|failed|all>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'status']
+  },
+  {
+    path: ['pulse', 'review', 'reply'],
+    summary: 'Hand HQ the draft comment for a ClickUp change you looked into; the owner sends it',
+    usage:
+      'orca pulse review reply --task <clickup task id> --reply <comment> [--summary <one line>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'task', 'reply', 'summary'],
+    notes: [
+      'Only for a chat HQ started with «Разобрать»: the draft lands on its card, nothing is posted.'
+    ]
   },
   {
     path: ['pulse', 'person', 'show'],

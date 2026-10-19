@@ -64,7 +64,18 @@ export const HqSlackScoutDraftSchema = z.object({
   /** Custom build (hq-scout-context): why this needs the owner, one line, after the scout's checks. */
   why: z.string().max(300).optional().catch(undefined),
   /** A blocker, a deadline today or a direct question long unanswered: the only kind that pops up. */
-  urgent: z.boolean().optional().catch(undefined)
+  urgent: z.boolean().optional().catch(undefined),
+  /** Custom build (hq-clickup-review): a task change the small model left for a look at code or data. */
+  needsReview: z.boolean().optional().catch(undefined),
+  /** The chat looking into it, laid over the card when HQ reads it; never written to a file. */
+  review: z
+    .object({
+      state: z.enum(['running', 'done']),
+      worktreeId: z.string().max(2_000),
+      tabId: z.string().max(500).optional()
+    })
+    .optional()
+    .catch(undefined)
 })
 
 export type HqSlackScoutDraft = z.infer<typeof HqSlackScoutDraftSchema>
@@ -110,7 +121,11 @@ export const HqSlackScoutDecisionSchema = z.object({
   title: z.string().max(300).optional().catch(undefined),
   author: z.string().max(200).optional().catch(undefined),
   source: z.enum(['slack', 'clickup']).optional().catch(undefined),
-  permalink: z.string().max(2000).optional().catch(undefined)
+  permalink: z.string().max(2000).optional().catch(undefined),
+  /** Custom build (hq-clickup-review): what the triage made of it, for the daily lessons. */
+  project: z.string().max(200).nullable().optional().catch(undefined),
+  kind: SlackRequestKind.optional().catch(undefined),
+  needsReview: z.boolean().optional().catch(undefined)
 })
 
 export type HqSlackScoutDecision = z.infer<typeof HqSlackScoutDecisionSchema>
@@ -135,7 +150,7 @@ export function hqSlackScoutDone(
 export type HqSlackScoutDecisions = Record<string, HqSlackScoutDecision>
 
 /** `{id: entry}` read entry by entry, so one entry a newer app wrote does not drop the rest. */
-function parseRecordFile<T>(text: string, entry: z.ZodType<T>): Record<string, T> {
+export function parseRecordFile<T>(text: string, entry: z.ZodType<T>): Record<string, T> {
   let raw: unknown
   try {
     raw = JSON.parse(text)
@@ -227,7 +242,7 @@ export type HqSlackScoutTuning = {
 export const DEFAULT_HQ_CARD_TTL_DAYS = 3
 export const DEFAULT_HQ_DIGEST_HOURS = [10, 14, 18]
 
-function configValues(text: string): Map<string, string> {
+export function parseHqScoutConfigValues(text: string): Map<string, string> {
   const values = new Map<string, string>()
   for (const line of text.split('\n')) {
     const match = /^([a-z_]+):\s*([^#]*?)\s*(?:#.*)?$/.exec(line.trim())
@@ -241,7 +256,7 @@ function configValues(text: string): Map<string, string> {
 /** `clickup_ignore_authors: [50000001]`, `card_ttl_days: 3`, `digest_hours: [10, 14, 18]`; anything
  *  unreadable keeps the default. */
 export function parseHqSlackScoutTuning(text: string): HqSlackScoutTuning {
-  const values = configValues(text)
+  const values = parseHqScoutConfigValues(text)
   const ignore = values.get('clickup_ignore_authors') ?? ''
   const ttl = Number(values.get('card_ttl_days'))
   const hours = [...(values.get('digest_hours') ?? '').matchAll(/\d+/g)]
