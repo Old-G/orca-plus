@@ -1,6 +1,6 @@
 // Custom build (hq-chats): the panel beside an open HQ chat — its workspace's uncommitted changes
 // (a click opens the diff), the linked review with its checks, the linked task, and the project's
-// other chats.
+// other chats and its past ones.
 import { ExternalLink } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { HqAgentMapSection } from './HqAgentMap'
@@ -9,7 +9,9 @@ import { ReviewChecksBadge, ReviewStateBadge } from '../../sidebar/WorktreeCardM
 import { openHqChangeDiff } from './hq-chat-actions'
 import type { HqChatItem } from './hq-chat-list'
 import { HqChatAvatar, useHqChatTitle } from './HqChatAvatar'
+import { HqProjectHistoryList } from './HqProjectHistoryList'
 import { useHqChatContext } from './use-hq-chat-context'
+import { useHqProjectHistory } from './use-hq-project-history'
 
 const MAX_CHANGES = 12
 
@@ -73,6 +75,7 @@ export function HqContextPanel({
   const context = useHqChatContext(item.worktreeId)
   const { worktree, changes, review, task } = context
   const shown = changes.slice(0, MAX_CHANGES)
+  const history = useHqProjectHistory(item.worktreeId)
   return (
     <aside
       aria-label={translate('auto.hq.context.label', 'Chat context')}
@@ -163,6 +166,19 @@ export function HqContextPanel({
               />
             ))}
           </ul>
+        </section>
+      ) : null}
+      {history.length > 0 ? (
+        <section>
+          <Caption>
+            {translate('auto.hq.context.history', 'History')} · {history.length}
+          </Caption>
+          <HqProjectHistoryList
+            key={item.worktreeId}
+            chats={history}
+            projectName={item.projectName}
+            color={colorFor(item.repoId)}
+          />
         </section>
       ) : null}
     </aside>
