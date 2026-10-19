@@ -35,7 +35,7 @@ function turn(sessionId: string, entrypoint: string, text: string, minute: numbe
 }
 
 describe('automated (SDK script) Claude sessions', () => {
-  it('marks Python Agent SDK sessions and hides them from history unless asked', async () => {
+  it('marks SDK script and `claude -p` sessions and hides them from history unless asked', async () => {
     const root = await mkdtemp(join(tmpdir(), 'orca-ai-vault-automated-'))
     tempRoots.push(root)
     const roots = isolatedScanRoots(root)
@@ -54,8 +54,8 @@ describe('automated (SDK script) Claude sessions', () => {
     const byId = new Map(result.sessions.map((session) => [session.sessionId, session]))
     expect(byId.get('review')?.automated).toBe(true)
     expect(byId.get('chat')?.automated).toBeUndefined()
-    // `claude -p` is also used by people; only the Python SDK counts as automated.
-    expect(byId.get('print')?.automated).toBeUndefined()
+    // A one-shot `claude -p` answer is no conversation to return to; nearly all are Orca+'s own.
+    expect(byId.get('print')?.automated).toBe(true)
 
     const base = {
       query: '',
@@ -69,8 +69,8 @@ describe('automated (SDK script) Claude sessions', () => {
       filterAiVaultSessions(result.sessions, { ...base, hideAutomatedSessions })
         .map((session) => session.sessionId)
         .sort()
-    expect(shown()).toEqual(['chat', 'print'])
-    expect(shown(true)).toEqual(['chat', 'print'])
+    expect(shown()).toEqual(['chat'])
+    expect(shown(true)).toEqual(['chat'])
     expect(shown(false)).toEqual(['chat', 'print', 'review'])
   })
 })
