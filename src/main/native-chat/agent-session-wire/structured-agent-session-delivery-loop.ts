@@ -273,12 +273,14 @@ export class StructuredAgentSessionDeliveryLoop {
     ) {
       return this.stop(sessionId)
     }
+    const options = await this.deps.autoEffortOptions?.(sessionId, next)
+    const handed = options && options !== next.options ? { ...next, options } : next
     const pending = await beginStructuredAgentSessionInputHandover(
       this.deps,
       sessionId,
       session,
       awaitedChild,
-      next,
+      handed,
       () => this.disposed
     )
     return pending ?? 'continue'

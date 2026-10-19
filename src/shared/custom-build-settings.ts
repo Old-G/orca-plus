@@ -44,6 +44,8 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqReadAloud?: { rate: number; voiceURI: string | null; auto: boolean }
     /** Custom build (hq-night-shift): hour the night shift starts tasks queued «Tonight»; default 23. */
     hqNightShiftHour?: number
+    /** Custom build (chat-auto-effort): each message to a Claude chat picks medium, high or xhigh effort. */
+    nativeChatAutoEffort?: boolean
     /** Custom build (quiet-hours): no phone or Slack alerts but urgent ones; unset = 21–9, null = off. */
     orcaPlusQuietHours?: OrcaPlusQuietHours | null
   }

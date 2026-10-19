@@ -40,6 +40,7 @@ import { acceptedNoLaterThan } from './structured-agent-session-start-failure-ro
 import type { StructuredAgentSessionAcquireAborts } from './structured-agent-session-acquire-aborts'
 import { settleStructuredAgentSessionLeftovers } from './structured-agent-session-leftover-settlement'
 import { createStructuredAgentSessionRanRecorder } from './structured-agent-session-ran-options'
+import { withAutoEffort } from '../auto-effort/native-chat-auto-effort'
 
 export type StructuredAgentSessionConversationDelivery = {
   loop: StructuredAgentSessionDeliveryLoop
@@ -152,6 +153,13 @@ export function createStructuredAgentSessionConversationDelivery(input: {
     readiness: input.readiness,
     startFlights: input.startFlights,
     deliveryOrder: input.deliveryOrder,
+    // Custom build (chat-auto-effort): the effort a small model picked for this message.
+    autoEffortOptions: (sessionId, submission) =>
+      withAutoEffort(
+        submission,
+        deps.store.getRecord(sessionId)?.provider,
+        sessions.get(sessionId)?.journal
+      ),
     conversationFence: (sessionId) =>
       structuredAgentSessionConversationFence(deps.store, sessionId),
     closeWhatTheUserClosed: async (sessionId) => {

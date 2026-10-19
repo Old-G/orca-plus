@@ -41,6 +41,11 @@ export type StructuredAgentSessionDeliveryLoopDeps = {
     sessionId: string,
     child: StructuredAgentSessionProviderChildIdentity
   ) => StructuredAgentSessionStartReadiness | null
+  /** Custom build (chat-auto-effort): the options a message goes out with, effort picked for it. */
+  autoEffortOptions?: (
+    sessionId: string,
+    submission: AgentJournalSubmission
+  ) => Promise<AgentJournalSubmission['options']>
   conversationFence: (sessionId: string) => number
   /** Settle sends covered by partial close; later sends remain eligible. False means settlement failed. */
   closeWhatTheUserClosed: (sessionId: string) => Promise<boolean>

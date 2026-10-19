@@ -98,6 +98,10 @@ export type HqProjectsApi = {
     text: string
     draft?: string
   }) => Promise<{ ok: true } | { ok: false; error: string }>
+  /** Custom build (chat-auto-effort), desktop only: the OpenRouter key Jev picks effort with. */
+  autoEffortKeyStatus?: () => Promise<{ configured: boolean }>
+  saveAutoEffortKey?: (key: string) => Promise<{ configured: boolean }>
+  clearAutoEffortKey?: () => Promise<{ configured: boolean }>
   /** Paired web client only: HQ's settings, which live on the Mac. The desktop reads its own. */
   settings?: () => Promise<HqClientSettings>
 }
