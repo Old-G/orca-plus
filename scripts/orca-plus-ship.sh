@@ -134,10 +134,7 @@ prune_backups() {
 if [ "$dry" = 0 ] && [ "$detached" = 0 ]; then
   # Why: keep the previous run's log — a ship that died without a verdict leaves no other trace.
   [ -f "$log" ] && mv "$log" "$log.1"
-  # Why: started from an Orca+ chat we sit in its agent's process group, which the supervisor kills
-  # once Orca+ quits — the 18.10 and 19.10 ships died after the swap. setsid leaves that group.
-  nohup perl -MPOSIX -e 'POSIX::setsid() >= 0 or die "setsid: $!\n"; exec @ARGV or die "exec: $!\n"' \
-    "$0" "$@" --detached </dev/null >"$log" 2>&1 &
+  nohup "$0" "$@" --detached </dev/null >"$log" 2>&1 &
   echo "orca-plus-ship: running detached (pid $!), log $log"
   exit 0
 fi
@@ -177,6 +174,13 @@ step "new app: ${new:-<dist/mac-*/Orca Plus.app>}"
 step "restart marker for chat ${ORCA_AGENT_SESSION_ID:-<none>}"
 run write_restart_marker
 
+# Why: a step that fails after the quit must not leave Orca+ closed, nor die without a word in the log.
+on_error() {
+  step "failed at line $1: $2"
+  [ "$dry" = 0 ] && ! app_running && [ -x "$app/Contents/MacOS/Orca Plus" ] && launch_orca_plus
+}
+trap 'on_error "$LINENO" "$BASH_COMMAND"' ERR
+
 step "quit Orca+ (waits up to 3 minutes)"
 if [ "$dry" = 0 ]; then
   osascript -e "tell application id \"$bundle_id\" to quit" || true
@@ -203,7 +207,8 @@ fi
 [ "$dry" = 1 ] && echo "  would run: ditto $new $app"
 
 # Why: a registered dist/ copy is what Spotlight, Raycast and `open -b` start next time.
-run /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$new"
+# A copy that was never registered fails with -10814; under set -e that ended the ship before launch.
+run /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$new" || true
 run "$repo/scripts/orca-plus-open-at-login.sh"
 
 step "launch"
