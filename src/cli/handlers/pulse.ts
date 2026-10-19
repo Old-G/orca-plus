@@ -225,6 +225,22 @@ export const PULSE_HANDLERS: Record<string, CommandHandler> = {
     )
   },
 
+  // Custom build (hq-clickup-review): a «Разобрать» chat's draft back to its HQ card.
+  'pulse review reply': async ({ flags, client, json }) => {
+    const result = await client.call<{ ok: true } | { ok: false; error: string }>(
+      'hqProjects.replyClickUpReview',
+      {
+        taskId: getRequiredStringFlag(flags, 'task'),
+        reply: getRequiredStringFlag(flags, 'reply'),
+        summary: getOptionalStringFlag(flags, 'summary')
+      }
+    )
+    if (!result.result.ok) {
+      throw new Error(result.result.error)
+    }
+    printResult(result, json, () => 'The draft is on its HQ card; the owner sends it.')
+  },
+
   'pulse draft list': async ({ flags, client, json }) => {
     const status = oneOfFlag(flags, 'status', [
       'pending',

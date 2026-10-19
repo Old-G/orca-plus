@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { translate } from '@/i18n/i18n'
 import { HqCommandDictation } from '../hq/HqCommandDictation'
 import { HqClickUpReplyComposer } from './HqClickUpReplyComposer'
+import { openHqClickUpReviewChat, reviewHqClickUpRequest } from './hq-clickup-review-action'
 import {
   answerHqSlackRequest,
   doHqSlackRequest,
@@ -169,7 +170,7 @@ function RequestEditor({
   )
 }
 
-type ActionKey = 'do' | 'answer' | 'edit' | 'skip'
+type ActionKey = 'review' | 'do' | 'answer' | 'edit' | 'skip'
 
 /** The suggested answer first, as in the bell. */
 const ACTION_ORDER: Record<HqSlackRequestKind, ActionKey[]> = {
@@ -226,6 +227,7 @@ export function HqSlackRequestCard({
     }
   }
   const labels: Record<ActionKey, string> = {
+    review: translate('auto.hq.clickup.review', 'Investigate'),
     do: translate('auto.hq.slack.do', 'Do'),
     answer: translate('auto.hq.slack.answer', 'Just reply'),
     edit: translate('auto.hq.slack.edit', 'Edit'),
@@ -235,6 +237,12 @@ export function HqSlackRequestCard({
         : translate('auto.hq.slack.skip', 'Skip')
   }
   const handlers: Record<ActionKey, () => void> = {
+    review: () =>
+      void decide(async () => {
+        await reviewHqClickUpRequest(draft.id)
+        onChanged()
+        return false
+      }),
     do: () => void decide(() => doHqSlackRequest(draft)),
     answer: isClickUp
       ? () => setPanel('reply')
@@ -242,7 +250,12 @@ export function HqSlackRequestCard({
     edit: () => setPanel('edit'),
     skip: () => void decide(() => skipHqSlackRequest(draft.id))
   }
-  const actions = ACTION_ORDER[kind].filter(
+  // Custom build (hq-clickup-review): a change left for a look at code or data offers that first.
+  const order: ActionKey[] =
+    isClickUp && draft.needsReview && !draft.review
+      ? ['review', ...ACTION_ORDER[kind]]
+      : ACTION_ORDER[kind]
+  const actions = order.filter(
     (key) => (key !== 'edit' || !editing) && (key !== 'answer' || panel !== 'reply')
   )
 
@@ -266,6 +279,14 @@ export function HqSlackRequestCard({
       {draft.why ? <p className="text-xs text-foreground">→ {draft.why}</p> : null}
       {draft.quote ? (
         <p className="line-clamp-2 text-xs text-muted-foreground">«{draft.quote}»</p>
+      ) : null}
+      {draft.review?.state === 'running' ? (
+        <p className="text-xs text-muted-foreground">
+          {translate(
+            'auto.hq.clickup.reviewRunning',
+            'Claude is looking into it; the draft comment comes back here.'
+          )}
+        </p>
       ) : null}
       {editing ? (
         <RequestEditor
@@ -301,6 +322,16 @@ export function HqSlackRequestCard({
             {labels[key]}
           </Button>
         ))}
+        {draft.review?.tabId ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={() => draft.review && openHqClickUpReviewChat(draft.review)}
+          >
+            {translate('auto.hq.clickup.openChat', 'Open chat')}
+          </Button>
+        ) : null}
         {draft.permalink ? (
           <Button
             type="button"

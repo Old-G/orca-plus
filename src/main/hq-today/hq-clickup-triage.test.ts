@@ -81,14 +81,14 @@ describe('runHqClickUpTriage', () => {
       KNOWN
     )
 
-    expect(await runHqClickUpTriage(hq, d)).toBe(0)
+    expect(await runHqClickUpTriage(hq, d)).toHaveLength(0)
     task = lucyTask('Step 1\nStep 8\nOdoo:\nFind "Recurring Plan"', ['a1', 'a2'])
     now += 10 * 60_000
-    expect(await runHqClickUpTriage(hq, d)).toBe(0)
+    expect(await runHqClickUpTriage(hq, d)).toHaveLength(0)
     expect(d.generate).not.toHaveBeenCalled()
 
     now += HALF_HOUR
-    expect(await runHqClickUpTriage(hq, d)).toBe(1)
+    expect(await runHqClickUpTriage(hq, d)).toHaveLength(1)
     expect(d.generate).toHaveBeenCalledOnce()
     expect(String(d.generate.mock.calls[0][0])).toContain('Odoo пока не подключаем.')
 
@@ -105,7 +105,7 @@ describe('runHqClickUpTriage', () => {
     ])
 
     now += 15 * 60_000
-    expect(await runHqClickUpTriage(hq, d)).toBe(0)
+    expect(await runHqClickUpTriage(hq, d)).toHaveLength(0)
     expect(d.generate).toHaveBeenCalledOnce()
   })
 
@@ -123,7 +123,7 @@ describe('runHqClickUpTriage', () => {
     now += 60_000
     await runHqClickUpTriage(hq, d)
     now += HALF_HOUR
-    expect(await runHqClickUpTriage(hq, d)).toBe(0)
+    expect(await runHqClickUpTriage(hq, d)).toHaveLength(0)
     const scout = await readHqSlackScout(hq, () => now)
     expect(scout.ok && scout.drafts).toEqual([])
     expect(scout.ok && scout.quiet?.map((item) => item.summary)).toEqual(['опечатка'])
@@ -167,6 +167,34 @@ describe('runHqClickUpTriage', () => {
     const scout = await readHqSlackScout(hq, () => now)
     expect(scout.ok && scout.drafts.map((draft) => [draft.kind, draft.description])).toEqual([
       ['fyi', '']
+    ])
+  })
+
+  it('marks a change that needs a look at code or data for «Разобрать»', async () => {
+    let now = T0
+    let task = lucyTask('Step 1', [])
+    const review = JSON.stringify([
+      {
+        taskId: '86c166ft5',
+        project: 'acme_support_service',
+        verdict: 'review',
+        summary: 'новые шаги',
+        why: 'надо смотреть код'
+      }
+    ])
+    const d = deps(
+      () => [task],
+      () => now,
+      review
+    )
+    await runHqClickUpTriage(hq, d)
+    task = lucyTask('Step 1\nStep 2', [])
+    now += 60_000
+    await runHqClickUpTriage(hq, d)
+    now += HALF_HOUR
+    const cards = await runHqClickUpTriage(hq, d)
+    expect(cards).toEqual([
+      expect.objectContaining({ kind: 'fyi', needsReview: true, ask: 'Разобрать: новые шаги' })
     ])
   })
 })
