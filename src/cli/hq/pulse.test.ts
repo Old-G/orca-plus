@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { HandlerContext } from '../dispatch'
+import type { HandlerContext } from '../dispatch/dispatch'
 import type { RuntimeClient } from '../runtime-client'
 import { PULSE_HANDLERS } from './pulse'
 
@@ -123,6 +123,32 @@ describe('orca pulse draft', () => {
     await expect(run('pulse draft add', { kind: 'email', body: 'x' }).done).rejects.toThrow(
       /--kind must be one of/
     )
+  })
+})
+
+describe('orca pulse review reply', () => {
+  it('hands the draft to HQ’s card for the task', async () => {
+    const { done, calls, printed } = run(
+      'pulse review reply',
+      { task: 't1', reply: 'Это to do.', summary: 'Просят шаги' },
+      { 'hqProjects.replyClickUpReview': { ok: true } }
+    )
+    await done
+    expect(paramsOf(calls, 'hqProjects.replyClickUpReview')).toEqual({
+      taskId: 't1',
+      reply: 'Это to do.',
+      summary: 'Просят шаги'
+    })
+    expect(printed).toEqual(['The draft is on its HQ card; the owner sends it.'])
+  })
+
+  it('fails loudly when HQ has no review for the task', async () => {
+    const { done } = run(
+      'pulse review reply',
+      { task: 't1', reply: 'x' },
+      { 'hqProjects.replyClickUpReview': { ok: false, error: 'HQ has no review open' } }
+    )
+    await expect(done).rejects.toThrow('HQ has no review open')
   })
 })
 

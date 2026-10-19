@@ -5,6 +5,11 @@ import { join } from 'node:path'
 import { HQ_SLACK_QUIET_FILE, parseHqSlackQuiet } from '../../shared/hq-slack-digest'
 import { HQ_CLICKUP_TRIAGE_FILE } from '../../shared/hq-clickup-triage'
 import {
+  HQ_CLICKUP_REVIEWS_FILE,
+  applyHqClickUpReviews,
+  parseHqClickUpReviews
+} from '../../shared/hq-clickup-review'
+import {
   HQ_CLICKUP_REQUESTS_FILE,
   HQ_SLACK_SCOUT_CONFIG_FILE,
   HQ_SLACK_SCOUT_DECISIONS_FILE,
@@ -53,22 +58,25 @@ function scoutPath(hqPath: string, file: string): string {
 
 /** Every request in the scout's files and Orca+'s own, with the owner's corrections over them. */
 async function readScoutFiles(hqPath: string) {
-  const [config, drafts, decisions, status, edits, clickup, quiet, triage] = await Promise.all([
-    readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_CONFIG_FILE)),
-    readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DRAFTS_FILE)),
-    readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DECISIONS_FILE)),
-    readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_STATUS_FILE)),
-    readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_EDITS_FILE)),
-    readOptional(scoutPath(hqPath, HQ_CLICKUP_REQUESTS_FILE)),
-    readOptional(scoutPath(hqPath, HQ_SLACK_QUIET_FILE)),
-    readOptional(scoutPath(hqPath, HQ_CLICKUP_TRIAGE_FILE))
-  ])
+  const [config, drafts, decisions, status, edits, clickup, quiet, triage, reviews] =
+    await Promise.all([
+      readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_CONFIG_FILE)),
+      readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DRAFTS_FILE)),
+      readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DECISIONS_FILE)),
+      readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_STATUS_FILE)),
+      readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_EDITS_FILE)),
+      readOptional(scoutPath(hqPath, HQ_CLICKUP_REQUESTS_FILE)),
+      readOptional(scoutPath(hqPath, HQ_SLACK_QUIET_FILE)),
+      readOptional(scoutPath(hqPath, HQ_CLICKUP_TRIAGE_FILE)),
+      readOptional(scoutPath(hqPath, HQ_CLICKUP_REVIEWS_FILE))
+    ])
   const file = parseHqSlackScoutDrafts(drafts ?? '{}')
   // Custom build (hq-clickup-requests): comments on the owner's tasks sit beside the Slack requests.
   // Why: only Orca+'s own clickup.json may name a ClickUp task to comment on or take; the scout
   // writes drafts.json from Slack text other people control.
   const slackDrafts = file.drafts.map(
-    ({ source: _source, clickupTaskId: _taskId, ...draft }) => draft
+    ({ source: _source, clickupTaskId: _taskId, needsReview: _look, review: _chat, ...draft }) =>
+      draft
   )
   // Custom build (hq-clickup-triage): task changes the triage raised, written by Orca+ as well.
   const clickupDrafts = [clickup, triage].flatMap((text) =>
@@ -84,9 +92,13 @@ async function readScoutFiles(hqPath: string) {
     configured: config !== null || clickupDrafts.length > 0,
     lastRunAt: file.lastRunAt,
     failedAt: parseHqSlackScoutFailedAt(status),
-    all: applyHqSlackScoutEdits(
-      [...slackDrafts, ...clickupDrafts],
-      parseHqSlackScoutEdits(edits ?? '{}')
+    // Custom build (hq-clickup-review): a chat's answer reads over the owner's earlier corrections.
+    all: applyHqClickUpReviews(
+      applyHqSlackScoutEdits(
+        [...slackDrafts, ...clickupDrafts],
+        parseHqSlackScoutEdits(edits ?? '{}')
+      ),
+      parseHqClickUpReviews(reviews ?? '{}')
     ),
     decisions: parseHqSlackScoutDecisions(decisions ?? '{}')
   }
@@ -139,7 +151,7 @@ export function notifyHqSlackScoutChanged(): void {
 // Why one chain: two decisions at once must not drop each other's entry.
 let recordWrites: Promise<unknown> = Promise.resolve()
 
-function writeRecordEntry<T>(
+export function writeRecordEntry<T>(
   hqPath: string,
   file: string,
   parse: (text: string) => Record<string, T>,
@@ -179,7 +191,14 @@ async function recordDecision(
         title: (draft.ask || draft.title).slice(0, 300),
         ...(draft.author ? { author: draft.author.slice(0, 200) } : {}),
         source: draft.source ?? 'slack',
-        permalink: draft.permalink.slice(0, 2000)
+        permalink: draft.permalink.slice(0, 2000),
+        ...(draft.source === 'clickup'
+          ? {
+              project: draft.project ?? null,
+              ...(draft.kind ? { kind: draft.kind } : {}),
+              ...(draft.needsReview ? { needsReview: true } : {})
+            }
+          : {})
       }
     : decided
   return writeRecordEntry(

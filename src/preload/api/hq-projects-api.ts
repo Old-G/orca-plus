@@ -71,6 +71,11 @@ export type HqProjectsApi = {
   takeSlackDraft: (ref: { id: string }) => Promise<HqSlackScoutCreateResult | { ok: true }>
   /** Custom build (hq-done-journal): a skipped request back among the pending ones. */
   restoreSlackDraft: (ref: { id: string }) => Promise<{ ok: true } | { ok: false; error: string }>
+  /** Custom build (hq-clickup-review): «Разобрать» — Claude looks into a ClickUp change in its
+   *  project; absent where the host cannot start a chat. */
+  startClickUpReview?: (ref: {
+    id: string
+  }) => Promise<{ ok: true; worktreeId: string; tabId?: string } | { ok: false; error: string }>
   /** Custom build (hq-mobile): Do / Just reply a paired phone asked this window to run. */
   onRunRequest?: (
     listener: (request: { id: string; action: 'do' | 'answer' }) => void
