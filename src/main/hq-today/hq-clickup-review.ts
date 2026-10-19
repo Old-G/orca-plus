@@ -93,6 +93,7 @@ async function continueReview(
 
 // Why: a click and the autostart (or two clicks) must not start two chats on one task.
 const starting = new Set<string>()
+const CLICKUP_TASK_ID = /^[\w-]{1,100}$/
 
 async function launchReview(
   hqPath: string,
@@ -101,7 +102,8 @@ async function launchReview(
   deps: HqClickUpReviewDeps
 ): Promise<HqClickUpReviewStart> {
   const taskId = card.clickupTaskId
-  if (!taskId || !card.project) {
+  // Why: the id goes into the chat's instructions, outside the fenced card text.
+  if (!taskId || !CLICKUP_TASK_ID.test(taskId) || !card.project) {
     return { ok: false, error: 'This request names no ClickUp task or project.' }
   }
   if (starting.has(taskId)) {
