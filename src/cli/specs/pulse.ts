@@ -105,6 +105,16 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
     allowedFlags: [...GLOBAL_FLAGS, 'status']
   },
   {
+    path: ['pulse', 'review', 'reply'],
+    summary: 'Hand HQ the draft comment for a ClickUp change you looked into; the owner sends it',
+    usage:
+      'orca pulse review reply --task <clickup task id> --reply <comment> [--summary <one line>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'task', 'reply', 'summary'],
+    notes: [
+      'Only for a chat HQ started with «Разобрать»: the draft lands on its card, nothing is posted.'
+    ]
+  },
+  {
     path: ['pulse', 'person', 'show'],
     summary: 'Show a person with their open waitings and recent decisions',
     usage: 'orca pulse person show <id|name> [--json]',
