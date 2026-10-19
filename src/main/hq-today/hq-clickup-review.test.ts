@@ -37,15 +37,18 @@ async function writeCards(cards: HqSlackScoutDraft[], config = ''): Promise<void
   await writeFile(join(hq, 'slack-scout', 'config.yaml'), config)
 }
 
-function deps(
-  over: Partial<HqClickUpReviewDeps> = {}
-): HqClickUpReviewDeps & { launch: ReturnType<typeof vi.fn>; deliver: ReturnType<typeof vi.fn> } {
+function deps(over: Partial<HqClickUpReviewDeps> = {}): HqClickUpReviewDeps & {
+  launch: ReturnType<typeof vi.fn>
+  limit: ReturnType<typeof vi.fn>
+  deliver: ReturnType<typeof vi.fn>
+} {
   return {
     workspaceFor: async () => ({ worktreeId: 'repo::/p', name: 'acme_support_service' }),
     freePercent: () => 80,
     now: () => NOW,
     ...over,
     launch: vi.fn(async () => ({ ok: true as const, sessionId: 's1', tabId: 'tab-1' })),
+    limit: vi.fn(async () => true),
     deliver: vi.fn(async () => true)
   }
 }
@@ -73,7 +76,15 @@ describe('«Разобрать»', () => {
       worktreeId: 'repo::/p',
       tabId: 'tab-1'
     })
-    expect(String(d.launch.mock.calls[0]?.[1])).toContain('orca pulse review reply --task t1')
+    expect(d.launch).toHaveBeenCalledWith('repo::/p')
+    expect(d.limit).toHaveBeenCalledWith('s1')
+    expect(d.deliver).toHaveBeenCalledWith(
+      's1',
+      expect.stringContaining('orca pulse review reply --task t1')
+    )
+    expect(d.limit.mock.invocationCallOrder[0]).toBeLessThan(
+      d.deliver.mock.invocationCallOrder[0] ?? 0
+    )
     expect((await shown())[0]?.review?.state).toBe('running')
 
     // A second click finds the same chat instead of starting another.
@@ -84,6 +95,15 @@ describe('«Разобрать»', () => {
       await replyHqClickUpReview(hq, { taskId: 't1', reply: 'Это to do.' }, () => NOW)
     ).toEqual({ ok: true })
     expect((await shown())[0]).toMatchObject({ kind: 'answer', description: 'Это to do.' })
+  })
+
+  it('gives the chat no task when it cannot be switched to Auto', async () => {
+    await writeCards([card('c1')])
+    const d = deps()
+    d.limit.mockResolvedValue(false)
+    expect(await startHqClickUpReview(hq, 'c1', d)).toMatchObject({ ok: false })
+    expect(d.deliver).not.toHaveBeenCalled()
+    expect((await shown())[0]?.review).toBeUndefined()
   })
 
   it('refuses a draft for a task nobody is looking into', async () => {

@@ -9,9 +9,13 @@ import type { RateLimitService } from '../rate-limits/service'
 import { RpcDispatcher } from '../runtime/rpc/dispatcher'
 import { AGENT_LAUNCH_METHODS } from '../runtime/rpc/methods/agent-launch'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
+import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
+import { mintAgentSessionOperationId } from '../runtime/orchestration/structured-pointer-operation-id'
 import { listClickUpOwnerTasksUpdatedSince } from '../clickup/clickup-task-changes'
 import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
 import { claudeActiveFreePercent } from '../../shared/claude-limit-guard'
+import { AGENT_CHAT_PERMISSION_MODE_OPTION_ID } from '../../shared/agent-chat-permission-mode'
+import { structuredAgentSessionPayloadFingerprint } from '../../shared/structured-agent-session-mutation'
 import { HqSlackDraftRefParams } from '../../shared/rpc-contract/hq-projects-params'
 import { getRepoMainWorktreeId } from '../../shared/worktree/id'
 import { runHqClickUpTriage, startHqClickUpTriage } from './hq-clickup-triage'
@@ -42,6 +46,35 @@ function readLaunchedChat(result: unknown): { sessionId: string; tabId?: string 
     : null
 }
 
+/** Saves Auto on the chat's record; its agent starts with it on the first send. */
+async function limitChatToAuto(sessionId: string): Promise<boolean> {
+  const host = getStructuredAgentSessionHost()
+  const fence = host?.deps.store.getRecord(sessionId)?.lease.runtimeFence
+  if (!host || !fence) {
+    return false
+  }
+  const fields = { key: AGENT_CHAT_PERMISSION_MODE_OPTION_ID, value: 'auto' }
+  const result = await host
+    .setOption(
+      { callerKey: `trusted-local:hq-clickup-review:${sessionId}` },
+      {
+        envelope: {
+          sessionId,
+          clientOperationId: mintAgentSessionOperationId(Date.now()),
+          expectedRuntimeFence: fence,
+          payloadFingerprint: structuredAgentSessionPayloadFingerprint({
+            method: 'agentSession.setOption',
+            sessionId,
+            fields
+          })
+        },
+        ...fields
+      }
+    )
+    .catch(() => null)
+  return result?.ok === true && host.deps.store.getRecord(sessionId)?.permissionMode === 'auto'
+}
+
 function reviewDeps(
   store: Store,
   runtime: OrcaRuntimeService,
@@ -57,7 +90,7 @@ function reviewDeps(
       const repo = page ? store.getRepo(page.repoId) : undefined
       return repo ? { worktreeId: getRepoMainWorktreeId(repo), name: repo.displayName } : null
     },
-    launch: async (worktreeId, prompt) => {
+    launch: async (worktreeId) => {
       const response = await dispatcher.dispatch({
         id: randomUUID(),
         authToken: '',
@@ -65,7 +98,6 @@ function reviewDeps(
         params: {
           agent: 'claude',
           target: { kind: 'existing', worktree: `id:${worktreeId}` },
-          prompt: { text: prompt, delivery: 'submit' },
           // Why: the chat opens beside the owner's work, never in front of it.
           presentation: 'background',
           nativeChatDefault: true
@@ -79,6 +111,7 @@ function reviewDeps(
         ? { ok: true, ...chat }
         : { ok: false, error: 'Claude started in a terminal, not a chat.' }
     },
+    limit: limitChatToAuto,
     deliver: (sessionId, prompt) => deliverToNativeChat(sessionId, prompt, 'hq-clickup-review'),
     freePercent: () => {
       const settings = store.getSettings()
