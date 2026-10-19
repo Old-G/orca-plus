@@ -30,6 +30,7 @@ import { rememberHqTake } from '../hq/hq-triage-decisions'
 import { openHqScreen } from '../hq/hq-view'
 import { readHqClickUpSourceContext } from '../hq/use-hq-project-clickup'
 import { takeHqSlackRequest, type HqSlackTakeDeps } from './hq-slack-request-take'
+import { reviewHqClickUpRequest } from './hq-clickup-review-action'
 
 type Written = { ok: true } | { ok: false; error: string }
 
@@ -245,6 +246,10 @@ export async function runHqSlackRequestAction(id: string, actionId: string): Pro
   }
   if (actionId === HQ_SLACK_REQUEST_ACTION.skip) {
     return skipHqSlackRequest(id)
+  }
+  if (actionId === HQ_SLACK_REQUEST_ACTION.review) {
+    await reviewHqClickUpRequest(id)
+    return false
   }
   const draft = await findDraft(id).catch(() => null)
   if (!draft) {

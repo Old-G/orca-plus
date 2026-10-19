@@ -4,6 +4,7 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import type { Store } from '../../persistence'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
+import type { RateLimitService } from '../../rate-limits/service'
 import { agentHookServer } from '../../agent-hooks/server'
 import { describeWorktree, onClaudeHandoffOffersChanged } from '../../ipc/claude-handoff'
 import type { ClaudeHandoffOffer } from '../../../shared/claude-handoff-file'
@@ -67,7 +68,11 @@ function broadcastChanged(): void {
   }
 }
 
-export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): void {
+export function registerPulseBell(
+  store: Store,
+  runtime: OrcaRuntimeService,
+  rateLimits: RateLimitService
+): void {
   const sync = (kind: string, desired: readonly PulseBellInput[]): void => {
     try {
       runtime.pulseSyncInboxKind(kind, desired)
@@ -154,7 +159,7 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
   })
 
   // Custom build (hq-clickup-triage): task edits beyond comments, sorted by a small model.
-  registerHqClickUpTriage(store, runtime)
+  registerHqClickUpTriage(store, runtime, rateLimits)
 
   // Custom build (hq-waiting-replies): Slack answers to what the chats wait for, back into those chats.
   startHqWaitingReplyRelay({
