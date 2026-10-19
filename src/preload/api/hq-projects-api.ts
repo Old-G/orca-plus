@@ -16,6 +16,7 @@ import type {
   HqVoiceTaskResult
 } from '../../shared/hq-voice-prompts'
 import type { HqReadAloudSpeechResult } from '../../shared/hq-read-aloud'
+import type { ChatAutoEffortStatus } from '../../shared/chat-auto-effort-status'
 import type { HqReportsResult } from '../../shared/hq-reports'
 import type { HqChatWireItem } from '../../shared/hq-chat-wire'
 import type {
@@ -98,6 +99,10 @@ export type HqProjectsApi = {
     text: string
     draft?: string
   }) => Promise<{ ok: true } | { ok: false; error: string }>
+  /** Custom build (chat-auto-effort), desktop only: the OpenRouter key Jev picks effort with. */
+  autoEffortKeyStatus?: () => Promise<ChatAutoEffortStatus>
+  saveAutoEffortKey?: (key: string) => Promise<ChatAutoEffortStatus>
+  clearAutoEffortKey?: () => Promise<ChatAutoEffortStatus>
   /** Paired web client only: HQ's settings, which live on the Mac. The desktop reads its own. */
   settings?: () => Promise<HqClientSettings>
 }
