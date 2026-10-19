@@ -1,4 +1,5 @@
 import { claudeProfileHistoryDirs } from '../claude-accounts/claude-profile-installed-router'
+import { realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { resolveAbsoluteDirOverride } from '../../shared/absolute-dir-override'
@@ -71,7 +72,19 @@ export function wslHomeSessionDirs(
 }
 
 export function uniqueDirs(dirs: readonly string[]): string[] {
-  return dirs.filter((dir, index) => dirs.indexOf(dir) === index)
+  // Custom build (ai-vault-linked-roots): a Claude account folder's `projects` is a link to
+  // `~/.claude/projects`, and CLAUDE_CONFIG_DIR names that folder; the same tree read twice lists
+  // every session twice. The first spelling of a tree is kept.
+  const real = dirs.map(realDir)
+  return dirs.filter((_dir, index) => real.indexOf(real[index]) === index)
+}
+
+function realDir(dir: string): string {
+  try {
+    return realpathSync(dir)
+  } catch {
+    return dir
+  }
 }
 
 // The local host and each WSL distro's OMP sessions root. Callers reading OMP
