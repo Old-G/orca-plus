@@ -23,10 +23,12 @@ import { readHqSlackScout, writeRecordEntry } from './hq-slack-scout'
 export type HqClickUpReviewDeps = {
   /** The project's workspace and shown name; null when no repo of it is open in Orca. */
   workspaceFor: (project: string) => Promise<{ worktreeId: string; name: string } | null>
+  /** An empty chat: the task goes in only after `limit`. */
   launch: (
-    worktreeId: string,
-    prompt: string
+    worktreeId: string
   ) => Promise<{ ok: true; sessionId: string; tabId?: string } | { ok: false; error: string }>
+  /** True once the chat runs in Auto, not Full access. */
+  limit: (sessionId: string) => Promise<boolean>
   /** False when the chat is closed and cannot take the message. */
   deliver: (sessionId: string, prompt: string) => Promise<boolean>
   /** Null when the active Claude account's usage is unread. */
@@ -115,12 +117,20 @@ async function launchReview(
     if (!workspace) {
       return { ok: false, error: `Project ${card.project} is not open in Orca.` }
     }
-    const launched = await deps.launch(
-      workspace.worktreeId,
-      hqClickUpReviewPrompt(card, taskId, workspace.name)
-    )
+    const launched = await deps.launch(workspace.worktreeId)
     if (!launched.ok) {
       return launched
+    }
+    // Why: the card quotes other people's words; with full access they could steer the chat.
+    if (!(await deps.limit(launched.sessionId))) {
+      return {
+        ok: false,
+        error: 'The chat could not be switched to Auto, so Claude was not started.'
+      }
+    }
+    const prompt = hqClickUpReviewPrompt(card, taskId, workspace.name)
+    if (!(await deps.deliver(launched.sessionId, prompt))) {
+      return { ok: false, error: 'The chat did not take the task.' }
     }
     const review: HqClickUpReview = {
       cardId: card.id,
