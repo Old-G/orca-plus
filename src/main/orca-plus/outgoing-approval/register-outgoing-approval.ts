@@ -1,6 +1,8 @@
 // Custom build (outgoing-approval): wires the gate into the hook server, the bell and the renderer.
 // The gate opens its own connection to orca-plus-pulse.db so approving a draft never joins the runtime
 // surface that RPC and the CLI reach.
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { ipcMain } from 'electron'
 import { getAppEnvironment } from '../../../shared/app-lifecycle/app-environment'
 import {
@@ -12,6 +14,11 @@ import type { PulseApprovalOutcome, PulseDraft } from '../../../shared/pulse-typ
 import { agentHookServer } from '../../agent-hooks/server'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import { readHqSlackScoutIndex } from '../../hq-today/hq-slack-scout-index'
+import { HQ_SLACK_SCOUT_CONFIG_FILE, HQ_SLACK_SCOUT_DIR } from '../../../shared/hq-slack-scout'
+import {
+  parseOwnerPreviewProjects,
+  setOwnerPreviewProjects
+} from '../../../shared/outgoing-approval/outgoing-owner-telegram-rules'
 import { PulseDb, pulseDbPath } from '../pulse/pulse-db'
 import {
   NO_OUTGOING_APPROVAL_OPTIONS,
@@ -32,6 +39,7 @@ import {
   type OutgoingDecideDeps
 } from './outgoing-approval-decide'
 import { MovedApprovals } from './outgoing-moved-approvals'
+import { untaggedClickUpNudge } from './outgoing-untagged-nudge'
 
 const SWEEP_INTERVAL_MS = 30_000
 // Why: the card waits this long for names at most; the agent is held either way.
@@ -47,8 +55,25 @@ const decidedListeners = new Set<DecidedListener>()
 let hqPath: () => string | null = () => null
 
 /** Custom build (outgoing-approval-target): where the Slack scout's files are, for naming DMs. */
+const OWNER_PREVIEW_REFRESH_MS = 60_000
+
+function refreshOwnerPreviewProjects(): void {
+  const root = hqPath()
+  let config = ''
+  try {
+    config = root
+      ? readFileSync(join(root, HQ_SLACK_SCOUT_DIR, HQ_SLACK_SCOUT_CONFIG_FILE), 'utf8')
+      : ''
+  } catch {
+    // No HQ config: no project previews pass without a card.
+  }
+  setOwnerPreviewProjects(parseOwnerPreviewProjects(config))
+}
+
 export function bindOutgoingApprovalHqPath(read: () => string | null): void {
   hqPath = read
+  refreshOwnerPreviewProjects()
+  setInterval(refreshOwnerPreviewProjects, OWNER_PREVIEW_REFRESH_MS).unref?.()
 }
 
 function withTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
@@ -134,7 +159,8 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
   }
   const gate = new OutgoingApprovalGate({
     db: pulseDb,
-    onChanged: describeThenSync
+    onChanged: describeThenSync,
+    nudge: untaggedClickUpNudge(() => pulseDb().listPeople())
   })
   const decideDeps: OutgoingDecideDeps = {
     gate,
