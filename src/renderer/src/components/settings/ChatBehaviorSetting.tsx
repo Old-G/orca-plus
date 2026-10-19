@@ -8,6 +8,7 @@ import {
 import { useAppStore } from '../../store'
 import { Card, CardContent } from '../ui/card'
 import { ChatPermissionSetting } from './ChatPermissionSetting'
+import { ChatAutoEffortSetting } from './ChatAutoEffortSetting'
 import { NativeChatShellEnvironmentSetting } from './NativeChatShellEnvironmentSetting'
 import { SearchableSetting } from './SearchableSetting'
 import { SettingsSubsectionHeader, SettingsSwitchRow } from './SettingsFormControls'
@@ -110,6 +111,8 @@ export function ChatBehaviorSetting({
                 updateSettings={updateSettings}
               />
             </SearchableSetting>
+            {/* Custom build (chat-auto-effort) */}
+            <ChatAutoEffortSetting settings={settings} updateSettings={updateSettings} />
           </div>
         </CardContent>
       </Card>

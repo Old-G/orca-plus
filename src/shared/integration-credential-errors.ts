@@ -6,6 +6,8 @@ export type IntegrationCredentialService =
   | 'Slack'
   // Custom build (hq-space-keys): a workspace's own token, of any kind.
   | 'Workspace'
+  // Custom build (chat-auto-effort): the OpenRouter key Jev picks a chat's effort with.
+  | 'OpenRouter'
 
 export function credentialDecryptionMessage(service: IntegrationCredentialService): string {
   return `Could not decrypt saved ${service} credential. Approve Keychain access or reconnect ${service}.`

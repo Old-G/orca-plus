@@ -1,0 +1,113 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type {
+  AgentJournalItemBody,
+  AgentJournalRenderItem
+} from '../../../shared/agent-session-journal-types'
+import { pickEffortWithJev } from './jev-effort-pick'
+import {
+  autoEffortMessageOptions,
+  provideNativeChatAutoEffort,
+  type NativeChatAutoEffortService
+} from './native-chat-auto-effort'
+
+const user = (text: string): AgentJournalItemBody => ({
+  kind: 'message',
+  role: 'user',
+  blocks: [{ type: 'text', text }]
+})
+
+const agentSaid = (text: string): AgentJournalRenderItem => ({
+  itemId: 'a1',
+  revision: 1,
+  sequence: 1,
+  observedAt: 1,
+  body: { kind: 'message', role: 'assistant', blocks: [{ type: 'text', text }] }
+})
+
+function serve(over: Partial<NativeChatAutoEffortService> = {}) {
+  const pick = vi.fn(async () => 'xhigh' as const)
+  provideNativeChatAutoEffort({ enabled: () => true, key: () => 'k', pick, ...over })
+  return pick
+}
+
+afterEach(() => provideNativeChatAutoEffort(null))
+
+describe('chat auto effort', () => {
+  it('sets the picked effort and shows Jev the agent message being answered', async () => {
+    const pick = serve()
+    const options = await autoEffortMessageOptions({
+      provider: 'claude',
+      options: { model: 'opus', effort: 'high' },
+      body: user('да'),
+      items: () => [agentSaid('План: переписать хранилище. Начинать?')]
+    })
+    expect(options).toEqual({ model: 'opus', effort: 'xhigh' })
+    expect(pick).toHaveBeenCalledWith({
+      key: 'k',
+      message: 'да',
+      previousAgentMessage: 'План: переписать хранилище. Начинать?'
+    })
+  })
+
+  it('leaves the options alone when off, keyless, not Claude, hand-picked Max, or unanswered', async () => {
+    const base = { provider: 'claude', body: user('go'), items: () => [] }
+    serve({ enabled: () => false })
+    expect(await autoEffortMessageOptions({ ...base, options: { effort: 'high' } })).toEqual({
+      effort: 'high'
+    })
+    serve({ key: () => null })
+    expect(await autoEffortMessageOptions({ ...base, options: { effort: 'high' } })).toEqual({
+      effort: 'high'
+    })
+    const pick = serve()
+    expect(
+      await autoEffortMessageOptions({ ...base, provider: 'codex', options: { effort: 'high' } })
+    ).toEqual({ effort: 'high' })
+    expect(await autoEffortMessageOptions({ ...base, options: { effort: 'max' } })).toEqual({
+      effort: 'max'
+    })
+    expect(pick).not.toHaveBeenCalled()
+    serve({ pick: async () => null })
+    expect(await autoEffortMessageOptions({ ...base, options: { effort: 'high' } })).toEqual({
+      effort: 'high'
+    })
+  })
+})
+
+describe('Jev effort pick', () => {
+  it('reads the choice from the decisions answer', async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ answers: { effort: { type: 'choice', choice: 'medium' } } }),
+          { status: 200 }
+        )
+    )
+    expect(
+      await pickEffortWithJev({
+        key: 'k',
+        message: 'статус?',
+        previousAgentMessage: null,
+        fetchImpl
+      })
+    ).toBe('medium')
+    const sent: unknown = fetchImpl.mock.lastCall
+    expect(JSON.stringify(sent)).toContain('xhigh')
+  })
+
+  it('answers null on an error status, an unknown level or a network failure', async () => {
+    const reply = (body: unknown, status = 200) =>
+      vi.fn(async () => new Response(JSON.stringify(body), { status }))
+    const ask = (fetchImpl: typeof fetch) =>
+      pickEffortWithJev({ key: 'k', message: 'x', previousAgentMessage: null, fetchImpl })
+    expect(await ask(reply({ error: {} }, 402))).toBeNull()
+    expect(await ask(reply({ answers: { effort: { choice: 'max' } } }))).toBeNull()
+    expect(
+      await ask(
+        vi.fn(async () => {
+          throw new Error('offline')
+        })
+      )
+    ).toBeNull()
+  })
+})

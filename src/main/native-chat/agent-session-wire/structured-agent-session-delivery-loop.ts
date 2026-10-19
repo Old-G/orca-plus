@@ -3,7 +3,10 @@
 // Recover earlier-process queued sends before any handover; running commands block input.
 
 import type { StructuredAgentSessionDeliveryOrder } from './structured-agent-session-delivery-order'
-import type { AgentJournalCursor } from '../../../shared/agent-session-journal-types'
+import type {
+  AgentJournalCursor,
+  AgentJournalSubmission
+} from '../../../shared/agent-session-journal-types'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
 import type { AgentChildWorkView } from '../../../shared/agent-status-child-work-view'
 import { agentSessionFailureFact } from '../../../shared/agent-session-failure'
@@ -54,6 +57,11 @@ export type StructuredAgentSessionDeliveryLoopDeps = {
     sessionId: string,
     child: StructuredAgentSessionProviderChildIdentity
   ) => StructuredAgentSessionStartReadiness | null
+  /** Custom build (chat-auto-effort): the options a message goes out with, effort picked for it. */
+  autoEffortOptions?: (
+    sessionId: string,
+    submission: AgentJournalSubmission
+  ) => Promise<AgentJournalSubmission['options']>
   conversationFence: (sessionId: string) => number
   /** Settle sends covered by partial close; later sends remain eligible. False means settlement failed. */
   closeWhatTheUserClosed: (sessionId: string) => Promise<boolean>
@@ -278,6 +286,8 @@ export class StructuredAgentSessionDeliveryLoop {
     ) {
       return this.stop(sessionId)
     }
+    const options = await this.deps.autoEffortOptions?.(sessionId, next)
+    const handed = options && options !== next.options ? { ...next, options } : next
     const pending = await beginSubmissionHandover(
       {
         sessionId,
@@ -296,7 +306,7 @@ export class StructuredAgentSessionDeliveryLoop {
         workChanged: () => this.deps.workChanged?.(sessionId),
         recordRanOptions: this.deps.recordRanOptions?.(sessionId, awaitedChild.fence)
       },
-      next,
+      handed,
       // Recheck child identity immediately before the external provider write.
       () => this.deps.sessions.get(sessionId)?.child === awaitedChild && !awaitedChild.close
     )
