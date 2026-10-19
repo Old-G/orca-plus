@@ -6,13 +6,12 @@ import {
   restoreFirstQuestionNumber,
   type HqTaskQuestionsResult
 } from '../../shared/hq-triage'
-import { planCommitMessageGeneration } from '../../shared/commit-message-plan'
 import type { ResolvedSourceControlAiGenerationParams } from '../../shared/source-control-ai'
 import { resolveGenerationTarget } from '../agent-hooks/first-work-generation-target'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import { resolveTextGenerationParams } from '../text-generation/commit-message-text-generation'
 import { spawnSourceControlAgent } from '../text-generation/source-control-agent-launch'
-import { executeGenerationPlan } from '../text-generation/source-control-text-generation-requests'
+import { runGenerationRequest } from '../text-generation/agent-generation-request'
 
 const FALLBACK_MODEL = 'sonnet'
 // Why: tools would let text in the task read files or reach the network on this Mac.
@@ -45,31 +44,26 @@ export async function generateHqText(
   prompt: string,
   what: {
     emptyResultName: string
-    operation: 'hq-task-questions' | 'hq-clickup-reply' | 'hq-voice-rewrite' | 'hq-feed-posts'
+    operation:
+      | 'hq-task-questions'
+      | 'hq-clickup-reply'
+      | 'hq-voice-rewrite'
+      | 'hq-feed-posts'
+      | 'hq-clickup-triage'
+    /** Custom build (hq-clickup-triage): a cheaper model than the one set for HQ text. */
+    model?: string
   },
   deps: HqTextGenerationDeps
 ): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
-  const params = hqTaskQuestionsParams(deps.settings)
-  const planned = planCommitMessageGeneration(
-    {
-      agentId: params.agentId,
-      model: params.model,
-      ...(params.thinkingLevel ? { thinkingLevel: params.thinkingLevel } : {}),
-      ...(params.agentCommandOverride ? { agentCommandOverride: params.agentCommandOverride } : {}),
-      ...(params.agentArgs ? { agentArgs: params.agentArgs } : {})
-    },
-    prompt
-  )
-  if (!planned.ok) {
-    return { ok: false, error: planned.error }
-  }
+  const base = hqTaskQuestionsParams(deps.settings)
+  const params = what.model ? { ...base, model: what.model } : base
   const target = await resolveGenerationTarget(deps.cwd, params.agentId, deps)
   if (!target) {
     return { ok: false, error: 'Could not prepare the Claude environment.' }
   }
-  const result = await executeGenerationPlan({
+  const result = await runGenerationRequest({
     params,
-    plan: planned.plan,
+    prompt,
     target,
     emptyResultName: what.emptyResultName,
     operation: what.operation,

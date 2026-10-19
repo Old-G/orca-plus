@@ -53,6 +53,8 @@ export type TextGenerationOperation =
   | 'hq-voice-rewrite'
   // Custom build (hq-feed-posts): HQ's feed rows rewritten as short readable posts.
   | 'hq-feed-posts'
+  // Custom build (hq-clickup-triage): HQ sorts changed ClickUp tasks into noise, notes and answers.
+  | 'hq-clickup-triage'
 
 export type CommitMessageGenerationTarget =
   | { kind: 'local'; cwd: string; env?: NodeJS.ProcessEnv; wslDistro?: string }
