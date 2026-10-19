@@ -20,8 +20,9 @@ import {
 import { parsePersistedSidecar } from './session-sidecar-stat'
 
 // Bump for row-layout or cached-semantic changes; mismatched databases are discarded.
-// Custom build (ai-vault-automated-sessions): 9, past upstream's 8, so caches without `automated` re-parse.
-export const SESSION_PARSE_CACHE_SCHEMA_VERSION = 9
+// Custom build (ai-vault-automated-sessions): 10, past upstream's 8 and our own earlier 9 (`automated`
+// with `sdk-cli`), so caches parsed without either re-parse.
+export const SESSION_PARSE_CACHE_SCHEMA_VERSION = 10
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
