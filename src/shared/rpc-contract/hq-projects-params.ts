@@ -58,6 +58,13 @@ export const HqSlackDraftEditParams = z.object({
   description: z.string().max(20_000).optional()
 })
 
+/** Custom build (hq-clickup-review): the draft comment a «Разобрать» chat hands back to its card. */
+export const HqClickUpReviewReplyParams = z.object({
+  taskId: z.string().min(1).max(100),
+  reply: z.string().trim().min(1).max(4_000),
+  summary: z.string().trim().max(500).optional()
+})
+
 /** Custom build (hq-clickup-requests): the owner's reply to a ClickUp comment, and the draft it came from. */
 /** Custom build (hq-mobile): what the phone may ask the Mac's window to run on a request. */
 export const HQ_REQUEST_DESKTOP_ACTIONS = ['do', 'answer'] as const

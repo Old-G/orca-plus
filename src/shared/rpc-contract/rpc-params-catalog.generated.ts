@@ -343,6 +343,7 @@ import {
 import {
   HqBellActionOnDesktopParams,
   HqClickUpReplyParams,
+  HqClickUpReviewReplyParams,
   HqDraftTaskQuestionsParams,
   HqGitStateParams,
   HqPersonParams,
@@ -1145,6 +1146,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'hqProjects.pinnedCounts': HqPinnedCountsParams,
   'hqProjects.projectDiagram': HqProjectDiagramParams,
   'hqProjects.rejectSlackDraft': HqSlackDraftRefParams,
+  'hqProjects.replyClickUpReview': HqClickUpReviewReplyParams,
   'hqProjects.reportDecisionsOnDesktop': HqReportDecisionsParams,
   'hqProjects.reports': null,
   'hqProjects.restoreSlackDraft': HqSlackDraftRefParams,
@@ -1158,6 +1160,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'hqProjects.slackDrafts': null,
   'hqProjects.spaceKeys': null,
   'hqProjects.spaces': null,
+  'hqProjects.startClickUpReview': HqSlackDraftRefParams,
   'hqProjects.takeSlackDraft': HqSlackDraftRefParams,
   'hqProjects.updateSettings': HqUpdateSettingsParams,
   'hqProjects.voiceRewrite': HqVoiceRewriteParams,

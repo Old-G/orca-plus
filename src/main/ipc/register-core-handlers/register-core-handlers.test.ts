@@ -713,7 +713,7 @@ describe('registerCoreHandlers', () => {
     expect(registerHqRosterSyncMock).toHaveBeenCalledWith(store)
     expect(registerHqPulseMirrorMock).toHaveBeenCalledWith(store)
     expect(registerHqProjectPagesHandlersMock).toHaveBeenCalledWith(store, expect.any(Function))
-    expect(registerPulseBellMock).toHaveBeenCalledWith(store, expect.anything())
+    expect(registerPulseBellMock).toHaveBeenCalledWith(store, expect.anything(), rateLimits)
     expect(registerOutgoingApprovalMock).toHaveBeenCalledTimes(1)
     expect(registerHqGroupChatHandlersMock).toHaveBeenCalledWith(
       store,
