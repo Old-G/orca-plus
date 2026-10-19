@@ -272,6 +272,8 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
     listComments: listClickUpTaskComments,
     listReplies: listClickUpCommentReplies,
     viewer: getClickUpViewer,
+    clickUpUserId: (personId) =>
+      runtime.pulseListPeople().find((person) => person.id === personId)?.clickupUserId ?? null,
     recordReply: (id, reply) => runtime.pulseRecordWaitingReply(id, reply)
   })
 
