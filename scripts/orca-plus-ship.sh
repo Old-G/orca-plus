@@ -28,6 +28,8 @@ bundle_id=com.oldg.orca-plus
 profile="$HOME/Library/Application Support/orca-plus"
 backup="$HOME/orca-plus-backup-$(date +%Y%m%d-%H%M%S)"
 log="${TMPDIR:-/tmp}/orca-plus-ship.log"
+# Why: after the restart Orca+ tells the chat that ran this ship to check it (ship-restart-notice).
+restart_marker="$profile/orca-plus-ship-restart.json"
 # Why: these must survive a reinstall byte for byte; orca-devices.json changes legitimately (lastSeenAt).
 state_files=(
   "$profile/orca-e2ee-keypair.json"
@@ -109,6 +111,15 @@ wait_runtime_ready() {
   done
   return 1
 }
+# Why the profile check: a chat of another Orca (DEV) has an id the installed one does not know.
+write_restart_marker() {
+  [ -n "${ORCA_AGENT_SESSION_ID:-}" ] && [ "${ORCA_USER_DATA_PATH:-$profile}" = "$profile" ] || return 0
+  SESSION="$ORCA_AGENT_SESSION_ID" SHA=$(git -C "$repo" rev-parse --short HEAD) python3 -c "
+import datetime, json, os
+print(json.dumps({'agentSessionId': os.environ['SESSION'], 'sha': os.environ['SHA'],
+  'writtenAt': datetime.datetime.now(datetime.timezone.utc).isoformat()}))" >"$restart_marker.tmp"
+  mv "$restart_marker.tmp" "$restart_marker"
+}
 # Why: each backup is a full profile plus the old app (~1.5 GB); unpruned, 40 of them ate 57 GB.
 prune_backups() {
   local all=("$HOME"/orca-plus-backup-[0-9]*-[0-9]*/) i
@@ -160,6 +171,9 @@ fi
 step "new app: ${new:-<dist/mac-*/Orca Plus.app>}"
 [ "$dry" = 0 ] && codesign --verify --deep --strict "$new"
 
+step "restart marker for chat ${ORCA_AGENT_SESSION_ID:-<none>}"
+run write_restart_marker
+
 step "quit Orca+ (waits up to 3 minutes)"
 if [ "$dry" = 0 ]; then
   osascript -e "tell application id \"$bundle_id\" to quit" || true
@@ -169,6 +183,7 @@ if [ "$dry" = 0 ]; then
   done
   if app_running; then
     step "Orca+ still running after 3 minutes — abort, nothing changed"
+    rm -f "$restart_marker"
     exit 1
   fi
 fi
@@ -177,6 +192,7 @@ step "swap app (old one kept in the backup)"
 run mv "$app" "$backup/Orca Plus.app.old"
 if [ "$dry" = 0 ] && ! ditto "$new" "$app"; then
   step "copy failed — restoring the old app"
+  rm -f "$restart_marker"
   mv "$backup/Orca Plus.app.old" "$app"
   launch_orca_plus
   exit 1
