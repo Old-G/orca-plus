@@ -53,6 +53,7 @@ import { isGitRepoKind } from '../../../shared/repo-kind'
 import { getHqProjectPagesService } from '../../hq-project-pages/hq-project-pages-service'
 import { startHqWaitingBells } from '../../hq-today/hq-waiting-bells'
 import { deliverWaitingReply } from '../waiting-replies/deliver-waiting-reply'
+import { startShipRestartNotice } from '../ship-restart/ship-restart-notice'
 
 const BROADCAST_DEBOUNCE_MS = 50
 const FEED_DAYS_MS = 3 * 24 * 60 * 60_000
@@ -161,6 +162,8 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
     deliver: deliverWaitingReply,
     onChanged: onPulseChanged
   })
+  // Custom build (ship-restart-notice): the chat that shipped this build is told to check it.
+  startShipRestartNotice()
   // Custom build (hq-scout-context): whom the chats wait for and what was sent, for the Slack scout.
   startHqScoutContext({
     hqPath: () => store.getSettings().hqPath ?? null,
