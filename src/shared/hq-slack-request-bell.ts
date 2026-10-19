@@ -14,7 +14,9 @@ export const HQ_SLACK_REQUEST_ACTION = {
   do: 'slack-do',
   answer: 'slack-answer',
   edit: 'slack-edit',
-  skip: 'slack-skip'
+  skip: 'slack-skip',
+  /** Custom build (hq-clickup-review): «Разобрать». */
+  review: 'slack-review'
 } as const
 
 const KIND_LABEL: Record<HqSlackRequestKind, string> = {
@@ -27,11 +29,12 @@ const ACTIONS = {
   do: { id: HQ_SLACK_REQUEST_ACTION.do, label: 'Do' },
   answer: { id: HQ_SLACK_REQUEST_ACTION.answer, label: 'Just reply' },
   edit: { id: HQ_SLACK_REQUEST_ACTION.edit, label: 'Edit' },
-  skip: { id: HQ_SLACK_REQUEST_ACTION.skip, label: 'Skip' }
+  skip: { id: HQ_SLACK_REQUEST_ACTION.skip, label: 'Skip' },
+  review: { id: HQ_SLACK_REQUEST_ACTION.review, label: 'Investigate' }
 }
 
 /** The suggested answer comes first; an FYI is mostly just read. */
-const ACTION_ORDER: Record<HqSlackRequestKind, (keyof typeof ACTIONS)[]> = {
+const ACTION_ORDER: Record<HqSlackRequestKind, Exclude<keyof typeof ACTIONS, 'review'>[]> = {
   do: ['do', 'answer', 'edit', 'skip'],
   answer: ['answer', 'do', 'edit', 'skip'],
   fyi: ['skip', 'do', 'answer', 'edit']
@@ -76,9 +79,12 @@ export function slackRequestBellItem(
     urgency: draft.urgent ? 'urgent' : 'normal',
     refKind: 'slack-request',
     refId: JSON.stringify(ref),
-    actions: ACTION_ORDER[kind].map((key) =>
-      kind === 'fyi' && key === 'skip' ? { ...ACTIONS.skip, label: 'Got it' } : ACTIONS[key]
-    ),
+    actions: [
+      ...(draft.needsReview && !draft.review ? [ACTIONS.review] : []),
+      ...ACTION_ORDER[kind].map((key) =>
+        kind === 'fyi' && key === 'skip' ? { ...ACTIONS.skip, label: 'Got it' } : ACTIONS[key]
+      )
+    ],
     dedupeKey: `slack-request:${draft.id}:${contentKey(`${title}\n${body}`)}`
   }
 }
