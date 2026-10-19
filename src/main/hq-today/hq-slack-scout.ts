@@ -3,6 +3,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { HQ_SLACK_QUIET_FILE, parseHqSlackQuiet } from '../../shared/hq-slack-digest'
+import { HQ_CLICKUP_TRIAGE_FILE } from '../../shared/hq-clickup-triage'
 import {
   HQ_CLICKUP_REQUESTS_FILE,
   HQ_SLACK_SCOUT_CONFIG_FILE,
@@ -52,14 +53,15 @@ function scoutPath(hqPath: string, file: string): string {
 
 /** Every request in the scout's files and Orca+'s own, with the owner's corrections over them. */
 async function readScoutFiles(hqPath: string) {
-  const [config, drafts, decisions, status, edits, clickup, quiet] = await Promise.all([
+  const [config, drafts, decisions, status, edits, clickup, quiet, triage] = await Promise.all([
     readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_CONFIG_FILE)),
     readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DRAFTS_FILE)),
     readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DECISIONS_FILE)),
     readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_STATUS_FILE)),
     readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_EDITS_FILE)),
     readOptional(scoutPath(hqPath, HQ_CLICKUP_REQUESTS_FILE)),
-    readOptional(scoutPath(hqPath, HQ_SLACK_QUIET_FILE))
+    readOptional(scoutPath(hqPath, HQ_SLACK_QUIET_FILE)),
+    readOptional(scoutPath(hqPath, HQ_CLICKUP_TRIAGE_FILE))
   ])
   const file = parseHqSlackScoutDrafts(drafts ?? '{}')
   // Custom build (hq-clickup-requests): comments on the owner's tasks sit beside the Slack requests.
@@ -68,11 +70,16 @@ async function readScoutFiles(hqPath: string) {
   const slackDrafts = file.drafts.map(
     ({ source: _source, clickupTaskId: _taskId, ...draft }) => draft
   )
-  const clickupDrafts = parseHqSlackScoutDrafts(clickup ?? '{}').drafts.flatMap((draft) =>
-    draft.clickupTaskId ? [{ ...draft, source: 'clickup' as const }] : []
+  // Custom build (hq-clickup-triage): task changes the triage raised, written by Orca+ as well.
+  const clickupDrafts = [clickup, triage].flatMap((text) =>
+    parseHqSlackScoutDrafts(text ?? '{}').drafts.flatMap((draft) =>
+      draft.clickupTaskId ? [{ ...draft, source: 'clickup' as const }] : []
+    )
   )
   return {
-    quietItems: parseHqSlackQuiet(quiet ?? '{}'),
+    quietItems: [...parseHqSlackQuiet(quiet ?? '{}'), ...parseHqSlackQuiet(triage ?? '{}')].sort(
+      (a, b) => Date.parse(a.at) - Date.parse(b.at)
+    ),
     tuning: parseHqSlackScoutTuning(config ?? ''),
     configured: config !== null || clickupDrafts.length > 0,
     lastRunAt: file.lastRunAt,
