@@ -127,6 +127,7 @@ import { ORCA_SIDEBAR_INPUTS_IS_MAIN } from '../../../../shared/sidebar-list/fee
 import { PULSE_METHODS } from './pulse'
 import { HQ_PROJECTS_METHODS } from './hq-projects'
 import { WEB_PUSH_METHODS } from './web-push'
+import { HQ_CLICKUP_REVIEW_METHODS } from './hq-clickup-review'
 
 // Keep registration order and the full RPC/security surface visible in one manifest.
 const CORE_RPC_METHODS = [
@@ -261,7 +262,8 @@ const SERVICE_RPC_METHODS = [
   ...AUTOMATIC_WORK_METHODS,
   ...PULSE_METHODS,
   ...HQ_PROJECTS_METHODS,
-  ...WEB_PUSH_METHODS
+  ...WEB_PUSH_METHODS,
+  ...HQ_CLICKUP_REVIEW_METHODS
 ] as const
 
 type ConcatMethods<A extends readonly unknown[], B extends readonly unknown[]> = readonly [
