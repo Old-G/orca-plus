@@ -54,6 +54,7 @@ import { getHqProjectPagesService } from '../../hq-project-pages/hq-project-page
 import { startHqWaitingBells } from '../../hq-today/hq-waiting-bells'
 import { deliverWaitingReply } from '../waiting-replies/deliver-waiting-reply'
 import { startShipRestartNotice } from '../ship-restart/ship-restart-notice'
+import { registerHqClickUpTriage } from '../../hq-today/register-hq-clickup-triage'
 
 const BROADCAST_DEBOUNCE_MS = 50
 const FEED_DAYS_MS = 3 * 24 * 60 * 60_000
@@ -151,6 +152,9 @@ export function registerPulseBell(store: Store, runtime: OrcaRuntimeService): vo
     },
     onAdded: notifyHqSlackScoutChanged
   })
+
+  // Custom build (hq-clickup-triage): task edits beyond comments, sorted by a small model.
+  registerHqClickUpTriage(store, runtime)
 
   // Custom build (hq-waiting-replies): Slack answers to what the chats wait for, back into those chats.
   startHqWaitingReplyRelay({
