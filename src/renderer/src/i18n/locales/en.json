@@ -19615,7 +19615,12 @@
         "replyLabel": "Reply in ClickUp",
         "sending": "Sending…",
         "send": "Send",
-        "task": "ClickUp task"
+        "task": "ClickUp task",
+        "review": "Investigate",
+        "reviewOnMac": "Start this on your Mac.",
+        "reviewStarted": "Claude is looking into it; the draft comment comes back to this card.",
+        "openChat": "Open chat",
+        "reviewRunning": "Claude is looking into it; the draft comment comes back here."
       },
       "done": {
         "taskCreated": "Task created",

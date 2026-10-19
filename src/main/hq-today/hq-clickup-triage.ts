@@ -121,6 +121,7 @@ function cardFor(
     description: verdict.verdict === 'known' ? verdict.reply : '',
     project: verdict.project,
     why: verdict.why,
+    ...(review ? { needsReview: true } : {}),
     foundAt: new Date(now).toISOString()
   }
 }
@@ -184,11 +185,11 @@ function historyByTask(decisionsText: string | null, drafts: readonly HqSlackSco
   return history
 }
 
-/** One pass; returns how many new request cards it raised. */
+/** One pass; returns the request cards it raised. */
 export async function runHqClickUpTriage(
   hqPath: string,
   deps: HqClickUpTriageDeps
-): Promise<number> {
+): Promise<HqSlackScoutDraft[]> {
   const dir = join(hqPath, HQ_SLACK_SCOUT_DIR)
   const statePath = join(dir, HQ_CLICKUP_CHANGES_FILE)
   const triagePath = join(dir, HQ_CLICKUP_TRIAGE_FILE)
@@ -208,7 +209,7 @@ export async function runHqClickUpTriage(
   const batch = ready.slice(0, BATCH_MAX)
   if (batch.length === 0) {
     await writeJson(statePath, state)
-    return 0
+    return []
   }
   const triage: TriageFile = {
     drafts: parseHqSlackScoutDrafts(triageText ?? '{}').drafts,
@@ -267,7 +268,7 @@ export async function runHqClickUpTriage(
     ...state,
     pending: [...settling, ...ready.filter((event) => !done.has(event.taskId))]
   })
-  return cards.length
+  return cards
 }
 
 // Why: the plan's pace for the small model — one batch every quarter hour.
@@ -277,8 +278,8 @@ const LOOK_EVERY_MS = 15 * 60_000
 export function startHqClickUpTriage(deps: {
   hqPath: () => string | null
   enabled: () => boolean
-  run: (hqPath: string) => Promise<number>
-  onAdded: () => void
+  run: (hqPath: string) => Promise<HqSlackScoutDraft[]>
+  onAdded: (hqPath: string, cards: HqSlackScoutDraft[]) => Promise<void> | void
 }): () => void {
   let running = false
   const look = async (): Promise<void> => {
@@ -288,8 +289,9 @@ export function startHqClickUpTriage(deps: {
     }
     running = true
     try {
-      if ((await deps.run(hq)) > 0) {
-        deps.onAdded()
+      const cards = await deps.run(hq)
+      if (cards.length > 0) {
+        await deps.onAdded(hq, cards)
       }
     } catch (error) {
       console.warn(

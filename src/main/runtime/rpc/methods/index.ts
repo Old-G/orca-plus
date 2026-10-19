@@ -40,6 +40,7 @@ import { JIRA_METHODS } from './jira'
 import { CLICKUP_METHODS } from './clickup'
 import { PULSE_METHODS } from './pulse'
 import { HQ_PROJECTS_METHODS } from './hq-projects'
+import { HQ_CLICKUP_REVIEW_METHODS } from './hq-clickup-review'
 import { WEB_PUSH_METHODS } from './web-push'
 import { SSH_METHODS } from './ssh'
 import { MANAGED_SERVER_METHODS } from './managed-server'
@@ -135,6 +136,7 @@ export const ALL_RPC_METHODS = [
   ...CLICKUP_METHODS,
   ...PULSE_METHODS,
   ...HQ_PROJECTS_METHODS,
+  ...HQ_CLICKUP_REVIEW_METHODS,
   ...WEB_PUSH_METHODS,
   ...SSH_METHODS,
   ...MANAGED_SERVER_METHODS,

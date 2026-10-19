@@ -48,6 +48,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
       'pulse decision list',
       'pulse draft add',
       'pulse draft list',
+      'pulse review reply',
       'pulse person show'
     ],
     load: async () => (await import('./handlers/pulse.js')).PULSE_HANDLERS

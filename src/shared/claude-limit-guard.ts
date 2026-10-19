@@ -256,6 +256,15 @@ export function claudeLimitsAccountId(limits: ProviderRateLimits): string | null
   return provenance.startsWith('managed:') ? provenance.slice('managed:'.length) : null
 }
 
+/** Custom build (hq-clickup-review): what is left of the active account's tighter window; null when
+ *  there is no reading, or it belongs to another account. */
+export function claudeActiveFreePercent(
+  limits: ProviderRateLimits | null | undefined,
+  activeAccountId: string | null
+): number | null {
+  return limits && claudeLimitsAccountId(limits) === activeAccountId ? freePercent(limits) : null
+}
+
 type ClaudeAccountIdentity = { id: string; email: string; organizationName?: string | null }
 
 /** The email, plus the organization when another account shares that email. */
