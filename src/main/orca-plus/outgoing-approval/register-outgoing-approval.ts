@@ -32,6 +32,7 @@ import {
   type OutgoingDecideDeps
 } from './outgoing-approval-decide'
 import { MovedApprovals } from './outgoing-moved-approvals'
+import { untaggedClickUpNudge } from './outgoing-untagged-nudge'
 
 const SWEEP_INTERVAL_MS = 30_000
 // Why: the card waits this long for names at most; the agent is held either way.
@@ -134,7 +135,8 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
   }
   const gate = new OutgoingApprovalGate({
     db: pulseDb,
-    onChanged: describeThenSync
+    onChanged: describeThenSync,
+    nudge: untaggedClickUpNudge(() => pulseDb().listPeople())
   })
   const decideDeps: OutgoingDecideDeps = {
     gate,
