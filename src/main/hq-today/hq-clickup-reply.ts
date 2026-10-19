@@ -31,21 +31,32 @@ async function readText(path: string): Promise<string | null> {
   }
 }
 
+async function findRequest(hqPath: string, id: string, deps: HqClickUpReplyDeps) {
+  const scout = await deps.readScout(hqPath)
+  return scout.ok ? (scout.drafts.find((draft) => draft.id === id) ?? null) : null
+}
+
 async function findTaskId(
   hqPath: string,
   id: string,
   deps: HqClickUpReplyDeps
 ): Promise<string | Failure> {
-  const scout = await deps.readScout(hqPath)
-  const request = scout.ok ? scout.drafts.find((draft) => draft.id === id) : null
+  const request = await findRequest(hqPath, id, deps)
   return request?.clickupTaskId ?? { ok: false, error: 'This ClickUp request is already decided.' }
 }
+
+// Custom build (hq-clickup-triage): a task change the triage answered carries its draft already.
+const TRIAGE_ID = /^clickup-change:/
 
 export async function draftHqClickUpReply(
   hqPath: string,
   id: string,
   deps: HqClickUpReplyDeps
 ): Promise<{ ok: true; text: string } | Failure> {
+  const request = await findRequest(hqPath, id, deps)
+  if (request && TRIAGE_ID.test(request.id) && request.description.trim()) {
+    return { ok: true, text: request.description.trim() }
+  }
   const taskId = await findTaskId(hqPath, id, deps)
   if (typeof taskId !== 'string') {
     return taskId
