@@ -11,7 +11,7 @@ export function HqChatAvatar({
   item,
   color
 }: {
-  item: HqChatItem
+  item: Pick<HqChatItem, 'projectName'>
   color: string | undefined
 }): React.JSX.Element {
   return (
