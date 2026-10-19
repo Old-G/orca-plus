@@ -134,7 +134,10 @@ prune_backups() {
 if [ "$dry" = 0 ] && [ "$detached" = 0 ]; then
   # Why: keep the previous run's log — a ship that died without a verdict leaves no other trace.
   [ -f "$log" ] && mv "$log" "$log.1"
-  nohup "$0" "$@" --detached </dev/null >"$log" 2>&1 &
+  # Why: started from an Orca+ chat we sit in its agent's process group, which the supervisor kills
+  # once Orca+ quits — the 18.10 and 19.10 ships died after the swap. setsid leaves that group.
+  nohup perl -MPOSIX -e 'POSIX::setsid() >= 0 or die "setsid: $!\n"; exec @ARGV or die "exec: $!\n"' \
+    "$0" "$@" --detached </dev/null >"$log" 2>&1 &
   echo "orca-plus-ship: running detached (pid $!), log $log"
   exit 0
 fi
