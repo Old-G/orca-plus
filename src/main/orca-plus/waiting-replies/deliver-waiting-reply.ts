@@ -7,7 +7,13 @@ import { getStructuredAgentSessionHost } from '../../native-chat/agent-session-w
 import { sendAgentTurn } from '../../runtime/orchestration/send-agent-turn'
 import { mintAgentSessionOperationId } from '../../runtime/orchestration/structured-pointer-operation-id'
 
-async function deliverToNativeChat(sessionId: string, prompt: string): Promise<boolean> {
+/** `operationId` is the send's idempotency key: reuse it on a retry of the same message. */
+export async function deliverToNativeChat(
+  sessionId: string,
+  prompt: string,
+  sender = 'hq-waiting-replies',
+  operationId = mintAgentSessionOperationId(Date.now())
+): Promise<boolean> {
   const host = getStructuredAgentSessionHost()
   const fence = host?.deps.store.getRecord(sessionId)?.lease.runtimeFence
   // Why: a chat with no live lease cannot take input; the relay tries again once it is open.
@@ -23,10 +29,10 @@ async function deliverToNativeChat(sessionId: string, prompt: string): Promise<b
     kind: 'structured-session',
     host,
     sessionId,
-    callerKey: `trusted-local:hq-waiting-replies:${sessionId}`,
+    callerKey: `trusted-local:${sender}:${sessionId}`,
     turn: {
       body,
-      operationId: mintAgentSessionOperationId(Date.now()),
+      operationId,
       expectedRuntimeFence: fence,
       delivery: 'queue'
     }
