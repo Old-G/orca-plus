@@ -2,7 +2,8 @@
 import { ipcMain } from 'electron'
 import type { Store } from '../../persistence'
 import { pickEffortWithJev } from './jev-effort-pick'
-import { provideNativeChatAutoEffort } from './native-chat-auto-effort'
+import { provideNativeChatAutoEffort, recentAutoEffortOutcomes } from './native-chat-auto-effort'
+import type { ChatAutoEffortStatus } from '../../../shared/chat-auto-effort-status'
 import {
   clearOpenRouterKey,
   hasOpenRouterKey,
@@ -10,7 +11,14 @@ import {
   saveOpenRouterKey
 } from './openrouter-key-store'
 
-export type AutoEffortKeyStatus = { configured: boolean }
+function keyStatus(): ChatAutoEffortStatus {
+  const configured = hasOpenRouterKey()
+  return {
+    configured,
+    readable: configured && loadOpenRouterKey() !== null,
+    recent: recentAutoEffortOutcomes()
+  }
+}
 
 export function registerNativeChatAutoEffort(store: Store): void {
   provideNativeChatAutoEffort({
@@ -18,18 +26,16 @@ export function registerNativeChatAutoEffort(store: Store): void {
     key: loadOpenRouterKey,
     pick: pickEffortWithJev
   })
-  ipcMain.handle('hqProjects:autoEffortKeyStatus', (): AutoEffortKeyStatus => ({
-    configured: hasOpenRouterKey()
-  }))
-  ipcMain.handle('hqProjects:saveAutoEffortKey', (_event, key: unknown): AutoEffortKeyStatus => {
+  ipcMain.handle('hqProjects:autoEffortKeyStatus', (): ChatAutoEffortStatus => keyStatus())
+  ipcMain.handle('hqProjects:saveAutoEffortKey', (_event, key: unknown): ChatAutoEffortStatus => {
     if (typeof key !== 'string' || !key.trim()) {
       throw new Error('OpenRouter key must be a non-empty string')
     }
     saveOpenRouterKey(key.trim())
-    return { configured: true }
+    return keyStatus()
   })
-  ipcMain.handle('hqProjects:clearAutoEffortKey', (): AutoEffortKeyStatus => {
+  ipcMain.handle('hqProjects:clearAutoEffortKey', (): ChatAutoEffortStatus => {
     clearOpenRouterKey()
-    return { configured: false }
+    return keyStatus()
   })
 }

@@ -8,6 +8,7 @@ import type {
 } from '../../../shared/agent-session-journal-types'
 import { agentJournalSubmissionKey } from '../../../shared/agent-session-journal-item-key'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
+import type { ChatAutoEffortOutcome } from '../../../shared/chat-auto-effort-status'
 
 export const AUTO_EFFORT_LEVELS = ['medium', 'high', 'xhigh'] as const
 export type AutoEffortLevel = (typeof AUTO_EFFORT_LEVELS)[number]
@@ -28,6 +29,23 @@ export type NativeChatAutoEffortService = {
 }
 
 let service: NativeChatAutoEffortService | null = null
+
+/** One message's outcome, so Settings can show that the switch is doing something. */
+export type AutoEffortOutcome = ChatAutoEffortOutcome
+
+const OUTCOMES_KEPT = 5
+const outcomes: AutoEffortOutcome[] = []
+
+function noteOutcome(outcome: AutoEffortOutcome): void {
+  outcomes.unshift(outcome)
+  outcomes.length = Math.min(outcomes.length, OUTCOMES_KEPT)
+  console.info(`[chat-auto-effort] ${outcome.result} → ${outcome.effort ?? 'chat default'}`)
+}
+
+/** Newest first. */
+export function recentAutoEffortOutcomes(): readonly AutoEffortOutcome[] {
+  return outcomes
+}
 
 export function provideNativeChatAutoEffort(next: NativeChatAutoEffortService | null): void {
   service = next
@@ -72,8 +90,11 @@ export async function autoEffortMessageOptions(input: {
   if (!message || (handPicked && HAND_PICKED_EFFORTS.has(handPicked))) {
     return input.options
   }
+  const note = (result: AutoEffortOutcome['result'], effort: string | null): void =>
+    noteOutcome({ at: Date.now(), effort, result, message: message.slice(0, 80) })
   const key = current.key()
   if (!key) {
+    note('no-key', handPicked ?? null)
     return input.options
   }
   const level = await current.pick({
@@ -81,6 +102,7 @@ export async function autoEffortMessageOptions(input: {
     message,
     previousAgentMessage: lastAgentMessage(input.items())
   })
+  note(level ? 'picked' : 'no-answer', level ?? handPicked ?? null)
   return level ? { ...input.options, effort: level } : input.options
 }
 
