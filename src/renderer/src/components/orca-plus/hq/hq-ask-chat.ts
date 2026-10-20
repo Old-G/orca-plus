@@ -99,7 +99,7 @@ async function startHqAskChat(worktreeId: string, question: string): Promise<HqA
 
 // Custom build (hq-status-update): the owner presses the button; nothing drafts a status on its own.
 export const HQ_STATUS_UPDATE_PROMPT =
-  'Статус Пете (скилл status-update): собери статус по всем проектам с прошлого отправленного, покажи черновик и жди моего «да».'
+  'Статус заказчику (скилл status-update): собери статус по всем проектам с прошлого отправленного, покажи черновик и жди моего «да».'
 
 /** A fresh HQ chat that drafts the status update and waits for the owner's yes. */
 export async function startHqStatusUpdate(worktreeId: string): Promise<HqActionResult> {
