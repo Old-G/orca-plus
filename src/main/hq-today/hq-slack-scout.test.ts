@@ -186,14 +186,14 @@ describe('HQ Slack scout files', () => {
       'drafts.json',
       JSON.stringify({
         drafts: [
-          { ...draft('C1:1'), kind: 'answer', ask: 'проверь тикеты', project: 'acme-flows' },
+          { ...draft('C1:1'), kind: 'answer', ask: 'проверь тикеты', project: 'billing' },
           { ...draft('C1:2'), kind: 'later', project: 42 }
         ]
       })
     )
     const result = await readHqSlackScout(hq)
     expect(result.ok && result.drafts).toMatchObject([
-      { id: 'C1:1', kind: 'answer', ask: 'проверь тикеты', project: 'acme-flows' },
+      { id: 'C1:1', kind: 'answer', ask: 'проверь тикеты', project: 'billing' },
       { id: 'C1:2', kind: undefined, project: undefined }
     ])
   })
