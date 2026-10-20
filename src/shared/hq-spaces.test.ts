@@ -20,8 +20,8 @@ function file(slug: string, data: unknown): HqSpaceFile {
 
 const PROJECTS = [
   { repoId: 'r-api', slug: 'acme-api', group: 'Acme Projects' },
-  { repoId: 'r-fb', slug: 'acme-flows', group: 'Acme In Process' },
-  { repoId: 'r-hobby-app', slug: 'hobby-app', group: null },
+  { repoId: 'r-fb', slug: 'billing', group: 'Acme In Process' },
+  { repoId: 'r-hobby', slug: 'hobby', group: null },
   { repoId: 'r-orca', slug: 'orca-custom', group: null }
 ]
 
@@ -80,7 +80,7 @@ describe('resolveHqSpaces', () => {
         name: 'Acme',
         color: '#3b82f6',
         repoIds: ['r-api', 'r-fb'],
-        projects: ['acme-flows', 'acme-api'],
+        projects: ['acme-api', 'billing'],
         messenger: 'slack',
         tasks: 'clickup',
         git: { name: 'Alex Owner', email: 'owner@acme.example' }
@@ -104,7 +104,7 @@ describe('hqSpaceShows', () => {
     const all = spaces()
     expect(hqSpaceShows(all, 'acme', { repoId: 'r-fb' })).toBe(true)
     expect(hqSpaceShows(all, 'acme', { project: 'orca-custom' })).toBe(false)
-    expect(hqSpaceShows(all, 'acme', { project: 'hobby-app' })).toBe(true)
+    expect(hqSpaceShows(all, 'acme', { project: 'hobby' })).toBe(true)
     expect(hqSpaceShows(all, 'acme', {})).toBe(true)
     expect(hqSpaceShows(all, null, { project: 'orca-custom' })).toBe(true)
     expect(hqSpaceShows(all, 'gone', { project: 'orca-custom' })).toBe(true)
