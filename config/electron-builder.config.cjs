@@ -143,6 +143,12 @@ const nativeChatVisualsResource = {
   from: 'resources/native-chat-visuals',
   to: 'native-chat-visuals'
 }
+// Custom build (hq-bundled-skills): the HQ skills Orca+ copies into ~/.claude/skills at startup.
+const hqSkillsResource = {
+  from: 'resources/hq-skills',
+  to: 'hq-skills',
+  filter: ['**/*', '!**/__pycache__/**', '!**/*.pyc']
+}
 // SSH deploy resolves process.resourcesPath/relay; extraResources keeps bundles on real disk.
 const relayExtraResource = {
   from: 'out/relay',
@@ -175,6 +181,7 @@ const commonExtraResources = [
   skillFreshnessResources,
   ...agentBrowserSkillResources,
   nativeChatVisualsResource,
+  hqSkillsResource,
   emojiShortcodeDatasetResource
 ]
 // electron-builder replaces these defaults when `depends` is configured; retain
@@ -634,7 +641,9 @@ module.exports = {
       ...macUsageDescriptions,
       // Custom build (orca-plus-name): Dock, menu bar and Finder say "Orca+" via en.lproj; the raw
       // CFBundleName stays productName because Electron finds "<CFBundleName> Helper.app" by it.
-      ...(orcaPlusPackaging ? { CFBundleDisplayName: 'Orca+', LSHasLocalizedDisplayName: true } : {})
+      ...(orcaPlusPackaging
+        ? { CFBundleDisplayName: 'Orca+', LSHasLocalizedDisplayName: true }
+        : {})
     },
     // Local macOS builds need no release credentials; hardening/notarization stay on explicit release paths.
     hardenedRuntime: isMacRelease,
