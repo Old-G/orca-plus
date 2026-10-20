@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Where the Orca+ HQ folder is, for the HQ skills' scripts.
 
-$HQ_DIR → the current folder when it is an HQ (has registry.yaml) → the pointer Orca+ writes from
-Settings → HQ Folder (~/.config/orca-plus/hq.json). Prints the path; exits 1 when none is known.
+$HQ_DIR → the pointer Orca+ writes from Settings → HQ Folder (~/.config/orca-plus/hq.json) → the
+current folder, only while no pointer names a folder and it looks like an HQ (has registry.yaml). Prints the path; exits 1 when none is known.
 
     from hq_location import hq_dir          # sys.path: ~/.claude/skills/hq-setup
     python3 ~/.claude/skills/hq-setup/hq_location.py
@@ -19,8 +19,6 @@ def hq_dir():
     env = os.environ.get("HQ_DIR")
     if env:
         return os.path.expanduser(env)
-    if os.path.isfile("registry.yaml"):
-        return os.getcwd()
     try:
         with open(POINTER, encoding="utf-8") as handle:
             path = json.load(handle).get("hqPath")
@@ -28,6 +26,9 @@ def hq_dir():
         path = None
     if path and os.path.isdir(path):
         return path
+    # Why: the folder Orca+ was told about wins; a stray registry.yaml in some cwd must not redirect writes.
+    if not path and os.path.isfile("registry.yaml"):
+        return os.getcwd()
     raise SystemExit(NOT_SET)
 
 
