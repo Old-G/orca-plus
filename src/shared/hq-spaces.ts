@@ -1,5 +1,5 @@
-// Custom build (hq-spaces): workspaces above projects — a company (Acme) or a venture of its
-// own (Hobby, OG News, personal) — each a folder under the global HQ, `workspaces/<slug>/`, with a
+// Custom build (hq-spaces): workspaces above projects — a company or a venture of the owner's
+// own (a side project, a personal one) — each a folder under the global HQ, `workspaces/<slug>/`, with a
 // `workspace.yaml` naming its colour and which project groups and projects belong to it. HQ shows
 // one of them or all; skills read the same file. Called «space» in code: Orca's «workspace» is a
 // worktree.
@@ -182,7 +182,7 @@ export function hqReviewProject(ref: string): string | null {
 }
 
 /** The workspace a message goes out from, when it names neither this messenger nor this tracker —
- *  e.g. a Hobby chat writing through Acme's Slack; null when nothing is wrong or unknown. */
+ *  e.g. a side project's chat writing through the company's Slack; null when nothing is wrong or unknown. */
 export function hqSpaceWrongChannel(
   spaces: readonly HqSpace[],
   project: string | null,
