@@ -15,7 +15,7 @@ vi.mock('./use-hq-project-pages', () => ({
     status: 'ready',
     pages: [
       { repoId: 'r1', slug: 'acme_support_service', title: 'acme_support_service — Zenith' },
-      { repoId: 'r2', slug: 'acme-flows', title: 'Billing — робот' }
+      { repoId: 'r2', slug: 'billing', title: 'Billing — робот' }
     ]
   })
 }))
