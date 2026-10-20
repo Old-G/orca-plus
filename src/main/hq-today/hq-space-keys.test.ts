@@ -23,17 +23,17 @@ afterEach(() => rmSync(root, { recursive: true, force: true }))
 
 describe('workspace keys', () => {
   it('saves a key per workspace and kind, lists them without reading them, and removes one', () => {
-    expect(setHqSpaceKey('hobby-app', 'telegram', ' 123:abc ', root)).toEqual({ ok: true })
-    expect(setHqSpaceKey('hobby-app', 'slack', 'xoxp-1', root)).toEqual({ ok: true })
+    expect(setHqSpaceKey('hobby', 'telegram', ' 123:abc ', root)).toEqual({ ok: true })
+    expect(setHqSpaceKey('hobby', 'slack', 'xoxp-1', root)).toEqual({ ok: true })
     expect(setHqSpaceKey('og-news', 'clickup', 'pk_1', root)).toEqual({ ok: true })
     expect(listHqSpaceKeys(root)).toEqual({
-      keys: { hobby-app: ['slack', 'telegram'], 'og-news': ['clickup'] }
+      keys: { hobby: ['slack', 'telegram'], 'og-news': ['clickup'] }
     })
-    expect(readHqSpaceKey('hobby-app', 'telegram', root)).toBe('123:abc')
-    expect(setHqSpaceKey('hobby-app', 'telegram', null, root)).toEqual({ ok: true })
-    expect(readHqSpaceKey('hobby-app', 'telegram', root)).toBeNull()
+    expect(readHqSpaceKey('hobby', 'telegram', root)).toBe('123:abc')
+    expect(setHqSpaceKey('hobby', 'telegram', null, root)).toEqual({ ok: true })
+    expect(readHqSpaceKey('hobby', 'telegram', root)).toBeNull()
     expect(readdirSync(join(root, 'hq-space-keys')).sort()).toEqual([
-      'hobby-app.slack.enc',
+      'hobby.slack.enc',
       'og-news.clickup.enc'
     ])
   })
@@ -43,7 +43,7 @@ describe('workspace keys', () => {
       ok: false,
       error: 'Not a workspace.'
     })
-    expect(setHqSpaceKey('hobby-app', 'slack', 'two words', root)).toEqual({
+    expect(setHqSpaceKey('hobby', 'slack', 'two words', root)).toEqual({
       ok: false,
       error: 'A key is one line without spaces.'
     })

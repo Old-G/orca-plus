@@ -4,7 +4,7 @@ vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => f
 
 import { hqSpaceKeyRows } from './HqSpaceKeysDialog'
 
-const SPACE = { slug: 'hobby-app', name: 'Hobby', color: '#a855f7', repoIds: [], projects: [] }
+const SPACE = { slug: 'hobby', name: 'Hobby', color: '#a855f7', repoIds: [], projects: [] }
 
 describe('hqSpaceKeyRows', () => {
   it('shows the usual three, plus what the workspace names or saved', () => {
