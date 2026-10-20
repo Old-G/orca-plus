@@ -1,15 +1,24 @@
 > [!NOTE]
-> **Orca+ is an unofficial fork of [Orca](https://github.com/stablyai/orca)** by [Stably AI](https://github.com/stablyai). It is not affiliated with or endorsed by Stably AI. All credit for Orca goes to its authors; this fork keeps their MIT license and stays as close to upstream as possible, rebasing a small stack of features on top of every upstream release.
+> **Orca+ is an unofficial fork of [Orca](https://github.com/stablyai/orca)** by [Stably AI](https://github.com/stablyai). It is not affiliated with or endorsed by Stably AI. All credit for Orca goes to its authors; this fork keeps their MIT license and stays as close to upstream as possible, rebasing its own features on top of every upstream release (one commit per feature on the `custom` branch, trailer `Custom-Feature:`).
 >
-> What the "+" adds (one commit per feature on the `custom` branch, trailer `Custom-Feature:`):
-> - **LSP** in the editor and diff views
-> - **File Explorer**: paste files copied in Finder/Explorer; Cmd+C / Cmd+X / Cmd+Z for files
-> - **Claude Code IDE**: Orca acts as Claude Code's IDE, like the VS Code extension (diagnostics, diffs to review)
-> - **Custom appearance** (Settings → Appearance, off by default = stock look): import any VS Code / Cursor color theme — installed ones, Open VSX or a `.vsix` — to recolor the UI, editor and terminal; a background image; a user `custom.css`
-> - Fixes: Nerd symbols font before prompts render, failed Claude hooks shown as a warning, Swift 6.4 native builds
-> - **Packaging**: a packaged "Orca+" (`Orca Plus.app`, bundle id `com.oldg.orca-plus`) installs beside the stock Orca with its own profile, CLI (`orca-plus`) and URL scheme
+> **What the "+" adds**
+> - **HQ** — one screen above all projects: agent chats as a messenger, Today (requests from Slack and ClickUp with Do / Just reply / Skip), Notes (who you wait for and what you promised), Feed, Reports, People, a project map, workspaces, «Ask HQ» across every source, a night shift queue
+> - **Autopilot around people** — an Approve card before any agent message to a person (Slack, ClickUp, Telegram), with the destination, a footer and a ref; replies to your questions come back to the chat that asked; drafts follow your tone and learn from your edits
+> - **Native chat** — Claude chats with per-message effort (Jev on OpenRouter), subscription switching near the limit, auto-continue after a network drop, file links and diffs that open in the editor, read-aloud, voice prompts
+> - **Integrations** — ClickUp (tasks page, task changes sorted by a small model, «Investigate» on a change), Slack (agent updates in threads, answering agents from Slack), web push and an HQ page for the phone
+> - **Editor and look** — LSP in the editor and diff views, Finder copy/paste and Cmd+C/X/Z in the File Explorer, Orca as Claude Code's IDE, VS Code / Cursor themes, a background image, `custom.css`
+> - **Packaging** — `Orca Plus.app` (bundle id `com.oldg.orca-plus`) installs beside the stock Orca with its own profile, CLI (`orca-plus`) and URL scheme
 >
-> Branches: `main` mirrors upstream; `custom` (default) is upstream plus the stack above. Upstream README follows.
+> **Install on a Mac** (Apple silicon or Intel; there is no prebuilt download)
+> 1. Node 24+ and Xcode Command Line Tools; `corepack enable`
+> 2. `git clone https://github.com/Old-G/orca-plus.git && cd orca-plus && corepack pnpm install`
+> 3. Once per Mac: `scripts/orca-plus-signing-cert.sh` — a local signing certificate, so macOS keeps Orca+'s privacy permissions across rebuilds (without it the build is signed ad hoc)
+> 4. `scripts/build-orca-plus-mac.sh` → `dist/mac-arm64/Orca Plus.app` (or `mac-x64`)
+> 5. Copy it to `/Applications` and open it. Updating later: `git pull && scripts/build-orca-plus-mac.sh`, then replace the app
+>
+> HQ needs a folder for its wiki (Settings → HQ Folder); ClickUp and Slack connect in Settings with your own tokens. Nothing personal ships in the app: names, ids and keys live in your settings and your HQ folder.
+>
+> Branches: `main` mirrors upstream; `custom` (default) is upstream plus the features above. Upstream README follows.
 
 <h1 align="center">
   <a href="https://onOrca.dev"><img src="resources/build/icon.png" alt="Orca" width="64" valign="middle" /></a> Orca
