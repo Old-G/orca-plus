@@ -130,6 +130,12 @@ const nativeChatVisualsResource = {
   from: 'resources/native-chat-visuals',
   to: 'native-chat-visuals'
 }
+// Custom build (hq-bundled-skills): the HQ skills Orca+ copies into ~/.claude/skills at startup.
+const hqSkillsResource = {
+  from: 'resources/hq-skills',
+  to: 'hq-skills',
+  filter: ['**/*', '!**/__pycache__/**', '!**/*.pyc']
+}
 // Why: SSH relay deploy resolves bundles from process.resourcesPath in packaged
 // apps. Keeping relay assets as extraResources makes them real directories
 // instead of paths hidden inside app.asar.
@@ -162,6 +168,7 @@ const commonExtraResources = [
   bundledPluginResources,
   skillFreshnessResources,
   nativeChatVisualsResource,
+  hqSkillsResource,
   emojiShortcodeDatasetResource
 ]
 // Why: native speech addons must be real files outside app.asar; copy only the
@@ -658,7 +665,9 @@ module.exports = {
       ...macUsageDescriptions,
       // Custom build (orca-plus-name): Dock, menu bar and Finder say "Orca+" via en.lproj; the raw
       // CFBundleName stays productName because Electron finds "<CFBundleName> Helper.app" by it.
-      ...(orcaPlusPackaging ? { CFBundleDisplayName: 'Orca+', LSHasLocalizedDisplayName: true } : {})
+      ...(orcaPlusPackaging
+        ? { CFBundleDisplayName: 'Orca+', LSHasLocalizedDisplayName: true }
+        : {})
     },
     // Why: local macOS validation builds should launch without Apple release
     // credentials. Hardened runtime + notarization stay enabled only on the
