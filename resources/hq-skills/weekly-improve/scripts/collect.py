@@ -97,6 +97,17 @@ def norm(text):
     return SECRET.sub("[redacted]", re.sub(r"\s+", " ", text).strip())
 
 
+def redact(value):
+    """Every free-text field of a digest with secrets masked, whatever source it came from."""
+    if isinstance(value, str):
+        return SECRET.sub("[redacted]", value)
+    if isinstance(value, list):
+        return [redact(v) for v in value]
+    if isinstance(value, dict):
+        return {k: redact(v) for k, v in value.items()}
+    return value
+
+
 def median(values):
     ordered = sorted(values)
     if not ordered:
@@ -350,7 +361,7 @@ def day_main(args):
     os.makedirs(out_dir, exist_ok=True)
     out = os.path.join(out_dir, f"{args.day}.json")
     with open(out, "w", encoding="utf-8") as handle:
-        json.dump(digest, handle, ensure_ascii=False, indent=1)
+        json.dump(redact(digest), handle, ensure_ascii=False, indent=1)
     t, p = digest["transcripts"], digest["pulse"]
     print(out)
     print(f"owner messages {t['owner_messages']}, projects {len(t['by_project'])}, skills used {len(t['skills_used'])}, "
@@ -383,7 +394,7 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     out = os.path.join(out_dir, f"{digest['week']}-input.json")
     with open(out, "w", encoding="utf-8") as handle:
-        json.dump(digest, handle, ensure_ascii=False, indent=1)
+        json.dump(redact(digest), handle, ensure_ascii=False, indent=1)
     t = digest["transcripts"]
     print(out)
     print(f"owner messages {t['owner_messages']}, unique sampled {len(t['recent_messages'])}, "
