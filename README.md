@@ -18,6 +18,8 @@
 >
 > HQ needs a folder for its wiki (Settings → HQ Folder); ClickUp and Slack connect in Settings with your own tokens. Nothing personal ships in the app: names, ids and keys live in your settings and your HQ folder.
 >
+> **HQ skills come with the app.** On start Orca+ copies its Claude Code skills (Ask HQ, ask-person, notes, daily and weekly review, the «who we wait for» digest, tone and triage roll-ups, Codex commit review, meeting follow-up) into `~/.claude/skills` and keeps them current; a skill folder you placed yourself is never touched. Then tell any Claude chat «настрой HQ» (skill `hq-setup`) to switch on background jobs and ready-made automations.
+>
 > Branches: `main` mirrors upstream; `custom` (default) is upstream plus the features above. Upstream README follows.
 
 <h1 align="center">
