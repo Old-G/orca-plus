@@ -12,15 +12,15 @@ const FILTER = {
       messenger: 'slack',
       tasks: 'clickup'
     },
-    { slug: 'hobby-app', name: 'Hobby', color: '#a855f7', repoIds: ['r-h'], projects: ['hobby-app'] }
+    { slug: 'hobby', name: 'Hobby', color: '#a855f7', repoIds: ['r-h'], projects: ['hobby'] }
   ],
-  active: 'hobby-app'
+  active: 'hobby'
 }
 
 describe('the phone’s workspace filter', () => {
   it('keeps the chosen workspace’s records and the unclaimed ones', () => {
     expect(mobileHqShows(FILTER, { repoId: 'r-api' })).toBe(false)
-    expect(mobileHqShows(FILTER, { project: 'hobby-app' })).toBe(true)
+    expect(mobileHqShows(FILTER, { project: 'hobby' })).toBe(true)
     expect(mobileHqShows(FILTER, { project: 'strata' })).toBe(true)
   })
 
