@@ -111,7 +111,7 @@ export function createStructuredAgentSessionConversationDelivery(input: {
     autoEffortOptions: (sessionId, submission) =>
       withAutoEffort(
         submission,
-        deps.store.getRecord(sessionId)?.provider,
+        deps.store.getRecord(sessionId),
         sessions.get(sessionId)?.journal
       ),
     conversationFence: (sessionId) =>
