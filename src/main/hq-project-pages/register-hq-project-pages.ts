@@ -1,8 +1,8 @@
 // Custom build (hq): IPC for HQ's tabs; the work is in hq-project-pages-service.ts, which the
 // paired web client reaches through the hqProjects.* runtime RPC.
 import { BrowserWindow, ipcMain } from 'electron'
-import type { Store } from '../persistence'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/execution/commit-message-agent-environment'
+import type { Store } from '../persistence/loading-store/store'
 import {
   HqDraftTaskQuestionsParams,
   HqClickUpReplyParams,
@@ -27,7 +27,8 @@ import {
 } from './hq-project-pages-service'
 import { startHqSpaceGitAuthors } from '../hq-today/hq-space-git-authors'
 import { listHqSpaces } from '../hq-today/hq-spaces'
-import { gitExecFileAsync } from '../git/runner'
+import { gitExecFileAsync } from '../git/command-runner/git-exec-file'
+import { registerHqBundledSkills } from '../hq-bundled-skills/register-hq-bundled-skills'
 import { isGitRepoKind } from '../../shared/repository/repo-kind'
 import { registerNativeChatAutoEffort } from '../native-chat/auto-effort/register-native-chat-auto-effort'
 
@@ -39,6 +40,8 @@ export function registerHqProjectPagesHandlers(
   provideHqProjectPagesService(service)
   // Custom build (chat-auto-effort): a Claude chat's effort follows each message.
   registerNativeChatAutoEffort(store)
+  // Custom build (hq-bundled-skills): the HQ skills and the HQ folder pointer their scripts read.
+  registerHqBundledSkills(store)
   // Custom build (hq-reply-tone): a Slack message rewritten in Approve becomes a tone lesson.
   onOutgoingApprovalDecided(keepHqApprovalEdits(() => store.getSettings().hqPath ?? null))
   // Custom build (outgoing-approval-target): the scout's files name the DMs approval cards send to.
