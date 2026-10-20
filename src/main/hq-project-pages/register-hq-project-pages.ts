@@ -28,6 +28,7 @@ import {
 import { startHqSpaceGitAuthors } from '../hq-today/hq-space-git-authors'
 import { listHqSpaces } from '../hq-today/hq-spaces'
 import { gitExecFileAsync } from '../git/runner'
+import { registerHqBundledSkills } from '../hq-bundled-skills/register-hq-bundled-skills'
 import { isGitRepoKind } from '../../shared/repo-kind'
 import { registerNativeChatAutoEffort } from '../native-chat/auto-effort/register-native-chat-auto-effort'
 
@@ -39,6 +40,8 @@ export function registerHqProjectPagesHandlers(
   provideHqProjectPagesService(service)
   // Custom build (chat-auto-effort): a Claude chat's effort follows each message.
   registerNativeChatAutoEffort(store)
+  // Custom build (hq-bundled-skills): the HQ skills and the HQ folder pointer their scripts read.
+  registerHqBundledSkills(store)
   // Custom build (hq-reply-tone): a Slack message rewritten in Approve becomes a tone lesson.
   onOutgoingApprovalDecided(keepHqApprovalEdits(() => store.getSettings().hqPath ?? null))
   // Custom build (outgoing-approval-target): the scout's files name the DMs approval cards send to.
