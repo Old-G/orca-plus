@@ -86,7 +86,7 @@ export function hqClickUpReplyPrompt(args: {
 }): string {
   const examples = args.corrections.flatMap((correction, index) => [
     `Пример ${index + 1}. Черновик: ${correction.draft}`,
-    `владелец отправил: ${correction.sent}`
+    `Владелец отправил: ${correction.sent}`
   ])
   return [
     'Ты пишешь ответ владельца на последний комментарий в его задаче ClickUp.',
