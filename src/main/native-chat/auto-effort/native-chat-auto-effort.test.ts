@@ -7,6 +7,7 @@ import { pickEffortWithJev } from './jev-effort-pick'
 import {
   autoEffortMessageOptions,
   provideNativeChatAutoEffort,
+  recentAutoEffortOutcomes,
   type NativeChatAutoEffortService
 } from './native-chat-auto-effort'
 
@@ -71,6 +72,20 @@ describe('chat auto effort', () => {
     expect(await autoEffortMessageOptions({ ...base, options: { effort: 'high' } })).toEqual({
       effort: 'high'
     })
+  })
+})
+
+describe('chat auto effort outcomes', () => {
+  it('records the pick and a keyless miss, newest first, for Settings', async () => {
+    const base = { provider: 'claude', body: user('проверь'), items: () => [], options: {} }
+    serve({ key: () => null })
+    await autoEffortMessageOptions(base)
+    serve()
+    await autoEffortMessageOptions(base)
+    expect(recentAutoEffortOutcomes().slice(0, 2)).toMatchObject([
+      { result: 'picked', effort: 'xhigh', message: 'проверь' },
+      { result: 'no-key', effort: null }
+    ])
   })
 })
 
