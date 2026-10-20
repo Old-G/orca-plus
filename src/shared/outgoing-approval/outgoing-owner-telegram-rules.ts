@@ -1,8 +1,19 @@
 // Custom build (outgoing-approval, W42 #13, owner 18.10): a project's bot previews sent to the owner's
 // own Telegram chat pass without a card. Channels, literal ids, other projects and other hosts stay held.
 
-/** Projects whose agents may message the owner's chat (`OWNER_CHAT_ID` in their `.env`) freely. */
-const OWNER_PREVIEW_PROJECTS = new Set(['news_bot'])
+/** Projects whose agents may message the owner's chat (`OWNER_CHAT_ID` in their `.env`) freely;
+ *  the owner lists them as `owner_preview_projects` in HQ's slack-scout/config.yaml. */
+let ownerPreviewProjects: ReadonlySet<string> = new Set()
+
+export function setOwnerPreviewProjects(names: Iterable<string>): void {
+  ownerPreviewProjects = new Set(names)
+}
+
+/** `owner_preview_projects: [news_bot, other]` → its names; none when the key is absent. */
+export function parseOwnerPreviewProjects(config: string): string[] {
+  const line = /^owner_preview_projects:\s*\[?([^\]\n#]*)/m.exec(config)?.[1] ?? ''
+  return [...line.matchAll(/[\w.-]+/g)].map((match) => match[0])
+}
 
 const TELEGRAM_HOST = /^api\.telegram\.org$/i
 const LOCAL_HOST = /^(?:localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|\[?::1\]?|[\w-]+\.localhost)$/i
@@ -25,7 +36,7 @@ const OWNER_OVERRIDE = new RegExp(
 const HIDDEN_PARAMS = /\*\*\s*[\w(]|(?:\s-d|--data[\w-]*|--json)[=\s]*['"]?@|\s(?:-K|--config)[=\s]/
 
 function inPreviewProject(cwd: string | null): boolean {
-  return !!cwd && cwd.split(/[\\/]/).some((part) => OWNER_PREVIEW_PROJECTS.has(part))
+  return !!cwd && cwd.split(/[\\/]/).some((part) => ownerPreviewProjects.has(part))
 }
 
 /** A variable bound only to the owner's chat id, never rebound by a loop, `as` or a parameter. */
