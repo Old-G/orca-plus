@@ -8,13 +8,13 @@ describe('HQ autonomy levels', () => {
         '# How far an agent may go',
         'default: 1',
         'projects:',
-        '  acme-flows: 0   # n8n flows live on prod',
+        '  billing: 0   # n8n flows live on prod',
         '  "orca-custom": 2',
         '  # strata: 3'
       ].join('\n')
     )
-    expect(config).toEqual({ defaultLevel: 1, projects: { acme-flows: 0, 'orca-custom': 2 } })
-    expect(hqAutonomyFor(config, 'acme-flows')).toBe(0)
+    expect(config).toEqual({ defaultLevel: 1, projects: { billing: 0, 'orca-custom': 2 } })
+    expect(hqAutonomyFor(config, 'billing')).toBe(0)
     expect(hqAutonomyFor(config, 'acme-api')).toBe(1)
   })
 
