@@ -1,6 +1,6 @@
 // Custom build (hq-space-git): each workspace's commit author — `git: { name, email }` in its
-// workspace.yaml — kept in the local git config of its projects, so a Acme commit is signed
-// owner@acme.example while the rest keep the global author. Only local repos; worktrees share it.
+// workspace.yaml — kept in the local git config of its projects, so a company's commit carries its work
+// address while the rest keep the global author. Only local repos; worktrees share it.
 import type { HqSpace, HqSpaceGitAuthor } from '../../shared/hq-spaces'
 
 // Why: workspace.yaml and the project list change rarely; ten minutes catches a new project soon.

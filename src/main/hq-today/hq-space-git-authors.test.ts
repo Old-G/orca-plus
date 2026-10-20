@@ -7,7 +7,7 @@ const LH: HqSpace = {
   name: 'Acme',
   color: '#3b82f6',
   repoIds: ['r-api', 'r-fb', 'r-remote'],
-  projects: ['acme-api', 'acme-flows'],
+  projects: ['acme-api', 'billing'],
   git: { name: 'Alex Owner', email: 'owner@acme.example' }
 }
 const PERSONAL: HqSpace = {
@@ -41,8 +41,6 @@ describe('applyHqSpaceGitAuthors', () => {
       }
     })
     expect(writes).toEqual(['/api user.name=Alex Owner', '/api user.email=owner@acme.example'])
-    expect(changes).toEqual([
-      { path: '/api', space: 'acme', from: null, to: 'owner@acme.example' }
-    ])
+    expect(changes).toEqual([{ path: '/api', space: 'acme', from: null, to: 'owner@acme.example' }])
   })
 })
