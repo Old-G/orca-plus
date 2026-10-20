@@ -30,7 +30,8 @@ export function loadOpenRouterKey(): string | null {
   }
   try {
     cachedKey = readStoredCredentialToken('OpenRouter', readFileSync(path))?.trim() || null
-  } catch {
+  } catch (error) {
+    console.warn('[chat-auto-effort] the saved OpenRouter key cannot be read', error)
     return null
   }
   return cachedKey
