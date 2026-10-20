@@ -61,7 +61,7 @@ function deps(
     listMyTasks: async () => tasks,
     listComments: async (taskId) => comments[taskId] ?? [],
     viewer: async () => ({ id: OWNER.id, username: OWNER.username }),
-    projectForList: (listId) => (listId === 'L1' ? 'acme-flows' : null),
+    projectForList: (listId) => (listId === 'L1' ? 'billing' : null),
     now: () => now
   }
 }
@@ -101,7 +101,7 @@ describe('collectHqClickUpRequests', () => {
         authorId: '2',
         ask: 'Когда будет?',
         title: 'Task a',
-        project: 'acme-flows',
+        project: 'billing',
         permalink: 'https://app.clickup.com/t/a'
       })
     ])
