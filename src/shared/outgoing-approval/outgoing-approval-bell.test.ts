@@ -73,7 +73,7 @@ describe('outgoingApprovalHeadProject', () => {
     expect(
       outgoingApprovalHeadProject('Slack message → #it · in a thread · from «Fix» (acme-api)')
     ).toBe('acme-api')
-    expect(outgoingApprovalHeadProject('ClickUp comment · from acme-flows')).toBe('acme-flows')
+    expect(outgoingApprovalHeadProject('ClickUp comment · from billing')).toBe('billing')
     expect(outgoingApprovalHeadProject('Slack message → Петя · from «Ask HQ»')).toBeNull()
     expect(outgoingApprovalHeadProject('Slack message → Петя')).toBeNull()
   })
