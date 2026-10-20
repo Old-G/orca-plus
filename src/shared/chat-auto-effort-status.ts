@@ -3,7 +3,7 @@ export type ChatAutoEffortOutcome = {
   at: number
   /** The effort the message went with: the pick, or the chat's own on a miss. */
   effort: string | null
-  result: 'picked' | 'no-key' | 'no-answer'
+  result: 'picked' | 'no-key' | 'no-answer' | 'no-effort-control'
   message: string
 }
 

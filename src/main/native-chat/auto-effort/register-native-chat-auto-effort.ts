@@ -1,6 +1,6 @@
 // Custom build (chat-auto-effort): the setting, the OpenRouter key and the classifier, bound at startup.
 import { ipcMain } from 'electron'
-import type { Store } from '../../persistence'
+import type { Store } from '../../persistence/loading-store/store'
 import { pickEffortWithJev } from './jev-effort-pick'
 import { provideNativeChatAutoEffort, recentAutoEffortOutcomes } from './native-chat-auto-effort'
 import type { ChatAutoEffortStatus } from '../../../shared/chat-auto-effort-status'
