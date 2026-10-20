@@ -9,6 +9,8 @@ import type {
 import { agentJournalSubmissionKey } from '../../../shared/agent-session-journal-item-key'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import type { ChatAutoEffortOutcome } from '../../../shared/chat-auto-effort-status'
+import type { AgentSessionRecord } from '../../../shared/agent-session-record'
+import { chatModelEffortLevels } from './chat-model-effort-levels'
 
 export const AUTO_EFFORT_LEVELS = ['medium', 'high', 'xhigh'] as const
 export type AutoEffortLevel = (typeof AUTO_EFFORT_LEVELS)[number]
@@ -77,6 +79,8 @@ export async function autoEffortMessageOptions(input: {
   options: MessageOptions
   body: AgentJournalItemBody | undefined
   items: () => readonly AgentJournalRenderItem[]
+  /** Levels the message's model offers; null when the model list does not say. */
+  effortLevels?: () => ReadonlySet<string> | null
 }): Promise<MessageOptions> {
   const current = service
   if (!current || input.provider !== 'claude' || !current.enabled()) {
@@ -92,6 +96,12 @@ export async function autoEffortMessageOptions(input: {
   }
   const note = (result: AutoEffortOutcome['result'], effort: string | null): void =>
     noteOutcome({ at: Date.now(), effort, result, message: message.slice(0, 80) })
+  // Why: a model with no effort control (Haiku) would refuse the pick, or fail the start it rides on.
+  const levels = input.effortLevels?.() ?? null
+  if (levels && !AUTO_EFFORT_LEVELS.some((level) => levels.has(level))) {
+    note('no-effort-control', handPicked ?? null)
+    return input.options
+  }
   const key = current.key()
   if (!key) {
     note('no-key', handPicked ?? null)
@@ -102,8 +112,9 @@ export async function autoEffortMessageOptions(input: {
     message,
     previousAgentMessage: lastAgentMessage(input.items())
   })
-  note(level ? 'picked' : 'no-answer', level ?? handPicked ?? null)
-  return level ? { ...input.options, effort: level } : input.options
+  const usable = level && (!levels || levels.has(level)) ? level : null
+  note(usable ? 'picked' : 'no-answer', usable ?? handPicked ?? null)
+  return usable ? { ...input.options, effort: usable } : input.options
 }
 
 // Why: a message's options are applied before its agent starts and again at handover; ask once.
@@ -113,10 +124,11 @@ const PICKED_KEPT = 50
 /** The delivery loop's hook: a queued message's options with the picked effort. */
 export function withAutoEffort(
   submission: AgentJournalSubmission,
-  provider: string | undefined,
+  record: AgentSessionRecord | null,
   journal: AgentSessionJournal | undefined
 ): Promise<MessageOptions> {
   const options = submission.options
+  const provider = record?.provider
   if (!journal || !provider || !service?.enabled()) {
     return Promise.resolve(options)
   }
@@ -129,7 +141,8 @@ export function withAutoEffort(
     provider,
     options,
     body: journal.itemBody(agentJournalSubmissionKey(id)) ?? undefined,
-    items: () => journal.snapshot().items
+    items: () => journal.snapshot().items,
+    effortLevels: () => chatModelEffortLevels(record, options?.model)
   })
   picked.set(id, pending)
   if (picked.size > PICKED_KEPT) {

@@ -23,11 +23,17 @@ function lastOutcomeLine(status: ChatAutoEffortStatus): string | null {
         when,
         effort: last.effort ?? ''
       })
-    : translate(
-        'auto.chat.autoEffort.lastMissed',
-        'Last message ({{when}}): no answer from Jev, the chat kept its effort.',
-        { when }
-      )
+    : last.result === 'no-effort-control'
+      ? translate(
+          'auto.chat.autoEffort.lastNoControl',
+          'Last message ({{when}}): its model has no effort control, nothing was changed.',
+          { when }
+        )
+      : translate(
+          'auto.chat.autoEffort.lastMissed',
+          'Last message ({{when}}): no answer from Jev, the chat kept its effort.',
+          { when }
+        )
 }
 
 export function ChatAutoEffortSetting({

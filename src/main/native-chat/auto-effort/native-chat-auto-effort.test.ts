@@ -10,6 +10,7 @@ import {
   recentAutoEffortOutcomes,
   type NativeChatAutoEffortService
 } from './native-chat-auto-effort'
+import { modelEffortLevels } from './chat-model-effort-levels'
 
 const user = (text: string): AgentJournalItemBody => ({
   kind: 'message',
@@ -48,6 +49,35 @@ describe('chat auto effort', () => {
       message: 'да',
       previousAgentMessage: 'План: переписать хранилище. Начинать?'
     })
+  })
+
+  it('never hands an effort to a model with no effort control, or one it does not offer', async () => {
+    const base = { provider: 'claude', body: user('go'), items: () => [] }
+    const pick = serve()
+    const none = await autoEffortMessageOptions({
+      ...base,
+      options: { model: 'haiku' },
+      effortLevels: () => new Set<string>()
+    })
+    expect(none).toEqual({ model: 'haiku' })
+    expect(pick).not.toHaveBeenCalled()
+    expect(recentAutoEffortOutcomes()[0]?.result).toBe('no-effort-control')
+    const partial = await autoEffortMessageOptions({
+      ...base,
+      options: { effort: 'high' },
+      effortLevels: () => new Set(['low', 'medium', 'high'])
+    })
+    expect(partial).toEqual({ effort: 'high' })
+  })
+
+  it("reads a model's levels from the model list, and nothing from a list that does not name it", () => {
+    const models = [
+      { id: 'opus', label: 'Opus', isDefault: true, efforts: [{ value: 'high', label: 'High' }] },
+      { id: 'haiku', label: 'Haiku', isDefault: false, efforts: [] }
+    ]
+    expect(modelEffortLevels(models, 'haiku')).toEqual(new Set())
+    expect(modelEffortLevels(models, undefined)).toEqual(new Set(['high']))
+    expect(modelEffortLevels(models, 'sonnet')).toBeNull()
   })
 
   it('leaves the options alone when off, keyless, not Claude, hand-picked Max, or unanswered', async () => {
