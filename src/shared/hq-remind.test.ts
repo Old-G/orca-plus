@@ -47,12 +47,12 @@ describe('hqRemindDue', () => {
 
 describe('hqRemindBellItems', () => {
   it('raises one line per question, with a key that changes every two working days', () => {
-    const waiting = asked({ id: 'w1', personId: 'p1', createdAt: MONDAY, project: 'acme-flows' })
+    const waiting = asked({ id: 'w1', personId: 'p1', createdAt: MONDAY, project: 'billing' })
     const [first] = hqRemindBellItems([waiting], () => 'Петя', MONDAY + 2 * DAY)
     expect(first).toMatchObject({
       kind: HQ_REMIND_KIND,
       title: 'No answer from Петя: Доступ к БД',
-      body: 'Asked 2 working days ago · acme-flows',
+      body: 'Asked 2 working days ago · billing',
       refId: 'w1'
     })
     const [later] = hqRemindBellItems([waiting], () => 'Петя', MONDAY + 3 * DAY)
