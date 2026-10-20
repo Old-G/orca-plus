@@ -9,7 +9,7 @@ vi.mock('../../shared/claude-subscriptions-switch', () => ({ CLAUDE_SUBSCRIPTION
 const settings = {
   claudeSubscriptions: [
     { id: 'lh', label: 'Acme', configDir: '/Users/me/.claude-lh' },
-    { id: 'side', label: 'Side', configDir: '/Users/me/.claude-side' }
+    { id: 'hobby', label: 'Side', configDir: '/Users/me/.claude-side' }
   ],
   defaultClaudeSubscriptionId: 'lh'
 }
@@ -36,7 +36,7 @@ describe('resolveClaudeSubscriptionLaunchConfigDir', () => {
   })
 
   it('follows the env marker, so a resumed pane keeps its subscription', () => {
-    expect(resolve({ env: { [CLAUDE_SUBSCRIPTION_ENV]: 'side' } }).configDir).toBe(
+    expect(resolve({ env: { [CLAUDE_SUBSCRIPTION_ENV]: 'hobby' } }).configDir).toBe(
       '/Users/me/.claude-side'
     )
     expect(resolve({ env: { [CLAUDE_SUBSCRIPTION_ENV]: 'base' } }).configDir).toBeNull()
@@ -44,7 +44,7 @@ describe('resolveClaudeSubscriptionLaunchConfigDir', () => {
 
   it('lets an explicit subscription id beat the marker', () => {
     expect(
-      resolve({ env: { [CLAUDE_SUBSCRIPTION_ENV]: 'side' }, subscriptionId: 'lh' }).configDir
+      resolve({ env: { [CLAUDE_SUBSCRIPTION_ENV]: 'hobby' }, subscriptionId: 'lh' }).configDir
     ).toBe('/Users/me/.claude-lh')
   })
 
