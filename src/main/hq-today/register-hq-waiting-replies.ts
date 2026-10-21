@@ -69,18 +69,21 @@ export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeServi
   const passDeps = {
     listOpen,
     deliver: deliverWaitingReply,
-    markDelivered: (id: string) => void runtime.pulseMarkWaitingReplyDelivered(id)
+    markDelivered: (id: string, replyTs: string | undefined) =>
+      void runtime.pulseMarkWaitingReplyDelivered(id, replyTs)
   }
+  const shownTs = (value: unknown): string | undefined =>
+    typeof value === 'string' && value ? value : undefined
   ipcMain.handle(
     'hqWaitingReply:pass',
-    async (_event, waitingId: unknown): Promise<HqWaitingReplyPassResult> =>
+    async (_event, waitingId: unknown, replyTs: unknown): Promise<HqWaitingReplyPassResult> =>
       typeof waitingId === 'string'
-        ? passHqWaitingReply(passDeps, waitingId)
+        ? passHqWaitingReply(passDeps, waitingId, shownTs(replyTs))
         : { ok: false, reason: 'gone' }
   )
-  ipcMain.handle('hqWaitingReply:skip', (_event, waitingId: unknown) => {
+  ipcMain.handle('hqWaitingReply:skip', (_event, waitingId: unknown, replyTs: unknown) => {
     if (typeof waitingId === 'string') {
-      skipHqWaitingReply(passDeps, waitingId)
+      skipHqWaitingReply(passDeps, waitingId, shownTs(replyTs))
     }
   })
 }

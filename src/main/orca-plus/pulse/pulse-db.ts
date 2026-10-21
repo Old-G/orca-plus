@@ -89,8 +89,8 @@ export class PulseDb {
   recordWaitingReply(id: string, reply: PulseWaitingReply) {
     return recordWaitingReply(this.core, id, reply)
   }
-  markWaitingReplyDelivered(id: string) {
-    return markWaitingReplyDelivered(this.core, id)
+  markWaitingReplyDelivered(id: string, replyTs?: string) {
+    return markWaitingReplyDelivered(this.core, id, replyTs)
   }
 
   addDraft(input: PulseDraftInput) {
