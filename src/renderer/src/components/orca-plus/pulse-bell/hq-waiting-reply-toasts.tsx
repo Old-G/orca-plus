@@ -1,6 +1,7 @@
-// Custom build (hq-reply-approve): «Анна replied» pops bottom-right with her words and the chat (or
-// chats) waiting for them; the owner passes the answer on, opens the chat, skips it, or leaves it in
-// the bell for later. One card per answer: a DM message can answer several chats waiting on her.
+// Custom build (hq-reply-approve): «Анна replied» pops bottom-right with her words; the chat that asked
+// is picked, and the owner sends the answer there — or to any chat of any project — with a note,
+// skips it, or leaves it in the bell for later. One card per answer: a DM message can answer several
+// chats waiting on her, and each stays on the card until it is sent or skipped.
 import { useState } from 'react'
 import { MessageSquareReply } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,7 +16,16 @@ import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { resolveAgentSessionTabTitle } from '../../tab-bar/tab-bar-item-model'
-import { openHqWaitingReplyChat, passHqWaitingReply } from './hq-waiting-reply-actions'
+import { hqWaitingReplyPrompt } from '../../../../../shared/hq-waiting-replies'
+import { HqRouteForm } from './HqRouteForm'
+import { hqRouteTargetFor } from './hq-intake-toasts'
+import { sendHqRoutePrompt, type HqRouteTarget } from './hq-route-send'
+import {
+  HQ_ROUTE_NEW_CHAT,
+  hqRepoOfWorktree,
+  hqRouteChatValue,
+  type HqRouteChat
+} from './hq-route-targets'
 
 // Why: a burst (answers that came while Orca+ was closed) must not wall the screen.
 const MAX_SHOWN = 3
@@ -36,73 +46,101 @@ export function createHqWaitingReplyToastMemory(): HqWaitingReplyToastMemory {
 
 const toastId = (answer: string): string => `waiting-reply-toast-${answer}`
 
-function useChatTitle(ref: HqWaitingReplyRef): string | null {
-  return useAppStore((state) => {
-    if (!ref.worktreeId || !ref.sessionId) {
-      return null
-    }
-    const tabId = structuredAgentSessionTabId(ref.sessionId)
-    const tab = state.unifiedTabsByWorktree[ref.worktreeId]?.find((entry) => entry.id === tabId)
-    return tab
-      ? resolveAgentSessionTabTitle(tab, null, state.settings?.tabAutoGenerateTitle === true)
-      : null
-  })
+function chatTitle(ref: HqWaitingReplyRef): string {
+  const state = useAppStore.getState()
+  const tabId = ref.sessionId ? structuredAgentSessionTabId(ref.sessionId) : null
+  const tab = ref.worktreeId
+    ? state.unifiedTabsByWorktree[ref.worktreeId]?.find((entry) => entry.id === tabId)
+    : undefined
+  const title = tab
+    ? resolveAgentSessionTabTitle(tab, null, state.settings?.tabAutoGenerateTitle === true)
+    : null
+  return `${title ?? 'Chat'} — «${ref.question}»`
 }
 
-function TargetRow({
-  target,
-  busy,
-  onPass
-}: {
-  target: Target
-  busy: boolean
-  onPass: () => void
-}): React.JSX.Element {
-  const title = useChatTitle(target.ref)
-  return (
-    <div className="flex items-center gap-2 rounded-md bg-muted px-2 py-1.5">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium">{title ?? `«${target.ref.question}»`}</p>
-        <p className="truncate text-[11px] text-muted-foreground">
-          {[target.ref.project, title ? `«${target.ref.question}»` : null]
-            .filter(Boolean)
-            .join(' · ')}
-        </p>
-      </div>
-      {target.ref.sessionId ? (
-        <Button type="button" size="xs" variant="secondary" disabled={busy} onClick={onPass}>
-          {translate('auto.hqWaitingReply.pass', 'Pass to chat')}
-        </Button>
-      ) : null}
-    </div>
+/** The chats that asked, offered first whatever project is picked. */
+function askingChats(targets: readonly Target[]): HqRouteChat[] {
+  return targets.flatMap((target) =>
+    target.ref.sessionId && target.ref.worktreeId
+      ? [
+          {
+            sessionId: target.ref.sessionId,
+            worktreeId: target.ref.worktreeId,
+            title: chatTitle(target.ref),
+            lastAt: target.ref.askedAt
+          }
+        ]
+      : []
   )
 }
 
 function HqWaitingReplyToast({
   answer,
-  targets
+  targets,
+  onLater
 }: {
   answer: string
   targets: Target[]
+  onLater: () => void
 }): React.JSX.Element | null {
-  const [busy, setBusy] = useState(false)
   const first = targets[0]?.ref
+  const asking = askingChats(targets)
+  const [portal, setPortal] = useState<HTMLDivElement | null>(null)
+  const [repoId, setRepoId] = useState<string | null>(() =>
+    first ? hqRepoOfWorktree(useAppStore.getState(), first.worktreeId) : null
+  )
+  const [chat, setChat] = useState<string>(() =>
+    asking[0] ? hqRouteChatValue(asking[0].sessionId) : HQ_ROUTE_NEW_CHAT
+  )
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  if (!first) {
+    return null
+  }
   const run = (work: () => Promise<unknown>): void => {
     setBusy(true)
     void work()
       .catch((error: unknown) => console.warn('[waiting-reply] toast action failed:', error))
       .finally(() => setBusy(false))
   }
+  const send = async (): Promise<void> => {
+    const sessionId = chat.replace(/^chat:/, '')
+    const asked = targets.find((target) => target.ref.sessionId === sessionId)
+    const pinned = asking.find((entry) => entry.sessionId === sessionId)
+    const target: HqRouteTarget | null = pinned
+      ? { kind: 'chat', chat: pinned }
+      : hqRouteTargetFor(repoId, chat, `${first.author}: ${first.question}`.slice(0, 60))
+    if (!target) {
+      toast.error(translate('auto.hqIntake.noTarget', 'Pick a project and a chat first'))
+      return
+    }
+    const ref = (asked ?? targets[0]).ref
+    const sent = await sendHqRoutePrompt(
+      target,
+      hqWaitingReplyPrompt(
+        {
+          id: ref.waitingId,
+          title: ref.question,
+          reply: ref.reply,
+          replyAuthor: ref.author,
+          project: ref.project
+        },
+        { note, askedElsewhere: !asked }
+      )
+    )
+    if (sent) {
+      // Why: the answer reached a chat; the card keeps the other questions it may also answer.
+      await window.api.pulseBell.skipWaitingReply(ref.waitingId)
+      setNote('')
+    }
+  }
   const skipAll = (): Promise<unknown> =>
     Promise.all(
       targets.map((target) => window.api.pulseBell.skipWaitingReply(target.ref.waitingId))
     )
-  if (!first) {
-    return null
-  }
-  const single = targets.length === 1 && first.sessionId !== null
   return (
     <div
+      ref={setPortal}
       role="alertdialog"
       aria-label={translate('auto.hqWaitingReply.title', '{{name}} replied', {
         name: first.author
@@ -118,33 +156,32 @@ function HqWaitingReplyToast({
           <p className="truncate text-sm font-semibold">
             {translate('auto.hqWaitingReply.title', '{{name}} replied', { name: first.author })}
           </p>
-          <p className="line-clamp-4 text-xs whitespace-pre-line text-muted-foreground">
-            {first.reply}
+          <p className="truncate text-xs text-muted-foreground">
+            {[first.project, `«${first.question}»`].filter(Boolean).join(' · ')}
           </p>
         </div>
       </div>
-      <div className="flex flex-col gap-1">
-        {targets.map((target) => (
-          <TargetRow
-            key={target.itemId}
-            target={target}
-            busy={busy}
-            onPass={() => run(() => passHqWaitingReply(target.ref))}
-          />
-        ))}
-      </div>
+      <p className="line-clamp-5 text-xs whitespace-pre-line text-muted-foreground">
+        {first.reply}
+      </p>
+      <HqRouteForm
+        repoId={repoId}
+        onRepoChange={(next) => {
+          setRepoId(next)
+          setChat(HQ_ROUTE_NEW_CHAT)
+        }}
+        chat={chat}
+        onChatChange={setChat}
+        note={note}
+        onNoteChange={setNote}
+        pinned={{
+          label: translate('auto.hqWaitingReply.asking', 'Waiting for this answer'),
+          chats: asking
+        }}
+        disabled={busy}
+        portal={portal}
+      />
       <div className="flex flex-wrap justify-end gap-1">
-        {single ? (
-          <Button
-            type="button"
-            size="xs"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => run(() => openHqWaitingReplyChat(first))}
-          >
-            {translate('auto.hqWaitingReply.open', 'Open chat')}
-          </Button>
-        ) : null}
         <Button
           type="button"
           size="xs"
@@ -161,9 +198,15 @@ function HqWaitingReplyToast({
           size="xs"
           variant="ghost"
           disabled={busy}
-          onClick={() => toast.dismiss(toastId(answer))}
+          onClick={() => {
+            onLater()
+            toast.dismiss(toastId(answer))
+          }}
         >
-          {translate('auto.pulseBell.action.later', 'Later')}
+          {translate('auto.hqWaitingReply.later', 'Later')}
+        </Button>
+        <Button type="button" size="xs" disabled={busy} onClick={() => run(send)}>
+          {translate('auto.hqWaitingReply.send', 'Send to chat')}
         </Button>
       </div>
     </div>
@@ -216,18 +259,21 @@ export function syncHqWaitingReplyToasts(
     }
     memory.seen.add(answer)
     memory.shown.set(answer, drawn)
-    toast.custom(() => <HqWaitingReplyToast answer={answer} targets={targets} />, {
-      id: toastId(answer),
-      duration: Number.POSITIVE_INFINITY,
-      unstyled: true,
-      dismissible: false,
-      closeButton: false,
-      onDismiss: () => {
-        if (groupHqWaitingReplies(items).has(answer)) {
-          memory.later.add(answer)
+    const onLater = (): void => {
+      memory.later.add(answer)
+    }
+    toast.custom(
+      () => <HqWaitingReplyToast answer={answer} targets={targets} onLater={onLater} />,
+      {
+        id: toastId(answer),
+        duration: Number.POSITIVE_INFINITY,
+        unstyled: true,
+        dismissible: false,
+        closeButton: false,
+        onDismiss: () => {
+          memory.shown.delete(answer)
         }
-        memory.shown.delete(answer)
       }
-    })
+    )
   }
 }

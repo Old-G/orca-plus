@@ -17,6 +17,8 @@ import {
   PulseUpsertPersonParams
 } from '../../../../shared/rpc-contract/pulse-params'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../shared/outgoing-approval/outgoing-approval-bell'
+import { HQ_INTAKE_KIND } from '../../../../shared/hq-slack-intake'
+import { HQ_WAITING_REPLY_KIND } from '../../../../shared/hq-waiting-reply-bell'
 
 // Custom build (pulse): records behind Orca+'s headquarters views. No method here approves a
 // draft or reports its delivery — see pulse-params.ts.
@@ -133,6 +135,10 @@ export const PULSE_METHODS = [
       // Why: an approval card's text is what the owner approves, and agents call this RPC; only the gate raises one.
       if (params.kind === OUTGOING_APPROVAL_BELL_KIND) {
         throw new Error('Approval cards come only from the outgoing gate.')
+      }
+      // Why: these cards hand someone's words to a chat on one click; only Orca+'s own Slack read raises them.
+      if (params.kind === HQ_INTAKE_KIND || params.kind === HQ_WAITING_REPLY_KIND) {
+        throw new Error('Slack message cards come only from Orca+ reading Slack.')
       }
       return runtime.pulseAddInboxItem(params)
     }

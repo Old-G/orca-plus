@@ -50,6 +50,7 @@ export async function generateHqText(
       | 'hq-voice-rewrite'
       | 'hq-feed-posts'
       | 'hq-clickup-triage'
+      | 'hq-slack-intake'
     /** Custom build (hq-clickup-triage): a cheaper model than the one set for HQ text. */
     model?: string
   },

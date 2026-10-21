@@ -122,6 +122,16 @@ describe('pulse RPC methods', () => {
     expect(await call('pulse.listInbox')).toEqual([])
   })
 
+  it('refuses forged Slack message cards, which only Orca+ reading Slack may raise', async () => {
+    const { call } = setup()
+    for (const kind of ['hq-intake', 'hq-waiting-reply']) {
+      await expect(
+        call('pulse.addInboxItem', { kind, title: 'To work: someone', refId: '{}' })
+      ).rejects.toThrow(/only from Orca\+ reading Slack/)
+    }
+    expect(await call('pulse.listInbox')).toEqual([])
+  })
+
   it("will not close an approval card the gate raised, which only the owner's decision closes", async () => {
     const { call, commands } = setup()
     const { record: item } = commands.pulseAddInboxItem({

@@ -12,6 +12,7 @@ import { getSlackReaderStatus, withSlackReader } from '../slack/slack-reader'
 import { startHqSlackWaitingReplies } from './hq-slack-waiting-replies'
 import { startHqWaitingReplyRelay } from './hq-waiting-reply-relay'
 import { passHqWaitingReply, skipHqWaitingReply } from './hq-waiting-reply-pass'
+import { registerHqSlackIntake } from './register-hq-slack-intake'
 
 export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeService): void {
   const listOpen = () => runtime.pulseListWaitings({ status: 'open' })
@@ -41,6 +42,8 @@ export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeServi
     recordReply,
     now: Date.now
   })
+  // Custom build (hq-slack-intake): 👾-marked messages, read with the same token and name cache.
+  registerHqSlackIntake(store, runtime, cache)
 
   const passDeps = {
     listOpen,
