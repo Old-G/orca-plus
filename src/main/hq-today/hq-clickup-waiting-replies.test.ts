@@ -216,4 +216,25 @@ describe('ClickUp waiting replies', () => {
     expect(await pollHqClickUpWaitingReplies(d)).toBe(1)
     expect(recorded[0]?.reply.text).toBe('Only primary requests.')
   })
+
+  it('skips a reply addressed to someone else and a synced copy of the owner’s own words', async () => {
+    const { deps: d, recorded } = deps(
+      [waiting('clickup:DEV-18114:900', { personId: 'p-anna' })],
+      [comment('900', ASKED_AT, 'me', 'вопрос')],
+      {
+        '900': [
+          comment('901', ASKED_AT + 1_000, 'anna', 'готово'),
+          comment('902', ASKED_AT + 2_000, 'anna', '@Ivan Petrov создай на меня задачу'),
+          comment(
+            '903',
+            ASKED_AT + 3_000,
+            'bot',
+            '[Slack Sync] 💬 @Alex Owner (Slack): ща поправлю'
+          )
+        ]
+      }
+    )
+    await pollHqClickUpWaitingReplies(d)
+    expect(recorded.map((entry) => entry.reply.text)).toEqual(['готово'])
+  })
 })
