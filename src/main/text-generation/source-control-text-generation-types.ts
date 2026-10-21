@@ -55,6 +55,8 @@ export type TextGenerationOperation =
   | 'hq-feed-posts'
   // Custom build (hq-clickup-triage): HQ sorts changed ClickUp tasks into noise, notes and answers.
   | 'hq-clickup-triage'
+  // Custom build (hq-slack-intake): which project a 👾-marked Slack message belongs to.
+  | 'hq-slack-intake'
 
 export type CommitMessageGenerationTarget =
   | { kind: 'local'; cwd: string; env?: NodeJS.ProcessEnv; wslDistro?: string }

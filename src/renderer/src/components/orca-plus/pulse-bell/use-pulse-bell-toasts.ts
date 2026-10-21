@@ -25,6 +25,7 @@ import {
   syncHqWaitingReplyToasts,
   type HqWaitingReplyToastMemory
 } from './hq-waiting-reply-toasts'
+import { syncHqIntakeToasts } from './hq-intake-toasts'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 
@@ -78,6 +79,8 @@ export function usePulseBellToasts(): void {
     // Custom build (hq-reply-approve): a person's answer waits for the owner's Pass to chat.
     waitingReplies.current ??= createHqWaitingReplyToastMemory()
     syncHqWaitingReplyToasts(items, waitingReplies.current)
+    // Custom build (hq-slack-intake): a 👾-marked Slack message waits for «Send to chat».
+    syncHqIntakeToasts(items)
     const finished = items.filter((item) => TOASTED_KINDS.has(item.kind))
     const open = new Set(finished.map((item) => item.id))
     for (const id of shown.current) {
