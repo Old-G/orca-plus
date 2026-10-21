@@ -87,15 +87,32 @@ describe('splitHqActiveProjects', () => {
     expect(quiet).toEqual([])
   })
 
-  it('does not list a project again when its current chat already shows above', () => {
+  it('keeps every read chat of the last 12 hours as the project history, newest first', () => {
+    const hour = 60 * 60 * 1000
     const items = [
-      chat('working', 'a', NOW, 'working'),
-      chat('older', 'a', NOW - 2 * 60 * 60 * 1000),
-      chat('b1', 'b', NOW - 1000)
+      chat('a1', 'a', NOW - 1 * hour),
+      chat('a2', 'a', NOW - 3 * hour),
+      chat('a3', 'a', NOW - 13 * hour)
     ]
     const { active, quiet } = splitHqActiveProjects(items, [], NOW)
-    expect(active.map((project) => project.repoId)).toEqual(['b'])
-    expect(quiet.map((item) => item.key)).toEqual(['older'])
+    expect(active.map((project) => project.items.map((i) => i.key))).toEqual([['a1', 'a2']])
+    expect(quiet.map((item) => item.key)).toEqual(['a3'])
+  })
+
+  it('keeps a read sibling on view while another chat of the project works above', () => {
+    const hour = 60 * 60 * 1000
+    const items = [
+      chat('working', 'a', NOW, 'working'),
+      chat('read', 'a', NOW - 2 * hour),
+      chat('old', 'a', NOW - 2 * DAY),
+      chat('b-working', 'b', NOW, 'working'),
+      chat('b-old', 'b', NOW - 2 * DAY)
+    ]
+    const { active, quiet } = splitHqActiveProjects(items, [], NOW)
+    expect(active.map((project) => [project.repoId, project.items.map((i) => i.key)])).toEqual([
+      ['a', ['read']]
+    ])
+    expect(quiet.map((item) => item.key)).toEqual(['old', 'b-old'])
   })
 
   it('leaves chats that need the user, work or are unread in their own groups', () => {
