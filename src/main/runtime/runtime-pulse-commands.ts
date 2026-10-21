@@ -131,8 +131,8 @@ export class RuntimePulseCommands {
     return this.db().recordWaitingReply(id, reply)
   }
 
-  pulseMarkWaitingReplyDelivered(id: string): PulseWaiting | null {
-    return this.db().markWaitingReplyDelivered(id)
+  pulseMarkWaitingReplyDelivered(id: string, replyTs?: string): PulseWaiting | null {
+    return this.db().markWaitingReplyDelivered(id, replyTs)
   }
 
   pulseAddDraft(input: PulseDraftInput): PulseAddResult<PulseDraft> {

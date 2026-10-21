@@ -6,6 +6,17 @@ export const pulseBellApi = {
   markRead: (ids) => ipcRenderer.invoke('pulseBell:markRead', ids),
   markDone: (id, action) => ipcRenderer.invoke('pulseBell:markDone', id, action),
   syncKind: (kind, items) => ipcRenderer.invoke('pulseBell:syncKind', kind, items),
+  passWaitingReply: (waitingId, replyTs) =>
+    ipcRenderer.invoke('hqWaitingReply:pass', waitingId, replyTs),
+  skipWaitingReply: (waitingId, replyTs) =>
+    ipcRenderer.invoke('hqWaitingReply:skip', waitingId, replyTs),
+  sendToChat: (sessionId, prompt) =>
+    ipcRenderer.invoke('hqIntake:sendToSession', sessionId, prompt),
+  intakeThread: (channel, threadTs) => ipcRenderer.invoke('hqIntake:thread', channel, threadTs),
+  keepIntakeInNotes: (itemId, project, note) =>
+    ipcRenderer.invoke('hqIntake:later', itemId, project, note),
+  closeIntake: (itemId, action, resolution, sessionId) =>
+    ipcRenderer.invoke('hqIntake:close', itemId, action, resolution, sessionId ?? null),
   onChanged: (callback) => {
     const listener = (): void => callback()
     ipcRenderer.on('pulseBell:changed', listener)
