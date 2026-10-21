@@ -24,7 +24,8 @@ const ref: HqWaitingReplyRef = {
   askedAt: 1,
   author: 'Анна',
   replyTs: '1.1',
-  reply: 'Sun–Thu'
+  reply: 'Sun–Thu',
+  link: null
 }
 
 beforeEach(() => {
