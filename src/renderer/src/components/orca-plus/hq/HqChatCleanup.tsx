@@ -119,7 +119,8 @@ function Cleanup(): null {
         now,
         title: (item) => resolveAgentSessionTabTitle(item.tab, null, generatedTitles)
       })
-      const fingerprint = `${day}\n${listed.map(({ item }) => item.key).join('\n')}`
+      // Why the mode: «would close» and «closed» over the same chats are different news.
+      const fingerprint = `${day}\n${mode}\n${listed.map(({ item }) => item.key).join('\n')}`
       if (fingerprint === lastReport.current) {
         return
       }
