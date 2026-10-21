@@ -95,6 +95,8 @@ export const HqClickUpReplyParams = z.object({
 /** Only what HQ itself edits; the HQ folder and the quiet threshold stay Settings-only on the Mac. */
 export const HqUpdateSettingsParams = z.object({
   hqPinnedSeenAt: z.record(z.string(), z.number()).optional(),
+  // Custom build (hq-marked-chats): chats the owner marked to come back to.
+  hqMarkedChatKeys: z.array(z.string().max(1000)).max(500).optional(),
   hqProjectClickUpLists: z.record(z.string(), HqClickUpListBindingParam).optional(),
   hqDeferredDismissed: z.record(z.string(), z.number()).optional(),
   hqTriageDecisions: z

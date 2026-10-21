@@ -76,6 +76,7 @@ describe('hqProjects RPC methods', () => {
       hqTriageDecisions: {},
       hqChatsView: undefined,
       hqKeptProjectIds: [],
+      hqMarkedChatKeys: [],
       hqVoicePromptsEnabled: false,
       hqPinnedSeenAt: {}
     })
@@ -83,6 +84,7 @@ describe('hqProjects RPC methods', () => {
     await call('hqProjects.updateSettings', {
       hqDeferredDismissed: { pane: 2 },
       hqTriageDecisions: { t1: { decision: 'taken', at: 3, repoId: 'repo-api' } },
+      hqMarkedChatKeys: ['wt-1\u0000agent-session:s1'],
       hqPath: '/elsewhere',
       hqDeferredAfterMinutes: 1
     })
@@ -90,6 +92,7 @@ describe('hqProjects RPC methods', () => {
     expect(settings().hqTriageDecisions).toEqual({
       t1: { decision: 'taken', at: 3, repoId: 'repo-api' }
     })
+    expect(settings().hqMarkedChatKeys).toEqual(['wt-1\u0000agent-session:s1'])
     expect(settings().hqPath).toBe('/hq')
     expect(settings().hqDeferredAfterMinutes).toBe(45)
     expect(notified).toEqual([true])
