@@ -19,6 +19,7 @@ import { useAppStore } from '@/store'
 import { HqRouteForm } from './HqRouteForm'
 import { sendHqRoutePrompt, type HqRouteTarget } from './hq-route-send'
 import { HQ_ROUTE_NEW_CHAT, hqProjectChats, hqProjectNewChatWorktree } from './hq-route-targets'
+import { showMeasuredCustomToast } from '../measured-custom-toast'
 
 // Why: a burst (marks made on the phone while the Mac slept) must not wall the screen.
 const MAX_SHOWN = 3
@@ -190,7 +191,7 @@ export function showHqIntakeCard(item: PulseInboxItem): boolean {
   }
   memory.seen.add(item.id)
   memory.shown.add(item.id)
-  toast.custom(() => <HqIntakeCard item={item} intake={intake} />, {
+  showMeasuredCustomToast(() => <HqIntakeCard item={item} intake={intake} />, {
     id: toastId(item.id),
     duration: Number.POSITIVE_INFINITY,
     unstyled: true,
