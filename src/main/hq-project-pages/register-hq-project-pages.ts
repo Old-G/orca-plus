@@ -1,7 +1,7 @@
 // Custom build (hq): IPC for HQ's tabs; the work is in hq-project-pages-service.ts, which the
 // paired web client reaches through the hqProjects.* runtime RPC.
 import { BrowserWindow, ipcMain } from 'electron'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import {
   HqDraftTaskQuestionsParams,
@@ -27,7 +27,7 @@ import {
 } from './hq-project-pages-service'
 import { startHqSpaceGitAuthors } from '../hq-today/hq-space-git-authors'
 import { listHqSpaces } from '../hq-today/hq-spaces'
-import { gitExecFileAsync } from '../git/runner'
+import { gitExecFileAsync } from '../git/command-runner/git-exec-file'
 import { registerHqBundledSkills } from '../hq-bundled-skills/register-hq-bundled-skills'
 import { isGitRepoKind } from '../../shared/repo-kind'
 import { registerNativeChatAutoEffort } from '../native-chat/auto-effort/register-native-chat-auto-effort'
