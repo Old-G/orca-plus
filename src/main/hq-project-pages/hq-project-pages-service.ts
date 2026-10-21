@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs'
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type {
   HqProjectDiagramResult,
   HqProjectMapResult,
@@ -22,8 +22,10 @@ import {
   type HqClientSettingsUpdate
 } from '../../shared/hq-client-settings'
 import { runProcess } from '@orca/process-host'
-import { ghExecFileAsync, gitExecFileAsync, glabExecFileAsync } from '../git/runner'
-import { getGlabKnownHosts } from '../gitlab/gitlab-known-host-probe'
+import { gitExecFileAsync } from '../git/command-runner/git-exec-file'
+import { ghExecFileAsync } from '../git/command-runner/hosted-cli/gh-exec-file'
+import { glabExecFileAsync } from '../git/command-runner/hosted-cli/glab-exec-file'
+import { getGlabKnownHosts } from '../gitlab/projects/gitlab-known-host-probe'
 import { listHqReviews } from '../hq-today/hq-reviews'
 import { createHqWorktreeGitStateReader } from '../hq-today/hq-worktree-git-state'
 import { ensureHqProjectMap } from '../hq-project-map/hq-project-map'
@@ -141,6 +143,7 @@ export function createHqProjectPagesService(
       hqTriageDecisions: current.hqTriageDecisions ?? {},
       hqChatsView: current.hqChatsView,
       hqKeptProjectIds: current.hqKeptProjectIds ?? [],
+      hqMarkedChatKeys: current.hqMarkedChatKeys ?? [],
       hqVoicePromptsEnabled: current.hqVoicePromptsEnabled === true,
       hqPinnedSeenAt: current.hqPinnedSeenAt ?? {}
     }

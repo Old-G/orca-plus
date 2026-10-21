@@ -112,3 +112,11 @@ export function setHqProjectKept(repoId: string, kept: boolean): void {
   const next = kept ? [...new Set([...current, repoId])] : current.filter((id) => id !== repoId)
   void updateSettings({ hqKeptProjectIds: next })
 }
+
+/** Custom build (hq-marked-chats): marks a chat to come back to, or takes the mark off. */
+export function setHqChatMarked(key: string, marked: boolean): void {
+  const { settings, updateSettings } = useAppStore.getState()
+  const current = settings?.hqMarkedChatKeys ?? []
+  const next = marked ? [...new Set([...current, key])] : current.filter((k) => k !== key)
+  void updateSettings({ hqMarkedChatKeys: next })
+}

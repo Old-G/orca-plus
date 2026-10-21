@@ -115,7 +115,10 @@ export function HqChatList({
   onSelect,
   onMarkDoneRead,
   onNextWaiting,
-  nextWaitingKeys
+  nextWaitingKeys,
+  marked,
+  markedKeys,
+  onMark
 }: {
   /** `groups.quiet` holds only what the active projects do not show. */
   groups: Record<HqChatGroup, HqChatItem[]>
@@ -129,6 +132,10 @@ export function HqChatList({
   onNextWaiting: () => void
   /** The platform's labels for the next-waiting shortcut. */
   nextWaitingKeys: string[]
+  /** Custom build (hq-marked-chats): the chats in Come back to, and every marked key. */
+  marked: HqChatItem[]
+  markedKeys: ReadonlySet<string>
+  onMark: (key: string, marked: boolean) => void
 }): React.JSX.Element {
   // Why: the open chat stays in view even when it is a quiet one.
   const [quietOpen, setQuietOpen] = useState(() =>
@@ -146,6 +153,8 @@ export function HqChatList({
             selected={item.key === selectedKey}
             now={now}
             onSelect={onSelect}
+            marked={markedKeys.has(item.key)}
+            onMark={onMark}
           />
         )
       })}
@@ -157,10 +166,25 @@ export function HqChatList({
       aria-label={translate('auto.hq.chats.listLabel', 'Agent chats')}
       className="scrollbar-sleek flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 py-3"
     >
-      {active.length === 0 && activeProjects.length === 0 && groups.quiet.length === 0 ? (
+      {active.length === 0 &&
+      activeProjects.length === 0 &&
+      groups.quiet.length === 0 &&
+      marked.length === 0 ? (
         <p className="px-2.5 text-xs text-muted-foreground">
           {translate('auto.hq.chats.empty', 'No agent chats yet.')}
         </p>
+      ) : null}
+      {marked.length > 0 ? (
+        <section
+          aria-label={translate('auto.hq.chats.group.marked', 'Come back to')}
+          className="flex flex-col gap-1"
+        >
+          <h2 className="flex items-center gap-1.5 px-2.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+            <span>{translate('auto.hq.chats.group.marked', 'Come back to')}</span>
+            <span className="tabular-nums">{marked.length}</span>
+          </h2>
+          {rows(marked)}
+        </section>
       ) : null}
       {active.map((group) => (
         <section key={group} aria-label={hqChatGroupTitle(group)} className="flex flex-col gap-1">
