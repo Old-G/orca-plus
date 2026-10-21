@@ -36,6 +36,15 @@ export const getGeneralWorkspaceSearchEntries = createLocalizedCatalog(() => [
       ...translateSearchKeyword('auto.hq.setting.keyword.strata', 'strata')
     ]
   },
+  // Custom build (chat-cleanup): found by search too, not only by scrolling to it.
+  {
+    title: translate('auto.hq.chatCleanup.settingTitle', 'Close quiet chats'),
+    description: translate(
+      'auto.hq.chatCleanup.settingDescription',
+      'A chat read after it finished closes after 12 hours, any chat after a quiet day — like its ×, so History reopens it. Chats that work, wait for you or for an answer, pinned or marked ones stay. Report only lists them in HQ Reports.'
+    ),
+    keywords: ['hq', 'chats', 'close', 'cleanup', 'tabs', 'sessions']
+  },
   {
     title: translate(
       'auto.components.settings.general.search.externalWorktrees',
