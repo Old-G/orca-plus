@@ -24,7 +24,7 @@ export async function openHqWaitingReplyChat(ref: HqWaitingReplyRef): Promise<vo
 /** True once the chat took the answer. */
 export async function passHqWaitingReply(ref: HqWaitingReplyRef): Promise<boolean> {
   const result = await sendWithReopen(chatRef(ref), () =>
-    window.api.pulseBell.passWaitingReply(ref.waitingId)
+    window.api.pulseBell.passWaitingReply(ref.waitingId, ref.replyTs)
   )
   if (result.ok) {
     toast.success(
@@ -55,6 +55,6 @@ export async function runHqWaitingReplyAction(
   } else if (actionId === HQ_WAITING_REPLY_ACTION.open) {
     await openHqWaitingReplyChat(ref)
   } else if (actionId === HQ_WAITING_REPLY_ACTION.skip) {
-    await window.api.pulseBell.skipWaitingReply(ref.waitingId)
+    await window.api.pulseBell.skipWaitingReply(ref.waitingId, ref.replyTs)
   }
 }

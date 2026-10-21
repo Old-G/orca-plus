@@ -6,8 +6,10 @@ export const pulseBellApi = {
   markRead: (ids) => ipcRenderer.invoke('pulseBell:markRead', ids),
   markDone: (id, action) => ipcRenderer.invoke('pulseBell:markDone', id, action),
   syncKind: (kind, items) => ipcRenderer.invoke('pulseBell:syncKind', kind, items),
-  passWaitingReply: (waitingId) => ipcRenderer.invoke('hqWaitingReply:pass', waitingId),
-  skipWaitingReply: (waitingId) => ipcRenderer.invoke('hqWaitingReply:skip', waitingId),
+  passWaitingReply: (waitingId, replyTs) =>
+    ipcRenderer.invoke('hqWaitingReply:pass', waitingId, replyTs),
+  skipWaitingReply: (waitingId, replyTs) =>
+    ipcRenderer.invoke('hqWaitingReply:skip', waitingId, replyTs),
   sendToChat: (sessionId, prompt) =>
     ipcRenderer.invoke('hqIntake:sendToSession', sessionId, prompt),
   keepIntakeInNotes: (itemId, project, note) =>
