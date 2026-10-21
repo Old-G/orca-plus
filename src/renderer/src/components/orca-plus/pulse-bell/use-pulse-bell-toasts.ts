@@ -1,7 +1,7 @@
 // Custom build (pulse-bell): an agent that finishes while Orca+ is in front pops a toast naming it,
 // with Open — the desktop banner only shows while Orca+ is in the background. A chat stopped on its
 // Claude limit pops one too, with the item's own buttons (continue on another subscription). A held
-// outgoing call pops as its whole decision card, and so does a new Slack request.
+// outgoing call pops as its whole decision card, and so does a new Slack request and a person's answer.
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import {
@@ -20,6 +20,11 @@ import {
   type HqSlackRequestToastMemory
 } from '../slack-requests/hq-slack-request-toasts'
 import { useHqRequestsFromPhone } from '../slack-requests/use-hq-requests-from-phone'
+import {
+  createHqWaitingReplyToastMemory,
+  syncHqWaitingReplyToasts,
+  type HqWaitingReplyToastMemory
+} from './hq-waiting-reply-toasts'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 
@@ -64,11 +69,15 @@ export function usePulseBellToasts(): void {
   const shown = useRef(new Set<string>())
   const approvals = useRef(new Set<string>())
   const slackRequests = useRef<HqSlackRequestToastMemory | null>(null)
+  const waitingReplies = useRef<HqWaitingReplyToastMemory | null>(null)
 
   useEffect(() => {
     syncOutgoingApprovalToasts(items, approvals.current)
     slackRequests.current ??= createHqSlackRequestToastMemory(Date.now())
     syncHqSlackRequestToasts(items, slackRequests.current)
+    // Custom build (hq-reply-approve): a person's answer waits for the owner's Pass to chat.
+    waitingReplies.current ??= createHqWaitingReplyToastMemory()
+    syncHqWaitingReplyToasts(items, waitingReplies.current)
     const finished = items.filter((item) => TOASTED_KINDS.has(item.kind))
     const open = new Set(finished.map((item) => item.id))
     for (const id of shown.current) {
