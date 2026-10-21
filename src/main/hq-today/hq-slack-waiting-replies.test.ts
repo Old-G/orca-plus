@@ -113,6 +113,27 @@ describe('pollHqSlackWaitingReplies', () => {
     expect(db.getWaiting(onTask.id)?.reply).toBeNull()
   })
 
+  it('hears a reply in a DM thread the owner started before recording the question', async () => {
+    const { db, anna, dm, thread, deps, at } = setup()
+    const byHand = db.addWaiting({
+      direction: 'on-them',
+      title: 'Shipping facts',
+      personId: anna.id,
+      source: 'manual',
+      agentSessionId: 'chat-1'
+    })
+    const parentAt = ASKED_AT - 15 * 60_000
+    const parentTs = (parentAt / 1000).toFixed(6)
+    const replyTs = ((ASKED_AT + 60_000) / 1000).toFixed(6)
+    dm.push(msg(parentAt, OWNER, '6 questions', { threadTs: parentTs, latestReply: replyTs }))
+    thread.push(msg(parentAt, OWNER, '6 questions', { threadTs: parentTs }))
+    thread.push(msg(ASKED_AT - 60_000, ANNA, 'said before the question', { threadTs: parentTs }))
+    thread.push(msg(ASKED_AT + 60_000, ANNA, '1. table attached', { threadTs: parentTs }))
+    at(ASKED_AT + 5 * 60_000)
+    expect(await pollHqSlackWaitingReplies(deps)).toBe(1)
+    expect(db.getWaiting(byHand.id)?.reply).toBe('Анна Ли: 1. table attached')
+  })
+
   it('takes thread replies from anyone but the owner and bots, never the question itself', async () => {
     const { db, thread, deps, at } = setup()
     const asked = db.addWaiting({
