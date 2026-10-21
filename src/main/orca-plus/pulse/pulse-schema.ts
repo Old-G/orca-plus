@@ -137,7 +137,10 @@ CREATE INDEX IF NOT EXISTS feed_at ON feed(at);
 const V6 = `ALTER TABLE feed ADD COLUMN post TEXT;
 DELETE FROM feed WHERE kind = 'sent';`
 
-const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6]
+// Custom build (hq-reply-source-link): where the answer was said (Slack permalink, ClickUp comment).
+const V7 = `ALTER TABLE waitings ADD COLUMN reply_link TEXT;`
+
+const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 
