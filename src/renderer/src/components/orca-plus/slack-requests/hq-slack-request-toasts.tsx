@@ -11,6 +11,7 @@ import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
+import { showMeasuredCustomToast } from '../measured-custom-toast'
 
 // Why: main raises every pending request right after launch; those are old news, not new ones.
 const LAUNCH_GRACE_MS = 60_000
@@ -108,7 +109,7 @@ export function syncHqSlackRequestToasts(
       continue
     }
     memory.shown.add(item.id)
-    toast.custom(() => <HqSlackRequestToast item={item} />, {
+    showMeasuredCustomToast(() => <HqSlackRequestToast item={item} />, {
       id: toastId(item.id),
       duration: Number.POSITIVE_INFINITY,
       unstyled: true,
