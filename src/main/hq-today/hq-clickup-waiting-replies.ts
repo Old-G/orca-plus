@@ -9,6 +9,7 @@ import {
   slackTsAt
 } from '../../shared/hq-waiting-replies'
 import type { PulseWaiting, PulseWaitingReply } from '../../shared/pulse-types'
+import { clickUpCommentForOwner } from '../../shared/hq-reply-addressee'
 import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
 
 // Why: ClickUp has no push for comments here; three minutes keeps two calls per question cheap.
@@ -31,14 +32,18 @@ export type HqClickUpWaitingDeps = {
 function newestAnswer(
   comments: readonly ClickUpComment[],
   after: number,
-  viewerId: string,
+  viewer: { id: string; username: string },
   askedIn: string | null
 ): ClickUpComment | null {
   let newest: ClickUpComment | null = null
   for (const comment of comments) {
     const at = comment.createdAt ?? 0
     // Why: the owner's own comments and the question itself are not answers.
-    if (at <= after || comment.id === askedIn || comment.author?.id === viewerId) {
+    if (at <= after || comment.id === askedIn || comment.author?.id === viewer.id) {
+      continue
+    }
+    // Custom build (hq-reply-addressee): a comment to someone else is their conversation.
+    if (!clickUpCommentForOwner(comment.body, viewer.username)) {
       continue
     }
     if (!newest || at > (newest.createdAt ?? 0)) {
@@ -117,7 +122,7 @@ export async function pollHqClickUpWaitingReplies(
       const candidates = thread
         ? [...replies, ...comments].filter(counts)
         : [...replies, ...comments.filter(counts)]
-      const answer = newestAnswer(candidates, since, viewer.id, ref.commentId)
+      const answer = newestAnswer(candidates, since, viewer, ref.commentId)
       if (answer?.body.trim()) {
         deps.recordReply(waiting.id, {
           text: answer.body.trim().slice(0, HQ_WAITING_REPLY_MAX),
