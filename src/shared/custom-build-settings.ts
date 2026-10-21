@@ -38,6 +38,8 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqActiveSpace?: string | null
     /** Custom build (hq-triage): ClickUp tasks the owner took or hid in HQ «New tasks», by task id. */
     hqTriageDecisions?: HqTriageDecisions
+    /** Custom build (chat-cleanup): quiet chats are left alone, only reported in HQ, or closed; default report. */
+    hqChatCleanup?: 'off' | 'report' | 'on'
     /** Custom build (hq-ask): the standing «Ask HQ» chat questions go to, while it stays open. */
     hqAskSessionId?: string | null
     /** Custom build (hq-voice-prompts): a finished dictation opens a preview to pick what it becomes. */

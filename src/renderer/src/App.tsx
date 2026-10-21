@@ -46,6 +46,7 @@ import { SpaceWindowStatePublisher } from './components/workspace-space/SpaceWin
 import { PlainSshTerminalPanels } from './components/plain-ssh-terminal/PlainSshTerminalPanels'
 import { installActiveWorktreeRemovalSuccessor } from './lib/active-worktree-removal-successor'
 import { HqChatListPublisher } from './components/orca-plus/hq/HqChatListPublisher'
+import { HqChatCleanup } from './components/orca-plus/hq/HqChatCleanup'
 
 function App(): React.JSX.Element {
   const layout = useAppChromeLayout()
@@ -115,6 +116,7 @@ function App(): React.JSX.Element {
     >
       {/* Custom build (hq-mobile-messenger): HQ's chat list for the phone. */}
       <HqChatListPublisher />
+      <HqChatCleanup />
       <TooltipProvider delayDuration={400}>
         <ConfirmationDialogProvider>
           <DocPreviewExternalLinkConfirmation />

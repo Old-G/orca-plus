@@ -41,6 +41,25 @@ function readLaunchedTabId(result: unknown): string | undefined {
   return typeof paneKey === 'string' ? parsePaneKey(paneKey)?.tabId : undefined
 }
 
+const NATIVE_CHAT_TAB = 'structured-agent-session-'
+
+/** Custom build (chat-cleanup): the chat that wrote the handoff is done once its successor starts;
+ *  closed like the tab's ×, so it stays reopenable from History. */
+async function closeHandedOffChat(
+  runtime: OrcaRuntimeService,
+  offer: ClaudeHandoffOffer,
+  launchedTabId: string | undefined
+): Promise<void> {
+  if (!offer.tabId?.startsWith(NATIVE_CHAT_TAB) || offer.tabId === launchedTabId) {
+    return
+  }
+  try {
+    await runtime.closeMobileSessionTab(`id:${offer.worktreeId}`, offer.tabId, { reason: 'user' })
+  } catch (error) {
+    console.warn('[claude-handoff] closing the handed-off chat failed:', error)
+  }
+}
+
 type OffersListener = (offers: ClaudeHandoffOffer[]) => void
 const offersListeners = new Set<OffersListener>()
 
@@ -156,6 +175,7 @@ export function registerClaudeHandoffHandlers(
         }
         offers.dismiss(id)
         const tabId = readLaunchedTabId(response.result)
+        await closeHandedOffChat(runtime, resolved.offer, tabId)
         return { ok: true, worktreeId: resolved.offer.worktreeId, ...(tabId ? { tabId } : {}) }
       } finally {
         launching.delete(id)
