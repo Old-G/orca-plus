@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { PulseDb } from '../orca-plus/pulse/pulse-db'
+import { SlackApiError } from '../slack/slack-request'
 import {
   parseHqReplyRelevance,
   plainSlackText,
@@ -136,6 +137,54 @@ describe('pollHqSlackWaitingReplies', () => {
       reply: 'Анна Ли: 1. table attached',
       replyLink: `https://s.example/DANNA01/${replyTs}`
     })
+  })
+
+  it('still hears the DM when the question’s thread cannot be read', async () => {
+    const { db, anna, dm, api, deps, at } = setup()
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'Phone hours',
+      personId: anna.id,
+      source: 'slack',
+      sourceRef: 'slack:DANNA01:1792184199.000100',
+      agentSessionId: 'chat-1'
+    })
+    vi.mocked(api.replies).mockRejectedValue(new Error('channel_not_found'))
+    dm.push(msg(ASKED_AT + 60_000, ANNA, 'Sun–Thu'))
+    at(ASKED_AT + 5 * 60_000)
+    expect(await pollHqSlackWaitingReplies(deps)).toBe(1)
+    expect(db.getWaiting(asked.id)?.reply).toBe('Анна Ли: Sun–Thu')
+  })
+
+  it('takes the thread reply but not a newer DM about another topic', async () => {
+    const { db, anna, dm, thread, deps, at } = setup()
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'Phone hours',
+      personId: anna.id,
+      source: 'slack',
+      sourceRef: 'slack:DANNA01:1792184199.000100',
+      agentSessionId: 'chat-1'
+    })
+    thread.push(msg(ASKED_AT + 60_000, ANNA, 'Sun–Thu', { threadTs: '1792184199.000100' }))
+    dm.push(msg(ASKED_AT + 90_000, ANNA, 'other topic: lunch?'))
+    at(ASKED_AT + 5 * 60_000)
+    expect(await pollHqSlackWaitingReplies(deps)).toBe(1)
+    expect(db.getWaiting(asked.id)?.reply).toBe('Анна Ли: Sun–Thu')
+  })
+
+  it('lets a revoked token or a missing scope reach the reader status', async () => {
+    const { db, anna, api, deps, at } = setup()
+    db.addWaiting({
+      direction: 'on-them',
+      title: 'Phone hours',
+      personId: anna.id,
+      source: 'manual',
+      agentSessionId: 'chat-1'
+    })
+    vi.mocked(api.history).mockRejectedValue(new SlackApiError('missing_scope', 'missing_scope'))
+    at(ASKED_AT + 5 * 60_000)
+    await expect(pollHqSlackWaitingReplies(deps)).rejects.toThrow('missing_scope')
   })
 
   it('takes thread replies from anyone but the owner and bots, never the question itself', async () => {
