@@ -147,6 +147,28 @@ export function slackTextLinks(text: string): string[] {
   return [...links]
 }
 
+// Why: reactions.list carries no permalink; a link built from the workspace URL costs no call.
+const workspaceUrls = new Map<string, string | null>()
+const REACTION_PAGES = 5
+
+async function workspaceUrl(token: string): Promise<string | null> {
+  if (!workspaceUrls.has(token)) {
+    workspaceUrls.set(token, asString((await slackRequest(token, 'auth.test')).url))
+  }
+  return workspaceUrls.get(token) ?? null
+}
+
+/** Slack's message link: `<workspace>/archives/<channel>/p<ts>`, with the thread for a reply. */
+export function slackMessageUrl(
+  base: string,
+  channel: string,
+  ts: string,
+  threadTs: string | null
+): string {
+  const link = `${base.replace(/\/?$/, '/')}archives/${channel}/p${ts.replace('.', '')}`
+  return threadTs && threadTs !== ts ? `${link}?thread_ts=${threadTs}&cid=${channel}` : link
+}
+
 /** Custom build (hq-slack-intake): the owner's 👾-marked messages, newest first. */
 export function createSlackIntakeApi(
   token: string,
@@ -155,9 +177,24 @@ export function createSlackIntakeApi(
 ): HqIntakeReadApi {
   return {
     marked: async () => {
-      const body = await slackRequest(token, 'reactions.list', { full: true, limit: 100 })
+      // Why every page: a mark missing from a partial read would close its card.
+      const entries: unknown[] = []
+      let cursor: string | null = null
+      for (let page = 0; page < REACTION_PAGES; page += 1) {
+        const body = await slackRequest(token, 'reactions.list', {
+          full: true,
+          limit: 100,
+          ...(cursor ? { cursor } : {})
+        })
+        entries.push(...(Array.isArray(body.items) ? body.items : []))
+        cursor = asString(asSlackRecord(body.response_metadata).next_cursor)
+        if (!cursor) {
+          break
+        }
+      }
+      const base = await workspaceUrl(token).catch(() => null)
       const drafts: HqIntakeDraft[] = []
-      for (const entry of Array.isArray(body.items) ? body.items : []) {
+      for (const entry of entries) {
         const item = asSlackRecord(entry)
         const channel = asString(item.channel)
         const message = asSlackRecord(item.message)
@@ -187,7 +224,9 @@ export function createSlackIntakeApi(
           text: plainSlackText(raw).slice(0, HQ_INTAKE_TEXT_MAX),
           links: slackTextLinks(raw),
           files,
-          permalink: asString(message.permalink),
+          permalink:
+            asString(message.permalink) ??
+            (base ? slackMessageUrl(base, channel, ts, asString(message.thread_ts)) : null),
           at: Math.round(Number(ts) * 1000)
         })
       }
