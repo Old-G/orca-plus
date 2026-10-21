@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { PulseDb } from '../orca-plus/pulse/pulse-db'
 import {
+  parseHqReplyRelevance,
   plainSlackText,
   pollHqSlackWaitingReplies,
   type HqSlackWaitingDeps,
@@ -42,6 +43,7 @@ function setup() {
     knownName: (user) => (user === ANNA ? 'Анна Ли' : null),
     read: async (run) => (connected ? run(api) : null),
     recordReply: (waitingId, reply) => db.recordWaitingReply(waitingId, reply),
+    isAnswer: async (_question, said) => !said.includes('other topic'),
     now: () => now
   }
   return {
@@ -178,10 +180,40 @@ describe('pollHqSlackWaitingReplies', () => {
   })
 })
 
+describe('pollHqSlackWaitingReplies relevance', () => {
+  it('leaves a DM about another topic off the question, and does not ask about it again', async () => {
+    const { db, anna, dm, deps, at } = setup()
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'Phone hours',
+      personId: anna.id,
+      source: 'manual',
+      agentSessionId: 'chat-1'
+    })
+    dm.push(msg(ASKED_AT + 60_000, ANNA, 'other topic: the signature'))
+    at(ASKED_AT + 5 * 60_000)
+    const handled = new Map<string, string>()
+    await pollHqSlackWaitingReplies(deps, handled)
+    expect(db.getWaiting(asked.id)?.reply).toBeNull()
+    dm.push(msg(ASKED_AT + 6 * 60_000, ANNA, 'Sun–Thu 9–18'))
+    at(ASKED_AT + 10 * 60_000)
+    await pollHqSlackWaitingReplies(deps, handled)
+    expect(db.getWaiting(asked.id)?.reply).toBe('Анна Ли: Sun–Thu 9–18')
+  })
+})
+
 describe('plainSlackText', () => {
   it('turns Slack link markup into readable text', () => {
     expect(plainSlackText('see <https://x.dev/a|the doc> &amp; <https://x.dev/b>')).toBe(
       'see the doc (https://x.dev/a) & https://x.dev/b'
     )
+  })
+})
+
+describe('parseHqReplyRelevance', () => {
+  it('reads the model’s verdict and counts a garbled one as an answer', () => {
+    expect(parseHqReplyRelevance('{"answer": false}')).toBe(false)
+    expect(parseHqReplyRelevance('Sure: {"answer": true}')).toBe(true)
+    expect(parseHqReplyRelevance('no idea')).toBe(true)
   })
 })

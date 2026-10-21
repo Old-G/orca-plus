@@ -9,7 +9,12 @@ import { onPulseChanged } from '../orca-plus/pulse/pulse-change-events'
 import { deliverWaitingReply } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { createSlackReadApi, createSlackReaderCache } from '../slack/slack-reader-api'
 import { getSlackReaderStatus, withSlackReader } from '../slack/slack-reader'
-import { startHqSlackWaitingReplies } from './hq-slack-waiting-replies'
+import {
+  hqReplyRelevancePrompt,
+  parseHqReplyRelevance,
+  startHqSlackWaitingReplies
+} from './hq-slack-waiting-replies'
+import { generateHqText } from './hq-task-questions'
 import { startHqWaitingReplyRelay } from './hq-waiting-reply-relay'
 import { passHqWaitingReply, skipHqWaitingReply } from './hq-waiting-reply-pass'
 import { registerHqSlackIntake } from './register-hq-slack-intake'
@@ -40,6 +45,22 @@ export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeServi
       people().find((person) => person.slackUserId === slackUserId)?.name ?? null,
     read: (run) => withSlackReader((token, owner) => run(createSlackReadApi(token, owner, cache))),
     recordReply,
+    isAnswer: async (question, said) => {
+      const hqPath = store.getSettings().hqPath
+      if (!hqPath) {
+        return true
+      }
+      const result = await generateHqText(
+        hqReplyRelevancePrompt(question, said),
+        { emptyResultName: 'reply check', operation: 'hq-slack-intake', model: 'haiku' },
+        {
+          settings: store.getSettings(),
+          cwd: hqPath,
+          getAgentEnvResolvers: () => runtime.getCommitMessageAgentEnvironmentResolvers()
+        }
+      )
+      return result.ok ? parseHqReplyRelevance(result.text) : true
+    },
     now: Date.now
   })
   // Custom build (hq-slack-intake): 👾-marked messages, read with the same token and name cache.
