@@ -19,7 +19,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from hq_location import config  # noqa: E402
 
 CONFIG = config("waiting-digest")
-ORCA = os.environ.get("ORCA_CLI_COMMAND") or "orca"
+# Why orca-plus: Orca+ installs its CLI under that name; a bare `orca` is stock Orca or nothing.
+ORCA = os.environ.get("ORCA_CLI_COMMAND") or "orca-plus"
 TASK = re.compile(r"(?<![\w-])[A-Z][A-Z0-9]{1,9}-\d+\b")
 
 
