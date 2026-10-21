@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../../shared/outgoing-approval/outgoing-approval-bell'
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 import { OutgoingApprovalToast } from './OutgoingApprovalCard'
+import { showMeasuredCustomToast } from '../measured-custom-toast'
 
 const toastId = (itemId: string): string => `outgoing-approval-toast-${itemId}`
 
@@ -26,7 +27,7 @@ export function syncOutgoingApprovalToasts(
       continue
     }
     shown.add(item.id)
-    toast.custom(() => <OutgoingApprovalToast item={item} />, {
+    showMeasuredCustomToast(() => <OutgoingApprovalToast item={item} />, {
       id: toastId(item.id),
       duration: Number.POSITIVE_INFINITY,
       unstyled: true,
