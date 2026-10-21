@@ -14,6 +14,18 @@ export const SLACK_BOT_SCOPES = [
   'commands'
 ] as const
 
+/** Custom build (slack-reply-reader): the owner's own token reads the DMs and threads where a chat
+ *  waits for someone's answer; users:read names who answered. Not in the manifest — opt-in only. */
+export const SLACK_READER_SCOPES = [
+  'im:history',
+  'im:read',
+  'mpim:history',
+  'mpim:read',
+  'channels:history',
+  'groups:history',
+  'users:read'
+] as const
+
 export const SLACK_APP_MANIFEST = {
   display_information: {
     name: 'Orca Plus',

@@ -18,7 +18,19 @@ export type SlackConnectionStatus = {
   owner: SlackPerson | null
   target: SlackTarget
   credentialError?: string
+  /** Custom build (slack-reply-reader): the owner's token that reads answers; absent on older hosts. */
+  reader?: SlackReaderStatus
 }
+
+export type SlackReaderStatus = {
+  connected: boolean
+  user: SlackPerson | null
+  error?: string
+}
+
+export type SlackReaderConnectResult =
+  | { ok: true; user: SlackPerson }
+  | { ok: false; error: string }
 
 export type SlackConnectInput = {
   botToken: string
