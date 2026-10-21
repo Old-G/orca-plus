@@ -92,7 +92,8 @@ describe('connectSlack', () => {
       teamName: 'Lev',
       bot: { id: 'UBOT1', name: 'orca-plus' },
       owner: { id: 'U0123ABCD', name: 'Alex' },
-      target: { kind: 'dm' }
+      target: { kind: 'dm' },
+      reader: { connected: false, user: null }
     })
   })
 
