@@ -32,7 +32,7 @@ function setup() {
     replies: vi.fn(async (_channel: string, _threadTs: string, oldest: string) =>
       thread.filter((m) => Number(m.ts) > Number(oldest))
     ),
-    dmChannel: vi.fn(async (user: string) => (user === ANNA ? 'DANNA' : null)),
+    dmChannel: vi.fn(async (user: string) => (user === ANNA ? 'DANNA01' : null)),
     userName: vi.fn(async (user: string) => `slack-${user}`)
   }
   let connected = true
@@ -68,7 +68,7 @@ describe('pollHqSlackWaitingReplies', () => {
       title: 'Phone hours',
       personId: anna.id,
       source: 'slack',
-      sourceRef: 'slack:DANNA:1792184199.000100',
+      sourceRef: 'slack:DANNA01:1792184199.000100',
       agentSessionId: 'chat-1'
     })
     dm.push(msg(ASKED_AT - 60_000, ANNA, 'said before the question'))
@@ -87,20 +87,28 @@ describe('pollHqSlackWaitingReplies', () => {
     expect(await pollHqSlackWaitingReplies(deps)).toBe(0)
   })
 
-  it('hears the person in their DM for a question asked elsewhere, e.g. on a task', async () => {
+  it('hears the DM for a question recorded with no place, but not for one asked on a task', async () => {
     const { db, anna, dm, deps, at } = setup()
-    const asked = db.addWaiting({
+    const byHand = db.addWaiting({
       direction: 'on-them',
       title: 'Phone hours',
       personId: anna.id,
-      source: 'clickup',
-      sourceRef: 'clickup:DEV-1:123',
+      source: 'manual',
       agentSessionId: 'chat-1'
     })
-    dm.push(msg(ASKED_AT + 60_000, ANNA, 'answered you on the task in DM'))
+    const onTask = db.addWaiting({
+      direction: 'on-them',
+      title: 'Routing review',
+      personId: anna.id,
+      source: 'clickup',
+      sourceRef: 'clickup:DEV-1:123',
+      agentSessionId: 'chat-2'
+    })
+    dm.push(msg(ASKED_AT + 60_000, ANNA, 'Sun–Thu'))
     at(ASKED_AT + 5 * 60_000)
     await pollHqSlackWaitingReplies(deps)
-    expect(db.getWaiting(asked.id)?.reply).toBe('Анна Ли: answered you on the task in DM')
+    expect(db.getWaiting(byHand.id)?.reply).toBe('Анна Ли: Sun–Thu')
+    expect(db.getWaiting(onTask.id)?.reply).toBeNull()
   })
 
   it('takes thread replies from anyone but the owner and bots, never the question itself', async () => {
