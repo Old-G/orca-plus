@@ -1,7 +1,7 @@
 // Custom build (hq-chats): a chat's project mark — the project's color with its initials — and the
 // chat's shown name, shared by the list row and the open chat's header.
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { formatAgentTypeLabel } from '@/store/slices/agent-status/agent-status'
+import { formatAgentTypeLabel } from '../../../../../shared/agent-status/presentation/agent-type-label'
 import { useStructuredChatTabConversationName } from '@/runtime/native-chat/naming/structured-conversation-name'
 import { useAppStore } from '@/store'
 import { resolveAgentSessionTabTitle } from '../../tab-bar/tab-bar-item-model'
