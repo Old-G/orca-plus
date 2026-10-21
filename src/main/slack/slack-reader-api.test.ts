@@ -8,7 +8,7 @@ vi.mock('./slack-request', async (importOriginal) => ({
   slackRequest: requestMock
 }))
 
-import { createSlackIntakeApi, slackTextLinks } from './slack-reader-api'
+import { createSlackIntakeApi, slackMessageUrl, slackTextLinks } from './slack-reader-api'
 
 describe('createSlackIntakeApi', () => {
   it('reads only messages the owner marked with 👾, with links, files and permalink', async () => {
@@ -72,5 +72,16 @@ describe('createSlackIntakeApi', () => {
     expect(slackTextLinks('<https://a.dev/x|x> and <https://a.dev/x> <mailto:a@b.c|a>')).toEqual([
       'https://a.dev/x'
     ])
+  })
+})
+
+describe('slackMessageUrl', () => {
+  it('builds a message link, with the thread for a reply', () => {
+    expect(slackMessageUrl('https://acme.slack.com/', 'D1', '1792600000.000100', null)).toBe(
+      'https://acme.slack.com/archives/D1/p1792600000000100'
+    )
+    expect(slackMessageUrl('https://acme.slack.com', 'C1', '2.000200', '1.000100')).toBe(
+      'https://acme.slack.com/archives/C1/p2000200?thread_ts=1.000100&cid=C1'
+    )
   })
 })
