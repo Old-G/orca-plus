@@ -75,7 +75,7 @@ describe('passHqWaitingReply', () => {
 describe('runHqWaitingReplyAction', () => {
   it('skips without passing anything on', async () => {
     await runHqWaitingReplyAction(ref, 'reply-skip')
-    expect(mocks.skip).toHaveBeenCalledWith('w1')
+    expect(mocks.skip).toHaveBeenCalledWith('w1', '1.1')
     expect(mocks.pass).not.toHaveBeenCalled()
   })
 })

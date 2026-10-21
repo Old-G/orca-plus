@@ -202,10 +202,19 @@ export function recordWaitingReply(
   })
 }
 
-export function markWaitingReplyDelivered(core: PulseCore, id: string): PulseWaiting | null {
+/** `replyTs`: only that answer counts as handled; a newer one that came meanwhile stays pending. */
+export function markWaitingReplyDelivered(
+  core: PulseCore,
+  id: string,
+  replyTs?: string
+): PulseWaiting | null {
   return core.transaction(() => {
     const existing = getWaiting(core, id)
-    if (!existing?.repliedAt || existing.replyDeliveredAt !== null) {
+    if (
+      !existing?.repliedAt ||
+      existing.replyDeliveredAt !== null ||
+      (replyTs !== undefined && existing.replyTs !== replyTs)
+    ) {
       return null
     }
     const delivered: PulseWaiting = { ...existing, replyDeliveredAt: core.clock.now() }
