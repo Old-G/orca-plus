@@ -105,18 +105,30 @@ export function openHqChangeDiff(
   store.setActiveTabType('editor', worktree.id)
 }
 
+// Why one queue: each write replaces a whole list, so two quick clicks must not both start from
+// the list as it was before either landed.
+let hqListWrites: Promise<void> = Promise.resolve()
+
+function updateHqList(
+  key: 'hqKeptProjectIds' | 'hqMarkedChatKeys',
+  change: (current: string[]) => string[]
+): void {
+  hqListWrites = hqListWrites.then(async () => {
+    const { settings, updateSettings } = useAppStore.getState()
+    await updateSettings({ [key]: change(settings?.[key] ?? []) })
+  })
+}
+
 /** Keeps a project's latest chats on view in HQ, or lets them go quiet with the rest again. */
 export function setHqProjectKept(repoId: string, kept: boolean): void {
-  const { settings, updateSettings } = useAppStore.getState()
-  const current = settings?.hqKeptProjectIds ?? []
-  const next = kept ? [...new Set([...current, repoId])] : current.filter((id) => id !== repoId)
-  void updateSettings({ hqKeptProjectIds: next })
+  updateHqList('hqKeptProjectIds', (current) =>
+    kept ? [...new Set([...current, repoId])] : current.filter((id) => id !== repoId)
+  )
 }
 
 /** Custom build (hq-marked-chats): marks a chat to come back to, or takes the mark off. */
 export function setHqChatMarked(key: string, marked: boolean): void {
-  const { settings, updateSettings } = useAppStore.getState()
-  const current = settings?.hqMarkedChatKeys ?? []
-  const next = marked ? [...new Set([...current, key])] : current.filter((k) => k !== key)
-  void updateSettings({ hqMarkedChatKeys: next })
+  updateHqList('hqMarkedChatKeys', (current) =>
+    marked ? [...new Set([...current, key])] : current.filter((k) => k !== key)
+  )
 }
