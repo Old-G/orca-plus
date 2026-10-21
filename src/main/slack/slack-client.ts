@@ -19,6 +19,7 @@ import {
   type SlackTokens
 } from './slack-credential-store'
 import { asSlackRecord, isSlackAuthError, SlackApiError, slackRequest } from './slack-request'
+import { getSlackReaderStatus } from './slack-reader'
 
 export type SlackSession = { tokens: SlackTokens; metadata: SlackStoredMetadata }
 
@@ -42,7 +43,9 @@ export function getSlackStatus(): SlackConnectionStatus {
     bot: metadata?.bot ?? null,
     owner: metadata?.owner ?? null,
     target: metadata?.target ?? { kind: 'dm' },
-    ...(credentialError ? { credentialError } : {})
+    ...(credentialError ? { credentialError } : {}),
+    // Custom build (slack-reply-reader)
+    reader: getSlackReaderStatus()
   }
 }
 
