@@ -19,6 +19,7 @@ import {
   type SlackTokens
 } from './slack-credential-store'
 import { asSlackRecord, isSlackAuthError, SlackApiError, slackRequest } from './slack-request'
+import { getSlackReaderStatus } from './slack-reader'
 
 export type SlackSession = { tokens: SlackTokens; metadata: SlackStoredMetadata }
 
@@ -42,7 +43,9 @@ export function getSlackStatus(): SlackConnectionStatus {
     bot: metadata?.bot ?? null,
     owner: metadata?.owner ?? null,
     target: metadata?.target ?? { kind: 'dm' },
-    ...(credentialError ? { credentialError } : {})
+    ...(credentialError ? { credentialError } : {}),
+    // Custom build (slack-reply-reader)
+    reader: getSlackReaderStatus()
   }
 }
 
@@ -103,7 +106,7 @@ export async function connectSlack(input: SlackConnectInput): Promise<SlackConne
       throw new SlackApiError('unexpected_conversations_open', 'Slack did not open a DM with you.')
     }
     const previous = getStoredSlackMetadata()
-    saveSlackCredential(
+    await saveSlackCredential(
       { botToken, appToken },
       {
         version: 1,
@@ -123,8 +126,8 @@ export async function connectSlack(input: SlackConnectInput): Promise<SlackConne
   }
 }
 
-export function disconnectSlack(): void {
-  clearStoredSlackCredential()
+export async function disconnectSlack(): Promise<void> {
+  await clearStoredSlackCredential()
 }
 
 /** Runs one authenticated operation and records a rejected token for the status card. */
@@ -194,7 +197,7 @@ export async function setSlackTarget(
     })
     const metadata = getStoredSlackMetadata()
     if (metadata) {
-      writeSlackMetadata({ ...metadata, target, updatedAt: new Date().toISOString() })
+      await writeSlackMetadata({ ...metadata, target, updatedAt: new Date().toISOString() })
     }
     return { ok: true }
   } catch (error) {
