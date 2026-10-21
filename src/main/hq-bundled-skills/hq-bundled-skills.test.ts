@@ -1,8 +1,23 @@
-import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  stat,
+  writeFile
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { HQ_SKILL_MARKER, syncBundledHqSkills, writeHqPathPointer } from './hq-bundled-skills'
+import {
+  HQ_SKILL_MARKER,
+  hqSkillsSyncSource,
+  syncBundledHqSkills,
+  writeHqPathPointer
+} from './hq-bundled-skills'
 
 let root: string
 let source: string
@@ -66,10 +81,57 @@ describe('syncBundledHqSkills', () => {
     expect(await readFile(join(target, 'my-skill', 'SKILL.md'), 'utf8')).toBe('mine')
   })
 
+  it('keeps the old copy when the new one cannot be put in place', async () => {
+    await syncBundledHqSkills(source, target)
+    await writeFile(join(source, 'ask-hq', 'SKILL.md'), 'ask v2')
+    const failingSwap = {
+      rename: async (from: string, to: string): Promise<void> => {
+        if (from.includes('.orca-plus-tmp-')) {
+          throw new Error('disk full')
+        }
+        await rename(from, to)
+      }
+    }
+    await expect(syncBundledHqSkills(source, target, failingSwap)).rejects.toThrow('disk full')
+    expect(await readFile(join(target, 'ask-hq', 'SKILL.md'), 'utf8')).toBe('ask v1')
+    expect((await readdir(target)).sort()).toEqual(['ask-hq', 'hq-setup'])
+  })
+
+  it('clears a temp or backup copy a killed sync left behind', async () => {
+    await syncBundledHqSkills(source, target)
+    await rename(join(target, 'ask-hq'), join(target, 'ask-hq.orca-plus-old-1'))
+    const result = await syncBundledHqSkills(source, target)
+    expect(result.installed).toEqual(['ask-hq'])
+    expect((await readdir(target)).sort()).toEqual(['ask-hq', 'hq-setup'])
+  })
+
   it('does not copy Python caches', async () => {
     await skill(source, 'hq-setup', { '__pycache__/hq_location.cpython-314.pyc': 'x' })
     await syncBundledHqSkills(source, target)
     await expect(stat(join(target, 'hq-setup', '__pycache__'))).rejects.toThrow()
+  })
+})
+
+describe('hqSkillsSyncSource', () => {
+  const present = (paths: string[]) => (path: string) => paths.includes(path)
+
+  it('syncs nothing in a stock Orca package, which carries no bundle', () => {
+    const bundle = join('/app/res', 'hq-skills')
+    const input = { isPackaged: true, resourcesPath: '/app/res', devRoots: [], env: {} }
+    expect(hqSkillsSyncSource({ ...input, exists: present([]) })).toBeNull()
+    expect(hqSkillsSyncSource({ ...input, exists: present([bundle]) })).toBe(bundle)
+  })
+
+  it('syncs a dev build only on request', () => {
+    const bundle = join('/repo', 'resources', 'hq-skills')
+    const input = {
+      isPackaged: false,
+      resourcesPath: '/x',
+      devRoots: ['/repo'],
+      exists: present([bundle])
+    }
+    expect(hqSkillsSyncSource({ ...input, env: {} })).toBeNull()
+    expect(hqSkillsSyncSource({ ...input, env: { ORCA_PLUS_HQ_SKILLS_SYNC: '1' } })).toBe(bundle)
   })
 })
 
