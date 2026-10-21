@@ -45,6 +45,8 @@ import {
   readHqWaitingReplyRef
 } from '../../../../../shared/hq-waiting-reply-bell'
 import { openHqWaitingReplyChat, runHqWaitingReplyAction } from './hq-waiting-reply-actions'
+import { HQ_INTAKE_KIND } from '../../../../../shared/hq-slack-intake'
+import { showHqIntakeCard } from './hq-intake-toasts'
 
 function paneRefTabId(ref: PulseBellPaneRef): string | undefined {
   return ref.tabId ?? parsePaneKey(ref.paneKey)?.tabId
@@ -115,6 +117,9 @@ export function openPulseBellItemTarget(item: PulseInboxItem): boolean {
     openHqReport(item.refId)
     return true
   }
+  if (item.kind === HQ_INTAKE_KIND) {
+    return showHqIntakeCard(item)
+  }
   const waitingReply =
     item.kind === HQ_WAITING_REPLY_KIND ? readHqWaitingReplyRef(item.refId) : null
   if (waitingReply?.sessionId) {
@@ -148,6 +153,11 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
     await runHqSlackRequestAction(slackRequest.id, actionId)
     // Why: the item closes once HQ records the decision; Edit is not one, and a failure keeps it.
     await window.api.pulseBell.markRead([item.id])
+    return
+  }
+  // Custom build (hq-slack-intake): the bell's «To work» brings the card back; it closes on a decision.
+  if (item.kind === HQ_INTAKE_KIND) {
+    showHqIntakeCard(item)
     return
   }
   // Custom build (hq-reply-approve): Pass and Skip close the item through main; Open only reads it.

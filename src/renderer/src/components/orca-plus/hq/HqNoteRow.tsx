@@ -1,7 +1,7 @@
 // Custom build (hq-notes): one line of HQ → Notes — what is awaited, from whom, in which chat, and
 // (hq-waiting-replies) the person's answer once the Slack scout found it.
 import { useState } from 'react'
-import { ExternalLink, MessagesSquare } from 'lucide-react'
+import { ExternalLink, Inbox, MessagesSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { translate } from '@/i18n/i18n'
@@ -18,6 +18,8 @@ import { RemindButton } from './HqTodayPeople'
 import { errorText } from './hq-waiting-parts'
 import { closeHqWaiting } from './use-hq-pulse'
 import { hqSpaceStripeStyle } from './use-hq-spaces'
+import { HQ_INTAKE_NOTE_SOURCE } from '../../../../../shared/hq-slack-intake'
+import { openHqIntakeFromNote } from './hq-intake-note'
 
 // Why: a day without an answer is when a nudge stops being pushy.
 const REMIND_AFTER_MS = 24 * 60 * 60_000
@@ -49,7 +51,7 @@ function deliveryLabel(reply: NonNullable<HqWaiting['reply']>, toChat: boolean):
     return translate('auto.hq.notes.replyDelivered', 'Sent to the chat')
   }
   return toChat
-    ? translate('auto.hq.notes.replyPending', 'Reaches the chat once it is open')
+    ? translate('auto.hq.notes.replyPending', 'Waiting for your Send to chat')
     : translate('auto.hq.notes.replyHereOnly', 'Only here — no chat to send it to')
 }
 
@@ -115,6 +117,8 @@ export function HqNoteRow({
     })
   }
   const isNote = waiting.source === HQ_NOTE_SOURCE
+  // Custom build (hq-slack-intake): a 👾-marked message put off with Later.
+  const isIntake = waiting.source === HQ_INTAKE_NOTE_SOURCE
   const who = showPerson
     ? (personName ?? (isNote ? translate('auto.hq.notes.self', 'Me') : null))
     : null
@@ -167,9 +171,25 @@ export function HqNoteRow({
         {waiting.reply ? (
           <ReplyBlock reply={waiting.reply} toChat={Boolean(waiting.agentSessionId)} now={now} />
         ) : null}
+        {isIntake && waiting.detail ? (
+          <span className="mt-1 line-clamp-6 block text-xs whitespace-pre-wrap text-muted-foreground">
+            {waiting.detail}
+          </span>
+        ) : null}
         {error ? <span className="block text-xs text-destructive">{error}</span> : null}
       </span>
       <span className="flex shrink-0 items-center gap-0.5">
+        {isIntake && waiting.sourceRef ? (
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost"
+            onClick={() => void openHqIntakeFromNote(waiting.sourceRef ?? '')}
+          >
+            <Inbox />
+            {translate('auto.hq.notes.toWork', 'To work')}
+          </Button>
+        ) : null}
         {agentSessionId && worktreeId ? (
           <Button
             type="button"
