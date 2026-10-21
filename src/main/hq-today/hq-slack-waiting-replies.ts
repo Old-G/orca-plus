@@ -1,8 +1,9 @@
 // Custom build (slack-reply-reader): answers to what the chats wait for, read straight from Slack with
 // the owner's own token (no model, no connector). A question asked in a thread waits for replies in
 // that thread; one asked in a DM, or recorded with no place at all (the owner asked himself), also
-// takes the person's plain DM messages, since people answer there without opening the thread. A
-// question asked on a task or in a channel does not: a DM about something else is not its answer.
+// takes the person's plain DM messages and replies in that DM's threads, since people answer there
+// without opening the question's thread. A question asked on a task or in a channel does not: a DM
+// about something else is not its answer.
 import {
   HQ_WAITING_REPLY_MAX,
   parseSlackThreadRef,
@@ -16,6 +17,9 @@ import { slackMessageForOwner } from '../../shared/hq-reply-addressee'
 export const HQ_SLACK_REPLY_QUIET_MS = 60_000
 // Why: an old question would claim every later DM from that person as its answer.
 export const HQ_SLACK_DM_WATCH_MS = 7 * 24 * 60 * 60_000
+// Why: the owner records a question he sent himself a while after sending it, so its thread starts
+// before the waiting does.
+export const HQ_SLACK_DM_THREAD_LOOKBACK_MS = 24 * 60 * 60_000
 // Why: a minute keeps «just replied» true; each pass is one read per DM and per thread waited on.
 const POLL_MS = 60_000
 const FIRST_POLL_MS = 20_000
@@ -27,6 +31,8 @@ export type SlackReadMessage = {
   /** Set on thread replies; equal to `ts` on a thread's parent. */
   threadTs: string | null
   bot: boolean
+  /** Set on a thread's parent: its newest reply. */
+  latestReply?: string | null
 }
 
 export type SlackReadApi = {
@@ -64,6 +70,7 @@ type Watch = {
 
 const isDm = (channel: string): boolean => channel.startsWith('D')
 const newer = (a: string, b: string): boolean => Number(a) > Number(b)
+const tsBefore = (ts: string, ms: number): string => (Number(ts) - ms / 1000).toFixed(6)
 
 /** Slack's link and mention markup, readable for the chat. */
 export function plainSlackText(text: string): string {
@@ -146,7 +153,19 @@ export async function pollHqSlackWaitingReplies(
     const dmMessages = new Map<string, SlackReadMessage[]>()
     for (const [channel, oldest] of dmOldest) {
       try {
-        dmMessages.set(channel, answers(await api.history(channel, oldest), api.owner))
+        const top = await api.history(channel, tsBefore(oldest, HQ_SLACK_DM_THREAD_LOOKBACK_MS))
+        const found = answers(top, api.owner)
+        for (const parent of top) {
+          if (
+            parent.threadTs === parent.ts &&
+            parent.latestReply &&
+            newer(parent.latestReply, oldest)
+          ) {
+            const replies = await api.replies(channel, parent.ts, oldest)
+            found.push(...answers(replies, api.owner).filter((reply) => reply.ts !== parent.ts))
+          }
+        }
+        dmMessages.set(channel, found)
       } catch (error) {
         console.warn(`[hq-slack-waiting] reading DM ${channel} failed:`, error)
       }
@@ -187,8 +206,7 @@ async function recordWatch(
     }
   }
   for (const message of dm ? (dmMessages.get(dm.channel) ?? []) : []) {
-    const topLevel = !message.threadTs || message.threadTs === message.ts
-    if (topLevel && newer(message.ts, after) && (!dm?.from || message.user === dm.from)) {
+    if (newer(message.ts, after) && (!dm?.from || message.user === dm.from)) {
       found.set(message.ts, message)
     }
   }
