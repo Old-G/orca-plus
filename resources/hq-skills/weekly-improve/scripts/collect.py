@@ -20,6 +20,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "hq-setup"))
 from hq_location import hq_dir  # noqa: E402
@@ -304,13 +305,31 @@ def hq_signals(hq, cut, end=None):
     }
 
 
-PULSE_DB = os.path.join(HOME, "Library", "Application Support", "orca-plus", "orca-plus-pulse.db")
+PULSE_DB_FILE = "orca-plus-pulse.db"
+
+
+def pulse_db_path():
+    """orca-plus-pulse.db in Orca+'s profile: ORCA_USER_DATA_PATH in its terminals, else <appData>/orca-plus."""
+    env = os.environ.get("ORCA_USER_DATA_PATH")
+    # Why the check: a stock Orca terminal sets the same variable to stock Orca's profile.
+    if env and os.path.isfile(os.path.join(env, PULSE_DB_FILE)):
+        return os.path.join(env, PULSE_DB_FILE)
+    if sys.platform == "darwin":
+        app_data = os.path.join(HOME, "Library", "Application Support")
+    elif sys.platform == "win32":
+        app_data = os.environ.get("APPDATA") or os.path.join(HOME, "AppData", "Roaming")
+    else:
+        app_data = os.environ.get("XDG_CONFIG_HOME") or os.path.join(HOME, ".config")
+    return os.path.join(app_data, "orca-plus", PULSE_DB_FILE)
+
+
+PULSE_DB = pulse_db_path()
 
 
 def pulse_day(cut, end):
     """What Orca+ recorded that day: what went out after Approve, decisions, the feed, open waitings."""
     try:
-        db = sqlite3.connect(f"file:{PULSE_DB}?mode=ro", uri=True, timeout=5)
+        db = sqlite3.connect(f"{Path(PULSE_DB).as_uri()}?mode=ro", uri=True, timeout=5)
     except sqlite3.Error as error:
         return {"error": str(error)}
     lo, hi = int(cut * 1000), int(end * 1000)
@@ -327,9 +346,11 @@ def pulse_day(cut, end):
         feed = rows(
             "SELECT source, kind, at, title, substr(coalesce(post, body), 1, 300) AS text, project, person"
             " FROM feed WHERE at >= ? AND at < ? ORDER BY at", lo, hi)
+        # Why: open at the day's end (however old) plus those opened or closed that day.
         waitings = rows(
             "SELECT direction, title, project, person_id, source, status, created_at, resolved_at FROM waitings"
-            " WHERE (created_at >= ? AND created_at < ?) OR (resolved_at >= ? AND resolved_at < ?)", lo, hi, lo, hi)
+            " WHERE created_at < ? AND (resolved_at IS NULL OR resolved_at >= ?)"
+            " ORDER BY created_at", hi, lo)
     except sqlite3.Error as error:
         return {"error": str(error)}
     finally:
