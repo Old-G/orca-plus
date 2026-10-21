@@ -20,6 +20,8 @@ export type ClaudeHandoffOffer = {
   branch: string | null
   head: string | null
   pushed: string | null
+  /** Custom build (chat-cleanup): the tab of the session that wrote it, closed once the new one starts. */
+  tabId?: string
 }
 
 export type ClaudeHandoffLaunchResult =
