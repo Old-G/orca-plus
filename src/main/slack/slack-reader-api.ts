@@ -42,7 +42,8 @@ function readMessage(value: unknown): SlackReadMessage | null {
     user: asString(raw.user),
     text: [asString(raw.text) ?? '', ...files].filter(Boolean).join(' '),
     threadTs: asString(raw.thread_ts),
-    bot: Boolean(raw.bot_id) || subtype === 'bot_message'
+    bot: Boolean(raw.bot_id) || subtype === 'bot_message',
+    latestReply: asString(raw.latest_reply)
   }
 }
 
