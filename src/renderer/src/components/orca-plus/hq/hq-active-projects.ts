@@ -26,7 +26,9 @@ export type HqActiveProject = {
 export function splitHqActiveProjects(
   items: readonly HqChatItem[],
   keptRepoIds: readonly string[],
-  now: number
+  now: number,
+  /** Custom build (hq-marked-chats): chats listed elsewhere; they still count as activity. */
+  hidden: ReadonlySet<string> = new Set()
 ): { active: HqActiveProject[]; quiet: HqChatItem[] } {
   const lastActivity = new Map<string, number>()
   const names = new Map<string, string>()
@@ -51,7 +53,7 @@ export function splitHqActiveProjects(
   const active: HqActiveProject[] = []
   for (const repoId of order) {
     const quietChats = items
-      .filter((item) => item.repoId === repoId && item.group === 'quiet')
+      .filter((item) => item.repoId === repoId && item.group === 'quiet' && !hidden.has(item.key))
       .sort((a, b) => b.sortAt - a.sortAt)
     const recent = quietChats.filter((item) => item.sortAt >= now - HQ_ACTIVE_PROJECT_STAY_MS)
     const chats =
@@ -60,7 +62,8 @@ export function splitHqActiveProjects(
         : busy.has(repoId) && !kept.has(repoId)
           ? []
           : quietChats.slice(0, 1)
-    if (chats.length === 0) {
+    // Why kept stays: its header holds New chat and Stop keeping even when no chat is left to list.
+    if (chats.length === 0 && !kept.has(repoId)) {
       continue
     }
     for (const chat of chats) {
@@ -75,6 +78,8 @@ export function splitHqActiveProjects(
   }
   return {
     active,
-    quiet: items.filter((item) => item.group === 'quiet' && !shown.has(item.key))
+    quiet: items.filter(
+      (item) => item.group === 'quiet' && !shown.has(item.key) && !hidden.has(item.key)
+    )
   }
 }
