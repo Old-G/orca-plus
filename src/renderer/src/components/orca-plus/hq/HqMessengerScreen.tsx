@@ -13,12 +13,14 @@ import {
   acknowledgeHqChat,
   acknowledgeHqChats,
   openHqChatInProject,
+  setHqChatMarked,
   setHqProjectKept,
   setShownHqChat
 } from './hq-chat-actions'
 import { rememberHqChat, rememberedHqChat } from './hq-chat-open'
 import { splitHqActiveProjects } from './hq-active-projects'
 import { groupHqChats, hqChatTabId, nextHqWaitingChat, pickHqChat } from './hq-chat-list'
+import { splitHqMarkedChats } from './hq-marked-chats'
 import {
   hqSelectionForRequest,
   rememberHqSelection,
@@ -69,13 +71,25 @@ export function HqMessengerScreen(): React.JSX.Element {
   const selectedChat =
     selection.kind === 'chat' ? items.find((item) => item.key === selectedKey) : undefined
   const keptProjectIds = useAppStore((state) => state.settings?.hqKeptProjectIds) ?? NO_KEPT
-  const split = useMemo(
-    () => splitHqActiveProjects(items, keptProjectIds, now),
-    [items, keptProjectIds, now]
-  )
+  const markedChatKeys = useAppStore((state) => state.settings?.hqMarkedChatKeys) ?? NO_KEPT
+  const markedKeys = useMemo(() => new Set(markedChatKeys), [markedChatKeys])
   const groups = useMemo(() => groupHqChats(items), [items])
+  const marked = useMemo(() => splitHqMarkedChats(groups, markedChatKeys), [groups, markedChatKeys])
+  // Why: a chat in Come back to is not listed again under its project.
+  const split = useMemo(
+    () =>
+      splitHqActiveProjects(
+        items.filter((item) => item.group === 'needs' || !markedKeys.has(item.key)),
+        keptProjectIds,
+        now
+      ),
+    [items, markedKeys, keptProjectIds, now]
+  )
   // Why: the active projects' latest chats show in their own section, not again under Quiet.
-  const listGroups = useMemo(() => ({ ...groups, quiet: split.quiet }), [groups, split.quiet])
+  const listGroups = useMemo(
+    () => ({ ...marked.groups, quiet: split.quiet }),
+    [marked.groups, split.quiet]
+  )
 
   useEffect(
     () =>
@@ -199,6 +213,9 @@ export function HqMessengerScreen(): React.JSX.Element {
               onMarkDoneRead={() => acknowledgeHqChats(groups.done)}
               onNextWaiting={nextWaiting}
               nextWaitingKeys={nextWaitingKeys}
+              marked={marked.marked}
+              markedKeys={markedKeys}
+              onMark={setHqChatMarked}
             />
           </div>
         </div>

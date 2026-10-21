@@ -10,6 +10,7 @@ export type HqClientSettings = Pick<
   | 'hqTriageDecisions'
   | 'hqChatsView'
   | 'hqKeptProjectIds'
+  | 'hqMarkedChatKeys'
   | 'hqVoicePromptsEnabled'
   | 'hqPinnedSeenAt'
 >
@@ -19,7 +20,8 @@ export const HQ_CLIENT_WRITABLE_SETTING_KEYS = [
   'hqProjectClickUpLists',
   'hqDeferredDismissed',
   'hqTriageDecisions',
-  'hqPinnedSeenAt'
+  'hqPinnedSeenAt',
+  'hqMarkedChatKeys'
 ] as const
 
 export type HqClientSettingsUpdate = Pick<
