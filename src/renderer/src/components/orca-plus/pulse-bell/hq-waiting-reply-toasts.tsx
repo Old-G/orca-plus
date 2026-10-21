@@ -39,10 +39,12 @@ export type HqWaitingReplyToastMemory = {
   seen: Set<string>
   /** Put off with Later: it stays in the bell and does not pop again. */
   later: Set<string>
+  /** The last inbox seen, so a card put off with Later lets a queued one pop. */
+  items: readonly PulseInboxItem[]
 }
 
 export function createHqWaitingReplyToastMemory(): HqWaitingReplyToastMemory {
-  return { shown: new Map(), seen: new Set(), later: new Set() }
+  return { shown: new Map(), seen: new Set(), later: new Set(), items: [] }
 }
 
 const toastId = (answer: string): string => `waiting-reply-toast-${answer}`
@@ -150,13 +152,15 @@ function HqWaitingReplyToast({
     )
     if (sent) {
       // Why: the answer reached a chat; the card keeps the other questions it may also answer.
-      await window.api.pulseBell.skipWaitingReply(ref.waitingId)
+      await window.api.pulseBell.skipWaitingReply(ref.waitingId, ref.replyTs)
       setNote('')
     }
   }
   const skipAll = (): Promise<unknown> =>
     Promise.all(
-      targets.map((target) => window.api.pulseBell.skipWaitingReply(target.ref.waitingId))
+      targets.map((target) =>
+        window.api.pulseBell.skipWaitingReply(target.ref.waitingId, target.ref.replyTs)
+      )
     )
   return (
     <div
@@ -258,6 +262,7 @@ export function syncHqWaitingReplyToasts(
   items: readonly PulseInboxItem[],
   memory: HqWaitingReplyToastMemory
 ): void {
+  memory.items = items
   const groups = groupHqWaitingReplies(items)
   for (const answer of memory.shown.keys()) {
     if (!groups.has(answer)) {
@@ -282,6 +287,8 @@ export function syncHqWaitingReplyToasts(
     memory.shown.set(answer, drawn)
     const onLater = (): void => {
       memory.later.add(answer)
+      memory.shown.delete(answer)
+      syncHqWaitingReplyToasts(memory.items, memory)
     }
     showMeasuredCustomToast(
       () => <HqWaitingReplyToast answer={answer} targets={targets} onLater={onLater} />,

@@ -11,8 +11,9 @@ export type PulseBellApi = {
   syncKind: (kind: string, items: PulseBellInput[]) => Promise<void>
   onChanged: (callback: () => void) => () => void
   /** Custom build (hq-reply-approve): hands a person's answer to the chat that waits for it. */
-  passWaitingReply: (waitingId: string) => Promise<HqWaitingReplyPassResult>
-  skipWaitingReply: (waitingId: string) => Promise<void>
+  /** `replyTs`: the answer the owner was shown; a newer one is not passed or skipped with it. */
+  passWaitingReply: (waitingId: string, replyTs?: string) => Promise<HqWaitingReplyPassResult>
+  skipWaitingReply: (waitingId: string, replyTs?: string) => Promise<void>
   /** Custom build (hq-slack-intake): a prompt into a native chat; `chat-closed` when it has no live session. */
   sendToChat: (sessionId: string, prompt: string) => Promise<HqWaitingReplyPassResult>
   /** Later on a «To work» card: a Notes line with the whole source. */
