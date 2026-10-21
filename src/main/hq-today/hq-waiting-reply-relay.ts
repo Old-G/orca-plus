@@ -1,13 +1,13 @@
-// Custom build (hq-waiting-replies): keeps the scout's watch list in step with the open waitings,
-// takes the answers it found, and hands each one to the chat that waits — once. A chat that cannot
-// take it now (closed, not attached) gets it on a later pass.
+// Custom build (hq-waiting-replies): keeps the scout's watch list in step with the open waitings and
+// records the answers it found. Custom build (hq-reply-approve): an answer no longer goes to the chat
+// on its own — the bell offers it and the owner passes it on. With the owner's Slack token connected
+// Orca+ reads the threads itself, so the scout gets nothing to watch.
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { HQ_SLACK_SCOUT_DIR } from '../../shared/hq-slack-scout'
 import {
   HQ_WAITING_REPLIES_FILE,
   HQ_WAITING_WATCH_FILE,
-  hqWaitingReplyPrompt,
   hqWaitingWatchEntries,
   parseHqWaitingReplies,
   slackTsAt
@@ -25,9 +25,8 @@ export type HqWaitingReplyRelayDeps = {
   listOpen: () => PulseWaiting[]
   personName: (personId: string) => string | null
   recordReply: (id: string, reply: PulseWaitingReply) => PulseWaiting | null
-  markDelivered: (id: string) => void
-  /** True once the native chat took the turn, sent or queued. */
-  deliver: (waiting: PulseWaiting, prompt: string) => Promise<boolean>
+  /** Orca+ reads Slack answers itself (slack-reply-reader). */
+  readsSlackItself: () => boolean
 }
 
 async function readOptional(path: string): Promise<string | null> {
@@ -57,7 +56,7 @@ export async function relayHqWaitingReplies(deps: HqWaitingReplyRelayDeps): Prom
   }
   const dir = join(hq, HQ_SLACK_SCOUT_DIR)
   const open = deps.listOpen()
-  const watch = hqWaitingWatchEntries(open, deps.personName)
+  const watch = deps.readsSlackItself() ? [] : hqWaitingWatchEntries(open, deps.personName)
   await mkdir(dir, { recursive: true })
   await writeIfChanged(
     join(dir, HQ_WAITING_WATCH_FILE),
@@ -73,33 +72,7 @@ export async function relayHqWaitingReplies(deps: HqWaitingReplyRelayDeps): Prom
     if (!waiting || Number(reply.ts) <= Number(slackTsAt(waiting.createdAt))) {
       continue
     }
-    const replied = deps.recordReply(waiting.id, {
-      text: reply.text,
-      author: reply.author,
-      ts: reply.ts
-    })
-    if (replied) {
-      byId.set(replied.id, replied)
-    }
-  }
-  for (const waiting of byId.values()) {
-    // Why: only a native chat takes the answer; a terminal pane may be a bare shell by now.
-    if (
-      waiting.repliedAt === null ||
-      waiting.replyDeliveredAt !== null ||
-      !waiting.agentSessionId
-    ) {
-      continue
-    }
-    const delivered = await deps
-      .deliver(waiting, hqWaitingReplyPrompt(waiting))
-      .catch((error: unknown) => {
-        console.warn(`[hq-waiting-replies] delivering ${waiting.id} failed:`, error)
-        return false
-      })
-    if (delivered) {
-      deps.markDelivered(waiting.id)
-    }
+    deps.recordReply(waiting.id, { text: reply.text, author: reply.author, ts: reply.ts })
   }
 }
 
