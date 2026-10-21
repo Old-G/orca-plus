@@ -1,7 +1,7 @@
 // Custom build (hq): IPC for HQ's tabs; the work is in hq-project-pages-service.ts, which the
 // paired web client reaches through the hqProjects.* runtime RPC.
 import { BrowserWindow, ipcMain } from 'electron'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import {
   HqDraftTaskQuestionsParams,
