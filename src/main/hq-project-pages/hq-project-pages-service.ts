@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs'
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type {
   HqProjectDiagramResult,
   HqProjectMapResult,
@@ -141,6 +141,7 @@ export function createHqProjectPagesService(
       hqTriageDecisions: current.hqTriageDecisions ?? {},
       hqChatsView: current.hqChatsView,
       hqKeptProjectIds: current.hqKeptProjectIds ?? [],
+      hqMarkedChatKeys: current.hqMarkedChatKeys ?? [],
       hqVoicePromptsEnabled: current.hqVoicePromptsEnabled === true,
       hqPinnedSeenAt: current.hqPinnedSeenAt ?? {}
     }

@@ -2,8 +2,16 @@
 // needs or said last; a native chat waiting on a simple question answers in place, and one waiting
 // on an approval shows what it would run with the way to its full card.
 import { memo, useState } from 'react'
+import { Bookmark, BookmarkX } from 'lucide-react'
 import { AgentStateDot } from '@/components/AgentStateDot'
 import { Button } from '@/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger
+} from '@/components/ui/context-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import { formatShortTimeAgo } from '@/lib/short-time-ago'
 import { cn } from '@/lib/utils'
@@ -21,6 +29,47 @@ type RowProps = {
   selected: boolean
   now: number
   onSelect: (key: string) => void
+  /** Custom build (hq-marked-chats): marked to come back to. */
+  marked: boolean
+  onMark: (key: string, marked: boolean) => void
+}
+
+function markLabel(marked: boolean): string {
+  return marked
+    ? translate('auto.hq.chats.unmark', 'Remove from Come back to')
+    : translate('auto.hq.chats.mark', 'Come back to this chat')
+}
+
+/** Shown while the row is hovered or marked; covers the age so the row keeps its width. */
+function MarkButton({
+  marked,
+  onToggle
+}: {
+  marked: boolean
+  onToggle: () => void
+}): React.JSX.Element {
+  const label = markLabel(marked)
+  return (
+    <span className="absolute top-1.5 right-1.5 rounded-md bg-accent opacity-0 group-hover/row:opacity-100 focus-within:opacity-100">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={label}
+            aria-pressed={marked}
+            onClick={onToggle}
+          >
+            {marked ? <BookmarkX /> : <Bookmark className="text-muted-foreground" />}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top" sideOffset={4}>
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    </span>
+  )
 }
 
 /** One line under the chat's name: the question while it waits, else the latest word from it. */
@@ -40,52 +89,69 @@ function RowBody({
   selected,
   now,
   onSelect,
+  marked,
+  onMark,
   prompt,
   answers
 }: RowProps & { prompt: HqPendingPrompt | null; answers: React.ReactNode }): React.JSX.Element {
   const title = useHqChatTitle(item)
   // Custom build (hq-history): a chat that just left Done keeps a mark in its project's section.
   const recentlyDone = hqChatRecentlyDone(item, now)
+  const toggleMark = () => onMark(item.key, !marked)
   return (
-    <li
-      data-current={selected ? 'true' : undefined}
-      data-recently-done={recentlyDone ? 'true' : undefined}
-      title={
-        recentlyDone ? translate('auto.hq.chats.recentlyDone', 'Finished recently') : undefined
-      }
-      className="rounded-md border-l-2 border-transparent hover:bg-accent data-[current=true]:bg-accent data-[recently-done=true]:border-status-success"
-    >
-      <button
-        type="button"
-        aria-current={selected ? 'true' : undefined}
-        onClick={() => onSelect(item.key)}
-        className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-      >
-        <HqChatAvatar item={item} color={color} />
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="flex items-baseline gap-1.5">
-            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{title}</span>
-            {item.sortAt > 0 ? (
-              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                {formatShortTimeAgo(item.sortAt, now)}
-              </span>
-            ) : null}
-          </span>
-          <span
-            className={cn(
-              'truncate text-xs',
-              item.group === 'needs' ? 'text-agent-question-text' : 'text-muted-foreground'
-            )}
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <li
+          data-current={selected ? 'true' : undefined}
+          data-recently-done={recentlyDone && !marked ? 'true' : undefined}
+          data-marked={marked ? 'true' : undefined}
+          title={
+            recentlyDone && !marked
+              ? translate('auto.hq.chats.recentlyDone', 'Finished recently')
+              : undefined
+          }
+          className="group/row relative rounded-md border-l-2 border-transparent hover:bg-accent data-[current=true]:bg-accent data-[marked=true]:border-status-warning data-[recently-done=true]:border-status-success"
+        >
+          <button
+            type="button"
+            aria-current={selected ? 'true' : undefined}
+            onClick={() => onSelect(item.key)}
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
           >
-            <span className="font-medium text-foreground">{item.projectName}</span>
-            {' · '}
-            <span>{previewLine(item, prompt)}</span>
-          </span>
-        </span>
-        {item.group === 'quiet' ? null : <AgentStateDot state={item.displayState} size="md" />}
-      </button>
-      {answers}
-    </li>
+            <HqChatAvatar item={item} color={color} />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="flex items-baseline gap-1.5">
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{title}</span>
+                {item.sortAt > 0 ? (
+                  <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                    {formatShortTimeAgo(item.sortAt, now)}
+                  </span>
+                ) : null}
+              </span>
+              <span
+                className={cn(
+                  'truncate text-xs',
+                  item.group === 'needs' ? 'text-agent-question-text' : 'text-muted-foreground'
+                )}
+              >
+                <span className="font-medium text-foreground">{item.projectName}</span>
+                {' · '}
+                <span>{previewLine(item, prompt)}</span>
+              </span>
+            </span>
+            {item.group === 'quiet' ? null : <AgentStateDot state={item.displayState} size="md" />}
+          </button>
+          <MarkButton marked={marked} onToggle={toggleMark} />
+          {answers}
+        </li>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onSelect={toggleMark}>
+          {marked ? <BookmarkX /> : <Bookmark />}
+          {markLabel(marked)}
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
