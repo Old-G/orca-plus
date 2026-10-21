@@ -11,7 +11,8 @@ function setup(deliverResult = true) {
   const deps = {
     listOpen: () => db.listWaitings({ status: 'open' }),
     deliver,
-    markDelivered: (waitingId: string) => void db.markWaitingReplyDelivered(waitingId)
+    markDelivered: (waitingId: string, replyTs: string | undefined) =>
+      void db.markWaitingReplyDelivered(waitingId, replyTs)
   }
   const answered = (input: { agentSessionId?: string; paneKey?: string }) => {
     const waiting = db.addWaiting({
@@ -37,6 +38,34 @@ describe('passHqWaitingReply', () => {
     expect(deliver.mock.calls[0]?.[1]).toContain('project phone-bot')
     expect(db.getWaiting(waiting.id)?.replyDeliveredAt).toEqual(expect.any(Number))
     expect(await passHqWaitingReply(deps, waiting.id)).toEqual({ ok: false, reason: 'gone' })
+    expect(deliver).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes only the answer the owner saw; a newer one keeps its own card', async () => {
+    const { db, deps, deliver, answered } = setup()
+    const waiting = answered({ agentSessionId: 'chat-1' })
+    db.recordWaitingReply(waiting.id, {
+      text: 'Actually Sun–Fri',
+      author: 'Anna',
+      ts: '1792184400.1'
+    })
+    expect(await passHqWaitingReply(deps, waiting.id, '1792184300.1')).toEqual({
+      ok: false,
+      reason: 'gone'
+    })
+    skipHqWaitingReply(deps, waiting.id, '1792184300.1')
+    expect(deliver).not.toHaveBeenCalled()
+    expect(db.getWaiting(waiting.id)?.replyDeliveredAt).toBeNull()
+  })
+
+  it('sends one turn when Pass is pressed twice at once', async () => {
+    const { deps, deliver, answered } = setup()
+    const waiting = answered({ agentSessionId: 'chat-1' })
+    const [first, second] = await Promise.all([
+      passHqWaitingReply(deps, waiting.id, '1792184300.1'),
+      passHqWaitingReply(deps, waiting.id, '1792184300.1')
+    ])
+    expect([first, second]).toEqual([{ ok: true }, { ok: false, reason: 'gone' }])
     expect(deliver).toHaveBeenCalledTimes(1)
   })
 
