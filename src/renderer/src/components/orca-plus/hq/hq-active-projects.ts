@@ -6,22 +6,23 @@ export const HQ_ACTIVE_PROJECT_WINDOW_MS = 3 * 24 * 60 * 60 * 1000
 /** Why: the owner returns to a project within the day; anything worked in this recently stays, past the limit. */
 export const HQ_ACTIVE_PROJECT_STAY_MS = 12 * 60 * 60 * 1000
 export const HQ_ACTIVE_PROJECT_LIMIT = 4
-// Why: the owner wants the chat he works in now, not every read chat of the project (17.10).
-export const HQ_ACTIVE_PROJECT_CHATS = 1
+/** Why: read chats of the last 12 hours stay as the project's history (owner, 21.10), up to this many;
+ *  an older project shows only its latest chat. */
+export const HQ_ACTIVE_PROJECT_CHATS = 5
 
 export type HqActiveProject = {
   repoId: string
   projectName: string
   /** Kept by the owner, so it stays even after it goes quiet. */
   kept: boolean
-  /** Its latest quiet chat (at most HQ_ACTIVE_PROJECT_CHATS). */
+  /** Its quiet chats of the last 12 hours (at most HQ_ACTIVE_PROJECT_CHATS), else its latest one. */
   items: HqChatItem[]
 }
 
 /** Projects with work in the last 12 hours (all of them), up to a few more from the last days, plus the
- *  kept ones, each with its latest quiet chat; `quiet` is what stays folded away. Chats that need the
- *  user, work or are unread keep their own groups above, and a project with one there is not listed
- *  again here. */
+ *  kept ones, each with its quiet chats of the last 12 hours, else its latest one; `quiet` is what
+ *  stays folded away. Chats that need the user, work or are unread keep their own groups above; a
+ *  project with one there lists only its recent read chats here, so a finished sibling stays on view. */
 export function splitHqActiveProjects(
   items: readonly HqChatItem[],
   keptRepoIds: readonly string[],
@@ -44,18 +45,21 @@ export function splitHqActiveProjects(
   const order = [...kept, ...recent].sort(
     (a, b) => (lastActivity.get(b) ?? 0) - (lastActivity.get(a) ?? 0)
   )
-  // Why: a project whose current chat already shows above would otherwise appear twice.
+  // Why: a project whose current chat shows above needs no stale chat here to stand for it.
   const busy = new Set(items.filter((item) => item.group !== 'quiet').map((item) => item.repoId))
   const shown = new Set<string>()
   const active: HqActiveProject[] = []
   for (const repoId of order) {
-    if (busy.has(repoId) && !kept.has(repoId)) {
-      continue
-    }
-    const chats = items
+    const quietChats = items
       .filter((item) => item.repoId === repoId && item.group === 'quiet')
       .sort((a, b) => b.sortAt - a.sortAt)
-      .slice(0, HQ_ACTIVE_PROJECT_CHATS)
+    const recent = quietChats.filter((item) => item.sortAt >= now - HQ_ACTIVE_PROJECT_STAY_MS)
+    const chats =
+      recent.length > 0
+        ? recent.slice(0, HQ_ACTIVE_PROJECT_CHATS)
+        : busy.has(repoId) && !kept.has(repoId)
+          ? []
+          : quietChats.slice(0, 1)
     if (chats.length === 0) {
       continue
     }
