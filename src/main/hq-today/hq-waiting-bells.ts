@@ -1,7 +1,9 @@
-// Custom build (hq-promises, hq-remind): bell lines that follow open waitings with the clock — the
-// owner's promises due by tomorrow, and people who have not answered for two working days.
+// Custom build (hq-promises, hq-remind, hq-reply-approve): bell lines that follow open waitings — the
+// owner's promises due by tomorrow, people who have not answered for two working days, and answers
+// waiting to be passed to their chat.
 import { HQ_PROMISE_DUE_KIND, hqPromiseDueBellItems } from '../../shared/hq-promises'
 import { HQ_REMIND_KIND, hqRemindBellItems } from '../../shared/hq-remind'
+import { HQ_WAITING_REPLY_KIND, hqWaitingReplyBellItems } from '../../shared/hq-waiting-reply-bell'
 import type { PulseBellInput } from '../../shared/pulse-bell'
 import type { PulseWaiting } from '../../shared/pulse-types'
 
@@ -21,6 +23,8 @@ export function syncHqWaitingBells(deps: HqWaitingBellsDeps): void {
   const now = deps.now()
   deps.sync(HQ_PROMISE_DUE_KIND, hqPromiseDueBellItems(open, deps.personName, now))
   deps.sync(HQ_REMIND_KIND, hqRemindBellItems(open, deps.personName, now))
+  // Custom build (hq-reply-approve): answers wait here until the owner passes them on.
+  deps.sync(HQ_WAITING_REPLY_KIND, hqWaitingReplyBellItems(open, deps.personName))
 }
 
 export function startHqWaitingBells(deps: HqWaitingBellsDeps): void {

@@ -42,7 +42,7 @@ import {
   listClickUpTasks
 } from '../../clickup/clickup-tasks'
 import { listHqProjectPages } from '../../hq-project-pages/hq-project-pages'
-import { startHqWaitingReplyRelay } from '../../hq-today/hq-waiting-reply-relay'
+import { registerHqWaitingReplies } from '../../hq-today/register-hq-waiting-replies'
 import { startHqScoutPromises } from '../../hq-today/hq-scout-promises'
 import { startHqFeed } from '../../hq-today/hq-feed-collector'
 import { HQ_FEED_COMMIT_LOG_ARGS, readHqFeedCommits } from '../../hq-today/hq-feed-work'
@@ -53,7 +53,6 @@ import { gitExecFileAsync } from '../../git/runner'
 import { isGitRepoKind } from '../../../shared/repo-kind'
 import { getHqProjectPagesService } from '../../hq-project-pages/hq-project-pages-service'
 import { startHqWaitingBells } from '../../hq-today/hq-waiting-bells'
-import { deliverWaitingReply } from '../waiting-replies/deliver-waiting-reply'
 import { startShipRestartNotice } from '../ship-restart/ship-restart-notice'
 import { registerHqClickUpTriage } from '../../hq-today/register-hq-clickup-triage'
 
@@ -161,16 +160,8 @@ export function registerPulseBell(
   // Custom build (hq-clickup-triage): task edits beyond comments, sorted by a small model.
   registerHqClickUpTriage(store, runtime, rateLimits)
 
-  // Custom build (hq-waiting-replies): Slack answers to what the chats wait for, back into those chats.
-  startHqWaitingReplyRelay({
-    hqPath: () => store.getSettings().hqPath ?? null,
-    listOpen: () => runtime.pulseListWaitings({ status: 'open' }),
-    personName: (id) => runtime.pulseListPeople().find((person) => person.id === id)?.name ?? null,
-    recordReply: (id, reply) => runtime.pulseRecordWaitingReply(id, reply),
-    markDelivered: (id) => void runtime.pulseMarkWaitingReplyDelivered(id),
-    deliver: deliverWaitingReply,
-    onChanged: onPulseChanged
-  })
+  // Custom build (hq-waiting-replies): answers to what the chats wait for, offered back to those chats.
+  registerHqWaitingReplies(store, runtime)
   // Custom build (ship-restart-notice): the chat that shipped this build is told to check it.
   startShipRestartNotice()
   // Custom build (hq-scout-context): whom the chats wait for and what was sent, for the Slack scout.
