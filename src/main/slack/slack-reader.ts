@@ -8,7 +8,14 @@ import {
   saveSlackReaderToken
 } from './slack-reader-token-store'
 import { SLACK_READER_SCOPES } from '../../shared/slack-app-manifest'
-import { describeSlackError, isSlackAuthError, SlackApiError, slackRequest } from './slack-request'
+import {
+  asSlackRecord,
+  describeSlackError,
+  isSlackAuthError,
+  SlackApiError,
+  slackRequest
+} from './slack-request'
+import { getStoredSlackMetadata } from './slack-credential-store'
 
 let readerError: string | null = null
 
@@ -41,8 +48,22 @@ export async function connectSlackReader(rawToken: string): Promise<SlackReaderC
     if (!teamId || !userId) {
       throw new SlackApiError('unexpected_auth_test', 'Slack did not describe the user token.')
     }
+    // Why: someone else's token would hand their private DMs to the owner's chats.
+    const connected = getStoredSlackMetadata()
+    if (connected && (connected.teamId !== teamId || connected.owner.id !== userId)) {
+      return {
+        ok: false,
+        error: `This token belongs to ${asString(auth.user) ?? userId} in ${asString(auth.team) ?? teamId}; paste the token of ${connected.owner.name} in ${connected.teamName}.`
+      }
+    }
     // Why: proves the history scopes before saving — a token without them would fail silently later.
-    await slackRequest(token, 'conversations.list', { types: 'im', limit: 1 })
+    const dms = await slackRequest(token, 'conversations.list', { types: 'im', limit: 1 })
+    const firstDm = Array.isArray(dms.channels) ? asString(asSlackRecord(dms.channels[0]).id) : null
+    if (firstDm) {
+      await slackRequest(token, 'conversations.history', { channel: firstDm, limit: 1 })
+    }
+    // Why: the 👾 marks are read with reactions.list; without the scope no To work card comes.
+    await slackRequest(token, 'reactions.list', { limit: 1 })
     const metadata = {
       teamId,
       teamName: asString(auth.team) ?? teamId,
@@ -76,7 +97,14 @@ export async function withSlackReader<T>(
   run: (token: string, owner: string) => Promise<T>
 ): Promise<T | null> {
   const metadata = getSlackReaderMetadata()
-  const token = hasSlackReaderToken() ? loadSlackReaderToken() : null
+  let token: string | null = null
+  try {
+    token = hasSlackReaderToken() ? loadSlackReaderToken() : null
+  } catch (error) {
+    // Why: a token the keychain can no longer decrypt looks saved but fails every read.
+    readerError = 'The saved user token can no longer be read. Paste it again.'
+    throw error
+  }
   if (!metadata || !token) {
     return null
   }

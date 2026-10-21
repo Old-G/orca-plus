@@ -12,6 +12,7 @@ import {
 import type { PulseWaiting, PulseWaitingReply } from '../../shared/pulse-types'
 import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
 import { slackMessageForOwner } from '../../shared/hq-reply-addressee'
+import { isSlackAuthError, SlackApiError } from '../slack/slack-request'
 
 // Why: people answer in bursts of short messages; the answer is taken once they pause.
 export const HQ_SLACK_REPLY_QUIET_MS = 60_000
@@ -71,6 +72,9 @@ type Watch = {
 }
 
 const isDm = (channel: string): boolean => channel.startsWith('D')
+// Why rethrown: a revoked token or a missing scope fails every read; Settings must say so.
+const isTokenFailure = (error: unknown): boolean =>
+  isSlackAuthError(error) || (error instanceof SlackApiError && error.code === 'missing_scope')
 const newer = (a: string, b: string): boolean => Number(a) > Number(b)
 const tsBefore = (ts: string, ms: number): string => (Number(ts) - ms / 1000).toFixed(6)
 
@@ -169,6 +173,9 @@ export async function pollHqSlackWaitingReplies(
         }
         dmMessages.set(channel, found)
       } catch (error) {
+        if (isTokenFailure(error)) {
+          throw error
+        }
         console.warn(`[hq-slack-waiting] reading DM ${channel} failed:`, error)
       }
     }
@@ -179,6 +186,9 @@ export async function pollHqSlackWaitingReplies(
           count += 1
         }
       } catch (error) {
+        if (isTokenFailure(error)) {
+          throw error
+        }
         console.warn(`[hq-slack-waiting] reading ${watch.waiting.id} failed:`, error)
       }
     }
@@ -196,16 +206,23 @@ async function recordWatch(
 ): Promise<boolean> {
   const found = new Map<string, SlackReadMessage>()
   const channelOf = new Map<string, string>()
-  let inThread = false
+  const inThread = new Set<string>()
   if (thread) {
-    for (const message of answers(
-      await api.replies(thread.channel, thread.threadTs, after),
-      api.owner
-    )) {
+    let replies: SlackReadMessage[] = []
+    try {
+      replies = await api.replies(thread.channel, thread.threadTs, after)
+    } catch (error) {
+      // Why: a thread the token cannot read (a private channel) must not hide the DM answer.
+      if (isTokenFailure(error)) {
+        throw error
+      }
+      console.warn(`[hq-slack-waiting] reading thread of ${waiting.id} failed:`, error)
+    }
+    for (const message of answers(replies, api.owner)) {
       if (message.ts !== thread.threadTs && newer(message.ts, after)) {
         found.set(message.ts, message)
         channelOf.set(message.ts, thread.channel)
-        inThread = true
+        inThread.add(message.ts)
       }
     }
   }
@@ -215,29 +232,38 @@ async function recordWatch(
       channelOf.set(message.ts, dm.channel)
     }
   }
-  const messages = [...found.values()].sort((a, b) => Number(a.ts) - Number(b.ts))
-  const newest = messages.at(-1)
-  if (!newest || Number(newest.ts) * 1000 > deps.now() - HQ_SLACK_REPLY_QUIET_MS) {
+  let messages = [...found.values()].sort((a, b) => Number(a.ts) - Number(b.ts))
+  const last = messages.at(-1)
+  if (!last || Number(last.ts) * 1000 > deps.now() - HQ_SLACK_REPLY_QUIET_MS) {
     return false
   }
-  if (waiting.replyTs && !newer(newest.ts, waiting.replyTs)) {
+  if (waiting.replyTs && !newer(last.ts, waiting.replyTs)) {
     return false
   }
   const names = new Map<string, string>()
-  const lines: string[] = []
-  for (const message of messages) {
-    const user = message.user ?? ''
-    if (user && !names.has(user)) {
-      names.set(user, deps.knownName(user) ?? (await api.userName(user)))
+  const describe = async (list: readonly SlackReadMessage[]): Promise<string> => {
+    const lines: string[] = []
+    for (const message of list) {
+      const user = message.user ?? ''
+      if (user && !names.has(user)) {
+        names.set(user, deps.knownName(user) ?? (await api.userName(user)))
+      }
+      lines.push(`${names.get(user) ?? 'Someone'}: ${plainSlackText(message.text)}`)
     }
-    lines.push(`${names.get(user) ?? 'Someone'}: ${plainSlackText(message.text)}`)
+    return lines.join('\n').slice(0, HQ_WAITING_REPLY_MAX)
   }
-  const text = lines.join('\n').slice(0, HQ_WAITING_REPLY_MAX)
   // Why: a reply in the question's thread answers it; a DM message may be about anything else.
-  if (!inThread && !(await deps.isAnswer(waiting.title, text).catch(() => true))) {
-    handled.set(waiting.id, newest.ts)
+  const fromDm = messages.filter((message) => !inThread.has(message.ts))
+  const dmNewest = fromDm.at(-1)
+  if (dmNewest && !(await deps.isAnswer(waiting.title, await describe(fromDm)).catch(() => true))) {
+    handled.set(waiting.id, dmNewest.ts)
+    messages = messages.filter((message) => inThread.has(message.ts))
+  }
+  const newest = messages.at(-1)
+  if (!newest || (waiting.replyTs && !newer(newest.ts, waiting.replyTs))) {
     return false
   }
+  const text = await describe(messages)
   const channel = channelOf.get(newest.ts)
   const link = channel ? await api.permalink(channel, newest.ts).catch(() => null) : null
   return (
