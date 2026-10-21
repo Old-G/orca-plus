@@ -30,8 +30,6 @@ export type HqWaitingReplyPassResult =
   | { ok: true }
   | { ok: false; reason: 'gone' | 'no-chat' | 'chat-closed' }
 
-const PREVIEW_MAX = 400
-
 export function hqWaitingReplyBellItems(
   open: readonly PulseWaiting[],
   personName: (personId: string) => string | null
@@ -57,14 +55,14 @@ export function hqWaitingReplyBellItems(
       askedAt: waiting.createdAt,
       author,
       replyTs: waiting.replyTs,
-      reply: waiting.reply.slice(0, PREVIEW_MAX)
+      reply: waiting.reply
     }
     const chat = waiting.agentSessionId !== null
     return [
       {
         kind: HQ_WAITING_REPLY_KIND,
         title: `${author} replied`,
-        body: `${[waiting.project, `«${waiting.title}»`].filter(Boolean).join(' · ')}\n${ref.reply.replace(/\s+/g, ' ')}`,
+        body: `${[waiting.project, `«${waiting.title}»`].filter(Boolean).join(' · ')}\n${ref.reply.replace(/\s+/g, ' ').slice(0, 400)}`,
         urgency: 'urgent',
         refKind: 'waiting',
         refId: JSON.stringify(ref),

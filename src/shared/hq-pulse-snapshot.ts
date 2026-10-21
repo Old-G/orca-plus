@@ -16,6 +16,8 @@ export type HqWaiting = Pick<
   /** Custom build (hq-waiting-replies): the thread or link it came from, the chat that waits, and the
    *  person's latest answer. Absent from older hosts. */
   sourceRef?: string
+  /** Custom build (hq-slack-intake): the saved message and its source, for a «Later» line. */
+  detail?: string
   agentSessionId?: string
   worktreeId?: string
   reply?: { text: string; author: string | null; at: number; deliveredAt: number | null }
@@ -93,16 +95,20 @@ function readWaiting(record: object): HqWaiting | null {
   }
 }
 
-function readLinks(record: object): Pick<HqWaiting, 'sourceRef' | 'agentSessionId' | 'worktreeId'> {
+function readLinks(
+  record: object
+): Pick<HqWaiting, 'sourceRef' | 'detail' | 'agentSessionId' | 'worktreeId'> {
   const read = (key: string): string | undefined => {
     const value = field(record, key)
     return typeof value === 'string' && value ? value : undefined
   }
   const sourceRef = read('sourceRef')
+  const detail = read('detail')
   const agentSessionId = read('agentSessionId')
   const worktreeId = read('worktreeId')
   return {
     ...(sourceRef ? { sourceRef } : {}),
+    ...(detail ? { detail } : {}),
     ...(agentSessionId ? { agentSessionId } : {}),
     ...(worktreeId ? { worktreeId } : {})
   }
