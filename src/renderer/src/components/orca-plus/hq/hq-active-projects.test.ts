@@ -87,6 +87,16 @@ describe('splitHqActiveProjects', () => {
     expect(quiet).toEqual([])
   })
 
+  it('keeps a kept project and its controls when its chats are listed elsewhere', () => {
+    const items = [chat('marked', 'c', NOW - 30 * DAY), chat('b1', 'b', NOW - 1000)]
+    const { active, quiet } = splitHqActiveProjects(items, ['c'], NOW, new Set(['marked']))
+    expect(active.map((project) => [project.repoId, project.items.map((i) => i.key)])).toEqual([
+      ['b', ['b1']],
+      ['c', []]
+    ])
+    expect(quiet).toEqual([])
+  })
+
   it('keeps every read chat of the last 12 hours as the project history, newest first', () => {
     const hour = 60 * 60 * 1000
     const items = [
