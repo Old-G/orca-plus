@@ -140,12 +140,13 @@ describe('hqWaitingReplyPrompt', () => {
     expect(prompt).toContain('pulse wait resolve w1')
   })
 
-  it('says an answer came from ClickUp, on the task', () => {
+  it('names the project the answer belongs to without guessing where it was said', () => {
     const prompt = hqWaitingReplyPrompt(
-      waiting({ reply: 'Да', replyAuthor: 'Петя', source: 'clickup' })
+      waiting({ reply: 'Да', replyAuthor: 'Петя', source: 'clickup', project: 'phone-bot' })
     )
-    expect(prompt).toContain('answer from ClickUp')
-    expect(prompt).toContain('Петя replied on the task')
+    expect(prompt).toContain('(project phone-bot)')
+    expect(prompt).toContain('Петя replied (their words')
+    expect(prompt).not.toContain('ClickUp')
   })
 
   it('leaves the answer no way to close its quote or forge a line', () => {
