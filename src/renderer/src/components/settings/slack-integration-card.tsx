@@ -16,6 +16,7 @@ import { translate } from '@/i18n/i18n'
 import type { SlackConnectionStatus } from '../../../../shared/slack-types'
 import { buildSlackCreateAppUrl } from '../../../../shared/slack-app-manifest'
 import { IntegrationCardDetails, IntegrationCardShell } from './integration-card-shell'
+import { SlackReaderRow } from './slack-reader-row'
 import { useIntegrationSubordinateRowClass } from './integration-card-presentation'
 
 export const SLACK_INTEGRATION_SECTION_ID = 'integrations-slack'
@@ -284,7 +285,12 @@ export function SlackIntegrationCard(): React.JSX.Element {
               </p>
             ) : null}
           </div>
-        ) : !checking ? (
+        ) : null}
+        {/* Custom build (slack-reply-reader) */}
+        {!checking ? (
+          <SlackReaderRow reader={status?.reader} rowClass={rowClass} onChanged={refresh} />
+        ) : null}
+        {!connected && !checking ? (
           <p className="text-xs text-muted-foreground">
             {translate(
               'auto.components.settings.slack.integration.card.setupCopy',

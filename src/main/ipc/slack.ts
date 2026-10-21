@@ -10,6 +10,7 @@ import {
   setSlackTarget
 } from '../slack/slack-client'
 import { getSlackSocketService, installSlackSocketService } from '../slack/slack-socket-service'
+import { connectSlackReader, disconnectSlackReader } from '../slack/slack-reader'
 
 function readArgs(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? Object.fromEntries(Object.entries(value)) : {}
@@ -44,6 +45,12 @@ export function registerSlackHandlers(store: Store, runtime: OrcaRuntimeService)
   ipcMain.handle('slack:status', async () => getSlackStatus())
 
   ipcMain.handle('slack:sendTest', async () => sendSlackTestMessage())
+
+  // Custom build (slack-reply-reader): the owner's own token, which reads answers to the chats' questions.
+  ipcMain.handle('slack:connectReader', async (_event, token: unknown) =>
+    connectSlackReader(readText(token))
+  )
+  ipcMain.handle('slack:disconnectReader', async () => disconnectSlackReader())
 
   ipcMain.handle('slack:setTarget', async (_event, args: unknown): Promise<SlackMutationResult> => {
     const input = readArgs(args)

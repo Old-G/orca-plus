@@ -1,0 +1,222 @@
+// Custom build (slack-reply-reader): answers to what the chats wait for, read straight from Slack with
+// the owner's own token (no model, no connector). A question asked in a thread waits for replies in
+// that thread; a person waited on is also heard in their DM with the owner, where people answer
+// with a plain message rather than in the thread — whichever place the question was asked in.
+import {
+  HQ_WAITING_REPLY_MAX,
+  parseSlackThreadRef,
+  slackTsAt
+} from '../../shared/hq-waiting-replies'
+import type { PulseWaiting, PulseWaitingReply } from '../../shared/pulse-types'
+import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
+
+// Why: people answer in bursts of short messages; the answer is taken once they pause.
+export const HQ_SLACK_REPLY_QUIET_MS = 60_000
+// Why: an old question would claim every later DM from that person as its answer.
+export const HQ_SLACK_DM_WATCH_MS = 7 * 24 * 60 * 60_000
+// Why: a minute keeps «just replied» true; each pass is one read per DM and per thread waited on.
+const POLL_MS = 60_000
+const FIRST_POLL_MS = 20_000
+
+export type SlackReadMessage = {
+  ts: string
+  user: string | null
+  text: string
+  /** Set on thread replies; equal to `ts` on a thread's parent. */
+  threadTs: string | null
+  bot: boolean
+}
+
+export type SlackReadApi = {
+  /** Whose token reads; their own messages are never answers. */
+  owner: string
+  /** Top-level messages after `oldest`. */
+  history: (channel: string, oldest: string) => Promise<SlackReadMessage[]>
+  /** The thread's replies after `oldest`. */
+  replies: (channel: string, threadTs: string, oldest: string) => Promise<SlackReadMessage[]>
+  /** The owner's DM channel with this Slack user, when one exists. */
+  dmChannel: (userId: string) => Promise<string | null>
+  userName: (userId: string) => Promise<string>
+}
+
+export type HqSlackWaitingDeps = {
+  listOpen: () => PulseWaiting[]
+  personSlackId: (personId: string) => string | null
+  /** The name Orca+ knows a Slack user by, over their Slack display name. */
+  knownName: (slackUserId: string) => string | null
+  /** Null when no reader token is saved. */
+  read: <T>(run: (api: SlackReadApi) => Promise<T>) => Promise<T | null>
+  recordReply: (id: string, reply: PulseWaitingReply) => PulseWaiting | null
+  now: () => number
+}
+
+type Watch = {
+  waiting: PulseWaiting
+  after: string
+  thread: { channel: string; threadTs: string } | null
+  dm: { channel: string; from: string | null } | null
+}
+
+const isDm = (channel: string): boolean => channel.startsWith('D')
+const newer = (a: string, b: string): boolean => Number(a) > Number(b)
+
+/** Slack's link and mention markup, readable for the chat. */
+export function plainSlackText(text: string): string {
+  return text
+    .replace(/<(https?:\/\/[^|>]+)\|([^>]+)>/g, '$2 ($1)')
+    .replace(/<(https?:\/\/[^>]+)>/g, '$1')
+    .replace(/<mailto:[^|>]+\|([^>]+)>/g, '$1')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .trim()
+}
+
+/** What was already handed over (delivered or skipped) is not offered again. */
+function handledTs(waiting: PulseWaiting, handled: Map<string, string>): string | null {
+  if (waiting.replyDeliveredAt !== null && waiting.replyTs) {
+    handled.set(waiting.id, waiting.replyTs)
+  }
+  return handled.get(waiting.id) ?? null
+}
+
+async function watchesFor(
+  deps: HqSlackWaitingDeps,
+  api: SlackReadApi,
+  handled: Map<string, string>
+): Promise<Watch[]> {
+  const now = deps.now()
+  const watches: Watch[] = []
+  for (const waiting of deps.listOpen()) {
+    if (waiting.direction !== 'on-them' || waiting.status !== 'open') {
+      continue
+    }
+    const created = slackTsAt(waiting.createdAt)
+    const done = handledTs(waiting, handled)
+    const after = done && newer(done, created) ? done : created
+    const thread = parseSlackThreadRef(waiting.sourceRef)
+    const personSlackId = waiting.personId ? deps.personSlackId(waiting.personId) : null
+    let dm: Watch['dm'] = null
+    if (now - waiting.createdAt <= HQ_SLACK_DM_WATCH_MS) {
+      if (thread && isDm(thread.channel)) {
+        dm = { channel: thread.channel, from: personSlackId }
+      } else if (personSlackId && personSlackId !== api.owner) {
+        const channel = await api.dmChannel(personSlackId)
+        dm = channel ? { channel, from: personSlackId } : null
+      }
+    }
+    if (thread || dm) {
+      watches.push({ waiting, after, thread, dm })
+    }
+  }
+  return watches
+}
+
+function answers(messages: readonly SlackReadMessage[], owner: string): SlackReadMessage[] {
+  return messages.filter((message) => !message.bot && message.user !== owner && message.text)
+}
+
+/** Records each Slack waiting's new answer once the person pauses; returns how many were new. */
+export async function pollHqSlackWaitingReplies(
+  deps: HqSlackWaitingDeps,
+  handled = new Map<string, string>()
+): Promise<number> {
+  const recorded = await deps.read(async (api) => {
+    const watches = await watchesFor(deps, api, handled)
+    // Why one read per DM: several waitings on one person share it.
+    const dmOldest = new Map<string, string>()
+    for (const { dm, after } of watches) {
+      if (dm) {
+        const known = dmOldest.get(dm.channel)
+        dmOldest.set(dm.channel, known && !newer(known, after) ? known : after)
+      }
+    }
+    const dmMessages = new Map<string, SlackReadMessage[]>()
+    for (const [channel, oldest] of dmOldest) {
+      try {
+        dmMessages.set(channel, answers(await api.history(channel, oldest), api.owner))
+      } catch (error) {
+        console.warn(`[hq-slack-waiting] reading DM ${channel} failed:`, error)
+      }
+    }
+    let count = 0
+    for (const watch of watches) {
+      try {
+        if (await recordWatch(deps, api, watch, dmMessages)) {
+          count += 1
+        }
+      } catch (error) {
+        console.warn(`[hq-slack-waiting] reading ${watch.waiting.id} failed:`, error)
+      }
+    }
+    return count
+  })
+  return recorded ?? 0
+}
+
+async function recordWatch(
+  deps: HqSlackWaitingDeps,
+  api: SlackReadApi,
+  { waiting, after, thread, dm }: Watch,
+  dmMessages: Map<string, SlackReadMessage[]>
+): Promise<boolean> {
+  const found = new Map<string, SlackReadMessage>()
+  if (thread) {
+    for (const message of answers(
+      await api.replies(thread.channel, thread.threadTs, after),
+      api.owner
+    )) {
+      if (message.ts !== thread.threadTs && newer(message.ts, after)) {
+        found.set(message.ts, message)
+      }
+    }
+  }
+  for (const message of dm ? (dmMessages.get(dm.channel) ?? []) : []) {
+    const topLevel = !message.threadTs || message.threadTs === message.ts
+    if (topLevel && newer(message.ts, after) && (!dm?.from || message.user === dm.from)) {
+      found.set(message.ts, message)
+    }
+  }
+  const messages = [...found.values()].sort((a, b) => Number(a.ts) - Number(b.ts))
+  const newest = messages.at(-1)
+  if (!newest || Number(newest.ts) * 1000 > deps.now() - HQ_SLACK_REPLY_QUIET_MS) {
+    return false
+  }
+  if (waiting.replyTs && !newer(newest.ts, waiting.replyTs)) {
+    return false
+  }
+  const names = new Map<string, string>()
+  const lines: string[] = []
+  for (const message of messages) {
+    const user = message.user ?? ''
+    if (user && !names.has(user)) {
+      names.set(user, deps.knownName(user) ?? (await api.userName(user)))
+    }
+    lines.push(`${names.get(user) ?? 'Someone'}: ${plainSlackText(message.text)}`)
+  }
+  return (
+    deps.recordReply(waiting.id, {
+      text: lines.join('\n').slice(0, HQ_WAITING_REPLY_MAX),
+      author: names.get(newest.user ?? '') ?? null,
+      ts: newest.ts
+    }) !== null
+  )
+}
+
+export function startHqSlackWaitingReplies(deps: HqSlackWaitingDeps): () => void {
+  const handled = new Map<string, string>()
+  const flight = createDebouncedSingleFlight(
+    async () => {
+      await pollHqSlackWaitingReplies(deps, handled)
+    },
+    (error) => console.warn('[hq-slack-waiting] poll failed:', error),
+    FIRST_POLL_MS
+  )
+  const timer = setInterval(() => void flight.runNow(), POLL_MS)
+  timer.unref?.()
+  flight.schedule()
+  return () => {
+    clearInterval(timer)
+    flight.dispose()
+  }
+}
