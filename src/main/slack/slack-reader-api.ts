@@ -1,6 +1,10 @@
 // Custom build (slack-reply-reader): the few Slack reads the answer watch makes with the owner's
 // token, shaped for it; DM channels and names are cached across passes.
 import type { SlackReadApi, SlackReadMessage } from '../hq-today/hq-slack-waiting-replies'
+import type { HqIntakeReadApi } from '../hq-today/hq-slack-intake'
+import type { HqIntakeDraft } from '../hq-today/hq-slack-intake-suggest'
+import { HQ_INTAKE_EMOJI, HQ_INTAKE_TEXT_MAX } from '../../shared/hq-slack-intake'
+import { plainSlackText } from '../hq-today/hq-slack-waiting-replies'
 import { asSlackRecord, slackRequest } from './slack-request'
 
 // Why: a new DM appears rarely; one list per half hour keeps the watch to a call per thread.
@@ -125,6 +129,103 @@ export function createSlackReadApi(
       }
       cache.names.set(userId, name)
       return name
+    }
+  }
+}
+
+/** Links in Slack's markup, before it is flattened for reading. */
+export function slackTextLinks(text: string): string[] {
+  const links = new Set<string>()
+  for (const match of text.matchAll(/<(https?:\/\/[^|>]+)(?:\|[^>]*)?>/g)) {
+    links.add(match[1])
+  }
+  return [...links]
+}
+
+// Why: reactions.list carries no permalink; a link built from the workspace URL costs no call.
+const workspaceUrls = new Map<string, string | null>()
+const REACTION_PAGES = 5
+
+async function workspaceUrl(token: string): Promise<string | null> {
+  if (!workspaceUrls.has(token)) {
+    workspaceUrls.set(token, asString((await slackRequest(token, 'auth.test')).url))
+  }
+  return workspaceUrls.get(token) ?? null
+}
+
+/** Slack's message link: `<workspace>/archives/<channel>/p<ts>`, with the thread for a reply. */
+export function slackMessageUrl(
+  base: string,
+  channel: string,
+  ts: string,
+  threadTs: string | null
+): string {
+  const link = `${base.replace(/\/?$/, '/')}archives/${channel}/p${ts.replace('.', '')}`
+  return threadTs && threadTs !== ts ? `${link}?thread_ts=${threadTs}&cid=${channel}` : link
+}
+
+/** Custom build (hq-slack-intake): the owner's 👾-marked messages, newest first. */
+export function createSlackIntakeApi(
+  token: string,
+  owner: string,
+  name: (userId: string) => Promise<string>
+): HqIntakeReadApi {
+  return {
+    marked: async () => {
+      // Why every page: a mark missing from a partial read would close its card.
+      const entries: unknown[] = []
+      let cursor: string | null = null
+      for (let page = 0; page < REACTION_PAGES; page += 1) {
+        const body = await slackRequest(token, 'reactions.list', {
+          full: true,
+          limit: 100,
+          ...(cursor ? { cursor } : {})
+        })
+        entries.push(...(Array.isArray(body.items) ? body.items : []))
+        cursor = asString(asSlackRecord(body.response_metadata).next_cursor)
+        if (!cursor) {
+          break
+        }
+      }
+      const base = await workspaceUrl(token).catch(() => null)
+      const drafts: HqIntakeDraft[] = []
+      for (const entry of entries) {
+        const item = asSlackRecord(entry)
+        const channel = asString(item.channel)
+        const message = asSlackRecord(item.message)
+        const ts = asString(message.ts)
+        const reactions = Array.isArray(message.reactions) ? message.reactions : []
+        const marked = reactions.some((reaction) => {
+          const raw = asSlackRecord(reaction)
+          return (
+            raw.name === HQ_INTAKE_EMOJI && Array.isArray(raw.users) && raw.users.includes(owner)
+          )
+        })
+        if (item.type !== 'message' || !channel || !ts || !marked) {
+          continue
+        }
+        const raw = asString(message.text) ?? ''
+        const user = asString(message.user)
+        const files = (Array.isArray(message.files) ? message.files : [])
+          .map((file) => asString(asSlackRecord(file).name))
+          .filter((fileName): fileName is string => fileName !== null)
+        drafts.push({
+          channel,
+          ts,
+          threadTs: asString(message.thread_ts),
+          author: user ? await name(user) : (asString(message.username) ?? 'Someone'),
+          authorSlackId: user,
+          venue: channel.startsWith('D') ? 'dm' : channel.startsWith('G') ? 'group' : 'channel',
+          text: plainSlackText(raw).slice(0, HQ_INTAKE_TEXT_MAX),
+          links: slackTextLinks(raw),
+          files,
+          permalink:
+            asString(message.permalink) ??
+            (base ? slackMessageUrl(base, channel, ts, asString(message.thread_ts)) : null),
+          at: Math.round(Number(ts) * 1000)
+        })
+      }
+      return drafts
     }
   }
 }
