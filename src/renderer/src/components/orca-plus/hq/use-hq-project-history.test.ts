@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AiVaultSession } from '../../../../../shared/ai-vault-types'
+import type { AiVaultSession } from '../../../../../shared/ai-vault/contracts/ai-vault-types'
 import type { Tab } from '../../../../../shared/tab-types'
 import { hqProjectHistoryChats } from './use-hq-project-history'
 

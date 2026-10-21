@@ -4,7 +4,8 @@
 import { ExternalLink } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { HqAgentMapSection } from './HqAgentMap'
-import { STATUS_COLORS, STATUS_LABELS } from '../../right-sidebar/status-display'
+import { STATUS_COLORS } from '@/lib/source-control/paths/git-path-decoration'
+import { STATUS_LABELS } from '../../../../../shared/git/status/git-status-labels'
 import { ReviewChecksBadge, ReviewStateBadge } from '../../sidebar/workspace-card/metadata/WorktreeCardMetadataStatusBadges'
 import { openHqChangeDiff } from './hq-chat-actions'
 import type { HqChatItem } from './hq-chat-list'
@@ -75,7 +76,7 @@ export function HqContextPanel({
   const context = useHqChatContext(item.worktreeId)
   const { worktree, changes, review, task } = context
   const shown = changes.slice(0, MAX_CHANGES)
-  const history = useHqProjectHistory(item.worktreeId)
+  const history = useHqProjectHistory(item.worktreeId, item.repoId)
   return (
     <aside
       aria-label={translate('auto.hq.context.label', 'Chat context')}
@@ -174,7 +175,7 @@ export function HqContextPanel({
             {translate('auto.hq.context.history', 'History')} · {history.length}
           </Caption>
           <HqProjectHistoryList
-            key={item.worktreeId}
+            key={item.repoId}
             chats={history}
             projectName={item.projectName}
             color={colorFor(item.repoId)}
