@@ -75,7 +75,7 @@ export function HqContextPanel({
   const context = useHqChatContext(item.worktreeId)
   const { worktree, changes, review, task } = context
   const shown = changes.slice(0, MAX_CHANGES)
-  const history = useHqProjectHistory(item.worktreeId)
+  const history = useHqProjectHistory(item.worktreeId, item.repoId)
   return (
     <aside
       aria-label={translate('auto.hq.context.label', 'Chat context')}
@@ -174,7 +174,7 @@ export function HqContextPanel({
             {translate('auto.hq.context.history', 'History')} · {history.length}
           </Caption>
           <HqProjectHistoryList
-            key={item.worktreeId}
+            key={item.repoId}
             chats={history}
             projectName={item.projectName}
             color={colorFor(item.repoId)}
