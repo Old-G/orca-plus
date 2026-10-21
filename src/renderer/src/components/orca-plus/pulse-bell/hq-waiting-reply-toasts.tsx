@@ -3,7 +3,7 @@
 // skips it, or leaves it in the bell for later. One card per answer: a DM message can answer several
 // chats waiting on her, and each stays on the card until it is sent or skipped.
 import { useState } from 'react'
-import { MessageSquareReply } from 'lucide-react'
+import { ExternalLink, MessageSquareReply } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   HQ_WAITING_REPLY_KIND,
@@ -17,6 +17,7 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { resolveAgentSessionTabTitle } from '../../tab-bar/tab-bar-item-model'
 import { hqWaitingReplyPrompt } from '../../../../../shared/hq-waiting-replies'
+import { showMeasuredCustomToast } from '../measured-custom-toast'
 import { HqRouteForm } from './HqRouteForm'
 import { hqRouteTargetFor } from './hq-intake-toasts'
 import { sendHqRoutePrompt, type HqRouteTarget } from './hq-route-send'
@@ -71,6 +72,25 @@ function askingChats(targets: readonly Target[]): HqRouteChat[] {
           }
         ]
       : []
+  )
+}
+
+// Custom build (hq-reply-source-link): where it was said, to read it in its context.
+function OpenSourceButton({ link }: { link: string }): React.JSX.Element {
+  const label = link.includes('clickup.com')
+    ? translate('auto.hqWaitingReply.openClickUp', 'Open in ClickUp')
+    : translate('auto.hqWaitingReply.openSlack', 'Open in Slack')
+  return (
+    <Button
+      type="button"
+      size="icon-xs"
+      variant="ghost"
+      title={label}
+      aria-label={label}
+      onClick={() => void window.api.shell.openUrl(link)}
+    >
+      <ExternalLink />
+    </Button>
   )
 }
 
@@ -160,6 +180,7 @@ function HqWaitingReplyToast({
             {[first.project, `«${first.question}»`].filter(Boolean).join(' · ')}
           </p>
         </div>
+        {first.link ? <OpenSourceButton link={first.link} /> : null}
       </div>
       <p className="line-clamp-5 text-xs whitespace-pre-line text-muted-foreground">
         {first.reply}
@@ -262,7 +283,7 @@ export function syncHqWaitingReplyToasts(
     const onLater = (): void => {
       memory.later.add(answer)
     }
-    toast.custom(
+    showMeasuredCustomToast(
       () => <HqWaitingReplyToast answer={answer} targets={targets} onLater={onLater} />,
       {
         id: toastId(answer),

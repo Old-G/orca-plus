@@ -45,6 +45,8 @@ export type SlackReadApi = {
   /** The owner's DM channel with this Slack user, when one exists. */
   dmChannel: (userId: string) => Promise<string | null>
   userName: (userId: string) => Promise<string>
+  /** Custom build (hq-reply-source-link): the message's link; null when Slack does not give one. */
+  permalink: (channel: string, ts: string) => Promise<string | null>
 }
 
 export type HqSlackWaitingDeps = {
@@ -193,6 +195,7 @@ async function recordWatch(
   handled: Map<string, string>
 ): Promise<boolean> {
   const found = new Map<string, SlackReadMessage>()
+  const channelOf = new Map<string, string>()
   let inThread = false
   if (thread) {
     for (const message of answers(
@@ -201,13 +204,15 @@ async function recordWatch(
     )) {
       if (message.ts !== thread.threadTs && newer(message.ts, after)) {
         found.set(message.ts, message)
+        channelOf.set(message.ts, thread.channel)
         inThread = true
       }
     }
   }
   for (const message of dm ? (dmMessages.get(dm.channel) ?? []) : []) {
-    if (newer(message.ts, after) && (!dm?.from || message.user === dm.from)) {
+    if (dm && newer(message.ts, after) && (!dm.from || message.user === dm.from)) {
       found.set(message.ts, message)
+      channelOf.set(message.ts, dm.channel)
     }
   }
   const messages = [...found.values()].sort((a, b) => Number(a.ts) - Number(b.ts))
@@ -233,11 +238,14 @@ async function recordWatch(
     handled.set(waiting.id, newest.ts)
     return false
   }
+  const channel = channelOf.get(newest.ts)
+  const link = channel ? await api.permalink(channel, newest.ts).catch(() => null) : null
   return (
     deps.recordReply(waiting.id, {
       text,
       author: names.get(newest.user ?? '') ?? null,
-      ts: newest.ts
+      ts: newest.ts,
+      link
     }) !== null
   )
 }

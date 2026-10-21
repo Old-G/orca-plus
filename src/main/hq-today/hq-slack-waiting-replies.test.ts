@@ -34,7 +34,8 @@ function setup() {
       thread.filter((m) => Number(m.ts) > Number(oldest))
     ),
     dmChannel: vi.fn(async (user: string) => (user === ANNA ? 'DANNA01' : null)),
-    userName: vi.fn(async (user: string) => `slack-${user}`)
+    userName: vi.fn(async (user: string) => `slack-${user}`),
+    permalink: vi.fn(async (channel: string, ts: string) => `https://s.example/${channel}/${ts}`)
   }
   let connected = true
   const deps: HqSlackWaitingDeps = {
@@ -131,7 +132,10 @@ describe('pollHqSlackWaitingReplies', () => {
     thread.push(msg(ASKED_AT + 60_000, ANNA, '1. table attached', { threadTs: parentTs }))
     at(ASKED_AT + 5 * 60_000)
     expect(await pollHqSlackWaitingReplies(deps)).toBe(1)
-    expect(db.getWaiting(byHand.id)?.reply).toBe('Анна Ли: 1. table attached')
+    expect(db.getWaiting(byHand.id)).toMatchObject({
+      reply: 'Анна Ли: 1. table attached',
+      replyLink: `https://s.example/DANNA01/${replyTs}`
+    })
   })
 
   it('takes thread replies from anyone but the owner and bots, never the question itself', async () => {
