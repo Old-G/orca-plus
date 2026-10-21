@@ -57,12 +57,15 @@ export type PulseWaiting = {
   repliedAt: number | null
   /** When the answer was handed to the waiting chat; null while it was not. */
   replyDeliveredAt: number | null
+  /** Custom build (hq-reply-source-link): where the answer was said, when known. */
+  replyLink?: string | null
 }
 
 export type PulseWaitingReply = {
   text: string
   author: string | null
   ts: string
+  link?: string | null
 }
 
 export type PulseWaitingInput = {

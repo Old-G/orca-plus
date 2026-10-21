@@ -130,7 +130,11 @@ export function createSlackReadApi(
       }
       cache.names.set(userId, name)
       return name
-    }
+    },
+    permalink: async (channel, ts) =>
+      asString(
+        (await slackRequest(token, 'chat.getPermalink', { channel, message_ts: ts })).permalink
+      )
   }
 }
 

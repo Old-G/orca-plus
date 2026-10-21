@@ -55,6 +55,21 @@ describe('hqWaitingReplyBellItems', () => {
     })
   })
 
+  it('links where the answer was said, else where the question was asked', () => {
+    const link = (overrides: Partial<PulseWaiting>): string | null =>
+      readHqWaitingReplyRef(
+        hqWaitingReplyBellItems([waiting(overrides)], () => null)[0]?.refId ?? null
+      )?.link ?? null
+    expect(link({ replyLink: 'https://acme.slack.com/archives/D0AAAAAAAAA/p1' })).toBe(
+      'https://acme.slack.com/archives/D0AAAAAAAAA/p1'
+    )
+    expect(link({})).toBe('https://slack.com/app_redirect?channel=D0AAAAAAAAA')
+    expect(link({ sourceRef: 'clickup:86abc:90' })).toBe(
+      'https://app.clickup.com/t/86abc?comment=90'
+    )
+    expect(link({ sourceRef: null })).toBeNull()
+  })
+
   it('only acknowledges an answer when no chat asked', () => {
     const [item] = hqWaitingReplyBellItems([waiting({ agentSessionId: null })], () => null)
     expect((item?.actions ?? []).map((action) => action.id)).toEqual([HQ_WAITING_REPLY_ACTION.skip])

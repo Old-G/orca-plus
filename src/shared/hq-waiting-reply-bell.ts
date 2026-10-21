@@ -3,6 +3,7 @@
 // it never reaches the chat on its own.
 import type { PulseBellInput } from './pulse-bell'
 import type { PulseWaiting } from './pulse-types'
+import { clickUpWaitingUrl, slackThreadUrl } from './hq-waiting-replies'
 
 export const HQ_WAITING_REPLY_KIND = 'hq-waiting-reply'
 
@@ -24,6 +25,8 @@ export type HqWaitingReplyRef = {
   author: string
   replyTs: string
   reply: string
+  /** Custom build (hq-reply-source-link): where it was said — the answer, else the question. */
+  link: string | null
 }
 
 export type HqWaitingReplyPassResult =
@@ -55,7 +58,11 @@ export function hqWaitingReplyBellItems(
       askedAt: waiting.createdAt,
       author,
       replyTs: waiting.replyTs,
-      reply: waiting.reply
+      reply: waiting.reply,
+      link:
+        waiting.replyLink ??
+        slackThreadUrl(waiting.sourceRef) ??
+        clickUpWaitingUrl(waiting.sourceRef, null)
     }
     const chat = waiting.agentSessionId !== null
     return [
@@ -109,6 +116,7 @@ export function readHqWaitingReplyRef(refId: string | null): HqWaitingReplyRef |
       typeof Reflect.get(raw, 'askedAt') === 'number' ? Number(Reflect.get(raw, 'askedAt')) : 0,
     author: field('author') ?? 'Someone',
     replyTs,
-    reply: field('reply') ?? ''
+    reply: field('reply') ?? '',
+    link: field('link')
   }
 }
