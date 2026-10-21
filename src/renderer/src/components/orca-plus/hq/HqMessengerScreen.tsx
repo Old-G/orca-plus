@@ -77,12 +77,7 @@ export function HqMessengerScreen(): React.JSX.Element {
   const marked = useMemo(() => splitHqMarkedChats(groups, markedChatKeys), [groups, markedChatKeys])
   // Why: a chat in Come back to is not listed again under its project.
   const split = useMemo(
-    () =>
-      splitHqActiveProjects(
-        items.filter((item) => item.group === 'needs' || !markedKeys.has(item.key)),
-        keptProjectIds,
-        now
-      ),
+    () => splitHqActiveProjects(items, keptProjectIds, now, markedKeys),
     [items, markedKeys, keptProjectIds, now]
   )
   // Why: the active projects' latest chats show in their own section, not again under Quiet.
