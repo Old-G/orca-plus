@@ -127,7 +127,8 @@ export async function pollHqClickUpWaitingReplies(
         deps.recordReply(waiting.id, {
           text: answer.body.trim().slice(0, HQ_WAITING_REPLY_MAX),
           author: answer.author?.username ?? null,
-          ts: slackTsAt(answer.createdAt ?? Date.now())
+          ts: slackTsAt(answer.createdAt ?? Date.now()),
+          link: `https://app.clickup.com/t/${taskId}?comment=${answer.id}`
         })
         recorded += 1
       }
