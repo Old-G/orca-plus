@@ -141,6 +141,7 @@ export function createHqProjectPagesService(
       hqTriageDecisions: current.hqTriageDecisions ?? {},
       hqChatsView: current.hqChatsView,
       hqKeptProjectIds: current.hqKeptProjectIds ?? [],
+      hqMarkedChatKeys: current.hqMarkedChatKeys ?? [],
       hqVoicePromptsEnabled: current.hqVoicePromptsEnabled === true,
       hqPinnedSeenAt: current.hqPinnedSeenAt ?? {}
     }
