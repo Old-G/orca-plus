@@ -74,6 +74,14 @@ describe('createClaudeHandoffOffers', () => {
     expect(onOffersChanged).toHaveBeenCalledTimes(1)
   })
 
+  it('remembers the native chat that wrote the handoff, to close it once the next one starts', async () => {
+    const { offers } = setup({ [PATH]: fileText() })
+    await offers.onStatus(
+      stop({ paneKey: 'structured-agent-session-s1:2f6c1a3e-7d4b-4c5e-9a1f-3b2c4d5e6f70' })
+    )
+    expect(offers.list()[0]?.tabId).toBe('structured-agent-session-s1')
+  })
+
   it('does nothing when the session left no handoff', async () => {
     const { offers, onOffersChanged } = setup()
     await offers.onStatus(stop())
