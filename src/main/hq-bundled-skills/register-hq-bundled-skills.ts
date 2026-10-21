@@ -6,19 +6,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { app } from 'electron'
 import type { Store } from '../persistence'
-import { syncBundledHqSkills, writeHqPathPointer } from './hq-bundled-skills'
-
-const BUNDLE_DIR = 'hq-skills'
-
-function bundleRoot(): string | null {
-  const candidates = app.isPackaged
-    ? [join(process.resourcesPath, BUNDLE_DIR)]
-    : [
-        join(app.getAppPath(), 'resources', BUNDLE_DIR),
-        join(process.cwd(), 'resources', BUNDLE_DIR)
-      ]
-  return candidates.find((dir) => existsSync(dir)) ?? null
-}
+import { hqSkillsSyncSource, syncBundledHqSkills, writeHqPathPointer } from './hq-bundled-skills'
 
 export function hqPathPointerFile(): string {
   return join(homedir(), '.config', 'orca-plus', 'hq.json')
@@ -37,13 +25,14 @@ export function registerHqBundledSkills(store: Store): void {
       pointTo(updates.hqPath)
     }
   })
-  // Why: a dev build or a test run must not rewrite the developer's own skills unless asked to.
-  if (!app.isPackaged && process.env.ORCA_PLUS_HQ_SKILLS_SYNC !== '1') {
-    return
-  }
-  const source = bundleRoot()
+  const source = hqSkillsSyncSource({
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    devRoots: [app.getAppPath(), process.cwd()],
+    env: process.env,
+    exists: existsSync
+  })
   if (!source) {
-    log('bundle missing')
     return
   }
   syncBundledHqSkills(source, join(homedir(), '.claude', 'skills'))

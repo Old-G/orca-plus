@@ -7,6 +7,33 @@ import { cp, mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:
 import { dirname, join, relative } from 'node:path'
 
 export const HQ_SKILL_MARKER = '.orca-plus-skill.json'
+const BUNDLE_DIR = 'hq-skills'
+
+type SyncSourceInput = {
+  isPackaged: boolean
+  resourcesPath: string
+  devRoots: string[]
+  env: NodeJS.ProcessEnv
+  exists: (path: string) => boolean
+}
+
+/**
+ * The bundle to sync from, or null. Only an Orca+ package carries one (electron-builder adds it under
+ * ORCA_PLUS_PACKAGING), so a stock Orca package never writes to the shared skills folder.
+ */
+export function hqSkillsSyncSource(input: SyncSourceInput): string | null {
+  if (input.isPackaged) {
+    const bundle = join(input.resourcesPath, BUNDLE_DIR)
+    return input.exists(bundle) ? bundle : null
+  }
+  // Why: a dev build or a test run must not rewrite the developer's own skills unless asked to.
+  if (input.env.ORCA_PLUS_HQ_SKILLS_SYNC !== '1') {
+    return null
+  }
+  return (
+    input.devRoots.map((root) => join(root, 'resources', BUNDLE_DIR)).find(input.exists) ?? null
+  )
+}
 
 export type HqSkillsSyncResult = {
   installed: string[]
@@ -85,22 +112,41 @@ async function bundledSkills(sourceRoot: string): Promise<string[]> {
   return names.sort()
 }
 
-async function place(source: string, target: string, marker: Marker): Promise<void> {
+/** Seam for tests that make the swap fail. */
+type PlaceFs = { rename: (from: string, to: string) => Promise<void> }
+
+async function place(source: string, target: string, marker: Marker, fs: PlaceFs): Promise<void> {
   const temp = `${target}.orca-plus-tmp-${process.pid}`
+  const backup = `${target}.orca-plus-old-${process.pid}`
   await rm(temp, { recursive: true, force: true })
   await cp(source, temp, {
     recursive: true,
     filter: (path) => !path.includes('__pycache__') && !path.endsWith('.pyc')
   })
   await writeFile(join(temp, HQ_SKILL_MARKER), `${JSON.stringify(marker, null, 2)}\n`)
-  await rm(target, { recursive: true, force: true })
-  await rename(temp, target)
+  await rm(backup, { recursive: true, force: true })
+  const hadCopy = await exists(target)
+  // Why: the old copy stays whole under another name until the new one is in place.
+  if (hadCopy) {
+    await fs.rename(target, backup)
+  }
+  try {
+    await fs.rename(temp, target)
+  } catch (error) {
+    if (hadCopy) {
+      await fs.rename(backup, target)
+    }
+    await rm(temp, { recursive: true, force: true })
+    throw error
+  }
+  await rm(backup, { recursive: true, force: true })
 }
 
 /** Brings `targetRoot/<skill>` in line with every skill under `sourceRoot`. */
 export async function syncBundledHqSkills(
   sourceRoot: string,
-  targetRoot: string
+  targetRoot: string,
+  fs: PlaceFs = { rename }
 ): Promise<HqSkillsSyncResult> {
   const result: HqSkillsSyncResult = {
     installed: [],
@@ -130,18 +176,20 @@ export async function syncBundledHqSkills(
       result.unchanged.push(name)
       continue
     }
-    await place(join(sourceRoot, name), join(targetRoot, name), {
-      source: 'orca-plus',
-      skill: name,
-      digest
-    })
+    await place(
+      join(sourceRoot, name),
+      join(targetRoot, name),
+      { source: 'orca-plus', skill: name, digest },
+      fs
+    )
     if (current) {
       result.updated.push(name)
     } else {
       result.installed.push(name)
     }
   }
-  // Why: a skill dropped from the bundle would otherwise linger with stale instructions.
+  // Why: a skill dropped from the bundle would otherwise linger with stale instructions; this also
+  // clears a temp or backup copy a killed sync left behind (both carry the marker).
   for (const entry of await readdir(targetRoot, { withFileTypes: true })) {
     if (entry.isDirectory() && !names.includes(entry.name)) {
       const marker = await readMarker(join(targetRoot, entry.name))

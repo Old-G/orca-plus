@@ -126,6 +126,7 @@ const nativeChatVisualsResource = {
   to: 'native-chat-visuals'
 }
 // Custom build (hq-bundled-skills): the HQ skills Orca+ copies into ~/.claude/skills at startup.
+// Why Orca+ only: the app syncs whenever the bundle is present, so stock Orca must not carry it.
 const hqSkillsResource = {
   from: 'resources/hq-skills',
   to: 'hq-skills',
@@ -156,7 +157,7 @@ const commonExtraResources = [
   skillFreshnessResources,
   ...agentBrowserSkillResources,
   nativeChatVisualsResource,
-  hqSkillsResource,
+  ...(orcaPlusPackaging ? [hqSkillsResource] : []),
   emojiShortcodeDatasetResource
 ]
 // Native speech addons need real disk paths; copy only the artifact target’s variant.
