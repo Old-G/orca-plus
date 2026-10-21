@@ -1,7 +1,8 @@
 // Custom build (slack-reply-reader): answers to what the chats wait for, read straight from Slack with
 // the owner's own token (no model, no connector). A question asked in a thread waits for replies in
-// that thread; a person waited on is also heard in their DM with the owner, where people answer
-// with a plain message rather than in the thread — whichever place the question was asked in.
+// that thread; one asked in a DM, or recorded with no place at all (the owner asked himself), also
+// takes the person's plain DM messages, since people answer there without opening the thread. A
+// question asked on a task or in a channel does not: a DM about something else is not its answer.
 import {
   HQ_WAITING_REPLY_MAX,
   parseSlackThreadRef,
@@ -100,7 +101,7 @@ async function watchesFor(
     if (now - waiting.createdAt <= HQ_SLACK_DM_WATCH_MS) {
       if (thread && isDm(thread.channel)) {
         dm = { channel: thread.channel, from: personSlackId }
-      } else if (personSlackId && personSlackId !== api.owner) {
+      } else if (!waiting.sourceRef && personSlackId && personSlackId !== api.owner) {
         const channel = await api.dmChannel(personSlackId)
         dm = channel ? { channel, from: personSlackId } : null
       }
