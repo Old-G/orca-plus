@@ -19614,6 +19614,13 @@
         "notes": "Notes",
         "notesEmpty": "No notes in {{path}} yet.",
         "noPage": "No page in HQ yet."
+      },
+      "chatCleanup": {
+        "settingTitle": "Close quiet chats",
+        "settingDescription": "A chat read after it finished closes after 12 hours, any chat after a quiet day — like its ×, so History reopens it. Chats that work, wait for you or for an answer, pinned or marked ones stay. Report only lists them in HQ Reports.",
+        "off": "Off",
+        "report": "Report only",
+        "on": "On"
       }
     },
     "claudeSubscriptions": {
@@ -19675,6 +19682,10 @@
         "keywordNight": "night",
         "keywordPhone": "phone"
       }
+    },
+    "hqWaitingReply": {
+      "openSlack": "Open in Slack",
+      "openClickUp": "Open in ClickUp"
     }
   },
   "components": {
