@@ -7,6 +7,7 @@ import {
   type ClaudeHandoffFile,
   type ClaudeHandoffOffer
 } from '../../shared/claude-handoff-file'
+import { parsePaneKey } from '../../shared/stable-pane-id'
 
 export type ClaudeHandoffOfferDeps = {
   /** Null when the file is absent or the execution host cannot be read; never guessed. */
@@ -76,7 +77,12 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
   const contextFilled = async (worktreeId: string, sessionId: string): Promise<boolean> =>
     (await deps.contextGateFired?.(worktreeId, sessionId)) !== false
 
-  const raise = (worktreeId: string, sessionId: string, file: ClaudeHandoffFile): void => {
+  const raise = (
+    worktreeId: string,
+    sessionId: string,
+    file: ClaudeHandoffFile,
+    tabId?: string
+  ): void => {
     const key = offerKey(sessionId, file.created)
     if (seen.has(key) || deps.handled?.has(key)) {
       return
@@ -90,7 +96,8 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
       created: file.created,
       branch: file.branch,
       head: file.head,
-      pushed: file.pushed
+      pushed: file.pushed,
+      ...(tabId ? { tabId } : {})
     })
     publish()
   }
@@ -123,7 +130,7 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
           return
         }
         if (await contextFilled(worktreeId, sessionId)) {
-          raise(worktreeId, sessionId, file)
+          raise(worktreeId, sessionId, file, event.tabId ?? parsePaneKey(event.paneKey)?.tabId)
         }
       } finally {
         reading.delete(sessionId)

@@ -5,6 +5,7 @@ import { SearchableSetting } from './SearchableSetting'
 import { SettingsSubsectionHeader, SettingsSwitchRow } from './SettingsFormControls'
 import { WorkspaceDirectorySetting } from './WorkspaceDirectorySetting'
 import { HqDeferredSetting } from './HqDeferredSetting'
+import { HqChatCleanupSetting } from './HqChatCleanupSetting'
 import { HqPathSetting } from './HqPathSetting'
 import { translate } from '@/i18n/i18n'
 import { GlobalWorktreeVisibilitySourcesSetting } from './GlobalWorktreeVisibilitySourcesSetting'
@@ -41,6 +42,7 @@ export function GeneralWorkspaceSettingsSection({
       <WorkspaceDirectorySetting settings={settings} updateSettings={updateSettings} />
       <HqPathSetting settings={settings} updateSettings={updateSettings} />
       <HqDeferredSetting settings={settings} updateSettings={updateSettings} />
+      <HqChatCleanupSetting settings={settings} updateSettings={updateSettings} />
 
       <div
         id={GLOBAL_WORKTREE_VISIBILITY_SETTINGS_TARGET_ID}
