@@ -39,7 +39,10 @@ function assertPackagedWebClient(resourcesDir) {
     !files.every(
       (file) =>
         typeof file === 'string' &&
-        (file === WEB_CLIENT_INDEX || /^(?:assets|cmaps|standard_fonts|wasm)\//.test(file)) &&
+        (file === WEB_CLIENT_INDEX ||
+          /^(?:assets|cmaps|standard_fonts|wasm)\//.test(file) ||
+          // Custom build (pwa): the installable web client's manifest, worker and icons.
+          /^(?:manifest\.webmanifest|sw\.js|pwa\/.+)$/.test(file)) &&
         !file.includes('\\') &&
         !file.includes('\0') &&
         file.split('/').every((part) => part !== '' && part !== '.' && part !== '..') &&
