@@ -7,7 +7,7 @@
 #
 # Runs itself under nohup once it quits Orca+, so it survives being started from an Orca+
 # terminal. Log: $TMPDIR/orca-plus-ship.log (previous run: .log.1). Backup: ~/orca-plus-backup-<date>-<time>
-# (a verified ship keeps the last two).
+# (a ship keeps one older backup while it runs; a verified ship keeps only its own).
 set -euo pipefail
 
 dry=0
@@ -120,13 +120,16 @@ print(json.dumps({'agentSessionId': os.environ['SESSION'], 'sha': os.environ['SH
   'writtenAt': datetime.datetime.now(datetime.timezone.utc).isoformat()}))" >"$restart_marker.tmp"
   mv "$restart_marker.tmp" "$restart_marker"
 }
-# Why: each backup is a full profile plus the old app (~1.5 GB); unpruned, 40 of them ate 57 GB.
+# Why: each backup is a full profile plus the old app (~2.6 GB); unpruned, 40 of them ate 57 GB.
+# Pruning only after a verified ship let failed ships pile up, so the start prunes too.
 prune_backups() {
-  local all=("$HOME"/orca-plus-backup-[0-9]*-[0-9]*/) i
-  for ((i = 0; i < ${#all[@]} - 2; i++)); do
-    [ -d "${all[i]}" ] && rm -rf "${all[i]:?}"
+  local keep=$1 all=("$HOME"/orca-plus-backup-[0-9]*-[0-9]*/) i
+  for ((i = 0; i < ${#all[@]} - keep; i++)); do
+    [ -d "${all[i]}" ] && run rm -rf "${all[i]:?}"
   done
 }
+# Why: a ship that stops before the swap changed nothing, so its backup only takes space.
+drop_unused_backup() { [ -e "$backup/Orca Plus.app.old" ] || rm -rf "${backup:?}"; }
 
 # Why: quitting Orca+ kills the terminal that started us; re-exec detached before that point.
 # The flag is an argument, not an env var: `open` hands our env to the relaunched Orca+, so an
@@ -149,8 +152,12 @@ if [ "$dry" = 0 ] && ! app_running; then
   wait_runtime_ready || { step "runtime not ready after 15 minutes — abort, nothing changed"; exit 1; }
 fi
 
+step "prune backups, keeping the newest one"
+prune_backups 1
+
 step "backup profile → $backup"
 run mkdir -p "$backup"
+[ "$dry" = 0 ] && trap drop_unused_backup EXIT
 # Why: the profile is live — an agent can delete a temp file mid-copy (rsync 24, or 23 when it goes
 # between listing and open); one more pass picks up the rest. state_files are checked below.
 copy_profile() { rsync -a "$profile/" "$backup/profile/" || [ $? = 24 ]; }
@@ -228,8 +235,8 @@ if [ "$dry" = 0 ]; then
   version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")
   if [ "$ok" = 1 ]; then
     step "OK — Orca+ $version installed, profile intact. Backup: $backup"
-    step "prune backups, keeping the last two"
-    prune_backups
+    step "prune backups, keeping only this one"
+    prune_backups 1
   else
     step "MISMATCH — check above. Old app and profile are in $backup"
     exit 1
