@@ -50,22 +50,76 @@ describe('createSlackIntakeApi', () => {
       ]
     })
     const api = createSlackIntakeApi('xoxp-1', 'UOWNER', async (id) => `name-${id}`)
-    expect(await api.marked()).toEqual([
-      {
-        channel: 'D0AAAAAAAAA',
-        ts: '1792600000.000100',
-        threadTs: null,
-        author: 'name-U1',
-        authorSlackId: 'U1',
-        venue: 'dm',
-        text: 'Вот роуты claude.ai/artifact/abc (https://claude.ai/artifact/abc)',
-        links: ['https://claude.ai/artifact/abc'],
-        files: ['routes.md'],
-        permalink: 'https://x.slack.com/archives/D0AAAAAAAAA/p1792600000000100',
-        at: 1_792_600_000_000
-      }
-    ])
+    expect(await api.marked()).toEqual({
+      complete: true,
+      drafts: [
+        {
+          channel: 'D0AAAAAAAAA',
+          ts: '1792600000.000100',
+          threadTs: null,
+          author: 'name-U1',
+          authorSlackId: 'U1',
+          venue: 'dm',
+          text: 'Вот роуты claude.ai/artifact/abc (https://claude.ai/artifact/abc)',
+          links: ['https://claude.ai/artifact/abc'],
+          files: ['routes.md'],
+          permalink: 'https://x.slack.com/archives/D0AAAAAAAAA/p1792600000000100',
+          at: 1_792_600_000_000
+        }
+      ]
+    })
     expect(requestMock).toHaveBeenCalledWith('xoxp-1', 'reactions.list', { full: true, limit: 100 })
+  })
+
+  it('says the read is partial when reactions run past the pages it reads', async () => {
+    requestMock.mockReset()
+    requestMock.mockResolvedValue({
+      ok: true,
+      items: [],
+      response_metadata: { next_cursor: 'more' }
+    })
+    const api = createSlackIntakeApi('xoxp-1', 'UOWNER', async (id) => id)
+    expect((await api.marked()).complete).toBe(false)
+    requestMock.mockReset()
+  })
+
+  it('skips mentions from bots and apps, keeps people', async () => {
+    requestMock.mockReset()
+    requestMock.mockResolvedValueOnce({
+      ok: true,
+      messages: {
+        matches: [
+          {
+            channel: { id: 'C1' },
+            ts: '1792600010.000100',
+            user: 'UALERT',
+            text: '<@UOWNER> path was dead'
+          },
+          {
+            channel: { id: 'C1' },
+            ts: '1792600011.000100',
+            user: 'UAPP',
+            bot_id: 'B1',
+            text: '<@UOWNER> deploy done'
+          },
+          {
+            channel: { id: 'C1' },
+            ts: '1792600012.000100',
+            user: 'UANN',
+            text: '<@UOWNER> please look'
+          }
+        ]
+      }
+    })
+    const api = createSlackIntakeApi(
+      'xoxp-1',
+      'UOWNER',
+      async (id) => id,
+      async (id) => id === 'UALERT'
+    )
+    const drafts = await api.mentioned(0)
+    expect(drafts.map((draft) => draft.authorSlackId)).toEqual(['UANN'])
+    requestMock.mockReset()
   })
 
   it('collects each link once', () => {
