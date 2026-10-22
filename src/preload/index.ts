@@ -64,6 +64,7 @@ import { appIconApi } from './api/window-ui/app-icon-bridge'
 import { browserPasswordsApi } from './api/browser/browser-passwords-bridge'
 import { clickupApi } from './api/clickup-bridge'
 import { slackApi } from './api/slack-bridge'
+import { gmailApi } from './api/gmail-bridge'
 import { claudeHandoffApi } from './api/claude-handoff-bridge'
 import { pulseBellApi } from './api/pulse-bell-bridge'
 import { outgoingApprovalApi } from './api/outgoing-approval-bridge'
@@ -160,6 +161,7 @@ const api = {
   jira: jiraApi,
   clickup: clickupApi,
   slack: slackApi,
+  gmail: gmailApi,
   claudeHandoff: claudeHandoffApi,
   pulseBell: pulseBellApi,
   outgoingApproval: outgoingApprovalApi,
