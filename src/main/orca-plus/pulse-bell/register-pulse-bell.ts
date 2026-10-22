@@ -55,6 +55,8 @@ import { getHqProjectPagesService } from '../../hq-project-pages/hq-project-page
 import { startHqWaitingBells } from '../../hq-today/hq-waiting-bells'
 import { startShipRestartNotice } from '../ship-restart/ship-restart-notice'
 import { registerHqClickUpTriage } from '../../hq-today/register-hq-clickup-triage'
+import { registerHqMailIntake } from '../../hq-today/register-hq-mail-intake'
+import { hqClickUpListProjects } from '../../hq-today/hq-clickup-list-projects'
 
 const BROADCAST_DEBOUNCE_MS = 50
 const FEED_DAYS_MS = 3 * 24 * 60 * 60_000
@@ -138,24 +140,21 @@ export function registerPulseBell(
   startHqClickUpRequests({
     hqPath: () => store.getSettings().hqPath ?? null,
     enabled: () => store.getSettings().hqChatsView !== false,
-    collect: async (hq) => {
-      const bindings = store.getSettings().hqProjectClickUpLists ?? {}
-      const pages = await listHqProjectPages(hq).catch(() => [])
-      return collectHqClickUpRequests(hq, {
+    collect: async (hq) =>
+      collectHqClickUpRequests(hq, {
         listMyTasks: () => listClickUpTasks({ scope: 'mine', includeDone: true }, 50),
         listComments: listClickUpTaskComments,
         viewer: getClickUpViewer,
-        projectForList: (listId) => {
-          const repoId = Object.entries(bindings).find(
-            ([, binding]) => listId && binding.listId === listId
-          )?.[0]
-          return pages.find((page) => page.repoId === repoId)?.slug ?? null
-        },
+        projectForList: await hqClickUpListProjects(
+          hq,
+          store.getSettings().hqProjectClickUpLists ?? {}
+        ),
         now: Date.now
-      })
-    },
+      }),
     onAdded: notifyHqSlackScoutChanged
   })
+  // Custom build (hq-mail-intake): GitLab and ClickUp emails join the requests and close waitings.
+  registerHqMailIntake(store, runtime)
 
   // Custom build (hq-clickup-triage): task edits beyond comments, sorted by a small model.
   registerHqClickUpTriage(store, runtime, rateLimits)

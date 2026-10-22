@@ -8,6 +8,7 @@ import {
 import { JiraIntegrationCard, LinearIntegrationCard } from './task-tracker-integration-cards'
 import { ClickUpIntegrationCard } from './clickup-integration-card'
 import { SlackIntegrationCard } from './slack-integration-card'
+import { GmailIntegrationCard } from './gmail-integration-card'
 import { useIntegrationProviderStatusRefresh } from './use-integration-provider-status-refresh'
 import { translate } from '@/i18n/i18n'
 export { getIntegrationsPaneSearchEntries } from './integrations-search'
@@ -71,6 +72,7 @@ export function IntegrationsPane(): React.JSX.Element {
         </div>
         <div className="space-y-3">
           <SlackIntegrationCard />
+          <GmailIntegrationCard />
         </div>
       </section>
     </div>
