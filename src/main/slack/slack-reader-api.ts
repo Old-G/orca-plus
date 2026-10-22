@@ -183,7 +183,7 @@ export function createSlackIntakeApi(
 ): HqIntakeReadApi {
   return {
     marked: async () => {
-      // Why every page: a mark missing from a partial read would close its card.
+      // Why: a mark missing from a partial read would close its card, so the caller is told.
       const entries: unknown[] = []
       let cursor: string | null = null
       for (let page = 0; page < REACTION_PAGES; page += 1) {
@@ -236,7 +236,7 @@ export function createSlackIntakeApi(
           at: Math.round(Number(ts) * 1000)
         })
       }
-      return drafts
+      return { drafts, complete: !cursor }
     },
     // Custom build (hq-slack-mentions): people's messages that @mention the owner, newest first.
     mentioned: async (since) => {
