@@ -110,20 +110,16 @@ function taskRequest(
   project: string | null,
   foundAt: number
 ): HqSlackScoutDraft {
-  const who = event.by ?? 'Someone'
   return {
     id: `clickup-task:${task.id}`,
     source: 'clickup',
     clickupTaskId: task.id,
     kind: 'do',
     channelName: `ClickUp · ${task.identifier}`,
-    author: event.by ?? '',
+    author: '',
     permalink: task.url,
     quote: oneLine(task.description, QUOTE_MAX),
-    ask:
-      event.action === 'shared'
-        ? `${who} shared this task with you`
-        : `${who} assigned this task to you`,
+    ask: event.action === 'shared' ? 'Shared with you in ClickUp' : 'Assigned to you in ClickUp',
     title: oneLine(task.title, 300) || task.identifier,
     description: '',
     project,
