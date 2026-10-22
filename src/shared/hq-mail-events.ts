@@ -20,13 +20,17 @@ export type HqMail = {
 export type HqMailEvent =
   | { kind: 'mr-merged'; mrUrl: string; host: string; projectPath: string; iid: number }
   | { kind: 'clickup-comment'; taskRef: string; commentId: string }
-  | { kind: 'clickup-task'; taskRef: string; action: 'shared' | 'assigned'; by: string | null }
+  | { kind: 'clickup-task'; taskRef: string; action: 'shared' | 'assigned' }
 
 /** `GitLab <gitlab@mg.gitlab.com>` → `gitlab@mg.gitlab.com`. */
 export function hqMailAddress(from: string): string {
-  const match = /<([^>]+)>/.exec(from)
+  // Why: the addr-spec is the last <…>; a display name can carry a fake one before it.
+  const match = /<([^<>]+)>\s*$/.exec(from)
   return (match?.[1] ?? from).trim().toLowerCase()
 }
+
+// Why: the body is someone else's text; a cap keeps every regex below linear and cheap.
+const BODY_MAX = 200_000
 
 // Why: ClickUp wraps every link in up to three layers of tracking redirects, each URL-encoded again.
 function unwrapLinks(text: string): string {
@@ -62,16 +66,6 @@ const CLICKUP_NOISE = /\[Slack Sync\]|set the status to|Task Overdue|^\[Overdue\
 const CLICKUP_TASK_LINK =
   /https:\/\/app\.clickup\.com\/t\/(?:\d+\/)?([A-Za-z0-9][A-Za-z0-9_-]*)(?:\?comment=(\d+))?/g
 
-// Why: flattened to text, the avatar's initials (`LI`) come before the name (`LH IT`).
-function withoutInitials(name: string): string {
-  const [first, ...rest] = name.trim().split(/\s+/)
-  const initials = rest
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join('')
-  return first && rest.length > 0 && first === initials.toUpperCase() ? rest.join(' ') : name.trim()
-}
-
 function clickUpEvent(mail: HqMail): HqMailEvent | null {
   if (CLICKUP_NOISE.test(mail.subject) || CLICKUP_NOISE.test(mail.body)) {
     return null
@@ -85,14 +79,14 @@ function clickUpEvent(mail: HqMail): HqMailEvent | null {
   if (!taskRef) {
     return null
   }
-  const shared = /^(.+?) shared a task with you$/.exec(mail.subject.trim())
-  if (shared) {
-    return { kind: 'clickup-task', taskRef, action: 'shared', by: shared[1] ?? null }
+  // Why: who shared or assigned is not taken from the email — anyone can write those words.
+  if (mail.subject.trim().endsWith(' shared a task with you')) {
+    return { kind: 'clickup-task', taskRef, action: 'shared' }
   }
-  const assigned = /([^|\n]*?)\s*assigned task to you/.exec(mail.body)
-  if (assigned) {
-    const by = withoutInitials(assigned[1] ?? '')
-    return { kind: 'clickup-task', taskRef, action: 'assigned', by: by || null }
+  if (
+    mail.body.split('\n').some((line) => line.length < 300 && line.includes('assigned task to you'))
+  ) {
+    return { kind: 'clickup-task', taskRef, action: 'assigned' }
   }
   if (marked.task && marked.comment) {
     return { kind: 'clickup-comment', taskRef: marked.task, commentId: marked.comment }
@@ -105,7 +99,8 @@ function clickUpEvent(mail: HqMail): HqMailEvent | null {
 }
 
 /** One event per email, or null when the email is not one Orca+ acts on. */
-export function hqMailEvent(mail: HqMail): HqMailEvent | null {
+export function hqMailEvent(input: HqMail): HqMailEvent | null {
+  const mail = { ...input, body: input.body.slice(0, BODY_MAX) }
   const sender = hqMailAddress(mail.from)
   if (sender === 'gitlab@mg.gitlab.com') {
     return gitLabEvent(mail)
