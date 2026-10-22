@@ -169,6 +169,12 @@ export function slackMessageUrl(
   return threadTs && threadTs !== ts ? `${link}?thread_ts=${threadTs}&cid=${channel}` : link
 }
 
+function slackVenue(channel: string): HqIntakeDraft['venue'] {
+  return channel.startsWith('D') ? 'dm' : channel.startsWith('G') ? 'group' : 'channel'
+}
+
+const MENTION_PAGE = 50
+
 /** Custom build (hq-slack-intake): the owner's 👾-marked messages, newest first. */
 export function createSlackIntakeApi(
   token: string,
@@ -220,7 +226,7 @@ export function createSlackIntakeApi(
           threadTs: asString(message.thread_ts),
           author: user ? await name(user) : (asString(message.username) ?? 'Someone'),
           authorSlackId: user,
-          venue: channel.startsWith('D') ? 'dm' : channel.startsWith('G') ? 'group' : 'channel',
+          venue: slackVenue(channel),
           text: plainSlackText(raw).slice(0, HQ_INTAKE_TEXT_MAX),
           links: slackTextLinks(raw),
           files,
@@ -228,6 +234,47 @@ export function createSlackIntakeApi(
             asString(message.permalink) ??
             (base ? slackMessageUrl(base, channel, ts, asString(message.thread_ts)) : null),
           at: Math.round(Number(ts) * 1000)
+        })
+      }
+      return drafts
+    },
+    // Custom build (hq-slack-mentions): people's messages that @mention the owner, newest first.
+    mentioned: async (since) => {
+      const body = await slackRequest(token, 'search.messages', {
+        query: `<@${owner}>`,
+        sort: 'timestamp',
+        sort_dir: 'desc',
+        count: MENTION_PAGE
+      })
+      const matches = asSlackRecord(body.messages).matches
+      const drafts: HqIntakeDraft[] = []
+      for (const entry of Array.isArray(matches) ? matches : []) {
+        const match = asSlackRecord(entry)
+        const channel = asString(asSlackRecord(match.channel).id)
+        const ts = asString(match.ts)
+        const user = asString(match.user)
+        const at = Math.round(Number(ts) * 1000)
+        // Why: bots and the owner's own messages (his agents post as him) are not requests to him.
+        if (!channel || !ts || !user || user === owner || at < since) {
+          continue
+        }
+        const raw = asString(match.text) ?? ''
+        const permalink = asString(match.permalink)
+        drafts.push({
+          channel,
+          ts,
+          threadTs: permalink ? new URL(permalink).searchParams.get('thread_ts') : null,
+          author: await name(user),
+          authorSlackId: user,
+          venue: slackVenue(channel),
+          text: plainSlackText(raw).slice(0, HQ_INTAKE_TEXT_MAX),
+          links: slackTextLinks(raw),
+          files: (Array.isArray(match.files) ? match.files : [])
+            .map((file) => asString(asSlackRecord(file).name))
+            .filter((fileName): fileName is string => fileName !== null),
+          permalink,
+          at,
+          via: 'mention'
         })
       }
       return drafts
