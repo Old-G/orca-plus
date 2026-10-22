@@ -44,6 +44,7 @@ import type { OnboardingApi, StarNagApi } from './api/onboarding/onboarding-api'
 import type { OrcaProfileApi } from './api/profiles/orca-profile-api'
 import type { ClickUpApi } from './api/clickup-api'
 import type { SlackApi } from './api/slack-api'
+import type { GmailApi } from './api/gmail-api'
 import type { ClaudeHandoffApi } from './api/claude-handoff-api'
 import type { PulseBellApi } from './api/pulse-bell-api'
 import type { OutgoingApprovalApi } from './api/outgoing-approval-api'
@@ -142,6 +143,7 @@ export type PreloadApi = {
   jira: JiraApi
   clickup: ClickUpApi
   slack: SlackApi
+  gmail: GmailApi
   claudeHandoff: ClaudeHandoffApi
   pulseBell: PulseBellApi
   outgoingApproval: OutgoingApprovalApi
