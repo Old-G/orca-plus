@@ -153,7 +153,7 @@ describe('collectHqMailIntake', () => {
     const path = await hq()
     await collectHqMailIntake(path, deps([shared]))
     expect(await cards(path)).toMatchObject([
-      { id: 'clickup-task:task1', kind: 'do', ask: 'Ann Lee shared this task with you' }
+      { id: 'clickup-task:task1', kind: 'do', ask: 'Shared with you in ClickUp' }
     ])
 
     const triaged = await hq()

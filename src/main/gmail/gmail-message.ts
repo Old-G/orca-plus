@@ -55,7 +55,11 @@ const ENTITIES: Record<string, string> = {
 }
 
 /** HTML as lines of text, its links and id markers kept after the text — they carry the task ids. */
-export function gmailHtmlToText(html: string): string {
+// Why: someone else's HTML; capped so the tag strippers stay cheap.
+const HTML_MAX = 500_000
+
+export function gmailHtmlToText(input: string): string {
+  const html = input.slice(0, HTML_MAX)
   // Why: ClickUp marks its emails with `title="task_id_start-…-task_id_end"`; those ids are exact.
   const links = [...html.matchAll(/(?:href|title)\s*=\s*"([^"]+)"/gi)]
     .map((match) => match[1] ?? '')
