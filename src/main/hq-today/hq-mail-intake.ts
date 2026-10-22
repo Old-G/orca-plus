@@ -38,10 +38,14 @@ const FIRST_LOOK_MS = 24 * 60 * 60_000
 // Why: Gmail's internalDate can trail the last look by a few minutes; seen ids stop repeats.
 const OVERLAP_MS = 30 * 60_000
 const SEEN_MAX = 1000
-const PER_LOOK_MAX = 50
+// Why: every email since the last look is read before it moves; this only bounds a very long absence.
+const PER_LOOK_MAX = SEEN_MAX
 const QUOTE_MAX = 300
 
-export const HQ_MAIL_QUERY = `newer_than:3d {${HQ_MAIL_SENDERS.map((sender) => `from:${sender}`).join(' ')}}`
+/** Notification emails from `since` (ms) on; Gmail's `after:` takes seconds. */
+export function hqMailQuery(since: number): string {
+  return `after:${Math.floor(since / 1000)} {${HQ_MAIL_SENDERS.map((sender) => `from:${sender}`).join(' ')}}`
+}
 
 export type HqMailIntakeDeps = {
   listMailIds: (query: string, max: number) => Promise<string[]>
@@ -174,7 +178,11 @@ export async function collectHqMailIntake(hqPath: string, deps: HqMailIntakeDeps
   const owner = async (): Promise<{ id: string; username: string }> =>
     (viewer ??= await deps.viewer())
 
-  const ids = (await deps.listMailIds(HQ_MAIL_QUERY, PER_LOOK_MAX)).filter((id) => !seen.has(id))
+  const listed = await deps.listMailIds(hqMailQuery(since), PER_LOOK_MAX)
+  if (listed.length >= PER_LOOK_MAX) {
+    console.warn(`[hq-mail-intake] ${PER_LOOK_MAX}+ emails since the last look; older ones skipped`)
+  }
+  const ids = listed.filter((id) => !seen.has(id))
   for (const id of ids.toReversed()) {
     const mail = await deps.getMail(id)
     seen.add(id)
