@@ -77,8 +77,8 @@ function oneLine(text: string, max: number): string {
   return line.length > max ? `${line.slice(0, max - 1)}…` : line
 }
 
-function requestFrom(
-  task: ClickUpTaskSummary,
+export function hqClickUpRequestFrom(
+  task: Pick<ClickUpTaskSummary, 'id' | 'identifier' | 'title' | 'url'>,
   comment: ClickUpComment,
   project: string | null,
   foundAt: number
@@ -102,7 +102,7 @@ function requestFrom(
 }
 
 // Why: an agent's comment carries the footer Approve adds; it is the owner's own message.
-const ORCA_FOOTER = /↳ [^\n]*\bref [0-9a-z]{6}(?![0-9a-z])/
+export const ORCA_FOOTER = /↳ [^\n]*\bref [0-9a-z]{6}(?![0-9a-z])/
 
 function ownCommentsOn(
   task: ClickUpTaskSummary,
@@ -174,7 +174,7 @@ async function writeOwnComments(dir: string, fresh: OwnComment[], now: number): 
 
 /** Custom build (hq-scout-quiet): a comment asks the owner when it @mentions him or asks a question;
  *  status notes and reports on his tasks are not requests. */
-function asksTheOwner(comment: ClickUpComment, username: string): boolean {
+export function asksTheOwner(comment: ClickUpComment, username: string): boolean {
   const body = comment.body
   return body.toLowerCase().includes(`@${username.toLowerCase()}`) || body.includes('?')
 }
@@ -224,7 +224,7 @@ export async function collectHqClickUpRequests(
       .findLast((comment) => comment.body.trim() && asksTheOwner(comment, viewer.username))
     if (ask) {
       replaced.add(task.id)
-      fresh.push(requestFrom(task, ask, deps.projectForList(task.listId), now))
+      fresh.push(hqClickUpRequestFrom(task, ask, deps.projectForList(task.listId), now))
     }
   }
   const kept = current.drafts.filter(
