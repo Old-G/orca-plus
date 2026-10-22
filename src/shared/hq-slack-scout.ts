@@ -1,7 +1,7 @@
 // Custom build (hq-slack-scout): the Slack scout's files in the HQ folder. The scout (a skill on a
 // 10-minute automation) writes requests to the owner it found in Slack; HQ shows them, and the owner's
 // decision is written back so the scout never drafts that thread again.
-import { z } from 'zod'
+import * as z from 'zod'
 import type { HqSlackQuietItem } from './hq-slack-digest'
 
 export const HQ_SLACK_SCOUT_DIR = 'slack-scout'
@@ -12,6 +12,10 @@ export const HQ_SLACK_SCOUT_CONFIG_FILE = 'config.yaml'
 export const HQ_SLACK_SCOUT_EDITS_FILE = 'edits.json'
 /** Custom build (hq-clickup-requests): comments to the owner's ClickUp tasks, written by Orca+ itself. */
 export const HQ_CLICKUP_REQUESTS_FILE = 'clickup.json'
+/** Custom build (hq-mail-intake): ClickUp requests that arrived as notification emails. */
+export const HQ_MAIL_REQUESTS_FILE = 'mail.json'
+/** Custom build (hq-mail-intake): which emails were read, and when. */
+export const HQ_MAIL_STATE_FILE = 'mail-state.json'
 /** Custom build (hq-promises): the owner's own recent ClickUp comments, where the scout finds his promises. */
 export const HQ_CLICKUP_OWN_FILE = 'clickup-own.json'
 /** Custom build (hq-clickup-requests): the owner's draft-vs-sent pairs, read back as tone examples. */
