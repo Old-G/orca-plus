@@ -22,8 +22,8 @@ const FIRST_POLL_MS = 25_000
 export const HQ_MENTION_FRESH_MS = 2 * 60 * 60_000
 
 export type HqIntakeReadApi = {
-  /** The owner's 👾-marked messages, newest first. */
-  marked: () => Promise<HqIntakeDraft[]>
+  /** The owner's 👾-marked messages, newest first; `complete` is false when older reactions went unread. */
+  marked: () => Promise<{ drafts: HqIntakeDraft[]; complete: boolean }>
   /** Messages since `since` (ms) that @mention the owner, newest first. */
   mentioned: (since: number) => Promise<HqIntakeDraft[]>
 }
@@ -57,7 +57,7 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
   const raised = deps.raised()
   const items = new Map<string, PulseBellInput>()
   let guessed = 0
-  for (const draft of [...read.marked, ...read.mentioned]) {
+  for (const draft of [...read.marked.drafts, ...read.mentioned]) {
     const key = hqIntakeKey(draft)
     if (deps.now() - draft.at > HQ_INTAKE_WINDOW_MS || items.has(key)) {
       continue
@@ -72,11 +72,13 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
     }
     items.set(key, hqIntakeBellItem(intake))
   }
-  // Why: a mention has no mark to take away, so its card stays until the owner handles it.
+  // Why: a mention has no mark to take away, so its card stays until the owner handles it; a mark
+  // a partial read did not reach is not known to be gone.
   for (const [key, payload] of raised) {
     const intake = readHqIntake(payload)
     if (
-      intake?.via === 'mention' &&
+      intake &&
+      (intake.via === 'mention' || !read.marked.complete) &&
       !items.has(key) &&
       deps.now() - intake.at <= HQ_INTAKE_WINDOW_MS
     ) {
