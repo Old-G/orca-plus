@@ -1,6 +1,7 @@
-// Custom build (hq-slack-intake): Slack messages the owner marked with 👾, read with his own token once
-// a minute and raised as «To work» in the bell. Removing the reaction closes one still open; one he
-// already sent on or skipped never comes back.
+// Custom build (hq-slack-intake): Slack messages the owner marked with 👾, read with his own token every
+// half minute and raised as «To work» in the bell. Removing the reaction closes one still open; one he
+// already sent on or skipped never comes back. Custom build (hq-slack-mentions): messages that @mention
+// him are raised the same way and stay until he handles them.
 import {
   HQ_INTAKE_KIND,
   hqIntakeBellItem,
@@ -14,12 +15,17 @@ import type { HqIntakeDraft, HqIntakeGuess } from './hq-slack-intake-suggest'
 
 // Why: a mark older than this is an old reaction found on the first run, not a new request.
 export const HQ_INTAKE_WINDOW_MS = 7 * 24 * 60 * 60_000
-const POLL_MS = 60_000
+// Why: no model is involved, and Slack allows about 20 reads a minute of each kind; 30 s uses two.
+const POLL_MS = 30_000
 const FIRST_POLL_MS = 25_000
+// Why: a mention older than this on a look is history (Orca+ was off), left to the Slack scout.
+export const HQ_MENTION_FRESH_MS = 2 * 60 * 60_000
 
 export type HqIntakeReadApi = {
   /** The owner's 👾-marked messages, newest first. */
   marked: () => Promise<HqIntakeDraft[]>
+  /** Messages since `since` (ms) that @mention the owner, newest first. */
+  mentioned: (since: number) => Promise<HqIntakeDraft[]>
 }
 
 export type HqSlackIntakeDeps = {
@@ -33,19 +39,30 @@ export type HqSlackIntakeDeps = {
 }
 
 export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number> {
-  const drafts = await deps.read((api) => api.marked())
+  const read = await deps.read(async (api) => ({
+    marked: await api.marked(),
+    // Why: a token without search:read still serves the 👾 marks.
+    mentioned: await api.mentioned(deps.now() - HQ_MENTION_FRESH_MS).catch((error: unknown) => {
+      console.warn(
+        '[hq-slack-intake] mentions not read:',
+        error instanceof Error ? error.message : error
+      )
+      return []
+    })
+  }))
   // Why: no token or a failed read says nothing about which marks are gone.
-  if (drafts === null) {
+  if (read === null) {
     return 0
   }
   const raised = deps.raised()
-  const items: PulseBellInput[] = []
+  const items = new Map<string, PulseBellInput>()
   let guessed = 0
-  for (const draft of drafts) {
-    if (deps.now() - draft.at > HQ_INTAKE_WINDOW_MS) {
+  for (const draft of [...read.marked, ...read.mentioned]) {
+    const key = hqIntakeKey(draft)
+    if (deps.now() - draft.at > HQ_INTAKE_WINDOW_MS || items.has(key)) {
       continue
     }
-    const known = readHqIntake(raised.get(hqIntakeKey(draft)) ?? null)
+    const known = readHqIntake(raised.get(key) ?? null)
     let intake: HqIntake
     if (known) {
       intake = known
@@ -53,9 +70,20 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
       intake = { ...draft, ...(await deps.guess(draft)) }
       guessed += 1
     }
-    items.push(hqIntakeBellItem(intake))
+    items.set(key, hqIntakeBellItem(intake))
   }
-  deps.sync(HQ_INTAKE_KIND, items)
+  // Why: a mention has no mark to take away, so its card stays until the owner handles it.
+  for (const [key, payload] of raised) {
+    const intake = readHqIntake(payload)
+    if (
+      intake?.via === 'mention' &&
+      !items.has(key) &&
+      deps.now() - intake.at <= HQ_INTAKE_WINDOW_MS
+    ) {
+      items.set(key, hqIntakeBellItem(intake))
+    }
+  }
+  deps.sync(HQ_INTAKE_KIND, [...items.values()])
   return guessed
 }
 

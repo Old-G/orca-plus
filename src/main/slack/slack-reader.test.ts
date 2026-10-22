@@ -52,18 +52,23 @@ describe('connectSlackReader', () => {
     expect(store.saved).toBeNull()
   })
 
-  it('proves DM history and reactions can be read before saving the owner’s token', async () => {
+  it('proves DM history, reactions and search can be read before saving the owner’s token', async () => {
     requestMock
       .mockResolvedValueOnce({ team_id: 'T1', user_id: 'UOWNER', user: 'owner', team: 'Acme' })
       .mockResolvedValueOnce({ channels: [{ id: 'D1' }] })
       .mockResolvedValueOnce({ messages: [] })
       .mockResolvedValueOnce({ items: [] })
+      .mockResolvedValueOnce({ messages: { matches: [] } })
     expect(await connectSlackReader('xoxp-owner')).toMatchObject({ ok: true })
     expect(requestMock).toHaveBeenCalledWith('xoxp-owner', 'conversations.history', {
       channel: 'D1',
       limit: 1
     })
-    expect(requestMock).toHaveBeenLastCalledWith('xoxp-owner', 'reactions.list', { limit: 1 })
+    expect(requestMock).toHaveBeenCalledWith('xoxp-owner', 'reactions.list', { limit: 1 })
+    expect(requestMock).toHaveBeenLastCalledWith('xoxp-owner', 'search.messages', {
+      query: '<@UOWNER>',
+      count: 1
+    })
     expect(store.saved).toBe('xoxp-owner')
   })
 })
