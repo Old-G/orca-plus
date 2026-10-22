@@ -82,7 +82,8 @@ describe('pollHqSlackIntake', () => {
   function setup(
     drafts: HqIntakeDraft[] | null,
     raised = new Map<string, string | null>(),
-    mentioned: () => Promise<HqIntakeDraft[]> = async () => []
+    mentioned: () => Promise<HqIntakeDraft[]> = async () => [],
+    complete = true
   ) {
     const synced: PulseBellInput[][] = []
     const guess = vi.fn(async () => ({
@@ -92,7 +93,7 @@ describe('pollHqSlackIntake', () => {
     }))
     const deps: HqSlackIntakeDeps = {
       read: async (run) =>
-        drafts === null ? null : run({ marked: async () => drafts, mentioned }),
+        drafts === null ? null : run({ marked: async () => ({ drafts, complete }), mentioned }),
       raised: () => raised,
       guess,
       sync: (_kind, items) => void synced.push([...items]),
@@ -143,6 +144,23 @@ describe('pollHqSlackIntake', () => {
       'To work: Анна',
       'To work: Анна mentioned you'
     ])
+  })
+
+  it('keeps a raised mark the read missed only while the read is partial', async () => {
+    const mark = hqIntakeBellItem({
+      ...draft('1792600000.000100'),
+      repoId: 'r1',
+      project: 'support-service',
+      summary: 'Роуты'
+    })
+    const raised = new Map([[mark.dedupeKey, mark.refId ?? null]])
+    const partial = setup([], raised, async () => [], false)
+    await pollHqSlackIntake(partial.deps)
+    expect(partial.synced[0]?.map((item) => item.dedupeKey)).toEqual([mark.dedupeKey])
+
+    const full = setup([], raised)
+    await pollHqSlackIntake(full.deps)
+    expect(full.synced[0]).toEqual([])
   })
 
   it('leaves the bell alone without a token', async () => {
