@@ -64,6 +64,8 @@ export async function connectSlackReader(rawToken: string): Promise<SlackReaderC
     }
     // Why: the 👾 marks are read with reactions.list; without the scope no To work card comes.
     await slackRequest(token, 'reactions.list', { limit: 1 })
+    // Custom build (hq-slack-mentions): mentions are found with search.messages.
+    await slackRequest(token, 'search.messages', { query: `<@${userId}>`, count: 1 })
     const metadata = {
       teamId,
       teamName: asString(auth.team) ?? teamId,

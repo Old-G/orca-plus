@@ -33,11 +33,7 @@ function page(slug: string, repoId: string): HqProjectPage {
   return { repoId, slug, title: slug, status: null, group: null, relations: [] }
 }
 
-const pages = [
-  page('support-service', 'r1'),
-  page('phone-bot', 'r2'),
-  page('mcp-server-api', 'r3')
-]
+const pages = [page('support-service', 'r1'), page('phone-bot', 'r2'), page('mcp-server-api', 'r3')]
 
 describe('guessHqIntake', () => {
   it('takes the project a link names over the model and the author', async () => {
@@ -83,7 +79,11 @@ describe('guessHqIntake', () => {
 })
 
 describe('pollHqSlackIntake', () => {
-  function setup(drafts: HqIntakeDraft[] | null, raised = new Map<string, string | null>()) {
+  function setup(
+    drafts: HqIntakeDraft[] | null,
+    raised = new Map<string, string | null>(),
+    mentioned: () => Promise<HqIntakeDraft[]> = async () => []
+  ) {
     const synced: PulseBellInput[][] = []
     const guess = vi.fn(async () => ({
       repoId: 'r1',
@@ -91,7 +91,8 @@ describe('pollHqSlackIntake', () => {
       summary: 'Роуты'
     }))
     const deps: HqSlackIntakeDeps = {
-      read: async (run) => (drafts === null ? null : run({ marked: async () => drafts })),
+      read: async (run) =>
+        drafts === null ? null : run({ marked: async () => drafts, mentioned }),
       raised: () => raised,
       guess,
       sync: (_kind, items) => void synced.push([...items]),
@@ -116,6 +117,32 @@ describe('pollHqSlackIntake', () => {
     expect(guess).toHaveBeenCalledTimes(1)
     expect(synced[0]?.map((item) => item.title)).toEqual(['To work: Анна', 'To work: Анна'])
     expect(synced[0]?.[1]?.body).toContain('Уже угадано')
+  })
+
+  it('raises a fresh mention and keeps its card once the search no longer returns it', async () => {
+    const mention = draft('1792630000.000100', {
+      channel: 'C0AAAAAAAAA',
+      venue: 'channel',
+      via: 'mention'
+    })
+    const first = setup([], new Map(), async () => [mention])
+    await pollHqSlackIntake(first.deps)
+    const item = first.synced[0]?.[0]
+    expect(item?.title).toBe('To work: Анна mentioned you')
+
+    // Why: a failed search must not cost the 👾 marks either.
+    const later = setup(
+      [draft('1792600000.000100')],
+      new Map([[item?.dedupeKey ?? '', item?.refId ?? null]]),
+      async () => {
+        throw new Error('missing_scope')
+      }
+    )
+    await pollHqSlackIntake(later.deps)
+    expect(later.synced[0]?.map((entry) => entry.title)).toEqual([
+      'To work: Анна',
+      'To work: Анна mentioned you'
+    ])
   })
 
   it('leaves the bell alone without a token', async () => {
