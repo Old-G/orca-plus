@@ -16,8 +16,8 @@ describe('Orca+ quiet hours', () => {
     ])
   })
 
-  it('reads an unset setting as 21–9 and null as off', () => {
-    expect(orcaPlusQuietHours({})).toEqual({ start: 21, end: 9 })
+  it('reads an unset setting and null as off', () => {
+    expect(orcaPlusQuietHours({})).toBeNull()
     expect(isOrcaPlusQuietHour(orcaPlusQuietHours({ orcaPlusQuietHours: null }), at(23))).toBe(
       false
     )

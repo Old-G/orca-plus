@@ -50,6 +50,6 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqNightShiftHour?: number
     /** Custom build (chat-auto-effort): each message to a Claude chat picks medium, high or xhigh effort. */
     nativeChatAutoEffort?: boolean
-    /** Custom build (quiet-hours): no phone or Slack alerts but urgent ones; unset = 21–9, null = off. */
+    /** Custom build (quiet-hours): no phone or Slack alerts but urgent ones; unset or null = off. */
     orcaPlusQuietHours?: OrcaPlusQuietHours | null
   }
