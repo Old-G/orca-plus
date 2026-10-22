@@ -28,25 +28,20 @@ function renderSetting(overrides: Partial<GlobalSettings> = {}) {
 }
 
 describe('OrcaPlusQuietHoursSetting', () => {
-  it('reads unset as on, 21 to 9', () => {
-    const { toggle, view } = renderSetting()
-    expect(toggle.getAttribute('aria-checked')).toBe('true')
-    expect(hourField(view, 'From').value).toBe('21')
-    expect(hourField(view, 'To').value).toBe('9')
-  })
-
-  it('turns off as null and back on with the default span', () => {
-    const { toggle, updateSettings } = renderSetting()
+  it('reads unset as off and turns on with 21 to 9', () => {
+    const { toggle, view, updateSettings } = renderSetting()
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    expect(view.queryByLabelText('From')).toBeNull()
     fireEvent.click(toggle)
-    expect(updateSettings).toHaveBeenLastCalledWith({ orcaPlusQuietHours: null })
-
-    cleanup()
-    const off = renderSetting({ orcaPlusQuietHours: null })
-    expect(off.view.queryByLabelText('From')).toBeNull()
-    fireEvent.click(off.toggle)
-    expect(off.updateSettings).toHaveBeenLastCalledWith({
+    expect(updateSettings).toHaveBeenLastCalledWith({
       orcaPlusQuietHours: { start: 21, end: 9 }
     })
+  })
+
+  it('turns off as null', () => {
+    const { toggle, updateSettings } = renderSetting({ orcaPlusQuietHours: { start: 21, end: 9 } })
+    fireEvent.click(toggle)
+    expect(updateSettings).toHaveBeenLastCalledWith({ orcaPlusQuietHours: null })
   })
 
   it('saves an edited hour on blur and wraps it into 0–23', () => {
