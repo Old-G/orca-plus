@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Background jobs of the HQ skills on macOS (launchd): install, list, remove. Linux: prints cron lines.
+"""Background jobs of the HQ skills: install, list, remove. macOS: launchd; Linux: the user's crontab;
+Windows: not supported (the jobs are bash scripts).
 
     schedule.py status                         which jobs are installed
     schedule.py install JOB [JOB ...] [--dry-run]
@@ -65,7 +66,30 @@ def plist(job):
 def cron_line(job):
     folder, when = JOBS[job]
     timing = f"*/{when // 60} * * * *" if isinstance(when, int) else f"{when[1]} {when[0]} * * *"
-    return f"{timing} /bin/bash {SKILLS / folder / 'run.sh'}"
+    return f"{timing} /bin/bash {SKILLS / folder / 'run.sh'} # {label(job)}"
+
+
+def read_crontab():
+    r = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+    # Why: "no crontab for user" is an empty table, not an error.
+    return r.stdout.splitlines() if r.returncode == 0 else []
+
+
+def write_crontab(lines):
+    r = subprocess.run(["crontab", "-"], input="".join(f"{line}\n" for line in lines), capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.exit(f"crontab: {r.stderr.strip()}")
+
+
+def without_jobs(lines, names):
+    return [line for line in lines if not any(line.endswith(f"# {label(job)}") for job in names)]
+
+
+def platform_kind():
+    system = platform.system()
+    if system == "Windows":
+        sys.exit("Фоновые задачи HQ — bash-скрипты, на Windows их не поставить. Запускай скиллы руками или из WSL.")
+    return "launchd" if system == "Darwin" else "cron"
 
 
 def jobs_from(args):
@@ -81,10 +105,14 @@ def launchctl(*args):
 
 
 def install(names, dry_run):
-    if platform.system() != "Darwin":
-        print("launchd есть только на macOS. Строки для crontab -e:")
+    if platform_kind() == "cron":
+        lines = [cron_line(job) for job in names]
+        if dry_run:
+            print("\n".join(lines))
+            return
+        write_crontab(without_jobs(read_crontab(), names) + lines)
         for job in names:
-            print(cron_line(job))
+            print(f"{job}: установлена (crontab)")
         return
     domain = f"gui/{os.getuid()}"
     for job in names:
@@ -100,6 +128,11 @@ def install(names, dry_run):
 
 
 def remove(names):
+    if platform_kind() == "cron":
+        write_crontab(without_jobs(read_crontab(), names))
+        for job in names:
+            print(f"{job}: убрана")
+        return
     domain = f"gui/{os.getuid()}"
     for job in names:
         path = plist_path(job)
@@ -109,8 +142,10 @@ def remove(names):
 
 
 def status():
+    cron = read_crontab() if platform_kind() == "cron" else []
     for job, (folder, _) in JOBS.items():
-        state = "установлена" if plist_path(job).exists() else "нет"
+        installed = any(line.endswith(f"# {label(job)}") for line in cron) or plist_path(job).exists()
+        state = "установлена" if installed else "нет"
         if not (SKILLS / folder / "run.sh").exists():
             state += " (скилла нет)"
         print(f"{job}\t{state}\t{label(job)}")
