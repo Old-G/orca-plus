@@ -3,16 +3,14 @@
 
 export type OrcaPlusQuietHours = { start: number; end: number }
 
-/** The scout's working day is 9–21, so the phone is quiet outside it unless the owner says otherwise. */
+/** What turning quiet hours on starts from; the scout works around the clock, so they start off. */
 export const DEFAULT_ORCA_PLUS_QUIET_HOURS: OrcaPlusQuietHours = { start: 21, end: 9 }
 
-/** Unset reads as the default; null turns quiet hours off. */
+/** Unset or null: no quiet hours — Orca+ reaches the owner at any hour unless he sets them. */
 export function orcaPlusQuietHours(settings: {
   orcaPlusQuietHours?: OrcaPlusQuietHours | null
 }): OrcaPlusQuietHours | null {
-  return settings.orcaPlusQuietHours === undefined
-    ? DEFAULT_ORCA_PLUS_QUIET_HOURS
-    : settings.orcaPlusQuietHours
+  return settings.orcaPlusQuietHours ?? null
 }
 
 /** `start` inclusive, `end` exclusive, local time; a span past midnight (21 → 9) wraps. */
