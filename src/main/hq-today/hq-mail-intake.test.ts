@@ -170,4 +170,35 @@ describe('collectHqMailIntake', () => {
     const d = deps([{ ...mention, receivedAt: NOW - 2 * 24 * 60 * 60_000 }])
     expect(await collectHqMailIntake(await hq(), d)).toBe(0)
   })
+
+  it('reads every email since the last look, not only the newest page', async () => {
+    const path = await hq()
+    const last = NOW - 6 * 60 * 60_000
+    await writeFile(
+      join(path, 'slack-scout', 'mail-state.json'),
+      JSON.stringify({ lastCheckAt: last, seen: [] })
+    )
+    const mails = Array.from({ length: 120 }, (_, index) => ({
+      ...merged,
+      id: `m${index}`,
+      receivedAt: NOW - index * 60_000
+    }))
+    const queries: string[] = []
+    const read: string[] = []
+    await collectHqMailIntake(
+      path,
+      deps(mails, {
+        listMailIds: async (query, max) => {
+          queries.push(query)
+          return mails.slice(0, max).map((mail) => mail.id)
+        },
+        getMail: async (id) => {
+          read.push(id)
+          return mails.find((mail) => mail.id === id) ?? null
+        }
+      })
+    )
+    expect(read).toHaveLength(120)
+    expect(queries[0]).toContain(`after:${Math.floor((last - 30 * 60_000) / 1000)}`)
+  })
 })
