@@ -18,6 +18,8 @@ import { authorizeGmail, refreshGoogleToken } from './gmail-oauth'
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me'
 // Why: a token used within its last minute can expire mid-request.
 const EXPIRY_MARGIN_MS = 60_000
+// Why: the largest page messages.list serves.
+const PAGE_MAX = 500
 
 let access: { token: string; expiresAt: number } | null = null
 let lastError: string | null = null
@@ -40,7 +42,12 @@ export function importGmailClient(text: string): { ok: true } | { ok: false; err
         'This is not an OAuth client file. Download the Desktop app client JSON from Google Cloud Console → Credentials.'
     }
   }
+  const previous = loadGmailClient()
   saveGmailClient(client)
+  // Why: a refresh token works only with the client that issued it.
+  if (previous && previous.clientId !== client.clientId) {
+    disconnectGmail()
+  }
   return { ok: true }
 }
 
@@ -113,17 +120,30 @@ export function disconnectGmail(): void {
   lastError = null
 }
 
-/** Ids of messages matching a Gmail search, newest first. */
+/** Ids of messages matching a Gmail search, newest first, page after page up to `max`. */
 export async function listGmailMessageIds(query: string, max: number): Promise<string[]> {
   try {
-    const result = await gmailGet('/messages', { q: query, maxResults: String(max) })
+    const ids: string[] = []
+    let pageToken: unknown = null
+    do {
+      const result = await gmailGet('/messages', {
+        q: query,
+        maxResults: String(Math.min(PAGE_MAX, max - ids.length)),
+        ...(typeof pageToken === 'string' ? { pageToken } : {})
+      })
+      const messages: unknown =
+        result && typeof result === 'object' ? Reflect.get(result, 'messages') : null
+      for (const message of Array.isArray(messages) ? messages : []) {
+        const id: unknown =
+          message && typeof message === 'object' ? Reflect.get(message, 'id') : null
+        if (typeof id === 'string') {
+          ids.push(id)
+        }
+      }
+      pageToken = result && typeof result === 'object' ? Reflect.get(result, 'nextPageToken') : null
+    } while (typeof pageToken === 'string' && pageToken && ids.length < max)
     lastError = null
-    const messages: unknown =
-      result && typeof result === 'object' ? Reflect.get(result, 'messages') : null
-    return (Array.isArray(messages) ? messages : []).flatMap((message: unknown) => {
-      const id: unknown = message && typeof message === 'object' ? Reflect.get(message, 'id') : null
-      return typeof id === 'string' ? [id] : []
-    })
+    return ids
   } catch (error) {
     lastError = errorText(error)
     throw error
