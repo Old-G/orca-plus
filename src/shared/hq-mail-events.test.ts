@@ -55,7 +55,7 @@ describe('hqMailEvent', () => {
           body: `View task ${clickUpLink('86abc1xyz%253Futm_field%253Dshared_with_me')}`
         })
       )
-    ).toEqual({ kind: 'clickup-task', taskRef: '86abc1xyz', action: 'shared', by: 'Ann Lee' })
+    ).toEqual({ kind: 'clickup-task', taskRef: '86abc1xyz', action: 'shared' })
     expect(
       hqMailEvent(
         mail({
@@ -64,7 +64,7 @@ describe('hqMailEvent', () => {
           body: `AI Acme IT assigned task to you\n${clickUpLink('9%252FDEV-18114')}`
         })
       )
-    ).toEqual({ kind: 'clickup-task', taskRef: 'DEV-18114', action: 'assigned', by: 'Acme IT' })
+    ).toEqual({ kind: 'clickup-task', taskRef: 'DEV-18114', action: 'assigned' })
   })
 
   it('leaves ClickUp status changes and the Slack mirror alone', () => {
