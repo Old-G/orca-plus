@@ -11,6 +11,7 @@ import {
 } from '../../shared/hq-clickup-review'
 import {
   HQ_CLICKUP_REQUESTS_FILE,
+  HQ_MAIL_REQUESTS_FILE,
   HQ_SLACK_SCOUT_CONFIG_FILE,
   HQ_SLACK_SCOUT_DECISIONS_FILE,
   HQ_SLACK_SCOUT_DIR,
@@ -58,7 +59,7 @@ function scoutPath(hqPath: string, file: string): string {
 
 /** Every request in the scout's files and Orca+'s own, with the owner's corrections over them. */
 async function readScoutFiles(hqPath: string) {
-  const [config, drafts, decisions, status, edits, clickup, quiet, triage, reviews] =
+  const [config, drafts, decisions, status, edits, clickup, quiet, triage, reviews, mail] =
     await Promise.all([
       readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_CONFIG_FILE)),
       readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_DRAFTS_FILE)),
@@ -68,7 +69,8 @@ async function readScoutFiles(hqPath: string) {
       readOptional(scoutPath(hqPath, HQ_CLICKUP_REQUESTS_FILE)),
       readOptional(scoutPath(hqPath, HQ_SLACK_QUIET_FILE)),
       readOptional(scoutPath(hqPath, HQ_CLICKUP_TRIAGE_FILE)),
-      readOptional(scoutPath(hqPath, HQ_CLICKUP_REVIEWS_FILE))
+      readOptional(scoutPath(hqPath, HQ_CLICKUP_REVIEWS_FILE)),
+      readOptional(scoutPath(hqPath, HQ_MAIL_REQUESTS_FILE))
     ])
   const file = parseHqSlackScoutDrafts(drafts ?? '{}')
   // Custom build (hq-clickup-requests): comments on the owner's tasks sit beside the Slack requests.
@@ -79,11 +81,22 @@ async function readScoutFiles(hqPath: string) {
       draft
   )
   // Custom build (hq-clickup-triage): task changes the triage raised, written by Orca+ as well.
-  const clickupDrafts = [clickup, triage].flatMap((text) =>
+  const apiDrafts = [clickup, triage].flatMap((text) =>
     parseHqSlackScoutDrafts(text ?? '{}').drafts.flatMap((draft) =>
       draft.clickupTaskId ? [{ ...draft, source: 'clickup' as const }] : []
     )
   )
+  // Custom build (hq-mail-intake): emails add only what the ClickUp API collectors did not find.
+  const apiIds = new Set(apiDrafts.map((draft) => draft.id))
+  const apiTasks = new Set(apiDrafts.map((draft) => draft.clickupTaskId))
+  const mailDrafts = parseHqSlackScoutDrafts(mail ?? '{}').drafts.flatMap((draft) =>
+    draft.clickupTaskId &&
+    !apiIds.has(draft.id) &&
+    !(draft.id.startsWith('clickup-task:') && apiTasks.has(draft.clickupTaskId))
+      ? [{ ...draft, source: 'clickup' as const }]
+      : []
+  )
+  const clickupDrafts = [...apiDrafts, ...mailDrafts]
   return {
     quietItems: [...parseHqSlackQuiet(quiet ?? '{}'), ...parseHqSlackQuiet(triage ?? '{}')].sort(
       (a, b) => Date.parse(a.at) - Date.parse(b.at)
