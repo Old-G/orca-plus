@@ -25,7 +25,9 @@ export const SLACK_READER_SCOPES = [
   'channels:history',
   'groups:history',
   'users:read',
-  'reactions:read'
+  'reactions:read',
+  // Custom build (hq-slack-mentions): search.messages finds the messages that @mention the owner.
+  'search:read'
 ] as const
 
 export const SLACK_APP_MANIFEST = {
