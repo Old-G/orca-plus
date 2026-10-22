@@ -27,6 +27,8 @@ export type HqIntake = {
   permalink: string | null
   /** When it was said, ms. */
   at: number
+  /** Custom build (hq-slack-mentions): a message that @mentions the owner; absent = a 👾 mark. */
+  via?: 'mention'
   /** Orca+'s guess at the project, and what is being sent, in one line. */
   repoId: string | null
   project: string | null
@@ -47,7 +49,10 @@ export function hqIntakeVenueLabel(intake: Pick<HqIntake, 'venue' | 'author'>): 
 export function hqIntakeBellItem(intake: HqIntake): PulseBellInput {
   return {
     kind: HQ_INTAKE_KIND,
-    title: `To work: ${intake.author}`,
+    title:
+      intake.via === 'mention'
+        ? `To work: ${intake.author} mentioned you`
+        : `To work: ${intake.author}`,
     body: `${intake.summary}\n${intake.text.replace(/\s+/g, ' ').slice(0, 300)}`,
     urgency: 'urgent',
     refKind: 'slack-message',
@@ -96,6 +101,7 @@ export function readHqIntake(refId: string | null): HqIntake | null {
     files: strings(raw, 'files'),
     permalink: text(raw, 'permalink'),
     at: typeof at === 'number' ? at : 0,
+    ...(text(raw, 'via') === 'mention' ? { via: 'mention' as const } : {}),
     repoId: text(raw, 'repoId'),
     project: text(raw, 'project'),
     summary: text(raw, 'summary') ?? ''
