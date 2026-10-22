@@ -8,6 +8,8 @@ export type IntegrationCredentialService =
   | 'Workspace'
   // Custom build (chat-auto-effort): the OpenRouter key Jev picks a chat's effort with.
   | 'OpenRouter'
+  // Custom build (hq-mail-intake): the owner's Gmail OAuth client and refresh token.
+  | 'Gmail'
 
 export function credentialDecryptionMessage(service: IntegrationCredentialService): string {
   return `Could not decrypt saved ${service} credential. Approve Keychain access or reconnect ${service}.`

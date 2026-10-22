@@ -10,6 +10,7 @@ import {
 import { JiraIntegrationCard } from '../../integrations/task-trackers/jira-integration-card'
 import { ClickUpIntegrationCard } from '../../integrations/task-trackers/clickup-integration-card'
 import { SlackIntegrationCard } from '../../integrations/messaging/slack-integration-card'
+import { GmailIntegrationCard } from '../../integrations/messaging/gmail-integration-card'
 import { LinearIntegrationCard } from '../../integrations/task-trackers/linear-integration-card'
 import { IntegrationCardPresentationProvider } from '../../integrations/presentation/integration-card-presentation'
 import { useIntegrationProviderStatusRefresh } from '../../../hooks/use-integration-provider-status-refresh'
@@ -83,6 +84,9 @@ export function IntegrationsPane(): React.JSX.Element {
         >
           <ProviderRow>
             <SlackIntegrationCard />
+          </ProviderRow>
+          <ProviderRow>
+            <GmailIntegrationCard />
           </ProviderRow>
         </SettingsGroup>
       </div>
