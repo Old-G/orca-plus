@@ -355,7 +355,7 @@ export function HqPlusLog({
   return (
     <>
       <div
-        className="hqp-log"
+        className="hqp-log scrollbar-sleek"
         ref={log}
         onScroll={(event) => {
           const element = event.currentTarget

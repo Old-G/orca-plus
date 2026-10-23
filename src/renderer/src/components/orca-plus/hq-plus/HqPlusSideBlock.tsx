@@ -41,7 +41,7 @@ export function HqPlusSideBlock({
           {title}
         </button>
         <CollapsibleContent animation="height">
-          <div className="hqp-side-list">{children}</div>
+          <div className="hqp-side-list scrollbar-sleek">{children}</div>
         </CollapsibleContent>
       </div>
     </Collapsible>
