@@ -1032,6 +1032,18 @@
 .hqp-report-view .hqp-fh {
   margin-bottom: 10px;
 }
+/* the bell's other items, and the thread's own input */
+.hqp-card[data-type='bell'][data-open='true'] {
+  background:
+    linear-gradient(180deg, #171a2e, #10142a) padding-box,
+    var(--hqp-edge-report) border-box;
+}
+.hqp-card[data-type='bell'] .hqp-lab {
+  color: var(--hqp-violet);
+}
+.hqp-thread-input {
+  min-height: 48px;
+}
 /* motion */
 @media (prefers-reduced-motion: no-preference) {
   .hq-plus::before {
