@@ -22,6 +22,7 @@ import {
 import { HqPlusReportBody } from './HqPlusReportBody'
 import type { HqPlusLook } from '../../../../../shared/hq-plus-kinds'
 import { readHqSlackRequestRef } from '../../../../../shared/hq-slack-request-bell'
+import { hqSourceService } from '../../../../../shared/hq-source-link'
 import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 
@@ -91,6 +92,35 @@ const INBOX_ACTION_LABEL: Readonly<Record<string, string>> = {
   'intake-open': 'To work',
   'slack-answer': 'Reply',
   'slack-review': 'Investigate'
+}
+
+/** Custom build (hq-plus-ui-v5): the Slack thread, ClickUp task or mail an inbox card came from. */
+function hqPlusSourceLink(refId: string | null): { url: string; label: string } | null {
+  let parsed: unknown = null
+  try {
+    parsed = refId ? JSON.parse(refId) : null
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    return null
+  }
+  const raw: unknown = Reflect.get(parsed, 'link') ?? Reflect.get(parsed, 'permalink')
+  if (typeof raw !== 'string' || !/^https:\/\//.test(raw)) {
+    return null
+  }
+  const service = hqSourceService(raw)
+  const label =
+    service === 'slack'
+      ? translate('auto.hqPlus.source.slack', 'Open in Slack')
+      : service === 'clickup'
+        ? translate('auto.hqPlus.source.clickup', 'Open in ClickUp')
+        : service === 'gmail'
+          ? translate('auto.hqPlus.source.gmail', 'Open in Gmail')
+          : service === 'gitlab'
+            ? translate('auto.hqPlus.source.gitlab', 'Open in GitLab')
+            : translate('auto.hqPlus.source.other', 'Open external site')
+  return { url: raw, label }
 }
 
 function inboxActions(card: Card, look: HqPlusLook): { id: string; label: string }[] {
@@ -236,6 +266,7 @@ export function HqPlusCardView({
   const choices = card.report?.options.length ? card.report.options : hqPlusChoices(card.body)
   const reply = (value: string): void => run(() => replyOnHqPlusCard(card, value, hqPath))
   const canReply = card.type === 'move' && Boolean(card.address || card.sessionId)
+  const sourceLink = hqPlusSourceLink(card.inbox?.refId ?? null)
 
   return (
     <div
@@ -296,6 +327,15 @@ export function HqPlusCardView({
             ) : null}
           </>
         )}
+        {look.kind === 'inbox' && sourceLink ? (
+          <button
+            type="button"
+            className="hqp-link hqp-source"
+            onClick={() => void window.api.shell.openUrl(sourceLink.url)}
+          >
+            {sourceLink.label} ↗
+          </button>
+        ) : null}
         {card.done ? (
           <dl className="hqp-rep">
             <dt>{translate('auto.hqPlus.decided', 'decided')}</dt>
