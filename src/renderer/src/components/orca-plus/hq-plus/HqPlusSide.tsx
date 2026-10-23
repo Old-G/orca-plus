@@ -10,10 +10,13 @@ import { formatRelativeTime } from '@/components/activity/activity-thread-presen
 import type { HqChatGroup, HqChatItem } from '../hq/hq-chat-list'
 import { useHqChatTitle } from '../hq/HqChatAvatar'
 
-const SHORT = 30
+// Why: the column can be dragged wider; CSS clamps the text to two lines.
+const SHORT = 140
+// Why: the oldest few are the ones to chase; the whole list lives in Notes.
+const WE_WAIT_SHOWN = 6
 
 function short(text: string): string {
-  return text.length > SHORT ? `${text.slice(0, SHORT - 1)}…` : text
+  return text.length > SHORT ? `${text.slice(0, SHORT - 1)}\u2026` : text
 }
 
 function dotStyle(color: string): React.CSSProperties & Record<'--hqp-dot', string> {
@@ -56,7 +59,9 @@ function groupLabel(group: HqChatGroup): string {
 
 export type HqPlusTile = { letters: string; color: string | null }
 
-function tileStyle(color: string | null): (React.CSSProperties & Record<'--hqp-room', string>) | undefined {
+function tileStyle(
+  color: string | null
+): (React.CSSProperties & Record<'--hqp-room', string>) | undefined {
   return color ? { '--hqp-room': color } : undefined
 }
 
@@ -133,7 +138,7 @@ export function HqPlusSide({
       className="hqp-side"
       aria-label={translate('auto.hqPlus.side.label', 'Waiting on you and chats')}
     >
-      <div className="hqp-side-sec">
+      <div className="hqp-side-sec" data-list="waiting">
         <div className="hqp-hl hqp-side-h" data-tone="move">
           {translate('auto.hqPlus.side.waitingOnYou', 'waiting on you · {{count}}', {
             count: waiting.length
@@ -157,7 +162,7 @@ export function HqPlusSide({
               count: waitsOnThem.length
             })}
           </div>
-          {waitsOnThem.map((wait) => (
+          {waitsOnThem.slice(0, WE_WAIT_SHOWN).map((wait) => (
             <div key={wait.id} className="hqp-wf" title={wait.title}>
               <span>
                 {wait.who} · {wait.title}
@@ -165,6 +170,13 @@ export function HqPlusSide({
               <span className="ag">{formatRelativeTime(wait.at, now)}</span>
             </div>
           ))}
+          {waitsOnThem.length > WE_WAIT_SHOWN ? (
+            <p className="hqp-empty hqp-quiet">
+              {translate('auto.hqPlus.side.weWaitMore', '+{{count}} more in Notes', {
+                count: waitsOnThem.length - WE_WAIT_SHOWN
+              })}
+            </p>
+          ) : null}
         </div>
       ) : null}
       {fyi.length > 0 ? (

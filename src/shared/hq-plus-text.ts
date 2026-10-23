@@ -10,8 +10,9 @@ export type HqPlusSpan =
 
 export type HqPlusTextLine = { bullet: boolean; spans: HqPlusSpan[] }
 
-const INLINE = /\*\*([^*]+)\*\*|__([^_]+)__|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|(https?:\/\/\S+)/g
-const LIST_MARK = /^\s*(?:[-*•·]|\d+[.)])\s+/
+const INLINE =
+  /\*\*([^*]+)\*\*|__([^_]+)__|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|(https?:\/\/\S+)/g
+const LIST_MARK = /^\s*(?:[-*\u2022\u00b7]|\d+[.)])\s+/
 const HEADING = /^\s*#{1,6}\s+/
 const QUOTE = /^\s*>\s?/
 
@@ -55,7 +56,7 @@ export function hqPlusTextLines(markdown: string, maxLines = Infinity): HqPlusTe
     spans: hqPlusSpans(line.replace(LIST_MARK, '').trim())
   }))
   if (lines.length > shown.length && shown.length > 0) {
-    shown[shown.length - 1].spans.push({ kind: 'text', text: ' …' })
+    shown[shown.length - 1].spans.push({ kind: 'text', text: ' \u2026' })
   }
   return shown
 }

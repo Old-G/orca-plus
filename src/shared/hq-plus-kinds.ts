@@ -100,8 +100,9 @@ export function hqPlusLook(item: HqPlusLogItem): HqPlusLook {
     case 'reply':
       return look('move', moveIfOpen([{ label: 'REPLY', tone: 'report' }]))
     case 'move':
-    case 'wait':
       return look('move', item.open ? [MOVE] : [{ label: 'CHAT', tone: 'chat' }])
+    case 'wait':
+      return look('move', item.open ? [MOVE] : [{ label: 'NOTES', tone: 'bg' }])
     case 'bell':
       break
   }

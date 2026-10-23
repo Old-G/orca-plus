@@ -46,11 +46,7 @@ import { HqPlusLog, hqPlusThreadKey, hqPlusTileOf, type HqPlusLogContext } from 
 import { HqPlusSide, type HqPlusOtherWait, type HqPlusTile } from './HqPlusSide'
 import { HqPlusChatSession } from './HqPlusChatSession'
 import { markHqPlusDone } from './hq-plus-actions'
-import {
-  HQ_PLUS_PANEL,
-  readHqPlusPanelWidth,
-  saveHqPlusPanelWidth
-} from './hq-plus-panel-widths'
+import { HQ_PLUS_PANEL, readHqPlusPanelWidth, saveHqPlusPanelWidth } from './hq-plus-panel-widths'
 import { HqPlusRiver } from './HqPlusRiver'
 import { HqPlusGraph } from './HqPlusGraph'
 import { HqPlusSession, type HqPlusPick } from './HqPlusSession'
@@ -396,7 +392,9 @@ export function HqPlusScreen(): React.JSX.Element {
     },
     onChanged: data.reload,
     chatStatus,
-    projectColor
+    projectColor,
+    isOpenChat: (sessionId) =>
+      tab === 'session' && chatItem !== null && hqPlusChatOfSession([chatItem], sessionId) !== null
   }
   const pickKey = pick ? hqPlusThreadKey(pick) : null
   const chatItem = chatKey ? (chatItems.find((item) => item.key === chatKey) ?? null) : null
@@ -675,13 +673,12 @@ export function HqPlusScreen(): React.JSX.Element {
           <div className="hqp-pane" role="tabpanel">
             <div
               className="hqp-pv"
-              key={
-                tab === 'session' ? `session:${chatItem ? chatItem.key : (pickKey ?? '')}` : tab
-              }
+              key={tab === 'session' ? `session:${chatItem ? chatItem.key : (pickKey ?? '')}` : tab}
             >
               {tab === 'session' && chatItem ? (
                 <HqPlusChatSession
                   item={chatItem}
+                  status={statusOfGroup(chatItem.group)}
                   tile={tileOfChat(chatItem)}
                   color={colorFor(chatItem.repoId)}
                   siblings={chatItems.filter(
@@ -737,4 +734,17 @@ export function HqPlusScreen(): React.JSX.Element {
 
 function waitingCount(counts: Map<string, number>, room: string | null): number {
   return room ? (counts.get(room) ?? 0) : [...counts.values()].reduce((sum, n) => sum + n, 0)
+}
+
+function statusOfGroup(group: string): HqPlusBadge | null {
+  switch (group) {
+    case 'needs':
+      return { label: 'WAITS · YOU', tone: 'move' }
+    case 'working':
+      return { label: 'WORKING', tone: 'working' }
+    case 'done':
+      return { label: 'DONE', tone: 'done' }
+    default:
+      return null
+  }
 }

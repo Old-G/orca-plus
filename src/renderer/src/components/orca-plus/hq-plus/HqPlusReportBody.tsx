@@ -1,6 +1,7 @@
 // Custom build (hq-plus-ui): a report's card in HQ+'s log — its first rows read from the file, and the
 // moves that start work from it: an HQ chat on it, the proposals accepted, the Codex fixes run now.
 import { useState } from 'react'
+import { HqPlusText } from './HqPlusText'
 import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
 import { summarizeHqPlusReport } from '../../../../../shared/hq-plus-screen'
 import { translate } from '@/i18n/i18n'
@@ -42,7 +43,9 @@ export function HqPlusReportBody({
 
   return (
     <>
-      <p className="hqp-q">{summary?.title ?? card.title}</p>
+      <p className="hqp-q">
+        <HqPlusText text={summary?.title ?? card.title} maxLines={2} />
+      </p>
       {summary?.codex ? (
         <dl className="hqp-rep">
           <dt>P0/P1</dt>
