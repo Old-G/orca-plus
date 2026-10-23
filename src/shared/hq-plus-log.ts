@@ -283,7 +283,9 @@ export function hqPlusLog(
       if (item) {
         used.add(item.id)
       }
-      const open = ownerOpen && Boolean(item && !item.doneAt)
+      // Custom build (hq-plus-side-blocks): an agent's own draft has no bell card; the journal says it waits.
+      const agentDraft = !item && entry.refKind === 'draft' && entry.status === 'open'
+      const open = ownerOpen && (agentDraft || Boolean(item && !item.doneAt))
       items.push(
         card(entry, item, {
           type: 'approve',
