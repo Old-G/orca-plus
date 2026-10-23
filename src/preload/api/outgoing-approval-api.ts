@@ -15,4 +15,6 @@ export type OutgoingApprovalApi = {
   ) => Promise<void>
   /** Custom build (outgoing-footer): the footer and other choices the card offers. */
   options: (draftId: string) => Promise<OutgoingApprovalOptions>
+  /** Custom build (hq-plus-side-blocks): settles a draft an agent added by hand (no held call). */
+  settleAgentDraft: (draftId: string, outcome: 'approved' | 'rejected') => Promise<void>
 }
