@@ -12,7 +12,11 @@ import {
   type HqPlusCard,
   type HqPlusLogItem
 } from '../../../../../shared/hq-plus-log'
-import { hqPlusFoldChats, hqPlusWithLiveChats } from '../../../../../shared/hq-plus-fold'
+import {
+  hqPlusFoldChats,
+  hqPlusLiftActiveChats,
+  hqPlusWithLiveChats
+} from '../../../../../shared/hq-plus-fold'
 import {
   hqPlusInFeedFilter,
   hqPlusMatchesSearch,
@@ -277,11 +281,14 @@ export function HqPlusScreen(): React.JSX.Element {
   const [dismissVersion, setDismissVersion] = useState(0)
   const shown = useMemo(() => {
     const dismissed = readHqPlusDismissed()
-    return hqPlusFoldChats(
-      hqPlusWithLiveChats(
-        scope ? roomItems.filter((item) => hqPlusThreadKey(item) === scope) : roomItems,
-        liveChats
-      )
+    return hqPlusLiftActiveChats(
+      hqPlusFoldChats(
+        hqPlusWithLiveChats(
+          scope ? roomItems.filter((item) => hqPlusThreadKey(item) === scope) : roomItems,
+          liveChats
+        )
+      ),
+      liveChats
     ).filter(
       (item) =>
         item.kind !== 'line' ||
