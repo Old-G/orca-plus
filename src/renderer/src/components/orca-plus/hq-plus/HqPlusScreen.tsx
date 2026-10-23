@@ -1,6 +1,7 @@
 // Custom build (hq-plus-ui): HQ+ — the day's conversation with HQ in the middle (decisions as cards that
 // stay in place), what waits on the owner and the live chats on the left, Граф / Река / Сессия / a report
 // on the right, rooms above and Orca's composer below. Every button goes through the paths agents use.
+import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import {
@@ -55,6 +56,7 @@ import { HqPlusRiver } from './HqPlusRiver'
 import { HqPlusGraph } from './HqPlusGraph'
 import { HqPlusSession, type HqPlusPick } from './HqPlusSession'
 import { HqPlusAgents } from './HqPlusAgents'
+import { HqPlusTakePanel } from './HqPlusTakePanel'
 import {
   HQ_PLUS_VIEW_TABS,
   flushHqPlusViewState,
@@ -166,6 +168,7 @@ export function HqPlusScreen(): React.JSX.Element {
   const [wide, setWide] = useState(view.wide)
   // Custom build (hq-plus-ui-v3): the open chat folded to a bar under Graph / River, until «Expand».
   const [chatFolded, setChatFolded] = useState(view.chatFolded)
+  const [take, setTake] = useState<PulseInboxItem | null>(null)
   // Custom build (hq-plus-ui-v3): where a project picked in the River or Graph came from, for «← Back».
   const [pickedFrom, setPickedFrom] = useState<'river' | 'graph' | null>(view.pickedFrom)
   const [leftWidth, setLeftWidth] = useState(() => readHqPlusPanelWidth('left'))
@@ -401,6 +404,13 @@ export function HqPlusScreen(): React.JSX.Element {
     letters: hqPlusTileOf(slugOfRepo.get(item.repoId) ?? item.projectName),
     color: colorFor(item.repoId)
   })
+  const tileOfRepo = (repoName: string): HqPlusTile => {
+    const repoId = useAppStore.getState().repos.find((repo) => repo.displayName === repoName)?.id
+    return {
+      letters: hqPlusTileOf((repoId ? slugOfRepo.get(repoId) : undefined) ?? repoName),
+      color: repoId ? colorFor(repoId) : null
+    }
+  }
   const chatStatus = (sessionId: string | null): HqPlusBadge | null => {
     const chat = hqPlusChatOfSession(chatItems, sessionId)
     const waitingOn = sessionId
@@ -610,7 +620,14 @@ export function HqPlusScreen(): React.JSX.Element {
     isNew: (id) => newMarks.newIds.has(id),
     newKeys: [...newMarks.newIds].join('\n'),
     markSeen: newMarks.markSeen,
-    now
+    now,
+    openPane: (paneKey) =>
+      chatItems.some((entry) => entry.key === paneKey) ? () => showChat(paneKey) : null,
+    tileOfRepo,
+    toWork: (item) => {
+      setTake(item)
+      setChatFolded(false)
+    }
   }
   const sinceIds = shown.flatMap((item) => (newMarks.newIds.has(item.id) ? [item.id] : []))
   const stepSearch = (direction: 1 | -1): void => {
@@ -942,10 +959,11 @@ export function HqPlusScreen(): React.JSX.Element {
                   key={name}
                   type="button"
                   role="tab"
-                  aria-selected={tab === name}
+                  aria-selected={!take && tab === name}
                   className="hqp-tab"
                   onClick={() => {
                     setTab(name)
+                    setTake(null)
                     if (name === 'session') {
                       setChatFolded(false)
                     }
@@ -988,9 +1006,25 @@ export function HqPlusScreen(): React.JSX.Element {
           <div className="hqp-pane" role="tabpanel">
             <div
               className="hqp-pv"
-              key={tab === 'session' ? `session:${chatItem ? chatItem.key : (pickKey ?? '')}` : tab}
+              key={
+                take
+                  ? `take:${take.id}`
+                  : tab === 'session'
+                    ? `session:${chatItem ? chatItem.key : (pickKey ?? '')}`
+                    : tab
+              }
             >
-              {tab === 'session' && chatItem ? (
+              {take ? (
+                <HqPlusTakePanel
+                  item={take}
+                  onCancel={() => setTake(null)}
+                  onDone={(sessionId) => {
+                    setTake(null)
+                    data.reload()
+                    openChat(sessionId)?.()
+                  }}
+                />
+              ) : tab === 'session' && chatItem ? (
                 <HqPlusChatSession
                   item={chatItem}
                   status={statusOfGroup(chatItem.group)}
@@ -1022,6 +1056,8 @@ export function HqPlusScreen(): React.JSX.Element {
                   tileOf={tileOfChat}
                   now={now}
                   onOpen={(item) => showChat(item.key)}
+                  tileOfRepo={tileOfRepo}
+                  openPane={ctx.openPane}
                 />
               ) : tab === 'river' ? (
                 <HqPlusRiver
