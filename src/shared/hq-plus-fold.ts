@@ -35,3 +35,39 @@ export function hqPlusFoldChats(items: readonly HqPlusLogItem[]): HqPlusLogItem[
   })
   return folded
 }
+
+/** A chat open right now, as the chat list knows it — before the journal has any turn of it. */
+export type HqPlusLiveChat = {
+  sessionId: string
+  project: string | null
+  room: string
+  title: string
+  at: number
+}
+
+/**
+ * Custom build (hq-plus-ui-v3): a chat started a moment ago has its card at once — the journal writes
+ * its first row only after a finished turn. Once a row of that chat is in the feed, the live stand-in
+ * is not added and the journal's rows carry the card.
+ */
+export function hqPlusWithLiveChats(
+  items: readonly HqPlusLogItem[],
+  live: readonly HqPlusLiveChat[]
+): HqPlusLogItem[] {
+  const known = new Set(items.flatMap((item) => (item.sessionId ? [item.sessionId] : [])))
+  const added: HqPlusLogItem[] = live
+    .filter((chat) => !known.has(chat.sessionId))
+    .map((chat) => ({
+      kind: 'line',
+      id: `live:${chat.sessionId}`,
+      at: chat.at,
+      room: chat.room,
+      project: chat.project,
+      address: null,
+      sessionId: chat.sessionId,
+      tone: 'agent',
+      title: chat.title,
+      journalKind: null
+    }))
+  return added.length === 0 ? [...items] : [...items, ...added].sort((a, b) => a.at - b.at)
+}
