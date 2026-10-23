@@ -5,7 +5,7 @@ import { HQ_PLUS_REPLY_ACTION, type HqPlusCard } from '../../../../../shared/hq-
 import { HQ_FIX_NOW_DONE_PREFIX, hqFixNowSummary } from '../../../../../shared/hq-fix-now'
 import type { HqReport } from '../../../../../shared/hq-reports'
 import { translate } from '@/i18n/i18n'
-import { startHqReportDecisions } from '../hq/hq-ask-chat'
+import { startHqChatWithPrompt, startHqReportDecisions } from '../hq/hq-ask-chat'
 import { hqPlusCall } from './use-hq-plus-data'
 import { hqResultField } from './hq-plus-rpc-readers'
 
@@ -246,4 +246,43 @@ export function canFinishHqPlusCard(card: HqPlusCard): boolean {
 
 export function finishHqPlusCard(card: HqPlusCard): Promise<HqPlusResult> {
   return card.type === 'wait' ? closeHqPlusWait(card, 'resolved') : markHqPlusDone(card, 'done')
+}
+
+/** Custom build (hq-plus-side-blocks): an agent's own draft (no held call) — handed on or dropped. */
+export async function settleHqPlusAgentDraft(
+  card: HqPlusCard,
+  outcome: 'approved' | 'rejected'
+): Promise<HqPlusResult> {
+  const id = card.entry?.refKind === 'draft' ? card.entry.refId : null
+  if (!id) {
+    return { ok: false, message: 'This card has no draft.' }
+  }
+  try {
+    await window.api.outgoingApproval.settleAgentDraft(id, outcome)
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+/** An HQ chat sends the agent's draft as written; its send still stops at the owner's Approve. */
+export async function sendHqPlusAgentDraft(
+  card: HqPlusCard,
+  hqWorktreeId: string | null
+): Promise<HqPlusResult> {
+  if (!hqWorktreeId) {
+    return { ok: false, message: 'The HQ workspace is not open in Orca.' }
+  }
+  const where = card.title.replace(/^Approve:\s*/, '').replace(/^message → /, '')
+  const prompt = [
+    `Отправь это сообщение ровно как есть, ничего не меняя. Куда: ${where}.`,
+    'Отправка пройдёт через Approve — я подтвержу в карточке.',
+    '',
+    card.body ?? ''
+  ].join('\n')
+  const started = await startHqChatWithPrompt(hqWorktreeId, prompt, `Send · ${where}`.slice(0, 60))
+  if (!started.ok) {
+    return started
+  }
+  return settleHqPlusAgentDraft(card, 'approved')
 }
