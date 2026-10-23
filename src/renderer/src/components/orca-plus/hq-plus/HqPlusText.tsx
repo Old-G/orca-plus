@@ -1,5 +1,6 @@
 // Custom build (hq-plus-ui-v2): an agent's markdown shown as clean feed text (see hq-plus-text).
 import { hqPlusTextLines, type HqPlusSpan } from '../../../../../shared/hq-plus-text'
+import { useHqPlusSlackText } from './use-hq-plus-slack-text'
 
 function Span({ span }: { span: HqPlusSpan }): React.JSX.Element {
   switch (span.kind) {
@@ -25,7 +26,7 @@ export function HqPlusText({
   text: string
   maxLines?: number
 }): React.JSX.Element {
-  const lines = hqPlusTextLines(text, maxLines)
+  const lines = hqPlusTextLines(useHqPlusSlackText(text), maxLines)
   return (
     <span className="hqp-txt">
       {lines.map((line, index) => (

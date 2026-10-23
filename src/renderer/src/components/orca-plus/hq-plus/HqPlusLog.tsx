@@ -11,6 +11,10 @@ import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusGrow } from './HqPlusGrow'
+import { HQ_DEFERRED_KIND } from '../../../../../shared/hq-morning-briefing'
+import type { PulseInboxItem } from '../../../../../shared/pulse-types'
+import { HqPlusDeferredList, hqPlusDeferredTitle, useHqPlusDeferred } from './HqPlusDeferred'
+import type { HqPlusTile } from './HqPlusSide'
 import { ChatCard, FeedRow, NewMark, hqPlusClock as clock } from './HqPlusChatCard'
 import { observeHqPlusNewRows } from './use-hq-plus-new-marks'
 import { hqPlusDaysAgo, hqPlusSameDay } from '../../../../../shared/hq-plus-feed-days'
@@ -48,6 +52,11 @@ export type HqPlusLogContext = {
   newKeys: string
   markSeen: (id: string) => void
   now: number
+  /** Custom build (hq-plus-ui-v5): a chat by its pane in Session; null when HQ+ does not list it. */
+  openPane: (paneKey: string) => (() => void) | null
+  tileOfRepo: (repoName: string) => HqPlusTile
+  /** «To work» on a request: the picker on the right. */
+  toWork: (item: PulseInboxItem) => void
 }
 
 export function hqPlusThreadKey(item: {
@@ -86,6 +95,73 @@ export function hqPlusTileOf(project: string | null): string {
   return letters.toUpperCase()
 }
 
+/** Custom build (hq-plus-ui-v5): «N chats went quiet with unfinished work» — unfolds into the list. */
+function DeferredLine({
+  item,
+  look,
+  flash,
+  ctx
+}: {
+  item: Extract<HqPlusLogItem, { kind: 'card' }>
+  look: ReturnType<typeof hqPlusLook>
+  flash: boolean
+  ctx: HqPlusLogContext
+}): React.JSX.Element {
+  const { sessions, close } = useHqPlusDeferred()
+  const open = ctx.isExpanded(item.id) && sessions.length > 0
+  const toggle = (): void => ctx.setExpanded(item.id, !open)
+  return (
+    <div
+      className="hqp-bgl hqp-dfl"
+      id={`hqp-${item.id}`}
+      data-open={open ? 'true' : undefined}
+      data-flash={flash ? 'true' : undefined}
+      data-selected={ctx.selectedId === item.id ? 'true' : undefined}
+      data-new={ctx.isNew(item.id) ? 'true' : undefined}
+      onClickCapture={() => ctx.onSelect(item.id)}
+    >
+      <div className="hqp-dfl-row">
+        <span className="hqp-tm">{clock(item.at)}</span>
+        <HqPlusBadges badges={look.badges} />
+        <NewMark item={item} ctx={ctx} />
+        <span className="hqp-bgl-t">{hqPlusDeferredTitle(sessions.length)}</span>
+        {sessions.length > 0 && !open ? (
+          <button type="button" className="hqp-link" aria-expanded={false} onClick={toggle}>
+            {translate('auto.hqPlus.deferred.show', 'Show')}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="hqp-link"
+          data-ghost="true"
+          onClick={() => ctx.onNotNow(hqPlusNotNowKey(item))}
+        >
+          {translate('auto.hqPlus.deferred.hideToday', 'Hide today')}
+        </button>
+      </div>
+      <HqPlusGrow>
+        {open ? (
+          <div className="hqp-dfl-body">
+            <HqPlusDeferredList
+              sessions={sessions}
+              close={close}
+              now={ctx.now}
+              tileOf={ctx.tileOfRepo}
+              onOpen={ctx.openPane}
+            />
+            <div className="hqp-row-f">
+              <span className="hqp-spacer" />
+              <button type="button" className="hqp-pill" aria-expanded={true} onClick={toggle}>
+                {translate('auto.hqPlus.collapseCard', 'Collapse')}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </HqPlusGrow>
+    </div>
+  )
+}
+
 function LogItem({
   item,
   flash,
@@ -111,6 +187,9 @@ function LogItem({
       {hqPlusTileOf(item.project)}
     </span>
   )
+  if (look.kind === 'bg' && item.kind === 'card' && item.inbox?.kind === HQ_DEFERRED_KIND) {
+    return <DeferredLine item={item} look={look} flash={flash} ctx={ctx} />
+  }
   if (look.kind === 'bg') {
     const card = item.kind === 'card' ? item : null
     const bell = card?.open ? card.inbox : null
@@ -199,6 +278,7 @@ function LogItem({
             onChanged={ctx.onChanged}
             expanded={ctx.isExpanded(item.id)}
             onExpand={(next) => ctx.setExpanded(item.id, next)}
+            onToWork={ctx.toWork}
           />
         </HqPlusGrow>
       </div>
