@@ -5,6 +5,7 @@ import {
   PulseAddWaitingParams,
   PulseUpdateWaitingParams,
   PulseCloseWaitingParams,
+  PulseReopenWaitingParams,
   PulseEventsParams,
   PulseFeedParams,
   PulseInboxItemRef,
@@ -90,6 +91,14 @@ export const PULSE_METHODS = [
     params: PulseCloseWaitingParams,
     handler: async (params, { runtime }) =>
       runtime.pulseCloseWaiting(params.id, params.status, params.resolution)
+  }),
+  // Custom build (hq-plus-round6): the evening check's «Undo closes».
+  defineMethod({
+    name: 'pulse.reopenWaiting',
+
+    permission: 'workspace',
+    params: PulseReopenWaitingParams,
+    handler: async (params, { runtime }) => runtime.pulseReopenWaiting(params.id)
   }),
   defineMethod({
     name: 'pulse.listWaitings',
