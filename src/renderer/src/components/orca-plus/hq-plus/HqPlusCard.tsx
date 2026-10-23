@@ -3,15 +3,16 @@
 // two lines that say what was chosen, and opens again on a click.
 import { useState } from 'react'
 import { hqPlusChoices, type HqPlusCard as Card, type HqPlusDone } from '../../../../../shared/hq-plus-log'
-import { readHqWaitingReplyRef } from '../../../../../shared/hq-waiting-reply-bell'
 import { translate } from '@/i18n/i18n'
 import { OutgoingApprovalDecision } from '../outgoing-approval/OutgoingApprovalCard'
-import { runHqWaitingReplyAction } from '../pulse-bell/hq-waiting-reply-actions'
+import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
+import { PULSE_BELL_ACTION } from '../../../../../shared/pulse-bell'
 import {
   closeHqPlusWait,
   hqPlusReportOf,
   markHqPlusDone,
   replyOnHqPlusCard,
+  tellHqPlusDraftingAgent,
   type HqPlusResult
 } from './hq-plus-actions'
 import { HqPlusReportBody } from './HqPlusReportBody'
@@ -29,6 +30,14 @@ const DONE_ACTION: Record<string, [string, string]> = {
   edit: ['auto.hqPlus.done.edit', 'edited and sent']
 }
 
+const BELL_LABEL: Record<string, string> = {
+  'slack-request': 'Slack request',
+  'hq-intake': 'to work, from Slack',
+  'claude-chat-limit': 'Claude limit',
+  'claude-auth-stop': 'Claude sign-in',
+  handoff: 'handoff ready'
+}
+
 function clock(at: number | null): string {
   return at ? new Date(at).toTimeString().slice(0, 5) : ''
 }
@@ -41,6 +50,9 @@ export function hqPlusDoneLabel(done: HqPlusDone): string {
     })
   }
   if (done.by === 'status') {
+    if (done.status === 'not-now') {
+      return translate('auto.hqPlus.done.notNow', 'not now · back tomorrow')
+    }
     if (done.status === 'superseded') {
       return translate('auto.hqPlus.done.superseded', 'a newer report came')
     }
@@ -79,6 +91,11 @@ function labelOf(card: Card): string {
       })
     case 'move':
       return translate('auto.hqPlus.label.move', 'your word')
+    case 'bell':
+      return translate(
+        `auto.hqPlus.label.bell.${card.inbox?.kind ?? 'item'}`,
+        BELL_LABEL[card.inbox?.kind ?? ''] ?? 'from the bell'
+      )
   }
 }
 
@@ -89,6 +106,7 @@ export function HqPlusCardView({
   hqWorktreeId,
   onOpenChat,
   onOpenReport,
+  onNotNow,
   onChanged
 }: {
   card: Card
@@ -97,6 +115,7 @@ export function HqPlusCardView({
   hqWorktreeId: string | null
   onOpenChat: (() => void) | null
   onOpenReport: (path: string) => void
+  onNotNow: (() => void) | null
   onChanged: () => void
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false)
@@ -224,6 +243,19 @@ export function HqPlusCardView({
               <button type="button" className="hqp-opt" onClick={onOpenChat}>
                 {translate('auto.hqPlus.openChat', 'Open chat')}
               </button>
+            ) : card.inbox ? (
+              <button
+                type="button"
+                className="hqp-opt"
+                onClick={() => {
+                  const item = card.inbox
+                  if (item) {
+                    void runPulseBellAction(item, PULSE_BELL_ACTION.open)
+                  }
+                }}
+              >
+                {translate('auto.hqPlus.openChat', 'Open chat')}
+              </button>
             ) : null}
             {card.inbox ? (
               <button
@@ -259,30 +291,69 @@ export function HqPlusCardView({
             </button>
           </div>
         ) : null}
-        {open && card.type === 'reply' && card.inbox ? (
+        {open && (card.type === 'reply' || card.type === 'bell') && card.inbox ? (
           <div className="hqp-opts">
-            {card.inbox.actions.map((action, index) => {
-              const ref = readHqWaitingReplyRef(card.inbox?.refId ?? null)
-              return (
-                <button
-                  key={action.id}
-                  type="button"
-                  className="hqp-opt"
-                  data-main={index === 0 ? 'true' : undefined}
-                  disabled={busy || !ref}
-                  onClick={() =>
+            {card.inbox.actions.map((action, index) => (
+              <button
+                key={action.id}
+                type="button"
+                className="hqp-opt"
+                data-main={index === 0 ? 'true' : undefined}
+                disabled={busy}
+                onClick={() => {
+                  const item = card.inbox
+                  if (item) {
                     run(async () => {
-                      if (ref) {
-                        await runHqWaitingReplyAction(ref, action.id)
-                      }
+                      await runPulseBellAction(item, action.id)
                       return { ok: true }
                     })
                   }
-                >
-                  {action.label}
-                </button>
-              )
-            })}
+                }}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {open && card.type === 'approve' && card.inbox ? (
+          <form
+            className="hqp-reply"
+            onSubmit={(event) => {
+              event.preventDefault()
+              run(() => tellHqPlusDraftingAgent(card, text))
+            }}
+          >
+            <label className="hqp-sr" htmlFor={`hqp-t-${card.id}`}>
+              {translate('auto.hqPlus.tellAgent', 'Tell agent')}
+            </label>
+            <input
+              id={`hqp-t-${card.id}`}
+              value={text}
+              disabled={busy}
+              placeholder={translate(
+                'auto.hqPlus.tellAgentHint',
+                'Tell agent: make it shorter, add a deadline…'
+              )}
+              onChange={(event) => setText(event.target.value)}
+            />
+            <span className="hqp-to">→ {translate('auto.hqPlus.tellAgentTo', 'agent, not sent')}</span>
+            <button
+              type="submit"
+              className="hqp-go"
+              disabled={busy || !text.trim()}
+              aria-label={translate('auto.hqPlus.tellAgent', 'Tell agent')}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </button>
+          </form>
+        ) : null}
+        {open && onNotNow && (card.type === 'approve' || card.type === 'bell') ? (
+          <div className="hqp-opts">
+            <button type="button" className="hqp-opt" data-ghost="true" onClick={onNotNow}>
+              {translate('auto.hqPlus.notNow', 'Not now')}
+            </button>
           </div>
         ) : null}
         {open && canReply ? (

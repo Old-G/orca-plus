@@ -39,9 +39,19 @@ export async function markHqPlusDone(
   return OK
 }
 
-/** The owner's words into the card's chat: by its thread when it has one, else straight to it. */
-export async function replyOnHqPlusCard(
-  card: HqPlusCard,
+/** Where the owner's words go: a thread by its address, else a chat by its session. */
+export type HqPlusChatTarget = {
+  address: string | null
+  sessionId: string | null
+  /** The journal row being answered, quoted to the agent. */
+  replyTo: string | null
+  /** What the agent is reminded of when there is no thread to quote. */
+  about: string | null
+}
+
+/** The owner's words into a chat: by its thread when it has one, else straight to the chat. */
+export async function sendIntoHqPlusChat(
+  target: HqPlusChatTarget,
   text: string,
   hqPath: string | null
 ): Promise<HqPlusResult> {
@@ -49,43 +59,78 @@ export async function replyOnHqPlusCard(
   if (!words) {
     return OK
   }
-  if (card.address) {
+  if (target.address) {
     const sent = await hqPlusCall('chat.send', {
-      address: card.address,
+      address: target.address,
       text: words,
-      ...(card.entry ? { replyTo: card.entry.id } : {}),
+      ...(target.replyTo ? { replyTo: target.replyTo } : {}),
       ...(hqPath ? { callerCwd: hqPath } : {})
     })
-    if (!sent.ok) {
-      return sent
-    }
-    return markHqPlusDone(card, `${HQ_PLUS_REPLY_ACTION}${words.slice(0, REPLY_KEEP)}`, true)
+    return sent.ok ? OK : sent
   }
   const bell = window.api.pulseBell
-  if (!card.sessionId || !bell) {
+  if (!target.sessionId || !bell) {
     return {
       ok: false,
-      message: translate('auto.hqPlus.noChat', 'This card has no chat to answer; open it instead.')
+      message: translate('auto.hqPlus.noChat', 'This has no chat to answer; open it instead.')
     }
   }
   const prompt = [
-    `Orca+ · the owner answered your last turn from HQ+ («${card.title}»):`,
+    target.about
+      ? `Orca+ · the owner answered your last turn from HQ+ («${target.about}»):`
+      : 'Orca+ · the owner wrote to this chat from HQ+:',
     '"""',
     words,
     '"""'
   ].join('\n')
-  const taken = await bell.sendToChat(card.sessionId, prompt)
-  if (!taken.ok) {
-    return {
-      ok: false,
-      message: translate(
-        'auto.hqPlus.chatClosed',
-        'The chat is closed; open it from History and answer there.'
-      )
-    }
+  const taken = await bell.sendToChat(target.sessionId, prompt)
+  return taken.ok
+    ? OK
+    : {
+        ok: false,
+        message: translate(
+          'auto.hqPlus.chatClosed',
+          'The chat is closed; open it from History and answer there.'
+        )
+      }
+}
+
+/** A card's answer goes to its chat, then the bell item keeps the words for the folded card. */
+export async function replyOnHqPlusCard(
+  card: HqPlusCard,
+  text: string,
+  hqPath: string | null
+): Promise<HqPlusResult> {
+  const words = text.trim()
+  const sent = await sendIntoHqPlusChat(
+    {
+      address: card.address,
+      sessionId: card.sessionId,
+      replyTo: card.entry?.id ?? null,
+      about: card.title
+    },
+    words,
+    hqPath
+  )
+  if (!sent.ok || !words) {
+    return sent
   }
   // Why: the chat working again closes its finished turn by itself; the owner's words replace that.
   return markHqPlusDone(card, `${HQ_PLUS_REPLY_ACTION}${words.slice(0, REPLY_KEEP)}`, true)
+}
+
+/** «Tell agent» on a held message: not sent; the drafting chat gets the owner's words and drafts again. */
+export async function tellHqPlusDraftingAgent(
+  card: HqPlusCard,
+  text: string
+): Promise<HqPlusResult> {
+  const note = text.trim()
+  const draftId = card.inbox?.refId ?? null
+  if (!note || !draftId) {
+    return OK
+  }
+  await window.api.outgoingApproval.decide(draftId, 'rejected', undefined, { note })
+  return OK
 }
 
 /** A wait on the owner closes the same way `orca pulse wait done|drop` does. */
