@@ -54,6 +54,7 @@ import { HQ_PLUS_PANEL, readHqPlusPanelWidth, saveHqPlusPanelWidth } from './hq-
 import { HqPlusRiver } from './HqPlusRiver'
 import { HqPlusGraph } from './HqPlusGraph'
 import { HqPlusSession, type HqPlusPick } from './HqPlusSession'
+import { HqPlusAgents } from './HqPlusAgents'
 import {
   HQ_PLUS_VIEW_TABS,
   flushHqPlusViewState,
@@ -64,6 +65,11 @@ import {
 import { HqPlusReportView } from './HqPlusReportView'
 import { useHqPlusData } from './use-hq-plus-data'
 import { putOffHqPlusCard, readHqPlusNotNow } from './hq-plus-not-now'
+import {
+  dismissHqPlusChatCard,
+  hqPlusChatCardShown,
+  readHqPlusDismissed
+} from './hq-plus-dismissed'
 import { HqPlusThreadComposer } from './HqPlusThreadComposer'
 import { HqPlusFeedSearch } from './HqPlusFeedSearch'
 import { useHqPlusNewMarks } from './use-hq-plus-new-marks'
@@ -265,16 +271,22 @@ export function HqPlusScreen(): React.JSX.Element {
       ).filter((chat) => (!room || chat.room === room) && (!scope || chat.sessionId === scope)),
     [chatItems, dayStart, roomOfProject, room, scope]
   )
-  const shown = useMemo(
-    () =>
-      hqPlusFoldChats(
-        hqPlusWithLiveChats(
-          scope ? roomItems.filter((item) => hqPlusThreadKey(item) === scope) : roomItems,
-          liveChats
-        )
-      ),
-    [roomItems, scope, liveChats]
-  )
+  const [dismissVersion, setDismissVersion] = useState(0)
+  const shown = useMemo(() => {
+    const dismissed = readHqPlusDismissed()
+    return hqPlusFoldChats(
+      hqPlusWithLiveChats(
+        scope ? roomItems.filter((item) => hqPlusThreadKey(item) === scope) : roomItems,
+        liveChats
+      )
+    ).filter(
+      (item) =>
+        item.kind !== 'line' ||
+        item.tone !== 'agent' ||
+        hqPlusChatCardShown(dismissed, item.sessionId ?? item.address, item.at)
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomItems, scope, liveChats, dismissVersion])
   const names = useMemo(
     () => new Map(data.people.map((person) => [person.id, person.name])),
     [data.people]
@@ -571,9 +583,22 @@ export function HqPlusScreen(): React.JSX.Element {
     onNotNow: putOff,
     onChanged: data.reload,
     chatStatus,
-    closeChat: (sessionId) => {
+    closeChat: (sessionId, fallback) => {
       const listed = hqPlusChatOfSession(chatItems, sessionId)
-      return listed ? closerOf(listed) : null
+      if (listed) {
+        return closerOf(listed)
+      }
+      // Why: a chat whose tab is gone still gets ×; it dismisses the card, the journal keeps it.
+      return fallback
+        ? {
+            working: false,
+            dismiss: true,
+            close: () => {
+              dismissHqPlusChatCard(fallback.key, fallback.at, Date.now())
+              setDismissVersion((version) => version + 1)
+            }
+          }
+        : null
     },
     projectColor,
     isOpenChat: (sessionId) =>
@@ -907,7 +932,7 @@ export function HqPlusScreen(): React.JSX.Element {
         <aside
           className="hqp-ctx"
           ref={right.containerRef}
-          aria-label={translate('auto.hqPlus.panel', 'Graph, River, Session')}
+          aria-label={translate('auto.hqPlus.panel', 'Graph, River, Session, Agents')}
         >
           <div className="hqp-tabs" role="tablist">
             {tabs.map((name) => {
@@ -990,6 +1015,13 @@ export function HqPlusScreen(): React.JSX.Element {
                       lanes.find((lane) => lane.project === project)?.sessionId ?? null
                     )
                   }
+                />
+              ) : tab === 'agents' ? (
+                <HqPlusAgents
+                  items={chatItems}
+                  tileOf={tileOfChat}
+                  now={now}
+                  onOpen={(item) => showChat(item.key)}
                 />
               ) : tab === 'river' ? (
                 <HqPlusRiver
