@@ -1,16 +1,29 @@
 import { defineMethod } from '../core'
 import {
   ChatSendParams,
+  HqContextParams,
   HqEventsParams,
   HqReportParams,
   HqRouteParams,
   HqSettleParams,
+  HqStepParams,
   HqThreadParams,
-  HqWhoamiParams
+  HqWhereParams,
+  HqWhoamiParams,
+  HqWorkspaceAddParams
 } from '../../../../shared/rpc-contract/hq-journal-params'
 import { getHqThreads, type HqThreads } from '../../../hq-journal/hq-journal-threads'
 import { getHqJournalService, type HqJournalService } from '../../../hq-journal/hq-journal-service'
 import { getHqRouting } from '../../../hq-routing/hq-routing'
+import { getHqContext, type HqContextService } from '../../../hq-context/hq-context'
+
+function context(): HqContextService {
+  const provided = getHqContext()
+  if (!provided) {
+    throw new Error('HQ+ project cards are not available on this host.')
+  }
+  return provided
+}
 
 function journal(): HqJournalService {
   const service = getHqJournalService()
@@ -126,5 +139,43 @@ export const HQ_JOURNAL_METHODS = [
     params: HqSettleParams,
     handler: async ({ callerSessionId, callerWorktreeId, callerCwd, ...input }) =>
       threads().settle(callerOf({ callerSessionId, callerWorktreeId, callerCwd }), input)
+  }),
+  // Custom build (hq-plus-context): a project's card, a new chat's start, plan steps, the knowledge map, rooms.
+  defineMethod({
+    name: 'hq.context',
+
+    permission: 'workspace',
+    params: HqContextParams,
+    handler: async (params) =>
+      params.sessionStart
+        ? context().sessionStart(callerOf(params))
+        : context().context(callerOf(params), params.project)
+  }),
+  defineMethod({
+    name: 'hq.step',
+
+    permission: 'workspace',
+    params: HqStepParams,
+    handler: async (params) =>
+      context().step(callerOf(params), {
+        project: params.project,
+        id: params.id,
+        done: params.done
+      })
+  }),
+  defineMethod({
+    name: 'hq.where',
+
+    permission: 'workspace',
+    params: HqWhereParams,
+    handler: async (params) => context().where(params.question)
+  }),
+  defineMethod({
+    name: 'hq.workspaceAdd',
+
+    permission: 'workspace',
+    params: HqWorkspaceAddParams,
+    handler: async ({ callerSessionId: _s, callerWorktreeId: _w, callerCwd: _c, ...input }) =>
+      context().addRoom(input)
   })
 ]
