@@ -1,6 +1,7 @@
 // Custom build (pulse): the bell's items. An item with a dedupe key is raised once while it is
 // open, so a producer can re-announce the same thing on every tick without piling up copies.
 import type { SqliteRow } from '../../sqlite/sqlite-statement'
+import { HQ_PLUS_REPLY_ACTION } from '../../../shared/hq-plus-log'
 import type {
   PulseAddResult,
   PulseInboxAction,
@@ -106,6 +107,16 @@ function addInboxItemInTransaction(
   return { record: item, created: true }
 }
 
+/**
+ * Custom build (hq-plus-ui): the owner's own answer from HQ+ replaces the bell's automatic close; a
+ * finished turn closes itself as soon as its chat works again, which an answer makes it do.
+ */
+function replacesAutoClose(previous: string | null, action: string | undefined): boolean {
+  return (
+    (previous === INBOX_GONE_ACTION || previous === 'seen') && action?.startsWith(HQ_PLUS_REPLY_ACTION) === true
+  )
+}
+
 function update(core: PulseCore, id: string, change: 'read' | 'done', action?: string) {
   return core.transaction(() => updateInTransaction(core, id, change, action))
 }
@@ -128,9 +139,17 @@ function updateInTransaction(
           ...existing,
           readAt: existing.readAt ?? now,
           doneAt: existing.doneAt ?? now,
-          doneAction: existing.doneAt ? existing.doneAction : (action ?? null)
+          doneAction: existing.doneAt
+            ? replacesAutoClose(existing.doneAction, action)
+              ? (action ?? null)
+              : existing.doneAction
+            : (action ?? null)
         }
-  if (next.readAt === existing.readAt && next.doneAt === existing.doneAt) {
+  if (
+    next.readAt === existing.readAt &&
+    next.doneAt === existing.doneAt &&
+    next.doneAction === existing.doneAction
+  ) {
     return existing
   }
   core.db
