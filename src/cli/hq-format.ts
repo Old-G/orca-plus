@@ -31,12 +31,22 @@ function line(entry: HqJournalHeader, withRoom: boolean): string {
     .join(' ')
 }
 
-function preview(entry: HqJournalEntry): string | null {
+function preview(entry: HqJournalEntry, full: boolean): string | null {
   const body = entry.body?.replace(/\s+/g, ' ').trim()
-  if (!body || entry.title.includes(body.slice(0, 40))) {
+  // Why: a title cut at 140 characters still hides the rest, which a full read must show.
+  if (!body || (entry.title.includes(body.slice(0, 40)) && (!full || body.length <= 140))) {
     return null
   }
-  return `    ${body.length > BODY_PREVIEW ? `${body.slice(0, BODY_PREVIEW - 1)}…` : body}`
+  return `    ${!full && body.length > BODY_PREVIEW ? `${body.slice(0, BODY_PREVIEW - 1)}…` : body}`
+}
+
+// Custom build (hq-plus-ask): a short answer shows each row's whole text, so it needs no second read.
+const FULL_TEXT_UP_TO = 10
+
+// Custom build (hq-plus-ask): an answer cites the row's own sources.
+function sources(entry: HqJournalEntry): string | null {
+  const refs = entry.links.map((link) => link.url ?? `${link.kind}:${link.id ?? ''}`)
+  return refs.length > 0 ? `    ↳ ${refs.join(' · ')}` : null
 }
 
 export function formatHqEvents(result: HqEventsResult): string {
@@ -47,14 +57,17 @@ export function formatHqEvents(result: HqEventsResult): string {
       : [head, ...result.headers.map((entry) => line(entry, true))].join('\n')
   }
   const name = result.roomName ? ` (${result.roomName})` : ''
-  const head = `Room ${result.room}${name} — ${result.entries.length} event(s).`
+  const full = result.entries.length <= FULL_TEXT_UP_TO
+  const head = `Room ${result.room}${name} — ${result.entries.length} event(s)${full ? '' : '; text shortened, narrow with --query or --limit 10 for the whole text'}.`
   if (result.entries.length === 0) {
     return `${head}\nNo events.`
   }
   return [
     head,
     ...result.entries.flatMap((entry) =>
-      [line(entry, false), preview(entry)].filter((part): part is string => part !== null)
+      [line(entry, false), preview(entry, full), sources(entry)].filter(
+        (part): part is string => part !== null
+      )
     )
   ].join('\n')
 }
