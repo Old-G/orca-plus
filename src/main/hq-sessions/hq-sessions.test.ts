@@ -251,6 +251,10 @@ describe('HQ+ session dispatcher', () => {
     mode = 'on'
     await service.sweep({ run: true })
     expect(handoffs).toEqual(['h1'])
+    // The evening count of manual routing tells this start from a hand one by its row.
+    expect(rows(HQ_JOURNAL_KIND.sessionOpen).map((row) => row.dedupeKey)).toEqual([
+      'session.open:handoff:h1'
+    ])
   })
 
   it('reports work waiting on a thread no chat is on', async () => {
