@@ -3,7 +3,7 @@
 // and the writes HQ makes itself.
 import { useEffect, useState } from 'react'
 import type { PulseWaitingDirection } from '../../../../../shared/pulse-types'
-import { isWebClientLocation } from '@/lib/web-client-location'
+import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import { translate } from '@/i18n/i18n'
 import {
   findPersonByName,
@@ -127,6 +127,11 @@ export async function addHqWaiting(args: {
     typeof added === 'object' && added !== null && Reflect.get(added, 'duplicate') === true
   const title = duplicate ? Reflect.get(added, 'title') : null
   return { duplicateTitle: typeof title === 'string' ? title : null }
+}
+
+/** Custom build (hq-plus-round6): a waiting's detail — where HQ+ keeps its task, snooze and checks. */
+export async function updateHqWaitingDetail(id: string, detail: string | null): Promise<void> {
+  await writePulse('pulse.updateWaiting', { id, detail })
 }
 
 export async function closeHqWaiting(id: string, status: 'resolved' | 'cancelled'): Promise<void> {
