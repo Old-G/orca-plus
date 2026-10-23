@@ -1,7 +1,6 @@
 // Custom build (hq-plus-person-replies): carries out `person.reply` in HQ/routing.yaml. A person's
-// answer that is clear, complete and said where the question was asked goes to the chat that asked
-// (or, with that chat closed, to its thread through the dispatcher); anything else stays the owner's
-// card, now saying why. Each decision is a journal row, so it is made once and can be looked back on.
+// answer that is clear, complete, said by the person asked where the question was asked goes to the
+// live chat that asked; anything else — a closed chat included — stays the owner's card, saying why. Each decision is a journal row, so it is made once and can be looked back on.
 import {
   HQ_JOURNAL_MAX_LIMIT,
   hqJournalTitle,
@@ -16,6 +15,7 @@ import {
   hqReplyVerdictPrompt,
   hqReplyVerdictReasons,
   parseHqReplyVerdict,
+  type HqReplyAskedPerson,
   type HqReplyCardReason,
   type HqReplyRouteAction,
   type HqReplyRule
@@ -34,8 +34,6 @@ const UNREAD_TRIES = 3
 const UNREAD_RETRY_MS = 5 * 60_000
 const REF_KIND = 'waiting-reply'
 
-export type HqReplyDispatch = { acted: boolean; how: string; note: string | null }
-
 export type HqReplyRoutingDeps = {
   /** Every waiting on someone else, open or not. */
   listWaitings: () => PulseWaiting[]
@@ -47,11 +45,10 @@ export type HqReplyRoutingDeps = {
     replyTs: string,
     prompt: (waiting: PulseWaiting) => string
   ) => Promise<HqWaitingReplyPassResult>
-  markDelivered: (waitingId: string, replyTs: string) => void
   /** The asking chat's thread, if it has one. */
   address: (sessionId: string) => string | null
-  /** The dispatcher, for a thread whose chat is closed; null when there is none. */
-  dispatch: (address: string, prompt: string) => Promise<HqReplyDispatch | null>
+  /** The person asked, by their Slack / ClickUp user ids. */
+  asked: (personId: string) => HqReplyAskedPerson | null
   roomOf: (project: string | null) => Promise<string>
   personName: (personId: string) => string | null
   pulse: Pick<HqJournalPulse, 'list' | 'record'>
@@ -134,7 +131,11 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
     waiting: PulseWaiting,
     all: readonly PulseWaiting[]
   ): Promise<{ reasons: HqReplyCardReason[]; answered: string | null } | null> => {
-    const reasons = hqReplyPrechecks(waiting, all)
+    const reasons = hqReplyPrechecks(
+      waiting,
+      all,
+      waiting.personId ? deps.asked(waiting.personId) : null
+    )
     // Why: a card already for certain needs no model; the owner reads the answer anyway.
     if (reasons.length > 0) {
       return { reasons, answered: null }
@@ -200,16 +201,9 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
     if (passed.reason === 'gone') {
       return action(waiting, 'wait', { note: 'already handled by the owner' })
     }
-    const thread = waiting.agentSessionId ? deps.address(waiting.agentSessionId) : null
-    const dispatched = thread ? await deps.dispatch(thread, passPrompt(waiting)) : null
-    if (dispatched?.acted) {
-      deps.markDelivered(waiting.id, replyTs)
-      const done = action(waiting, 'dispatch', { address: thread, note: dispatched.how })
-      await record(waiting, done, `${who}'s answer handed to ${thread} (${dispatched.how})`, false)
-      return done
-    }
+    // Why: an unreviewed answer may only resume the live chat that asked, never start a new one.
     const reasons = [HQ_REPLY_CARD_REASON.chatClosed]
-    const note = [hqReplyCardNote(reasons, null), dispatched?.note].filter(Boolean).join(' ')
+    const note = hqReplyCardNote(reasons, null)
     notes.set(decidedKey(waiting), note)
     const card = action(waiting, 'card', { reasons, note })
     await record(
