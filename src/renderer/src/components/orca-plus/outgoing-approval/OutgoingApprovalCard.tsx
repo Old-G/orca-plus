@@ -31,7 +31,7 @@ export function splitOutgoingApprovalBody(body: string | null): { head: string; 
 
 /** The decision itself — what is held, its whole text, and Approve / Edit / Reject — shared by the
  *  bell's card and the toast that pops for it. */
-function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): React.JSX.Element {
+export function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): React.JSX.Element {
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)

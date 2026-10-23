@@ -4,6 +4,7 @@ import {
   HqContextParams,
   HqDispatchParams,
   HqEventsParams,
+  HqFeedParams,
   HqReportParams,
   HqRouteParams,
   HqSessionsParams,
@@ -14,11 +15,22 @@ import {
   HqWhoamiParams,
   HqWorkspaceAddParams
 } from '../../../../shared/rpc-contract/hq-journal-params'
+import { HQ_JOURNAL_MAX_LIMIT } from '../../../../shared/hq-journal'
+import {
+  HQ_FEED_DEFAULT_LIMIT,
+  HQ_PLUS_FEED_WINDOW_MS,
+  type HqPlusScreenStats
+} from '../../../../shared/hq-plus-screen'
+import { HQ_PLUS_WORK_KINDS, hqPlusLaneSlotMs } from '../../../../shared/hq-plus-river-graph'
+import { HQ_PLUS_CARD_KINDS } from '../../../../shared/hq-plus-log'
 import { getHqThreads, type HqThreads } from '../../../hq-journal/hq-journal-threads'
 import { getHqJournalService, type HqJournalService } from '../../../hq-journal/hq-journal-service'
 import { getHqRouting } from '../../../hq-routing/hq-routing'
+import { getHqPlusStats } from '../../../hq-plus-ui/hq-plus-screen-stats'
 import { getHqContext, type HqContextService } from '../../../hq-context/hq-context'
 import { getHqSessions, type HqSessionsService } from '../../../hq-sessions/hq-sessions'
+
+const DAY_MS = 24 * 60 * 60_000
 
 function context(): HqContextService {
   const provided = getHqContext()
@@ -202,6 +214,75 @@ export const HQ_JOURNAL_METHODS = [
         prompt: params.prompt,
         dryRun: params.dryRun
       })
+  }),
+  // Custom build (hq-plus-ui): the owner's screen — every room's rows with their threads' chats;
+  // not an agent's read, so nothing is journaled for it.
+  defineMethod({
+    name: 'hq.feed',
+
+    permission: 'workspace',
+    params: HqFeedParams,
+    handler: async (params, { runtime }) => {
+      const recent = runtime.pulseListJournal({
+        since: params.since,
+        limit: Math.min(params.limit ?? HQ_FEED_DEFAULT_LIMIT, HQ_JOURNAL_MAX_LIMIT)
+      })
+      // Why: what waits on the owner stays on his screen however old it is.
+      const yours = runtime.pulseListJournal({
+        needs: 'owner',
+        status: 'open',
+        limit: HQ_JOURNAL_MAX_LIMIT
+      })
+      // Why: a decision raised before the newest rows and settled since keeps its card in place.
+      const decided = runtime.pulseListJournal({
+        needs: 'owner',
+        since: params.since,
+        limit: HQ_JOURNAL_MAX_LIMIT
+      })
+      const seen = new Set(recent.map((entry) => entry.id))
+      const entries = [...recent]
+      for (const entry of [...yours, ...decided]) {
+        if (!seen.has(entry.id)) {
+          seen.add(entry.id)
+          entries.push(entry)
+        }
+      }
+      const addresses = [
+        ...new Set(entries.flatMap((entry) => (entry.address ? [entry.address] : [])))
+      ]
+      const open = runtime.pulseListInbox(false).filter((item) => HQ_PLUS_CARD_KINDS.has(item.kind))
+      const openIds = new Set(open.map((item) => item.id))
+      const settled = runtime
+        .pulseListInbox(true, params.since === undefined ? {} : { since: params.since })
+        .filter((item) => HQ_PLUS_CARD_KINDS.has(item.kind) && !openIds.has(item.id))
+      return {
+        entries,
+        sessions: addresses.flatMap((address) => runtime.pulseListSessionsByAddress(address)),
+        inbox: [...open, ...settled],
+        now: Date.now()
+      }
+    }
+  }),
+  // Custom build (hq-plus-ui): the screen's numbers the journal does not hold.
+  defineMethod({
+    name: 'hq.screenStats',
+
+    permission: 'workspace',
+    params: HqFeedParams,
+    handler: async (params, { runtime }): Promise<HqPlusScreenStats> => {
+      const stats = getHqPlusStats()
+      const now = Date.now()
+      const since = params.since ?? now - HQ_PLUS_FEED_WINDOW_MS
+      return {
+        ...(stats ? await stats.read() : { plan: null, manual: null }),
+        journalDay: runtime.pulseCountJournal(now - DAY_MS),
+        activity: runtime.pulseJournalActivity({
+          since,
+          slotMs: hqPlusLaneSlotMs(),
+          kinds: [...HQ_PLUS_WORK_KINDS]
+        })
+      }
+    }
   }),
   defineMethod({
     name: 'hq.sessions',
