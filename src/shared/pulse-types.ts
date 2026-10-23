@@ -59,6 +59,9 @@ export type PulseWaiting = {
   replyDeliveredAt: number | null
   /** Custom build (hq-reply-source-link): where the answer was said, when known. */
   replyLink?: string | null
+  /** Custom build (hq-plus-person-replies): the Slack / ClickUp user id that said the whole answer;
+   *  null when unknown or when several people's messages make it up. */
+  replyAuthorId?: string | null
 }
 
 export type PulseWaitingReply = {
@@ -66,6 +69,8 @@ export type PulseWaitingReply = {
   author: string | null
   ts: string
   link?: string | null
+  /** Custom build (hq-plus-person-replies): the one user id behind every message of the answer. */
+  authorId?: string | null
 }
 
 export type PulseWaitingInput = {
