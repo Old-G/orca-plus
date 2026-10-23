@@ -6,6 +6,7 @@ import type {
   HqJournalHeader,
   HqWhoami
 } from '../shared/hq-journal'
+import type { HqRouteActionKind, HqRouteResult } from '../shared/hq-routing'
 
 const BODY_PREVIEW = 160
 
@@ -84,5 +85,26 @@ export function formatHqThread(thread: HqThreadResult): string {
         ...(entry.body ? entry.body.split('\n').map((text) => `    ${text}`) : [])
       ]
     })
+  ].join('\n')
+}
+
+// Custom build (hq-plus-routing)
+const ROUTE_VERB: Readonly<Record<HqRouteActionKind, string>> = {
+  open: 'open a fixing chat',
+  continue: "hand to today's chat",
+  suggest: 'ask the owner (autonomy 0)',
+  wait: 'wait'
+}
+
+export function formatHqRoute(result: HqRouteResult): string {
+  const lines = result.actions.map((action) => {
+    const verb = result.dryRun ? `would ${ROUTE_VERB[action.kind]}` : ROUTE_VERB[action.kind]
+    const where = action.address ? ` → ${action.address}` : ''
+    const note = action.note ? ` (${action.note})` : ''
+    return `${action.project} [${action.workspace}] · ${action.findings.length} finding(s), level ${action.level ?? '?'}: ${verb}${where}${note}`
+  })
+  return [
+    ...(lines.length > 0 ? lines : ['Nothing to route now.']),
+    ...result.problems.map((problem) => `routing.yaml: ${problem}`)
   ].join('\n')
 }
