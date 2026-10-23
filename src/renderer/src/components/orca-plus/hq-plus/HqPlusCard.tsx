@@ -28,6 +28,7 @@ import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 import { HqPlusReplyField } from './HqPlusReplyField'
 import { HQ_FIX_NOW_DONE_PREFIX } from '../../../../../shared/hq-fix-now'
+import { useHqPlusDraftLink } from './use-hq-plus-draft-link'
 
 const DONE_ACTION: Record<string, [string, string]> = {
   open: ['auto.hqPlus.done.open', 'opened'],
@@ -117,10 +118,14 @@ function inboxSourceUrl(refId: string | null): string | null {
 
 /**
  * Custom build (hq-plus-ui-v5): the Slack thread, ClickUp task or mail a card came from — an inbox
- * item's own link, else the first link its journal row keeps (a waiting's source message).
+ * item's own link, its scout draft's message, else the first link its journal row keeps.
  */
-function hqPlusSourceLink(card: Card): { url: string; label: string } | null {
-  const raw = inboxSourceUrl(card.inbox?.refId ?? null) ?? card.entry?.links[0]?.url ?? null
+function hqPlusSourceLink(
+  card: Card,
+  draftUrl: string | null
+): { url: string; label: string } | null {
+  const raw =
+    inboxSourceUrl(card.inbox?.refId ?? null) ?? draftUrl ?? card.entry?.links[0]?.url ?? null
   if (!raw || !raw.startsWith('https://')) {
     return null
   }
@@ -214,7 +219,21 @@ export function HqPlusCardView({
   const open = card.open
   const reportPath = card.type === 'report' ? (hqPlusReportOf(card)?.path ?? null) : null
   const note = noteOf(card)
-  const sourceLink = hqPlusSourceLink(card)
+  const draftUrl = useHqPlusDraftLink(card.inbox?.refId ?? null)
+  const sourceLink = hqPlusSourceLink(card, draftUrl)
+  const sourceInActions =
+    open &&
+    (card.type === 'wait' || ((card.type === 'reply' || card.type === 'bell') && !!card.inbox))
+  const sourceButton = sourceLink ? (
+    <button
+      type="button"
+      className="hqp-opt"
+      data-ghost="true"
+      onClick={() => void window.api.shell.openUrl(sourceLink.url)}
+    >
+      {sourceLink.label} ↗
+    </button>
+  ) : null
   const head = (
     <div className="hqp-row-h">
       <HqPlusBadges badges={look.badges} />
@@ -227,8 +246,9 @@ export function HqPlusCardView({
         </button>
       ) : null}
       <span className="hqp-spacer" />
-      {/* Custom build (hq-plus-side-blocks): where the card came from sits top-right, on the head's line. */}
-      {sourceLink ? (
+      {/* Custom build (hq-plus-side-blocks): where the card came from — beside Done when the card has
+          that row, else top-right on the head's line. */}
+      {sourceLink && !sourceInActions ? (
         <button
           type="button"
           className="hqp-link hqp-source"
@@ -452,6 +472,7 @@ export function HqPlusCardView({
             >
               {translate('auto.hqPlus.waitDrop', 'Not needed')}
             </button>
+            {sourceButton}
           </div>
         ) : null}
         {open && (card.type === 'reply' || card.type === 'bell') && card.inbox ? (
@@ -494,6 +515,7 @@ export function HqPlusCardView({
                 {translate('auto.hqPlus.notNow', 'Not now')}
               </button>
             ) : null}
+            {sourceButton}
           </div>
         ) : null}
         {open && card.type === 'approve' && card.inbox ? (
