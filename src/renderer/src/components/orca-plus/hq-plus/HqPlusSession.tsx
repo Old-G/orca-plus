@@ -46,7 +46,8 @@ export function HqPlusSession({
   scoped,
   onScope,
   onOpenChat,
-  onDispatched
+  onDispatched,
+  onBack
 }: {
   pick: HqPlusPick | null
   live: HqLiveSession | null
@@ -56,6 +57,8 @@ export function HqPlusSession({
   onScope: () => void
   onOpenChat: (() => void) | null
   onDispatched: () => void
+  /** Custom build (hq-plus-ui-v3): back to the River or Graph this project was picked from. */
+  onBack: { label: string; go: () => void } | null
 }): React.JSX.Element {
   const [card, setCard] = useState<string[]>([])
   const [history, setHistory] = useState<HqJournalEntry[]>([])
@@ -128,6 +131,11 @@ export function HqPlusSession({
 
   return (
     <div className="hqp-sess">
+      {onBack ? (
+        <button type="button" className="hqp-pill hqp-back" onClick={onBack.go}>
+          ← {onBack.label}
+        </button>
+      ) : null}
       <div>
         <div className="hqp-mono">{address ?? project ?? ''}</div>
         <h2>{pick.name ?? project ?? address ?? '—'}</h2>
