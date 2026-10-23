@@ -19811,6 +19811,10 @@
         "off": "Off",
         "report": "Report only",
         "on": "On"
+      },
+      "journal": {
+        "settingTitle": "HQ+ journal",
+        "settingDescription": "Keeps one journal of what happened — waitings and answers, Approve, finished chats, Codex reviews — for agents to read with `orca hq events`. Off stops filling it; what is there stays."
       }
     },
     "claudeSubscriptions": {

@@ -27,3 +27,8 @@ export function runHqReportDecisionsOnDesktop(path: string, text: string): Run {
 export function runHqBellActionOnDesktop(itemId: string, actionId: string): Run {
   return sender?.('hqProjects:runBellAction', { itemId, actionId }) ? { ok: true } : NO_WINDOW
 }
+
+/** Custom build (hq-plus-reports): brings a closed native chat back, for `orca chat send`. */
+export function runHqReopenChatOnDesktop(sessionId: string, worktreeId: string): Run {
+  return sender?.('hqProjects:reopenChat', { sessionId, worktreeId }) ? { ok: true } : NO_WINDOW
+}

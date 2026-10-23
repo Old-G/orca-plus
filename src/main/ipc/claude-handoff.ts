@@ -26,6 +26,7 @@ import type {
 import { getRuntimePathBasename } from '../../shared/cross-platform-path'
 import { splitWorktreeId } from '../../shared/worktree/id'
 import { parsePaneKey } from '../../shared/stable-pane-id'
+import { getHqThreads } from '../hq-journal/hq-journal-threads'
 
 /** The tab the launch opened, so HQ can show the new chat in place; absent from older hosts. */
 function readLaunchedTabId(result: unknown): string | undefined {
@@ -202,6 +203,16 @@ export function registerClaudeHandoffHandlers(
         const tabId = readLaunchedTabId(response.result)
         moveWaitingsToSuccessor(pulseDb, resolved.offer, tabId)
         await closeHandedOffChat(runtime, resolved.offer, tabId)
+        // Custom build (hq-plus-reports): the new chat continues the old one's thread.
+        if (
+          resolved.offer.tabId?.startsWith(NATIVE_CHAT_TAB) &&
+          tabId?.startsWith(NATIVE_CHAT_TAB)
+        ) {
+          getHqThreads()?.handoff(
+            resolved.offer.tabId.slice(NATIVE_CHAT_TAB.length),
+            tabId.slice(NATIVE_CHAT_TAB.length)
+          )
+        }
         return { ok: true, worktreeId: resolved.offer.worktreeId, ...(tabId ? { tabId } : {}) }
       } finally {
         launching.delete(id)

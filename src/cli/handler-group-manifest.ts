@@ -56,7 +56,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
   {
     // Custom build (hq-plus-journal)
     name: 'hq',
-    keys: ['hq events', 'hq whoami'],
+    keys: ['hq events', 'hq report', 'hq thread', 'hq whoami', 'chat send'],
     load: async () => (await import('./handlers/hq.js')).HQ_HANDLERS
   },
   {

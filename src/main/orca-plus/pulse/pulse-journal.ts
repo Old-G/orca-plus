@@ -151,6 +151,21 @@ function insertInTransaction(core: PulseCore, input: HqJournalInput): HqJournalE
   return entry
 }
 
+// Custom build (hq-plus-reports): a row written before its chat had an address joins the thread.
+function addressInTransaction(
+  core: PulseCore,
+  entry: HqJournalEntry,
+  input: HqJournalInput
+): HqJournalEntry {
+  if (entry.address !== null || !input.address) {
+    return entry
+  }
+  const addressed = { ...entry, address: input.address }
+  core.db.prepare('UPDATE journal SET address = ? WHERE id = ?').run(input.address, entry.id)
+  core.emit('journal.addressed', 'journal', entry.id, addressed)
+  return addressed
+}
+
 // Why: a project placed in a room later takes its earlier rows along — but a guess (the default
 // room, no room) never pulls a row out of a real room, so a misread workspace file moves nothing.
 function placeInTransaction(
@@ -206,8 +221,9 @@ export function recordJournal(
         result.added += 1
         continue
       }
-      const placed = placeInTransaction(core, known, input)
-      if (placed !== known) {
+      const addressed = addressInTransaction(core, known, input)
+      const placed = placeInTransaction(core, addressed, input)
+      if (placed !== addressed) {
         result.moved += 1
       }
       if (settleInTransaction(core, placed, input.status ?? 'open') !== placed) {
@@ -262,6 +278,16 @@ export function listJournal(core: PulseCore, query: HqJournalQuery = {}): HqJour
     where.push('status = ?')
     args.push(query.status)
   }
+  for (const [column, value] of [
+    ['address', query.address],
+    ['session_id', query.sessionId],
+    ['source', query.source]
+  ] as const) {
+    if (value) {
+      where.push(`${column} = ?`)
+      args.push(value)
+    }
+  }
   if (query.kind) {
     const family = query.kind.endsWith('*') ? query.kind.slice(0, -1) : null
     if (family !== null) {
@@ -275,7 +301,9 @@ export function listJournal(core: PulseCore, query: HqJournalQuery = {}): HqJour
   const limit = Math.max(1, Math.min(query.limit ?? HQ_JOURNAL_DEFAULT_LIMIT, HQ_JOURNAL_MAX_LIMIT))
   const whereSql = where.length > 0 ? ` WHERE ${where.join(' AND ')}` : ''
   return core.db
-    .prepare(`SELECT * FROM journal${whereSql} ORDER BY at DESC, rowid DESC LIMIT ?`)
+    .prepare(
+      `SELECT * FROM journal${whereSql} ORDER BY ${query.oldestFirst ? 'at, rowid' : 'at DESC, rowid DESC'} LIMIT ?`
+    )
     .all(...args, limit)
     .map(toEntry)
 }
