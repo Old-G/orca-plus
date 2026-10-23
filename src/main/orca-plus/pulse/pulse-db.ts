@@ -38,7 +38,7 @@ import {
   type ListInboxOptions
 } from './pulse-inbox'
 import { getJournalEntry, listJournal, recordJournal } from './pulse-journal'
-import { getSession, noteSessions } from './pulse-sessions'
+import { getSession, listSessionsByAddress, noteSessions } from './pulse-sessions'
 import type { HqJournalInput, HqJournalQuery, HqSessionInput } from '../../../shared/hq-journal'
 import { getPerson, listPeople, upsertPerson } from './pulse-people'
 import {
@@ -198,6 +198,9 @@ export class PulseDb {
   }
   getSession(sessionId: string) {
     return getSession(this.core, sessionId)
+  }
+  listSessionsByAddress(address: string) {
+    return listSessionsByAddress(this.core, address)
   }
 
   close(): void {

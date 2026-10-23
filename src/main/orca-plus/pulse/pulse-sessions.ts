@@ -89,3 +89,11 @@ export function noteSessions(core: PulseCore, inputs: readonly HqSessionInput[])
     return changed
   })
 }
+
+/** Custom build (hq-plus-reports): the sessions that worked on one thread, latest activity first. */
+export function listSessionsByAddress(core: PulseCore, address: string): HqSession[] {
+  return core.db
+    .prepare('SELECT * FROM sessions WHERE address = ? ORDER BY last_activity_at DESC')
+    .all(address)
+    .map(toSession)
+}

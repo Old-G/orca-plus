@@ -14,6 +14,7 @@ let hq: string
 let db: PulseDb
 let service: HqJournalService
 let clock: number
+let journalOn: boolean
 
 const API_WORKTREE = 'r-api::/Users/me/wt/api'
 const KITE_WORKTREE = 'r-kite::/Users/me/Projects/kite'
@@ -127,7 +128,9 @@ beforeEach(async () => {
   db = new PulseDb(':memory:')
   seedPulse()
   clock = Date.now()
+  journalOn = true
   service = createHqJournalService({
+    enabled: () => journalOn,
     hqPath: () => hq,
     repos: () => [
       { id: 'r-api', path: '/Users/me/Projects/acme-api', displayName: 'Acme API' },
@@ -236,6 +239,38 @@ describe('HQ+ journal', () => {
     expect(db.listJournal({ workspaces: ['acme'], limit: 500 })).toHaveLength(before)
     const kite = await service.events({ sessionId: 'claude_kite' })
     expect(kite.scope === 'room' && kite.entries.every((e) => e.workspace === 'hobby')).toBe(true)
+  })
+
+  it('adds no second row for a turn the chat reported itself', async () => {
+    db.recordJournal([
+      {
+        workspace: 'hobby',
+        kind: 'chat.report',
+        at: Date.now(),
+        project: 'kite',
+        address: 'kite/kite-colours',
+        sessionId: 'claude_kite',
+        personId: null,
+        title: 'Palette in one file',
+        needs: 'nobody',
+        status: 'done',
+        replyTo: null,
+        refKind: 'session',
+        refId: 'claude_kite',
+        source: 'chat-report',
+        dedupeKey: 'chat-report:claude_kite:1'
+      }
+    ])
+    await service.sync()
+    expect(db.listJournal({ kind: 'chat.report' }).map((entry) => entry.source)).toEqual([
+      'chat-report'
+    ])
+  })
+
+  it('writes nothing while the owner has the journal off', async () => {
+    journalOn = false
+    expect(await service.sync()).toEqual({ added: 0, settled: 0, moved: 0 })
+    expect(db.listJournal()).toEqual([])
   })
 
   it('tells a chat where it works', async () => {

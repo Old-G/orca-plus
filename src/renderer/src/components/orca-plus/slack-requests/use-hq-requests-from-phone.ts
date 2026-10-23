@@ -1,6 +1,6 @@
 // Custom build (hq-mobile): what the paired phone presses runs here, the same as the bell's buttons —
 // Do / Just reply on a request, a bell item's button, decisions on a report — because that code lives
-// in this window.
+// in this window. So does bringing back a closed chat that `orca chat send` is writing to.
 import { useEffect } from 'react'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../../shared/outgoing-approval/outgoing-approval-bell'
 import { HQ_SLACK_REQUEST_ACTION } from '../../../../../shared/hq-slack-request-bell'
@@ -10,6 +10,7 @@ import { HQ_REPORT_FOLDERS } from '../../../../../shared/hq-reports'
 import { useAppStore } from '@/store'
 import { startHqReportDecisions } from '../hq/hq-ask-chat'
 import { findHqWorktreeId } from '../hq/hq-today-actions'
+import { openHqRouteChat } from '../pulse-bell/hq-route-send'
 
 const warn = (error: unknown): void =>
   console.warn('[hq-mobile] request from the phone failed:', error)
@@ -51,10 +52,15 @@ export function useHqRequestsFromPhone(): void {
     const offReport = window.api.hqProjects.onRunReportDecisions?.(({ path, text }) => {
       void runReportDecisions(path, text).catch(warn)
     })
+    // Custom build (hq-plus-reports)
+    const offReopen = window.api.hqProjects.onReopenChat?.((chat) => {
+      void openHqRouteChat(chat).catch(warn)
+    })
     return () => {
       offRequest?.()
       offBell?.()
       offReport?.()
+      offReopen?.()
     }
   }, [])
 }
