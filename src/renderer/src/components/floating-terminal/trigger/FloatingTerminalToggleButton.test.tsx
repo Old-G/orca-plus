@@ -38,11 +38,14 @@ it('shows clear of the comment box, follows a drag over it, and saves where it l
     const placed = button.closest<HTMLElement>('.fixed')
     return { left: placed?.style.left ?? '', top: placed?.style.top ?? '' }
   }
-  expect(spot()).toEqual({ left: '964px', top: '606px' })
+  // Custom build (hq-plus-ui-v3): the parked launcher sits 176 px up (above a chat composer), which
+  // already clears this comment box; upstream's 126 px default is pushed up to 606 px instead.
+  expect(spot()).toEqual({ left: '964px', top: '556px' })
 
   fireEvent.pointerDown(button, { button: 0, pointerId: 1, clientX: 980, clientY: 620 })
   fireEvent.pointerMove(button, { pointerId: 1, clientX: 980, clientY: 700 })
-  expect(spot()).toEqual({ left: '964px', top: '686px' })
+  // Custom build (hq-plus-ui-v3): the same 80 px drag from 556 px (upstream: 606 → 686 px).
+  expect(spot()).toEqual({ left: '964px', top: '636px' })
 
   fireEvent.pointerUp(button, { pointerId: 1, clientX: 980, clientY: 700 })
   expect(spot()).toEqual({ left: '964px', top: '606px' })
