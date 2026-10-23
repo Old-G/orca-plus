@@ -96,7 +96,7 @@ export function ChatCard({
             </CollapsibleContent>
           </Collapsible>
         ) : null}
-        {item.address || openChat ? (
+        {item.address || openChat || open ? (
           <div className="hqp-row-f">
             {key && item.address ? (
               <button type="button" className="hqp-addr" onClick={() => ctx.onScope(key)}>
@@ -104,6 +104,15 @@ export function ChatCard({
               </button>
             ) : null}
             <span className="hqp-spacer" />
+            {open ? (
+              <button
+                type="button"
+                className="hqp-pill"
+                onClick={() => ctx.setExpanded(item.id, false)}
+              >
+                {translate('auto.hqPlus.collapseCard', 'Collapse')}
+              </button>
+            ) : null}
             {openChat ? (
               <button type="button" className="hqp-pill" onClick={openChat}>
                 {translate('auto.hqPlus.open', 'Open')}
