@@ -289,7 +289,7 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
     const rows = deps.pulse
       .list({ kind: HQ_JOURNAL_KIND.reviewFinding, limit: HQ_JOURNAL_MAX_LIMIT })
       .filter((row) => row.refId === report)
-      .reverse()
+      .toReversed()
     const ids = new Set(rows.map((row) => row.id))
     const settled = new Map<string, string | null>()
     for (const row of deps.pulse.list({
