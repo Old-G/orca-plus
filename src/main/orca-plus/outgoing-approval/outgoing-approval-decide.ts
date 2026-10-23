@@ -52,6 +52,17 @@ export function outgoingApprovalOptions(
   }
 }
 
+/** Custom build (hq-plus-ui): «Tell agent» on a held message — not sent, the owner's words instead. */
+export function outgoingNoteReason(note: string): string {
+  return [
+    'The user has not sent this yet. They tell you:',
+    '"""',
+    note,
+    '"""',
+    'Change the message as they ask and send it again; it will be held for their approval again.'
+  ].join('\n')
+}
+
 /** Returns the draft as decided and the outcome the gate recorded. */
 export function decideOutgoingCall(
   deps: OutgoingDecideDeps,
@@ -91,7 +102,12 @@ export function decideOutgoingCall(
     {
       footer,
       threadTs,
-      denyReason: move && movedText !== null ? outgoingMoveReason(move, movedText) : null
+      denyReason:
+        move && movedText !== null
+          ? outgoingMoveReason(move, movedText)
+          : recorded === 'rejected' && choice.note
+            ? outgoingNoteReason(choice.note)
+            : null
     }
   )
   const agentSessionId = draft?.call?.agentSessionId

@@ -3,7 +3,10 @@
 // bell's open decisions (Approve, people's answers, new reports) folded in where they arrived.
 import { HQ_JOURNAL_KIND, type HqJournalEntry } from './hq-journal'
 import type { PulseInboxItem } from './pulse-types'
-import { PULSE_BELL_KIND } from './pulse-bell'
+import { PULSE_BELL_KIND, readPulseBellSessionId } from './pulse-bell'
+import { readHqFinishedChat } from './hq-chat-history'
+import { HQ_SLACK_REQUEST_BELL_KIND } from './hq-slack-request-bell'
+import { HQ_INTAKE_KIND } from './hq-slack-intake'
 import { OUTGOING_APPROVAL_BELL_KIND } from './outgoing-approval/outgoing-approval-bell'
 import { HQ_WAITING_REPLY_KIND } from './hq-waiting-reply-bell'
 import { HQ_REPORT_BELL_KIND } from './hq-reports'
@@ -15,7 +18,8 @@ export const HQ_PLUS_ANY_ROOM = '_all'
 /** What the owner answered by hand on a card, kept in the bell's done action. */
 export const HQ_PLUS_REPLY_ACTION = 'reply:'
 
-export type HqPlusCardType = 'move' | 'approve' | 'reply' | 'wait' | 'report'
+/** `bell`: any other bell item the feed shows instead of a popup, with the item's own buttons. */
+export type HqPlusCardType = 'move' | 'approve' | 'reply' | 'wait' | 'report' | 'bell'
 
 /** How a card was settled: the owner's own words, a button, or the row closing elsewhere. */
 export type HqPlusDone =
@@ -60,8 +64,45 @@ export const HQ_PLUS_CARD_KINDS: ReadonlySet<string> = new Set([
   PULSE_BELL_KIND.agentFinished,
   OUTGOING_APPROVAL_BELL_KIND,
   HQ_WAITING_REPLY_KIND,
-  HQ_REPORT_BELL_KIND
+  HQ_REPORT_BELL_KIND,
+  // Custom build (hq-plus-ui): what used to pop up on the right lands in the feed instead.
+  PULSE_BELL_KIND.claudeChatLimit,
+  PULSE_BELL_KIND.claudeAuthStop,
+  PULSE_BELL_KIND.handoff,
+  HQ_SLACK_REQUEST_BELL_KIND,
+  HQ_INTAKE_KIND
 ])
+
+/** The chat and project a bell item names, so its card sits in its room and can be answered. */
+function whereOfItem(item: PulseInboxItem): Where {
+  const finished = readHqFinishedChat(item)
+  if (finished) {
+    return {
+      room: HQ_PLUS_ANY_ROOM,
+      project: finished.place?.split(' / ')[0]?.trim() || null,
+      address: null,
+      sessionId: finished.sessionId
+    }
+  }
+  return { ...NOWHERE, project: refProject(item.refId), sessionId: readPulseBellSessionId(item.refId) }
+}
+
+/** A bell ref's own `project`, when the producer wrote one (a person's answer, a 👾 intake). */
+function refProject(refId: string | null): string | null {
+  try {
+    const parsed: unknown = refId ? JSON.parse(refId) : null
+    const project: unknown =
+      parsed && typeof parsed === 'object' ? Reflect.get(parsed, 'project') : null
+    return typeof project === 'string' && project ? project : null
+  } catch {
+    return null
+  }
+}
+
+/** What «Not now» is kept under: the bell item when there is one, as a journal row may replace the card. */
+export function hqPlusNotNowKey(card: HqPlusCard): string {
+  return card.inbox ? `inbox:${card.inbox.id}` : card.id
+}
 
 const SILENT_KINDS: ReadonlySet<string> = new Set([
   HQ_JOURNAL_KIND.approveResult,
@@ -284,23 +325,32 @@ export function hqPlusLog(
     if (item.kind === PULSE_BELL_KIND.agentFinished) {
       // Why: the journal skips a short turn («Понял, делаю»); the bell is then its only record.
       if (!hqPlusAsksOwner(item.body)) {
-        if (item.createdAt >= since) {
+        // Why: with popups off, an unread finish from before the day is still the owner's to see.
+        if (item.createdAt >= since || item.doneAt === null) {
           items.push({
             kind: 'line',
             id: `inbox:${item.id}`,
             at: item.createdAt,
-            ...NOWHERE,
+            ...whereOfItem(item),
             tone: 'agent',
             title: item.body ?? item.title
           })
         }
         continue
       }
+      const place = whereOfItem(item)
       items.push(
-        card(null, item, { type: 'move', title: item.title, body: item.body, open: !done, done })
+        card(null, item, {
+          type: 'move',
+          title: item.title,
+          body: item.body,
+          open: !done,
+          done,
+          ...place
+        })
       )
       if (done?.by === 'reply') {
-        items.push({ kind: 'me', id: `${item.id}:reply`, at: done.at, ...NOWHERE, text: done.text })
+        items.push({ kind: 'me', id: `${item.id}:reply`, at: done.at, ...place, text: done.text })
       }
       continue
     }
@@ -309,9 +359,13 @@ export function hqPlusLog(
         ? 'approve'
         : item.kind === HQ_REPORT_BELL_KIND
           ? 'report'
-          : 'reply'
+          : item.kind === HQ_WAITING_REPLY_KIND
+            ? 'reply'
+            : 'bell'
     const title = type === 'report' ? (item.body ?? item.title) : item.title
-    items.push(card(null, item, { type, title, body: item.body, open: !done, done }))
+    items.push(
+      card(null, item, { type, title, body: item.body, open: !done, done, ...whereOfItem(item) })
+    )
   }
   return items.sort((a, b) => a.at - b.at)
 }
