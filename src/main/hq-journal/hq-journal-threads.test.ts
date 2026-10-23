@@ -206,4 +206,36 @@ describe('HQ+ threads: settling a handed row', () => {
         .settled
     ).toBe(false)
   })
+
+  it('closes a minor finding «Fix now» handed to a chat, though its source noted it done', async () => {
+    db.recordJournal([
+      {
+        workspace: 'acme',
+        kind: 'review.finding',
+        project: 'acme-api',
+        address: 'acme-api/codex-fix-2026-10-24',
+        sessionId: null,
+        personId: null,
+        title: '[P2] Log line repeats the amount',
+        needs: 'nobody',
+        status: 'done',
+        replyTo: null,
+        refKind: 'file',
+        refId: 'updates/codex-review-2026-10-24T18-50.md',
+        source: 'codex-review',
+        dedupeKey: 'review.finding:x:2'
+      }
+    ])
+    const [finding] = db.listJournal({ kind: 'review.finding' })
+    const settled = await threads.settle(
+      { sessionId: 'claude_api' },
+      { id: finding.id, status: 'dropped', why: 'Intended: the amount is logged twice on purpose' }
+    )
+    expect(settled.settled).toBe(true)
+    expect(db.listJournal({ kind: 'entry.settled' })).toMatchObject([{ replyTo: finding.id }])
+    expect(
+      (await threads.settle({ sessionId: 'claude_api' }, { id: finding.id, status: 'done' }))
+        .settled
+    ).toBe(false)
+  })
 })
