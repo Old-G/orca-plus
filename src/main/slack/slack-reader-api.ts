@@ -15,10 +15,11 @@ export type SlackReaderCache = {
   dms: Map<string, string>
   dmsAt: number
   names: Map<string, string>
+  bots: Map<string, boolean>
 }
 
 export function createSlackReaderCache(): SlackReaderCache {
-  return { dms: new Map(), dmsAt: 0, names: new Map() }
+  return { dms: new Map(), dmsAt: 0, names: new Map(), bots: new Map() }
 }
 
 function asString(value: unknown): string | null {
@@ -83,7 +84,7 @@ export function createSlackReadApi(
   owner: string,
   cache: SlackReaderCache,
   now: () => number = Date.now
-): SlackReadApi {
+): SlackReadApi & { isBot: (userId: string) => Promise<boolean> } {
   return {
     owner,
     history: async (channel, oldest) =>
@@ -130,6 +131,21 @@ export function createSlackReadApi(
       }
       cache.names.set(userId, name)
       return name
+    },
+    isBot: async (userId) => {
+      const known = cache.bots.get(userId)
+      if (known !== undefined) {
+        return known
+      }
+      try {
+        const user = asSlackRecord((await slackRequest(token, 'users.info', { user: userId })).user)
+        const bot = user.is_bot === true || asString(user.id) === 'USLACKBOT'
+        cache.bots.set(userId, bot)
+        return bot
+      } catch (error) {
+        console.warn(`[slack-reader] checking ${userId} failed:`, error)
+        return false
+      }
     },
     permalink: async (channel, ts) =>
       asString(
@@ -179,7 +195,8 @@ const MENTION_PAGE = 50
 export function createSlackIntakeApi(
   token: string,
   owner: string,
-  name: (userId: string) => Promise<string>
+  name: (userId: string) => Promise<string>,
+  isBot: (userId: string) => Promise<boolean> = async () => false
 ): HqIntakeReadApi {
   return {
     marked: async () => {
@@ -256,6 +273,10 @@ export function createSlackIntakeApi(
         const at = Math.round(Number(ts) * 1000)
         // Why: bots and the owner's own messages (his agents post as him) are not requests to him.
         if (!channel || !ts || !user || user === owner || at < since) {
+          continue
+        }
+        // Why: apps (alert bots) post under a bot user, so a missing `user` alone does not catch them.
+        if (match.bot_id || match.subtype === 'bot_message' || (await isBot(user))) {
           continue
         }
         const raw = asString(match.text) ?? ''
