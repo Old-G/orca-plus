@@ -4,6 +4,7 @@ import type { PulseInboxItem } from './pulse-types'
 import { hqPlusGraph, hqPlusLanes } from './hq-plus-river-graph'
 import { hqPlusAsksOwner, hqPlusChoices, hqPlusLog, hqPlusWaiting } from './hq-plus-log'
 import { parseHqPlusReport, summarizeHqPlusReport } from './hq-plus-screen'
+import { hqPlusFoldChats } from './hq-plus-fold'
 
 const NOW = Date.UTC(2026, 9, 23, 12)
 const HOUR = 60 * 60_000
@@ -421,5 +422,38 @@ describe('bell items in the feed', () => {
       open: true,
       title: 'A chat hit its limit'
     })
+  })
+})
+
+describe('hqPlusFoldChats', () => {
+  it('shows one row per chat with its earlier turns, and leaves the journal rows as they were', () => {
+    const turns = [
+      row({ sessionId: 's1', at: NOW - 3 * HOUR, title: 'Took it' }),
+      row({ sessionId: 's2', at: NOW - 2.5 * HOUR, title: 'Other chat' }),
+      row({ sessionId: 's1', at: NOW - 2 * HOUR, title: 'Did X' }),
+      row({ sessionId: 's1', at: NOW - HOUR, title: 'All done' })
+    ]
+    const approve = row({
+      kind: 'approve.request',
+      needs: 'owner:approve',
+      status: 'open',
+      at: NOW - 1.5 * HOUR
+    })
+    const journal = [...turns, approve]
+    const before = JSON.stringify(journal)
+    const feed = hqPlusFoldChats(hqPlusLog(journal, [], NOW - 12 * HOUR))
+    expect(JSON.stringify(journal)).toBe(before)
+    const s1 = feed.filter((item) => item.sessionId === 's1')
+    expect(s1).toHaveLength(1)
+    expect(s1[0]).toMatchObject({ kind: 'line', title: 'All done', at: NOW - HOUR })
+    expect(s1[0].kind === 'line' ? s1[0].earlier?.map((turn) => turn.title) : null).toEqual([
+      'Took it',
+      'Did X'
+    ])
+    expect(feed.map((item) => (item.kind === 'card' ? item.type : item.title))).toEqual([
+      'Other chat',
+      'approve',
+      'All done'
+    ])
   })
 })
