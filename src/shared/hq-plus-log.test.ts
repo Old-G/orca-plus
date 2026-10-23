@@ -4,7 +4,7 @@ import type { PulseInboxItem } from './pulse-types'
 import { hqPlusGraph, hqPlusLanes } from './hq-plus-river-graph'
 import { hqPlusAsksOwner, hqPlusChoices, hqPlusLog, hqPlusWaiting } from './hq-plus-log'
 import { parseHqPlusReport, summarizeHqPlusReport } from './hq-plus-screen'
-import { hqPlusFoldChats, hqPlusWithLiveChats } from './hq-plus-fold'
+import { hqPlusFoldChats, hqPlusLiftActiveChats, hqPlusWithLiveChats } from './hq-plus-fold'
 import {
   hqPlusInFeedFilter,
   hqPlusMatchesSearch,
@@ -470,7 +470,8 @@ describe('hqPlusWithLiveChats', () => {
     project: 'kite',
     room: 'acme',
     title: 'New chat',
-    at: NOW - 10_000
+    at: NOW - 10_000,
+    activeAt: null
   }
 
   it('gives a just-started chat its card before the journal has a row of it', () => {
@@ -489,6 +490,18 @@ describe('hqPlusWithLiveChats', () => {
     const feed = hqPlusFoldChats(hqPlusWithLiveChats(hqPlusLog([turn], [], NOW - HOUR), [live]))
     expect(feed.filter((item) => item.sessionId === 's9')).toHaveLength(1)
     expect(feed[0]).toMatchObject({ id: turn.id, title: 'Took it' })
+  })
+
+  it('moves a chat that starts working again below what came after its last turn', () => {
+    const turn = row({ id: 'old', sessionId: 's9', at: NOW - 2 * HOUR, title: 'Took it' })
+    const later = row({ id: 'later', sessionId: 's1', at: NOW - HOUR, title: 'Other chat' })
+    const restarted = { ...live, activeAt: NOW - 1_000 }
+    const log = hqPlusLog([turn, later], [], NOW - 3 * HOUR)
+    const feed = hqPlusLiftActiveChats(hqPlusFoldChats(hqPlusWithLiveChats(log, [restarted])), [
+      restarted
+    ])
+    expect(feed.map((item) => item.id)).toEqual([later.id, turn.id])
+    expect(feed[1]).toMatchObject({ at: NOW - 1_000, title: 'Took it' })
   })
 })
 
