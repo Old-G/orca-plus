@@ -131,6 +131,26 @@ describe('journal', () => {
     expect(titles({ workspaces: [] })).toEqual([])
   })
 
+  it('counts rows and gives one work row per project and slot', () => {
+    const db = openDb()
+    db.recordJournal([
+      input({ at: 10, kind: 'chat.report', dedupeKey: 'r1', sessionId: 's0' }),
+      input({ at: 40, kind: 'chat.report', dedupeKey: 'r2', sessionId: 's1' }),
+      input({ at: 130, kind: 'chat.report', dedupeKey: 'r3' }),
+      input({ at: 140, dedupeKey: 'w2' })
+    ])
+    expect(db.countJournal(100)).toBe(2)
+    const activity = db
+      .journalActivity({ since: 0, slotMs: 100, kinds: ['chat.report'] })
+      .map((row) => `${row.project}@${row.at}`)
+      .sort()
+    expect(activity).toEqual(['acme-api@130', 'acme-api@40'])
+    expect(
+      db.journalActivity({ since: 0, slotMs: 100, kinds: ['chat.report'] }).find((row) => row.at === 40)
+        ?.sessionId
+    ).toBe('s1')
+  })
+
   it('keeps one session row, moved only by newer sightings', () => {
     const db = openDb()
     const sighting = {
