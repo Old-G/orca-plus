@@ -38,10 +38,10 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
     path: ['pulse', 'wait', 'update'],
     summary: 'Change an open waiting: its text, detail or due date',
     usage:
-      'orca pulse wait update <id> [--title <text>] [--detail <text>] [--due <date|none>] [--json]',
+      'orca pulse wait update <id> [--title <text>] [--detail <text|none>] [--due <date|none>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'id', 'title', 'detail', 'due'],
     positionalArgs: ['id'],
-    notes: ['--due none clears the due date.']
+    notes: ['--due none clears the due date; --detail none clears the detail.']
   },
   {
     path: ['pulse', 'wait', 'resolve'],

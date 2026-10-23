@@ -2487,3 +2487,100 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Custom build (hq-plus-round6): a we-wait line opens into its actions; Tracked and snoozed stay quiet. */
+.hqp-qmeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hqp-qmeta button.hqp-chip {
+  cursor: pointer;
+}
+.hqp-qcheck {
+  font-size: 12px;
+  color: var(--hqp-faint);
+}
+.hqp-qform {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.hqp-qform input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--hqp-line);
+  background: var(--hqp-bg);
+  color: var(--hqp-fg);
+  font: inherit;
+  font-size: 12.5px;
+}
+.hqp-qform input:focus {
+  outline: none;
+  border-color: var(--hqp-line-2);
+}
+.hqp-qcard[data-open='true'] {
+  border-radius: 10px;
+  background: var(--hqp-soft);
+}
+.hqp-qcard[data-open='true'] .hqp-qmore {
+  padding: 2px 8px 8px;
+}
+.hqp-snoozed {
+  display: grid;
+  gap: 2px;
+  opacity: 0.6;
+}
+.hqp-pv[hidden] {
+  display: none;
+}
+
+/* Custom build (hq-plus-round6): the Browser tab — an address row over one page. */
+.hqp-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+.hqp-browser-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hqp-browser-bar input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--hqp-line);
+  background: var(--hqp-bg);
+  color: var(--hqp-fg);
+  font-family: var(--hqp-mono);
+  font-size: 12px;
+}
+.hqp-browser-bar input:focus {
+  outline: none;
+  border-color: var(--hqp-line-2);
+}
+.hqp-browser-bar .hqp-link {
+  font-size: 16px;
+  line-height: 1;
+}
+.hqp-browser-host {
+  flex: 1;
+  min-height: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--hqp-line);
+}
+.hqp-browser-page {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}

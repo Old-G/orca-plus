@@ -26,6 +26,8 @@ export type HqPlusLogContext = {
   hqWorktreeId: string | null
   roomColor: (room: string) => string | null
   openChat: (sessionId: string | null) => (() => void) | null
+  /** Custom build (hq-plus-round6): a link opens in HQ+'s Browser tab. */
+  openLink: (url: string) => void
   onScope: (key: string) => void
   onOpenReport: (path: string) => void
   onNotNow: (id: string) => void
@@ -273,6 +275,7 @@ function LogItem({
             threadLabel={key && item.address ? item.address : null}
             onThread={key ? () => ctx.onScope(key) : null}
             onOpenChat={openChat}
+            onOpenLink={ctx.openLink}
             onOpenReport={ctx.onOpenReport}
             onNotNow={item.open ? () => ctx.onNotNow(hqPlusNotNowKey(item)) : null}
             onChanged={ctx.onChanged}

@@ -12,17 +12,29 @@ export function HqPlusSideBlock({
   id,
   title,
   tone,
+  startFolded = false,
   children
 }: {
   id: HqPlusSideBlockId
   title: string
   tone?: 'move'
+  /** Custom build (hq-plus-round6): folded until the owner opens it (Tracked). */
+  startFolded?: boolean
   children: React.ReactNode
 }): React.JSX.Element {
-  const [open, setOpenState] = useState(() => !readHqPlusViewState().foldedSides.includes(id))
+  const [open, setOpenState] = useState(() => {
+    const view = readHqPlusViewState()
+    return startFolded ? view.openedSides.includes(id) : !view.foldedSides.includes(id)
+  })
   const setOpen = (next: boolean): void => {
     setOpenState(next)
-    const folded = readHqPlusViewState().foldedSides.filter((side) => side !== id)
+    const view = readHqPlusViewState()
+    if (startFolded) {
+      const opened = view.openedSides.filter((side) => side !== id)
+      saveHqPlusViewState({ openedSides: next ? [...opened, id] : opened })
+      return
+    }
+    const folded = view.foldedSides.filter((side) => side !== id)
     saveHqPlusViewState({ foldedSides: next ? folded : [...folded, id] })
   }
   return (
@@ -36,7 +48,7 @@ export function HqPlusSideBlock({
           onClick={() => setOpen(!open)}
         >
           <span className="hqp-caret" data-open={open} aria-hidden="true">
-            {'▸'}
+            ▸
           </span>
           {title}
         </button>

@@ -129,6 +129,11 @@ export async function addHqWaiting(args: {
   return { duplicateTitle: typeof title === 'string' ? title : null }
 }
 
+/** Custom build (hq-plus-round6): a waiting's detail — where HQ+ keeps its task, snooze and checks. */
+export async function updateHqWaitingDetail(id: string, detail: string | null): Promise<void> {
+  await writePulse('pulse.updateWaiting', { id, detail })
+}
+
 export async function closeHqWaiting(id: string, status: 'resolved' | 'cancelled'): Promise<void> {
   await writePulse('pulse.closeWaiting', { id, status })
 }

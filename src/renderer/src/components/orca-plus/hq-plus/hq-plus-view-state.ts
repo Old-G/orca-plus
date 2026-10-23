@@ -6,9 +6,16 @@ import type { HqPlusPick } from './HqPlusSession'
 const KEY = 'orca-plus.hq-plus-view'
 const MAX_EXPANDED = 200
 
-export const HQ_PLUS_VIEW_TABS = ['graph', 'river', 'session', 'report', 'agents'] as const
+export const HQ_PLUS_VIEW_TABS = [
+  'graph',
+  'river',
+  'session',
+  'report',
+  'agents',
+  'browser'
+] as const
 export type HqPlusViewTab = (typeof HQ_PLUS_VIEW_TABS)[number]
-export const HQ_PLUS_SIDE_BLOCKS = ['waiting', 'weWait', 'chats'] as const
+export const HQ_PLUS_SIDE_BLOCKS = ['waiting', 'weWait', 'tracked', 'chats'] as const
 export type HqPlusSideBlockId = (typeof HQ_PLUS_SIDE_BLOCKS)[number]
 
 export type HqPlusViewState = {
@@ -20,10 +27,14 @@ export type HqPlusViewState = {
   pickedFrom: 'river' | 'graph' | null
   pick: HqPlusPick | null
   reportPath: string | null
+  /** Custom build (hq-plus-round6): the page the Browser tab was on. */
+  browserUrl: string | null
   expanded: string[]
   showIdle: boolean
   /** Left-column blocks the owner folded. */
   foldedSides: HqPlusSideBlockId[]
+  /** Custom build (hq-plus-round6): blocks that start folded and the owner opened. */
+  openedSides: HqPlusSideBlockId[]
   /** Pixels between the feed's bottom edge and the end of the log; null = following the bottom. */
   fromBottom: number | null
 }
@@ -37,9 +48,11 @@ const INITIAL: HqPlusViewState = {
   pickedFrom: null,
   pick: null,
   reportPath: null,
+  browserUrl: null,
   expanded: [],
   showIdle: false,
   foldedSides: [],
+  openedSides: [],
   fromBottom: null
 }
 
@@ -71,6 +84,7 @@ export function parseHqPlusViewState(raw: unknown): HqPlusViewState {
   const fromBottom = get('fromBottom')
   const expanded = get('expanded')
   const foldedSides = get('foldedSides')
+  const openedSides = get('openedSides')
   return {
     scope: text(get('scope')),
     tab,
@@ -80,12 +94,16 @@ export function parseHqPlusViewState(raw: unknown): HqPlusViewState {
     pickedFrom: pickedFrom === 'river' || pickedFrom === 'graph' ? pickedFrom : null,
     pick: readPick(get('pick')),
     reportPath: text(get('reportPath')),
+    browserUrl: text(get('browserUrl')),
     expanded: Array.isArray(expanded)
       ? expanded.filter((id): id is string => typeof id === 'string').slice(-MAX_EXPANDED)
       : [],
     showIdle: get('showIdle') === true,
     foldedSides: Array.isArray(foldedSides)
       ? HQ_PLUS_SIDE_BLOCKS.filter((id) => foldedSides.includes(id))
+      : [],
+    openedSides: Array.isArray(openedSides)
+      ? HQ_PLUS_SIDE_BLOCKS.filter((id) => openedSides.includes(id))
       : [],
     fromBottom:
       typeof fromBottom === 'number' && Number.isFinite(fromBottom) && fromBottom > 0

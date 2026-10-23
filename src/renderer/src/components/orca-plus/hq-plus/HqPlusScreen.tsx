@@ -60,6 +60,8 @@ import { HqPlusRiver } from './HqPlusRiver'
 import { HqPlusGraph } from './HqPlusGraph'
 import { HqPlusSession, type HqPlusPick } from './HqPlusSession'
 import { HqPlusAgents } from './HqPlusAgents'
+import { HqPlusBrowser } from './HqPlusBrowser'
+import { readHqWaitingTags } from '../../../../../shared/hq-waiting-tags'
 import { HqPlusTakePanel } from './HqPlusTakePanel'
 import {
   HQ_PLUS_VIEW_TABS,
@@ -106,7 +108,8 @@ const TAB_LABEL: Record<Tab, [string, string]> = {
   river: ['auto.hqPlus.tab.river', 'River'],
   session: ['auto.hqPlus.tab.session', 'Session'],
   report: ['auto.hqPlus.tab.reports', 'Reports'],
-  agents: ['auto.hqPlus.tab.agents', 'Agents']
+  agents: ['auto.hqPlus.tab.agents', 'Agents'],
+  browser: ['auto.hqPlus.tab.browser', 'Browser']
 }
 
 function roomStyle(
@@ -178,6 +181,8 @@ export function HqPlusScreen(): React.JSX.Element {
   const [leftWidth, setLeftWidth] = useState(() => readHqPlusPanelWidth('left'))
   const [rightWidth, setRightWidth] = useState(() => readHqPlusPanelWidth('right'))
   const [reportPath, setReportPath] = useState<string | null>(view.reportPath)
+  // Custom build (hq-plus-round6): the page asked of the Browser tab; it stays mounted once opened.
+  const [browserUrl, setBrowserUrl] = useState<string | null>(view.browserUrl)
   // Custom build (hq-plus-ui): the chat open on the right — picked on the left, «Open» in the log, or a
   // chat started from HQ (the sidebar's new chat asks HQ to show it, as the classic HQ does).
   const [chatKey, setChatKey] = useState<string | null>(requestedChat ?? view.chatKey)
@@ -380,16 +385,23 @@ export function HqPlusScreen(): React.JSX.Element {
             (!room || (wait.project && roomOfProject.get(wait.project) === room))
         )
         .sort((a, b) => a.createdAt - b.createdAt)
-        .map((wait) => ({
-          id: wait.id,
-          who: (wait.personId ? names.get(wait.personId) : null) ?? null,
-          title: wait.title,
-          detail: wait.detail,
-          link: wait.sourceRef,
-          project: wait.project,
-          at: wait.createdAt,
-          sessionId: wait.agentSessionId ?? null
-        })),
+        .map((wait) => {
+          const tags = readHqWaitingTags(wait.detail)
+          return {
+            id: wait.id,
+            who: (wait.personId ? names.get(wait.personId) : null) ?? null,
+            title: wait.title,
+            detail: tags.text,
+            rawDetail: wait.detail,
+            task: tags.task,
+            snoozedUntil: tags.snoozedUntil,
+            checked: tags.checked,
+            link: wait.sourceRef,
+            project: wait.project,
+            at: wait.createdAt,
+            sessionId: wait.agentSessionId ?? null
+          }
+        }),
     [data.waits, room, roomOfProject, names]
   )
   const slugOfRepo = useMemo(
@@ -558,6 +570,10 @@ export function HqPlusScreen(): React.JSX.Element {
     setScope(null)
     goToFeedItem(card.id, card)
   }
+  const openLink = (url: string): void => {
+    setBrowserUrl(url)
+    setTab('browser')
+  }
   const openReport = (path: string): void => {
     setReportPath(path)
     setTab('report')
@@ -584,6 +600,7 @@ export function HqPlusScreen(): React.JSX.Element {
     hqWorktreeId,
     roomColor,
     openChat,
+    openLink,
     onScope: (key) => {
       setScope(key)
       const item = all.findLast((candidate) => hqPlusThreadKey(candidate) === key)
@@ -841,7 +858,8 @@ export function HqPlusScreen(): React.JSX.Element {
               onJump: jump,
               openChat,
               onNotNow: (card) => putOff(hqPlusNotNowKey(card)),
-              onChanged: data.reload
+              onChanged: data.reload,
+              openLink
             }}
             onPickChat={(item) => showChat(item.key)}
             onClearFyi={clearFyi}
@@ -1015,7 +1033,17 @@ export function HqPlusScreen(): React.JSX.Element {
             </button>
           </div>
           <div className="hqp-pane" role="tabpanel">
+            {browserUrl !== null || tab === 'browser' ? (
+              <div className="hqp-pv" hidden={tab !== 'browser' || Boolean(take)}>
+                <HqPlusBrowser
+                  url={browserUrl}
+                  onOpen={setBrowserUrl}
+                  onUrl={(url) => saveHqPlusViewState({ browserUrl: url })}
+                />
+              </div>
+            ) : null}
             <div
+              hidden={tab === 'browser' && !take}
               className="hqp-pv"
               key={
                 take
@@ -1090,7 +1118,7 @@ export function HqPlusScreen(): React.JSX.Element {
                   onDispatched={data.reload}
                   onBack={backFromPick}
                 />
-              ) : (
+              ) : tab === 'browser' ? null : (
                 <HqPlusReportView path={reportPath} onPick={setReportPath} />
               )}
             </div>

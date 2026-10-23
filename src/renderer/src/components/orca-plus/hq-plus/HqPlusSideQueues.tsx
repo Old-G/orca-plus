@@ -5,8 +5,9 @@
 // Custom build (hq-plus-ui-v4): the whole text, formatted, with the actions under it; sections fold smoothly.
 import { useState } from 'react'
 import { HqPlusSideBlock } from './HqPlusSideBlock'
+import { hqPlusWaitGroups } from './hq-plus-wait-groups'
+import { HqPlusWeWaitCard } from './HqPlusWeWaitCard'
 import { translate } from '@/i18n/i18n'
-import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
 import { hqPlusLook } from '../../../../../shared/hq-plus-kinds'
@@ -14,9 +15,6 @@ import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 import { HqPlusThreadComposer } from './HqPlusThreadComposer'
 import { canFinishHqPlusCard, finishHqPlusCard } from './hq-plus-actions'
-import { closeHqWaiting } from '../hq/use-hq-pulse'
-import { startHqChatWithPrompt } from '../hq/hq-ask-chat'
-import { hqReminderPrompt } from '../hq/hq-today'
 
 export type HqPlusOtherWait = {
   id: string
@@ -30,6 +28,11 @@ export type HqPlusOtherWait = {
   at: number
   /** The chat that asked, when there is one. */
   sessionId: string | null
+  /** Custom build (hq-plus-round6): the tags HQ+ keeps in the detail; `detail` is the rest. */
+  rawDetail: string | null
+  task: string | null
+  snoozedUntil: number | null
+  checked: string | null
 }
 
 export type HqPlusQueueActions = {
@@ -40,6 +43,8 @@ export type HqPlusQueueActions = {
   openChat: (sessionId: string | null) => (() => void) | null
   onNotNow: (card: HqPlusCard) => void
   onChanged: () => void
+  /** Custom build (hq-plus-round6): a link opens in HQ+'s Browser tab. */
+  openLink: (url: string) => void
 }
 
 function waitingText(card: HqPlusCard): string {
@@ -157,92 +162,6 @@ export function HqPlusWaitingQueue({
   )
 }
 
-function WeWaitCard({
-  wait,
-  actions
-}: {
-  wait: HqPlusOtherWait
-  actions: HqPlusQueueActions
-}): React.JSX.Element {
-  const [open, setOpen] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const chat = actions.openChat(wait.sessionId)
-  const hasMore = Boolean(wait.detail || wait.link || wait.project)
-  const nudge = (): void => {
-    if (!actions.hqWorktreeId) {
-      return
-    }
-    setError(null)
-    // Why: an HQ chat writes the reminder; it reaches the person only through Approve.
-    void startHqChatWithPrompt(
-      actions.hqWorktreeId,
-      hqReminderPrompt(wait.who, wait.title),
-      translate('auto.hqPlus.queue.nudgeChat', 'Nudge · {{who}}', { who: wait.who ?? 'HQ' })
-    ).then((result) => setError(result.ok ? null : result.message))
-  }
-  const close = (): void => {
-    setError(null)
-    closeHqWaiting(wait.id, 'resolved')
-      .then(actions.onChanged)
-      .catch((reason: unknown) => setError(String(reason)))
-  }
-  const head = (
-    <>
-      <span className="hqp-qtext">
-        <HqPlusText text={`**${wait.who ?? '—'}** · ${wait.title}`} />
-      </span>
-      <span className="ag">{formatRelativeTime(wait.at, actions.now)}</span>
-    </>
-  )
-  return (
-    <div className="hqp-qcard" data-kind="wait">
-      {chat || hasMore ? (
-        <button
-          type="button"
-          className="hqp-wf"
-          aria-expanded={chat ? undefined : open}
-          onClick={() => (chat ? chat() : setOpen(!open))}
-        >
-          {head}
-        </button>
-      ) : (
-        <div className="hqp-wf">{head}</div>
-      )}
-      <Collapsible open={open && !chat} onOpenChange={setOpen}>
-        <CollapsibleContent animation="height">
-          <div className="hqp-qmore">
-            {wait.project ? <span className="hqp-chip">{wait.project}</span> : null}
-            {wait.detail ? <HqPlusText text={wait.detail} /> : null}
-            {wait.link ? <HqPlusText text={wait.link} /> : null}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-      <div className="hqp-qacts">
-        <button
-          type="button"
-          className="hqp-link"
-          disabled={!actions.hqWorktreeId}
-          title={
-            actions.hqWorktreeId
-              ? translate(
-                  'auto.hqPlus.queue.nudgeHint',
-                  'HQ drafts a reminder; it goes out through Approve'
-                )
-              : translate('auto.hq.today.noHqWorkspace', 'The HQ workspace is not open in Orca.')
-          }
-          onClick={nudge}
-        >
-          {translate('auto.hqPlus.queue.nudge', 'Nudge')}
-        </button>
-        <button type="button" className="hqp-link" data-ghost="true" onClick={close}>
-          {translate('auto.hqPlus.queue.gotIt', 'Got it')}
-        </button>
-      </div>
-      {error ? <p className="hqp-error">{error}</p> : null}
-    </div>
-  )
-}
-
 export function HqPlusWeWaitQueue({
   waits,
   actions
@@ -253,16 +172,40 @@ export function HqPlusWeWaitQueue({
   if (waits.length === 0) {
     return null
   }
+  // Custom build (hq-plus-round6): a linked task goes to Tracked (folded); a snooze sits last, quiet.
+  const { chase, tracked, snoozed } = hqPlusWaitGroups(waits, actions.now)
   return (
-    <HqPlusSideBlock
-      id="weWait"
-      title={translate('auto.hqPlus.side.weWait', 'we wait for · {{count}}', {
-        count: waits.length
-      })}
-    >
-      {waits.map((wait) => (
-        <WeWaitCard key={wait.id} wait={wait} actions={actions} />
-      ))}
-    </HqPlusSideBlock>
+    <>
+      <HqPlusSideBlock
+        id="weWait"
+        title={translate('auto.hqPlus.side.weWait', 'we wait for · {{count}}', {
+          count: chase.length
+        })}
+      >
+        {chase.map((wait) => (
+          <HqPlusWeWaitCard key={wait.id} wait={wait} actions={actions} />
+        ))}
+        {snoozed.length > 0 ? (
+          <div className="hqp-snoozed">
+            {snoozed.map((wait) => (
+              <HqPlusWeWaitCard key={wait.id} wait={wait} actions={actions} />
+            ))}
+          </div>
+        ) : null}
+      </HqPlusSideBlock>
+      {tracked.length > 0 ? (
+        <HqPlusSideBlock
+          id="tracked"
+          startFolded
+          title={translate('auto.hqPlus.side.tracked', 'tracked · {{count}}', {
+            count: tracked.length
+          })}
+        >
+          {tracked.map((wait) => (
+            <HqPlusWeWaitCard key={wait.id} wait={wait} actions={actions} />
+          ))}
+        </HqPlusSideBlock>
+      ) : null}
+    </>
   )
 }
