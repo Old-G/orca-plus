@@ -1,7 +1,7 @@
 // Custom build (pulse): params of the pulse.* RPC methods. Approving a draft and reporting its
 // delivery are deliberately absent: an agent reaches this surface through the CLI, and it must
 // never approve what it asked to send.
-import { z } from 'zod'
+import * as z from 'zod'
 import {
   OptionalFiniteNumber,
   OptionalPositiveInt,
@@ -56,6 +56,10 @@ export const PulseCloseWaitingParams = z.object({
   id: requiredString('Waiting id is required'),
   status: z.enum(['resolved', 'cancelled']),
   resolution: OptionalString
+})
+
+export const PulseReopenWaitingParams = z.object({
+  id: requiredString('Waiting id is required')
 })
 
 export const PulseListWaitingsParams = z
