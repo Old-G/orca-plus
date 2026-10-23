@@ -27,7 +27,8 @@ const mocks = vi.hoisted(() => {
     custom: vi.fn(),
     dismiss: vi.fn(),
     run: vi.fn(async () => {}),
-    state
+    state,
+    toFeed: false
   }
 })
 
@@ -40,6 +41,7 @@ vi.mock('../slack-requests/use-hq-requests-from-phone', () => ({
   useHqRequestsFromPhone: () => undefined
 }))
 vi.mock('@/store', () => ({ useAppStore: { getState: () => mocks.state } }))
+vi.mock('../hq-plus/hq-plus-popups', () => ({ useHqPopupsGoToFeed: () => mocks.toFeed }))
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 
 import { setShownHqChatTab } from '../hq/hq-chat-open'
@@ -66,6 +68,7 @@ function finished(id: string, tabId = 'tab-1'): PulseInboxItem {
 describe('usePulseBellToasts', () => {
   beforeEach(() => {
     mocks.items = []
+    mocks.toFeed = false
     mocks.info.mockReset()
     mocks.custom.mockReset()
     mocks.dismiss.mockReset()
@@ -104,6 +107,18 @@ describe('usePulseBellToasts', () => {
     })
     options.action.onClick()
     expect(mocks.run).toHaveBeenCalledWith(expect.objectContaining({ id: 'new' }), 'open')
+  })
+
+  it('pops nothing while HQ+ takes the events, and nothing old once popups are back', () => {
+    mocks.toFeed = true
+    const { rerender } = renderHook(() => usePulseBellToasts())
+    mocks.items = [finished('new', 'tab-2')]
+    rerender()
+    expect(mocks.info).not.toHaveBeenCalled()
+
+    mocks.toFeed = false
+    rerender()
+    expect(mocks.info).not.toHaveBeenCalled()
   })
 
   it('closes the toast once the Inbox item is done', () => {

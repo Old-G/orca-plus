@@ -340,3 +340,29 @@ describe('a report decided today', () => {
     expect(log).toMatchObject([{ kind: 'card', type: 'report', open: false }])
   })
 })
+
+describe('bell items in the feed', () => {
+  it('turns a former popup into a card and places a finished turn by its chat', () => {
+    const finished = bell({
+      kind: 'agent-finished',
+      body: 'Claude · kite / main · Pick one: (a) red or (b) blue?',
+      refId: JSON.stringify({
+        paneKey: 'p',
+        tabId: 'structured-agent-session-claude_s1',
+        worktreeId: 'w1',
+        place: 'kite / main',
+        said: 'Pick one: (a) red or (b) blue?'
+      })
+    })
+    const limit = bell({ kind: 'claude-chat-limit', title: 'A chat hit its limit' })
+    const log = hqPlusLog([], [finished, limit], NOW - 12 * HOUR)
+    expect(log.find((item) => item.kind === 'card' && item.type === 'move')).toMatchObject({
+      project: 'kite',
+      sessionId: 'claude_s1'
+    })
+    expect(log.find((item) => item.kind === 'card' && item.type === 'bell')).toMatchObject({
+      open: true,
+      title: 'A chat hit its limit'
+    })
+  })
+})
