@@ -7,9 +7,11 @@ import {
   type HqFindingRule,
   type HqRouting
 } from '../../shared/hq-routing'
+import { HQ_REPLY_DO, type HqReplyRule } from '../../shared/hq-reply-routing'
 
 const FINDING_KIND = 'review.finding'
-const KNOWN_KEYS = new Set([FINDING_KIND, 'min_free'])
+const REPLY_KIND = 'person.reply'
+const KNOWN_KEYS = new Set([FINDING_KIND, REPLY_KIND, 'min_free'])
 
 function field(value: unknown, key: string): unknown {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -70,9 +72,31 @@ function readFindingRule(raw: unknown, index: number, problems: string[]): HqFin
     : null
 }
 
+// Custom build (hq-plus-person-replies): the first readable `person.reply` rule; the conditions that
+// keep an answer a card are fixed in code, so the file can only make passing rarer, never riskier.
+function readReplyRule(raw: unknown, problems: string[]): HqReplyRule | null {
+  const rules = Array.isArray(raw) ? raw : [raw]
+  for (const [index, rule] of rules.entries()) {
+    const where = `${REPLY_KIND}[${index}]`
+    const action = HQ_REPLY_DO.find((known) => known === field(rule, 'do'))
+    const since = readSince(field(rule, 'since'))
+    if (!action) {
+      problems.push(`${where}: do takes ${HQ_REPLY_DO.join(' or ')}`)
+    }
+    if (since === undefined) {
+      problems.push(`${where}: since takes a date (YYYY-MM-DD)`)
+    }
+    if (action && since !== undefined) {
+      return { do: action, since }
+    }
+  }
+  return null
+}
+
 export function parseHqRouting(text: string | null): HqRouting {
   const routing: HqRouting = {
     findings: [],
+    replies: null,
     minFreePercent: HQ_ROUTING_DEFAULT_MIN_FREE,
     problems: []
   }
@@ -115,6 +139,10 @@ export function parseHqRouting(text: string | null): HqRouting {
     if (rule) {
       routing.findings.push(rule)
     }
+  }
+  const replies = field(doc, REPLY_KIND)
+  if (replies !== undefined && replies !== null) {
+    routing.replies = readReplyRule(replies, routing.problems)
   }
   return routing
 }

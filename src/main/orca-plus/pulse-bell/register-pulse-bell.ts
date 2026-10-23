@@ -53,6 +53,7 @@ import { gitExecFileAsync } from '../../git/runner'
 import { isGitRepoKind } from '../../../shared/repo-kind'
 import { getHqProjectPagesService } from '../../hq-project-pages/hq-project-pages-service'
 import { startHqWaitingBells } from '../../hq-today/hq-waiting-bells'
+import { getHqReplyRouting } from '../../hq-routing/hq-routing-replies'
 import { startShipRestartNotice } from '../ship-restart/ship-restart-notice'
 import { registerHqClickUpTriage } from '../../hq-today/register-hq-clickup-triage'
 import { registerHqMailIntake } from '../../hq-today/register-hq-mail-intake'
@@ -247,7 +248,9 @@ export function registerPulseBell(
     personName: (id) => runtime.pulseListPeople().find((person) => person.id === id)?.name ?? null,
     sync,
     onChanged: onPulseChanged,
-    now: Date.now
+    now: Date.now,
+    // Custom build (hq-plus-person-replies): answers the routing rule is judging, or left with a reason.
+    replyNote: (waiting) => getHqReplyRouting()?.note(waiting) ?? { hold: false, why: null }
   })
   // Custom build (hq-clickup-waiting): answers to questions asked in ClickUp comments, the same way.
   const clickUpTaskIds = new Map<string, string>()

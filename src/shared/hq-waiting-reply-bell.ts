@@ -33,12 +33,19 @@ export type HqWaitingReplyPassResult =
   | { ok: true }
   | { ok: false; reason: 'gone' | 'no-chat' | 'chat-closed' }
 
+/** Custom build (hq-plus-person-replies): the routing rule's word on an answer — held while it is
+ *  still being judged, else why it was left for the owner. */
+export type HqWaitingReplyNote = (waiting: PulseWaiting) => { hold: boolean; why: string | null }
+
 export function hqWaitingReplyBellItems(
   open: readonly PulseWaiting[],
-  personName: (personId: string) => string | null
+  personName: (personId: string) => string | null,
+  note?: HqWaitingReplyNote
 ): PulseBellInput[] {
   return open.flatMap((waiting) => {
+    const routed = note?.(waiting) ?? { hold: false, why: null }
     if (
+      routed.hold ||
       waiting.direction !== 'on-them' ||
       waiting.repliedAt === null ||
       waiting.replyDeliveredAt !== null ||
@@ -69,7 +76,11 @@ export function hqWaitingReplyBellItems(
       {
         kind: HQ_WAITING_REPLY_KIND,
         title: `${author} replied`,
-        body: `${[waiting.project, `«${waiting.title}»`].filter(Boolean).join(' · ')}\n${ref.reply.replace(/\s+/g, ' ').slice(0, 400)}`,
+        body: [
+          [waiting.project, `«${waiting.title}»`].filter(Boolean).join(' · '),
+          ref.reply.replace(/\s+/g, ' ').slice(0, 400),
+          ...(routed.why ? [routed.why] : [])
+        ].join('\n'),
         urgency: 'urgent',
         refKind: 'waiting',
         refId: JSON.stringify(ref),

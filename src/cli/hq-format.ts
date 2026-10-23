@@ -127,8 +127,20 @@ export function formatHqRoute(result: HqRouteResult): string {
     const note = action.note ? ` (${action.note})` : ''
     return `${action.project} [${action.workspace}] · ${action.findings.length} finding(s), level ${action.level ?? '?'}: ${verb}${where}${note}`
   })
+  // Custom build (hq-plus-person-replies): what became of each person's answer.
+  const replies = (result.replies ?? []).map((reply) => {
+    const where = reply.address ?? reply.sessionId ?? 'no chat'
+    const verb =
+      reply.kind === 'card'
+        ? 'left for the owner'
+        : reply.kind === 'wait'
+          ? 'waits'
+          : `${result.dryRun ? 'would pass' : 'passed'} to ${where}${reply.kind === 'dispatch' ? ' via the dispatcher' : ''}`
+    const why = reply.note ? ` — ${reply.note}` : reply.answered ? ` (${reply.answered})` : ''
+    return `answer · ${reply.author} on «${reply.question.slice(0, 60)}»: ${verb}${why}`
+  })
   return [
-    ...(lines.length > 0 ? lines : ['Nothing to route now.']),
+    ...(lines.length + replies.length > 0 ? [...lines, ...replies] : ['Nothing to route now.']),
     ...result.problems.map((problem) => `routing.yaml: ${problem}`)
   ].join('\n')
 }
