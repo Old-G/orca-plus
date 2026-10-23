@@ -1,9 +1,10 @@
 // Custom build (hq-plus-ui-v3): the left column's two queues as cards that act — what waits on the owner
 // (open it, Done, Not now, a word to its chat) and what we wait for from people (open, Nudge, Got it).
 // Every action goes the way the classic HQ does it: the bell, the waiting, the reminder through Approve.
+// Custom build (hq-plus-side-blocks): each queue folds by its title and scrolls inside an equal height.
 // Custom build (hq-plus-ui-v4): the whole text, formatted, with the actions under it; sections fold smoothly.
 import { useState } from 'react'
-import { readHqPlusViewState, saveHqPlusViewState } from './hq-plus-view-state'
+import { HqPlusSideBlock } from './HqPlusSideBlock'
 import { translate } from '@/i18n/i18n'
 import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
@@ -13,7 +14,6 @@ import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 import { HqPlusThreadComposer } from './HqPlusThreadComposer'
 import { canFinishHqPlusCard, finishHqPlusCard } from './hq-plus-actions'
-import { hqPlusPinWhileMoving } from './hq-plus-scroll-pin'
 import { closeHqWaiting } from '../hq/use-hq-pulse'
 import { startHqChatWithPrompt } from '../hq/hq-ask-chat'
 import { hqReminderPrompt } from '../hq/hq-today'
@@ -41,9 +41,6 @@ export type HqPlusQueueActions = {
   onNotNow: (card: HqPlusCard) => void
   onChanged: () => void
 }
-
-// Why: the oldest few are the ones to chase; the rest open on «Show all».
-const WE_WAIT_SHOWN = 6
 
 function waitingText(card: HqPlusCard): string {
   switch (card.type) {
@@ -144,18 +141,19 @@ export function HqPlusWaitingQueue({
   actions: HqPlusQueueActions
 }): React.JSX.Element {
   return (
-    <div className="hqp-side-sec" data-list="waiting">
-      <div className="hqp-hl hqp-side-h" data-tone="move">
-        {translate('auto.hqPlus.side.waitingOnYou', 'waiting on you · {{count}}', {
-          count: waiting.length
-        })}
-      </div>
+    <HqPlusSideBlock
+      id="waiting"
+      tone="move"
+      title={translate('auto.hqPlus.side.waitingOnYou', 'waiting on you · {{count}}', {
+        count: waiting.length
+      })}
+    >
       {waiting.length > 0 ? (
         waiting.map((card) => <WaitingCard key={card.id} card={card} actions={actions} />)
       ) : (
         <p className="hqp-empty">{translate('auto.hqPlus.side.allDone', 'all decided')}</p>
       )}
-    </div>
+    </HqPlusSideBlock>
   )
 }
 
@@ -252,48 +250,19 @@ export function HqPlusWeWaitQueue({
   waits: readonly HqPlusOtherWait[]
   actions: HqPlusQueueActions
 }): React.JSX.Element | null {
-  const [all, setAllState] = useState(() => readHqPlusViewState().showAllWaiting)
-  const setAll = (next: boolean): void => {
-    setAllState(next)
-    saveHqPlusViewState({ showAllWaiting: next })
-  }
   if (waits.length === 0) {
     return null
   }
   return (
-    <div className="hqp-side-sec">
-      <div className="hqp-hl hqp-side-h">
-        {translate('auto.hqPlus.side.weWait', 'we wait for · {{count}}', { count: waits.length })}
-      </div>
-      {waits.slice(0, WE_WAIT_SHOWN).map((wait) => (
+    <HqPlusSideBlock
+      id="weWait"
+      title={translate('auto.hqPlus.side.weWait', 'we wait for · {{count}}', {
+        count: waits.length
+      })}
+    >
+      {waits.map((wait) => (
         <WeWaitCard key={wait.id} wait={wait} actions={actions} />
       ))}
-      {waits.length > WE_WAIT_SHOWN ? (
-        <Collapsible open={all} onOpenChange={setAll}>
-          <CollapsibleContent animation="height">
-            <div className="hqp-side-sec">
-              {waits.slice(WE_WAIT_SHOWN).map((wait) => (
-                <WeWaitCard key={wait.id} wait={wait} actions={actions} />
-              ))}
-            </div>
-          </CollapsibleContent>
-          <button
-            type="button"
-            className="hqp-link hqp-more"
-            aria-expanded={all}
-            onClick={(event) => {
-              hqPlusPinWhileMoving(event.currentTarget)
-              setAll(!all)
-            }}
-          >
-            {all
-              ? translate('auto.hqPlus.side.weWaitLess', 'Show fewer')
-              : translate('auto.hqPlus.side.weWaitAll', 'Show all · +{{count}}', {
-                  count: waits.length - WE_WAIT_SHOWN
-                })}
-          </button>
-        </Collapsible>
-      ) : null}
-    </div>
+    </HqPlusSideBlock>
   )
 }
