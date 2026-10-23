@@ -131,6 +131,28 @@ export function updateWaiting(core: PulseCore, id: string, patch: PulseWaitingPa
   })
 }
 
+/** Custom build (claude-handoff-launch): open waitings follow the chat that took over the work. */
+export function moveOpenWaitingsToChat(
+  core: PulseCore,
+  fromSessionId: string,
+  toSessionId: string
+): PulseWaiting[] {
+  return core.transaction(() => {
+    const moved = listWaitings(core, { status: 'open' }).filter(
+      (waiting) => waiting.agentSessionId === fromSessionId
+    )
+    const update = core.db.prepare(
+      'UPDATE waitings SET agent_session_id = ?, pane_key = NULL WHERE id = ?'
+    )
+    return moved.map((waiting) => {
+      update.run(toSessionId, waiting.id)
+      const updated: PulseWaiting = { ...waiting, agentSessionId: toSessionId, paneKey: null }
+      core.emit('waiting.updated', 'waiting', waiting.id, updated)
+      return updated
+    })
+  })
+}
+
 /** Closes an open waiting; closing one that is already closed is an error, not a no-op. */
 export function closeWaiting(
   core: PulseCore,

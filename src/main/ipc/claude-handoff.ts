@@ -7,6 +7,7 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import type { Store } from '../persistence'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { agentHookServer } from '../agent-hooks/server'
+import { PulseDb, pulseDbPath } from '../orca-plus/pulse/pulse-db'
 import {
   createClaudeHandoffOffers,
   type ClaudeHandoffOffers
@@ -43,6 +44,28 @@ function readLaunchedTabId(result: unknown): string | undefined {
 }
 
 const NATIVE_CHAT_TAB = 'structured-agent-session-'
+
+function nativeChatSessionId(tabId: string | undefined): string | null {
+  return tabId?.startsWith(NATIVE_CHAT_TAB) ? tabId.slice(NATIVE_CHAT_TAB.length) : null
+}
+
+/** Custom build (hq-waiting-replies): an answer to a question the old chat asked reaches its successor. */
+function moveWaitingsToSuccessor(
+  pulseDb: () => PulseDb,
+  offer: ClaudeHandoffOffer,
+  launchedTabId: string | undefined
+): void {
+  const from = nativeChatSessionId(offer.tabId)
+  const to = nativeChatSessionId(launchedTabId)
+  if (!from || !to || from === to) {
+    return
+  }
+  try {
+    pulseDb().moveOpenWaitingsToChat(from, to)
+  } catch (error) {
+    console.warn('[claude-handoff] moving waitings to the new chat failed:', error)
+  }
+}
 
 /** Custom build (chat-cleanup): the chat that wrote the handoff is done once its successor starts;
  *  closed like the tab's ×, so it stays reopenable from History. */
@@ -141,6 +164,8 @@ export function registerClaudeHandoffHandlers(
     handled: createFileHandledStore(join(app.getPath('userData'), 'claude-handoff-handled.json'))
   })
   const launching = new Set<string>()
+  let db: PulseDb | null = null
+  const pulseDb = (): PulseDb => (db ??= new PulseDb(pulseDbPath(app.getPath('userData'))))
 
   agentHookServer.subscribeEnrichedStatus((event) => {
     void offers.onStatus(event).catch((error: unknown) => {
@@ -181,6 +206,7 @@ export function registerClaudeHandoffHandlers(
         }
         offers.dismiss(id)
         const tabId = readLaunchedTabId(response.result)
+        moveWaitingsToSuccessor(pulseDb, resolved.offer, tabId)
         await closeHandedOffChat(runtime, resolved.offer, tabId)
         return { ok: true, worktreeId: resolved.offer.worktreeId, ...(tabId ? { tabId } : {}) }
       } finally {
