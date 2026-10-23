@@ -6,6 +6,7 @@ import { formatRelativeTime } from '@/components/activity/activity-thread-presen
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import {
   hqWaitingSnoozeDay,
+  hqWaitingSourceUrl,
   hqWaitingTaskRef,
   withHqWaitingTag
 } from '../../../../../shared/hq-waiting-tags'
@@ -100,7 +101,7 @@ export function HqPlusWeWaitCard({
     setError(null)
     closeHqWaiting(wait.id, 'resolved').then(actions.onChanged).catch(fail)
   }
-  const sourceUrl = wait.link?.startsWith('https://') ? wait.link : null
+  const sourceUrl = hqWaitingSourceUrl(wait.link)
   const linked = wait.task ? taskUrl(wait.task) : null
   return (
     <div className="hqp-qcard" data-kind="wait" data-open={open} data-snoozed={snoozed}>

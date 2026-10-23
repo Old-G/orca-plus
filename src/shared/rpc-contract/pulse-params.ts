@@ -58,6 +58,10 @@ export const PulseCloseWaitingParams = z.object({
   resolution: OptionalString
 })
 
+export const PulseReopenWaitingParams = z.object({
+  id: requiredString('Waiting id is required')
+})
+
 export const PulseListWaitingsParams = z
   .object({
     status: z.enum(['open', 'resolved', 'cancelled']).optional(),

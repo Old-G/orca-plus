@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   hqWaitingSnoozeDay,
+  hqWaitingSourceUrl,
   hqWaitingTaskRef,
   readHqWaitingTags,
   withHqWaitingTag
@@ -25,6 +26,16 @@ describe('waiting tags in the detail', () => {
     expect(hqWaitingSnoozeDay('tomorrow', friday)).toBe('2026-10-24')
     expect(hqWaitingSnoozeDay('monday', friday)).toBe('2026-10-26')
     expect(hqWaitingSnoozeDay('week', friday)).toBe('2026-10-30')
+  })
+
+  it('turns the refs ask-person records into links', () => {
+    expect(hqWaitingSourceUrl('slack:C0123ABC:1792423366.103169')).toBe(
+      'https://slack.com/archives/C0123ABC/p1792423366103169'
+    )
+    expect(hqWaitingSourceUrl('clickup:12487v2h86b:9001')).toBe(
+      'https://app.clickup.com/t/12487v2h86b'
+    )
+    expect(hqWaitingSourceUrl('slack:C1:not-a-ts')).toBe(null)
   })
 
   it('takes a task id or a link, nothing else', () => {

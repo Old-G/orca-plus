@@ -131,6 +131,10 @@ export class RuntimePulseCommands {
     return this.db().closeWaiting(id, status, resolution)
   }
 
+  pulseReopenWaiting(id: string): PulseWaiting {
+    return this.db().reopenWaiting(id)
+  }
+
   pulseListWaitings(filter?: PulseWaitingFilter): PulseWaiting[] {
     return this.db().listWaitings(filter)
   }

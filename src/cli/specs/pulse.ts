@@ -51,6 +51,14 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
     positionalArgs: ['id']
   },
   {
+    // Custom build (hq-plus-round6)
+    path: ['pulse', 'wait', 'reopen'],
+    summary: 'Open a closed waiting again, with its chat and source as they were',
+    usage: 'orca pulse wait reopen <id> [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'id'],
+    positionalArgs: ['id']
+  },
+  {
     path: ['pulse', 'wait', 'list'],
     summary: 'List waitings, open ones unless --status says otherwise',
     usage:
