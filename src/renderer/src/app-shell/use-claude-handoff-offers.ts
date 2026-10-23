@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { toast } from 'sonner'
-import { hqPopupsGoToFeedNow } from '@/components/orca-plus/hq-plus/hq-plus-popups'
+import { useHqPopupsGoToFeed } from '@/components/orca-plus/hq-plus/hq-plus-popups'
 import type { ClaudeHandoffOffer } from '../../../shared/claude-handoff-file'
 import { translate } from '@/i18n/i18n'
 import { isWebClientLocation } from '@/lib/web-client-location'
@@ -46,6 +46,9 @@ export async function launchClaudeHandoffOffer(offerId: string): Promise<void> {
  * to start a fresh session in the same workspace with the handoff's prompt.
  */
 export function useClaudeHandoffOffers(): void {
+  // Custom build (hq-plus-ui): under HQ+ with its feed on, the bell's handoff card is the only offer;
+  // switching back to the classic HQ shows the toast again.
+  const toFeed = useHqPopupsGoToFeed()
   useEffect(() => {
     // Why: the paired web client has no handoff bridge; the desktop owns these offers.
     if (isWebClientLocation()) {
@@ -53,8 +56,7 @@ export function useClaudeHandoffOffers(): void {
     }
     const shown = new Map<string, string>()
     const show = (all: ClaudeHandoffOffer[]): void => {
-      // Custom build (hq-plus-ui): with the HQ+ feed on, the bell's handoff card is the only offer.
-      const offers = hqPopupsGoToFeedNow() ? [] : all
+      const offers = toFeed ? [] : all
       const live = new Set(offers.map(toastId))
       for (const [id] of shown) {
         if (!live.has(id)) {
@@ -91,6 +93,11 @@ export function useClaudeHandoffOffers(): void {
     }
     const off = window.api.claudeHandoff.onOffersChanged(show)
     void window.api.claudeHandoff.list().then(show)
-    return off
-  }, [])
+    return () => {
+      off()
+      for (const id of shown.keys()) {
+        toast.dismiss(id)
+      }
+    }
+  }, [toFeed])
 }
