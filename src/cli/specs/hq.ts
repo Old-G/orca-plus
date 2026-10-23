@@ -129,6 +129,32 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     examples: ['orca hq workspace add "Acme" --color "#22c55e" --messenger slack --tasks jira']
   },
   {
+    // Custom build (hq-plus-sessions)
+    path: ['hq', 'dispatch'],
+    summary:
+      'Hand work to a thread: its chat continues it, a new chat takes it over, or it waits in the queue',
+    usage: 'orca hq dispatch <project>/<task> --prompt <text> [--dry-run] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'address', 'prompt', 'dry-run'],
+    positionalArgs: ['address'],
+    notes: [
+      'Continues the chat on the thread while its context is under 60% and it was active in the last 12 h; otherwise a new chat starts there with the last report and the thread.',
+      'A chat the owner is in, or one mid-turn, is not handed work; nor does a project with two live chats get a third, or a new chat start while five questions wait for the owner — the work waits in the queue.',
+      'Settings → Workspace → «Session dispatcher»: Off, Report only (writes what it would do to the journal; the default) or On.'
+    ],
+    examples: ['orca hq dispatch acme-api/refunds --prompt "Add the partial-refund cap" --dry-run']
+  },
+  {
+    path: ['hq', 'sessions'],
+    summary:
+      'The chats now — thread, state, context, the owner in it — and what the dispatcher would do',
+    usage: 'orca hq sessions [--run] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'run'],
+    notes: [
+      'Lists queued work that can go, handoffs nobody took up, and threads with open work but no chat.',
+      '--run carries it out now, as Orca+ does every two minutes when the dispatcher is on.'
+    ]
+  },
+  {
     path: ['hq', 'whoami'],
     summary: 'Where this chat works: its room, project, thread address and task',
     usage: 'orca hq whoami [--json]',

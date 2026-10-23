@@ -77,6 +77,9 @@ export type HqProjectsApi = {
   startClickUpReview?: (ref: {
     id: string
   }) => Promise<{ ok: true; worktreeId: string; tabId?: string } | { ok: false; error: string }>
+  /** Custom build (hq-plus-sessions): whether chat cleanup may close a chat — its last turn is in
+   *  the HQ+ journal — noting the close; absent where the host keeps no journal. */
+  mayCloseChat?: (ref: { sessionId: string }) => Promise<{ ok: true } | { ok: false; why: string }>
   /** Custom build (hq-mobile): Do / Just reply a paired phone asked this window to run. */
   onRunRequest?: (
     listener: (request: { id: string; action: 'do' | 'answer' }) => void

@@ -8,6 +8,12 @@ import type {
 } from '../shared/hq-journal'
 import type { HqRouteActionKind, HqRouteResult } from '../shared/hq-routing'
 import type { HqWhereResult } from '../shared/hq-context'
+import type {
+  HqDispatchDecision,
+  HqDispatchResult,
+  HqSessionsResult,
+  HqSweepAction
+} from '../shared/hq-sessions'
 
 const BODY_PREVIEW = 160
 
@@ -129,4 +135,76 @@ export function formatHqWhere(result: HqWhereResult): string {
     return `Nothing in ${result.file} matches; read it whole or ask the owner where this lives.`
   }
   return result.answers.map((answer) => `${answer.question}\n  → ${answer.where}`).join('\n')
+}
+
+// Custom build (hq-plus-sessions)
+function decisionLine(decision: HqDispatchDecision, would: boolean): string {
+  const verb =
+    decision.kind === 'continue'
+      ? `continue it in ${decision.sessionId}`
+      : decision.kind === 'new'
+        ? `open a new chat${decision.seedFrom ? ` seeded from ${decision.seedFrom}` : ''}`
+        : 'queue the work'
+  return `${decision.address}: ${would ? 'would ' : ''}${verb} — ${decision.why}`
+}
+
+export function formatHqDispatch(result: HqDispatchResult): string {
+  return [
+    decisionLine(result.decision, !result.acted),
+    result.acted && result.sessionId ? `chat ${result.sessionId}` : null,
+    result.entryId ? `journal ${result.entryId}` : null,
+    result.note
+  ]
+    .filter((part): part is string => part !== null)
+    .join('\n')
+}
+
+function sweepLine(action: HqSweepAction, would: boolean): string {
+  const verb = would ? 'would ' : ''
+  switch (action.kind) {
+    case 'successor':
+      return `handoff of ${action.address ?? action.sessionId}: ${verb}start the next chat — ${action.why}`
+    case 'drain':
+      return `queued ${action.entryId}: ${decisionLine(action.decision, would)}`
+    case 'lost':
+      return `lost: ${action.why} (${action.entryIds.join(', ')})`
+  }
+}
+
+const SESSIONS_SHOWN = 25
+const DAY_MS = 86_400_000
+
+export function formatHqSessions(result: HqSessionsResult): string {
+  const now = Date.now()
+  const recent = result.sessions.filter(
+    (session) => session.midTurn || now - session.lastActivityAt < DAY_MS
+  )
+  const rows = recent
+    .slice(0, SESSIONS_SHOWN)
+    .map((session) =>
+      [
+        session.state.padEnd(7),
+        session.address ?? '—',
+        session.name ? `«${session.name}»` : null,
+        session.project ? `· ${session.project}` : null,
+        session.contextPct !== null ? `ctx ${session.contextPct}%` : null,
+        `active ${Math.round((now - session.lastActivityAt) / 60_000)} min ago`,
+        session.ownerAt !== null && now - session.ownerAt < 30 * 60_000 ? 'owner in it' : null,
+        session.tabOpen ? null : '(in History)',
+        session.sessionId
+      ]
+        .filter((part): part is string => part !== null)
+        .join('  ')
+    )
+  const older = result.sessions.length - Math.min(recent.length, SESSIONS_SHOWN)
+  const would = result.dryRun || result.mode !== 'on'
+  return [
+    `Dispatcher: ${result.mode}. Queued: ${result.queued}. Questions to the owner: ${result.unreviewed}.`,
+    ...(rows.length > 0 ? rows : ['No chat active in the last day.']),
+    ...(older > 0 ? [`… and ${older} older or quieter chats (--json lists all).`] : []),
+    '',
+    ...(result.actions.length > 0
+      ? result.actions.map((action) => sweepLine(action, would))
+      : ['Nothing for the dispatcher to do now.'])
+  ].join('\n')
 }
