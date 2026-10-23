@@ -39,6 +39,7 @@ import { LINEAR_AGENT_ACCESS_METHODS } from './linear-agent-access'
 import { JIRA_METHODS } from './jira'
 import { CLICKUP_METHODS } from './clickup'
 import { PULSE_METHODS } from './pulse'
+import { HQ_JOURNAL_METHODS } from './hq-journal'
 import { HQ_PROJECTS_METHODS } from './hq-projects'
 import { HQ_CLICKUP_REVIEW_METHODS } from './hq-clickup-review'
 import { WEB_PUSH_METHODS } from './web-push'
@@ -135,6 +136,7 @@ export const ALL_RPC_METHODS = [
   ...JIRA_METHODS,
   ...CLICKUP_METHODS,
   ...PULSE_METHODS,
+  ...HQ_JOURNAL_METHODS,
   ...HQ_PROJECTS_METHODS,
   ...HQ_CLICKUP_REVIEW_METHODS,
   ...WEB_PUSH_METHODS,

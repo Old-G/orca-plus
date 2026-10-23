@@ -16,7 +16,7 @@ export type HqFeedCommit = {
 // Why: fixups and merges are bookkeeping; the feature commit says what was done.
 const BOOKKEEPING_COMMIT = /^(?:fixup!|squash!|amend!|wip\b|merge\b)/i
 // Why: «ok», «готово» or a bare question say nothing about what was done.
-const SESSION_SAID_MIN = 40
+export const HQ_FEED_SESSION_SAID_MIN = 40
 // Why: a ClickUp task created or a shell command approved is not a message a person reads.
 const MESSAGE_DRAFT_KINDS = new Set<PulseDraft['kind']>(['message', 'clickup-comment'])
 const LOG_FORMAT = '--format=%H%x1f%ct%x1f%an%x1f%s'
@@ -88,7 +88,7 @@ export function sessionFeedItems(items: readonly PulseInboxItem[]): HqFeedItem[]
       ref && typeof ref === 'object' ? Reflect.get(ref, key) : undefined
     const said = clip(field('said'), BODY_MAX)
     const place = clip(field('place'), 200)
-    if (!said || said.length < SESSION_SAID_MIN) {
+    if (!said || said.length < HQ_FEED_SESSION_SAID_MIN) {
       return []
     }
     return [

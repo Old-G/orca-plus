@@ -251,7 +251,17 @@ export const SQLITE_TABLE_DISPOSITIONS: Record<string, WslMoveFieldDisposition> 
     ),
     ...tables(
       'orca-plus-pulse',
-      ['people', 'waitings', 'drafts', 'decisions', 'inbox', 'events', 'feed'],
+      [
+        'people',
+        'waitings',
+        'drafts',
+        'decisions',
+        'inbox',
+        'events',
+        'feed',
+        'journal',
+        'sessions'
+      ],
       notApplicableDisposition(62, "Orca+ pulse: the owner's global inbox, not a project's.")
     ),
     ...tables(
