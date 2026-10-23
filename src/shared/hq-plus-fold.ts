@@ -43,6 +43,29 @@ export type HqPlusLiveChat = {
   room: string
   title: string
   at: number
+  /** When it last started working or finished, from the live board; null while quiet. */
+  activeAt: number | null
+}
+
+/**
+ * Custom build (hq-plus-ui-v5): a chat that starts working again (or just finished) moves to the
+ * bottom of the feed at once — its journal row is written only after the turn ends.
+ */
+export function hqPlusLiftActiveChats(
+  items: readonly HqPlusLogItem[],
+  live: readonly HqPlusLiveChat[]
+): HqPlusLogItem[] {
+  const activeAt = new Map(live.map((chat) => [chat.sessionId, chat.activeAt ?? 0]))
+  let lifted = false
+  const next = items.map((item) => {
+    const at = item.kind === 'line' && item.sessionId ? (activeAt.get(item.sessionId) ?? 0) : 0
+    if (chatFoldKey(item) === null || at <= item.at) {
+      return item
+    }
+    lifted = true
+    return { ...item, at }
+  })
+  return lifted ? next.sort((a, b) => a.at - b.at) : next
 }
 
 /**
@@ -60,7 +83,7 @@ export function hqPlusWithLiveChats(
     .map((chat) => ({
       kind: 'line',
       id: `live:${chat.sessionId}`,
-      at: chat.at,
+      at: Math.max(chat.at, chat.activeAt ?? 0),
       room: chat.room,
       project: chat.project,
       address: null,
