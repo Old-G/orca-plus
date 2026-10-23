@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { HQ_JOURNAL_KIND } from '../../shared/hq-journal'
 import { PulseDb } from '../orca-plus/pulse/pulse-db'
 import { codexReviewJournal } from '../hq-journal/hq-journal-codex-review'
-import { hqReviewedCommits } from './hq-routing-codex-fix'
+import { parseHqAutonomy } from '../../shared/hq-autonomy'
+import { hqReviewedCommits, planHqCodexFix } from './hq-routing-codex-fix'
+import { parseHqRouting } from './hq-routing-rules'
 import { createHqRouting, type HqRoutingService } from './hq-routing'
 
 const REPORT_NAME = 'codex-review-2026-10-24T18-50.md'
@@ -151,6 +153,34 @@ describe('HQ+ routing: Codex findings to a fixing chat', () => {
     expect(launched).toEqual([])
     const past = await routing.run({ dryRun: true, manual: true, since: at(19, 0) })
     expect(past.actions).toEqual([])
+  })
+
+  it('an unread Claude limit does not hold the evening back: one chat opens, no more', async () => {
+    clock = at(19, 5)
+    free = null
+    expect(
+      (await routing.run()).actions.find((action) => action.project === 'acme-api')
+    ).toMatchObject({ kind: 'open', note: 'Claude usage is unread — one fixing chat this evening' })
+    expect(launched).toHaveLength(1)
+  })
+
+  it('with the limit unread, a second project waits once a fixing chat is open today', () => {
+    const routingRules = parseHqRouting(ROUTING)
+    const [refund] = findings()
+    const other = { ...refund, id: 'e-other', project: 'kite-api', address: null }
+    const plan = planHqCodexFix({
+      routing: routingRules,
+      now: at(19, 30),
+      findings: [refund, other],
+      autonomy: parseHqAutonomy(AUTONOMY),
+      today: new Map([['acme-api', { sessionId: 'claude_fix1', address: 'acme-api/codex-fix' }]]),
+      freePercent: null,
+      manual: false
+    })
+    expect(plan.map((action) => [action.project, action.kind])).toEqual([
+      ['acme-api', 'continue'],
+      ['kite-api', 'wait']
+    ])
   })
 
   it('a project with two live chats gets no third until one frees up', async () => {
