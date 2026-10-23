@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import CommentMarkdown from '@/components/sidebar/CommentMarkdown'
 import { useNow } from '@/hooks/use-now'
 import { translate } from '@/i18n/i18n'
-import { formatShortTimeAgo } from '@/lib/short-time-ago'
+import { formatShortTimeAgo } from '@/lib/time-format/short-time-ago'
 import { hqWikiBody } from './hq-wiki-tree'
 import { onHqReportRequested, takeRequestedHqReport } from './hq-report-target'
 import { HqReportDecisions } from './HqReportDecisions'
@@ -17,7 +17,7 @@ import { hqSpaceStripeStyle, useHqSpaces } from './use-hq-spaces'
 
 const REFRESH_MS = 60_000
 
-function folderLabel(folder: HqReportFolder): string {
+export function folderLabel(folder: HqReportFolder): string {
   switch (folder) {
     case 'improvements':
       return translate('auto.hq.reports.improvements', 'Week review')
@@ -34,7 +34,7 @@ function folderLabel(folder: HqReportFolder): string {
 
 type ListState = { reports: HqReport[]; error: string | null; loaded: boolean }
 
-function useHqReports(): ListState {
+export function useHqReports(): ListState {
   const [state, setState] = useState<ListState>({ reports: [], error: null, loaded: false })
   const load = useCallback(async () => {
     const result = await window.api.hqProjects.reports()

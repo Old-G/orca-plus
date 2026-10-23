@@ -2455,3 +2455,33 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   outline: 1px solid var(--hqp-line-2);
   outline-offset: -1px;
 }
+
+/* Custom build (hq-plus-side-blocks): the Reports tab's list — a title over its kind and age. */
+.hqp-report-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.hqp-report-list button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  color: var(--hqp-fg);
+  cursor: pointer;
+}
+.hqp-report-list button:hover {
+  background: var(--hqp-soft);
+}
+.hqp-report-list .t {
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,5 +1,6 @@
 // Custom build (hq-plus-ui): a report read inside HQ+'s right panel, with the same markdown Reports uses;
 // «In Reports» opens it in classic HQ, where every report stays listed.
+// Custom build (hq-plus-side-blocks): with none open, the tab lists every report, newest first.
 import CommentMarkdown from '@/components/sidebar/CommentMarkdown'
 import { translate } from '@/i18n/i18n'
 import { hqWikiBody } from '../hq/hq-wiki-tree'
@@ -7,19 +8,53 @@ import { requestHqReport } from '../hq/hq-report-target'
 import { openHqScreen } from '../hq/hq-view'
 import { useHqWikiPage } from '../hq/use-hq-wiki-page'
 import { setHqFlavor } from './hq-plus-flavor'
+import { folderLabel, useHqReports } from '../hq/HqReportsTab'
+import { useNow } from '@/hooks/use-now'
+import { formatShortTimeAgo } from '@/lib/short-time-ago'
 
-export function HqPlusReportView({ path }: { path: string | null }): React.JSX.Element {
-  const page = useHqWikiPage(path)
-  if (!path) {
+function HqPlusReportList({ onPick }: { onPick: (path: string) => void }): React.JSX.Element {
+  const now = useNow(60_000)
+  const { reports, error, loaded } = useHqReports()
+  if (loaded && reports.length === 0) {
     return (
       <p className="hqp-empty">
-        {translate('auto.hqPlus.report.pick', 'Open a report from its card in the log.')}
+        {error ?? translate('auto.hqPlus.report.none', 'No reports yet.')}
       </p>
     )
   }
   return (
+    <ul className="hqp-report-list">
+      {reports.map((report) => (
+        <li key={report.path}>
+          <button type="button" title={report.path} onClick={() => onPick(report.path)}>
+            <span className="t">{report.title}</span>
+            <span className="hqp-tm">
+              {folderLabel(report.folder)} · {formatShortTimeAgo(report.at, now)}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+export function HqPlusReportView({
+  path,
+  onPick
+}: {
+  path: string | null
+  onPick: (path: string | null) => void
+}): React.JSX.Element {
+  const page = useHqWikiPage(path)
+  if (!path) {
+    return <HqPlusReportList onPick={onPick} />
+  }
+  return (
     <div className="hqp-report-view">
       <div className="hqp-fh">
+        <button type="button" className="hqp-link" onClick={() => onPick(null)}>
+          ← {translate('auto.hqPlus.report.all', 'All reports')}
+        </button>
         <span className="hqp-mono">{path}</span>
         <span className="hqp-spacer" />
         <button
