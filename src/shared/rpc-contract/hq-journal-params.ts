@@ -97,3 +97,18 @@ export const HqWorkspaceAddParams = z.object({
   messenger: OptionalString,
   tasks: OptionalString
 })
+
+// Custom build (hq-plus-sessions): the session dispatcher.
+export const HqDispatchParams = z.object({
+  ...CallerFields,
+  address: requiredString('A thread address (<project>/<task>) is required'),
+  prompt: requiredString('The work (--prompt) is required'),
+  /** Only say what it would do. */
+  dryRun: OptionalBoolean
+})
+
+export const HqSessionsParams = z.object({
+  ...CallerFields,
+  /** Carry out what the sweep finds now (mode on); absent, it only lists. */
+  run: OptionalBoolean
+})

@@ -10,6 +10,7 @@ import {
   HQ_CHAT_CLEANUP_DEFAULT_MODE,
   hqChatCleanupCandidates,
   hqChatCleanupReport,
+  hqChatSessionId,
   type HqChatCleanupCandidate
 } from './hq-chat-cleanup'
 import { hqChatKey } from './hq-chat-list'
@@ -102,16 +103,26 @@ function Cleanup(): null {
       if (closedToday.current.day !== day) {
         closedToday.current = { day, closed: [] }
       }
+      const closed: HqChatCleanupCandidate[] = []
       if (mode === 'on') {
         for (const candidate of found) {
+          // Custom build (hq-plus-sessions): a chat whose last turn is not in the journal stays open.
+          const sessionId = hqChatSessionId(candidate.item.tab.id)
+          const allowed = sessionId
+            ? await window.api.hqProjects.mayCloseChat?.({ sessionId }).catch(() => null)
+            : null
+          if (allowed && !allowed.ok) {
+            continue
+          }
           useAppStore.getState().closeUnifiedTab(candidate.item.tab.id, {
             preserveWorktreeSelection: true
           })
+          closed.push(candidate)
         }
-        closedToday.current.closed.push(...found)
+        closedToday.current.closed.push(...closed)
       }
       const listed = mode === 'on' ? closedToday.current.closed : found
-      if (listed.length === 0 || (mode === 'on' && found.length === 0)) {
+      if (listed.length === 0 || (mode === 'on' && closed.length === 0)) {
         return
       }
       const content = hqChatCleanupReport(listed, {
