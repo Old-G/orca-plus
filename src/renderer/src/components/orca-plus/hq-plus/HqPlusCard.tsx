@@ -27,6 +27,7 @@ import { hqSourceService } from '../../../../../shared/hq-source-link'
 import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 import { HqPlusReplyField } from './HqPlusReplyField'
+import { HQ_FIX_NOW_DONE_PREFIX } from '../../../../../shared/hq-fix-now'
 
 const DONE_ACTION: Record<string, [string, string]> = {
   open: ['auto.hqPlus.done.open', 'opened'],
@@ -70,6 +71,10 @@ export function hqPlusDoneLabel(done: HqPlusDone): string {
     return done.status === 'dropped'
       ? translate('auto.hqPlus.done.dropped', 'dropped')
       : translate('auto.hqPlus.done.closed', 'closed')
+  }
+  // Custom build (hq-fix-now-all): «Fix now» keeps what it opened and what was already handled.
+  if (done.action?.startsWith(HQ_FIX_NOW_DONE_PREFIX)) {
+    return done.action.slice(HQ_FIX_NOW_DONE_PREFIX.length)
   }
   const known = done.action ? DONE_ACTION[done.action] : undefined
   const label = known

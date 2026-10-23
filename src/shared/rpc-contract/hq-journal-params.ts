@@ -58,7 +58,16 @@ export const HqRouteParams = z.object({
   run: OptionalBoolean,
   /** Ignore the rule's hour and the Claude limit, as a run by hand does. */
   now: OptionalBoolean,
-  since: OptionalFiniteNumber
+  since: OptionalFiniteNumber,
+  /** Custom build (hq-fix-now-all): «Fix now» on this report — every finding no chat has yet. */
+  report: OptionalString
+})
+
+// Custom build (hq-fix-now-all): one merge per project at a time among chats working side by side.
+export const HqMergeSlotParams = z.object({
+  ...CallerFields,
+  project: requiredString('A project is required'),
+  action: z.enum(['take', 'release', 'status'])
 })
 
 export const HqSettleParams = z.object({

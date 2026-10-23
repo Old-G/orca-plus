@@ -5,6 +5,7 @@ import {
   HqDispatchParams,
   HqEventsParams,
   HqFeedParams,
+  HqMergeSlotParams,
   HqReportParams,
   HqRouteParams,
   HqSessionsParams,
@@ -26,6 +27,7 @@ import { HQ_PLUS_CARD_KINDS, isHqPlusOwnerMessage } from '../../../../shared/hq-
 import { getHqThreads, type HqThreads } from '../../../hq-journal/hq-journal-threads'
 import { getHqJournalService, type HqJournalService } from '../../../hq-journal/hq-journal-service'
 import { getHqRouting } from '../../../hq-routing/hq-routing'
+import { getHqMergeSlots } from '../../../hq-routing/hq-merge-slot'
 import { getHqPlusStats } from '../../../hq-plus-ui/hq-plus-screen-stats'
 import { getHqContext, type HqContextService } from '../../../hq-context/hq-context'
 import { getHqSessions, type HqSessionsService } from '../../../hq-sessions/hq-sessions'
@@ -151,9 +153,38 @@ export const HQ_JOURNAL_METHODS = [
       }
       return routing.run({
         dryRun: params.run !== true,
-        manual: params.run === true || params.now === true,
-        since: params.since
+        manual: params.run === true || params.now === true || params.report !== undefined,
+        since: params.since,
+        report: params.report
       })
+    }
+  }),
+  // Custom build (hq-fix-now-all): a fixing chat takes the project's merge slot before merging.
+  defineMethod({
+    name: 'hq.mergeSlot',
+
+    permission: 'workspace',
+    params: HqMergeSlotParams,
+    handler: async ({ project, action, ...caller }) => {
+      const slots = getHqMergeSlots()
+      if (!slots) {
+        throw new Error('HQ+ merge slots are not available on this host.')
+      }
+      if (action === 'status') {
+        return { project, action, slot: slots.status(project) }
+      }
+      const me = await journal().whoami({
+        sessionId: caller.callerSessionId,
+        worktreeId: caller.callerWorktreeId,
+        cwd: caller.callerCwd
+      })
+      const holder = me.address ?? me.sessionId ?? caller.callerWorktreeId ?? caller.callerCwd
+      if (!holder) {
+        throw new Error('Run it from an agent chat: the slot is held by the chat that takes it.')
+      }
+      return action === 'take'
+        ? { project, action, holder, ...slots.take(project, holder) }
+        : { project, action, holder, ok: slots.release(project, holder) }
     }
   }),
   defineMethod({

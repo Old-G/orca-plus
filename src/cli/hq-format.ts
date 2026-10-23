@@ -6,7 +6,7 @@ import type {
   HqJournalHeader,
   HqWhoami
 } from '../shared/hq-journal'
-import type { HqRouteActionKind, HqRouteResult } from '../shared/hq-routing'
+import type { HqMergeSlotResult, HqRouteActionKind, HqRouteResult } from '../shared/hq-routing'
 import type { HqWhereResult } from '../shared/hq-context'
 import type {
   HqDispatchDecision,
@@ -143,6 +143,23 @@ export function formatHqRoute(result: HqRouteResult): string {
     ...(lines.length + replies.length > 0 ? [...lines, ...replies] : ['Nothing to route now.']),
     ...result.problems.map((problem) => `routing.yaml: ${problem}`)
   ].join('\n')
+}
+
+/** Custom build (hq-fix-now-all): what became of a merge-slot call. */
+export function formatHqMergeSlot(result: HqMergeSlotResult): string {
+  if (result.action === 'status') {
+    return result.slot
+      ? `${result.project}: held by ${result.slot.holder} since ${new Date(result.slot.since).toLocaleTimeString()}`
+      : `${result.project}: free`
+  }
+  if (result.action === 'release') {
+    return result.ok
+      ? `${result.project}: slot given back.`
+      : `${result.project}: the slot was not yours (or already free).`
+  }
+  return result.ok
+    ? `${result.project}: slot is yours — rebase on the fresh target, re-run tests, merge, then release.`
+    : `${result.project}: busy — ${result.holder} is merging since ${new Date(result.since).toLocaleTimeString()}; wait 2 minutes and try again.`
 }
 
 /** Custom build (hq-plus-context): the knowledge map's best rows for a question. */

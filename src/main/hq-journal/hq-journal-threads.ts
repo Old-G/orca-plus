@@ -304,7 +304,19 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
       if (input.status === 'dropped' && !input.why?.trim()) {
         throw new Error('--dropped needs --why: one line on why it needs no fix')
       }
-      if (entry.status !== 'open') {
+      // Custom build (hq-fix-now-all): a minor finding is noted done by its source; once «Fix now»
+      // handed it to a chat, that chat still closes it with its verdict — once.
+      const handedMinor =
+        entry.kind === HQ_JOURNAL_KIND.reviewFinding &&
+        entry.address !== null &&
+        !deps.pulse
+          .list({
+            kind: HQ_ROUTING_KIND.settled,
+            address: entry.address,
+            limit: HQ_JOURNAL_MAX_LIMIT
+          })
+          .some((row) => row.refId === entry.id)
+      if (entry.status !== 'open' && !handedMinor) {
         return { settled: false, entryId: entry.id, status: input.status }
       }
       if (!entry.dedupeKey) {

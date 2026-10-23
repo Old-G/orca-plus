@@ -53,12 +53,31 @@ export type HqRouteAction = {
   note: string | null
 }
 
+/** Custom build (hq-fix-now-all): a finding «Fix now» left alone — a chat already has it. */
+export type HqRouteHandled = {
+  project: string
+  title: string
+  /** The thread that took it. */
+  address: string | null
+  /** The commit it was closed with, when the chat named one. */
+  commit: string | null
+}
+
 export type HqRouteResult = {
   dryRun: boolean
   actions: HqRouteAction[]
+  /** Custom build (hq-fix-now-all): with a report given, its findings some chat already took. */
+  handled?: HqRouteHandled[]
   /** Custom build (hq-plus-person-replies): answers passed on, or left for the owner, and why. */
   replies?: HqReplyRouteAction[]
   problems: string[]
 }
 
 export type HqSettleResult = { settled: boolean; entryId: string; status: 'done' | 'dropped' }
+
+/** Custom build (hq-fix-now-all): `hq.mergeSlot` — the slot taken, refused (held by someone else) or given back. */
+export type HqMergeSlotResult =
+  | { project: string; action: 'status'; slot: { holder: string; since: number } | null }
+  | { project: string; action: 'take'; holder: string; ok: true }
+  | { project: string; action: 'take'; holder: string; ok: false; since: number }
+  | { project: string; action: 'release'; holder: string; ok: boolean }
