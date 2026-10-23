@@ -11,7 +11,7 @@ import type { HqDeferredReason, HqDeferredSession } from './hq-deferred-sessions
 import { sendHqAgentMessage, type HqActionResult } from './hq-today-actions'
 import { ColumnHeader } from './hq-waiting-parts'
 
-function reasonLabel(reason: HqDeferredReason): string {
+export function hqDeferredReasonLabel(reason: HqDeferredReason): string {
   switch (reason.kind) {
     case 'changes':
       return translate('auto.hq.deferred.changes', '{{value0}} uncommitted', {
@@ -32,7 +32,7 @@ function reasonLabel(reason: HqDeferredReason): string {
   }
 }
 
-function reveal(card: DashboardCard): void {
+export function revealHqDeferredCard(card: DashboardCard): void {
   revealDashboardAgent({
     repoId: card.repoId,
     worktreeId: card.worktreeId,
@@ -86,7 +86,7 @@ function DeferredCard({
             key={reason.kind}
             className="rounded-full border border-border px-1.5 py-px text-[11px] text-muted-foreground"
           >
-            {reasonLabel(reason)}
+            {hqDeferredReasonLabel(reason)}
           </span>
         ))}
       </div>
@@ -117,7 +117,12 @@ function DeferredCard({
               : translate('auto.hq.today.continue', 'Continue')}
           </Button>
         )}
-        <Button type="button" size="xs" variant="secondary" onClick={() => reveal(card)}>
+        <Button
+          type="button"
+          size="xs"
+          variant="secondary"
+          onClick={() => revealHqDeferredCard(card)}
+        >
           {translate('auto.hq.project.open', 'Open')}
         </Button>
       </div>
