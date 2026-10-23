@@ -87,6 +87,7 @@ import { PULSE_METHODS } from './pulse'
 import { HQ_PROJECTS_METHODS } from './hq-projects'
 import { WEB_PUSH_METHODS } from './web-push'
 import { HQ_CLICKUP_REVIEW_METHODS } from './hq-clickup-review'
+import { HQ_JOURNAL_METHODS } from './hq-journal'
 
 // Keep registration order and the full RPC/security surface visible in one manifest.
 export const ALL_RPC_METHODS = [
@@ -175,5 +176,6 @@ export const ALL_RPC_METHODS = [
   ...PULSE_METHODS,
   ...HQ_PROJECTS_METHODS,
   ...WEB_PUSH_METHODS,
-  ...HQ_CLICKUP_REVIEW_METHODS
+  ...HQ_CLICKUP_REVIEW_METHODS,
+  ...HQ_JOURNAL_METHODS
 ]

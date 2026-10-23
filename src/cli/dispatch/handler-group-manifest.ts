@@ -59,6 +59,12 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     load: async () => (await import('../hq/pulse.js')).PULSE_HANDLERS
   },
   {
+    // Custom build (hq-plus-journal)
+    name: 'hq',
+    keys: ['hq events', 'hq whoami'],
+    load: async () => (await import('../hq/hq.js')).HQ_HANDLERS
+  },
+  {
     name: 'artifacts',
     keys: [
       'artifacts list',

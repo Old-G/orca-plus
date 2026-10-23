@@ -41,6 +41,7 @@ export const CLI_COMMAND_NAMES = [
   'highlight',
   'host',
   'hover',
+  'hq',
   'inserttext',
   'intercept',
   'is',
