@@ -2,6 +2,7 @@
 // uses — `chat.send` into a thread, the bell's own done marks, waits closed as `orca pulse wait` does,
 // a report handed to an HQ chat, and the Codex rule run now.
 import { HQ_PLUS_REPLY_ACTION, type HqPlusCard } from '../../../../../shared/hq-plus-log'
+import { HQ_FIX_NOW_DONE_PREFIX, hqFixNowSummary } from '../../../../../shared/hq-fix-now'
 import type { HqReport } from '../../../../../shared/hq-reports'
 import { translate } from '@/i18n/i18n'
 import { startHqReportDecisions } from '../hq/hq-ask-chat'
@@ -200,33 +201,32 @@ export async function sendHqPlusReport(
 
 const FIX_WINDOW_MS = 36 * 60 * 60_000
 
-/** «Fix now»: the Codex rule opens its fixing chats at once instead of at its hour. */
+/** «Fix now»: the owner agreed to fix the whole report — every finding no chat has yet gets one, now.
+ *  Custom build (hq-fix-now-all): the card keeps the result line, never a bare «nothing opened». */
 export async function runHqPlusCodexFix(
   card: HqPlusCard,
   hqPath: string | null
 ): Promise<HqPlusResult> {
+  const report = hqPlusReportOf(card)?.path ?? null
   const ran = await hqPlusCall('hq.route', {
     run: true,
     now: true,
-    since: (card.inbox?.createdAt ?? card.at) - FIX_WINDOW_MS,
+    ...(report ? { report } : { since: (card.inbox?.createdAt ?? card.at) - FIX_WINDOW_MS }),
     ...(hqPath ? { callerCwd: hqPath } : {})
   })
   if (!ran.ok) {
     return ran
   }
   const actions = hqResultField(ran.result, 'actions')
-  const problems = hqResultField(ran.result, 'problems')
-  if (!Array.isArray(actions) || actions.length === 0) {
-    // Why: closing the report would hide findings no chat took up.
-    return {
-      ok: false,
-      message:
-        Array.isArray(problems) && typeof problems[0] === 'string'
-          ? problems[0]
-          : translate('auto.hqPlus.fixNothing', 'No fixing chat was opened for these findings.')
-    }
-  }
-  return markHqPlusDone(card, 'fix-now')
+  const handled = hqResultField(ran.result, 'handled')
+  const summary = hqFixNowSummary({
+    actions: Array.isArray(actions) ? actions : [],
+    handled: Array.isArray(handled) ? handled : []
+  })
+  // Why: closing the report would hide findings no chat took up.
+  return summary.ok
+    ? markHqPlusDone(card, `${HQ_FIX_NOW_DONE_PREFIX}${summary.text}`)
+    : { ok: false, message: summary.text }
 }
 
 /** Custom build (hq-plus-ui-v4): «Done» closes what the card stands for — a waiting on the owner, else its
