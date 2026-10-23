@@ -1643,7 +1643,9 @@
     background-color 160ms ease-out;
 }
 /* Custom build (hq-plus-ui-v5): no «expand» word — the hover says the card opens on a click. */
-.hqp-chatc[data-expandable='true']:hover,
+.hqp-chatc[data-expandable='true']:hover {
+  border-color: var(--hqp-line-2);
+}
 .hqp-cc:hover {
   border-color: var(--hqp-line-2);
   background-color: var(--hqp-soft);
@@ -1909,6 +1911,11 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   /* Custom build (hq-plus-ui-v5): drawn inside the row, so the feed's edge never clips it. */
   outline-offset: -1px;
   border-radius: 12px;
+}
+/* Custom build (hq-plus-ui-v5): a chat card shows selection on its own border — one line, no ring. */
+.hqp-m[data-selected='true'] > .hqp-chatc {
+  outline: none;
+  border-color: var(--hqp-line-2);
 }
 .hqp-day {
   display: flex;
