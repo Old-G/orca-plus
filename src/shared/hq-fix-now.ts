@@ -17,8 +17,10 @@ function chats(count: number): string {
   return count === 1 ? '1 fixing chat' : `${count} fixing chats`
 }
 
+/** `ok`: some chat took findings; `complete`: none is left waiting or failed to start. */
 export function hqFixNowSummary(result: Pick<HqRouteResult, 'actions' | 'handled'>): {
   ok: boolean
+  complete: boolean
   text: string
 } {
   const handled = result.handled ?? []
@@ -33,8 +35,12 @@ export function hqFixNowSummary(result: Pick<HqRouteResult, 'actions' | 'handled
     list.map((action) => `${action.project}${action.note ? ` (${action.note})` : ''}`).join(', ')
   if (result.actions.length === 0) {
     return handled.length > 0
-      ? { ok: true, text: `All findings already handled — ${handled.map(handledLabel).join(', ')}` }
-      : { ok: false, text: 'This report has no findings in the journal.' }
+      ? {
+          ok: true,
+          complete: true,
+          text: `All findings already handled — ${handled.map(handledLabel).join(', ')}`
+        }
+      : { ok: false, complete: false, text: 'This report has no findings in the journal.' }
   }
   const parts = [
     opened.length > 0 ? `Opened ${chats(opened.length)}: ${names(opened)}` : null,
@@ -47,6 +53,7 @@ export function hqFixNowSummary(result: Pick<HqRouteResult, 'actions' | 'handled
   const text = parts.join(' · ')
   return {
     ok: opened.length + continued.length + suggested.length > 0,
+    complete: waiting.length === 0 && failed.length === 0,
     text: text.charAt(0).toUpperCase() + text.slice(1)
   }
 }
