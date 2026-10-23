@@ -13,7 +13,7 @@ export function HqPlusReplyField(
     if (!field) {
       return
     }
-    const line = parseFloat(getComputedStyle(field).lineHeight) || 18
+    const line = Number.parseFloat(getComputedStyle(field).lineHeight) || 18
     field.style.height = 'auto'
     field.style.height = `${Math.min(field.scrollHeight, line * MAX_LINES)}px`
   }, [props.value])
