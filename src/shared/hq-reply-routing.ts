@@ -87,7 +87,7 @@ export type HqReplyRouteAction = {
 // `\p{L}` lookarounds, since `\b` ends words only for Latin letters.
 const WORD = (body: string): RegExp => new RegExp(`(?<!\\p{L})(?:${body})(?!\\p{L})`, 'iu')
 const MONEY = [
-  /[$€₪₽£]/u,
+  /[$\u20ac\u20aa\u20bd\u00a3]/u,
   WORD(
     'usd|eur|ils|rub|refunds?|invoices?|payments?|price|prices|charged?|budget|деньг\\p{L}*|оплат\\p{L}*|плат[её]ж\\p{L}*|возврат\\p{L}*|списа\\p{L}*|цен[аыуе]|стоимост\\p{L}*|бюджет\\p{L}*|счёт|счета?|доллар\\p{L}*|шекел\\p{L}*|руб\\p{L}*'
   )
