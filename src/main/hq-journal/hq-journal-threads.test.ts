@@ -146,3 +146,48 @@ describe('HQ+ threads', () => {
     )
   })
 })
+
+describe('HQ+ threads: settling a handed row', () => {
+  it('closes a finding with its commit, once, and only in its room', async () => {
+    db.recordJournal([
+      {
+        workspace: 'acme',
+        kind: 'review.finding',
+        project: 'acme-api',
+        address: 'acme-api/codex-fix-2026-10-24',
+        sessionId: null,
+        personId: null,
+        title: '[P1] Refund cap ignores partial refunds',
+        needs: 'agent:new',
+        replyTo: null,
+        refKind: 'file',
+        refId: 'updates/codex-review-2026-10-24T18-50.md',
+        source: 'codex-review',
+        dedupeKey: 'review.finding:x:1'
+      }
+    ])
+    const [finding] = db.listJournal({ kind: 'review.finding' })
+    await expect(
+      threads.settle({ sessionId: 'claude_kite' }, { id: finding.id, status: 'done' })
+    ).rejects.toThrow('in this chat')
+    await expect(
+      threads.settle({ sessionId: 'claude_api' }, { id: finding.id, status: 'dropped' })
+    ).rejects.toThrow('--why')
+    const settled = await threads.settle(
+      { sessionId: 'claude_api' },
+      { id: finding.id, status: 'done', commit: '5a5a5a5a5a' }
+    )
+    expect(settled).toEqual({ settled: true, entryId: finding.id, status: 'done' })
+    expect(db.getJournalEntry(finding.id)?.status).toBe('done')
+    const [verdict] = db.listJournal({ kind: 'entry.settled' })
+    expect(verdict).toMatchObject({
+      replyTo: finding.id,
+      address: 'acme-api/codex-fix-2026-10-24',
+      links: [{ kind: 'commit', id: '5a5a5a5a5a' }]
+    })
+    expect(
+      (await threads.settle({ sessionId: 'claude_api' }, { id: finding.id, status: 'done' }))
+        .settled
+    ).toBe(false)
+  })
+})
