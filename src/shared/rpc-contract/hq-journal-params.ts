@@ -66,3 +66,32 @@ export const HqSettleParams = z.object({
   commit: OptionalString,
   why: OptionalString
 })
+
+// Custom build (hq-plus-context)
+export const HqContextParams = z.object({
+  ...CallerFields,
+  project: OptionalString,
+  /** What a new chat is told: the room's notes and its project's card. */
+  sessionStart: OptionalBoolean
+})
+
+export const HqStepParams = z.object({
+  ...CallerFields,
+  project: OptionalString,
+  id: requiredString('A plan step id is required, e.g. 2.3'),
+  done: z.boolean()
+})
+
+export const HqWhereParams = z.object({
+  ...CallerFields,
+  question: requiredString('A question is required')
+})
+
+export const HqWorkspaceAddParams = z.object({
+  ...CallerFields,
+  name: requiredString('A room name is required'),
+  slug: OptionalString,
+  color: OptionalString,
+  messenger: OptionalString,
+  tasks: OptionalString
+})
