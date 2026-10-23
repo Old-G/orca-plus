@@ -178,7 +178,8 @@ export const HQ_JOURNAL_METHODS = [
         worktreeId: caller.callerWorktreeId,
         cwd: caller.callerCwd
       })
-      const holder = me.address ?? me.sessionId ?? caller.callerWorktreeId ?? caller.callerCwd
+      // Why: a handoff and the chat it resumed share an address; the slot belongs to one session.
+      const holder = me.sessionId ?? me.address ?? caller.callerWorktreeId ?? caller.callerCwd
       if (!holder) {
         throw new Error('Run it from an agent chat: the slot is held by the chat that takes it.')
       }
