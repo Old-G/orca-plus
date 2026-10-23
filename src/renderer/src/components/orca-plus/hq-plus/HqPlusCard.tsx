@@ -25,12 +25,12 @@ import {
 import { HqPlusReportBody } from './HqPlusReportBody'
 import type { HqPlusLook } from '../../../../../shared/hq-plus-kinds'
 import { readHqSlackRequestRef } from '../../../../../shared/hq-slack-request-bell'
-import { hqSourceService } from '../../../../../shared/hq-source-link'
 import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 import { HqPlusReplyField } from './HqPlusReplyField'
 import { HQ_FIX_NOW_DONE_PREFIX } from '../../../../../shared/hq-fix-now'
 import { useHqPlusDraftLink } from './use-hq-plus-draft-link'
+import { hqPlusSourceLabel } from './hq-plus-source-label'
 
 const DONE_ACTION: Record<string, [string, string]> = {
   open: ['auto.hqPlus.done.open', 'opened'],
@@ -131,18 +131,7 @@ function hqPlusSourceLink(
   if (!raw || !raw.startsWith('https://')) {
     return null
   }
-  const service = hqSourceService(raw)
-  const label =
-    service === 'slack'
-      ? translate('auto.hqPlus.source.slack', 'Open in Slack')
-      : service === 'clickup'
-        ? translate('auto.hqPlus.source.clickup', 'Open in ClickUp')
-        : service === 'gmail'
-          ? translate('auto.hqPlus.source.gmail', 'Open in Gmail')
-          : service === 'gitlab'
-            ? translate('auto.hqPlus.source.gitlab', 'Open in GitLab')
-            : translate('auto.hqPlus.source.other', 'Open external site')
-  return { url: raw, label }
+  return { url: raw, label: hqPlusSourceLabel(raw) }
 }
 
 const TO_WORK_ACTIONS: ReadonlySet<string> = new Set(['slack-do', 'intake-open'])
@@ -189,6 +178,7 @@ export function HqPlusCardView({
   threadLabel,
   onThread,
   onOpenChat,
+  onOpenLink,
   onOpenReport,
   onNotNow,
   onChanged,
@@ -205,6 +195,8 @@ export function HqPlusCardView({
   threadLabel: string | null
   onThread: (() => void) | null
   onOpenChat: (() => void) | null
+  /** Custom build (hq-plus-round6): opens a link in HQ+'s Browser tab. */
+  onOpenLink: (url: string) => void
   onOpenReport: (path: string) => void
   onNotNow: (() => void) | null
   onChanged: () => void
@@ -231,7 +223,7 @@ export function HqPlusCardView({
       type="button"
       className="hqp-opt"
       data-ghost="true"
-      onClick={() => void window.api.shell.openUrl(sourceLink.url)}
+      onClick={() => onOpenLink(sourceLink.url)}
     >
       {sourceLink.label} ↗
     </button>
@@ -254,7 +246,7 @@ export function HqPlusCardView({
         <button
           type="button"
           className="hqp-link hqp-source"
-          onClick={() => void window.api.shell.openUrl(sourceLink.url)}
+          onClick={() => onOpenLink(sourceLink.url)}
         >
           {sourceLink.label} ↗
         </button>
