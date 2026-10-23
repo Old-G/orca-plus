@@ -11,6 +11,8 @@ import { OUTGOING_APPROVAL_BELL_KIND } from './outgoing-approval/outgoing-approv
 import { HQ_WAITING_REPLY_KIND } from './hq-waiting-reply-bell'
 import { HQ_REPORT_BELL_KIND } from './hq-reports'
 import { parseHqPlusReport, type HqPlusReport } from './hq-plus-screen'
+import { HQ_REMIND_KIND } from './hq-remind'
+import { HQ_DEFERRED_KIND } from './hq-morning-briefing'
 
 /** HQ+ itself, in a room or above them: an item every room's view shows. */
 export const HQ_PLUS_ANY_ROOM = '_all'
@@ -41,6 +43,8 @@ export type HqPlusLogItem =
       at: number
       tone: 'agent' | 'system' | 'person'
       title: string
+      /** Custom build (hq-plus-ui-v2): the journal kind or bell kind it came from, for its badge. */
+      journalKind?: string | null
     })
   | (Where & { kind: 'me'; id: string; at: number; text: string })
   | (Where & {
@@ -70,7 +74,10 @@ export const HQ_PLUS_CARD_KINDS: ReadonlySet<string> = new Set([
   PULSE_BELL_KIND.claudeAuthStop,
   PULSE_BELL_KIND.handoff,
   HQ_SLACK_REQUEST_BELL_KIND,
-  HQ_INTAKE_KIND
+  HQ_INTAKE_KIND,
+  // Custom build (hq-plus-ui-v2): reminders and deferred sessions are background lines with buttons.
+  HQ_REMIND_KIND,
+  HQ_DEFERRED_KIND
 ])
 
 /** The chat and project a bell item names, so its card sits in its room and can be answered. */
@@ -246,7 +253,8 @@ export function hqPlusLog(
           at: entry.at,
           ...where(entry),
           tone: 'agent',
-          title: entry.title
+          title: entry.title,
+          journalKind: entry.kind
         })
       }
       continue
@@ -294,7 +302,8 @@ export function hqPlusLog(
       at: entry.at,
       ...where(entry),
       tone: entry.kind === HQ_JOURNAL_KIND.personReply ? 'person' : 'system',
-      title: entry.title
+      title: entry.title,
+      journalKind: entry.kind
     })
   }
 
@@ -333,7 +342,8 @@ export function hqPlusLog(
             at: item.createdAt,
             ...whereOfItem(item),
             tone: 'agent',
-            title: item.body ?? item.title
+            title: item.body ?? item.title,
+            journalKind: item.kind
           })
         }
         continue
