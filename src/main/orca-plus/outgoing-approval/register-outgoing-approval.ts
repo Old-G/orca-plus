@@ -225,6 +225,20 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
     }
   )
 
+  // Custom build (hq-plus-side-blocks): a draft an agent left with `orca pulse draft add` — no held
+  // call behind it, nothing sends it. Only the owner's window settles it: handed on or not needed.
+  ipcMain.handle('outgoingApproval:settleAgentDraft', (_event, id: unknown, outcome: unknown) => {
+    if (typeof id !== 'string' || (outcome !== 'approved' && outcome !== 'rejected')) {
+      throw new Error('outgoingApproval:settleAgentDraft needs a draft id and approved or rejected')
+    }
+    const pulse = pulseDb()
+    const draft = pulse.getDraft(id)
+    if (!draft || draft.call || draft.status !== 'pending') {
+      throw new Error(`outgoing-approval: ${id} is not a pending agent draft`)
+    }
+    pulse.decideDraft(id, outcome)
+  })
+
   ipcMain.handle(
     'outgoingApproval:decide',
     (_event, id: unknown, outcome: unknown, text: unknown, choice: unknown) => {

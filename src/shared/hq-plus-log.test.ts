@@ -121,6 +121,26 @@ describe('hqPlusLog', () => {
     expect(log.at(-1)).toMatchObject({ kind: 'me', text: 'yes' })
   })
 
+  it('keeps an agent\'s own draft open for the owner though no bell card stands for it', () => {
+    const draft = (status: 'open' | 'done') =>
+      hqPlusLog(
+        [
+          row({
+            id: 'h',
+            kind: 'approve.request',
+            needs: 'owner:approve',
+            status,
+            refKind: 'draft',
+            refId: 'd9'
+          })
+        ],
+        [],
+        DAY_START
+      )[0]
+    expect(draft('open')).toMatchObject({ kind: 'card', type: 'approve', open: true, done: null })
+    expect(draft('done')).toMatchObject({ kind: 'card', type: 'approve', open: false })
+  })
+
   it('folds held messages, answers and reports from the bell where they arrived', () => {
     const log = hqPlusLog(
       [
