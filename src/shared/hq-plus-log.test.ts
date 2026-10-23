@@ -245,6 +245,23 @@ describe('hqPlusGraph', () => {
     )
     expect(graph.people.map((node) => node.id)).toEqual(['p1', 'p2', 'owner'])
   })
+
+  it('keeps a one-way relation whatever the slug order, and draws a mutual one once', () => {
+    const graph = hqPlusGraph({
+      waits: [],
+      pages: [
+        { slug: 'zeta', room: 'acme', relations: ['alpha', 'mill'] },
+        { slug: 'alpha', room: 'acme', relations: [] },
+        { slug: 'mill', room: 'acme', relations: ['zeta'] }
+      ],
+      active: new Set(['zeta', 'alpha', 'mill']),
+      now: NOW
+    })
+    expect(graph.edges.filter((edge) => edge.kind === 'relation')).toEqual([
+      { from: 'zeta', to: 'alpha', kind: 'relation' },
+      { from: 'zeta', to: 'mill', kind: 'relation' }
+    ])
+  })
 })
 
 describe('hqPlusChoices', () => {
