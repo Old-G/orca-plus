@@ -63,13 +63,15 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
   {
     // Custom build (hq-plus-routing)
     path: ['hq', 'route'],
-    summary: 'What HQ/routing.yaml does now: fixing chats for the evening Codex findings',
+    summary:
+      "What HQ/routing.yaml does now: fixing chats for the evening Codex findings, people's answers to the asking chat",
     usage: 'orca hq route [--now] [--since <7d|ISO date>] [--run] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'now', 'since', 'run'],
     notes: [
       'Without --run it only lists what it would do; Orca+ itself runs the rules every 5 minutes.',
       "--now ignores the rule's hour and the Claude limit; --run carries the actions out at once and implies --now.",
-      "--since replaces the rules' since, to see what they would have done over the past."
+      "--since replaces the rules' since, to see what they would have done over the past.",
+      'person.reply: a complete answer said where it was asked goes to the asking chat; money, production, a deadline, a new request, a counter-question or a partial answer stays a card.'
     ],
     examples: ['orca hq route', 'orca hq route --now --since 2026-10-22']
   },
