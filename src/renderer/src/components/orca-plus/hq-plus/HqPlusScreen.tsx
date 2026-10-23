@@ -54,6 +54,13 @@ import { HQ_PLUS_PANEL, readHqPlusPanelWidth, saveHqPlusPanelWidth } from './hq-
 import { HqPlusRiver } from './HqPlusRiver'
 import { HqPlusGraph } from './HqPlusGraph'
 import { HqPlusSession, type HqPlusPick } from './HqPlusSession'
+import {
+  HQ_PLUS_VIEW_TABS,
+  flushHqPlusViewState,
+  readHqPlusViewState,
+  saveHqPlusViewState,
+  type HqPlusViewTab
+} from './hq-plus-view-state'
 import { HqPlusReportView } from './HqPlusReportView'
 import { useHqPlusData } from './use-hq-plus-data'
 import { putOffHqPlusCard, readHqPlusNotNow } from './hq-plus-not-now'
@@ -79,14 +86,15 @@ import './hq-plus.css'
 
 const TICK_MS = 30_000
 const FLASH_MS = 1800
-const TABS = ['graph', 'river', 'session', 'report'] as const
-type Tab = (typeof TABS)[number]
+const TABS = HQ_PLUS_VIEW_TABS
+type Tab = HqPlusViewTab
 
 const TAB_LABEL: Record<Tab, [string, string]> = {
   graph: ['auto.hqPlus.tab.graph', 'Graph'],
   river: ['auto.hqPlus.tab.river', 'River'],
   session: ['auto.hqPlus.tab.session', 'Session'],
-  report: ['auto.hqPlus.tab.report', 'Report']
+  report: ['auto.hqPlus.tab.report', 'Report'],
+  agents: ['auto.hqPlus.tab.agents', 'Agents']
 }
 
 function roomStyle(
@@ -110,7 +118,9 @@ export function HqPlusScreen(): React.JSX.Element {
   )
   const sidebarOpen = useAppStore((state) => state.sidebarOpen)
   const setSidebarOpen = useAppStore((state) => state.setSidebarOpen)
-  const [scope, setScope] = useState<string | null>(null)
+  // Custom build (hq-plus-ui-v5): the screen comes back as the owner left it.
+  const [view] = useState(readHqPlusViewState)
+  const [scope, setScope] = useState<string | null>(view.scope)
   // Custom build (hq-plus-ui-v4): which rows the feed shows, remembered per viewer.
   const [feedFilter, setFeedFilter] = useState<HqPlusFeedFilter>(readHqPlusFeedFilter)
   const changeFeedFilter = (filter: HqPlusFeedFilter): void => {
@@ -119,7 +129,7 @@ export function HqPlusScreen(): React.JSX.Element {
   }
   // Custom build (hq-plus-ui-v4): unfolded cards and the card the keys act on live here, so keys and
   // clicks fold the same cards; ⌘F's words and where it stands.
-  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set())
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set(view.expanded))
   const setExpanded = useCallback((id: string, open: boolean) => {
     setExpandedIds((current) => {
       if (current.has(id) === open) {
@@ -141,24 +151,44 @@ export function HqPlusScreen(): React.JSX.Element {
     at: -1
   })
   const searchRef = useRef<HTMLInputElement>(null)
-  const [pick, setPick] = useState<HqPlusPick | null>(null)
+  const [pick, setPick] = useState<HqPlusPick | null>(view.pick)
   // Custom build (hq-plus-ui-v2): a chat started from HQ opens straight in «Session».
   const [requestedChat] = useState<string | null>(() =>
     takeRequestedHqTab() === 'chats' ? rememberedHqChat() : null
   )
-  const [tab, setTab] = useState<Tab>(requestedChat ? 'session' : 'graph')
-  const [wide, setWide] = useState(false)
+  const [tab, setTab] = useState<Tab>(requestedChat ? 'session' : view.tab)
+  const [wide, setWide] = useState(view.wide)
   // Custom build (hq-plus-ui-v3): the open chat folded to a bar under Graph / River, until «Expand».
-  const [chatFolded, setChatFolded] = useState(false)
+  const [chatFolded, setChatFolded] = useState(view.chatFolded)
   // Custom build (hq-plus-ui-v3): where a project picked in the River or Graph came from, for «← Back».
-  const [pickedFrom, setPickedFrom] = useState<'river' | 'graph' | null>(null)
+  const [pickedFrom, setPickedFrom] = useState<'river' | 'graph' | null>(view.pickedFrom)
   const [leftWidth, setLeftWidth] = useState(() => readHqPlusPanelWidth('left'))
   const [rightWidth, setRightWidth] = useState(() => readHqPlusPanelWidth('right'))
-  const [reportPath, setReportPath] = useState<string | null>(null)
+  const [reportPath, setReportPath] = useState<string | null>(view.reportPath)
   // Custom build (hq-plus-ui): the chat open on the right — picked on the left, «Open» in the log, or a
   // chat started from HQ (the sidebar's new chat asks HQ to show it, as the classic HQ does).
-  const [chatKey, setChatKey] = useState<string | null>(requestedChat)
+  const [chatKey, setChatKey] = useState<string | null>(requestedChat ?? view.chatKey)
   const { items: chatItems } = useHqChatList()
+  useEffect(() => {
+    saveHqPlusViewState({
+      scope,
+      tab,
+      wide,
+      chatFolded,
+      pickedFrom,
+      pick,
+      reportPath,
+      chatKey,
+      expanded: [...expandedIds]
+    })
+  }, [scope, tab, wide, chatFolded, pickedFrom, pick, reportPath, chatKey, expandedIds])
+  useEffect(() => {
+    window.addEventListener('pagehide', flushHqPlusViewState)
+    return () => {
+      window.removeEventListener('pagehide', flushHqPlusViewState)
+      flushHqPlusViewState()
+    }
+  }, [])
   const colorFor = useHqProjectColor()
   const [flashId, setFlashId] = useState<string | null>(null)
 
