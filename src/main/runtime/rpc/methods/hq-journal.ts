@@ -22,7 +22,7 @@ import {
   type HqPlusScreenStats
 } from '../../../../shared/hq-plus-screen'
 import { HQ_PLUS_WORK_KINDS, hqPlusLaneSlotMs } from '../../../../shared/hq-plus-river-graph'
-import { HQ_PLUS_CARD_KINDS } from '../../../../shared/hq-plus-log'
+import { HQ_PLUS_CARD_KINDS, isHqPlusOwnerMessage } from '../../../../shared/hq-plus-log'
 import { getHqThreads, type HqThreads } from '../../../hq-journal/hq-journal-threads'
 import { getHqJournalService, type HqJournalService } from '../../../hq-journal/hq-journal-service'
 import { getHqRouting } from '../../../hq-routing/hq-routing'
@@ -239,9 +239,17 @@ export const HQ_JOURNAL_METHODS = [
         since: params.since,
         limit: HQ_JOURNAL_MAX_LIMIT
       })
+      // Why: an older question the owner answered since is settled, yet its card stays in place.
       const seen = new Set(recent.map((entry) => entry.id))
+      const answered = recent.flatMap((entry) => {
+        const asked =
+          isHqPlusOwnerMessage(entry) && entry.replyTo && !seen.has(entry.replyTo)
+            ? runtime.pulseGetJournalEntry(entry.replyTo)
+            : null
+        return asked?.needs.startsWith('owner:') ? [asked] : []
+      })
       const entries = [...recent]
-      for (const entry of [...yours, ...decided]) {
+      for (const entry of [...yours, ...decided, ...answered]) {
         if (!seen.has(entry.id)) {
           seen.add(entry.id)
           entries.push(entry)
