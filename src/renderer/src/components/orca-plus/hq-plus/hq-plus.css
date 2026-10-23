@@ -1819,7 +1819,7 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   mask-image: linear-gradient(#000 calc(100% - 1.6em), transparent);
 }
 .hqp-chatc-text[data-open='true'] {
-  max-height: 420px;
+  max-height: 60vh;
   overflow: auto;
   cursor: auto;
 }
@@ -2044,4 +2044,190 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 }
 .hq-plus .hqp-pv > .hqp-chat .bg-chat-canvas {
   background-color: transparent;
+}
+
+/* Custom build (hq-plus-ui-v5): an inbox card's way back to its Slack thread, ClickUp task or mail. */
+.hqp-source {
+  align-self: flex-start;
+  font-size: 12.5px;
+}
+
+/* Custom build (hq-plus-ui-v5): the opened reply reads like the chat — paragraphs, lists, code. */
+.hqp-chatc-text .hqp-md {
+  font-size: 13.5px;
+  color: var(--hqp-fg);
+}
+.hqp-chatc-text .hqp-md p,
+.hqp-chatc-text .hqp-md ul,
+.hqp-chatc-text .hqp-md ol {
+  margin: 0 0 8px;
+}
+.hqp-chatc-text .hqp-md ul,
+.hqp-chatc-text .hqp-md ol {
+  padding-left: 20px;
+}
+.hqp-chatc-text .hqp-md code {
+  font-family: var(--hqp-mono);
+  font-size: 12px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--hqp-soft-2);
+}
+.hqp-chatc-text .hqp-md pre {
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.hqp-chatc-text .hqp-md pre code {
+  padding: 0;
+  background: none;
+}
+
+/* Custom build (hq-plus-ui-v5): send buttons in HQ+ read clearly — ice with a dark arrow when ready,
+   a muted ground with a light arrow when empty (the shared button's 50% fade made it grey-on-blue). */
+.hq-plus .hqp-composer button[data-slot='button'][data-variant='default'],
+.hq-plus .hqp-pv > .hqp-chat button[data-slot='button'][data-variant='default'].rounded-full {
+  background: var(--hqp-ice);
+  color: var(--hqp-ice-ink);
+}
+.hq-plus .hqp-composer button[data-slot='button'][data-variant='default']:disabled,
+.hq-plus
+  .hqp-pv
+  > .hqp-chat
+  button[data-slot='button'][data-variant='default'].rounded-full:disabled {
+  opacity: 1;
+  background: var(--hqp-soft-2);
+  color: var(--hqp-mute);
+  box-shadow: inset 0 0 0 1px var(--hqp-line-2);
+}
+.hqp-go:disabled {
+  background: var(--hqp-soft-2);
+  color: var(--hqp-mute);
+  box-shadow: inset 0 0 0 1px var(--hqp-line-2);
+}
+
+/* Custom build (hq-plus-ui-v5): the Agents tab — a live map over a list. */
+.hqp-agents {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.hqp-agents-sum {
+  margin: 0;
+  font-family: var(--hqp-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hqp-mute);
+}
+.hqp-agents-map {
+  overflow-x: auto;
+  border-radius: 10px;
+  background: var(--hqp-soft);
+  padding: 8px;
+}
+.hqp-agents-map svg {
+  display: block;
+}
+.hqp-agents-edge {
+  fill: none;
+  stroke: var(--hqp-line-2);
+  stroke-width: 1.2;
+}
+.hqp-agents-edge[data-kind='spawn'] {
+  stroke: var(--hqp-violet);
+  stroke-dasharray: 3 3;
+}
+.hqp-agents-edge[data-live='true'] {
+  stroke: var(--hqp-yellow, var(--hqp-amber));
+  stroke-dasharray: 5 5;
+  animation: hqp-agents-flow 1.1s linear infinite;
+}
+@keyframes hqp-agents-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+.hqp-agents-node rect {
+  fill: var(--hqp-card);
+  stroke: var(--hqp-line-2);
+}
+.hqp-agents-node text {
+  fill: var(--hqp-fg);
+  font-size: 11px;
+  text-anchor: middle;
+}
+.hqp-agents-node circle {
+  fill: var(--hqp-card);
+  stroke: var(--hqp-ice);
+  stroke-width: 1.5;
+}
+.hqp-agents-node[data-kind='sub'] circle {
+  stroke: var(--hqp-faint);
+}
+.hqp-agents-node[data-live='true'] circle {
+  fill: var(--hqp-yellow, var(--hqp-amber));
+  stroke: var(--hqp-yellow, var(--hqp-amber));
+  animation: hqp-agents-pulse 1.6s ease-in-out infinite;
+}
+@keyframes hqp-agents-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+.hqp-agents-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hqp-agent {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--hqp-card);
+  border: 1px solid var(--hqp-line);
+}
+.hqp-agent-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.hqp-agent-h {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.hqp-agent-h strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.hqp-agent-meta {
+  font-size: 12px;
+  color: var(--hqp-faint);
+}
+.hqp-agent-said {
+  font-size: 12.5px;
+  color: var(--hqp-mute);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hqp-agents-edge[data-live='true'],
+  .hqp-agents-node[data-live='true'] circle {
+    animation: none;
+  }
 }
