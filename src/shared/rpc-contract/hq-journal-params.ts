@@ -25,7 +25,9 @@ export const HqEventsParams = z.object({
   kind: OptionalString,
   limit: OptionalPositiveInt,
   /** One room's whole entries; only HQ+ may ask, and the read is journaled. */
-  room: OptionalString
+  room: OptionalString,
+  /** Custom build (hq-plus-ask): words every row must hold. */
+  query: OptionalString
 })
 
 // Custom build (hq-plus-reports)
