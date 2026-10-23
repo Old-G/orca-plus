@@ -55,6 +55,16 @@ describe('hqWaitingReplyBellItems', () => {
     })
   })
 
+  // Custom build (hq-plus-person-replies)
+  it('keeps an answer out while the routing rule judges it, then shows why it was left', () => {
+    const judging = () => ({ hold: true, why: null })
+    expect(hqWaitingReplyBellItems([waiting()], () => null, judging)).toEqual([])
+    const left = () => ({ hold: false, why: 'Not passed by itself: money.' })
+    expect(hqWaitingReplyBellItems([waiting()], () => null, left)[0]?.body).toBe(
+      'phone-bot · «Phone hours»\nSun–Thu 9–18\nNot passed by itself: money.'
+    )
+  })
+
   it('links where the answer was said, else where the question was asked', () => {
     const link = (overrides: Partial<PulseWaiting>): string | null =>
       readHqWaitingReplyRef(
