@@ -8,6 +8,7 @@ import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
 import { HqPlusCardView } from './HqPlusCard'
 import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
+import { HqPlusThreadComposer } from './HqPlusThreadComposer'
 
 const BOTTOM_SLACK_PX = 40
 
@@ -51,6 +52,132 @@ export function hqPlusTileOf(project: string | null): string {
   const letters =
     parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : (parts[0] ?? project).slice(0, 2)
   return letters.toUpperCase()
+}
+
+// Custom build (hq-plus-ui-v3): a chat that has no live status any more has finished its turn.
+const DONE: HqPlusBadge = { label: 'DONE', tone: 'done' }
+const CARD_OWN_CLICKS = 'button, a, textarea, input, .hqp-chatc-full, .hqp-chatc-reply'
+
+/** Custom build (hq-plus-ui-v3): one chat's card — a click opens its full reply and a reply box below. */
+function ChatCard({
+  item,
+  badges,
+  tile,
+  flash,
+  openChat,
+  ctx
+}: {
+  item: Extract<HqPlusLogItem, { kind: 'line' }>
+  badges: readonly HqPlusBadge[]
+  tile: React.ReactNode
+  flash: boolean
+  openChat: (() => void) | null
+  ctx: HqPlusLogContext
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const status = ctx.chatStatus(item.sessionId) ?? DONE
+  const key = hqPlusThreadKey(item)
+  const canReply = Boolean(item.address || item.sessionId)
+  return (
+    <div className="hqp-m" id={`hqp-${item.id}`}>
+      {tile}
+      <div
+        className="hqp-chatc"
+        data-flash={flash ? 'true' : undefined}
+        data-picked={ctx.isOpenChat(item.sessionId) ? 'true' : undefined}
+        data-expandable="true"
+        // Why: the card itself folds open; its buttons, links and the reply box keep their own clicks.
+        onClick={(event) => {
+          const target = event.target
+          if (!(target instanceof Element) || !target.closest(CARD_OWN_CLICKS)) {
+            setOpen(!open)
+          }
+        }}
+      >
+        <div className="hqp-row-h">
+          <HqPlusBadges badges={badges} />
+          <strong>{item.project ?? 'HQ'}</strong>
+          <span className="hqp-tm">{clock(item.at)}</span>
+          <span className="hqp-spacer" />
+          <HqPlusBadges badges={[status]} />
+        </div>
+        {open ? (
+          <div className="hqp-chatc-full">
+            <HqPlusText text={item.body?.trim() || item.title} />
+          </div>
+        ) : (
+          <HqPlusText text={item.title} maxLines={3} />
+        )}
+        {item.earlier && item.earlier.length > 0 ? <ChatEarlier earlier={item.earlier} /> : null}
+        {open && canReply ? (
+          <div className="hqp-chatc-reply">
+            <HqPlusThreadComposer
+              target={{
+                address: item.address,
+                sessionId: item.sessionId,
+                replyTo: null,
+                about: null
+              }}
+              openQuestion={null}
+              label={item.address ?? item.project ?? 'chat'}
+              hqPath={ctx.hqPath}
+              onSent={ctx.onChanged}
+            />
+          </div>
+        ) : null}
+        {item.address || openChat ? (
+          <div className="hqp-row-f">
+            {key && item.address ? (
+              <button type="button" className="hqp-addr" onClick={() => ctx.onScope(key)}>
+                {item.address}
+              </button>
+            ) : null}
+            <span className="hqp-spacer" />
+            {openChat ? (
+              <button type="button" className="hqp-pill" onClick={openChat}>
+                {translate('auto.hqPlus.open', 'Open')}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+/** Custom build (hq-plus-ui-v3): a chat's earlier turns, folded under its newest row. */
+function ChatEarlier({
+  earlier
+}: {
+  earlier: readonly { id: string; at: number; title: string }[]
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="hqp-earlier">
+      <button
+        type="button"
+        className="hqp-link"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        {earlier.length === 1
+          ? translate('auto.hqPlus.updateOne', '1 earlier update')
+          : translate('auto.hqPlus.updates', '{{count}} earlier updates', {
+              count: earlier.length
+            })}
+      </button>
+      {open ? (
+        <ul>
+          {earlier.map((turn) => (
+            <li key={turn.id}>
+              <span className="hqp-tm">{clock(turn.at)}</span>{' '}
+              <HqPlusText text={turn.title} maxLines={2} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  )
 }
 
 function LogItem({
@@ -115,40 +242,15 @@ function LogItem({
   // Why: a chat's row opens that chat on the right, to read on and write into it from HQ+.
   const openChat = ctx.openChat(item.sessionId)
   if (look.kind === 'chat' && item.kind === 'line') {
-    const status = ctx.chatStatus(item.sessionId)
     return (
-      <div className="hqp-m" id={`hqp-${item.id}`}>
-        {tile}
-        <div
-          className="hqp-chatc"
-          data-flash={flash ? 'true' : undefined}
-          data-picked={ctx.isOpenChat(item.sessionId) ? 'true' : undefined}
-        >
-          <div className="hqp-row-h">
-            <HqPlusBadges badges={look.badges} />
-            <strong>{item.project ?? 'HQ'}</strong>
-            <span className="hqp-tm">{clock(item.at)}</span>
-            <span className="hqp-spacer" />
-            {status ? <HqPlusBadges badges={[status]} /> : null}
-          </div>
-          <HqPlusText text={item.title} maxLines={3} />
-          {item.address || openChat ? (
-            <div className="hqp-row-f">
-              {key && item.address ? (
-                <button type="button" className="hqp-addr" onClick={() => ctx.onScope(key)}>
-                  {item.address}
-                </button>
-              ) : null}
-              <span className="hqp-spacer" />
-              {openChat ? (
-                <button type="button" className="hqp-pill" onClick={openChat}>
-                  {translate('auto.hqPlus.open', 'Open')}
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      </div>
+      <ChatCard
+        item={item}
+        badges={look.badges}
+        tile={tile}
+        flash={flash}
+        openChat={openChat}
+        ctx={ctx}
+      />
     )
   }
   if (item.kind !== 'card') {

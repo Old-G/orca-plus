@@ -1589,3 +1589,83 @@
 .hqp-side-h[data-tone='move'] {
   color: var(--hqp-amber);
 }
+/* Custom build (hq-plus-ui-v3): ⤢ lifts the right panel over the feed as its own screen; the resize hook
+   keeps writing the narrow width inline, so the wide size has to win with !important. */
+.hqp-body {
+  position: relative;
+}
+.hqp-body[data-wide='true'] > .hqp-ctx {
+  position: absolute;
+  inset: 8px 20px 16px;
+  z-index: 6;
+  width: auto !important;
+  padding: 14px 16px;
+  border: 1px solid var(--hqp-line-2);
+  border-radius: 14px;
+  background: var(--hqp-bg-2);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+}
+.hqp-exp[aria-pressed='true'] {
+  color: var(--hqp-ice);
+  font-size: 13px;
+}
+.hqp-back {
+  justify-self: start;
+  align-self: flex-start;
+}
+.hqp-ginfo-sel {
+  color: var(--hqp-faint);
+}
+.hqp-proj .hqp-tabs {
+  padding: 8px 0 4px;
+}
+.hqp-proj-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.hqp-earlier ul {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--hqp-mute);
+  font-size: 13px;
+}
+.hqp-reply textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: 160px;
+  resize: none;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-size: 13px;
+  line-height: 1.45;
+  field-sizing: content;
+}
+.hqp-reply textarea::placeholder {
+  color: var(--hqp-faint);
+}
+.hqp-sent {
+  margin: 4px 2px 0;
+  color: var(--hqp-mute);
+  font-size: 12px;
+}
+/* Custom build (hq-plus-ui-v3): a chat card opens downwards in place with its full reply. */
+.hqp-chatc[data-expandable='true'] {
+  cursor: pointer;
+}
+.hqp-chatc-full {
+  max-height: 420px;
+  overflow: auto;
+  padding-top: 4px;
+  cursor: auto;
+}
+.hqp-chatc-reply {
+  padding-top: 8px;
+  cursor: auto;
+}

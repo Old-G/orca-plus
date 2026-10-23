@@ -97,12 +97,26 @@ export function HqPlusGraph({
       .map((edge) => nodes.get(edge.from === selected ? edge.to : edge.from)?.label)
       .filter((label): label is string => Boolean(label))
     if (person?.owner) {
-      return translate('auto.hqPlus.graph.owner', 'You owe an answer to: {{who}}.', {
-        who: linked.join(', ')
-      })
+      return (
+        <>
+          {translate('auto.hqPlus.graph.owner', 'You owe an answer to: {{who}}.', {
+            who: linked.join(', ')
+          })}
+          <button
+            type="button"
+            className="hqp-chip-btn hqp-ginfo-go"
+            onClick={() => setPicked(null)}
+          >
+            {translate('auto.hqPlus.graph.clear', 'Clear')}
+          </button>
+        </>
+      )
     }
     return (
       <>
+        <span className="hqp-ginfo-sel">
+          {translate('auto.hqPlus.graph.selected', 'Selected:')}
+        </span>{' '}
         <b>{node?.label}</b>
         {person && waits.length > 0
           ? ` ${translate('auto.hqPlus.graph.holds', 'holds up {{projects}} ({{detail}}).', {
@@ -112,8 +126,15 @@ export function HqPlusGraph({
           : linked.length > 0
             ? ` — ${linked.join(', ')}`
             : ''}
+        <button type="button" className="hqp-chip-btn hqp-ginfo-go" onClick={() => setPicked(null)}>
+          {translate('auto.hqPlus.graph.clear', 'Clear')}
+        </button>
         {graph.projects.some((project) => project.id === selected) ? (
-          <button type="button" className="hqp-chip-btn hqp-ginfo-go" onClick={() => onPickProject(selected)}>
+          <button
+            type="button"
+            className="hqp-chip-btn hqp-ginfo-go"
+            onClick={() => onPickProject(selected)}
+          >
             {translate('auto.hqPlus.graph.openSession', 'Session')} →
           </button>
         ) : null}
@@ -127,6 +148,12 @@ export function HqPlusGraph({
         viewBox={`0 0 ${WIDTH} ${height}`}
         role="img"
         aria-label={translate('auto.hqPlus.graph.label', 'Graph: people, projects, systems')}
+        // Custom build (hq-plus-ui-v3): a click on empty space clears the selection.
+        onClick={(event) => {
+          if (event.target === event.currentTarget) {
+            setPicked(null)
+          }
+        }}
       >
         {[
           translate('auto.hqPlus.graph.people', 'PEOPLE'),
@@ -192,16 +219,47 @@ export function HqPlusGraph({
             >
               {node.id === HQ_PLUS_OWNER_NODE ? (
                 <>
-                  <circle cx={node.x} cy={node.y} r={16} style={{ fill: 'var(--hqp-ice-ink)', stroke: 'var(--hqp-ice)' }} strokeWidth={1.5} />
-                  <circle cx={node.x} cy={node.y} r={24} strokeOpacity={0.25} style={{ fill: 'none', stroke: 'var(--hqp-ice)' }} />
-                  <text x={node.x} y={node.y + 4} textAnchor="middle" style={{ fill: 'var(--hqp-fg)' }} fontSize={11} fontWeight={600}>
+                  <circle
+                    cx={node.x}
+                    cy={node.y}
+                    r={16}
+                    style={{ fill: 'var(--hqp-ice-ink)', stroke: 'var(--hqp-ice)' }}
+                    strokeWidth={1.5}
+                  />
+                  <circle
+                    cx={node.x}
+                    cy={node.y}
+                    r={24}
+                    strokeOpacity={0.25}
+                    style={{ fill: 'none', stroke: 'var(--hqp-ice)' }}
+                  />
+                  <text
+                    x={node.x}
+                    y={node.y + 4}
+                    textAnchor="middle"
+                    style={{ fill: 'var(--hqp-fg)' }}
+                    fontSize={11}
+                    fontWeight={600}
+                  >
                     {translate('auto.hqPlus.graph.you', 'you')}
                   </text>
                 </>
               ) : node.column === 0 ? (
                 <>
-                  <circle cx={node.x} cy={node.y} r={8} style={{ fill: 'var(--hqp-node)', stroke: 'var(--hqp-ice)' }} strokeWidth={1.2} />
-                  <text x={node.x - 14} y={node.y + 4} textAnchor="end" style={{ fill: 'var(--hqp-fg)' }} fontSize={11.5}>
+                  <circle
+                    cx={node.x}
+                    cy={node.y}
+                    r={8}
+                    style={{ fill: 'var(--hqp-node)', stroke: 'var(--hqp-ice)' }}
+                    strokeWidth={1.2}
+                  />
+                  <text
+                    x={node.x - 14}
+                    y={node.y + 4}
+                    textAnchor="end"
+                    style={{ fill: 'var(--hqp-fg)' }}
+                    fontSize={11.5}
+                  >
                     {node.label}
                   </text>
                 </>
@@ -228,7 +286,12 @@ export function HqPlusGraph({
                     {node.label}
                   </text>
                   {project?.active ? (
-                    <circle cx={node.x + width / 2} cy={node.y - 11} r={4} style={{ fill: 'var(--hqp-green)' }} />
+                    <circle
+                      cx={node.x + width / 2}
+                      cy={node.y - 11}
+                      r={4}
+                      style={{ fill: 'var(--hqp-green)' }}
+                    />
                   ) : null}
                 </>
               )}
@@ -239,7 +302,11 @@ export function HqPlusGraph({
       <div className="hqp-ginfo">{info()}</div>
       <div className="hqp-legend">
         <span>
-          <i className="hqp-sw" data-dash="true" style={{ borderTopColor: EDGE_COLOR['wait-long'] }} />
+          <i
+            className="hqp-sw"
+            data-dash="true"
+            style={{ borderTopColor: EDGE_COLOR['wait-long'] }}
+          />
           {translate('auto.hqPlus.graph.legendLong', 'waiting 2+ days')}
         </span>
         <span>
