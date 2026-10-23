@@ -1669,3 +1669,142 @@
   padding-top: 8px;
   cursor: auto;
 }
+.hqp-x {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--hqp-faint);
+}
+.hqp-x:hover {
+  color: var(--hqp-fg);
+  background: var(--hqp-soft-2);
+}
+.hqp-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--hqp-amber);
+}
+/* Custom build (hq-plus-ui-v3): a chat row on the left with its × beside it. */
+.hqp-qi-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.hqp-qi-row > .hqp-qi {
+  flex: 1;
+  min-width: 0;
+}
+.hqp-qi-row > .hqp-x {
+  margin-top: 6px;
+  opacity: 0.55;
+}
+.hqp-qi-row:hover > .hqp-x,
+.hqp-qi-row > .hqp-x:focus-visible {
+  opacity: 1;
+}
+.hqp-qi-row > .hqp-confirm {
+  flex-basis: 100%;
+  padding: 0 10px 6px 32px;
+}
+.hqp-idle-h {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  font-family: var(--hqp-mono);
+  font-size: 11px;
+  color: var(--hqp-faint);
+}
+.hqp-idle-h:hover {
+  background: var(--hqp-soft);
+  color: var(--hqp-mute);
+}
+/* Custom build (hq-plus-ui-v3): the left queues as cards with their actions under them. */
+.hqp-qcard {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.hqp-qacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 0 8px 4px;
+}
+.hqp-qcard .hqp-error {
+  padding: 0 8px;
+  font-size: 12px;
+}
+button.hqp-wf {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  padding: 4px 8px;
+}
+button.hqp-wf:hover {
+  background: var(--hqp-soft);
+}
+button.hqp-wf[aria-expanded='true'] span:first-child {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.hqp-more {
+  justify-self: start;
+  padding: 2px 8px;
+}
+/* Custom build (hq-plus-ui-v3): the chat folded down to a slim bar at the foot of the right column. */
+.hqp-ctx:has(> .hqp-cbar) {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.hqp-cbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--hqp-line-2);
+  background: var(--hqp-soft);
+  font-size: 13px;
+  --hqp-dot: var(--hqp-green);
+}
+.hqp-cbar .hqp-dot {
+  margin-top: 0;
+  flex: none;
+}
+.hqp-cbar .t {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hqp-cbar {
+    animation: hqp-cbar-in 0.32s cubic-bezier(0.22, 0.8, 0.2, 1);
+  }
+  @keyframes hqp-cbar-in {
+    from {
+      transform: translateY(-40px);
+      opacity: 0;
+    }
+  }
+}
+/* Custom build (hq-plus-ui-v3): long names wrap or ellipsize inside the column instead of widening it. */
+.hqp-side-sec,
+.hqp-qcard {
+  grid-template-columns: minmax(0, 1fr);
+}
