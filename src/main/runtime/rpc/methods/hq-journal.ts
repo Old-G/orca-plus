@@ -3,11 +3,14 @@ import {
   ChatSendParams,
   HqEventsParams,
   HqReportParams,
+  HqRouteParams,
+  HqSettleParams,
   HqThreadParams,
   HqWhoamiParams
 } from '../../../../shared/rpc-contract/hq-journal-params'
 import { getHqThreads, type HqThreads } from '../../../hq-journal/hq-journal-threads'
 import { getHqJournalService, type HqJournalService } from '../../../hq-journal/hq-journal-service'
+import { getHqRouting } from '../../../hq-routing/hq-routing'
 
 function journal(): HqJournalService {
   const service = getHqJournalService()
@@ -97,5 +100,31 @@ export const HQ_JOURNAL_METHODS = [
         worktreeId: params.callerWorktreeId,
         cwd: params.callerCwd
       })
+  }),
+  // Custom build (hq-plus-routing): what HQ/routing.yaml does now, and a chat closing a row it was handed.
+  defineMethod({
+    name: 'hq.route',
+
+    permission: 'workspace',
+    params: HqRouteParams,
+    handler: async (params) => {
+      const routing = getHqRouting()
+      if (!routing) {
+        throw new Error('HQ+ routing is not available on this host.')
+      }
+      return routing.run({
+        dryRun: params.run !== true,
+        manual: params.run === true || params.now === true,
+        since: params.since
+      })
+    }
+  }),
+  defineMethod({
+    name: 'hq.settle',
+
+    permission: 'workspace',
+    params: HqSettleParams,
+    handler: async ({ callerSessionId, callerWorktreeId, callerCwd, ...input }) =>
+      threads().settle(callerOf({ callerSessionId, callerWorktreeId, callerCwd }), input)
   })
 ]
