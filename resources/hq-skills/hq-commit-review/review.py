@@ -5,6 +5,7 @@ Only problems surface: a P0/P1 finding becomes an HQ report (HQ/updates/codex-re
 which Orca+ turns into a bell item, a banner and a phone push. Clean commits leave only a log line.
 
   review.py run [--max N]   review up to N new commits (default 6), oldest first
+  review.py daily           one review per project of all its new commits (the evening run)
   review.py baseline        mark every current commit as seen, review nothing
   review.py status          print the queue size per project, review nothing
 
@@ -29,6 +30,8 @@ MODEL = os.environ.get("CODEX_REVIEW_MODEL", "gpt-6-sol")
 WINDOW_DAYS = 3
 PER_BRANCH = 40
 REVIEW_TIMEOUT = 600
+DAILY_TIMEOUT = 1500
+DAILY_MAX_COMMITS = 40
 KEEP_SEEN = 20000
 FINDING = re.compile(r"^- \[P([0-3])\] (.+?) — (.+?)\s*$")
 LIMIT_HIT = re.compile(r"usage limit|rate limit|quota|429", re.I)
@@ -143,6 +146,87 @@ def review(item):
     return parse(run.stdout), None
 
 
+def daily_prompt(items):
+    lines = [
+        "Review, as one change, only the commits listed below (oldest first). Read each with "
+        "`git show <sha>`; ignore uncommitted changes and every other commit. A later commit in the "
+        "list may already fix an earlier one — report only what is still wrong after the last of them.",
+        "",
+    ]
+    lines += [f"- {it['sha']} {it['subject']}" for it in items]
+    return "\n".join(lines)
+
+
+def review_daily(items):
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("ORCA", "CLAUDE"))}
+    run = subprocess.run(
+        ["codex", "review", "-c", f"model={MODEL}", "-c", 'sandbox_mode="read-only"', "-"],
+        cwd=items[0]["repo"], env=env, input=daily_prompt(items), capture_output=True, text=True,
+        timeout=DAILY_TIMEOUT)
+    if run.returncode != 0:
+        tail = (run.stderr or run.stdout)[-400:]
+        return None, ("limit" if LIMIT_HIT.search(tail) else "error") + ": " + tail.strip().replace("\n", " ")[-200:]
+    return parse(run.stdout), None
+
+
+def write_daily_report(problems):
+    stamp = datetime.now()
+    serious = sum(f["level"] <= 1 for p in problems for f in p["findings"])
+    lines = [
+        f"# Codex за день — {', '.join(p['name'] for p in problems)} — {stamp:%d.%m}",
+        "",
+        f"Вечернее ревью всех коммитов дня, по проекту разом. Серьёзных (P0/P1): {serious}; "
+        "P2 — мелочи, по желанию. Правится в чате проекта.",
+        "",
+    ]
+    for p in problems:
+        lines.append(f"## {p['name']} · коммитов: {len(p['items'])}")
+        lines.append("")
+        for f in p["findings"]:
+            lines.append(f"- **[P{f['level']}] {f['title']}** — `{short_where(f['where'], p['repo'])}`")
+            if f["detail"]:
+                lines.append(f"  {f['detail']}")
+        lines.append("")
+        lines.append("Коммиты: " + ", ".join(f"`{it['sha'][:10]}`" for it in p["items"]))
+        lines.append("")
+    UPDATES.mkdir(parents=True, exist_ok=True)
+    path = UPDATES / f"codex-review-{stamp:%Y-%m-%dT%H-%M}.md"
+    path.write_text("\n".join(lines))
+    return path
+
+
+def run_daily(state, todo):
+    by_repo = {}
+    for item in todo:
+        by_repo.setdefault(item["repo"], []).append(item)
+    problems, done = [], 0
+    for repo, items in by_repo.items():
+        items = items[-DAILY_MAX_COMMITS:]
+        findings, err = review_daily(items)
+        if err:
+            print(f"{items[0]['slug']} {len(items)} commits {err}")
+            if err.startswith("limit"):
+                break
+            continue
+        done += len(items)
+        for item in by_repo[repo]:
+            state["shas"].append(item["sha"])
+            if item["patch"]:
+                state["patches"].append(item["patch"])
+        state["reviews"] = (state.get("reviews", []) + [{
+            "at": datetime.now().isoformat(timespec="seconds"), "slug": items[0]["slug"],
+            "sha": items[-1]["sha"], "commits": len(items), "levels": [f["level"] for f in findings]}])[-500:]
+        print(f"{items[0]['slug']} {len(items)} commits findings={[f['level'] for f in findings]}")
+        if any(f["level"] <= 2 for f in findings):
+            problems.append({"name": items[0]["name"], "repo": repo, "items": items,
+                             "findings": sorted((f for f in findings if f["level"] <= 2), key=lambda f: f["level"])})
+        save_state(state)
+    if problems:
+        print(f"report: {write_daily_report(problems)}")
+    print(f"reviewed {done} commits in {len(by_repo)} projects")
+    return 0
+
+
 def short_where(where, repo):
     return where.replace(repo.rstrip("/") + "/", "")
 
@@ -192,6 +276,8 @@ def main():
         print(json.dumps({"queued": len(todo), "byProject": by}, ensure_ascii=False))
         save_state(state)
         return 0
+    if cmd == "daily":
+        return run_daily(state, todo)
     problems, done = [], 0
     for item in todo[:limit]:
         findings, err = review(item)
