@@ -3,6 +3,7 @@
 // Every action goes the way the classic HQ does it: the bell, the waiting, the reminder through Approve.
 // Custom build (hq-plus-ui-v4): the whole text, formatted, with the actions under it; sections fold smoothly.
 import { useState } from 'react'
+import { readHqPlusViewState, saveHqPlusViewState } from './hq-plus-view-state'
 import { translate } from '@/i18n/i18n'
 import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
@@ -251,7 +252,11 @@ export function HqPlusWeWaitQueue({
   waits: readonly HqPlusOtherWait[]
   actions: HqPlusQueueActions
 }): React.JSX.Element | null {
-  const [all, setAll] = useState(false)
+  const [all, setAllState] = useState(() => readHqPlusViewState().showAllWaiting)
+  const setAll = (next: boolean): void => {
+    setAllState(next)
+    saveHqPlusViewState({ showAllWaiting: next })
+  }
   if (waits.length === 0) {
     return null
   }
