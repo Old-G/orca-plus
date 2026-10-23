@@ -1906,7 +1906,8 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 .hqp-m[data-selected='true'] > :last-child,
 .hqp-bgl[data-selected='true'] {
   outline: 1px solid var(--hqp-line-2);
-  outline-offset: 2px;
+  /* Custom build (hq-plus-ui-v5): drawn inside the row, so the feed's edge never clips it. */
+  outline-offset: -1px;
   border-radius: 12px;
 }
 .hqp-day {
