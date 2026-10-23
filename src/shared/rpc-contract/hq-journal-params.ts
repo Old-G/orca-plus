@@ -112,3 +112,9 @@ export const HqSessionsParams = z.object({
   /** Carry out what the sweep finds now (mode on); absent, it only lists. */
   run: OptionalBoolean
 })
+
+// Custom build (hq-plus-ui): the owner's HQ+ screen reads every room's whole rows at once.
+export const HqFeedParams = z.object({
+  since: OptionalFiniteNumber,
+  limit: OptionalPositiveInt
+})
