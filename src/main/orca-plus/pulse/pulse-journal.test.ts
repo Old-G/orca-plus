@@ -167,6 +167,8 @@ describe('journal migration', () => {
     first.close()
     const raw = new Database(path)
     raw.exec('DROP TABLE journal; DROP TABLE sessions')
+    // Why: version 9 (hq-plus-person-replies) came after.
+    raw.exec('ALTER TABLE waitings DROP COLUMN reply_author_id')
     raw.pragma('user_version = 7')
     raw.close()
 
