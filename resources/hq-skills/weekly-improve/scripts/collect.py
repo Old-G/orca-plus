@@ -40,9 +40,14 @@ AUTOMATED = re.compile(
     r"reply with (just|the single word)|call the tool |просто тестовое сообщение|"
     # Orca+ notices, scheduled runs and relayed answers (19.10: 10 of 106 «messages»).
     r"orca\+ перезапущена на|the scheduled upstream sync|итоги (дня|месяца) по скиллу|"
-    r"вечерняя сводка «кого ждём»|ответь одним словом|[^\n]{1,80}? ответила? по нашему ожиданию)",
+    r"вечерняя сводка «кого ждём»|ответь одним словом|[^\n]{1,80}? ответила? по нашему ожиданию|"
+    # Orca+ waiting relays and routing, skill-list probes (most of the «messages» in HQ's own chats).
+    r"a chat asked a person a question|orca\+ · an answer|you route a slack message|"
+    r"do not do the task|is a skill named|list the names of every skill|\[deepen-hook\])",
     re.I,
 )
+# Why: sandboxes and agent scratch worktrees, not the owner's chats (home dir, /private/tmp, *-scratchpad-*).
+SANDBOX_PROJECT = re.compile(r"^-Users-[^-]+$|^-private-tmp|-scratchpad-")
 
 
 # A bare "go on" — what limit-guard sends (CLAUDE_LIMIT_CONTINUE_PROMPT) and what the owner types after a stop.
@@ -141,6 +146,8 @@ def transcripts(cut, end=None):
         if os.path.getmtime(path) < cut:
             continue
         project = os.path.basename(os.path.dirname(path)).split("-Projects-")[-1] or "home"
+        if SANDBOX_PROJECT.search(project):
+            continue
         last_stop = None  # (kind, timestamp) of the latest main-thread assistant error, until the next turn
         last_skill = None
         with open(path, encoding="utf-8", errors="ignore") as handle:
@@ -365,6 +372,17 @@ def pulse_day(cut, end):
     }
 
 
+def manual_routing_block(cut, end):
+    # Why imported here: manual_routing imports this module for its filters.
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from manual_routing import manual_routing
+
+    try:
+        return manual_routing(cut, end)
+    except (OSError, ValueError) as error:
+        return {"error": str(error)}
+
+
 def day_main(args):
     start = datetime.strptime(args.day, "%Y-%m-%d")
     cut, end = start.timestamp(), (start + timedelta(days=1)).timestamp()
@@ -377,6 +395,8 @@ def day_main(args):
         "commits": commits(args.hq, 1, since, until),
         "pulse": pulse_day(cut, end),
         "hq": hq_signals(args.hq, cut, end),
+        # HQ+ 17.11: what the owner routed by hand that day, next to what Orca+ did by itself.
+        "manual_routing": manual_routing_block(cut, end),
     }
     out_dir = os.path.join(args.hq, "journal")
     os.makedirs(out_dir, exist_ok=True)
@@ -387,7 +407,8 @@ def day_main(args):
     print(out)
     print(f"owner messages {t['owner_messages']}, projects {len(t['by_project'])}, skills used {len(t['skills_used'])}, "
           f"repos with commits {len(digest['commits'])}, decisions {len(p.get('decisions', []))}, "
-          f"feed {len(p.get('feed', []))}, size {os.path.getsize(out) // 1024} KB")
+          f"feed {len(p.get('feed', []))}, manual routing {digest['manual_routing'].get('manual_total', '?')}, "
+          f"size {os.path.getsize(out) // 1024} KB")
 
 
 def main():
