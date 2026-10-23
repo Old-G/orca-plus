@@ -65,6 +65,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
       'hq whoami',
       'hq route',
       'hq settle',
+      'hq merge-slot',
       'hq context',
       'hq step',
       'hq where',

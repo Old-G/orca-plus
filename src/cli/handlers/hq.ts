@@ -7,7 +7,7 @@ import {
   type HqThreadResult,
   type HqWhoami
 } from '../../shared/hq-journal'
-import type { HqRouteResult, HqSettleResult } from '../../shared/hq-routing'
+import type { HqMergeSlotResult, HqRouteResult, HqSettleResult } from '../../shared/hq-routing'
 import type { HqDispatchResult, HqSessionsResult } from '../../shared/hq-sessions'
 import type {
   HqContextResult,
@@ -22,6 +22,7 @@ import { printResult } from '../format'
 import {
   formatHqDispatch,
   formatHqEvents,
+  formatHqMergeSlot,
   formatHqRoute,
   formatHqSessions,
   formatHqThread,
@@ -112,9 +113,24 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       ...caller(),
       run: flags.get('run') === true,
       now: flags.get('now') === true,
-      since
+      since,
+      report: getOptionalStringFlag(flags, 'report')
     })
     printResult(result, json, formatHqRoute)
+  },
+
+  // Custom build (hq-fix-now-all)
+  'hq merge-slot': async ({ flags, client, json }) => {
+    const action = getRequiredStringFlag(flags, 'action')
+    if (action !== 'take' && action !== 'release' && action !== 'status') {
+      throw new Error(`Use take, release or status, got "${action}"`)
+    }
+    const result = await client.call<HqMergeSlotResult>('hq.mergeSlot', {
+      ...caller(),
+      project: getRequiredStringFlag(flags, 'project'),
+      action
+    })
+    printResult(result, json, formatHqMergeSlot)
   },
 
   'hq settle': async ({ flags, client, json }) => {
