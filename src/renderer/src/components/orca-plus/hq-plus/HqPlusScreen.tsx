@@ -10,7 +10,7 @@ import {
   hqPlusNotNowKey,
   type HqPlusCard
 } from '../../../../../shared/hq-plus-log'
-import { hqPlusFoldChats } from '../../../../../shared/hq-plus-fold'
+import { hqPlusFoldChats, hqPlusWithLiveChats } from '../../../../../shared/hq-plus-fold'
 import {
   hqPlusIsFyi,
   hqPlusNeedsOwner,
@@ -39,8 +39,10 @@ import { onHqTabRequested, openHqScreen, takeRequestedHqTab } from '../hq/hq-vie
 import { PulseBellButton } from '../pulse-bell/PulseBellButton'
 import { openHqRouteChat } from '../pulse-bell/hq-route-send'
 import { HqPlusLog, hqPlusThreadKey, hqPlusTileOf, type HqPlusLogContext } from './HqPlusLog'
-import { HqPlusSide, type HqPlusOtherWait, type HqPlusTile } from './HqPlusSide'
-import { HqPlusChatSession } from './HqPlusChatSession'
+import { HqPlusSide, type HqPlusTile } from './HqPlusSide'
+import type { HqPlusOtherWait } from './HqPlusSideQueues'
+import type { HqPlusChatCloser } from './HqPlusCloseChat'
+import { HqPlusChatBar, HqPlusChatSession } from './HqPlusChatSession'
 import { markHqPlusDone } from './hq-plus-actions'
 import { HQ_PLUS_PANEL, readHqPlusPanelWidth, saveHqPlusPanelWidth } from './hq-plus-panel-widths'
 import { HqPlusRiver } from './HqPlusRiver'
@@ -51,7 +53,13 @@ import { setHqFlavor } from './hq-plus-flavor'
 import { useHqPlusData } from './use-hq-plus-data'
 import { putOffHqPlusCard, readHqPlusNotNow } from './hq-plus-not-now'
 import { HqPlusThreadComposer } from './HqPlusThreadComposer'
-import { hqPlusChatOfSession, hqPlusSideChats } from './hq-plus-chats'
+import {
+  closeHqPlusChat,
+  hqPlusChatIsIdle,
+  hqPlusChatOfSession,
+  hqPlusLiveChats,
+  hqPlusSideChats
+} from './hq-plus-chats'
 import './hq-plus.css'
 
 const TICK_MS = 30_000
@@ -95,6 +103,8 @@ export function HqPlusScreen(): React.JSX.Element {
   )
   const [tab, setTab] = useState<Tab>(requestedChat ? 'session' : 'graph')
   const [wide, setWide] = useState(false)
+  // Custom build (hq-plus-ui-v3): the open chat folded to a bar under Graph / River, until «Expand».
+  const [chatFolded, setChatFolded] = useState(false)
   // Custom build (hq-plus-ui-v3): where a project picked in the River or Graph came from, for «← Back».
   const [pickedFrom, setPickedFrom] = useState<'river' | 'graph' | null>(null)
   const [leftWidth, setLeftWidth] = useState(() => readHqPlusPanelWidth('left'))
@@ -170,12 +180,25 @@ export function HqPlusScreen(): React.JSX.Element {
       void window.api.pulseBell.markRead(unread)
     }
   }, [roomItems, data.feed])
+  // Custom build (hq-plus-ui-v3): a chat just started has its card at once, from the live chat list.
+  const liveChats = useMemo(
+    () =>
+      hqPlusLiveChats(
+        chatItems,
+        dayStart,
+        (project) => roomOfProject.get(project) ?? HQ_PLUS_ANY_ROOM
+      ).filter((chat) => (!room || chat.room === room) && (!scope || chat.sessionId === scope)),
+    [chatItems, dayStart, roomOfProject, room, scope]
+  )
   const shown = useMemo(
     () =>
       hqPlusFoldChats(
-        scope ? roomItems.filter((item) => hqPlusThreadKey(item) === scope) : roomItems
+        hqPlusWithLiveChats(
+          scope ? roomItems.filter((item) => hqPlusThreadKey(item) === scope) : roomItems,
+          liveChats
+        )
       ),
-    [roomItems, scope]
+    [roomItems, scope, liveChats]
   )
   const waiting = useMemo(
     () => roomItems.filter((item): item is HqPlusCard => hqPlusNeedsOwner(item)),
@@ -209,7 +232,9 @@ export function HqPlusScreen(): React.JSX.Element {
     () =>
       hqPlusSideChats(
         chatItems.filter((item) => !room || (roomOfRepo.get(item.repoId) ?? room) === room),
-        now
+        now,
+        // Why: the read, finished chats fold under «Idle», so the list keeps every open chat.
+        Number.POSITIVE_INFINITY
       ),
     [chatItems, room, roomOfRepo, now]
   )
@@ -242,9 +267,10 @@ export function HqPlusScreen(): React.JSX.Element {
         .sort((a, b) => a.createdAt - b.createdAt)
         .map((wait) => ({
           id: wait.id,
-          who: (wait.personId ? names.get(wait.personId) : null) ?? '—',
+          who: (wait.personId ? names.get(wait.personId) : null) ?? null,
           title: wait.title,
-          at: wait.createdAt
+          at: wait.createdAt,
+          sessionId: wait.agentSessionId ?? null
         })),
     [data.waits, room, roomOfProject, names]
   )
@@ -284,7 +310,8 @@ export function HqPlusScreen(): React.JSX.Element {
       case 'done':
         return { label: 'DONE', tone: 'done' }
       default:
-        return null
+        // Custom build (hq-plus-ui-v3): a chat opened a moment ago has no turn yet — it is starting.
+        return chat && !hqPlusChatIsIdle(chat, now) ? { label: 'WORKING', tone: 'working' } : null
     }
   }
   const activity = useMemo(
@@ -318,6 +345,7 @@ export function HqPlusScreen(): React.JSX.Element {
       : null
   const showChat = (key: string): void => {
     setChatKey(key)
+    setChatFolded(false)
     setTab('session')
     acknowledgeHqChat(chatItems.find((item) => item.key === key))
   }
@@ -402,6 +430,23 @@ export function HqPlusScreen(): React.JSX.Element {
     setReportPath(path)
     setTab('report')
   }
+  // Custom build (hq-plus-ui-v3): × on a chat closes its tab; one open on the right gives way.
+  const closerOf = (item: (typeof chatItems)[number]): HqPlusChatCloser | null =>
+    item.kind === 'chat'
+      ? {
+          working: item.group === 'working',
+          close: () => {
+            closeHqPlusChat(item)
+            if (chatKey === item.key) {
+              setChatKey(null)
+            }
+          }
+        }
+      : null
+  const putOff = (id: string): void => {
+    putOffHqPlusCard(id, Date.now())
+    setNotNowVersion((version) => version + 1)
+  }
   const ctx: HqPlusLogContext = {
     hqPath,
     hqWorktreeId,
@@ -420,12 +465,13 @@ export function HqPlusScreen(): React.JSX.Element {
       }
     },
     onOpenReport: openReport,
-    onNotNow: (id) => {
-      putOffHqPlusCard(id, Date.now())
-      setNotNowVersion((version) => version + 1)
-    },
+    onNotNow: putOff,
     onChanged: data.reload,
     chatStatus,
+    closeChat: (sessionId) => {
+      const listed = hqPlusChatOfSession(chatItems, sessionId)
+      return listed ? closerOf(listed) : null
+    },
     projectColor,
     isOpenChat: (sessionId) =>
       tab === 'session' && chatItem !== null && hqPlusChatOfSession([chatItem], sessionId) !== null
@@ -591,9 +637,17 @@ export function HqPlusScreen(): React.JSX.Element {
             chats={sideChats}
             stats={data.stats}
             picked={tab === 'session' ? chatKey : null}
-            now={now}
             tileOf={tileOfChat}
-            onJump={jump}
+            closerOf={closerOf}
+            queue={{
+              hqPath,
+              hqWorktreeId,
+              now,
+              onJump: jump,
+              openChat,
+              onNotNow: (card) => putOff(hqPlusNotNowKey(card)),
+              onChanged: data.reload
+            }}
             onPickChat={(item) => showChat(item.key)}
             onClearFyi={clearFyi}
           />
@@ -684,13 +738,33 @@ export function HqPlusScreen(): React.JSX.Element {
                   role="tab"
                   aria-selected={tab === name}
                   className="hqp-tab"
-                  onClick={() => setTab(name)}
+                  onClick={() => {
+                    setTab(name)
+                    if (name === 'session') {
+                      setChatFolded(false)
+                    }
+                  }}
                 >
                   {translate(key, fallback)}
                 </button>
               )
             })}
             <span className="hqp-spacer" />
+            {tab === 'session' && chatItem ? (
+              <button
+                type="button"
+                className="hqp-tab hqp-exp"
+                aria-label={translate('auto.hqPlus.foldChat', 'Fold the chat to the bottom')}
+                title={translate('auto.hqPlus.foldChat', 'Fold the chat to the bottom')}
+                onClick={() => {
+                  setChatFolded(true)
+                  setWide(false)
+                  setTab(pickedFrom ?? 'graph')
+                }}
+              >
+                ⌄
+              </button>
+            ) : null}
             <button
               type="button"
               className="hqp-tab hqp-exp"
@@ -761,6 +835,15 @@ export function HqPlusScreen(): React.JSX.Element {
               )}
             </div>
           </div>
+          {chatFolded && chatItem && tab !== 'session' ? (
+            <HqPlusChatBar
+              item={chatItem}
+              onExpand={() => {
+                setChatFolded(false)
+                setTab('session')
+              }}
+            />
+          ) : null}
         </aside>
       </div>
     </div>
