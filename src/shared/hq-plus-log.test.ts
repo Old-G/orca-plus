@@ -4,7 +4,7 @@ import type { PulseInboxItem } from './pulse-types'
 import { hqPlusGraph, hqPlusLanes } from './hq-plus-river-graph'
 import { hqPlusAsksOwner, hqPlusChoices, hqPlusLog, hqPlusWaiting } from './hq-plus-log'
 import { parseHqPlusReport, summarizeHqPlusReport } from './hq-plus-screen'
-import { hqPlusFoldChats } from './hq-plus-fold'
+import { hqPlusFoldChats, hqPlusWithLiveChats } from './hq-plus-fold'
 
 const NOW = Date.UTC(2026, 9, 23, 12)
 const HOUR = 60 * 60_000
@@ -450,10 +450,38 @@ describe('hqPlusFoldChats', () => {
       'Took it',
       'Did X'
     ])
-    expect(feed.map((item) => (item.kind === 'card' ? item.type : item.title))).toEqual([
-      'Other chat',
-      'approve',
-      'All done'
-    ])
+    expect(
+      feed.map((item) =>
+        item.kind === 'card' ? item.type : item.kind === 'line' ? item.title : item.text
+      )
+    ).toEqual(['Other chat', 'approve', 'All done'])
+  })
+})
+
+describe('hqPlusWithLiveChats', () => {
+  const live = {
+    sessionId: 's9',
+    project: 'kite',
+    room: 'acme',
+    title: 'New chat',
+    at: NOW - 10_000
+  }
+
+  it('gives a just-started chat its card before the journal has a row of it', () => {
+    const feed = hqPlusFoldChats(hqPlusWithLiveChats([], [live]))
+    expect(feed).toHaveLength(1)
+    expect(feed[0]).toMatchObject({
+      kind: 'line',
+      tone: 'agent',
+      sessionId: 's9',
+      title: 'New chat'
+    })
+  })
+
+  it('lets the journal rows carry the card once the chat has one', () => {
+    const turn = row({ sessionId: 's9', at: NOW - 5_000, title: 'Took it' })
+    const feed = hqPlusFoldChats(hqPlusWithLiveChats(hqPlusLog([turn], [], NOW - HOUR), [live]))
+    expect(feed.filter((item) => item.sessionId === 's9')).toHaveLength(1)
+    expect(feed[0]).toMatchObject({ id: turn.id, title: 'Took it' })
   })
 })

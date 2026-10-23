@@ -3,7 +3,7 @@ import type { DashboardCard, DashboardWorkspace } from '../../../../../shared/da
 import type { Tab } from '../../../../../shared/tab-types'
 import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
 import { buildHqChatList } from '../hq/hq-chat-list'
-import { hqPlusChatOfSession, hqPlusSideChats } from './hq-plus-chats'
+import { hqPlusChatIsIdle, hqPlusChatOfSession, hqPlusSideChats } from './hq-plus-chats'
 
 const workspace: DashboardWorkspace = {
   repoId: 'repo-1',
@@ -74,5 +74,33 @@ describe('HQ+ chats', () => {
     )
 
     expect(hqPlusSideChats(items, 1000)[0]?.key).toContain('tab-opened')
+  })
+
+  it('folds as idle only chats that finished and were read, not unread, working or just opened', () => {
+    const now = 60 * 60_000
+    const opened = { ...chatTab('tab-opened'), createdAt: now - 1000 }
+    const items = buildHqChatList(
+      {
+        workspaces: [workspace],
+        cards: [
+          card('tab-read', 'done', 40),
+          { ...card('tab-unread', 'done', 40), unseen: true },
+          card('tab-working', 'working', 40)
+        ]
+      },
+      [
+        chatTab('tab-read'),
+        chatTab('tab-unread'),
+        chatTab('tab-working'),
+        opened,
+        chatTab('tab-stale')
+      ]
+    )
+
+    const idle = items.filter((item) => hqPlusChatIsIdle(item, now)).map((item) => item.key)
+
+    expect(idle).toHaveLength(2)
+    expect(idle.some((key) => key.includes('tab-read'))).toBe(true)
+    expect(idle.some((key) => key.includes('tab-stale'))).toBe(true)
   })
 })

@@ -139,3 +139,23 @@ export function HqPlusChatSession({
     </div>
   )
 }
+
+/** Custom build (hq-plus-ui-v3): the chat folded to a bar at the foot of the right column. */
+export function HqPlusChatBar({
+  item,
+  onExpand
+}: {
+  item: HqChatItem
+  onExpand: () => void
+}): React.JSX.Element {
+  const title = useHqChatTitle(item)
+  return (
+    <div className="hqp-cbar">
+      <span className="hqp-dot" aria-hidden="true" />
+      <span className="t">{title}</span>
+      <button type="button" className="hqp-link" onClick={onExpand}>
+        {translate('auto.hqPlus.chatBar.expand', 'Expand')}
+      </button>
+    </div>
+  )
+}
