@@ -188,7 +188,11 @@ CREATE INDEX IF NOT EXISTS sessions_by_address ON sessions(address, opened_at);
 CREATE INDEX IF NOT EXISTS sessions_by_workspace ON sessions(workspace, last_activity_at);
 `
 
-const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8]
+// Custom build (hq-plus-person-replies): who said the answer, by Slack / ClickUp user id — an answer
+// passes to the asking chat by itself only from the person it was asked of.
+const V9 = `ALTER TABLE waitings ADD COLUMN reply_author_id TEXT;`
+
+const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 

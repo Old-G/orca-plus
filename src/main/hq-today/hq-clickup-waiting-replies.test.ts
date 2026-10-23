@@ -102,6 +102,7 @@ describe('ClickUp waiting replies', () => {
         reply: {
           text: 'Да, готовы, смотри DEV-18114',
           author: 'Петя',
+          authorId: 'petya',
           ts: ((ASKED_AT + 120_000) / 1000).toFixed(6),
           link: 'https://app.clickup.com/t/86abc1234?comment=r1'
         }
@@ -176,6 +177,7 @@ describe('ClickUp waiting replies', () => {
           reply: {
             text: 'Only primary requests get manually.',
             author: 'Anna Levi',
+            authorId: 'anna',
             ts: ((ASKED_AT + 7_300_000) / 1000).toFixed(6),
             link: 'https://app.clickup.com/t/86abc1234?comment=179747'
           }
