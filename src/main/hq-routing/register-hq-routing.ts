@@ -11,6 +11,7 @@ import { launchHqBackgroundChat, limitHqChatToAuto } from '../hq-today/hq-backgr
 import { claudeActiveFreePercent } from '../../shared/claude-limit-guard'
 import { getHqSessions } from '../hq-sessions/hq-sessions'
 import { createHqRouting, provideHqRouting } from './hq-routing'
+import { createHqMergeSlots, provideHqMergeSlots } from './hq-merge-slot'
 import { createHqReplyRouting, HQ_REPLY_HOLD_MS, provideHqReplyRouting } from './hq-routing-replies'
 import { parseHqRouting } from './hq-routing-rules'
 import { join } from 'node:path'
@@ -178,9 +179,14 @@ export function registerHqRouting(
         replying = null
       })
   }
+  // Custom build (hq-fix-now-all): a slot a chat never gave back frees itself after half an hour.
+  provideHqMergeSlots(createHqMergeSlots({ now: Date.now, holdMs: 30 * 60_000 }))
   provideHqRouting({
     run: async (options = {}) => {
       const result = await routing.run(options)
+      if (options.report) {
+        return result
+      }
       const answered = await routeReplies(options.dryRun === true, options.since)
       return {
         ...result,
