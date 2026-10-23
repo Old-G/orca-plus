@@ -97,3 +97,13 @@ export function listSessionsByAddress(core: PulseCore, address: string): HqSessi
     .all(address)
     .map(toSession)
 }
+
+/** Custom build (hq-plus-context): one project's sessions, latest activity first. */
+export function listSessionsByProject(core: PulseCore, project: string, limit = 20): HqSession[] {
+  return core.db
+    .prepare(
+      'SELECT * FROM sessions WHERE project = ? COLLATE NOCASE ORDER BY last_activity_at DESC LIMIT ?'
+    )
+    .all(project, limit)
+    .map(toSession)
+}
