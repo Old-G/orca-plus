@@ -57,6 +57,7 @@ export type ClaudeStructuredSdkOptions = Pick<
   | 'resume'
   | 'resumeSessionAt'
   | 'forkSession'
+  | 'disallowedTools'
 >
 
 /** Replay acknowledgements require an explicit flag; the SDK supplies the other transport flags. */
@@ -119,6 +120,32 @@ export type ClaudeStructuredLaunchPartDeps = {
     providerSessionId: string
     claudeConfigDir: string
   }) => Promise<boolean>
+  /** Custom build (hq-plus-room-mcp): tool rules the chat's room hides (`mcp__<server>`). */
+  resolveDeniedTools?: (input: { sessionId: string; cwd: string }) => Promise<readonly string[]>
+}
+
+// Custom build (hq-plus-room-mcp): a room's list only narrows a chat's tools, so a slow or failed
+// read starts the chat with all of them rather than holding or failing its start.
+const DENIED_TOOLS_TIMEOUT_MS = 2_000
+
+async function readDeniedTools(
+  resolve: ClaudeStructuredLaunchPartDeps['resolveDeniedTools'],
+  input: { sessionId: string; cwd: string }
+): Promise<string[]> {
+  if (!resolve) {
+    return []
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const timeout = new Promise<readonly string[]>((done) => {
+      timer = setTimeout(() => done([]), DENIED_TOOLS_TIMEOUT_MS)
+    })
+    return [...(await Promise.race([resolve(input), timeout]))]
+  } catch {
+    return []
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export type ClaudeStructuredInvocation = {
@@ -173,6 +200,10 @@ export function claudeStructuredLaunchPart(
           )
     const continuesChain = head?.nativeId === providerSessionId
     const cwd = await basis.launchDirectory()
+    const deniedTools = readDeniedTools(deps.resolveDeniedTools, {
+      sessionId: record.sessionId,
+      cwd
+    })
     const envDeps: ClaudeEnvDeps & Pick<ClaudeStructuredLaunchPartDeps, 'resolveAuthPolicy'> = {
       ...(deps.resolveCommand ? { resolveCommand: deps.resolveCommand } : {}),
       resolveEnv: () => basis.launchEnv(),
@@ -227,6 +258,7 @@ export function claudeStructuredLaunchPart(
     )
     const launchHome = await resolveClaudeStructuredLaunchHome(router, env, accountHome.path)
     const resumesTranscript = resumedWithoutRouter ?? (await resumes(launchHome))
+    const disallowedTools = await deniedTools
     if (fork?.throughEntryId && !resumesTranscript) {
       // Fork sources must pass the same account-history check as resumes.
       await claudeLaunchResumesTranscript({
@@ -246,6 +278,7 @@ export function claudeStructuredLaunchPart(
           ...permission,
           ...(additionalDirectories.length ? { additionalDirectories } : {}),
           ...(visuals?.pluginDir ? { plugins: [{ type: 'local', path: visuals.pluginDir }] } : {}),
+          ...(disallowedTools.length ? { disallowedTools } : {}),
           extraArgs: {
             ...configured.extraArgs,
             ...CLAUDE_STRUCTURED_BASE_OPTIONS.extraArgs,

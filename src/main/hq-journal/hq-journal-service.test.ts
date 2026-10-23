@@ -35,7 +35,7 @@ async function writeHq(): Promise<void> {
   )
   await file(
     'workspaces/hobby/workspace.yaml',
-    'name: Hobby\ncolor: "#a855f7"\norder: 2\nprojects: [kite]\n'
+    'name: Hobby\ncolor: "#a855f7"\norder: 2\nprojects: [kite]\nmcp:\n  deny: [claude.ai Acme*, acme_crm]\n'
   )
   await file('projects/acme-api.md', '---\nid: r-api\nproject: acme-api\n---\n# Acme API\n')
   await file('projects/kite.md', '---\nid: r-kite\nproject: kite\n---\n# Kite\n')
@@ -279,8 +279,16 @@ describe('HQ+ journal', () => {
       overview: false,
       room: 'hobby',
       roomName: 'Hobby',
-      project: 'kite'
+      project: 'kite',
+      mcpHidden: ['claude_ai_Acme*', 'acme_crm']
     })
-    expect((await service.whoami({ sessionId: 'claude_hq' })).overview).toBe(true)
+    expect((await service.space({ sessionId: 'claude_kite' })).space?.mcpDeny).toEqual([
+      'claude.ai Acme*',
+      'acme_crm'
+    ])
+    const hq = await service.whoami({ sessionId: 'claude_hq' })
+    expect(hq.overview).toBe(true)
+    expect(hq.mcpHidden).toEqual([])
+    expect((await service.space({ sessionId: 'claude_hq' })).space).toBeNull()
   })
 })
