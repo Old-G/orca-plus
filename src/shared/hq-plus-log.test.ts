@@ -5,6 +5,12 @@ import { hqPlusGraph, hqPlusLanes } from './hq-plus-river-graph'
 import { hqPlusAsksOwner, hqPlusChoices, hqPlusLog, hqPlusWaiting } from './hq-plus-log'
 import { parseHqPlusReport, summarizeHqPlusReport } from './hq-plus-screen'
 import { hqPlusFoldChats, hqPlusWithLiveChats } from './hq-plus-fold'
+import {
+  hqPlusInFeedFilter,
+  hqPlusMatchesSearch,
+  type HqPlusFeedFilter
+} from './hq-plus-feed-filter'
+import { hqPlusDaysAgo, hqPlusSameDay } from './hq-plus-feed-days'
 
 const NOW = Date.UTC(2026, 9, 23, 12)
 const HOUR = 60 * 60_000
@@ -483,5 +489,80 @@ describe('hqPlusWithLiveChats', () => {
     const feed = hqPlusFoldChats(hqPlusWithLiveChats(hqPlusLog([turn], [], NOW - HOUR), [live]))
     expect(feed.filter((item) => item.sessionId === 's9')).toHaveLength(1)
     expect(feed[0]).toMatchObject({ id: turn.id, title: 'Took it' })
+  })
+})
+
+describe('hqPlusInFeedFilter', () => {
+  it('sorts the feed into your move, chats and inbox; background lines show in All only', () => {
+    const log = hqPlusLog(
+      [
+        row({ id: 'chat', at: NOW - 3 * HOUR, title: 'kite: login works' }),
+        row({
+          id: 'held',
+          kind: 'approve.request',
+          needs: 'owner:approve',
+          status: 'open',
+          refKind: 'draft',
+          refId: 'd1'
+        })
+      ],
+      [
+        bell({ id: 'ap', kind: 'outgoing-approval', refId: 'd1' }),
+        bell({ id: 'rp', kind: 'hq-report', refId: 'daily/2026-10-23.md' }),
+        bell({ id: 'limit', kind: 'claude-chat-limit', title: 'A chat hit its limit' })
+      ],
+      DAY_START
+    )
+    const ids = (filter: HqPlusFeedFilter): string[] =>
+      log.filter((item) => hqPlusInFeedFilter(item, filter)).map((item) => item.id)
+    expect(ids('all')).toHaveLength(log.length)
+    // Why: an unread report waits on the owner too, so it is both «Your move» and «Inbox».
+    expect(ids('move')).toEqual(['held', 'inbox:rp'])
+    expect(ids('chats')).toEqual(['chat'])
+    expect(ids('inbox')).toEqual(['inbox:rp'])
+    const filtered = new Set([...ids('move'), ...ids('chats'), ...ids('inbox')])
+    expect(log.filter((item) => !filtered.has(item.id)).map((item) => item.id)).toEqual([
+      'inbox:limit'
+    ])
+  })
+})
+
+describe('hqPlusMatchesSearch', () => {
+  it('finds a row by its words, project or the person it names, ignoring case', () => {
+    const log = hqPlusLog(
+      [
+        row({ id: 'kite', project: 'kite', title: 'Login works' }),
+        row({
+          id: 'ann',
+          project: 'mill',
+          kind: 'waiting.open',
+          needs: 'owner:reply',
+          status: 'open',
+          personId: 'p1',
+          title: 'keys'
+        })
+      ],
+      [],
+      DAY_START
+    )
+    const found = (query: string): string[] =>
+      log
+        .filter((item) => hqPlusMatchesSearch(item, query, (id) => (id === 'p1' ? 'Ann' : null)))
+        .map((item) => item.id)
+    expect(found('LOGIN')).toEqual(['kite'])
+    expect(found('mill')).toEqual(['ann'])
+    expect(found('ann')).toEqual(['ann'])
+    expect(found('  ')).toEqual([])
+  })
+})
+
+describe('hqPlusDaysAgo', () => {
+  it('counts calendar days, so late last night is yesterday', () => {
+    const now = new Date(2026, 9, 23, 0, 30).getTime()
+    expect(hqPlusDaysAgo(new Date(2026, 9, 22, 23, 50).getTime(), now)).toBe(1)
+    expect(hqPlusDaysAgo(new Date(2026, 9, 23, 0, 5).getTime(), now)).toBe(0)
+    expect(
+      hqPlusSameDay(new Date(2026, 9, 20, 1).getTime(), new Date(2026, 9, 20, 23).getTime())
+    ).toBe(true)
   })
 })

@@ -1,10 +1,7 @@
 // Custom build (hq-plus-ui): what a card's buttons do, through the paths the rest of Orca+ already
 // uses — `chat.send` into a thread, the bell's own done marks, waits closed as `orca pulse wait` does,
 // a report handed to an HQ chat, and the Codex rule run now.
-import {
-  HQ_PLUS_REPLY_ACTION,
-  type HqPlusCard
-} from '../../../../../shared/hq-plus-log'
+import { HQ_PLUS_REPLY_ACTION, type HqPlusCard } from '../../../../../shared/hq-plus-log'
 import type { HqReport } from '../../../../../shared/hq-reports'
 import { translate } from '@/i18n/i18n'
 import { startHqReportDecisions } from '../hq/hq-ask-chat'
@@ -19,7 +16,10 @@ const REPLY_KEEP = 300
 function noBell(): HqPlusResult {
   return {
     ok: false,
-    message: translate('auto.hqPlus.noBell', 'This window cannot reach the bell; answer on the Mac.')
+    message: translate(
+      'auto.hqPlus.noBell',
+      'This window cannot reach the bell; answer on the Mac.'
+    )
   }
 }
 
@@ -146,7 +146,9 @@ export async function closeHqPlusWait(
   return closed.ok ? OK : closed
 }
 
-export function hqPlusReportOf(card: HqPlusCard): Pick<HqReport, 'path' | 'folder' | 'title'> | null {
+export function hqPlusReportOf(
+  card: HqPlusCard
+): Pick<HqReport, 'path' | 'folder' | 'title'> | null {
   const path = card.inbox?.refId ?? null
   if (!path) {
     return null
@@ -183,7 +185,10 @@ export async function sendHqPlusReport(
   if (!hqWorktreeId) {
     return {
       ok: false,
-      message: translate('auto.hq.reports.noHq', 'Add the HQ folder as a project to send decisions.')
+      message: translate(
+        'auto.hq.reports.noHq',
+        'Add the HQ folder as a project to send decisions.'
+      )
     }
   }
   const started = await startHqReportDecisions(hqWorktreeId, report, text)
@@ -222,4 +227,14 @@ export async function runHqPlusCodexFix(
     }
   }
   return markHqPlusDone(card, 'fix-now')
+}
+
+/** Custom build (hq-plus-ui-v4): «Done» closes what the card stands for — a waiting on the owner, else its
+ *  bell item; an Approve card is answered on the card itself. */
+export function canFinishHqPlusCard(card: HqPlusCard): boolean {
+  return card.type !== 'approve' && (card.type === 'wait' || card.inbox !== null)
+}
+
+export function finishHqPlusCard(card: HqPlusCard): Promise<HqPlusResult> {
+  return card.type === 'wait' ? closeHqPlusWait(card, 'resolved') : markHqPlusDone(card, 'done')
 }
