@@ -113,7 +113,7 @@ function hqPlusSourceLink(refId: string | null): { url: string; label: string } 
     return null
   }
   const raw: unknown = Reflect.get(parsed, 'link') ?? Reflect.get(parsed, 'permalink')
-  if (typeof raw !== 'string' || !/^https:\/\//.test(raw)) {
+  if (typeof raw !== 'string' || !raw.startsWith('https://')) {
     return null
   }
   const service = hqSourceService(raw)

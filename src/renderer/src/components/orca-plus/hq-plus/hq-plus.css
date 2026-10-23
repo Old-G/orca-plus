@@ -1543,9 +1543,9 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* Custom build (hq-plus-ui-v5): the chat open on the right shows on the border only; the card keeps its ground. */
 .hqp-chatc[data-picked='true'] {
   border-color: var(--hqp-line-2);
-  background: color-mix(in srgb, var(--hqp-ice) 6%, var(--hqp-card));
 }
 /* an open chat fills the panel, its composer at the bottom */
 .hqp-pane:has(.hqp-chat),
