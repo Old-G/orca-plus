@@ -32,7 +32,9 @@ const passing = new Set<string>()
 export async function passHqWaitingReply(
   deps: HqWaitingReplyPassDeps,
   waitingId: string,
-  replyTs?: string
+  replyTs?: string,
+  // Custom build (hq-plus-person-replies): the routing rule frames the answer as passed by rule.
+  prompt: (waiting: PulseWaiting) => string = hqWaitingReplyPrompt
 ): Promise<HqWaitingReplyPassResult> {
   const waiting = passing.has(waitingId) ? null : pending(deps, waitingId, replyTs)
   if (!waiting) {
@@ -43,7 +45,7 @@ export async function passHqWaitingReply(
   }
   passing.add(waitingId)
   try {
-    if (!(await deps.deliver(waiting, hqWaitingReplyPrompt(waiting)))) {
+    if (!(await deps.deliver(waiting, prompt(waiting)))) {
       return { ok: false, reason: 'chat-closed' }
     }
     deps.markDelivered(waiting.id, waiting.replyTs ?? undefined)
