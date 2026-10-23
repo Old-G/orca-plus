@@ -2253,3 +2253,124 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   padding-top: 12px;
   border-top: 1px solid var(--hqp-line);
 }
+
+/* Custom build (hq-plus-ui-v5): «chats went quiet with unfinished work» — a line that unfolds. */
+.hqp-dfl {
+  display: block;
+  padding: 0;
+  border-radius: 10px;
+}
+.hqp-dfl-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 1px 6px;
+}
+.hqp-dfl[data-open='true'] {
+  background: var(--hqp-card);
+  border: 1px solid var(--hqp-line);
+}
+.hqp-dfl-body {
+  padding: 6px 10px 10px;
+}
+.hqp-dfr-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hqp-dfr {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--hqp-soft);
+}
+.hqp-dfr-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.hqp-dfr-h {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+.hqp-dfr-h strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--hqp-fg);
+}
+.hqp-dfr-when {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--hqp-faint);
+}
+.hqp-dfr-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--hqp-mute);
+}
+.hqp-dfr-acts {
+  display: flex;
+  gap: 6px;
+}
+.hqp-err {
+  font-size: 12px;
+  color: var(--hqp-amber);
+}
+@media (max-width: 720px) {
+  .hqp-dfr {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+  .hqp-dfr-acts {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
+
+/* Custom build (hq-plus-ui-v5): a composer shows focus once, on its frame — not a second ring on
+   the field inside it. */
+.hq-plus .hqp-reply :is(input, textarea):focus-visible,
+.hq-plus .hqp-take-l textarea:focus-visible {
+  outline: none;
+}
+.hqp-take-l textarea:focus-visible {
+  box-shadow: none;
+  border-color: var(--hqp-ice);
+}
+
+/* Custom build (hq-plus-ui-v5): «To work» on the right. */
+.hqp-take {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.hqp-take-h {
+  font-weight: 500;
+  color: var(--hqp-fg);
+}
+.hqp-take-l {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--hqp-mute);
+}
+.hqp-take-acts {
+  align-items: center;
+}

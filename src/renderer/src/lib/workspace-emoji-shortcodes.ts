@@ -36,6 +36,11 @@ function exactShortcodeIndex(): ReadonlyMap<string, WorkspaceEmojiSuggestion> {
   return exactShortcode
 }
 
+/** The emoji a `:shortcode:` names, or null. */
+export function emojiForShortcode(shortcode: string): string | null {
+  return exactShortcodeIndex().get(shortcode)?.emoji ?? null
+}
+
 // Lower tiers rank first, so `korea` surfaces `south_korea` above `dishwasher`-style incidental hits.
 const MATCH_TIER = { exact: 0, prefix: 1, wordStart: 2, substring: 3 } as const
 

@@ -51,7 +51,7 @@ const BG_TAG: Readonly<Record<string, string>> = {
   [HQ_JOURNAL_KIND.chatMessage]: 'CHAT',
   [HQ_JOURNAL_KIND.sessionHandoff]: 'SESSIONS',
   [HQ_REMIND_KIND]: 'NOTES',
-  [HQ_DEFERRED_KIND]: 'LIMIT',
+  [HQ_DEFERRED_KIND]: 'UNFINISHED',
   [PULSE_BELL_KIND.claudeChatLimit]: 'LIMIT',
   [PULSE_BELL_KIND.claudeAuthStop]: 'CLAUDE'
 }
