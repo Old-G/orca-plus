@@ -181,4 +181,27 @@ describe('journal migration', () => {
       check.close()
     }
   })
+
+  // Custom build (hq-plus-ask)
+  it('finds rows by every word, past the newest page and across letter case', () => {
+    const db = openDb()
+    db.recordJournal([
+      input({
+        title: 'Ann ответила про реактивацию',
+        body: 'Решили: всегда вручную',
+        dedupeKey: 'a'
+      }),
+      ...Array.from({ length: 60 }, (_, i) => input({ title: `Noise ${i}`, dedupeKey: `n${i}` })),
+      input({
+        title: 'Спросили Bob о доступе',
+        links: [{ kind: 'slack', url: 'https://acme.example/archives/C1/p1' }],
+        dedupeKey: 'b'
+      })
+    ])
+    expect(db.listJournal({ text: 'РЕАКТИВАЦ вручную', limit: 5 }).map((e) => e.dedupeKey)).toEqual(
+      ['a']
+    )
+    expect(db.listJournal({ text: 'archives/C1' }).map((e) => e.dedupeKey)).toEqual(['b'])
+    expect(db.listJournal({ text: 'реактивац bob' })).toEqual([])
+  })
 })

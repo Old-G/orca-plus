@@ -9,15 +9,21 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     path: ['hq', 'events'],
     summary: "What happened in this chat's room and whose move it is, newest first",
     usage:
-      'orca hq events [--since <24h|7d|ISO date>] [--project <slug>] [--needs <owner|agent|person|nobody|value>] [--kind <kind|family.*>] [--limit <n>] [--room <slug>] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'since', 'project', 'needs', 'kind', 'limit', 'room'],
+      'orca hq events [--since <24h|7d|ISO date>] [--project <slug>] [--needs <owner|agent|person|nobody|value>] [--kind <kind|family.*>] [--query <words>] [--limit <n>] [--room <slug>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'since', 'project', 'needs', 'kind', 'query', 'limit', 'room'],
     notes: [
       'The room comes from the chat that runs the command; a chat in one room cannot read another.',
       'From HQ+ (a chat in the HQ repo) it lists every room by title only; --room <slug> shows one room in full and is recorded.',
       '--needs owner lists what is open on owner:decide, owner:approve or owner:reply; a full value such as person:<id> matches only itself.',
-      "--kind 'approve.*' matches a whole family (quote it in the shell); --limit defaults to 50."
+      "--kind 'approve.*' matches a whole family (quote it in the shell); --limit defaults to 50.",
+      '--query keeps rows holding every word in the title, text, project, thread or links; a root («анн») finds every form.',
+      'In a room each entry shows its links (Slack, ClickUp, MR, file): cite those as the source.'
     ],
-    examples: ['orca hq events --since 24h', "orca hq events --needs owner --kind 'approve.*'"]
+    examples: [
+      'orca hq events --since 24h',
+      "orca hq events --needs owner --kind 'approve.*'",
+      'orca hq events --query "реактивац" --since 30d'
+    ]
   },
   {
     // Custom build (hq-plus-reports)
