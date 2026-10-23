@@ -342,12 +342,16 @@ import {
 } from './hosted-review-params'
 import {
   ChatSendParams,
+  HqContextParams,
   HqEventsParams,
   HqReportParams,
   HqRouteParams,
   HqSettleParams,
+  HqStepParams,
   HqThreadParams,
-  HqWhoamiParams
+  HqWhereParams,
+  HqWhoamiParams,
+  HqWorkspaceAddParams
 } from './hq-journal-params'
 import {
   HqBellActionOnDesktopParams,
@@ -1140,12 +1144,16 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.createStacked': HostedReviewCreate,
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
+  'hq.context': HqContextParams,
   'hq.events': HqEventsParams,
   'hq.report': HqReportParams,
   'hq.route': HqRouteParams,
   'hq.settle': HqSettleParams,
+  'hq.step': HqStepParams,
   'hq.thread': HqThreadParams,
+  'hq.where': HqWhereParams,
   'hq.whoami': HqWhoamiParams,
+  'hq.workspaceAdd': HqWorkspaceAddParams,
   'hqProjects.answerSlackDraft': HqSlackDraftRefParams,
   'hqProjects.chatList': null,
   'hqProjects.createSlackDraftTask': HqSlackDraftCreateParams,
