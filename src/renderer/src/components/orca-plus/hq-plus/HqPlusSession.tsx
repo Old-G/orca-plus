@@ -1,6 +1,7 @@
 // Custom build (hq-plus-ui): Сессия — the picked chat's state, its project card (the same card a new chat
 // gets at start), the thread's history, and «give it work», which the dispatcher routes to the live
 // chat, a new one, or the queue.
+import { HqPlusReplyField } from './HqPlusReplyField'
 import { useEffect, useState } from 'react'
 import type { HqLiveSession } from '../../../../../shared/hq-sessions'
 import type { HqJournalEntry } from '../../../../../shared/hq-journal'
@@ -196,7 +197,7 @@ export function HqPlusSession({
           <label className="hqp-sr" htmlFor="hqp-dispatch">
             {translate('auto.hqPlus.session.work', 'Work for this thread')}
           </label>
-          <input
+          <HqPlusReplyField
             id="hqp-dispatch"
             placeholder={translate('auto.hqPlus.session.workHint', 'Give this thread work…')}
             value={work}
