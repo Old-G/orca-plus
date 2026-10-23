@@ -3,7 +3,11 @@
 // waiting to be passed to their chat.
 import { HQ_PROMISE_DUE_KIND, hqPromiseDueBellItems } from '../../shared/hq-promises'
 import { HQ_REMIND_KIND, hqRemindBellItems } from '../../shared/hq-remind'
-import { HQ_WAITING_REPLY_KIND, hqWaitingReplyBellItems } from '../../shared/hq-waiting-reply-bell'
+import {
+  HQ_WAITING_REPLY_KIND,
+  hqWaitingReplyBellItems,
+  type HqWaitingReplyNote
+} from '../../shared/hq-waiting-reply-bell'
 import type { PulseBellInput } from '../../shared/pulse-bell'
 import type { PulseWaiting } from '../../shared/pulse-types'
 
@@ -16,6 +20,8 @@ export type HqWaitingBellsDeps = {
   sync: (kind: string, items: readonly PulseBellInput[]) => void
   onChanged: (listener: () => void) => void
   now: () => number
+  /** Custom build (hq-plus-person-replies): what the routing rule says about each answer. */
+  replyNote?: HqWaitingReplyNote
 }
 
 export function syncHqWaitingBells(deps: HqWaitingBellsDeps): void {
@@ -24,7 +30,7 @@ export function syncHqWaitingBells(deps: HqWaitingBellsDeps): void {
   deps.sync(HQ_PROMISE_DUE_KIND, hqPromiseDueBellItems(open, deps.personName, now))
   deps.sync(HQ_REMIND_KIND, hqRemindBellItems(open, deps.personName, now))
   // Custom build (hq-reply-approve): answers wait here until the owner passes them on.
-  deps.sync(HQ_WAITING_REPLY_KIND, hqWaitingReplyBellItems(open, deps.personName))
+  deps.sync(HQ_WAITING_REPLY_KIND, hqWaitingReplyBellItems(open, deps.personName, deps.replyNote))
 }
 
 export function startHqWaitingBells(deps: HqWaitingBellsDeps): void {

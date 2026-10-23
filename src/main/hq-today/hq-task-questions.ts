@@ -51,6 +51,7 @@ export async function generateHqText(
       | 'hq-feed-posts'
       | 'hq-clickup-triage'
       | 'hq-slack-intake'
+      | 'hq-reply-routing'
     /** Custom build (hq-clickup-triage): a cheaper model than the one set for HQ text. */
     model?: string
   },
