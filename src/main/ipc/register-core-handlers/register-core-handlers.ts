@@ -31,6 +31,7 @@ import { startHqMorningBriefing } from '../../hq-today/hq-morning-briefing'
 import { registerHqPulseMirror } from '../../hq-pulse-mirror/register-hq-pulse-mirror'
 import { registerPulseBell } from '../../orca-plus/pulse-bell/register-pulse-bell'
 import { registerHqJournal } from '../../hq-journal/register-hq-journal'
+import { registerHqRouting } from '../../hq-routing/register-hq-routing'
 import { registerOutgoingApproval } from '../../orca-plus/outgoing-approval/register-outgoing-approval'
 import { registerWebPush } from '../../orca-plus/web-push/register-web-push'
 import { registerBitbucketHandlers } from '../bitbucket'
@@ -236,6 +237,7 @@ export function registerCoreHandlers(
   registerHqPulseMirror(store)
   registerPulseBell(store, runtime, rateLimits)
   registerHqJournal(store, runtime)
+  registerHqRouting(store, runtime, rateLimits)
   startHqMorningBriefing({
     now: Date.now,
     listInbox: () => runtime.pulseListInbox(true),

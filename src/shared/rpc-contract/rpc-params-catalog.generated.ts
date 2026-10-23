@@ -344,6 +344,8 @@ import {
   ChatSendParams,
   HqEventsParams,
   HqReportParams,
+  HqRouteParams,
+  HqSettleParams,
   HqThreadParams,
   HqWhoamiParams
 } from './hq-journal-params'
@@ -1140,6 +1142,8 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
   'hq.events': HqEventsParams,
   'hq.report': HqReportParams,
+  'hq.route': HqRouteParams,
+  'hq.settle': HqSettleParams,
   'hq.thread': HqThreadParams,
   'hq.whoami': HqWhoamiParams,
   'hqProjects.answerSlackDraft': HqSlackDraftRefParams,

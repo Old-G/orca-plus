@@ -2,6 +2,7 @@
 // from the agent's environment; the host decides from them which room the caller may read.
 import { z } from 'zod'
 import {
+  OptionalBoolean,
   OptionalFiniteNumber,
   OptionalPositiveInt,
   OptionalString,
@@ -46,4 +47,22 @@ export const ChatSendParams = z.object({
   address: requiredString('A thread address is required: <project>/<task>'),
   text: requiredString('A message is required'),
   replyTo: OptionalString
+})
+
+// Custom build (hq-plus-routing)
+export const HqRouteParams = z.object({
+  ...CallerFields,
+  /** Carry the actions out; absent, it only says what it would do. */
+  run: OptionalBoolean,
+  /** Ignore the rule's hour and the Claude limit, as a run by hand does. */
+  now: OptionalBoolean,
+  since: OptionalFiniteNumber
+})
+
+export const HqSettleParams = z.object({
+  ...CallerFields,
+  id: requiredString('A journal entry id is required'),
+  status: z.enum(['done', 'dropped']),
+  commit: OptionalString,
+  why: OptionalString
 })
