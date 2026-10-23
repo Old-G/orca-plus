@@ -93,6 +93,38 @@ const INBOX_ACTION_LABEL: Readonly<Record<string, string>> = {
   'slack-review': 'Investigate'
 }
 
+/** Custom build (hq-plus-ui-v5): the Slack thread, ClickUp task or mail an inbox card came from. */
+function hqPlusSourceLink(refId: string | null): { url: string; label: string } | null {
+  let parsed: unknown = null
+  try {
+    parsed = refId ? JSON.parse(refId) : null
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    return null
+  }
+  const raw: unknown = Reflect.get(parsed, 'link') ?? Reflect.get(parsed, 'permalink')
+  if (typeof raw !== 'string' || !/^https:\/\//.test(raw)) {
+    return null
+  }
+  const host = (() => {
+    try {
+      return new URL(raw).hostname
+    } catch {
+      return ''
+    }
+  })()
+  const label = host.endsWith('slack.com')
+    ? translate('auto.hqPlus.source.slack', 'Open in Slack')
+    : host.endsWith('clickup.com')
+      ? translate('auto.hqPlus.source.clickup', 'Open in ClickUp')
+      : host === 'mail.google.com'
+        ? translate('auto.hqPlus.source.gmail', 'Open in Gmail')
+        : translate('auto.hqPlus.source.other', 'Open source')
+  return { url: raw, label }
+}
+
 function inboxActions(card: Card, look: HqPlusLook): { id: string; label: string }[] {
   const actions = card.inbox?.actions ?? []
   if (look.kind !== 'inbox') {
@@ -236,6 +268,7 @@ export function HqPlusCardView({
   const choices = card.report?.options.length ? card.report.options : hqPlusChoices(card.body)
   const reply = (value: string): void => run(() => replyOnHqPlusCard(card, value, hqPath))
   const canReply = card.type === 'move' && Boolean(card.address || card.sessionId)
+  const sourceLink = hqPlusSourceLink(card.inbox?.refId ?? null)
 
   return (
     <div
@@ -296,6 +329,15 @@ export function HqPlusCardView({
             ) : null}
           </>
         )}
+        {look.kind === 'inbox' && sourceLink ? (
+          <button
+            type="button"
+            className="hqp-link hqp-source"
+            onClick={() => void window.api.shell.openUrl(sourceLink.url)}
+          >
+            {sourceLink.label} ↗
+          </button>
+        ) : null}
         {card.done ? (
           <dl className="hqp-rep">
             <dt>{translate('auto.hqPlus.decided', 'decided')}</dt>
