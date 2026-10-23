@@ -28,6 +28,7 @@ import {
   type HqSession
 } from '../../shared/hq-journal'
 import { HQ_SPACES_DIR } from '../../shared/hq-spaces'
+import { hqRoomMcpHidden } from '../../shared/hq-room-mcp'
 import type { PulseDecision, PulsePerson, PulseWaiting } from '../../shared/pulse-types'
 import { readHqProjectPageFields } from '../hq-project-pages/hq-project-pages'
 import {
@@ -174,6 +175,7 @@ export function createHqContextService(deps: HqContextDeps): HqContextService {
     const wiki = repoPath ? await changedAt(join(repoPath, 'wiki', 'index.md')) : null
     const artifacts = await changedAt(join(root, 'artifacts', project))
     const space = sources.spaces.find((candidate) => candidate.projects.includes(project))
+    const hiddenMcp = hqRoomMcpHidden(space?.mcpDeny)
     const where = [
       ...(repoPath ? [{ label: 'репо', value: repoPath }] : []),
       ...(fields.get('branch') ? [{ label: 'ветка', value: fields.get('branch') ?? '' }] : []),
@@ -182,7 +184,9 @@ export function createHqContextService(deps: HqContextDeps): HqContextService {
       ...(artifacts !== null ? [{ label: 'артефакты', value: `HQ/artifacts/${project}/` }] : []),
       ...(space?.tasks || space?.messenger
         ? [{ label: 'задачи · люди', value: `${space.tasks ?? '—'} · ${space.messenger ?? '—'}` }]
-        : [])
+        : []),
+      // Custom build (hq-plus-room-mcp): so a chat knows why a system's tools are missing here.
+      ...(hiddenMcp.length ? [{ label: 'MCP скрыты комнатой', value: hiddenMcp.join(', ') }] : [])
     ]
     const names = new Map(deps.pulse.listPeople().map((person) => [person.id, person.name]))
     return buildHqContextCard({
