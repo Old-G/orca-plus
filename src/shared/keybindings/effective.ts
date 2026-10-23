@@ -19,7 +19,8 @@ export function getDefaultBindings(
   return definition.defaultBindings[getKeybindingPlatform(platform)].map((binding) => {
     const normalized = normalizeKeybindingWithOptions(binding, {
       allowBareKeybindings: definition.allowBareKeybindings === true,
-      allowShiftOnlyKeybindings: definition.allowShiftOnlyKeybindings === true
+      allowShiftOnlyKeybindings: definition.allowShiftOnlyKeybindings === true,
+      allowPrintableBareKeybindings: definition.allowPrintableBareKeybindings === true
     })
     return normalized.ok ? normalized.value : binding
   })

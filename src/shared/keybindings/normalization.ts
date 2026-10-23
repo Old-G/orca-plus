@@ -21,7 +21,9 @@ export function normalizeKeybindingWithOptions(
     return { ok: true, value: canonicalizeParsedKeybinding(parsed) }
   }
   const isShiftInsert = parsed.shift && parsed.key === 'Insert'
-  const isBareAllowed = options.allowBareKeybindings === true && isSafeBareKey(parsed)
+  const isBareAllowed =
+    (options.allowBareKeybindings === true && isSafeBareKey(parsed)) ||
+    (options.allowPrintableBareKeybindings === true && !parsed.shift)
   const isShiftOnlyAllowed =
     options.allowShiftOnlyKeybindings === true &&
     parsed.shift &&
@@ -101,7 +103,8 @@ export function normalizeOptionsForAction(
   const definition = DEFINITIONS_BY_ID.get(actionId)
   return {
     allowBareKeybindings: definition?.allowBareKeybindings === true,
-    allowShiftOnlyKeybindings: definition?.allowShiftOnlyKeybindings === true
+    allowShiftOnlyKeybindings: definition?.allowShiftOnlyKeybindings === true,
+    allowPrintableBareKeybindings: definition?.allowPrintableBareKeybindings === true
   }
 }
 

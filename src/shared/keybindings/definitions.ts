@@ -10,6 +10,7 @@ import { KEYBINDING_DEFINITION_CORE_1 } from './definitions-core-1'
 import { KEYBINDING_DEFINITION_CORE_2 } from './definitions-core-2'
 import { KEYBINDING_DEFINITION_CORE_3 } from './definitions-core-3'
 import { KEYBINDING_DEFINITION_CORE_4 } from './definitions-core-4'
+import { KEYBINDING_DEFINITIONS_HQ_PLUS } from './definitions-hq-plus'
 
 export function agentTabActionId(agent: TuiAgent): AgentTabActionId {
   return `tab.newAgent.${agent}`
@@ -39,7 +40,8 @@ export const KEYBINDING_DEFINITIONS: readonly KeybindingDefinition[] = [
   ...KEYBINDING_DEFINITION_CORE_2,
   ...KEYBINDING_DEFINITION_CORE_3,
   ...KEYBINDING_DEFINITION_CORE_4,
-  ...buildAgentTabKeybindingDefinitions()
+  ...buildAgentTabKeybindingDefinitions(),
+  ...KEYBINDING_DEFINITIONS_HQ_PLUS
 ]
 
 /** Pre-swap tab-switch bindings; a one-time migration pins these for pre-release installs so upgrading users keep the shortcuts they learned. */
