@@ -1,6 +1,6 @@
 #!/bin/bash
-# Background commit review (hq-setup → schedule.py install commit-review): Codex reviews the owner's new commits
-# in every HQ project (review.py). No Claude model runs here.
+# Evening commit review (hq-setup → schedule.py install commit-review, daily 18:30): Codex reviews the owner's
+# new commits in every HQ project, one review per project (review.py daily). No Claude model runs here.
 set -u
 DIR="$(cd "$(dirname "$0")" && pwd)"
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
@@ -15,5 +15,5 @@ cd "$HQ" || exit 1
 mkdir "$LOCK" 2>/dev/null || { log "skip: previous run still going"; exit 0; }
 trap 'rmdir "$LOCK"' EXIT
 log "run"
-HQ_DIR="$HQ" python3 -I "$DIR/review.py" run --max "${COMMIT_REVIEW_MAX:-6}" >>"$LOG" 2>&1
+HQ_DIR="$HQ" python3 -I "$DIR/review.py" daily >>"$LOG" 2>&1
 log "exit $?"

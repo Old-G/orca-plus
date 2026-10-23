@@ -4,6 +4,7 @@
 import {
   HQ_JOURNAL_ALL_ROOMS,
   HQ_JOURNAL_KIND,
+  type HqJournalEntry,
   type HqJournalInput,
   type HqJournalLink,
   type HqJournalStatus,
@@ -38,6 +39,29 @@ export function hqJournalLink(url: string | null | undefined): HqJournalLink[] {
   const channel = hqJournalChannel(host)
   const kind = channel ?? (/\/(?:merge_requests|pull)\/\d+/.test(url) ? 'mr' : 'url')
   return [{ kind, url: url.slice(0, 1000) }]
+}
+
+/** A written row as the input that writes it again — by its dedupe key, with `change` applied. */
+export function journalEntryAsInput(
+  entry: HqJournalEntry,
+  change: Partial<HqJournalInput>
+): HqJournalInput {
+  return {
+    workspace: entry.workspace,
+    kind: entry.kind,
+    project: entry.project,
+    address: entry.address,
+    sessionId: entry.sessionId,
+    personId: entry.personId,
+    title: entry.title,
+    needs: entry.needs,
+    replyTo: entry.replyTo,
+    refKind: entry.refKind,
+    refId: entry.refId,
+    source: entry.source,
+    dedupeKey: entry.dedupeKey,
+    ...change
+  }
 }
 
 function oneLine(value: string): string {
