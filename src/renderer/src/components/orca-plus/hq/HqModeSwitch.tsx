@@ -38,7 +38,7 @@ export function HqModeSwitch(): React.JSX.Element {
             openHqScreen()
           } else if (value === 'hq') {
             setHqFlavor('classic')
-            openHqScreen('chats')
+            openHqScreen()
           } else if (value === 'code') {
             switchHqToCode()
           }
