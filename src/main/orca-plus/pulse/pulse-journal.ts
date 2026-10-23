@@ -8,6 +8,7 @@ import {
   HQ_JOURNAL_NEEDS_PARTIES,
   HQ_JOURNAL_STATUSES,
   HQ_JOURNAL_UNASSIGNED,
+  hqJournalMatches,
   hqJournalBody,
   hqJournalTitle,
   isHqJournalNeeds,
@@ -300,10 +301,19 @@ export function listJournal(core: PulseCore, query: HqJournalQuery = {}): HqJour
   }
   const limit = Math.max(1, Math.min(query.limit ?? HQ_JOURNAL_DEFAULT_LIMIT, HQ_JOURNAL_MAX_LIMIT))
   const whereSql = where.length > 0 ? ` WHERE ${where.join(' AND ')}` : ''
+  const order = query.oldestFirst ? 'at, rowid' : 'at DESC, rowid DESC'
+  const words = query.text?.trim()
+  if (words) {
+    // Why: SQLite's lower() folds only ASCII, and the journal is mostly Russian.
+    return core.db
+      .prepare(`SELECT * FROM journal${whereSql} ORDER BY ${order}`)
+      .all(...args)
+      .map(toEntry)
+      .filter((entry) => hqJournalMatches(entry, words))
+      .slice(0, limit)
+  }
   return core.db
-    .prepare(
-      `SELECT * FROM journal${whereSql} ORDER BY ${query.oldestFirst ? 'at, rowid' : 'at DESC, rowid DESC'} LIMIT ?`
-    )
+    .prepare(`SELECT * FROM journal${whereSql} ORDER BY ${order} LIMIT ?`)
     .all(...args, limit)
     .map(toEntry)
 }
