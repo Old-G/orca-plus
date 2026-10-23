@@ -1,6 +1,6 @@
 // Custom build (hq-plus-ui): the conversation with HQ — oldest at the top, newest at the bottom, and it
 // follows the bottom unless the owner scrolled up to read; then a «↓ new: N» button brings it back.
-import { useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { hqPlusNotNowKey, type HqPlusLogItem } from '../../../../../shared/hq-plus-log'
 import { hqPlusLook, type HqPlusBadge } from '../../../../../shared/hq-plus-kinds'
 import { translate } from '@/i18n/i18n'
@@ -8,8 +8,11 @@ import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
 import { HqPlusCardView } from './HqPlusCard'
 import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
-import { HqPlusThreadComposer } from './HqPlusThreadComposer'
-import { HqPlusCloseChat, type HqPlusChatCloser } from './HqPlusCloseChat'
+import type { HqPlusChatCloser } from './HqPlusCloseChat'
+import { HqPlusGrow } from './HqPlusGrow'
+import { ChatCard, FeedRow, NewMark, hqPlusClock as clock } from './HqPlusChatCard'
+import { observeHqPlusNewRows } from './use-hq-plus-new-marks'
+import { hqPlusDaysAgo, hqPlusSameDay } from '../../../../../shared/hq-plus-feed-days'
 
 const BOTTOM_SLACK_PX = 40
 
@@ -30,6 +33,16 @@ export type HqPlusLogContext = {
   projectColor: (project: string | null) => string | null
   /** True for the chat open on the right, so its card stands out. */
   isOpenChat: (sessionId: string | null) => boolean
+  /** Custom build (hq-plus-ui-v4): unfolded cards, the card the keys act on, and what came while away. */
+  isExpanded: (id: string) => boolean
+  setExpanded: (id: string, open: boolean) => void
+  selectedId: string | null
+  onSelect: (id: string) => void
+  isNew: (id: string) => boolean
+  /** The new ids joined, so the feed re-watches when they change. */
+  newKeys: string
+  markSeen: (id: string) => void
+  now: number
 }
 
 export function hqPlusThreadKey(item: {
@@ -39,8 +52,19 @@ export function hqPlusThreadKey(item: {
   return item.address ?? item.sessionId
 }
 
-function clock(at: number): string {
-  return new Date(at).toTimeString().slice(0, 5)
+function dayLabel(at: number, now: number): string {
+  const ago = hqPlusDaysAgo(at, now)
+  if (ago === 0) {
+    return translate('auto.hqPlus.day.today', 'Today')
+  }
+  if (ago === 1) {
+    return translate('auto.hqPlus.day.yesterday', 'Yesterday')
+  }
+  return new Date(at).toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short'
+  })
 }
 
 function roomStyle(color: string): React.CSSProperties & Record<'--hqp-room', string> {
@@ -55,134 +79,6 @@ export function hqPlusTileOf(project: string | null): string {
   const letters =
     parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : (parts[0] ?? project).slice(0, 2)
   return letters.toUpperCase()
-}
-
-// Custom build (hq-plus-ui-v3): a chat that has no live status any more has finished its turn.
-const DONE: HqPlusBadge = { label: 'DONE', tone: 'done' }
-const CARD_OWN_CLICKS = 'button, a, textarea, input, .hqp-chatc-full, .hqp-chatc-reply'
-
-/** Custom build (hq-plus-ui-v3): one chat's card — a click opens its full reply and a reply box below. */
-function ChatCard({
-  item,
-  badges,
-  tile,
-  flash,
-  openChat,
-  ctx
-}: {
-  item: Extract<HqPlusLogItem, { kind: 'line' }>
-  badges: readonly HqPlusBadge[]
-  tile: React.ReactNode
-  flash: boolean
-  openChat: (() => void) | null
-  ctx: HqPlusLogContext
-}): React.JSX.Element {
-  const [open, setOpen] = useState(false)
-  const status = ctx.chatStatus(item.sessionId) ?? DONE
-  const closer = ctx.closeChat(item.sessionId)
-  const key = hqPlusThreadKey(item)
-  const canReply = Boolean(item.address || item.sessionId)
-  return (
-    <div className="hqp-m" id={`hqp-${item.id}`}>
-      {tile}
-      <div
-        className="hqp-chatc"
-        data-flash={flash ? 'true' : undefined}
-        data-picked={ctx.isOpenChat(item.sessionId) ? 'true' : undefined}
-        data-expandable="true"
-        // Why: the card itself folds open; its buttons, links and the reply box keep their own clicks.
-        onClick={(event) => {
-          const target = event.target
-          if (!(target instanceof Element) || !target.closest(CARD_OWN_CLICKS)) {
-            setOpen(!open)
-          }
-        }}
-      >
-        <div className="hqp-row-h">
-          <HqPlusBadges badges={badges} />
-          <strong>{item.project ?? 'HQ'}</strong>
-          <span className="hqp-tm">{clock(item.at)}</span>
-          <span className="hqp-spacer" />
-          <HqPlusBadges badges={[status]} />
-          {closer ? <HqPlusCloseChat closer={closer} name={item.project ?? 'chat'} /> : null}
-        </div>
-        {open ? (
-          <div className="hqp-chatc-full">
-            <HqPlusText text={item.body?.trim() || item.title} />
-          </div>
-        ) : (
-          <HqPlusText text={item.title} maxLines={3} />
-        )}
-        {item.earlier && item.earlier.length > 0 ? <ChatEarlier earlier={item.earlier} /> : null}
-        {open && canReply ? (
-          <div className="hqp-chatc-reply">
-            <HqPlusThreadComposer
-              target={{
-                address: item.address,
-                sessionId: item.sessionId,
-                replyTo: null,
-                about: null
-              }}
-              openQuestion={null}
-              label={item.address ?? item.project ?? 'chat'}
-              hqPath={ctx.hqPath}
-              onSent={ctx.onChanged}
-            />
-          </div>
-        ) : null}
-        {item.address || openChat ? (
-          <div className="hqp-row-f">
-            {key && item.address ? (
-              <button type="button" className="hqp-addr" onClick={() => ctx.onScope(key)}>
-                {item.address}
-              </button>
-            ) : null}
-            <span className="hqp-spacer" />
-            {openChat ? (
-              <button type="button" className="hqp-pill" onClick={openChat}>
-                {translate('auto.hqPlus.open', 'Open')}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  )
-}
-
-/** Custom build (hq-plus-ui-v3): a chat's earlier turns, folded under its newest row. */
-function ChatEarlier({
-  earlier
-}: {
-  earlier: readonly { id: string; at: number; title: string }[]
-}): React.JSX.Element {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="hqp-earlier">
-      <button
-        type="button"
-        className="hqp-link"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-      >
-        {earlier.length === 1
-          ? translate('auto.hqPlus.updateOne', '1 earlier update')
-          : translate('auto.hqPlus.updates', '{{count}} earlier updates', {
-              count: earlier.length
-            })}
-      </button>
-      {open ? (
-        <ul>
-          {earlier.map((turn) => (
-            <li key={turn.id}>
-              <span className="hqp-tm">{clock(turn.at)}</span>{' '}
-              <HqPlusText text={turn.title} maxLines={2} />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  )
 }
 
 function LogItem({
@@ -215,9 +111,17 @@ function LogItem({
     const bell = card?.open ? card.inbox : null
     const action = bell?.actions[0] ?? null
     return (
-      <div className="hqp-bgl" id={`hqp-${item.id}`} data-flash={flash ? 'true' : undefined}>
+      <div
+        className="hqp-bgl"
+        id={`hqp-${item.id}`}
+        data-flash={flash ? 'true' : undefined}
+        data-selected={ctx.selectedId === item.id ? 'true' : undefined}
+        data-new={ctx.isNew(item.id) ? 'true' : undefined}
+        onClickCapture={() => ctx.onSelect(item.id)}
+      >
         <span className="hqp-tm">{clock(item.at)}</span>
         <HqPlusBadges badges={look.badges} />
+        <NewMark item={item} ctx={ctx} />
         <span className="hqp-bgl-t">
           {item.project ? <span className="hqp-bgl-p">{item.project} · </span> : null}
           <HqPlusText text={item.title} maxLines={1} />
@@ -260,36 +164,40 @@ function LogItem({
   }
   if (item.kind !== 'card') {
     return (
-      <div className="hqp-m" id={`hqp-${item.id}`}>
-        {tile}
+      <FeedRow item={item} ctx={ctx} tile={tile}>
         <div className="b">
           <HqPlusBadges badges={look.badges} />
-          <strong>{item.project ?? 'HQ'}:</strong> <HqPlusText text={item.title} maxLines={3} />
+          <NewMark item={item} ctx={ctx} />
+          <strong>{item.project ?? 'HQ'}:</strong> <HqPlusText text={item.title} />
           <span className="hqp-tm">{clock(item.at)}</span>
         </div>
-      </div>
+      </FeedRow>
     )
   }
   return (
-    <div className="hqp-m" id={`hqp-${item.id}`}>
-      {tile}
+    <FeedRow item={item} ctx={ctx} tile={tile}>
       <div className="b">
-        <HqPlusCardView
-          card={item}
-          look={look}
-          flash={flash}
-          hqPath={ctx.hqPath}
-          hqWorktreeId={ctx.hqWorktreeId}
-          when={clock(item.at)}
-          threadLabel={key && item.address ? item.address : null}
-          onThread={key ? () => ctx.onScope(key) : null}
-          onOpenChat={openChat}
-          onOpenReport={ctx.onOpenReport}
-          onNotNow={item.open ? () => ctx.onNotNow(hqPlusNotNowKey(item)) : null}
-          onChanged={ctx.onChanged}
-        />
+        <NewMark item={item} ctx={ctx} />
+        <HqPlusGrow>
+          <HqPlusCardView
+            card={item}
+            look={look}
+            flash={flash}
+            hqPath={ctx.hqPath}
+            hqWorktreeId={ctx.hqWorktreeId}
+            when={clock(item.at)}
+            threadLabel={key && item.address ? item.address : null}
+            onThread={key ? () => ctx.onScope(key) : null}
+            onOpenChat={openChat}
+            onOpenReport={ctx.onOpenReport}
+            onNotNow={item.open ? () => ctx.onNotNow(hqPlusNotNowKey(item)) : null}
+            onChanged={ctx.onChanged}
+            expanded={ctx.isExpanded(item.id)}
+            onExpand={(next) => ctx.setExpanded(item.id, next)}
+          />
+        </HqPlusGrow>
       </div>
-    </div>
+    </FeedRow>
   )
 }
 
@@ -321,6 +229,12 @@ export function HqPlusLog({
       setUnseen((count) => count + added)
     }
   }, [items.length])
+
+  const { newKeys, markSeen } = ctx
+  useEffect(() => {
+    const element = log.current
+    return element && newKeys ? observeHqPlusNewRows(element, markSeen) : undefined
+  }, [newKeys, markSeen, items])
 
   const toBottom = (): void => {
     const element = log.current
@@ -358,9 +272,19 @@ export function HqPlusLog({
             {translate('auto.hqPlus.log.empty', 'Nothing in this room this week yet.')}
           </p>
         ) : null}
-        {items.map((item) => (
-          <LogItem key={item.id} item={item} flash={item.id === flashId} ctx={ctx} />
-        ))}
+        {items.map((item, index) => {
+          const previous = items[index - 1]
+          return (
+            <Fragment key={item.id}>
+              {!previous || !hqPlusSameDay(previous.at, item.at) ? (
+                <div className="hqp-day" role="separator">
+                  <span>{dayLabel(item.at, ctx.now)}</span>
+                </div>
+              ) : null}
+              <LogItem item={item} flash={item.id === flashId} ctx={ctx} />
+            </Fragment>
+          )
+        })}
         <div className="hqp-live">
           <i aria-hidden="true" />
           {translate('auto.hqPlus.log.live', 'agents are working — new rows appear below')}
