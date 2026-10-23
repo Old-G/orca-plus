@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react'
 import type { AgentSessionHistoryResult } from '../../../../../shared/agent-session-wire'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
+import { structuredAgentSessionTargetForTab } from '@/runtime/structured-agent-session-owner'
+import { useAppStore } from '@/store'
+import type { RuntimeClientTarget } from '../../../../../shared/runtime-client-target'
 
 const TAIL_ITEMS = 40
 
@@ -37,6 +40,17 @@ export function hqPlusLastAssistantText(items: readonly unknown[]): string | nul
   return null
 }
 
+/** The runtime serving the chat's tab — a remote host's chat is read there; local once the tab is gone. */
+function hqPlusSessionRuntime(sessionId: string): RuntimeClientTarget {
+  const state = useAppStore.getState()
+  const tab = Object.values(state.unifiedTabsByWorktree)
+    .flat()
+    .find(
+      (candidate) => candidate.contentType === 'agent-session' && candidate.entityId === sessionId
+    )
+  return (tab ? structuredAgentSessionTargetForTab(state, tab) : null) ?? { kind: 'local' }
+}
+
 /** While `open`, the chat's latest reply; null until read or when the transcript is out of reach. */
 export function useHqPlusLastReply(
   sessionId: string | null,
@@ -51,7 +65,7 @@ export function useHqPlusLastReply(
     }
     let live = true
     void callStructuredAgentSession<AgentSessionHistoryResult>(
-      { kind: 'local' },
+      hqPlusSessionRuntime(sessionId),
       'agentSession.history',
       {
         sessionId,

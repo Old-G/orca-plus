@@ -208,10 +208,12 @@ export async function runHqPlusCodexFix(
   hqPath: string | null
 ): Promise<HqPlusResult> {
   const report = hqPlusReportOf(card)?.path ?? null
+  // Why: an older host drops `report`; `since` keeps its routing to this report's window.
   const ran = await hqPlusCall('hq.route', {
     run: true,
     now: true,
-    ...(report ? { report } : { since: (card.inbox?.createdAt ?? card.at) - FIX_WINDOW_MS }),
+    since: (card.inbox?.createdAt ?? card.at) - FIX_WINDOW_MS,
+    ...(report ? { report } : {}),
     ...(hqPath ? { callerCwd: hqPath } : {})
   })
   if (!ran.ok) {
@@ -223,8 +225,15 @@ export async function runHqPlusCodexFix(
     actions: Array.isArray(actions) ? actions : [],
     handled: Array.isArray(handled) ? handled : []
   })
-  // Why: closing the report would hide findings no chat took up.
-  return summary.ok
+  // Why: only a report-aware host answers with `handled`; an older one routed by time, not this report.
+  if (report && !Array.isArray(handled)) {
+    return {
+      ok: false,
+      message: `${summary.text}. This Orca+ host is older and fixed by time, not by this report — update it, then press Fix now again.`
+    }
+  }
+  // Why: closing the report would hide findings no chat took up — a project waiting or not started.
+  return summary.ok && summary.complete
     ? markHqPlusDone(card, `${HQ_FIX_NOW_DONE_PREFIX}${summary.text}`)
     : { ok: false, message: summary.text }
 }

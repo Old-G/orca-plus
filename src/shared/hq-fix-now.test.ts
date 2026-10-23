@@ -35,6 +35,8 @@ describe('«Fix now» result line', () => {
       })
     ).toEqual({
       ok: true,
+      // Why: web did not start, so the report stays open for another «Fix now».
+      complete: false,
       text: 'Opened 1 fixing chat: acme-api · handed to today’s chat: kite · asks you first (autonomy 0): zen · did not start: web (no repo) · already handled: orca-custom P1 (6fca74d8ee)'
     })
   })
@@ -45,9 +47,14 @@ describe('«Fix now» result line', () => {
         actions: [],
         handled: [{ project: 'kite', title: '[P2] Nit', address: 'kite/codex-fix', commit: null }]
       })
-    ).toEqual({ ok: true, text: 'All findings already handled — kite P2 (kite/codex-fix)' })
+    ).toEqual({
+      ok: true,
+      complete: true,
+      text: 'All findings already handled — kite P2 (kite/codex-fix)'
+    })
     expect(hqFixNowSummary({ actions: [], handled: [] })).toEqual({
       ok: false,
+      complete: false,
       text: 'This report has no findings in the journal.'
     })
   })
