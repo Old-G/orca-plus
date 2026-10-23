@@ -1,13 +1,16 @@
 // Custom build (hq-plus-journal): one pass over everything the journal follows — waitings and
 // answers, Approve's drafts and decisions, finished agent turns, Codex review reports — as the rows
 // and session sightings they mean now, each placed in its room.
-import type {
-  HqJournalEntry,
-  HqJournalInput,
-  HqJournalQuery,
-  HqJournalRecordResult,
-  HqSession,
-  HqSessionInput
+import {
+  HQ_JOURNAL_KIND,
+  HQ_JOURNAL_MAX_LIMIT,
+  HQ_JOURNAL_REPORT_SOURCE,
+  type HqJournalEntry,
+  type HqJournalInput,
+  type HqJournalQuery,
+  type HqJournalRecordResult,
+  type HqSession,
+  type HqSessionInput
 } from '../../shared/hq-journal'
 import type {
   PulseDecision,
@@ -41,6 +44,25 @@ export type HqJournalPulse = {
   noteSessions: (inputs: readonly HqSessionInput[]) => number
   getSession: (sessionId: string) => HqSession | null
   list: (query: HqJournalQuery) => HqJournalEntry[]
+}
+
+// Why: the finish notice can land a moment before the report the turn wrote last.
+const REPORT_GRACE_MS = 60_000
+
+/** When each session reported a turn itself (`orca hq report`), by session. */
+function explicitReports(pulse: HqJournalPulse, since: number): Map<string, number[]> {
+  const bySession = new Map<string, number[]>()
+  for (const entry of pulse.list({
+    kind: HQ_JOURNAL_KIND.chatReport,
+    source: HQ_JOURNAL_REPORT_SOURCE,
+    since,
+    limit: HQ_JOURNAL_MAX_LIMIT
+  })) {
+    if (entry.sessionId) {
+      bySession.set(entry.sessionId, [...(bySession.get(entry.sessionId) ?? []), entry.at])
+    }
+  }
+  return bySession
 }
 
 function recentWaiting(waiting: PulseWaiting, since: number): boolean {
@@ -89,9 +111,23 @@ export async function collectHqJournal(
     }
   }
   const sessions: HqSessionInput[] = []
-  for (const item of pulse.listFinishedChats(since)) {
+  const reported = explicitReports(pulse, since)
+  const lastFinish = new Map<string, number>()
+  const finishedChats = pulse.listFinishedChats(since).sort((a, b) => a.createdAt - b.createdAt)
+  for (const item of finishedChats) {
     const finished = finishedChatJournal(item, place)
-    if (finished.entry) {
+    const sessionId = finished.entry?.sessionId ?? finished.session?.sessionId ?? null
+    const after = sessionId ? (lastFinish.get(sessionId) ?? 0) : 0
+    if (sessionId) {
+      lastFinish.set(sessionId, item.createdAt)
+    }
+    // Why: a turn the agent reported itself needs no second row read off its last message.
+    const saidItself = sessionId
+      ? (reported.get(sessionId) ?? []).some(
+          (at) => at > after && at <= item.createdAt + REPORT_GRACE_MS
+        )
+      : false
+    if (finished.entry && !saidItself) {
       entries.push(finished.entry)
     }
     if (finished.session) {
@@ -101,6 +137,9 @@ export async function collectHqJournal(
   const hqPath = roomSources.hqPath
   for (const report of hqPath ? await readHqCodexReviews(hqPath, since) : []) {
     entries.push(...codexReviewJournal(report.fileName, report.text, place))
+  }
+  for (const entry of entries) {
+    entry.address ??= entry.sessionId ? address(entry.sessionId) : null
   }
   return {
     entries: entries.sort((a, b) => (a.at ?? 0) - (b.at ?? 0)),

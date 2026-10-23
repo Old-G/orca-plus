@@ -1,6 +1,7 @@
 // Custom build (hq-plus-journal): plain-text views for `orca hq`, short enough for a model's context.
 import type {
   HqEventsResult,
+  HqThreadResult,
   HqJournalEntry,
   HqJournalHeader,
   HqWhoami
@@ -66,5 +67,22 @@ export function formatHqWhoami(whoami: HqWhoami): string {
     `Project: ${whoami.project ?? 'none'}`,
     `Address: ${whoami.address ?? 'none yet'}`,
     `Task: ${whoami.task ?? 'none'}`
+  ].join('\n')
+}
+
+/** Custom build (hq-plus-reports): a thread as one conversation, answers quoting what they answer. */
+export function formatHqThread(thread: HqThreadResult): string {
+  const byId = new Map(thread.entries.map((entry) => [entry.id, entry]))
+  const chats = thread.sessions.map((session) => `${session.sessionId} (${session.state})`)
+  return [
+    `Thread ${thread.address} — ${thread.entries.length} entr${thread.entries.length === 1 ? 'y' : 'ies'}; chats: ${chats.join(', ') || 'none'}.`,
+    ...thread.entries.flatMap((entry) => {
+      const quoted = entry.replyTo ? byId.get(entry.replyTo) : undefined
+      return [
+        line(entry, false),
+        ...(quoted ? [`    ↳ in reply to: ${quoted.title}`] : []),
+        ...(entry.body ? entry.body.split('\n').map((text) => `    ${text}`) : [])
+      ]
+    })
   ].join('\n')
 }

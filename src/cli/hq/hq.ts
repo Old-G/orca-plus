@@ -1,9 +1,16 @@
 // Custom build (hq-plus-journal): `orca hq …` over the hq.* RPC.
-import { parseHqJournalSince, type HqEventsResult, type HqWhoami } from '../../shared/hq-journal'
+import {
+  parseHqJournalSince,
+  type HqChatSendResult,
+  type HqEventsResult,
+  type HqReportResult,
+  type HqThreadResult,
+  type HqWhoami
+} from '../../shared/hq-journal'
 import type { CommandHandler } from '../dispatch'
-import { getOptionalStringFlag } from '../flags'
+import { getOptionalStringFlag, getRepeatedStringFlag, getRequiredStringFlag } from '../flags'
 import { printResult } from '../format'
-import { formatHqEvents, formatHqWhoami } from '../hq-format'
+import { formatHqEvents, formatHqThread, formatHqWhoami } from '../hq-format'
 
 /** Who is asking, as the agent's environment says; the host turns it into a room. */
 function caller(): { callerSessionId?: string; callerWorktreeId?: string; callerCwd: string } {
@@ -36,6 +43,44 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       room: getOptionalStringFlag(flags, 'room')
     })
     printResult(result, json, formatHqEvents)
+  },
+
+  // Custom build (hq-plus-reports)
+  'hq report': async ({ flags, client, json }) => {
+    const options = getOptionalStringFlag(flags, 'options')
+    const result = await client.call<HqReportResult>('hq.report', {
+      ...caller(),
+      done: getRequiredStringFlag(flags, 'done'),
+      ask: getOptionalStringFlag(flags, 'ask'),
+      options: options?.split('|').map((option) => option.trim()),
+      next: getOptionalStringFlag(flags, 'next'),
+      blockedBy: getOptionalStringFlag(flags, 'blocked-by'),
+      links: getRepeatedStringFlag(flags, 'link'),
+      address: getOptionalStringFlag(flags, 'address')
+    })
+    printResult(result, json, (r) => `Reported in ${r.address} (${r.entry.needs}).  ${r.entry.id}`)
+  },
+
+  'hq thread': async ({ flags, client, json }) => {
+    const result = await client.call<HqThreadResult>('hq.thread', {
+      ...caller(),
+      address: getOptionalStringFlag(flags, 'address')
+    })
+    printResult(result, json, formatHqThread)
+  },
+
+  'chat send': async ({ flags, client, json }) => {
+    const result = await client.call<HqChatSendResult>('chat.send', {
+      ...caller(),
+      address: getRequiredStringFlag(flags, 'address'),
+      text: getRequiredStringFlag(flags, 'text'),
+      replyTo: getOptionalStringFlag(flags, 'reply-to')
+    })
+    printResult(result, json, (r) =>
+      r.reopened
+        ? `Brought the closed chat back and handed it the message.  ${r.entry.id}`
+        : `Handed the message to the chat on ${r.entry.address}.  ${r.entry.id}`
+    )
   },
 
   'hq whoami': async ({ client, json }) => {

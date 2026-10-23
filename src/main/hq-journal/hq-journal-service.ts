@@ -30,6 +30,8 @@ const SYNC_DEBOUNCE_MS = 2_000
 const FRESH_MS = 30_000
 
 export type HqJournalServiceDeps = {
+  /** The owner's switch (Settings → Workspace); off, nothing new is written to the journal. */
+  enabled: () => boolean
   hqPath: () => string | null
   repos: () => readonly { id: string; path: string; displayName: string }[]
   folderGroup: (folderWorkspaceId: string) => string | null
@@ -49,6 +51,8 @@ export type HqEventsRequest = HqCaller & {
 }
 
 export type HqJournalService = {
+  /** The room the caller works in, by the spaces as last read. */
+  scope: (caller: HqCaller) => Promise<HqCallerScope>
   schedule: () => void
   sync: () => Promise<HqJournalRecordResult>
   events: (request: HqEventsRequest) => Promise<HqEventsResult>
@@ -114,6 +118,9 @@ export function createHqJournalService(deps: HqJournalServiceDeps): HqJournalSer
   }
 
   const syncOnce = async (): Promise<HqJournalRecordResult> => {
+    if (!deps.enabled()) {
+      return { added: 0, settled: 0, moved: 0 }
+    }
     const now = deps.now()
     const roomSources = await sources()
     if (!placingComplete) {
@@ -156,6 +163,7 @@ export function createHqJournalService(deps: HqJournalServiceDeps): HqJournalSer
   }
 
   return {
+    scope: async (caller) => (await scopeOf(caller)).scope,
     schedule: () => flight.schedule(),
     sync: () => flight.runNow(),
     dispose: () => flight.dispose(),
@@ -190,7 +198,7 @@ export function createHqJournalService(deps: HqJournalServiceDeps): HqJournalSer
       if (!known.includes(room)) {
         throw new Error(`No room ${room}; rooms: ${known.join(', ')}`)
       }
-      if (scope.kind === 'overview') {
+      if (scope.kind === 'overview' && deps.enabled()) {
         // Why: HQ+ reading one room in full is itself an event the owner can look back on.
         deps.pulse.record([
           {
