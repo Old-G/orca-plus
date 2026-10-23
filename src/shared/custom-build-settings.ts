@@ -44,6 +44,8 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqAskSessionId?: string | null
     /** Custom build (hq-voice-prompts): a finished dictation opens a preview to pick what it becomes. */
     hqVoicePromptsEnabled?: boolean
+    /** Custom build (hq-plus-journal): HQ+'s journal follows Orca+'s records; off stops it. Default on. */
+    hqPlusJournalEnabled?: boolean
     /** Custom build (hq-read-aloud): speed, voice and auto-reading of the chat's «Read aloud». */
     hqReadAloud?: { rate: number; voiceURI: string | null; auto: boolean }
     /** Custom build (hq-night-shift): hour the night shift starts tasks queued «Tonight»; default 23. */

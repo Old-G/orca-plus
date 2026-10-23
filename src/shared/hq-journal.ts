@@ -21,7 +21,10 @@ export const HQ_JOURNAL_KIND = {
   chatReport: 'chat.report',
   personReply: 'person.reply',
   reviewFinding: 'review.finding',
-  crossRead: 'cross-read'
+  crossRead: 'cross-read',
+  /** A message handed to a chat by another chat or by HQ+ (`orca chat send`). */
+  chatMessage: 'chat.message',
+  sessionHandoff: 'session.handoff'
 } as const
 
 /** Who moves next: `nobody`, the owner (`owner:decide|approve|reply`), an agent (`agent:<address>`,
@@ -99,6 +102,12 @@ export type HqJournalQuery = {
   /** One kind, or a family with a trailing `*` (`approve.*`). */
   kind?: string
   limit?: number
+  /** Custom build (hq-plus-reports): one thread, or one session's rows. */
+  address?: string
+  sessionId?: string
+  source?: string
+  /** Oldest first, as a thread reads; newest first otherwise. */
+  oldestFirst?: boolean
 }
 
 /** `hq.events`: HQ+ gets every room's headings; a room's chat gets its room's whole entries. */
@@ -177,3 +186,89 @@ export function parseHqJournalSince(value: string, now: number): number | null {
   const at = Date.parse(value)
   return Number.isNaN(at) ? null : at
 }
+
+// Custom build (hq-plus-reports): thread addresses, turn reports, threads and messages between chats.
+
+const CYRILLIC: Readonly<Record<string, string>> = {
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'g',
+  д: 'd',
+  е: 'e',
+  ё: 'e',
+  ж: 'zh',
+  з: 'z',
+  и: 'i',
+  й: 'y',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'h',
+  ц: 'ts',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'sch',
+  ъ: '',
+  ы: 'y',
+  ь: '',
+  э: 'e',
+  ю: 'yu',
+  я: 'ya'
+}
+
+/** `<project>/<task>`: lower-case latin, digits and dashes, so it is typed in a shell as is. */
+export function hqThreadAddress(project: string | null, task: string): string | null {
+  const slug = (value: string): string =>
+    [...value.toLowerCase()]
+      .map((char) => CYRILLIC[char] ?? char)
+      .join('')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60)
+      .replace(/-+$/, '')
+  const head = slug(project ?? 'chat') || 'chat'
+  const tail = slug(task)
+  return tail ? `${head}/${tail}` : null
+}
+
+const ADDRESS = /^[a-z0-9][a-z0-9_.-]{0,80}\/[a-z0-9][a-z0-9_.-]{0,80}$/
+
+export function isHqThreadAddress(value: string): boolean {
+  return ADDRESS.test(value)
+}
+
+/** The `source` of rows a chat wrote itself with `orca hq report`. */
+export const HQ_JOURNAL_REPORT_SOURCE = 'chat-report'
+
+/** `orca hq report`: what a turn did, what it asks the owner, what comes next. */
+export type HqReportInput = {
+  done: string
+  ask?: string
+  options?: string[]
+  next?: string
+  /** `person:<name or id>` the work now waits on. */
+  blockedBy?: string
+  links?: string[]
+  /** Names this chat's thread; kept for later reports and handoffs. */
+  address?: string
+}
+
+export type HqReportResult = { entry: HqJournalEntry; address: string }
+
+export type HqThreadResult = {
+  address: string
+  /** Oldest first; a row answering another names it in `replyTo`. */
+  entries: HqJournalEntry[]
+  sessions: HqSession[]
+}
+
+export type HqChatSendResult = { entry: HqJournalEntry; sessionId: string; reopened: boolean }

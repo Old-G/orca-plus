@@ -41,6 +41,12 @@ export const hqProjectsApi = {
   autoEffortKeyStatus: () => ipcRenderer.invoke('hqProjects:autoEffortKeyStatus'),
   saveAutoEffortKey: (key) => ipcRenderer.invoke('hqProjects:saveAutoEffortKey', key),
   clearAutoEffortKey: () => ipcRenderer.invoke('hqProjects:clearAutoEffortKey'),
+  onReopenChat: (listener) => {
+    const handler = (_event: unknown, request: { sessionId: string; worktreeId: string }): void =>
+      listener(request)
+    ipcRenderer.on('hqProjects:reopenChat', handler)
+    return () => ipcRenderer.removeListener('hqProjects:reopenChat', handler)
+  },
   onRunReportDecisions: (listener) => {
     const handler = (_event: unknown, request: { path: string; text: string }): void =>
       listener(request)

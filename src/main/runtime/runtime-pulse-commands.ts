@@ -199,6 +199,10 @@ export class RuntimePulseCommands {
     return this.db().getSession(sessionId)
   }
 
+  pulseListSessionsByAddress(address: string): HqSession[] {
+    return this.db().listSessionsByAddress(address)
+  }
+
   /** Custom build (pulse-bell): see syncInboxKind. */
   pulseSyncInboxKind(
     kind: string,

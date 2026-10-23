@@ -20,9 +20,59 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     examples: ['orca hq events --since 24h', "orca hq events --needs owner --kind 'approve.*'"]
   },
   {
+    // Custom build (hq-plus-reports)
+    path: ['hq', 'report'],
+    summary: "Report this turn: what was done, the owner's question, what comes next",
+    usage:
+      'orca hq report --done <text> [--ask <question> --options <a|b|c>] [--next <text>] [--blocked-by <person>] [--link <url>]... [--address <project>/<task>] [--json]',
+    allowedFlags: [
+      ...GLOBAL_FLAGS,
+      'done',
+      'ask',
+      'options',
+      'next',
+      'blocked-by',
+      'link',
+      'address'
+    ],
+    repeatableFlags: ['link'],
+    notes: [
+      'Run it once at the end of every turn in an Orca chat; it lands in the journal as chat.report.',
+      'The first report names the thread <project>/<chat name>; --address names it yourself, and the name stays across handoffs.',
+      "--ask makes it the owner's move; --blocked-by <name> makes it that person's."
+    ],
+    examples: [
+      'orca hq report --done "Journal sync ships behind a switch" --next "Step 17.2: reports"',
+      'orca hq report --done "Two ways to store addresses" --ask "Which one?" --options "table|column"'
+    ]
+  },
+  {
+    path: ['hq', 'thread'],
+    summary: 'Everything said in one thread, oldest first, with what each answer replied to',
+    usage: 'orca hq thread [<project>/<task>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'address'],
+    positionalArgs: ['address'],
+    notes: ["Without an address it shows this chat's own thread."]
+  },
+  {
     path: ['hq', 'whoami'],
     summary: 'Where this chat works: its room, project, thread address and task',
     usage: 'orca hq whoami [--json]',
     allowedFlags: [...GLOBAL_FLAGS]
+  }
+]
+
+export const CHAT_COMMAND_SPECS: CommandSpec[] = [
+  {
+    // Custom build (hq-plus-reports)
+    path: ['chat', 'send'],
+    summary: 'Hand a message to the chat working on a thread; a closed chat is brought back',
+    usage: 'orca chat send <project>/<task> <text> [--reply-to <journal id>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'address', 'text', 'reply-to'],
+    positionalArgs: ['address', 'text'],
+    notes: [
+      "Only to a thread in this chat's room; HQ+ may write to any.",
+      '--reply-to quotes the journal entry it answers, so the other chat sees what it replies to.'
+    ]
   }
 ]
