@@ -1533,10 +1533,6 @@
     linear-gradient(180deg, #132232, #0c1924) padding-box,
     var(--hqp-edge-move) border-box;
 }
-.hqp-side-sec[data-list='waiting'] {
-  max-height: 46vh;
-  overflow: auto;
-}
 .hqp-wq > span:last-child {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -2415,4 +2411,37 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 }
 .hq-plus .hqp-go svg {
   stroke: currentColor;
+}
+
+/* Custom build (hq-plus-side-blocks): each left block folds by its title; the owner's queue and what we
+   wait for scroll inside the same height, the title stays put. */
+.hqp-side-fold {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.hqp-side-fold:hover {
+  color: var(--hqp-mute);
+}
+.hqp-side-fold[data-tone='move']:hover {
+  color: var(--hqp-amber);
+}
+.hqp-side-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+.hqp-side-sec[data-list='waiting'] .hqp-side-list,
+.hqp-side-sec[data-list='weWait'] .hqp-side-list {
+  max-height: 38vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.hqp-side-sec[data-list='waiting'][data-open='false'] {
+  padding-bottom: 2px;
 }
