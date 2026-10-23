@@ -9,9 +9,14 @@ export type PulsePersonShow = {
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
+// Custom build (hq-plus-ask): the day itself, not only the age — answers quote «since 15.10».
 function age(since: number, now: number): string {
   const days = Math.floor((now - since) / DAY_MS)
-  return days <= 0 ? 'today' : `${days} d`
+  const date = new Date(since)
+  const day = [date.getFullYear(), date.getMonth() + 1, date.getDate()]
+    .map((part) => String(part).padStart(2, '0'))
+    .join('-')
+  return `since ${day} (${days <= 0 ? 'today' : `${days} d`})`
 }
 
 function waitingLine(waiting: PulseWaiting, name: string | null, now: number): string {
