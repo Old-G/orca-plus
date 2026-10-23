@@ -46,6 +46,9 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqVoicePromptsEnabled?: boolean
     /** Custom build (hq-plus-journal): HQ+'s journal follows Orca+'s records; off stops it. Default on. */
     hqPlusJournalEnabled?: boolean
+    /** Custom build (hq-plus-sessions): the session dispatcher is off, only writes what it would do,
+     *  or continues, opens and queues chats itself; default report. */
+    hqSessionDispatcher?: 'off' | 'report' | 'on'
     /** Custom build (hq-read-aloud): speed, voice and auto-reading of the chat's «Read aloud». */
     hqReadAloud?: { rate: number; voiceURI: string | null; auto: boolean }
     /** Custom build (hq-night-shift): hour the night shift starts tasks queued «Tonight»; default 23. */

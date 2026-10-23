@@ -9,6 +9,7 @@ import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { launchHqBackgroundChat, limitHqChatToAuto } from '../hq-today/hq-background-chat'
 import { claudeActiveFreePercent } from '../../shared/claude-limit-guard'
+import { getHqSessions } from '../hq-sessions/hq-sessions'
 import { createHqRouting, provideHqRouting } from './hq-routing'
 
 const EVERY_MS = 5 * 60_000
@@ -86,6 +87,7 @@ export function registerHqRouting(
           null
       )
     },
+    projectBusy: async (project) => (await getHqSessions()?.projectBusy(project)) ?? null,
     now: Date.now,
     log: (message) => console.log('[hq-routing]', message)
   })

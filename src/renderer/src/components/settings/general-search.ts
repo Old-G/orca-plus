@@ -45,6 +45,15 @@ export const getGeneralWorkspaceSearchEntries = createLocalizedCatalog(() => [
     ),
     keywords: ['hq', 'chats', 'close', 'cleanup', 'tabs', 'sessions']
   },
+  // Custom build (hq-plus-sessions)
+  {
+    title: translate('auto.hq.sessionDispatcher.settingTitle', 'Session dispatcher'),
+    description: translate(
+      'auto.hq.sessionDispatcher.settingDescription',
+      'Work handed to a thread goes to its chat while it has room and was active in the last 12 hours, else to a new chat that starts from the last report; handoffs nobody took up start in the background. A chat you are in is left alone; a project gets at most two live chats. Report only writes what it would do to the HQ+ journal.'
+    ),
+    keywords: ['hq', 'hq+', 'sessions', 'chats', 'dispatcher', 'handoff', 'queue']
+  },
   {
     title: translate(
       'auto.components.settings.general.search.externalWorktrees',

@@ -6,6 +6,7 @@ import { onPulseChanged } from '../orca-plus/pulse/pulse-change-events'
 import { PULSE_BELL_KIND } from '../../shared/pulse-bell'
 import { createHqJournalService, provideHqJournalService } from './hq-journal-service'
 import { createHqThreads, provideHqThreads } from './hq-journal-threads'
+import { registerHqSessions } from '../hq-sessions/register-hq-sessions'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { runHqReopenChatOnDesktop } from '../hq-today/hq-request-on-desktop'
 import { registerHqContext } from '../hq-context/register-hq-context'
@@ -85,6 +86,7 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
       now: Date.now
     })
   )
+  registerHqSessions(store, runtime, service)
   onPulseChanged(() => service.schedule())
   const timer = setInterval(() => service.schedule(), REREAD_EVERY_MS)
   timer.unref?.()
