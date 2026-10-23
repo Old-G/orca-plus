@@ -12,6 +12,7 @@ import {
   hqJournalBody,
   hqJournalTitle,
   isHqJournalNeeds,
+  type HqJournalActivity,
   type HqJournalEntry,
   type HqJournalInput,
   type HqJournalLink,
@@ -316,4 +317,36 @@ export function listJournal(core: PulseCore, query: HqJournalQuery = {}): HqJour
     .prepare(`SELECT * FROM journal${whereSql} ORDER BY ${order} LIMIT ?`)
     .all(...args, limit)
     .map(toEntry)
+}
+
+/** Custom build (hq-plus-ui): rows written since `since`, for HQ+'s «journal, 24 h». */
+export function countJournal(core: PulseCore, since: number): number {
+  const row = core.db.prepare('SELECT count(*) AS n FROM journal WHERE at >= ?').get(since)
+  return row ? integer(row, 'n') : 0
+}
+
+/** Custom build (hq-plus-ui): one row per project and time slot that had work in it, for HQ+'s River. */
+export function journalActivity(
+  core: PulseCore,
+  query: { since: number; slotMs: number; kinds: readonly string[] }
+): HqJournalActivity[] {
+  if (query.kinds.length === 0) {
+    return []
+  }
+  return core.db
+    .prepare(
+      // Why: with one max() SQLite takes the bare columns from that newest row of the group.
+      `SELECT project, workspace, max(at) AS at, session_id
+       FROM journal
+       WHERE at >= ? AND project IS NOT NULL AND project != ''
+         AND kind IN (${query.kinds.map(() => '?').join(', ')})
+       GROUP BY project, CAST((at - ?) / ? AS INTEGER)`
+    )
+    .all(query.since, ...query.kinds, query.since, query.slotMs)
+    .map((row) => ({
+      project: text(row, 'project'),
+      workspace: text(row, 'workspace'),
+      at: integer(row, 'at'),
+      sessionId: optionalText(row, 'session_id')
+    }))
 }

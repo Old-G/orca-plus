@@ -98,6 +98,14 @@ export type HqJournalHeader = Pick<
   'id' | 'at' | 'workspace' | 'kind' | 'project' | 'address' | 'title' | 'needs' | 'status'
 >
 
+/** Custom build (hq-plus-ui): a project's newest work row within one time slot. */
+export type HqJournalActivity = {
+  project: string
+  workspace: string
+  at: number
+  sessionId: string | null
+}
+
 export type HqJournalQuery = {
   /** Only these rooms; absent = every room. */
   workspaces?: readonly string[]
