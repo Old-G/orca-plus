@@ -2,7 +2,11 @@
 // person's answer, a wait on the owner or a new report. Open while it waits; once decided it folds to
 // two lines that say what was chosen, and opens again on a click.
 import { useState } from 'react'
-import { hqPlusChoices, type HqPlusCard as Card, type HqPlusDone } from '../../../../../shared/hq-plus-log'
+import {
+  hqPlusChoices,
+  type HqPlusCard as Card,
+  type HqPlusDone
+} from '../../../../../shared/hq-plus-log'
 import { translate } from '@/i18n/i18n'
 import { OutgoingApprovalDecision } from '../outgoing-approval/OutgoingApprovalCard'
 import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
@@ -81,6 +85,28 @@ function questionOf(card: Card): string {
   return asked ?? card.title
 }
 
+// Custom build (hq-plus-ui-v2): a request offers the mockup's set — To work, Reply — and «Not now» below.
+const INBOX_ACTION_LABEL: Readonly<Record<string, string>> = {
+  'slack-do': 'To work',
+  'intake-open': 'To work',
+  'slack-answer': 'Reply',
+  'slack-review': 'Investigate'
+}
+
+function inboxActions(card: Card, look: HqPlusLook): { id: string; label: string }[] {
+  const actions = card.inbox?.actions ?? []
+  if (look.kind !== 'inbox') {
+    return actions
+  }
+  const picked = actions.flatMap((action) => {
+    const label = INBOX_ACTION_LABEL[action.id]
+    return label
+      ? [{ id: action.id, label: translate(`auto.hqPlus.inbox.${action.id}`, label) }]
+      : []
+  })
+  return picked.length > 0 ? picked : actions
+}
+
 /** A word beside the badges: which report, what the person wants from the owner. */
 function noteOf(card: Card): string | null {
   if (card.type === 'report') {
@@ -152,7 +178,7 @@ export function HqPlusCardView({
       ) : null}
     </div>
   )
-  const run =(action: () => Promise<HqPlusResult>): void => {
+  const run = (action: () => Promise<HqPlusResult>): void => {
     if (busy) {
       return
     }
@@ -188,7 +214,9 @@ export function HqPlusCardView({
           aria-expanded="false"
           onClick={() => setExpanded(true)}
         >
-          <span className="l1">{card.type === 'move' ? questionOf(card) : card.title}</span>
+          <span className="l1">
+            <HqPlusText text={card.type === 'move' ? questionOf(card) : card.title} maxLines={1} />
+          </span>
           <span className="l2">✓ {hqPlusDoneLabel(card.done)}</span>
           <span className="ex">{translate('auto.hqPlus.expand', 'expand')}</span>
         </button>
@@ -227,7 +255,11 @@ export function HqPlusCardView({
           />
         ) : (
           <>
-            {card.type === 'approve' ? null : <p className="hqp-q">{questionOf(card)}</p>}
+            {card.type === 'approve' ? null : (
+              <p className="hqp-q">
+                <HqPlusText text={questionOf(card)} maxLines={3} />
+              </p>
+            )}
             {card.report?.done || card.report?.next ? (
               <dl className="hqp-rep">
                 {card.report.done ? (
@@ -334,7 +366,7 @@ export function HqPlusCardView({
         ) : null}
         {open && (card.type === 'reply' || card.type === 'bell') && card.inbox ? (
           <div className="hqp-opts">
-            {card.inbox.actions.map((action, index) => (
+            {inboxActions(card, look).map((action, index) => (
               <button
                 key={action.id}
                 type="button"
@@ -377,14 +409,24 @@ export function HqPlusCardView({
               )}
               onChange={(event) => setText(event.target.value)}
             />
-            <span className="hqp-to">→ {translate('auto.hqPlus.tellAgentTo', 'agent, not sent')}</span>
+            <span className="hqp-to">
+              → {translate('auto.hqPlus.tellAgentTo', 'agent, not sent')}
+            </span>
             <button
               type="submit"
               className="hqp-go"
               disabled={busy || !text.trim()}
               aria-label={translate('auto.hqPlus.tellAgent', 'Tell agent')}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.6"
+                aria-hidden="true"
+              >
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </button>
@@ -422,7 +464,15 @@ export function HqPlusCardView({
               disabled={busy || !text.trim()}
               aria-label={translate('auto.hqPlus.send', 'Send')}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.6"
+                aria-hidden="true"
+              >
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </button>
