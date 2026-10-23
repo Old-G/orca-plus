@@ -1,5 +1,5 @@
-import type { CommandSpec } from '../args'
-import { GLOBAL_FLAGS } from '../args'
+import type { CommandSpec } from '../discovery/command-spec'
+import { CLI_GLOBAL_FLAGS as GLOBAL_FLAGS } from '../../shared/cli-argument-boundary'
 
 // Custom build (pulse): agents record what they wait on, what was decided and what they want to
 // send. A draft only waits for the owner's approval here; nothing in `orca pulse` sends it.
@@ -48,6 +48,14 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
     summary: 'Close an open waiting as resolved, or as cancelled with --cancel',
     usage: 'orca pulse wait resolve <id> [--resolution <text>] [--cancel] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'id', 'resolution', 'cancel'],
+    positionalArgs: ['id']
+  },
+  {
+    // Custom build (hq-plus-round6)
+    path: ['pulse', 'wait', 'reopen'],
+    summary: 'Open a closed waiting again, with its chat and source as they were',
+    usage: 'orca pulse wait reopen <id> [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'id'],
     positionalArgs: ['id']
   },
   {

@@ -85,6 +85,27 @@ export function hqWaitingSnoozeDay(choice: 'tomorrow' | 'monday' | 'week', now: 
   return hqWaitingDay(date.getTime())
 }
 
+/**
+ * Where a waiting was asked, as a link: an https ref as it is, `slack:<channel>:<ts>` and
+ * `clickup:<task>[:<comment>]` (what ask-person records) as their web addresses.
+ */
+export function hqWaitingSourceUrl(ref: string | null): string | null {
+  if (!ref) {
+    return null
+  }
+  if (/^https:\/\/\S+$/.test(ref)) {
+    return ref
+  }
+  const [kind, first, second] = ref.split(':')
+  if (kind === 'slack' && /^[A-Z0-9]+$/.test(first ?? '') && /^\d+\.\d+$/.test(second ?? '')) {
+    return `https://slack.com/archives/${first}/p${second.replace('.', '')}`
+  }
+  if (kind === 'clickup' && /^[\w-]+$/.test(first ?? '')) {
+    return `https://app.clickup.com/t/${first}`
+  }
+  return null
+}
+
 /** A ClickUp task id (DEV-123) or a link, as the owner typed it; null when it is neither. */
 export function hqWaitingTaskRef(input: string): string | null {
   const value = input.trim()
