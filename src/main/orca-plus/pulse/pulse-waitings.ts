@@ -183,6 +183,31 @@ export function closeWaiting(
   })
 }
 
+/** Custom build (hq-plus-round6): the evening check's «Undo closes» — the same waiting open again, so
+ *  its asking chat and reply polling stay as they were. */
+export function reopenWaiting(core: PulseCore, id: string): PulseWaiting {
+  return core.transaction(() => {
+    const existing = getWaiting(core, id)
+    if (!existing) {
+      throw new Error(`pulse: no waiting ${id}`)
+    }
+    if (existing.status === 'open') {
+      throw new Error(`pulse: waiting ${id} is already open`)
+    }
+    const reopened: PulseWaiting = {
+      ...existing,
+      status: 'open',
+      resolution: null,
+      resolvedAt: null
+    }
+    core.db
+      .prepare('UPDATE waitings SET status = ?, resolution = NULL, resolved_at = NULL WHERE id = ?')
+      .run('open', id)
+    core.emit('waiting.reopened', 'waiting', id, reopened)
+    return reopened
+  })
+}
+
 /** Custom build (hq-waiting-replies): keeps the person's newest answer; an older or repeated ts is
  *  ignored, so the scout re-reporting a thread changes nothing. Null when nothing changed. */
 export function recordWaitingReply(

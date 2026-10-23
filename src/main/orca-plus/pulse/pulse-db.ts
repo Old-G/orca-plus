@@ -56,6 +56,7 @@ import { getPerson, listPeople, upsertPerson } from './pulse-people'
 import {
   addWaiting,
   closeWaiting,
+  reopenWaiting,
   getWaiting,
   listWaitings,
   markWaitingReplyDelivered,
@@ -98,6 +99,9 @@ export class PulseDb {
   }
   closeWaiting(id: string, status: Exclude<PulseWaitingStatus, 'open'>, resolution?: string) {
     return closeWaiting(this.core, id, status, resolution)
+  }
+  reopenWaiting(id: string) {
+    return reopenWaiting(this.core, id)
   }
   listWaitings(filter?: PulseWaitingFilter) {
     return listWaitings(this.core, filter)

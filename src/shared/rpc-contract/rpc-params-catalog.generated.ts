@@ -559,6 +559,7 @@ import {
   PulseListPeopleParams,
   PulseListWaitingsParams,
   PulseLogDecisionParams,
+  PulseReopenWaitingParams,
   PulseUpdateWaitingParams,
   PulseUpsertPersonParams
 } from './pulse-params'
@@ -1422,6 +1423,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'pulse.logDecision': PulseLogDecisionParams,
   'pulse.markInboxDone': PulseInboxItemRef,
   'pulse.markInboxRead': PulseInboxItemRef,
+  'pulse.reopenWaiting': PulseReopenWaitingParams,
   'pulse.snapshot': null,
   'pulse.updateWaiting': PulseUpdateWaitingParams,
   'pulse.upsertPerson': PulseUpsertPersonParams,

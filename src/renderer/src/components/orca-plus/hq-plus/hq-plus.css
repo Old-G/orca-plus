@@ -1546,7 +1546,10 @@
 }
 /* an open chat fills the panel, its composer at the bottom */
 .hqp-pane:has(.hqp-chat),
-.hqp-pv:has(> .hqp-chat) {
+.hqp-pv:has(> .hqp-chat),
+/* Custom build (hq-plus-round6): so does the Browser tab's page while it shows */
+.hqp-pane:has(> .hqp-pv:not([hidden]) > .hqp-browser),
+.hqp-pv:has(> .hqp-browser) {
   height: 100%;
   overflow: hidden;
 }
@@ -2583,4 +2586,9 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   width: 100%;
   height: 100%;
   border: 0;
+}
+/* Custom build (hq-plus-round6): back/forward with nowhere to go read as off, not as dead buttons. */
+.hqp-browser-bar .hqp-link:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
