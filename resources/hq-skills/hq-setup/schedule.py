@@ -18,7 +18,7 @@ SKILLS = Path(__file__).resolve().parent.parent
 LOGS = Path.home() / "Library" / "Logs"
 # name → (skill folder, schedule): an int is an interval in seconds, a tuple is a daily (hour, minute).
 JOBS = {
-    "commit-review": ("hq-commit-review", 1200),
+    "commit-review": ("hq-commit-review", (18, 30)),
     "tone-rollup": ("hq-tone-rollup", (20, 45)),
     "triage-rollup": ("hq-triage-rollup", (20, 50)),
 }
