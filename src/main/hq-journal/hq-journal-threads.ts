@@ -253,6 +253,14 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
           `The chat on ${message.address} is closed and Orca+ could not bring it back; open it from History and send again.`
         )
       }
+      // Why: the owner's answer is the owner's move; left open, the question still counts as waiting.
+      const ownerAnswers =
+        quoted !== null &&
+        scope.kind === 'overview' &&
+        !scope.sessionId &&
+        quoted.status === 'open' &&
+        quoted.needs.startsWith('owner:') &&
+        quoted.dedupeKey !== null
       deps.pulse.record([
         {
           workspace: target.workspace,
@@ -271,7 +279,8 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
           refId: target.sessionId,
           source: SEND_SOURCE,
           dedupeKey: null
-        }
+        },
+        ...(ownerAnswers ? [journalEntryAsInput(quoted, { status: 'done' })] : [])
       ])
       const entry = latest({ address: message.address, source: SEND_SOURCE })
       if (!entry) {
