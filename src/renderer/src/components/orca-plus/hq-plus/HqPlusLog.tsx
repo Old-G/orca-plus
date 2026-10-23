@@ -9,6 +9,7 @@ import { HqPlusCardView } from './HqPlusCard'
 import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 import { HqPlusThreadComposer } from './HqPlusThreadComposer'
+import { HqPlusCloseChat, type HqPlusChatCloser } from './HqPlusCloseChat'
 
 const BOTTOM_SLACK_PX = 40
 
@@ -23,6 +24,8 @@ export type HqPlusLogContext = {
   onChanged: () => void
   /** Custom build (hq-plus-ui-v2): the live chat's state badge (working, waits on someone, done). */
   chatStatus: (sessionId: string | null) => HqPlusBadge | null
+  /** Custom build (hq-plus-ui-v3): closing the chat's tab; null when it is not open. */
+  closeChat: (sessionId: string | null) => HqPlusChatCloser | null
   /** The project's own colour, the same as in the chat list; null leaves the room's. */
   projectColor: (project: string | null) => string | null
   /** True for the chat open on the right, so its card stands out. */
@@ -76,6 +79,7 @@ function ChatCard({
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const status = ctx.chatStatus(item.sessionId) ?? DONE
+  const closer = ctx.closeChat(item.sessionId)
   const key = hqPlusThreadKey(item)
   const canReply = Boolean(item.address || item.sessionId)
   return (
@@ -100,6 +104,7 @@ function ChatCard({
           <span className="hqp-tm">{clock(item.at)}</span>
           <span className="hqp-spacer" />
           <HqPlusBadges badges={[status]} />
+          {closer ? <HqPlusCloseChat closer={closer} name={item.project ?? 'chat'} /> : null}
         </div>
         {open ? (
           <div className="hqp-chatc-full">
