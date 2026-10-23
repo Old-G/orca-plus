@@ -91,7 +91,11 @@ function whereOfItem(item: PulseInboxItem): Where {
       sessionId: finished.sessionId
     }
   }
-  return { ...NOWHERE, project: refProject(item.refId), sessionId: readPulseBellSessionId(item.refId) }
+  return {
+    ...NOWHERE,
+    project: refProject(item.refId),
+    sessionId: readPulseBellSessionId(item.refId)
+  }
 }
 
 /** A bell ref's own `project`, when the producer wrote one (a person's answer, a 👾 intake). */
