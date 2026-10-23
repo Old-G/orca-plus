@@ -9,6 +9,28 @@ import { createHqThreads, provideHqThreads } from './hq-journal-threads'
 import { registerHqSessions } from '../hq-sessions/register-hq-sessions'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { runHqReopenChatOnDesktop } from '../hq-today/hq-request-on-desktop'
+import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import { app } from 'electron'
+import {
+  createHqPlusStats,
+  provideHqPlusStats,
+  runPython
+} from '../hq-plus-ui/hq-plus-screen-stats'
+
+const MANUAL_SCRIPT = ['hq-skills', 'weekly-improve', 'scripts', 'manual_routing.py']
+
+/** The bundled 17.11 counter, else the installed skill's copy. */
+function manualRoutingScript(): string | null {
+  const candidates = [
+    app.isPackaged
+      ? join(process.resourcesPath, ...MANUAL_SCRIPT)
+      : join(app.getAppPath(), 'resources', ...MANUAL_SCRIPT),
+    join(homedir(), '.claude', 'skills', ...MANUAL_SCRIPT.slice(1))
+  ]
+  return candidates.find((path) => existsSync(path)) ?? null
+}
 import { registerHqContext } from '../hq-context/register-hq-context'
 
 // Why: the evening review writes its report once a day; the pulse writes wake the journal sooner.
@@ -87,6 +109,14 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
     })
   )
   registerHqSessions(store, runtime, service)
+  provideHqPlusStats(
+    createHqPlusStats({
+      hqPath: () => store.getSettings().hqPath ?? null,
+      script: manualRoutingScript,
+      run: runPython,
+      now: Date.now
+    })
+  )
   onPulseChanged(() => service.schedule())
   const timer = setInterval(() => service.schedule(), REREAD_EVERY_MS)
   timer.unref?.()

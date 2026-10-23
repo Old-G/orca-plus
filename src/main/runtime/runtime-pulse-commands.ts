@@ -23,6 +23,7 @@ import type {
 import { getAppEnvironment } from '../../shared/app-environment'
 import type { HqFeedItem, HqFeedQuery } from '../../shared/hq-feed'
 import type {
+  HqJournalActivity,
   HqJournalEntry,
   HqJournalInput,
   HqJournalQuery,
@@ -185,6 +186,19 @@ export class RuntimePulseCommands {
 
   pulseListJournal(query?: HqJournalQuery): HqJournalEntry[] {
     return this.db().listJournal(query)
+  }
+
+  /** Custom build (hq-plus-ui): HQ+'s day count and River. */
+  pulseCountJournal(since: number): number {
+    return this.db().countJournal(since)
+  }
+
+  pulseJournalActivity(query: {
+    since: number
+    slotMs: number
+    kinds: readonly string[]
+  }): HqJournalActivity[] {
+    return this.db().journalActivity(query)
   }
 
   pulseGetJournalEntry(id: string): HqJournalEntry | null {
