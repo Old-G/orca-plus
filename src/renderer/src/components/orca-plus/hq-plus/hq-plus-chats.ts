@@ -1,7 +1,10 @@
 // Custom build (hq-plus-ui): HQ+'s chats are the same live list the classic HQ shows — every open
 // agent chat and terminal, so one started a second ago is there — not only the ones the journal knows.
 import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
+import { useAppStore } from '@/store'
+import type { HqPlusLiveChat } from '../../../../../shared/hq-plus-fold'
 import { groupHqChats, hqChatRecentlyDone, type HqChatItem } from '../hq/hq-chat-list'
+import { hqChatSessionId } from '../hq/hq-chat-cleanup'
 
 export const HQ_PLUS_SIDE_CHATS = 10
 // Why: a chat opened a moment ago has no turn yet, so the board calls it quiet; it is the newest work.
@@ -35,4 +38,46 @@ export function hqPlusChatOfSession(
   }
   const tabId = structuredAgentSessionTabId(sessionId)
   return items.find((item) => item.kind === 'chat' && item.tab.id === tabId) ?? null
+}
+
+/** Custom build (hq-plus-ui-v3): finished, read and not just opened — folded under «Idle» on the left. */
+export function hqPlusChatIsIdle(item: HqChatItem, now: number): boolean {
+  return item.group === 'quiet' && !(item.card === null && now - item.sortAt < JUST_OPENED_MS)
+}
+
+/**
+ * Custom build (hq-plus-ui-v3): the open chats the feed shows before the journal knows them — today's,
+ * and older ones only while they work or wait on the owner. `place` gives a project's room.
+ */
+export function hqPlusLiveChats(
+  items: readonly HqChatItem[],
+  since: number,
+  place: (project: string) => string
+): HqPlusLiveChat[] {
+  return items.flatMap((item) => {
+    if (item.kind !== 'chat') {
+      return []
+    }
+    const sessionId = hqChatSessionId(item.tab.id)
+    const at = item.tab.createdAt
+    if (!sessionId || (at < since && item.group !== 'working' && item.group !== 'needs')) {
+      return []
+    }
+    return [
+      {
+        sessionId,
+        project: item.projectName,
+        room: place(item.projectName),
+        title: item.tab.label || item.projectName,
+        at
+      }
+    ]
+  })
+}
+
+/** Closes a chat's tab the way the classic HQ's cleanup does; it stays in History to reopen. */
+export function closeHqPlusChat(item: HqChatItem): void {
+  if (item.kind === 'chat') {
+    useAppStore.getState().closeUnifiedTab(item.tab.id, { preserveWorktreeSelection: true })
+  }
 }
