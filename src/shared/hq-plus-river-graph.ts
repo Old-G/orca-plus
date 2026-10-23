@@ -204,10 +204,14 @@ export function hqPlusGraph(input: {
     }
   }
   const fanIn = new Map<string, number>()
+  const linked = new Set<string>()
   for (const project of projects) {
     for (const target of pageBySlug.get(project)?.relations ?? []) {
       if (shown.has(target)) {
-        if (project < target) {
+        // Why: a mutual relation is drawn once; a one-way one must survive any slug order.
+        const pair = [project, target].sort().join('\u0000')
+        if (!linked.has(pair)) {
+          linked.add(pair)
           edges.push({ from: project, to: target, kind: 'relation' })
         }
       } else {
