@@ -39,6 +39,7 @@ export function noteSessions(core: PulseCore, inputs: readonly HqSessionInput[])
     for (const input of inputs) {
       const known = getSession(core, input.sessionId)
       const newer = !known || input.at >= known.lastActivityAt
+      const state = newer ? input.state : (known?.state ?? input.state)
       const next: HqSession = {
         sessionId: input.sessionId,
         address: input.address ?? known?.address ?? null,
@@ -46,11 +47,12 @@ export function noteSessions(core: PulseCore, inputs: readonly HqSessionInput[])
         worktreeId: input.worktreeId ?? known?.worktreeId ?? null,
         workspace: newer ? input.workspace : (known?.workspace ?? input.workspace),
         project: input.project ?? known?.project ?? null,
-        state: newer ? input.state : (known?.state ?? input.state),
+        state,
         contextPct: input.contextPct ?? known?.contextPct ?? null,
         openedAt: Math.min(known?.openedAt ?? input.at, input.at),
         lastActivityAt: Math.max(known?.lastActivityAt ?? input.at, input.at),
-        closedAt: known?.closedAt ?? null,
+        // Custom build (hq-plus-sessions): closed to History when the dispatcher or cleanup closed it.
+        closedAt: state === 'closed' ? (known?.closedAt ?? input.at) : null,
         parentSessionId: input.parentSessionId ?? known?.parentSessionId ?? null,
         taskRef: input.taskRef ?? known?.taskRef ?? null
       }
@@ -105,5 +107,15 @@ export function listSessionsByProject(core: PulseCore, project: string, limit = 
       'SELECT * FROM sessions WHERE project = ? COLLATE NOCASE ORDER BY last_activity_at DESC LIMIT ?'
     )
     .all(project, limit)
+    .map(toSession)
+}
+
+/** Custom build (hq-plus-sessions): the sessions seen since `since`, latest activity first. */
+export function listRecentSessions(core: PulseCore, since: number, limit = 500): HqSession[] {
+  return core.db
+    .prepare(
+      'SELECT * FROM sessions WHERE last_activity_at >= ? ORDER BY last_activity_at DESC LIMIT ?'
+    )
+    .all(since, limit)
     .map(toSession)
 }
