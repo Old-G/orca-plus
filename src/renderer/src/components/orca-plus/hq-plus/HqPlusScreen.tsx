@@ -1,7 +1,7 @@
 // Custom build (hq-plus-ui): HQ+ — the day's conversation with HQ in the middle (decisions as cards that
 // stay in place), what waits on the owner and the live chats on the left, Граф / Река / Сессия / a report
 // on the right, rooms above and Orca's composer below. Every button goes through the paths agents use.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import {
   HQ_PLUS_ANY_ROOM,
@@ -10,6 +10,7 @@ import {
   hqPlusNotNowKey,
   type HqPlusCard
 } from '../../../../../shared/hq-plus-log'
+import { hqPlusFoldChats } from '../../../../../shared/hq-plus-fold'
 import {
   hqPlusIsFyi,
   hqPlusNeedsOwner,
@@ -30,12 +31,7 @@ import { useHqSpaces } from '../hq/use-hq-spaces'
 import { useHqProjectPages } from '../hq/use-hq-project-pages'
 import { findHqWorktreeId } from '../hq/hq-today-actions'
 import { HqCommandBox } from '../hq/HqCommandBox'
-import {
-  acknowledgeHqChat,
-  openHqChatInProject,
-  setShownHqChat,
-  switchHqToCode
-} from '../hq/hq-chat-actions'
+import { acknowledgeHqChat, setShownHqChat, switchHqToCode } from '../hq/hq-chat-actions'
 import { rememberedHqChat } from '../hq/hq-chat-open'
 import { useSidebarResize } from '@/hooks/useSidebarResize'
 import { useHqChatList, useHqProjectColor } from '../hq/use-hq-chat-list'
@@ -99,6 +95,8 @@ export function HqPlusScreen(): React.JSX.Element {
   )
   const [tab, setTab] = useState<Tab>(requestedChat ? 'session' : 'graph')
   const [wide, setWide] = useState(false)
+  // Custom build (hq-plus-ui-v3): where a project picked in the River or Graph came from, for «← Back».
+  const [pickedFrom, setPickedFrom] = useState<'river' | 'graph' | null>(null)
   const [leftWidth, setLeftWidth] = useState(() => readHqPlusPanelWidth('left'))
   const [rightWidth, setRightWidth] = useState(() => readHqPlusPanelWidth('right'))
   const [reportPath, setReportPath] = useState<string | null>(null)
@@ -173,7 +171,10 @@ export function HqPlusScreen(): React.JSX.Element {
     }
   }, [roomItems, data.feed])
   const shown = useMemo(
-    () => (scope ? roomItems.filter((item) => hqPlusThreadKey(item) === scope) : roomItems),
+    () =>
+      hqPlusFoldChats(
+        scope ? roomItems.filter((item) => hqPlusThreadKey(item) === scope) : roomItems
+      ),
     [roomItems, scope]
   )
   const waiting = useMemo(
@@ -344,8 +345,41 @@ export function HqPlusScreen(): React.JSX.Element {
     })
     // Why: «Session» shows the picked project's thread; an open chat would hide it.
     setChatKey(null)
+    setPickedFrom(tab === 'river' || tab === 'graph' ? tab : null)
     setTab('session')
   }
+  const backFromPick =
+    tab === 'session' && !chatKey && pickedFrom
+      ? {
+          label: translate(...TAB_LABEL[pickedFrom]),
+          go: () => {
+            setTab(pickedFrom)
+            setPickedFrom(null)
+          }
+        }
+      : null
+  // Esc first folds the wide panel, then steps back from a picked project.
+  const backRef = useRef(backFromPick)
+  backRef.current = backFromPick
+  const canGoBack = backFromPick !== null
+  useEffect(() => {
+    if (!wide && !canGoBack) {
+      return
+    }
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || event.defaultPrevented) {
+        return
+      }
+      event.preventDefault()
+      if (wide) {
+        setWide(false)
+      } else {
+        backRef.current?.go()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [wide, canGoBack])
   const jump = (card: HqPlusCard): void => {
     setScope(null)
     // Why: the card may be hidden by a thread filter; scroll once the whole log is back.
@@ -437,7 +471,8 @@ export function HqPlusScreen(): React.JSX.Element {
   })
   const right = useSidebarResize<HTMLElement>({
     isOpen: true,
-    width: wide ? HQ_PLUS_PANEL.right.max : rightWidth,
+    // Why: the hook writes this width inline; the wide panel is an overlay sized by CSS instead.
+    width: rightWidth,
     minWidth: HQ_PLUS_PANEL.right.min,
     maxWidth: HQ_PLUS_PANEL.right.max,
     deltaSign: -1,
@@ -667,7 +702,7 @@ export function HqPlusScreen(): React.JSX.Element {
               aria-pressed={wide}
               onClick={() => setWide(!wide)}
             >
-              {wide ? '⤡' : '⤢'}
+              {wide ? `⤡ ${translate('auto.hqPlus.collapse', 'Collapse')}` : '⤢'}
             </button>
           </div>
           <div className="hqp-pane" role="tabpanel">
@@ -685,7 +720,6 @@ export function HqPlusScreen(): React.JSX.Element {
                     (item) => item.kind === 'chat' && item.repoId === chatItem.repoId
                   )}
                   onPick={(item) => showChat(item.key)}
-                  onOpenProject={openHqChatInProject}
                 />
               ) : tab === 'session' && chatKey ? (
                 <p className="hqp-empty">
@@ -720,6 +754,7 @@ export function HqPlusScreen(): React.JSX.Element {
                   onScope={() => setScope(pickKey && scope !== pickKey ? pickKey : null)}
                   onOpenChat={openChat(pick?.sessionId ?? null)}
                   onDispatched={data.reload}
+                  onBack={backFromPick}
                 />
               ) : (
                 <HqPlusReportView path={reportPath} />
