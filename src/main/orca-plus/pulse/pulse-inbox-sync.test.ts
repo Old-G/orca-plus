@@ -96,3 +96,15 @@ describe('syncInboxKind', () => {
     })
   })
 })
+
+describe('an HQ+ answer on a closed turn', () => {
+  it('replaces the automatic close, never an owner decision', () => {
+    const db = openDb()
+    const auto = db.addInboxItem({ kind: 'agent-finished', title: 'finished' }).record
+    const decided = db.addInboxItem({ kind: 'agent-finished', title: 'finished too' }).record
+    db.markInboxDone(auto.id, INBOX_GONE_ACTION)
+    db.markInboxDone(decided.id, 'dismiss')
+    expect(db.markInboxDone(auto.id, 'reply:(a) Geist').doneAction).toBe('reply:(a) Geist')
+    expect(db.markInboxDone(decided.id, 'reply:(a) Geist').doneAction).toBe('dismiss')
+  })
+})
