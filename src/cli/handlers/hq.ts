@@ -8,10 +8,23 @@ import {
   type HqWhoami
 } from '../../shared/hq-journal'
 import type { HqRouteResult, HqSettleResult } from '../../shared/hq-routing'
+import type {
+  HqContextResult,
+  HqRoomAddResult,
+  HqSessionStartResult,
+  HqStepResult,
+  HqWhereResult
+} from '../../shared/hq-context'
 import type { CommandHandler } from '../dispatch'
 import { getOptionalStringFlag, getRepeatedStringFlag, getRequiredStringFlag } from '../flags'
 import { printResult } from '../format'
-import { formatHqEvents, formatHqRoute, formatHqThread, formatHqWhoami } from '../hq-format'
+import {
+  formatHqEvents,
+  formatHqRoute,
+  formatHqThread,
+  formatHqWhere,
+  formatHqWhoami
+} from '../hq-format'
 
 /** Who is asking, as the agent's environment says; the host turns it into a room. */
 function caller(): { callerSessionId?: string; callerWorktreeId?: string; callerCwd: string } {
@@ -116,6 +129,61 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
     printResult(result, json, (r) =>
       r.settled ? `Closed ${r.entryId} as ${r.status}.` : `${r.entryId} was already closed.`
     )
+  },
+
+  // Custom build (hq-plus-context)
+  'hq context': async ({ flags, client, json }) => {
+    if (flags.get('session-start') === true) {
+      const result = await client.call<HqSessionStartResult>('hq.context', {
+        ...caller(),
+        sessionStart: true
+      })
+      printResult(result, json, (r) => r.text)
+      return
+    }
+    const result = await client.call<HqContextResult>('hq.context', {
+      ...caller(),
+      project: getOptionalStringFlag(flags, 'project')
+    })
+    printResult(result, json, (r) => r.lines.join('\n'))
+  },
+
+  'hq step': async ({ flags, client, json }) => {
+    const done = flags.get('done') === true
+    if (done === (flags.get('undo') === true)) {
+      throw new Error('Pass one of --done or --undo')
+    }
+    const result = await client.call<HqStepResult>('hq.step', {
+      ...caller(),
+      project: getOptionalStringFlag(flags, 'project'),
+      id: getRequiredStringFlag(flags, 'id'),
+      done
+    })
+    printResult(result, json, (r) =>
+      r.changed
+        ? `${r.project}: step ${r.step.id} «${r.step.title}» is now ${r.step.done ? 'done' : 'open'}.`
+        : `${r.project}: step ${r.step.id} was already ${r.step.done ? 'done' : 'open'}.`
+    )
+  },
+
+  'hq where': async ({ flags, client, json }) => {
+    const result = await client.call<HqWhereResult>('hq.where', {
+      ...caller(),
+      question: getRequiredStringFlag(flags, 'question')
+    })
+    printResult(result, json, formatHqWhere)
+  },
+
+  'hq workspace add': async ({ flags, client, json }) => {
+    const result = await client.call<HqRoomAddResult>('hq.workspaceAdd', {
+      ...caller(),
+      name: getRequiredStringFlag(flags, 'name'),
+      slug: getOptionalStringFlag(flags, 'slug'),
+      color: getOptionalStringFlag(flags, 'color'),
+      messenger: getOptionalStringFlag(flags, 'messenger'),
+      tasks: getOptionalStringFlag(flags, 'tasks')
+    })
+    printResult(result, json, (r) => `Room ${r.slug} created: ${r.created.join(', ')}`)
   },
 
   'hq whoami': async ({ client, json }) => {
