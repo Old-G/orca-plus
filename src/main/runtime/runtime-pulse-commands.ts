@@ -208,6 +208,11 @@ export class RuntimePulseCommands {
     return this.db().listSessionsByProject(project)
   }
 
+  /** Custom build (hq-plus-sessions) */
+  pulseListRecentSessions(since: number): HqSession[] {
+    return this.db().listRecentSessions(since)
+  }
+
   /** Custom build (pulse-bell): see syncInboxKind. */
   pulseSyncInboxKind(
     kind: string,
