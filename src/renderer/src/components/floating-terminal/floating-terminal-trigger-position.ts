@@ -1,6 +1,8 @@
 const TRIGGER_SIZE = 36
 const DEFAULT_RIGHT_GAP = 24
-const DEFAULT_BOTTOM_GAP = 72
+// Custom build (hq-plus-ui-v3): above a chat composer (~160 px tall), so the parked launcher never
+// covers its Send/Stop button.
+const DEFAULT_BOTTOM_GAP = 176
 const DRAG_MARGIN = 8
 const TITLEBAR_SAFE_TOP = 36
 

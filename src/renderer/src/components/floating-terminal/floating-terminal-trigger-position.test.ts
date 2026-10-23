@@ -30,11 +30,11 @@ describe('floating terminal trigger position', () => {
       anchorX: 'right',
       anchorY: 'bottom',
       offsetX: 24,
-      offsetY: 72
+      offsetY: 176
     })
     expect(getDefaultFloatingTerminalTriggerPosition()).toEqual({
       left: 1140,
-      top: 692
+      top: 588
     })
   })
 
@@ -76,7 +76,7 @@ describe('floating terminal trigger position', () => {
 
     expect(resolveFloatingTerminalTriggerPosition(initialPosition, 'default')).toEqual({
       left: 1140,
-      top: 692
+      top: 588
     })
   })
 

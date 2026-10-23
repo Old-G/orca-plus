@@ -243,7 +243,7 @@ describe('FloatingTerminalToggleButton positioning', () => {
     })
 
     element = await renderToggle()
-    expect(getToggleStylePosition(element)).toEqual({ left: 1040, top: 592 })
+    expect(getToggleStylePosition(element)).toEqual({ left: 1040, top: 488 })
     expect(getMockedLocalStorage().setItem).not.toHaveBeenCalled()
 
     const movedButton = getToggleButton(element)
@@ -251,7 +251,7 @@ describe('FloatingTerminalToggleButton positioning', () => {
 
     expect(getMockedLocalStorage().setItem).toHaveBeenCalledWith(
       FLOATING_TERMINAL_TRIGGER_POSITION_STORAGE_KEY,
-      '{"anchorX":"right","anchorY":"bottom","offsetX":124,"offsetY":172}'
+      '{"anchorX":"right","anchorY":"bottom","offsetX":124,"offsetY":276}'
     )
   })
 })

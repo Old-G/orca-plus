@@ -10,6 +10,7 @@ import { useHqProjectHistory } from '../hq/use-hq-project-history'
 import type { HqPlusTile } from './HqPlusSide'
 import type { HqPlusBadge } from '../../../../../shared/hq-plus-kinds'
 import { HqPlusBadges } from './HqPlusBadge'
+import { HqPlusProject } from './HqPlusProject'
 
 function tileStyle(
   color: string | null
@@ -81,8 +82,7 @@ export function HqPlusChatSession({
   status,
   color,
   siblings,
-  onPick,
-  onOpenProject
+  onPick
 }: {
   item: HqChatItem
   tile: HqPlusTile
@@ -91,10 +91,14 @@ export function HqPlusChatSession({
   /** The project's chats open as tabs, this one included. */
   siblings: readonly HqChatItem[]
   onPick: (item: HqChatItem) => void
-  onOpenProject: (item: HqChatItem) => void
 }): React.JSX.Element {
   const title = useHqChatTitle(item)
   const [history, setHistory] = useState(false)
+  // Custom build (hq-plus-ui-v3): «Project» stays in HQ+ — files, source control, checks here.
+  const [project, setProject] = useState(false)
+  if (project) {
+    return <HqPlusProject item={item} onBack={() => setProject(false)} />
+  }
   return (
     <div className="hqp-chat flex h-full min-h-0 flex-col">
       <div className="hqp-ses-h">
@@ -113,7 +117,7 @@ export function HqPlusChatSession({
         >
           {translate('auto.hqPlus.history', 'History')}
         </button>
-        <button type="button" className="hqp-pill" onClick={() => onOpenProject(item)}>
+        <button type="button" className="hqp-pill" onClick={() => setProject(true)}>
           {translate('auto.hqPlus.openProject', 'Project')}
         </button>
       </div>
