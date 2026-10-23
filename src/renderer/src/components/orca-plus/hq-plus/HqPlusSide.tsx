@@ -161,7 +161,7 @@ export function HqPlusSide({
       {fyi.length > 0 ? (
         <div className="hqp-fyi">
           <span>
-            {translate('auto.hqPlus.side.fyi', 'FYI · {{count}} — shown in the feed', {
+            {translate('auto.hqPlus.side.fyi', 'FYI · {{count}} — they are in the feed', {
               count: fyi.length
             })}
           </span>
@@ -170,7 +170,7 @@ export function HqPlusSide({
           </button>
         </div>
       ) : null}
-      <div className="hqp-side-sec">
+      <div className="hqp-side-sec" data-list="chats">
         <div className="hqp-hl hqp-side-h">
           {translate('auto.hqPlus.side.chats', 'chats · {{count}}', { count: chats.length })}
         </div>
