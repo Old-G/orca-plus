@@ -57,6 +57,8 @@ export type TextGenerationOperation =
   | 'hq-clickup-triage'
   // Custom build (hq-slack-intake): which project a 👾-marked Slack message belongs to.
   | 'hq-slack-intake'
+  // Custom build (hq-plus-person-replies): whether a person's answer may go to the asking chat by itself.
+  | 'hq-reply-routing'
 
 export type CommitMessageGenerationTarget =
   | { kind: 'local'; cwd: string; env?: NodeJS.ProcessEnv; wslDistro?: string }

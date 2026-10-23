@@ -1,6 +1,7 @@
 // Custom build (hq-plus-routing): HQ's routing.yaml — «an event of this kind → this action», which
 // Orca+ carries out by itself and notes in the journal. The first kind it acts on is the evening
 // Codex review: serious findings open a fixing chat per project, the minor ones wait.
+import type { HqReplyRouteAction, HqReplyRule } from './hq-reply-routing'
 
 export const HQ_ROUTING_FILE = 'routing.yaml'
 
@@ -26,6 +27,8 @@ export type HqFindingRule = {
 
 export type HqRouting = {
   findings: HqFindingRule[]
+  /** Custom build (hq-plus-person-replies): what a person's answer does; null leaves every answer a card. */
+  replies: HqReplyRule | null
   /** The share of the Claude limit that must stay free before a chat is started by itself. */
   minFreePercent: number
   /** What in the file was not understood; such a line acts on nothing. */
@@ -53,6 +56,8 @@ export type HqRouteAction = {
 export type HqRouteResult = {
   dryRun: boolean
   actions: HqRouteAction[]
+  /** Custom build (hq-plus-person-replies): answers passed on, or left for the owner, and why. */
+  replies?: HqReplyRouteAction[]
   problems: string[]
 }
 
