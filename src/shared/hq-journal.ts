@@ -24,7 +24,14 @@ export const HQ_JOURNAL_KIND = {
   crossRead: 'cross-read',
   /** A message handed to a chat by another chat or by HQ+ (`orca chat send`). */
   chatMessage: 'chat.message',
-  sessionHandoff: 'session.handoff'
+  sessionHandoff: 'session.handoff',
+  /** Custom build (hq-plus-sessions): the dispatcher's moves — a chat opened, given more work in
+   *  its thread, work queued for later, a chat closed to History, and what it would do in report mode. */
+  sessionOpen: 'session.open',
+  sessionContinue: 'session.continue',
+  sessionQueued: 'session.queued',
+  sessionClose: 'session.close',
+  sessionPlan: 'session.plan'
 } as const
 
 /** Who moves next: `nobody`, the owner (`owner:decide|approve|reply`), an agent (`agent:<address>`,

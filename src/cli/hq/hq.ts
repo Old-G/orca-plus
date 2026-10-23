@@ -8,6 +8,7 @@ import {
   type HqThreadResult
 } from '../../shared/hq-journal'
 import type { HqRouteResult, HqSettleResult } from '../../shared/hq-routing'
+import type { HqDispatchResult, HqSessionsResult } from '../../shared/hq-sessions'
 import type {
   HqContextResult,
   HqRoomAddResult,
@@ -23,8 +24,10 @@ import {
 } from '../arguments/flags'
 import { printResult } from '../format'
 import {
+  formatHqDispatch,
   formatHqEvents,
   formatHqRoute,
+  formatHqSessions,
   formatHqThread,
   formatHqWhere,
   formatHqWhoami
@@ -189,6 +192,25 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       tasks: getOptionalStringFlag(flags, 'tasks')
     })
     printResult(result, json, (r) => `Room ${r.slug} created: ${r.created.join(', ')}`)
+  },
+
+  // Custom build (hq-plus-sessions)
+  'hq dispatch': async ({ flags, client, json }) => {
+    const result = await client.call<HqDispatchResult>('hq.dispatch', {
+      ...caller(),
+      address: getRequiredStringFlag(flags, 'address'),
+      prompt: getRequiredStringFlag(flags, 'prompt'),
+      dryRun: flags.get('dry-run') === true
+    })
+    printResult(result, json, formatHqDispatch)
+  },
+
+  'hq sessions': async ({ flags, client, json }) => {
+    const result = await client.call<HqSessionsResult>('hq.sessions', {
+      ...caller(),
+      run: flags.get('run') === true
+    })
+    printResult(result, json, formatHqSessions)
   },
 
   'hq whoami': async ({ client, json }) => {
