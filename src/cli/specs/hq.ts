@@ -81,6 +81,48 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     ]
   },
   {
+    // Custom build (hq-plus-context)
+    path: ['hq', 'context'],
+    summary:
+      "A project's card in at most 60 lines: plan step, who we wait for, decisions, chats, where things are",
+    usage: 'orca hq context [<project>] [--session-start] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'project', 'session-start'],
+    positionalArgs: ['project'],
+    notes: [
+      "Without a project it shows this chat's own; a chat reads only projects of its room.",
+      'Each block names its source and age; «⚠ устарело» marks a source too old to trust as is.',
+      '--session-start prints what a new chat is told: the room notes (HQ/workspaces/<room>/context.md) and the card.'
+    ],
+    examples: ['orca hq context', 'orca hq context acme-billing']
+  },
+  {
+    path: ['hq', 'step'],
+    summary: "Tick a step of the project's plan (HQ/plans/<project>.md) as done, or open it again",
+    usage: 'orca hq step <id> (--done | --undo) [--project <slug>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'id', 'done', 'undo', 'project'],
+    positionalArgs: ['id'],
+    notes: ['The id is the step number the plan shows (2.3), or #n for an unnumbered step.'],
+    examples: ['orca hq step 2.3 --done']
+  },
+  {
+    path: ['hq', 'where'],
+    summary: 'Which source answers such a question, from the knowledge map HQ/wiki/where.md',
+    usage: 'orca hq where <question> [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'question'],
+    positionalArgs: ['question'],
+    examples: ['orca hq where "кто кому что должен"']
+  },
+  {
+    path: ['hq', 'workspace', 'add'],
+    summary: 'A new room: HQ/workspaces/<slug>/workspace.yaml and a context.md to fill in',
+    usage:
+      'orca hq workspace add <name> [--slug <slug>] [--color <#rrggbb>] [--messenger <slack|…>] [--tasks <clickup|…>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'name', 'slug', 'color', 'messenger', 'tasks'],
+    positionalArgs: ['name'],
+    notes: ['Projects join a room by its groups or projects lists in workspace.yaml.'],
+    examples: ['orca hq workspace add "Acme" --color "#22c55e" --messenger slack --tasks jira']
+  },
+  {
     path: ['hq', 'whoami'],
     summary: 'Where this chat works: its room, project, thread address and task',
     usage: 'orca hq whoami [--json]',

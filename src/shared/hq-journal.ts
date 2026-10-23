@@ -225,18 +225,21 @@ const CYRILLIC: Readonly<Record<string, string>> = {
   я: 'ya'
 }
 
-/** `<project>/<task>`: lower-case latin, digits and dashes, so it is typed in a shell as is. */
+/** Lower-case latin, digits and dashes, Cyrillic spelled out, so it is typed in a shell as is. */
+export function hqSlug(value: string): string {
+  return [...value.toLowerCase()]
+    .map((char) => CYRILLIC[char] ?? char)
+    .join('')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+    .replace(/-+$/, '')
+}
+
+/** `<project>/<task>`, each part an hqSlug. */
 export function hqThreadAddress(project: string | null, task: string): string | null {
-  const slug = (value: string): string =>
-    [...value.toLowerCase()]
-      .map((char) => CYRILLIC[char] ?? char)
-      .join('')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 60)
-      .replace(/-+$/, '')
-  const head = slug(project ?? 'chat') || 'chat'
-  const tail = slug(task)
+  const head = hqSlug(project ?? 'chat') || 'chat'
+  const tail = hqSlug(task)
   return tail ? `${head}/${tail}` : null
 }
 
