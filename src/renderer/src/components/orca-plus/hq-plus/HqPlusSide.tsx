@@ -1,10 +1,12 @@
-// Custom build (hq-plus-ui): HQ+'s left column — what waits on the owner, numbered as it stands in the
-// log; the chats the dispatcher keeps; and three plain numbers about the day.
+// Custom build (hq-plus-ui): HQ+'s left column — the live chats (the same list the classic HQ shows, so a
+// chat started a second ago is there); what waits on the owner, numbered as it stands in the log; and
+// three plain numbers about the day.
 import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
-import type { HqLiveSession } from '../../../../../shared/hq-sessions'
 import type { HqPlusScreenStats } from '../../../../../shared/hq-plus-screen'
 import { translate } from '@/i18n/i18n'
 import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
+import type { HqChatGroup, HqChatItem } from '../hq/hq-chat-list'
+import { useHqChatTitle } from '../hq/HqChatAvatar'
 
 const SHORT = 30
 
@@ -34,53 +36,101 @@ function waitingLabel(card: HqPlusCard): string {
   }
 }
 
-const STATE_COLOR: Record<HqLiveSession['state'], string> = {
+const GROUP_COLOR: Record<HqChatGroup, string> = {
+  needs: 'var(--hqp-amber)',
   working: 'var(--hqp-green)',
-  waiting: 'var(--hqp-amber)',
   done: 'var(--hqp-ice)',
-  closed: 'var(--hqp-faint)'
+  quiet: 'var(--hqp-faint)'
 }
 
-function stateLabel(session: HqLiveSession): string {
-  if (session.midTurn && session.state === 'waiting') {
-    return translate('auto.hqPlus.side.prompt', 'asks permission')
-  }
-  switch (session.state) {
+function groupLabel(group: HqChatGroup): string {
+  switch (group) {
+    case 'needs':
+      return translate('auto.hqPlus.side.waiting', 'waits on you')
     case 'working':
       return translate('auto.hqPlus.side.working', 'working')
-    case 'waiting':
-      return translate('auto.hqPlus.side.waiting', 'waits on you')
     case 'done':
       return translate('auto.hqPlus.side.done', 'done')
-    case 'closed':
-      return translate('auto.hqPlus.side.closed', 'closed')
+    case 'quiet':
+      return translate('auto.hqPlus.side.quiet', 'quiet')
   }
+}
+
+function ChatRow({
+  item,
+  picked,
+  now,
+  onPick
+}: {
+  item: HqChatItem
+  picked: boolean
+  now: number
+  onPick: (item: HqChatItem) => void
+}): React.JSX.Element {
+  const title = useHqChatTitle(item)
+  return (
+    <button
+      type="button"
+      className="hqp-qi ses"
+      aria-current={picked ? 'true' : undefined}
+      onClick={() => onPick(item)}
+    >
+      <span className="hqp-dot" style={dotStyle(GROUP_COLOR[item.group])} />
+      <span className="t">{title}</span>
+      <span className="ag">{groupLabel(item.group)}</span>
+      <span className="s">
+        {[item.projectName, item.sortAt ? formatRelativeTime(item.sortAt, now) : null]
+          .filter(Boolean)
+          .join(' · ')}
+      </span>
+    </button>
+  )
 }
 
 export function HqPlusSide({
   waiting,
-  sessions,
+  chats,
   stats,
   picked,
   now,
   roomColor,
   onJump,
-  onPickSession
+  onPickChat
 }: {
   waiting: HqPlusCard[]
-  sessions: HqLiveSession[]
+  chats: HqChatItem[]
   stats: HqPlusScreenStats | null
+  /** The key of the chat open on the right. */
   picked: string | null
   now: number
   roomColor: (room: string) => string | null
   onJump: (card: HqPlusCard) => void
-  onPickSession: (session: HqLiveSession) => void
+  onPickChat: (item: HqChatItem) => void
 }): React.JSX.Element {
   return (
     <aside
       className="hqp-side"
       aria-label={translate('auto.hqPlus.side.label', 'Waiting on you and chats')}
     >
+      <div>
+        <div className="hqp-hl hqp-side-h">
+          {translate('auto.hqPlus.side.chats', 'chats · {{count}}', { count: chats.length })}
+        </div>
+        {chats.length === 0 ? (
+          <p className="hqp-empty hqp-quiet">
+            {translate('auto.hqPlus.side.noSessions', 'no live chats')}
+          </p>
+        ) : null}
+        {chats.map((item) => (
+          <ChatRow
+            key={item.key}
+            item={item}
+            picked={picked === item.key}
+            now={now}
+            onPick={onPickChat}
+          />
+        ))}
+      </div>
       <div>
         <div className="hqp-hl hqp-side-h">
           {translate('auto.hqPlus.side.waitingOnYou', 'waiting on you · {{count}}', {
@@ -111,34 +161,6 @@ export function HqPlusSide({
           <p className="hqp-empty">{translate('auto.hqPlus.side.allDone', 'all decided')}</p>
         )}
       </div>
-      <div>
-        <div className="hqp-hl hqp-side-h">
-          {translate('auto.hqPlus.side.sessions', 'HQ chats')}
-        </div>
-        {sessions.length === 0 ? (
-          <p className="hqp-empty hqp-quiet">
-            {translate('auto.hqPlus.side.noSessions', 'no live chats')}
-          </p>
-        ) : null}
-        {sessions.map((session) => (
-          <button
-            key={session.sessionId}
-            type="button"
-            className="hqp-qi ses"
-            aria-current={picked === session.sessionId ? 'true' : undefined}
-            onClick={() => onPickSession(session)}
-          >
-            <span className="hqp-dot" style={dotStyle(STATE_COLOR[session.state])} />
-            <span className="t">{session.name ?? session.address ?? session.project ?? '—'}</span>
-            <span className="ag">{stateLabel(session)}</span>
-            <span className="s">
-              {[session.address ?? session.project, formatRelativeTime(session.lastActivityAt, now)]
-                .filter(Boolean)
-                .join(' · ')}
-            </span>
-          </button>
-        ))}
-      </div>
       <div className="hqp-stats">
         <div className="hqp-st">
           <span>
@@ -157,7 +179,10 @@ export function HqPlusSide({
                     'hand-offs, checks, «what next» today; was ~{{perDay}} a day',
                     { perDay: Math.round(stats.manual.perDay) }
                   )
-                : translate('auto.hqPlus.stat.manualHintBare', 'hand-offs, checks, «what next» today')}
+                : translate(
+                    'auto.hqPlus.stat.manualHintBare',
+                    'hand-offs, checks, «what next» today'
+                  )}
             </small>
           </span>
           <b>{stats?.manual ? stats.manual.today : '—'}</b>
