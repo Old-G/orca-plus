@@ -25,7 +25,8 @@ import {
   hqLocalDay,
   hqReviewedCommits,
   hqStartOfDay,
-  planHqCodexFix
+  planHqCodexFix,
+  planHqReportFix
 } from './hq-routing-codex-fix'
 import { parseHqRouting } from './hq-routing-rules'
 
@@ -59,7 +60,13 @@ export type HqRoutingDeps = {
   log: (message: string) => void
 }
 
-export type HqRouteOptions = { dryRun?: boolean; manual?: boolean; since?: number }
+export type HqRouteOptions = {
+  dryRun?: boolean
+  manual?: boolean
+  since?: number
+  /** Custom build (hq-fix-now-all): «Fix now» on this report (`updates/codex-review-….md`) — all its findings. */
+  report?: string
+}
 
 export type HqRoutingService = {
   run: (options?: HqRouteOptions) => Promise<HqRouteResult>
@@ -208,6 +215,7 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
     const address = action.address ?? ''
     const prompt = hqCodexFixPrompt({
       projectName: workspace.name,
+      project: action.project,
       address,
       level: action.level ?? 1,
       findings,
@@ -245,6 +253,71 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
     return opened
   }
 
+  const carryAll = async (
+    hqPath: string,
+    actions: HqRouteAction[],
+    rows: readonly HqJournalEntry[],
+    now: number,
+    manual: boolean
+  ): Promise<HqRouteAction[]> => {
+    const byId = new Map(rows.map((finding) => [finding.id, finding]))
+    const done: HqRouteAction[] = []
+    for (const action of actions) {
+      if (action.kind === 'open' && action.note) {
+        deps.log(`routing: ${action.project}: ${action.note}`)
+      }
+      const findings = action.findings.flatMap((id) => byId.get(id) ?? [])
+      done.push(
+        await carryOut(hqPath, action, findings, now, manual).catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error)
+          deps.log(`routing: ${action.project} failed: ${message}`)
+          return { ...action, note: message }
+        })
+      )
+    }
+    return done
+  }
+
+  // Custom build (hq-fix-now-all): the owner pressed «Fix now» on a report — all of it, now.
+  const runReport = async (
+    hqPath: string,
+    report: string,
+    dryRun: boolean
+  ): Promise<HqRouteResult> => {
+    const now = deps.now()
+    const autonomy = parseHqAutonomy(await deps.readText(join(hqPath, HQ_AUTONOMY_FILE)))
+    const rows = deps.pulse
+      .list({ kind: HQ_JOURNAL_KIND.reviewFinding, limit: HQ_JOURNAL_MAX_LIMIT })
+      .filter((row) => row.refId === report)
+      .toReversed()
+    const ids = new Set(rows.map((row) => row.id))
+    const settled = new Map<string, string | null>()
+    for (const row of deps.pulse.list({
+      kind: HQ_ROUTING_KIND.settled,
+      limit: HQ_JOURNAL_MAX_LIMIT
+    })) {
+      if (row.refId && ids.has(row.refId) && !settled.has(row.refId)) {
+        settled.set(row.refId, row.links.find((link) => link.kind === 'commit')?.id ?? null)
+      }
+    }
+    const { actions, handled } = planHqReportFix({
+      now,
+      findings: rows,
+      autonomy,
+      today: todaysChats(now),
+      settled
+    })
+    if (dryRun) {
+      return { dryRun, actions, handled, problems: [] }
+    }
+    return {
+      dryRun,
+      actions: await carryAll(hqPath, actions, rows, now, true),
+      handled,
+      problems: []
+    }
+  }
+
   const runOnce = async (options: HqRouteOptions): Promise<HqRouteResult> => {
     const dryRun = options.dryRun === true
     const hqPath = deps.hqPath()
@@ -253,6 +326,9 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
     }
     if (!deps.enabled()) {
       return { dryRun, actions: [], problems: ['The HQ+ journal is off.'] }
+    }
+    if (options.report) {
+      return runReport(hqPath, options.report, dryRun)
     }
     const routing = parseHqRouting(await deps.readText(join(hqPath, HQ_ROUTING_FILE)))
     if (routing.findings.length === 0) {
@@ -280,38 +356,26 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
     if (dryRun) {
       return { dryRun, actions, problems: routing.problems }
     }
-    const byId = new Map(open.map((finding) => [finding.id, finding]))
-    const done: HqRouteAction[] = []
-    for (const action of actions) {
-      if (action.kind === 'open' && action.note) {
-        deps.log(`routing: ${action.project}: ${action.note}`)
-      }
-      const findings = action.findings.flatMap((id) => byId.get(id) ?? [])
-      done.push(
-        await carryOut(hqPath, action, findings, now, options.manual === true).catch(
-          (error: unknown) => {
-            const message = error instanceof Error ? error.message : String(error)
-            deps.log(`routing: ${action.project} failed: ${message}`)
-            return { ...action, note: message }
-          }
-        )
-      )
-    }
+    const done = await carryAll(hqPath, actions, open, now, options.manual === true)
     return { dryRun, actions: done, problems: routing.problems }
   }
 
-  return {
-    run: (options = {}) => {
-      // Why: the timer and a manual run must not open two chats for one project.
-      if (!running) {
-        running = runOnce(options).finally(() => {
-          running = null
-        })
-        return running
-      }
-      return options.dryRun ? runOnce(options) : running
+  const run = (options: HqRouteOptions = {}): Promise<HqRouteResult> => {
+    // Why: the timer and a manual run must not open two chats for one project.
+    if (!running) {
+      running = runOnce(options).finally(() => {
+        running = null
+      })
+      return running
     }
+    if (options.dryRun) {
+      return runOnce(options)
+    }
+    // Why: «Fix now» answers about its own report, not with the timer's result.
+    return options.report ? running.then(() => run(options)) : running
   }
+
+  return { run }
 }
 
 let provided: HqRoutingService | null = null

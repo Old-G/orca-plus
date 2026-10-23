@@ -209,6 +209,68 @@ describe('HQ+ routing: Codex findings to a fixing chat', () => {
     expect((await routing.run()).actions[0]).toMatchObject({ kind: 'open' })
   })
 
+  it('«Fix now» on a report takes every finding left — minor ones too — and names what a chat already has', async () => {
+    clock = at(21, 40)
+    await routing.run()
+    const [refund] = findings()
+    db.recordJournal([
+      {
+        workspace: 'acme',
+        kind: 'entry.settled',
+        project: 'acme-api',
+        address: refund.address,
+        sessionId: 'claude_fix1',
+        personId: null,
+        title: `Fixed: ${refund.title}`,
+        needs: 'nobody',
+        status: 'done',
+        replyTo: refund.id,
+        refKind: 'journal',
+        refId: refund.id,
+        links: [{ kind: 'commit', id: '6fca74d8ee' }],
+        source: 'chat-settle',
+        dedupeKey: `entry.settled:${refund.id}`
+      }
+    ])
+    clock = at(22, 10)
+    const result = await routing.run({ manual: true, report: `updates/${REPORT_NAME}` })
+    expect(result.actions.map((action) => [action.project, action.kind])).toEqual([
+      ['acme-api', 'continue'],
+      ['kite', 'suggest']
+    ])
+    expect(delivered.at(-1)?.prompt).toContain('Log line repeats the amount')
+    expect(findings()[1]).toMatchObject({ address: 'acme-api/codex-fix-2026-10-24' })
+    expect(result.handled).toEqual([
+      {
+        project: 'acme-api',
+        title: '[P1] Refund cap ignores partial refunds',
+        address: 'acme-api/codex-fix-2026-10-24',
+        commit: '6fca74d8ee'
+      }
+    ])
+    const again = await routing.run({ manual: true, report: `updates/${REPORT_NAME}` })
+    expect(again.actions.map((action) => action.kind)).toEqual(['suggest'])
+    expect(again.handled?.map((item) => item.title)).toEqual([
+      '[P1] Refund cap ignores partial refunds',
+      '[P2] Log line repeats the amount'
+    ])
+  })
+
+  it('«Fix now» opens a chat for minor findings alone, with the rules for merging alongside others', async () => {
+    clock = at(10, 0)
+    const result = await routing.run({ manual: true, report: `updates/${REPORT_NAME}` })
+    expect(result.actions.find((action) => action.project === 'acme-api')).toMatchObject({
+      kind: 'open',
+      findings: findings()
+        .filter((finding) => finding.project === 'acme-api')
+        .map((finding) => finding.id)
+    })
+    const prompt = delivered[0]?.prompt ?? ''
+    expect(prompt).toContain('Log line repeats the amount')
+    expect(prompt).toContain('orca hq merge-slot take acme-api')
+    expect(prompt).toContain('orca hq merge-slot release acme-api')
+  })
+
   it('finds the commits the evening read for a finding, in both report shapes', () => {
     expect(hqReviewedCommits(REPORT, ['[P0] Token written to the log'])).toEqual(['3333333ccc'])
     expect(
