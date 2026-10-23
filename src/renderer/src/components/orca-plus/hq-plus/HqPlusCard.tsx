@@ -16,6 +16,10 @@ import {
   type HqPlusResult
 } from './hq-plus-actions'
 import { HqPlusReportBody } from './HqPlusReportBody'
+import type { HqPlusLook } from '../../../../../shared/hq-plus-kinds'
+import { readHqSlackRequestRef } from '../../../../../shared/hq-slack-request-bell'
+import { HqPlusBadges } from './HqPlusBadge'
+import { HqPlusText } from './HqPlusText'
 
 const DONE_ACTION: Record<string, [string, string]> = {
   open: ['auto.hqPlus.done.open', 'opened'],
@@ -77,42 +81,46 @@ function questionOf(card: Card): string {
   return asked ?? card.title
 }
 
-function labelOf(card: Card): string {
-  switch (card.type) {
-    case 'approve':
-      return translate('auto.hqPlus.label.approve', 'approve')
-    case 'reply':
-      return translate('auto.hqPlus.label.reply', 'a person answered')
-    case 'wait':
-      return translate('auto.hqPlus.label.wait', 'waits on you')
-    case 'report':
-      return translate('auto.hqPlus.label.report', 'report · {{kind}}', {
-        kind: hqPlusReportOf(card)?.folder ?? 'updates'
-      })
-    case 'move':
-      return translate('auto.hqPlus.label.move', 'your word')
-    case 'bell':
-      return translate(
-        `auto.hqPlus.label.bell.${card.inbox?.kind ?? 'item'}`,
-        BELL_LABEL[card.inbox?.kind ?? ''] ?? 'from the bell'
-      )
+/** A word beside the badges: which report, what the person wants from the owner. */
+function noteOf(card: Card): string | null {
+  if (card.type === 'report') {
+    return hqPlusReportOf(card)?.folder ?? null
   }
+  if (card.type !== 'bell') {
+    return null
+  }
+  const ask = readHqSlackRequestRef(card.inbox?.refId ?? null)?.kind
+  if (ask === 'answer') {
+    return translate('auto.hqPlus.ask.answer', 'wants your answer')
+  }
+  if (ask === 'do') {
+    return translate('auto.hqPlus.ask.do', 'asks you to do it')
+  }
+  return BELL_LABEL[card.inbox?.kind ?? ''] ?? null
 }
 
 export function HqPlusCardView({
   card,
+  look,
   flash,
   hqPath,
   hqWorktreeId,
+  when,
+  threadLabel,
+  onThread,
   onOpenChat,
   onOpenReport,
   onNotNow,
   onChanged
 }: {
   card: Card
+  look: HqPlusLook
   flash: boolean
   hqPath: string | null
   hqWorktreeId: string | null
+  when: string
+  threadLabel: string | null
+  onThread: (() => void) | null
   onOpenChat: (() => void) | null
   onOpenReport: (path: string) => void
   onNotNow: (() => void) | null
@@ -124,6 +132,26 @@ export function HqPlusCardView({
   const [text, setText] = useState('')
   const open = card.open
   const reportPath = card.type === 'report' ? (hqPlusReportOf(card)?.path ?? null) : null
+  const note = noteOf(card)
+  const head = (
+    <div className="hqp-row-h">
+      <HqPlusBadges badges={look.badges} />
+      {note ? <span className="hqp-note">{note}</span> : null}
+      <strong>{card.project ?? 'HQ'}</strong>
+      <span className="hqp-tm">{when}</span>
+      {threadLabel && onThread ? (
+        <button type="button" className="hqp-addr" onClick={onThread}>
+          {threadLabel}
+        </button>
+      ) : null}
+      <span className="hqp-spacer" />
+      {onOpenChat && !(open && card.type === 'move') ? (
+        <button type="button" className="hqp-pill" onClick={onOpenChat}>
+          {translate('auto.hqPlus.open', 'Open')}
+        </button>
+      ) : null}
+    </div>
+  )
   const run =(action: () => Promise<HqPlusResult>): void => {
     if (busy) {
       return
@@ -146,7 +174,14 @@ export function HqPlusCardView({
 
   if (!open && !expanded && card.done) {
     return (
-      <div className="hqp-card" data-type={card.type} data-flash={flash ? 'true' : undefined}>
+      <div
+        className="hqp-card"
+        data-type={card.type}
+        data-look={look.kind}
+        data-source={look.source ?? undefined}
+        data-flash={flash ? 'true' : undefined}
+      >
+        {head}
         <button
           type="button"
           className="hqp-cc"
@@ -174,11 +209,13 @@ export function HqPlusCardView({
     <div
       className="hqp-card"
       data-type={card.type}
+      data-look={look.kind}
+      data-source={look.source ?? undefined}
       data-open={open ? 'true' : undefined}
       data-flash={flash ? 'true' : undefined}
     >
       <div className="hqp-cb">
-        <span className="hqp-lab">{labelOf(card)}</span>
+        {head}
         {card.type === 'report' ? (
           <HqPlusReportBody
             card={card}
@@ -207,7 +244,9 @@ export function HqPlusCardView({
                 ) : null}
               </dl>
             ) : card.body && card.type !== 'approve' ? (
-              <p className="hqp-text">{card.body}</p>
+              <p className="hqp-text">
+                <HqPlusText text={card.body} maxLines={look.kind === 'inbox' ? 3 : 8} />
+              </p>
             ) : null}
             {card.type === 'approve' && open && card.inbox ? (
               <div className="hqp-approve-host">
@@ -215,7 +254,9 @@ export function HqPlusCardView({
               </div>
             ) : null}
             {card.type === 'approve' && !open && card.body ? (
-              <p className="hqp-text">{card.body}</p>
+              <p className="hqp-text">
+                <HqPlusText text={card.body} maxLines={4} />
+              </p>
             ) : null}
           </>
         )}
