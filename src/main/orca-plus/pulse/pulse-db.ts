@@ -37,6 +37,9 @@ import {
   syncInboxKind,
   type ListInboxOptions
 } from './pulse-inbox'
+import { getJournalEntry, listJournal, recordJournal } from './pulse-journal'
+import { getSession, noteSessions } from './pulse-sessions'
+import type { HqJournalInput, HqJournalQuery, HqSessionInput } from '../../../shared/hq-journal'
 import { getPerson, listPeople, upsertPerson } from './pulse-people'
 import {
   addWaiting,
@@ -174,6 +177,23 @@ export class PulseDb {
   }
   setFeedPosts(posts: ReadonlyMap<string, string>) {
     setFeedPosts(this.core, posts)
+  }
+
+  /** Custom build (hq-plus-journal). */
+  recordJournal(inputs: readonly HqJournalInput[]) {
+    return recordJournal(this.core, inputs)
+  }
+  getJournalEntry(id: string) {
+    return getJournalEntry(this.core, id)
+  }
+  listJournal(query?: HqJournalQuery) {
+    return listJournal(this.core, query)
+  }
+  noteSessions(inputs: readonly HqSessionInput[]) {
+    return noteSessions(this.core, inputs)
+  }
+  getSession(sessionId: string) {
+    return getSession(this.core, sessionId)
   }
 
   close(): void {

@@ -59,7 +59,8 @@ describe('readHqSpaceFile', () => {
       order: 100,
       messenger: null,
       tasks: null,
-      git: null
+      git: null,
+      isDefault: false
     })
     expect(readHqSpaceFile('../etc', {})).toBeNull()
   })

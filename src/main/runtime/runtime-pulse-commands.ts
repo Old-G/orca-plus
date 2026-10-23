@@ -22,6 +22,14 @@ import type {
 } from '../../shared/pulse-types'
 import { getAppEnvironment } from '../../shared/app-environment'
 import type { HqFeedItem, HqFeedQuery } from '../../shared/hq-feed'
+import type {
+  HqJournalEntry,
+  HqJournalInput,
+  HqJournalQuery,
+  HqJournalRecordResult,
+  HqSession,
+  HqSessionInput
+} from '../../shared/hq-journal'
 import { PulseDb, pulseDbPath } from '../orca-plus/pulse/pulse-db'
 import { withLegacySentContext } from '../orca-plus/outgoing-approval/outgoing-sent-history'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../shared/outgoing-approval/outgoing-approval-bell'
@@ -168,6 +176,27 @@ export class RuntimePulseCommands {
 
   pulseMarkInboxDone(id: string, action?: string): PulseInboxItem {
     return this.db().markInboxDone(id, action)
+  }
+
+  /** Custom build (hq-plus-journal): main's journal adapters write here; agents read via hq.events. */
+  pulseRecordJournal(inputs: readonly HqJournalInput[]): HqJournalRecordResult {
+    return this.db().recordJournal(inputs)
+  }
+
+  pulseListJournal(query?: HqJournalQuery): HqJournalEntry[] {
+    return this.db().listJournal(query)
+  }
+
+  pulseGetJournalEntry(id: string): HqJournalEntry | null {
+    return this.db().getJournalEntry(id)
+  }
+
+  pulseNoteSessions(inputs: readonly HqSessionInput[]): number {
+    return this.db().noteSessions(inputs)
+  }
+
+  pulseGetSession(sessionId: string): HqSession | null {
+    return this.db().getSession(sessionId)
   }
 
   /** Custom build (pulse-bell): see syncInboxKind. */
