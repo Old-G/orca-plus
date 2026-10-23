@@ -67,6 +67,8 @@ def tag_fields(w):
     tracked = bool(tags["task"])
     return {
         "id": w["id"],
+        # Why: an answer still waiting for «Send to chat» is lost if its waiting closes.
+        "reply_pending": bool(w.get("reply")) and not w.get("replyDeliveredAt"),
         "detail": tags["text"],
         "linked_task": tags["task"],
         "tracked": tracked,
