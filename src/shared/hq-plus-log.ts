@@ -137,6 +137,11 @@ export function hqPlusAsksOwner(text: string | null): boolean {
 
 const OWNER_SENDER = /^From HQ\+:\s*/
 
+/** A thread message the owner wrote from HQ+, not another chat's. */
+export function isHqPlusOwnerMessage(entry: HqJournalEntry): boolean {
+  return entry.kind === HQ_JOURNAL_KIND.chatMessage && OWNER_SENDER.test(entry.title)
+}
+
 function where(entry: HqJournalEntry): Where {
   return {
     room: entry.workspace,
@@ -182,7 +187,7 @@ export function hqPlusLog(
   const used = new Set<string>()
   const answers = new Map<string, HqJournalEntry>()
   for (const entry of entries) {
-    if (entry.kind === HQ_JOURNAL_KIND.chatMessage && entry.replyTo) {
+    if (isHqPlusOwnerMessage(entry) && entry.replyTo) {
       const known = answers.get(entry.replyTo)
       if (!known || known.at < entry.at) {
         answers.set(entry.replyTo, entry)
@@ -215,9 +220,14 @@ export function hqPlusLog(
     )
   )
   for (const entry of [...entries].sort((a, b) => a.at - b.at)) {
-    const ownerOpen = entry.status === 'open' && entry.needs.startsWith('owner:')
+    const asked = entry.needs.startsWith('owner:')
+    const ownerOpen = entry.status === 'open' && asked
+    // Why: the owner's answer settles the question, and the answered card stays a card.
+    const answered = asked && answers.has(entry.id)
     const keptDecided =
-      entry.needs.startsWith('owner:') && entry.refId !== null && settledToday.has(entry.refId)
+      asked &&
+      ((entry.refId !== null && settledToday.has(entry.refId)) ||
+        (answers.get(entry.id)?.at ?? -Infinity) >= since)
     if (entry.at < since && !ownerOpen && !keptDecided) {
       continue
     }
@@ -230,7 +240,7 @@ export function hqPlusLog(
         used.add(item.id)
       }
       const explicit = ownerOpen
-      if (explicit || hqPlusAsksOwner(entry.body)) {
+      if (explicit || answered || hqPlusAsksOwner(entry.body)) {
         const done = replyDone(entry) ?? inboxDone(item ?? null)
         items.push(
           card(entry, item ?? null, {
@@ -287,7 +297,7 @@ export function hqPlusLog(
       )
       continue
     }
-    if (entry.kind === HQ_JOURNAL_KIND.chatMessage && OWNER_SENDER.test(entry.title)) {
+    if (isHqPlusOwnerMessage(entry)) {
       items.push({
         kind: 'me',
         id: entry.id,
