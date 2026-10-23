@@ -2,9 +2,11 @@ import { defineMethod } from '../core'
 import {
   ChatSendParams,
   HqContextParams,
+  HqDispatchParams,
   HqEventsParams,
   HqReportParams,
   HqRouteParams,
+  HqSessionsParams,
   HqSettleParams,
   HqStepParams,
   HqThreadParams,
@@ -16,11 +18,20 @@ import { getHqThreads, type HqThreads } from '../../../hq-journal/hq-journal-thr
 import { getHqJournalService, type HqJournalService } from '../../../hq-journal/hq-journal-service'
 import { getHqRouting } from '../../../hq-routing/hq-routing'
 import { getHqContext, type HqContextService } from '../../../hq-context/hq-context'
+import { getHqSessions, type HqSessionsService } from '../../../hq-sessions/hq-sessions'
 
 function context(): HqContextService {
   const provided = getHqContext()
   if (!provided) {
     throw new Error('HQ+ project cards are not available on this host.')
+  }
+  return provided
+}
+
+function sessions(): HqSessionsService {
+  const provided = getHqSessions()
+  if (!provided) {
+    throw new Error('The HQ+ session dispatcher is not available on this host.')
   }
   return provided
 }
@@ -178,5 +189,25 @@ export const HQ_JOURNAL_METHODS = [
     params: HqWorkspaceAddParams,
     handler: async ({ callerSessionId: _s, callerWorktreeId: _w, callerCwd: _c, ...input }) =>
       context().addRoom(input)
+  }),
+  // Custom build (hq-plus-sessions): hand work to a thread; the chats and what the dispatcher would do.
+  defineMethod({
+    name: 'hq.dispatch',
+
+    permission: 'workspace',
+    params: HqDispatchParams,
+    handler: async (params) =>
+      sessions().dispatch(callerOf(params), {
+        address: params.address,
+        prompt: params.prompt,
+        dryRun: params.dryRun
+      })
+  }),
+  defineMethod({
+    name: 'hq.sessions',
+
+    permission: 'workspace',
+    params: HqSessionsParams,
+    handler: async (params) => sessions().sweep({ run: params.run === true })
   })
 ]

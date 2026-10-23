@@ -41,6 +41,7 @@ import { getJournalEntry, listJournal, recordJournal } from './pulse-journal'
 import {
   getSession,
   listSessionsByAddress,
+  listRecentSessions,
   listSessionsByProject,
   noteSessions
 } from './pulse-sessions'
@@ -209,6 +210,9 @@ export class PulseDb {
   }
   listSessionsByProject(project: string) {
     return listSessionsByProject(this.core, project)
+  }
+  listRecentSessions(since: number) {
+    return listRecentSessions(this.core, since)
   }
 
   close(): void {
