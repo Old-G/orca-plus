@@ -16,6 +16,11 @@ import shutil
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import waiting_tags  # noqa: E402
+
+NUDGE_GAP_DAYS = 2
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "hq-setup"))
 from hq_location import config  # noqa: E402
 
@@ -50,6 +55,30 @@ def task_of(waiting):
     return found.group(0) if found else None
 
 
+def tag_fields(w):
+    """Round 6: the waiting's id and HQ+ tags, and whether a reminder is due (2 quiet days, not snoozed,
+    not tracked, none sent in the last 2 days)."""
+    tags = waiting_tags.read(w.get("detail"))
+    today = datetime.date.today()
+    snoozed_until = waiting_tags.day(tags["snoozed"])
+    nudged = waiting_tags.day(tags["nudged"])
+    quiet_days = (today - datetime.date.fromtimestamp(w["createdAt"] / 1000)).days
+    snoozed = bool(snoozed_until and snoozed_until > today)
+    tracked = bool(tags["task"])
+    return {
+        "id": w["id"],
+        "detail": tags["text"],
+        "linked_task": tags["task"],
+        "tracked": tracked,
+        "snoozed_until": tags["snoozed"] if snoozed else None,
+        "nudged": tags["nudged"],
+        "checked": tags["checked"],
+        "quiet_days": quiet_days,
+        "nudge_due": not snoozed and not tracked and quiet_days >= NUDGE_GAP_DAYS
+        and (nudged is None or (today - nudged).days >= NUDGE_GAP_DAYS),
+    }
+
+
 def main():
     result = orca("pulse", "wait", "list", "--direction", "on-them")
     waitings = result["waitings"] if isinstance(result, dict) else result
@@ -73,6 +102,7 @@ def main():
             "link": link(w.get("sourceRef")),
             "since": datetime.datetime.fromtimestamp(w["createdAt"] / 1000).strftime("%d.%m"),
             "replied": w.get("repliedAt") is not None,
+            **tag_fields(w),
         })
     owner = CONFIG.get("owner_slack_id")
     listed = [p for p in people.values() if not owner or p["slack_user_id"] != owner]
