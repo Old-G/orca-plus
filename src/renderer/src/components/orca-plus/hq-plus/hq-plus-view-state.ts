@@ -8,6 +8,8 @@ const MAX_EXPANDED = 200
 
 export const HQ_PLUS_VIEW_TABS = ['graph', 'river', 'session', 'report', 'agents'] as const
 export type HqPlusViewTab = (typeof HQ_PLUS_VIEW_TABS)[number]
+export const HQ_PLUS_SIDE_BLOCKS = ['waiting', 'weWait', 'chats'] as const
+export type HqPlusSideBlockId = (typeof HQ_PLUS_SIDE_BLOCKS)[number]
 
 export type HqPlusViewState = {
   scope: string | null
@@ -20,7 +22,8 @@ export type HqPlusViewState = {
   reportPath: string | null
   expanded: string[]
   showIdle: boolean
-  showAllWaiting: boolean
+  /** Left-column blocks the owner folded. */
+  foldedSides: HqPlusSideBlockId[]
   /** Pixels between the feed's bottom edge and the end of the log; null = following the bottom. */
   fromBottom: number | null
 }
@@ -36,7 +39,7 @@ const INITIAL: HqPlusViewState = {
   reportPath: null,
   expanded: [],
   showIdle: false,
-  showAllWaiting: false,
+  foldedSides: [],
   fromBottom: null
 }
 
@@ -67,6 +70,7 @@ export function parseHqPlusViewState(raw: unknown): HqPlusViewState {
   const pickedFrom = get('pickedFrom')
   const fromBottom = get('fromBottom')
   const expanded = get('expanded')
+  const foldedSides = get('foldedSides')
   return {
     scope: text(get('scope')),
     tab,
@@ -80,7 +84,9 @@ export function parseHqPlusViewState(raw: unknown): HqPlusViewState {
       ? expanded.filter((id): id is string => typeof id === 'string').slice(-MAX_EXPANDED)
       : [],
     showIdle: get('showIdle') === true,
-    showAllWaiting: get('showAllWaiting') === true,
+    foldedSides: Array.isArray(foldedSides)
+      ? HQ_PLUS_SIDE_BLOCKS.filter((id) => foldedSides.includes(id))
+      : [],
     fromBottom:
       typeof fromBottom === 'number' && Number.isFinite(fromBottom) && fromBottom > 0
         ? fromBottom
