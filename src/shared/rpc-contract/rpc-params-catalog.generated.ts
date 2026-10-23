@@ -340,7 +340,13 @@ import {
   HostedReviewCreationEligibility,
   HostedReviewForBranch
 } from './hosted-review-params'
-import { HqEventsParams, HqWhoamiParams } from './hq-journal-params'
+import {
+  ChatSendParams,
+  HqEventsParams,
+  HqReportParams,
+  HqThreadParams,
+  HqWhoamiParams
+} from './hq-journal-params'
 import {
   HqBellActionOnDesktopParams,
   HqClickUpReplyParams,
@@ -920,6 +926,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'browser.upload': Upload,
   'browser.viewport': Viewport,
   'browser.wait': Wait,
+  'chat.send': ChatSendParams,
   'clickup.addTaskComment': TaskComment,
   'clickup.connect': Connect,
   'clickup.disconnect': null,
@@ -1132,6 +1139,8 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
   'hq.events': HqEventsParams,
+  'hq.report': HqReportParams,
+  'hq.thread': HqThreadParams,
   'hq.whoami': HqWhoamiParams,
   'hqProjects.answerSlackDraft': HqSlackDraftRefParams,
   'hqProjects.chatList': null,

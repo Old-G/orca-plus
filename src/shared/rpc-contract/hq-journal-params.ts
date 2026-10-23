@@ -1,7 +1,12 @@
 // Custom build (hq-plus-journal): params of `hq.events` and `hq.whoami`. The caller fields come
 // from the agent's environment; the host decides from them which room the caller may read.
 import { z } from 'zod'
-import { OptionalFiniteNumber, OptionalPositiveInt, OptionalString } from './rpc-param-primitives'
+import {
+  OptionalFiniteNumber,
+  OptionalPositiveInt,
+  OptionalString,
+  requiredString
+} from './rpc-param-primitives'
 
 const CallerFields = {
   callerSessionId: OptionalString,
@@ -20,4 +25,25 @@ export const HqEventsParams = z.object({
   limit: OptionalPositiveInt,
   /** One room's whole entries; only HQ+ may ask, and the read is journaled. */
   room: OptionalString
+})
+
+// Custom build (hq-plus-reports)
+export const HqReportParams = z.object({
+  ...CallerFields,
+  done: requiredString('--done is required: what this turn did, in one line'),
+  ask: OptionalString,
+  options: z.array(z.string().max(200)).max(10).optional(),
+  next: OptionalString,
+  blockedBy: OptionalString,
+  links: z.array(z.string().max(1000)).max(20).optional(),
+  address: OptionalString
+})
+
+export const HqThreadParams = z.object({ ...CallerFields, address: OptionalString })
+
+export const ChatSendParams = z.object({
+  ...CallerFields,
+  address: requiredString('A thread address is required: <project>/<task>'),
+  text: requiredString('A message is required'),
+  replyTo: OptionalString
 })

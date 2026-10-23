@@ -8,7 +8,7 @@ import { FILE_COMMAND_SPECS } from './file'
 import { PROJECT_COMMAND_SPECS } from './project'
 import { REPO_GROUPS_COMMAND_SPECS } from './repo-groups'
 import { PULSE_COMMAND_SPECS } from './pulse'
-import { HQ_COMMAND_SPECS } from './hq'
+import { CHAT_COMMAND_SPECS, HQ_COMMAND_SPECS } from './hq'
 import { ORCHESTRATION_COMMAND_SPECS } from './orchestration'
 import { COMPUTER_COMMAND_SPECS } from './computer'
 import { ENVIRONMENT_COMMAND_SPECS } from './environment'
@@ -35,6 +35,7 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...REPO_GROUPS_COMMAND_SPECS,
   ...PULSE_COMMAND_SPECS,
   ...HQ_COMMAND_SPECS,
+  ...CHAT_COMMAND_SPECS,
   ...ARTIFACT_COMMAND_SPECS,
   ...ACCOUNT_COMMAND_SPECS,
   ...PROJECT_COMMAND_SPECS,
