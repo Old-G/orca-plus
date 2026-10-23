@@ -1,7 +1,9 @@
-// Custom build (hq-plus-ui): HQ+'s left column — the live chats (the same list the classic HQ shows, so a
-// chat started a second ago is there); what waits on the owner, numbered as it stands in the log; and
-// three plain numbers about the day.
+// Custom build (hq-plus-ui): HQ+'s left column — what waits on the owner (with the same badge as its card
+// in the feed), what we wait for from people, the FYI pile to clear in one go, the live chats (the same
+// list the classic HQ shows, so a chat started a second ago is there), and three plain numbers.
 import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
+import { hqPlusLook } from '../../../../../shared/hq-plus-kinds'
+import { HqPlusBadges } from './HqPlusBadge'
 import type { HqPlusScreenStats } from '../../../../../shared/hq-plus-screen'
 import { translate } from '@/i18n/i18n'
 import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
@@ -21,13 +23,9 @@ function dotStyle(color: string): React.CSSProperties & Record<'--hqp-dot', stri
 function waitingLabel(card: HqPlusCard): string {
   switch (card.type) {
     case 'approve':
-      return translate('auto.hqPlus.side.approve', 'Approve · {{what}}', {
-        what: short(card.title.replace(/^Approve:\s*/, ''))
-      })
+      return short(card.title.replace(/^Approve:\s*/, ''))
     case 'report':
-      return translate('auto.hqPlus.side.report', 'Report · {{what}}', { what: short(card.title) })
     case 'reply':
-      return translate('auto.hqPlus.side.reply', 'Answer · {{what}}', { what: short(card.title) })
     case 'bell':
       return short(card.title)
     case 'move':
@@ -56,15 +54,23 @@ function groupLabel(group: HqChatGroup): string {
   }
 }
 
+export type HqPlusTile = { letters: string; color: string | null }
+
+function tileStyle(color: string | null): (React.CSSProperties & Record<'--hqp-room', string>) | undefined {
+  return color ? { '--hqp-room': color } : undefined
+}
+
 function ChatRow({
   item,
   picked,
   now,
+  tile,
   onPick
 }: {
   item: HqChatItem
   picked: boolean
   now: number
+  tile: HqPlusTile
   onPick: (item: HqChatItem) => void
 }): React.JSX.Element {
   const title = useHqChatTitle(item)
@@ -75,8 +81,13 @@ function ChatRow({
       aria-current={picked ? 'true' : undefined}
       onClick={() => onPick(item)}
     >
-      <span className="hqp-dot" style={dotStyle(GROUP_COLOR[item.group])} />
-      <span className="t">{title}</span>
+      <span className="hqp-tile" style={tileStyle(tile.color)} aria-hidden="true">
+        {tile.letters}
+      </span>
+      <span className="t">
+        <span className="hqp-dot" style={dotStyle(GROUP_COLOR[item.group])} />
+        {title}
+      </span>
       <span className="ag">{groupLabel(item.group)}</span>
       <span className="s">
         {[item.projectName, item.sortAt ? formatRelativeTime(item.sortAt, now) : null]
@@ -87,32 +98,88 @@ function ChatRow({
   )
 }
 
+export type HqPlusOtherWait = { id: string; who: string; title: string; at: number }
+
 export function HqPlusSide({
   waiting,
+  fyi,
+  waitsOnThem,
   chats,
   stats,
   picked,
   now,
-  roomColor,
+  tileOf,
   onJump,
-  onPickChat
+  onPickChat,
+  onClearFyi
 }: {
   waiting: HqPlusCard[]
+  /** Open items for the owner's information only. */
+  fyi: HqPlusCard[]
+  /** What we wait for from people, oldest first. */
+  waitsOnThem: HqPlusOtherWait[]
   chats: HqChatItem[]
   stats: HqPlusScreenStats | null
   /** The key of the chat open on the right. */
   picked: string | null
   now: number
-  roomColor: (room: string) => string | null
+  tileOf: (item: HqChatItem) => HqPlusTile
   onJump: (card: HqPlusCard) => void
   onPickChat: (item: HqChatItem) => void
+  onClearFyi: () => void
 }): React.JSX.Element {
   return (
     <aside
       className="hqp-side"
       aria-label={translate('auto.hqPlus.side.label', 'Waiting on you and chats')}
     >
-      <div>
+      <div className="hqp-side-sec">
+        <div className="hqp-hl hqp-side-h" data-tone="move">
+          {translate('auto.hqPlus.side.waitingOnYou', 'waiting on you · {{count}}', {
+            count: waiting.length
+          })}
+        </div>
+        {waiting.length > 0 ? (
+          waiting.map((card) => (
+            <button key={card.id} type="button" className="hqp-wq" onClick={() => onJump(card)}>
+              <HqPlusBadges badges={hqPlusLook(card).badges} />
+              <span>{waitingLabel(card)}</span>
+            </button>
+          ))
+        ) : (
+          <p className="hqp-empty">{translate('auto.hqPlus.side.allDone', 'all decided')}</p>
+        )}
+      </div>
+      {waitsOnThem.length > 0 ? (
+        <div className="hqp-side-sec">
+          <div className="hqp-hl hqp-side-h">
+            {translate('auto.hqPlus.side.weWait', 'we wait for · {{count}}', {
+              count: waitsOnThem.length
+            })}
+          </div>
+          {waitsOnThem.map((wait) => (
+            <div key={wait.id} className="hqp-wf" title={wait.title}>
+              <span>
+                {wait.who} · {wait.title}
+              </span>
+              <span className="ag">{formatRelativeTime(wait.at, now)}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {fyi.length > 0 ? (
+        <div className="hqp-fyi">
+          <span>
+            {translate('auto.hqPlus.side.fyi', 'FYI · {{count}} — shown in the feed', {
+              count: fyi.length
+            })}
+          </span>
+          <button type="button" className="hqp-pill" onClick={onClearFyi}>
+            {translate('auto.hqPlus.side.clearFyi', 'Clear all')}
+          </button>
+        </div>
+      ) : null}
+      <div className="hqp-side-sec">
         <div className="hqp-hl hqp-side-h">
           {translate('auto.hqPlus.side.chats', 'chats · {{count}}', { count: chats.length })}
         </div>
@@ -127,39 +194,10 @@ export function HqPlusSide({
             item={item}
             picked={picked === item.key}
             now={now}
+            tile={tileOf(item)}
             onPick={onPickChat}
           />
         ))}
-      </div>
-      <div>
-        <div className="hqp-hl hqp-side-h">
-          {translate('auto.hqPlus.side.waitingOnYou', 'waiting on you · {{count}}', {
-            count: waiting.length
-          })}
-        </div>
-        {waiting.length > 0 ? (
-          waiting.map((card, index) => (
-            <button key={card.id} type="button" className="hqp-qi" onClick={() => onJump(card)}>
-              <span className="n">{index + 1}</span>
-              <span
-                className="t"
-                style={dotStyle(
-                  card.type === 'report' || card.type === 'reply'
-                    ? 'var(--hqp-violet)'
-                    : card.type === 'approve'
-                      ? 'var(--hqp-rose)'
-                      : (roomColor(card.room) ?? 'var(--hqp-ice)')
-                )}
-              >
-                <i aria-hidden="true" />
-                {waitingLabel(card)}
-              </span>
-              <span className="ag">{formatRelativeTime(card.at, now)}</span>
-            </button>
-          ))
-        ) : (
-          <p className="hqp-empty">{translate('auto.hqPlus.side.allDone', 'all decided')}</p>
-        )}
       </div>
       <div className="hqp-stats">
         <div className="hqp-st">
