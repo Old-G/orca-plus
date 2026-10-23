@@ -11,6 +11,7 @@ import { translate } from '@/i18n/i18n'
 import { OutgoingApprovalDecision } from '../outgoing-approval/OutgoingApprovalCard'
 import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
 import { PULSE_BELL_ACTION } from '../../../../../shared/pulse-bell'
+import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 import {
   closeHqPlusWait,
   hqPlusReportOf,
@@ -123,6 +124,8 @@ function hqPlusSourceLink(refId: string | null): { url: string; label: string } 
   return { url: raw, label }
 }
 
+const TO_WORK_ACTIONS: ReadonlySet<string> = new Set(['slack-do', 'intake-open'])
+
 function inboxActions(card: Card, look: HqPlusLook): { id: string; label: string }[] {
   const actions = card.inbox?.actions ?? []
   if (look.kind !== 'inbox') {
@@ -169,7 +172,8 @@ export function HqPlusCardView({
   onNotNow,
   onChanged,
   expanded,
-  onExpand
+  onExpand,
+  onToWork
 }: {
   card: Card
   look: HqPlusLook
@@ -186,6 +190,8 @@ export function HqPlusCardView({
   /** Custom build (hq-plus-ui-v4): a decided card unfolded; kept by the feed so keys can fold it too. */
   expanded: boolean
   onExpand: (open: boolean) => void
+  /** Custom build (hq-plus-ui-v5): «To work» opens the project and chat picker on the right. */
+  onToWork: ((item: PulseInboxItem) => void) | null
 }): React.JSX.Element {
   const setExpanded = onExpand
   const [busy, setBusy] = useState(false)
@@ -231,6 +237,31 @@ export function HqPlusCardView({
       })
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
       .finally(() => setBusy(false))
+  }
+
+  // Custom build (hq-plus-ui-v5): a request waits folded — who and one line; a click unfolds it.
+  if (open && look.kind === 'inbox' && !expanded) {
+    return (
+      <div
+        className="hqp-card"
+        data-type={card.type}
+        data-look={look.kind}
+        data-source={look.source ?? undefined}
+        data-flash={flash ? 'true' : undefined}
+      >
+        {head}
+        <button
+          type="button"
+          className="hqp-cc"
+          aria-expanded="false"
+          onClick={() => setExpanded(true)}
+        >
+          <span className="l1">
+            <HqPlusText text={questionOf(card)} maxLines={1} />
+          </span>
+        </button>
+      </div>
+    )
   }
 
   if (!open && !expanded && card.done) {
@@ -419,7 +450,9 @@ export function HqPlusCardView({
                 disabled={busy}
                 onClick={() => {
                   const item = card.inbox
-                  if (item) {
+                  if (item && onToWork && TO_WORK_ACTIONS.has(action.id)) {
+                    onToWork(item)
+                  } else if (item) {
                     run(async () => {
                       await runPulseBellAction(item, action.id)
                       return { ok: true }
@@ -430,6 +463,11 @@ export function HqPlusCardView({
                 {action.label}
               </button>
             ))}
+            {look.kind === 'inbox' && onNotNow ? (
+              <button type="button" className="hqp-opt" data-ghost="true" onClick={onNotNow}>
+                {translate('auto.hqPlus.notNow', 'Not now')}
+              </button>
+            ) : null}
           </div>
         ) : null}
         {open && card.type === 'approve' && card.inbox ? (
@@ -476,7 +514,10 @@ export function HqPlusCardView({
             </button>
           </form>
         ) : null}
-        {open && onNotNow && (card.type === 'approve' || card.type === 'bell') ? (
+        {open &&
+        onNotNow &&
+        look.kind !== 'inbox' &&
+        (card.type === 'approve' || card.type === 'bell') ? (
           <div className="hqp-opts">
             <button type="button" className="hqp-opt" data-ghost="true" onClick={onNotNow}>
               {translate('auto.hqPlus.notNow', 'Not now')}
@@ -523,7 +564,7 @@ export function HqPlusCardView({
           </form>
         ) : null}
         {error ? <p className="hqp-error">{error}</p> : null}
-        {!open && expanded ? (
+        {expanded && (!open || look.kind === 'inbox') ? (
           <div className="hqp-row-f">
             <span className="hqp-spacer" />
             <button type="button" className="hqp-pill" onClick={() => setExpanded(false)}>

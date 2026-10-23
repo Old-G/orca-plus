@@ -8,6 +8,7 @@ import type { HqChatItem } from '../hq/hq-chat-list'
 import { useHqChatTitle } from '../hq/HqChatAvatar'
 import { layoutHqPlusAgents, type HqPlusAgentNode } from './hq-plus-agents-layout'
 import type { HqPlusTile } from './HqPlusSide'
+import { HqPlusDeferredList, useHqPlusDeferred } from './HqPlusDeferred'
 
 function tileStyle(
   color: string | null
@@ -104,13 +105,18 @@ export function HqPlusAgents({
   items,
   tileOf,
   now,
-  onOpen
+  onOpen,
+  tileOfRepo,
+  openPane
 }: {
   items: readonly HqChatItem[]
   tileOf: (item: HqChatItem) => HqPlusTile
   now: number
   onOpen: (item: HqChatItem) => void
+  tileOfRepo: (repoName: string) => HqPlusTile
+  openPane: (paneKey: string) => (() => void) | null
 }): React.JSX.Element {
+  const deferred = useHqPlusDeferred()
   // Why: the map and the list are about agents at work or waiting; finished ones stay in Chats.
   const active = useMemo(() => items.filter((item) => LIVE_GROUPS.has(item.group)), [items])
   const counts = useMemo(
@@ -232,6 +238,22 @@ export function HqPlusAgents({
           </ul>
         </>
       )}
+      {deferred.sessions.length > 0 ? (
+        <section className="hqp-agents-dfr">
+          <p className="hqp-agents-sum">
+            {translate('auto.hqPlus.agents.unfinished', 'Unfinished · {{count}}', {
+              count: deferred.sessions.length
+            })}
+          </p>
+          <HqPlusDeferredList
+            sessions={deferred.sessions}
+            close={deferred.close}
+            now={now}
+            tileOf={tileOfRepo}
+            onOpen={openPane}
+          />
+        </section>
+      ) : null}
     </div>
   )
 }
