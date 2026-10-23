@@ -46,7 +46,8 @@ const WAITING_REPLY_COLUMNS = [
   'reply_ts',
   'replied_at',
   'reply_delivered_at',
-  'reply_link'
+  'reply_link',
+  'reply_author_id'
 ]
 
 function dropWaitingReplyColumns(raw: Database.Database): void {
@@ -99,6 +100,7 @@ describe('PulseDb schema', () => {
     raw.exec('ALTER TABLE feed DROP COLUMN post')
     // Why: version 7 (hq-reply-source-link) came after.
     raw.exec('ALTER TABLE waitings DROP COLUMN reply_link')
+    raw.exec('ALTER TABLE waitings DROP COLUMN reply_author_id')
     raw.pragma('user_version = 5')
     raw.close()
     const lifted = new PulseDb(path)

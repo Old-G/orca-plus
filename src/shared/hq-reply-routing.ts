@@ -16,6 +16,9 @@ export type HqReplyRule = {
 /** Why an answer waits for the owner instead of going on by itself. */
 export const HQ_REPLY_CARD_REASON = {
   noChat: 'no-chat',
+  otherAuthor: 'other-author',
+  tooLong: 'too-long',
+  instructions: 'instructions',
   otherVenue: 'other-venue',
   shared: 'shared-message',
   notAnswer: 'not-an-answer',
@@ -33,6 +36,9 @@ export type HqReplyCardReason = (typeof HQ_REPLY_CARD_REASON)[keyof typeof HQ_RE
 
 const REASON_TEXT: Readonly<Record<HqReplyCardReason, string>> = {
   'no-chat': 'no chat asked it',
+  'other-author': 'not said by the person asked, or by several people',
+  'too-long': 'too long to pass unread',
+  instructions: 'reads like instructions, links or code',
   'other-venue': 'answered somewhere else than asked',
   'shared-message': 'one message matched several questions',
   'not-an-answer': 'may not answer the question',
@@ -59,7 +65,7 @@ export type HqReplyVerdict = {
   question: boolean
 }
 
-export type HqReplyRouteKind = 'pass' | 'dispatch' | 'card' | 'wait'
+export type HqReplyRouteKind = 'pass' | 'card' | 'wait'
 
 export type HqReplyRouteAction = {
   kind: HqReplyRouteKind
@@ -97,6 +103,22 @@ const DEADLINE = [
   )
 ]
 
+/** Longer answers are read by the owner first: a long text is where a steering attempt hides. */
+export const HQ_REPLY_AUTO_MAX_CHARS = 600
+
+// Why: an answer is data for the asking chat; anything addressed to the agent itself, a link or code
+// it might follow, or an override phrase keeps the owner in between.
+const INSTRUCTIONS = [
+  /https?:\/\/|www\.|`|<[a-z!/]/iu,
+  WORD(
+    'ignore|disregard|override|instructions?|system prompt|prompt|assistant|agent|claude|codex|orca|run|execute|delete|remove|push|merge|install|sudo|curl|wget|bash|shell|script|command|token|password|secret|api key|игнорир\\p{L}*|инструкц\\p{L}*|промпт\\p{L}*|агент\\p{L}*|ассистент\\p{L}*|запусти\\p{L}*|выполни\\p{L}*|удали\\p{L}*|отправь|напиши|перешли|вставь|команд\\p{L}*|скрипт\\p{L}*|токен\\p{L}*|парол\\p{L}*|ключ\\p{L}*'
+  ),
+  /(?:^|\n)\s*(?:\$|>|#!|rm |git |npm |pnpm |orca |claude )/u
+]
+
+/** The person asked, by the ids the answer's author could carry. */
+export type HqReplyAskedPerson = { slackUserId: string | null; clickupUserId: string | null }
+
 function mentions(text: string, patterns: readonly RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text))
 }
@@ -121,12 +143,24 @@ export function hqReplySameVenue(waiting: Pick<PulseWaiting, 'sourceRef' | 'repl
 /** What the text and the record already say, before any model reads it. */
 export function hqReplyPrechecks(
   waiting: PulseWaiting,
-  others: readonly PulseWaiting[]
+  others: readonly PulseWaiting[],
+  asked: HqReplyAskedPerson | null
 ): HqReplyCardReason[] {
   const reasons: HqReplyCardReason[] = []
   const reply = waiting.reply ?? ''
   if (!waiting.agentSessionId) {
     reasons.push(HQ_REPLY_CARD_REASON.noChat)
+  }
+  // Why: anyone can write in a thread or a task; only the person asked may unblock the chat alone.
+  const author = waiting.replyAuthorId ?? null
+  if (!author || !asked || (author !== asked.slackUserId && author !== asked.clickupUserId)) {
+    reasons.push(HQ_REPLY_CARD_REASON.otherAuthor)
+  }
+  if (reply.length > HQ_REPLY_AUTO_MAX_CHARS) {
+    reasons.push(HQ_REPLY_CARD_REASON.tooLong)
+  }
+  if (mentions(reply, INSTRUCTIONS)) {
+    reasons.push(HQ_REPLY_CARD_REASON.instructions)
   }
   if (!hqReplySameVenue(waiting)) {
     reasons.push(HQ_REPLY_CARD_REASON.otherVenue)

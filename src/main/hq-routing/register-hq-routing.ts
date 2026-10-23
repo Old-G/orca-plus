@@ -134,24 +134,12 @@ export function registerHqRouting(
         replyTs,
         prompt
       ),
-    markDelivered: (id, ts) => void runtime.pulseMarkWaitingReplyDelivered(id, ts),
     address: (sessionId) => runtime.pulseGetSession(sessionId)?.address ?? null,
-    dispatch: async (address, prompt) => {
-      const sessions = getHqSessions()
-      const hq = hqPath()
-      if (!sessions || !hq) {
-        return null
-      }
-      try {
-        const result = await sessions.dispatch({ cwd: hq }, { address, prompt })
-        return { acted: result.acted, how: result.decision.kind, note: result.note }
-      } catch (error) {
-        return {
-          acted: false,
-          how: '',
-          note: error instanceof Error ? error.message : String(error)
-        }
-      }
+    asked: (personId) => {
+      const person = runtime.pulseListPeople().find((entry) => entry.id === personId)
+      return person
+        ? { slackUserId: person.slackUserId, clickupUserId: person.clickupUserId }
+        : null
     },
     roomOf: async (project) => {
       const journal = getHqJournalService()
