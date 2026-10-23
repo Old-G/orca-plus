@@ -54,7 +54,8 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       needs: getOptionalStringFlag(flags, 'needs'),
       kind: getOptionalStringFlag(flags, 'kind'),
       limit,
-      room: getOptionalStringFlag(flags, 'room')
+      room: getOptionalStringFlag(flags, 'room'),
+      query: getOptionalStringFlag(flags, 'query')
     })
     printResult(result, json, formatHqEvents)
   },
