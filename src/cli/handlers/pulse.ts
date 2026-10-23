@@ -155,6 +155,13 @@ export const PULSE_HANDLERS: Record<string, CommandHandler> = {
     printResult(result, json, (w) => `Waiting ${w.id} ${w.status}: ${w.title}`)
   },
 
+  'pulse wait reopen': async ({ flags, client, json }) => {
+    const result = await client.call<PulseWaiting>('pulse.reopenWaiting', {
+      id: getRequiredStringFlag(flags, 'id')
+    })
+    printResult(result, json, (w) => `Waiting ${w.id} open again: ${w.title}`)
+  },
+
   'pulse wait list': async ({ flags, client, json }) => {
     const status = oneOfFlag(flags, 'status', ['open', 'resolved', 'cancelled', 'all'] as const)
     const [result, people] = await Promise.all([

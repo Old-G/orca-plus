@@ -60,7 +60,7 @@ import { HqPlusRiver } from './HqPlusRiver'
 import { HqPlusGraph } from './HqPlusGraph'
 import { HqPlusSession, type HqPlusPick } from './HqPlusSession'
 import { HqPlusAgents } from './HqPlusAgents'
-import { HqPlusBrowser } from './HqPlusBrowser'
+import { HqPlusBrowser, type HqPlusBrowserAsk } from './HqPlusBrowser'
 import { readHqWaitingTags } from '../../../../../shared/hq-waiting-tags'
 import { HqPlusTakePanel } from './HqPlusTakePanel'
 import {
@@ -182,7 +182,12 @@ export function HqPlusScreen(): React.JSX.Element {
   const [rightWidth, setRightWidth] = useState(() => readHqPlusPanelWidth('right'))
   const [reportPath, setReportPath] = useState<string | null>(view.reportPath)
   // Custom build (hq-plus-round6): the page asked of the Browser tab; it stays mounted once opened.
-  const [browserUrl, setBrowserUrl] = useState<string | null>(view.browserUrl)
+  const [browserAsk, setBrowserAsk] = useState<HqPlusBrowserAsk | null>(
+    view.browserUrl ? { url: view.browserUrl, n: 0 } : null
+  )
+  // Why: a new ask each time, so the same link clicked again comes back from wherever the page went.
+  const askBrowser = (url: string): void =>
+    setBrowserAsk((previous) => ({ url, n: (previous?.n ?? 0) + 1 }))
   // Custom build (hq-plus-ui): the chat open on the right — picked on the left, «Open» in the log, or a
   // chat started from HQ (the sidebar's new chat asks HQ to show it, as the classic HQ does).
   const [chatKey, setChatKey] = useState<string | null>(requestedChat ?? view.chatKey)
@@ -571,7 +576,12 @@ export function HqPlusScreen(): React.JSX.Element {
     goToFeedItem(card.id, card)
   }
   const openLink = (url: string): void => {
-    setBrowserUrl(url)
+    // Why: a web client has no browser session to show a page in.
+    if (isWebClientLocation()) {
+      void window.api.shell.openUrl(url)
+      return
+    }
+    askBrowser(url)
     setTab('browser')
   }
   const openReport = (path: string): void => {
@@ -1033,11 +1043,11 @@ export function HqPlusScreen(): React.JSX.Element {
             </button>
           </div>
           <div className="hqp-pane" role="tabpanel">
-            {browserUrl !== null || tab === 'browser' ? (
+            {browserAsk !== null || tab === 'browser' ? (
               <div className="hqp-pv" hidden={tab !== 'browser' || Boolean(take)}>
                 <HqPlusBrowser
-                  url={browserUrl}
-                  onOpen={setBrowserUrl}
+                  ask={browserAsk}
+                  onOpen={askBrowser}
                   onUrl={(url) => saveHqPlusViewState({ browserUrl: url })}
                 />
               </div>
