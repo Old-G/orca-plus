@@ -37,7 +37,13 @@ import {
   syncInboxKind,
   type ListInboxOptions
 } from './pulse-inbox'
-import { getJournalEntry, listJournal, recordJournal } from './pulse-journal'
+import {
+  countJournal,
+  getJournalEntry,
+  journalActivity,
+  listJournal,
+  recordJournal
+} from './pulse-journal'
 import {
   getSession,
   listSessionsByAddress,
@@ -198,6 +204,13 @@ export class PulseDb {
   }
   listJournal(query?: HqJournalQuery) {
     return listJournal(this.core, query)
+  }
+  /** Custom build (hq-plus-ui). */
+  countJournal(since: number) {
+    return countJournal(this.core, since)
+  }
+  journalActivity(query: { since: number; slotMs: number; kinds: readonly string[] }) {
+    return journalActivity(this.core, query)
   }
   noteSessions(inputs: readonly HqSessionInput[]) {
     return noteSessions(this.core, inputs)

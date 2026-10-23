@@ -93,7 +93,15 @@ export const LOCAL_STORAGE_MODULE_DISPOSITIONS: Record<string, WslMoveFieldDispo
       // Custom build (Orca+): ClickUp and HQ view filters; the dialog only names localStorage.
       'src/renderer/src/components/clickup-connect-dialog.tsx',
       'src/renderer/src/components/orca-plus/hq/hq-project-task-filter.ts',
-      'src/renderer/src/components/task-page/clickup/use-clickup-task-list.ts'
+      'src/renderer/src/components/task-page/clickup/use-clickup-task-list.ts',
+      // Custom build (hq-plus-ui): HQ+ view preferences — filter, folds, panel widths, seen marks.
+      'src/renderer/src/components/orca-plus/hq-plus/HqPlusFeedBar.tsx',
+      'src/renderer/src/components/orca-plus/hq-plus/hq-plus-dismissed.ts',
+      'src/renderer/src/components/orca-plus/hq-plus/hq-plus-flavor.ts',
+      'src/renderer/src/components/orca-plus/hq-plus/hq-plus-not-now.ts',
+      'src/renderer/src/components/orca-plus/hq-plus/hq-plus-panel-widths.ts',
+      'src/renderer/src/components/orca-plus/hq-plus/hq-plus-view-state.ts',
+      'src/renderer/src/components/orca-plus/hq-plus/use-hq-plus-new-marks.ts'
     ].map((path) => [
       path,
       notApplicableDisposition(62, 'Global preference or web-client storage.')
