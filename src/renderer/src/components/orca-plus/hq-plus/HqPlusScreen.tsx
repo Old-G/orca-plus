@@ -602,20 +602,25 @@ export function HqPlusScreen(): React.JSX.Element {
     chatStatus,
     closeChat: (sessionId, fallback) => {
       const listed = hqPlusChatOfSession(chatItems, sessionId)
-      if (listed) {
-        return closerOf(listed)
+      const closer = listed ? closerOf(listed) : null
+      const dismiss = (): void => {
+        if (fallback) {
+          dismissHqPlusChatCard(fallback.key, fallback.at, Date.now())
+          setDismissVersion((version) => version + 1)
+        }
+      }
+      // Custom build (hq-plus-ui-v5): × on a feed card closes its chat and hides the card in one click.
+      if (closer) {
+        return {
+          ...closer,
+          close: () => {
+            closer.close()
+            dismiss()
+          }
+        }
       }
       // Why: a chat whose tab is gone still gets ×; it dismisses the card, the journal keeps it.
-      return fallback
-        ? {
-            working: false,
-            dismiss: true,
-            close: () => {
-              dismissHqPlusChatCard(fallback.key, fallback.at, Date.now())
-              setDismissVersion((version) => version + 1)
-            }
-          }
-        : null
+      return fallback ? { working: false, dismiss: true, close: dismiss } : null
     },
     projectColor,
     isOpenChat: (sessionId) =>
