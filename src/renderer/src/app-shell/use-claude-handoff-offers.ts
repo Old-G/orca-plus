@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { toast } from 'sonner'
+import { hqPopupsGoToFeedNow } from '@/components/orca-plus/hq-plus/hq-plus-popups'
 import type { ClaudeHandoffOffer } from '../../../shared/claude-handoff-file'
 import { translate } from '@/i18n/i18n'
 import { isWebClientLocation } from '@/lib/web-client-location'
@@ -51,7 +52,9 @@ export function useClaudeHandoffOffers(): void {
       return
     }
     const shown = new Map<string, string>()
-    const show = (offers: ClaudeHandoffOffer[]): void => {
+    const show = (all: ClaudeHandoffOffer[]): void => {
+      // Custom build (hq-plus-ui): with the HQ+ feed on, the bell's handoff card is the only offer.
+      const offers = hqPopupsGoToFeedNow() ? [] : all
       const live = new Set(offers.map(toastId))
       for (const [id] of shown) {
         if (!live.has(id)) {

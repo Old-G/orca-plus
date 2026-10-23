@@ -41,6 +41,7 @@ vi.mock('./use-hq-spaces', () => ({
   useHqSpaces: () => ({ active: null, shows: () => true })
 }))
 vi.mock('./HqMessengerScreen', () => ({ HqMessengerScreen: () => <div>messenger view</div> }))
+vi.mock('../hq-plus/HqPlusScreen', () => ({ HqPlusScreen: () => <div>hq+ view</div> }))
 vi.mock('./HqDeferredStrip', () => ({ HqDeferredStrip: () => null }))
 vi.mock('./use-hq-deferred-sessions', () => ({
   useHqDeferredSessions: () => ({ sessions: [], close: () => {} })

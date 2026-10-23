@@ -26,6 +26,8 @@ function waitingLabel(card: HqPlusCard): string {
       return translate('auto.hqPlus.side.report', 'Report · {{what}}', { what: short(card.title) })
     case 'reply':
       return translate('auto.hqPlus.side.reply', 'Answer · {{what}}', { what: short(card.title) })
+    case 'bell':
+      return short(card.title)
     case 'move':
     case 'wait':
       return `${card.project ?? 'HQ'}: ${short(card.report?.ask ?? card.title)}`

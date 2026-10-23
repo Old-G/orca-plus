@@ -24,7 +24,11 @@ export type OutgoingApprovalChoice = {
   moveTo?: 'clickup' | 'slack'
   /** The Slack thread the message goes into. */
   threadTs?: string
+  /** Custom build (hq-plus-ui): with a rejection, what the owner tells the agent to change. */
+  note?: string
 }
+
+const NOTE_MAX = 1000
 
 const SLACK_TS = /^\d{9,11}\.\d{1,6}$/
 
@@ -34,7 +38,9 @@ export function readOutgoingApprovalChoice(value: unknown): OutgoingApprovalChoi
   const footer = read('footer')
   const moveTo = read('moveTo')
   const threadTs = read('threadTs')
+  const note = read('note')
   return {
+    ...(typeof note === 'string' && note.trim() ? { note: note.trim().slice(0, NOTE_MAX) } : {}),
     ...(typeof footer === 'boolean' ? { footer } : {}),
     ...(moveTo === 'clickup' || moveTo === 'slack' ? { moveTo } : {}),
     ...(typeof threadTs === 'string' && SLACK_TS.test(threadTs) ? { threadTs } : {})

@@ -44,6 +44,8 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqAskSessionId?: string | null
     /** Custom build (hq-voice-prompts): a finished dictation opens a preview to pick what it becomes. */
     hqVoicePromptsEnabled?: boolean
+    /** Custom build (hq-plus-ui): HQ events land in HQ+'s feed instead of popping up; default on. */
+    hqPlusFeedInsteadOfPopups?: boolean
     /** Custom build (hq-plus-journal): HQ+'s journal follows Orca+'s records; off stops it. Default on. */
     hqPlusJournalEnabled?: boolean
     /** Custom build (hq-plus-sessions): the session dispatcher is off, only writes what it would do,
