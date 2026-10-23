@@ -108,6 +108,8 @@ export type HqJournalQuery = {
   source?: string
   /** Oldest first, as a thread reads; newest first otherwise. */
   oldestFirst?: boolean
+  /** Custom build (hq-plus-ask): rows holding every word of it, see hqJournalMatches. */
+  text?: string
 }
 
 /** `hq.events`: HQ+ gets every room's headings; a room's chat gets its room's whole entries. */
@@ -167,6 +169,30 @@ export function hqJournalTitle(value: string): string {
 export function hqJournalBody(value: string | null | undefined): string | null {
   const text = value?.trim()
   return text ? text.slice(0, HQ_JOURNAL_BODY_MAX) : null
+}
+
+// Custom build (hq-plus-ask): «what did we decide about X» finds its rows by words.
+function foldText(value: string): string {
+  return value.toLocaleLowerCase().replace(/\u0451/g, '\u0435')
+}
+
+/** True when every word of `text` (as written, so a root like «анн» finds «Анне») is in the
+ *  row's title, body, project, address, kind or links. */
+export function hqJournalMatches(entry: HqJournalEntry, text: string): boolean {
+  const haystack = foldText(
+    [
+      entry.title,
+      entry.body ?? '',
+      entry.project ?? '',
+      entry.address ?? '',
+      entry.kind,
+      ...entry.links.map((link) => link.url ?? link.id ?? '')
+    ].join('\n')
+  )
+  return foldText(text)
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((word) => haystack.includes(word))
 }
 
 const SINCE_UNIT_MS: Readonly<Record<string, number>> = {
