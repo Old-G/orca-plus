@@ -6,6 +6,12 @@ import type { HqProjectPage } from '../../shared/hq-project-pages'
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/
 
+/** Custom build (hq-plus-context): a page's top-level frontmatter fields; empty without frontmatter. */
+export function readHqProjectPageFields(markdown: string): Map<string, string> {
+  const match = FRONTMATTER.exec(markdown)
+  return match ? frontmatterFields(match[1]) : new Map()
+}
+
 /** The top-level `key: value` lines; read by line so one malformed line spoils only itself. */
 function frontmatterFields(block: string): Map<string, string> {
   const fields = new Map<string, string>()

@@ -53,6 +53,8 @@ export type HqEventsRequest = HqCaller & {
 export type HqJournalService = {
   /** The room the caller works in, by the spaces as last read. */
   scope: (caller: HqCaller) => Promise<HqCallerScope>
+  /** Custom build (hq-plus-context): the rooms and projects as last read, to place a project. */
+  sources: () => Promise<HqRoomSources>
   schedule: () => void
   sync: () => Promise<HqJournalRecordResult>
   events: (request: HqEventsRequest) => Promise<HqEventsResult>
@@ -164,6 +166,7 @@ export function createHqJournalService(deps: HqJournalServiceDeps): HqJournalSer
 
   return {
     scope: async (caller) => (await scopeOf(caller)).scope,
+    sources,
     schedule: () => flight.schedule(),
     sync: () => flight.runNow(),
     dispose: () => flight.dispose(),
