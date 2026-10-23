@@ -87,7 +87,11 @@ export function formatHqWhoami(whoami: HqWhoami): string {
     `Room: ${room}`,
     `Project: ${whoami.project ?? 'none'}`,
     `Address: ${whoami.address ?? 'none yet'}`,
-    `Task: ${whoami.task ?? 'none'}`
+    `Task: ${whoami.task ?? 'none'}`,
+    // Custom build (hq-plus-room-mcp): a chat started before the list changed keeps its tools.
+    ...(whoami.mcpHidden?.length
+      ? [`MCP hidden in this room: ${whoami.mcpHidden.join(', ')} (from the chat's next start)`]
+      : [])
   ].join('\n')
 }
 

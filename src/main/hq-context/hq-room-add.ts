@@ -50,7 +50,10 @@ export async function addHqRoom(hqPath: string, input: HqRoomAddInput): Promise<
     messenger: input.messenger ?? null,
     tasks: input.tasks ?? null
   })
-  await writeFile(join(dir, HQ_SPACE_FILE), file)
+  // Custom build (hq-plus-room-mcp): where a room names the MCP servers its chats start without.
+  const mcpHint =
+    "# mcp:\n#   deny: []  # MCP servers this room's chats start without, e.g. claude.ai Acme*\n"
+  await writeFile(join(dir, HQ_SPACE_FILE), file + mcpHint)
   const created = [`${HQ_SPACES_DIR}/${slug}/${HQ_SPACE_FILE}`]
   if (!(await exists(join(dir, HQ_ROOM_CONTEXT_FILE)))) {
     await writeFile(
