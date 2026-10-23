@@ -1,7 +1,7 @@
 // Custom build (hq-plus-ui): the conversation with HQ — oldest at the top, newest at the bottom, and it
 // follows the bottom unless the owner scrolled up to read; then a «↓ new: N» button brings it back.
 import { useLayoutEffect, useRef, useState } from 'react'
-import type { HqPlusLogItem } from '../../../../../shared/hq-plus-log'
+import { hqPlusNotNowKey, type HqPlusLogItem } from '../../../../../shared/hq-plus-log'
 import { translate } from '@/i18n/i18n'
 import { HqPlusCardView } from './HqPlusCard'
 
@@ -14,6 +14,7 @@ export type HqPlusLogContext = {
   openChat: (sessionId: string | null) => (() => void) | null
   onScope: (key: string) => void
   onOpenReport: (path: string) => void
+  onNotNow: (id: string) => void
   onChanged: () => void
 }
 
@@ -103,6 +104,7 @@ function LogItem({
             hqWorktreeId={ctx.hqWorktreeId}
             onOpenChat={ctx.openChat(item.sessionId)}
             onOpenReport={ctx.onOpenReport}
+            onNotNow={item.open ? () => ctx.onNotNow(hqPlusNotNowKey(item)) : null}
             onChanged={ctx.onChanged}
           />
         ) : null}

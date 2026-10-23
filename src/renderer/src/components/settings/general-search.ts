@@ -45,6 +45,18 @@ export const getGeneralWorkspaceSearchEntries = createLocalizedCatalog(() => [
     ),
     keywords: ['hq', 'chats', 'close', 'cleanup', 'tabs', 'sessions']
   },
+  // Custom build (hq-plus-ui)
+  {
+    title: translate(
+      'auto.hqPlus.popups.settingTitle',
+      'Show HQ events in the HQ+ feed instead of popups'
+    ),
+    description: translate(
+      'auto.hqPlus.popups.settingDescription',
+      "Finished chats, Approve, Slack requests, people's answers, limits and handoffs become cards in HQ+ with an unread count on HQ+, instead of toasts on the right. Off brings the toasts back. Desktop and phone notifications are not changed."
+    ),
+    keywords: ['hq', 'hq+', 'toasts', 'popups', 'feed', 'notifications']
+  },
   // Custom build (hq-plus-sessions)
   {
     title: translate('auto.hq.sessionDispatcher.settingTitle', 'Session dispatcher'),

@@ -1,11 +1,13 @@
 // Custom build (hq-plus-ui): HQ+ — the day's conversation with HQ in the middle (decisions as cards that
 // stay in place), what waits on the owner and the live chats on the left, Граф / Река / Сессия / a report
 // on the right, rooms above and Orca's composer below. Every button goes through the paths agents use.
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { isWebClientLocation } from '@/lib/web-client-location'
 import {
   HQ_PLUS_ANY_ROOM,
   hqPlusDayStart,
   hqPlusLog,
+  hqPlusNotNowKey,
   hqPlusWaiting,
   type HqPlusCard
 } from '../../../../../shared/hq-plus-log'
@@ -36,6 +38,8 @@ import { HqPlusSession, type HqPlusPick } from './HqPlusSession'
 import { HqPlusReportView } from './HqPlusReportView'
 import { setHqFlavor } from './hq-plus-flavor'
 import { useHqPlusData } from './use-hq-plus-data'
+import { putOffHqPlusCard, readHqPlusNotNow } from './hq-plus-not-now'
+import { HqPlusThreadComposer } from './HqPlusThreadComposer'
 import './hq-plus.css'
 
 const TICK_MS = 30_000
@@ -52,7 +56,9 @@ const TAB_LABEL: Record<Tab, [string, string]> = {
   report: ['auto.hqPlus.tab.report', 'Report']
 }
 
-function roomStyle(color: string | null): (React.CSSProperties & Record<'--hqp-room', string>) | undefined {
+function roomStyle(
+  color: string | null
+): (React.CSSProperties & Record<'--hqp-room', string>) | undefined {
   return color ? { '--hqp-room': color } : undefined
 }
 
@@ -83,7 +89,10 @@ export function HqPlusScreen(): React.JSX.Element {
     () => new Map(spaces.spaces.map((space) => [space.slug, space])),
     [spaces.spaces]
   )
-  const spaceSlugs = useMemo(() => new Set(spaces.spaces.map((space) => space.slug)), [spaces.spaces])
+  const spaceSlugs = useMemo(
+    () => new Set(spaces.spaces.map((space) => space.slug)),
+    [spaces.spaces]
+  )
   const roomOfProject = useMemo(() => {
     const map = new Map<string, string>()
     // Why: a room's projects.yaml may name fewer projects than its journal rows place there.
@@ -102,14 +111,42 @@ export function HqPlusScreen(): React.JSX.Element {
   const roomColor = (slug: string): string | null => spaceBySlug.get(slug)?.color ?? null
 
   const dayStart = hqPlusDayStart(now)
+  const [, setNotNowVersion] = useState(0)
+  // Why: put-off cards are read back on every render; bumping the version makes one happen.
+  const notNowIds = [...readHqPlusNotNow(now)].sort().join('\n')
+  const notNow = useMemo(() => new Set(notNowIds ? notNowIds.split('\n') : []), [notNowIds])
   const all = useMemo(
-    () => (data.feed ? hqPlusLog(data.feed.entries, data.feed.inbox ?? [], dayStart) : []),
-    [data.feed, dayStart]
+    () =>
+      (data.feed ? hqPlusLog(data.feed.entries, data.feed.inbox ?? [], dayStart) : []).map(
+        (item) => {
+          // Why: a bell item knows its project, not its room; HQ's rooms place it.
+          const placed =
+            item.room === HQ_PLUS_ANY_ROOM && item.project && roomOfProject.has(item.project)
+              ? { ...item, room: roomOfProject.get(item.project) ?? item.room }
+              : item
+          return placed.kind === 'card' && placed.open && notNow.has(hqPlusNotNowKey(placed))
+            ? { ...placed, open: false, done: { by: 'status' as const, status: 'not-now' } }
+            : placed
+        }
+      ),
+    [data.feed, dayStart, roomOfProject, notNow]
   )
-  const roomItems = useMemo(
-    () => all.filter((item) => !room || item.room === room || item.room === HQ_PLUS_ANY_ROOM),
-    [all, room]
-  )
+  // Why: what has no room (HQ's own rows, a bell item of an unknown project) shows in All only.
+  const roomItems = useMemo(() => all.filter((item) => !room || item.room === room), [all, room])
+  // Why: what HQ+ has on screen is seen; the quiet count on its tab is for what came while away.
+  useEffect(() => {
+    const unreadIds = new Set(
+      (data.feed?.inbox ?? []).flatMap((item) => (item.readAt === null ? [item.id] : []))
+    )
+    // Why: a short finished turn is a line whose id is its bell item's.
+    const unread = roomItems.flatMap((item) => {
+      const id = item.kind === 'card' ? (item.inbox?.id ?? null) : item.id.replace(/^inbox:/, '')
+      return id && unreadIds.has(id) ? [id] : []
+    })
+    if (unread.length > 0 && !isWebClientLocation()) {
+      void window.api.pulseBell.markRead(unread)
+    }
+  }, [roomItems, data.feed])
   const shown = useMemo(
     () => (scope ? roomItems.filter((item) => hqPlusThreadKey(item) === scope) : roomItems),
     [roomItems, scope]
@@ -257,9 +294,20 @@ export function HqPlusScreen(): React.JSX.Element {
       }
     },
     onOpenReport: openReport,
+    onNotNow: (id) => {
+      putOffHqPlusCard(id, Date.now())
+      setNotNowVersion((version) => version + 1)
+    },
     onChanged: data.reload
   }
   const pickKey = pick ? hqPlusThreadKey(pick) : null
+  const scopedItem = scope ? all.findLast((item) => hqPlusThreadKey(item) === scope) : undefined
+  // Why: a thread without an address is keyed by its session id, which means nothing to the owner.
+  const scopeLabel =
+    scopedItem?.address ??
+    (scopedItem?.project
+      ? `${scopedItem.project} · ${liveOf(scopedItem.sessionId)?.name ?? translate('auto.hqPlus.chat', 'chat')}`
+      : (scope ?? ''))
   const tabs = TABS.filter((name) => name !== 'report' || reportPath)
   const unreviewed = data.sessions?.unreviewed ?? null
 
@@ -281,7 +329,11 @@ export function HqPlusScreen(): React.JSX.Element {
           </span>
           HQ+
         </span>
-        <div className="hqp-rooms" role="group" aria-label={translate('auto.hqPlus.rooms', 'Rooms')}>
+        <div
+          className="hqp-rooms"
+          role="group"
+          aria-label={translate('auto.hqPlus.rooms', 'Rooms')}
+        >
           <button
             type="button"
             className="hqp-room"
@@ -328,7 +380,11 @@ export function HqPlusScreen(): React.JSX.Element {
               })}
             </span>
           ) : null}
-          <div className="hqp-mode" role="group" aria-label={translate('auto.hq.mode.label', 'Mode')}>
+          <div
+            className="hqp-mode"
+            role="group"
+            aria-label={translate('auto.hq.mode.label', 'Mode')}
+          >
             <button type="button" aria-pressed="true">
               {translate('auto.hq.mode.hqPlus', 'HQ+')}
             </button>
@@ -362,11 +418,14 @@ export function HqPlusScreen(): React.JSX.Element {
           onPickSession={pickSession}
         />
 
-        <main className="hqp-feed" aria-label={translate('auto.hqPlus.feed', 'Conversation with HQ')}>
+        <main
+          className="hqp-feed"
+          aria-label={translate('auto.hqPlus.feed', 'Conversation with HQ')}
+        >
           <div className="hqp-fh">
             <span className="hqp-hl">
               {scope
-                ? translate('auto.hqPlus.feed.thread', 'thread · {{key}}', { key: scope })
+                ? translate('auto.hqPlus.feed.thread', 'thread · {{key}}', { key: scopeLabel })
                 : translate('auto.hqPlus.feed.today', 'conversation with HQ · today')}
             </span>
             {scope ? (
@@ -383,7 +442,31 @@ export function HqPlusScreen(): React.JSX.Element {
             ctx={ctx}
           />
           <div className="hqp-composer">
-            <HqCommandBox hqWorktreeId={hqWorktreeId} />
+            {scope ? (
+              <HqPlusThreadComposer
+                key={scope}
+                target={{
+                  address: scopedItem?.address ?? null,
+                  sessionId: scopedItem?.sessionId ?? null,
+                  replyTo: null,
+                  about: null
+                }}
+                openQuestion={
+                  all.findLast(
+                    (item): item is HqPlusCard =>
+                      item.kind === 'card' &&
+                      item.type === 'move' &&
+                      item.open &&
+                      hqPlusThreadKey(item) === scope
+                  ) ?? null
+                }
+                label={scopeLabel}
+                hqPath={hqPath}
+                onSent={data.reload}
+              />
+            ) : (
+              <HqCommandBox hqWorktreeId={hqWorktreeId} />
+            )}
           </div>
         </main>
 
@@ -429,7 +512,10 @@ export function HqPlusScreen(): React.JSX.Element {
                   graph={graph}
                   roomColor={roomColor}
                   onPickProject={(project) =>
-                    pickProject(project, lanes.find((lane) => lane.project === project)?.sessionId ?? null)
+                    pickProject(
+                      project,
+                      lanes.find((lane) => lane.project === project)?.sessionId ?? null
+                    )
                   }
                 />
               ) : tab === 'river' ? (
