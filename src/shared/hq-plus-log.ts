@@ -45,6 +45,10 @@ export type HqPlusLogItem =
       title: string
       /** Custom build (hq-plus-ui-v2): the journal kind or bell kind it came from, for its badge. */
       journalKind?: string | null
+      /** Custom build (hq-plus-ui-v3): the turn's full text, for the card opened in place. */
+      body?: string | null
+      /** Custom build (hq-plus-ui-v3): the chat's earlier turns this row folds, oldest first. */
+      earlier?: readonly { id: string; at: number; title: string }[]
     })
   | (Where & { kind: 'me'; id: string; at: number; text: string })
   | (Where & {
@@ -268,6 +272,7 @@ export function hqPlusLog(
           ...where(entry),
           tone: 'agent',
           title: entry.title,
+          body: entry.body,
           journalKind: entry.kind
         })
       }
@@ -357,6 +362,7 @@ export function hqPlusLog(
             ...whereOfItem(item),
             tone: 'agent',
             title: item.body ?? item.title,
+            body: item.body,
             journalKind: item.kind
           })
         }
