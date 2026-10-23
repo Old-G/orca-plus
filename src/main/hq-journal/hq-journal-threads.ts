@@ -97,8 +97,9 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
       }
       return asked
     }
-    const known = deps.pulse.getSession(sessionId)?.address
-    const project = scope.kind === 'room' ? scope.project : 'hq'
+    const session = deps.pulse.getSession(sessionId)
+    const known = session?.address
+    const project = scope.kind === 'room' ? (scope.project ?? session?.project ?? null) : 'hq'
     return (
       known ??
       hqThreadAddress(project, deps.sessionName(sessionId) ?? sessionId.slice(-8)) ??
