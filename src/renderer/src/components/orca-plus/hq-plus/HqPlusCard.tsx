@@ -214,6 +214,7 @@ export function HqPlusCardView({
   const open = card.open
   const reportPath = card.type === 'report' ? (hqPlusReportOf(card)?.path ?? null) : null
   const note = noteOf(card)
+  const sourceLink = hqPlusSourceLink(card)
   const head = (
     <div className="hqp-row-h">
       <HqPlusBadges badges={look.badges} />
@@ -226,6 +227,16 @@ export function HqPlusCardView({
         </button>
       ) : null}
       <span className="hqp-spacer" />
+      {/* Custom build (hq-plus-side-blocks): where the card came from sits top-right, on the head's line. */}
+      {sourceLink ? (
+        <button
+          type="button"
+          className="hqp-link hqp-source"
+          onClick={() => void window.api.shell.openUrl(sourceLink.url)}
+        >
+          {sourceLink.label} ↗
+        </button>
+      ) : null}
       {onOpenChat && !(open && card.type === 'move') ? (
         <button type="button" className="hqp-pill" onClick={onOpenChat}>
           {translate('auto.hqPlus.open', 'Open')}
@@ -311,7 +322,6 @@ export function HqPlusCardView({
   const choices = card.report?.options.length ? card.report.options : hqPlusChoices(card.body)
   const reply = (value: string): void => run(() => replyOnHqPlusCard(card, value, hqPath))
   const canReply = card.type === 'move' && Boolean(card.address || card.sessionId)
-  const sourceLink = hqPlusSourceLink(card)
 
   return (
     <div
@@ -372,15 +382,6 @@ export function HqPlusCardView({
             ) : null}
           </>
         )}
-        {sourceLink ? (
-          <button
-            type="button"
-            className="hqp-link hqp-source"
-            onClick={() => void window.api.shell.openUrl(sourceLink.url)}
-          >
-            {sourceLink.label} ↗
-          </button>
-        ) : null}
         {card.done ? (
           <dl className="hqp-rep">
             <dt>{translate('auto.hqPlus.decided', 'decided')}</dt>
