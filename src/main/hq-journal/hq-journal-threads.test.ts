@@ -123,6 +123,22 @@ describe('HQ+ threads', () => {
     ])
   })
 
+  it("settles the owner's question when the owner answers it, not when another chat does", async () => {
+    const web = await threads.report(
+      { sessionId: 'claude_web' },
+      { done: 'Checkout waits for the API', ask: 'Ship behind a flag?' }
+    )
+    await threads.send(
+      { sessionId: 'claude_api' },
+      { address: web.address, text: 'API side is ready.', replyTo: web.entry.id }
+    )
+    expect(db.getJournalEntry(web.entry.id)?.status).toBe('open')
+
+    await threads.send({}, { address: web.address, text: 'Yes, flag it.', replyTo: web.entry.id })
+    expect(db.getJournalEntry(web.entry.id)?.status).toBe('done')
+    expect(db.listJournal({ needs: 'owner', status: 'open' })).toEqual([])
+  })
+
   it("never reaches another room's thread", async () => {
     const kite = await threads.report({ sessionId: 'claude_kite' }, { done: 'Palette moved' })
     await expect(
