@@ -135,10 +135,12 @@ export const PULSE_HANDLERS: Record<string, CommandHandler> = {
 
   'pulse wait update': async ({ flags, client, json }) => {
     const due = getOptionalStringFlag(flags, 'due')
+    const detail = getOptionalStringFlag(flags, 'detail')
     const result = await client.call<PulseWaiting>('pulse.updateWaiting', {
       id: getRequiredStringFlag(flags, 'id'),
       title: getOptionalStringFlag(flags, 'title'),
-      detail: getOptionalStringFlag(flags, 'detail'),
+      // Custom build (hq-plus-round6): `--detail none` clears it, as `--due none` does the date.
+      ...(detail === undefined ? {} : { detail: detail === 'none' ? null : detail }),
       ...(due === undefined ? {} : { dueAt: due === 'none' ? null : dueFlag(flags) })
     })
     printResult(result, json, (w) => `Waiting ${w.id} updated: [${w.direction}] ${w.title}`)
