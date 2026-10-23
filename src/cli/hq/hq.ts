@@ -7,6 +7,7 @@ import {
   type HqReportResult,
   type HqThreadResult
 } from '../../shared/hq-journal'
+import type { HqRouteResult, HqSettleResult } from '../../shared/hq-routing'
 import type { CommandHandler } from '../dispatch/dispatch'
 import {
   getOptionalStringFlag,
@@ -14,7 +15,7 @@ import {
   getRequiredStringFlag
 } from '../arguments/flags'
 import { printResult } from '../format'
-import { formatHqEvents, formatHqThread, formatHqWhoami } from '../hq-format'
+import { formatHqEvents, formatHqRoute, formatHqThread, formatHqWhoami } from '../hq-format'
 
 /** Who is asking, as the agent's environment says; the host turns it into a room. */
 function caller(): { callerSessionId?: string; callerWorktreeId?: string; callerCwd: string } {
@@ -84,6 +85,40 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       r.reopened
         ? `Brought the closed chat back and handed it the message.  ${r.entry.id}`
         : `Handed the message to the chat on ${r.entry.address}.  ${r.entry.id}`
+    )
+  },
+
+  // Custom build (hq-plus-routing)
+  'hq route': async ({ flags, client, json }) => {
+    const sinceFlag = getOptionalStringFlag(flags, 'since')
+    const since = sinceFlag === undefined ? undefined : parseHqJournalSince(sinceFlag, Date.now())
+    if (since === null) {
+      throw new Error(`--since takes 7d, 2w or an ISO date, got "${sinceFlag}"`)
+    }
+    const result = await client.call<HqRouteResult>('hq.route', {
+      ...caller(),
+      run: flags.get('run') === true,
+      now: flags.get('now') === true,
+      since
+    })
+    printResult(result, json, formatHqRoute)
+  },
+
+  'hq settle': async ({ flags, client, json }) => {
+    const done = flags.get('done') === true
+    const dropped = flags.get('dropped') === true
+    if (done === dropped) {
+      throw new Error('Pass one of --done or --dropped')
+    }
+    const result = await client.call<HqSettleResult>('hq.settle', {
+      ...caller(),
+      id: getRequiredStringFlag(flags, 'id'),
+      status: done ? 'done' : 'dropped',
+      commit: getOptionalStringFlag(flags, 'commit'),
+      why: getOptionalStringFlag(flags, 'why')
+    })
+    printResult(result, json, (r) =>
+      r.settled ? `Closed ${r.entryId} as ${r.status}.` : `${r.entryId} was already closed.`
     )
   },
 

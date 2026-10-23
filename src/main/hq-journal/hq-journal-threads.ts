@@ -18,8 +18,9 @@ import {
   type HqSession,
   type HqThreadResult
 } from '../../shared/hq-journal'
+import { HQ_ROUTING_KIND, type HqSettleResult } from '../../shared/hq-routing'
 import type { PulsePerson, PulsePersonInput } from '../../shared/pulse-types'
-import { hqJournalLink } from './hq-journal-adapters'
+import { hqJournalLink, journalEntryAsInput } from './hq-journal-adapters'
 import type { HqJournalPulse } from './hq-journal-collect'
 import type { HqCaller, HqCallerScope } from './hq-journal-rooms'
 
@@ -57,7 +58,19 @@ export type HqThreads = {
   ) => Promise<HqChatSendResult>
   /** A handoff's new chat takes over the old one's thread. */
   handoff: (fromSessionId: string, toSessionId: string) => void
+  /** Custom build (hq-plus-routing): a chat closes an open row it was handed, with why. */
+  settle: (caller: HqCaller, input: HqSettleInput) => Promise<HqSettleResult>
 }
+
+export type HqSettleInput = {
+  id: string
+  status: 'done' | 'dropped'
+  commit?: string
+  why?: string
+}
+
+const SETTLE_SOURCE = 'chat-settle'
+const COMMIT = /^[0-9a-f]{7,40}$/
 
 const JOURNAL_OFF = 'The HQ+ journal is off (Settings → Workspace → HQ+ journal).'
 
@@ -265,6 +278,58 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
         throw new Error('The message was delivered but not recorded.')
       }
       return { entry, sessionId: target.sessionId, reopened }
+    },
+
+    async settle(caller, input) {
+      if (!deps.enabled()) {
+        throw new Error(JOURNAL_OFF)
+      }
+      const scope = await deps.scope(caller)
+      const entry = deps.pulse.getEntry(input.id)
+      if (!entry || !visible(scope, entry.workspace)) {
+        throw new Error(`No journal entry ${input.id} in this chat's room.`)
+      }
+      if (input.commit && !COMMIT.test(input.commit)) {
+        throw new Error(`--commit takes a commit sha, got "${input.commit}"`)
+      }
+      if (input.status === 'dropped' && !input.why?.trim()) {
+        throw new Error('--dropped needs --why: one line on why it needs no fix')
+      }
+      if (entry.status !== 'open') {
+        return { settled: false, entryId: entry.id, status: input.status }
+      }
+      if (!entry.dedupeKey) {
+        throw new Error(`${entry.id} is closed by its own source, not by a chat.`)
+      }
+      const address =
+        entry.address ??
+        (scope.sessionId ? (deps.pulse.getSession(scope.sessionId)?.address ?? null) : null)
+      const outcome = input.status === 'done' ? 'Fixed' : 'No fix needed'
+      deps.pulse.record([
+        journalEntryAsInput(entry, { status: input.status }),
+        {
+          workspace: entry.workspace,
+          kind: HQ_ROUTING_KIND.settled,
+          at: deps.now(),
+          project: entry.project,
+          address,
+          sessionId: scope.sessionId,
+          personId: null,
+          title: hqJournalTitle(
+            `${outcome}: ${entry.title}${input.commit ? ` (${input.commit.slice(0, 10)})` : ''}`
+          ),
+          body: input.why?.trim() || null,
+          needs: 'nobody',
+          status: 'done',
+          replyTo: entry.id,
+          refKind: 'journal',
+          refId: entry.id,
+          links: input.commit ? [{ kind: 'commit', id: input.commit }] : [],
+          source: SETTLE_SOURCE,
+          dedupeKey: `${HQ_ROUTING_KIND.settled}:${entry.id}`
+        }
+      ])
+      return { settled: true, entryId: entry.id, status: input.status }
     },
 
     handoff(fromSessionId, toSessionId) {
