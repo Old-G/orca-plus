@@ -1,6 +1,12 @@
 // Custom build (hq-plus-sessions): the dispatcher's sweep — handoffs nobody took up, queued work
 // that can go now, and threads with open work but no chat — listed, and on a run carried out.
-import { HQ_JOURNAL_KIND, HQ_JOURNAL_MAX_LIMIT, isHqThreadAddress } from '../../shared/hq-journal'
+import {
+  HQ_JOURNAL_ALL_ROOMS,
+  HQ_JOURNAL_KIND,
+  HQ_JOURNAL_MAX_LIMIT,
+  hqJournalTitle,
+  isHqThreadAddress
+} from '../../shared/hq-journal'
 import type { HqSessionsResult, HqSweepAction } from '../../shared/hq-sessions'
 import { journalEntryAsInput } from '../hq-journal/hq-journal-adapters'
 import { carryOutHqDispatch } from './hq-session-act'
@@ -116,7 +122,27 @@ export async function sweepHqSessions(
         const started = await deps.startHandoff(action.offerId)
         if (!started.ok) {
           deps.log(`sweep: the handoff ${action.offerId} did not start: ${started.error}`)
+          continue
         }
+        // Why: the started chat opens with the same «Continue from …» line a hand start has;
+        // the evening count of manual routing (17.11) tells them apart by this row.
+        deps.pulse.record([
+          journal.row({
+            workspace: project ? await deps.roomOf(project) : HQ_JOURNAL_ALL_ROOMS,
+            kind: HQ_JOURNAL_KIND.sessionOpen,
+            project: project ?? null,
+            address: action.address,
+            sessionId: null,
+            title: hqJournalTitle(
+              `Started the handoff of ${action.address ?? action.sessionId}: ${action.why}`
+            ),
+            needs: 'nobody',
+            status: 'done',
+            refKind: 'session',
+            refId: action.sessionId,
+            dedupeKey: `${HQ_JOURNAL_KIND.sessionOpen}:handoff:${action.offerId}`
+          })
+        ])
       } else if (action.kind === 'drain') {
         const entry = queued.find((candidate) => candidate.id === action.entryId)
         if (!entry) {
