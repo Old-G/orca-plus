@@ -4,7 +4,7 @@ import type { HqAutonomyConfig } from '../../shared/hq-autonomy'
 import { hqAutonomyFor } from '../../shared/hq-autonomy'
 import type { HqJournalEntry } from '../../shared/hq-journal'
 import { hqThreadAddress } from '../../shared/hq-journal'
-import type { HqRouteAction, HqRouting } from '../../shared/hq-routing'
+import type { HqRouteAction, HqRouteHandled, HqRouting } from '../../shared/hq-routing'
 import { hqFindingRuleFor } from './hq-routing-rules'
 
 const LEVEL = /^\[P(\d)\]/
@@ -121,6 +121,60 @@ export function planHqCodexFix(input: HqCodexFixPlanInput): HqRouteAction[] {
   })
 }
 
+/**
+ * Custom build (hq-fix-now-all): «Fix now» on a report — the owner agreed to fix all of it, so every
+ * finding no chat took yet goes, minor ones too, whatever the rules' levels and hour say. One chat per
+ * project: today's fixing chat takes more, a level-0 project asks first. A taken finding is reported
+ * as handled, with the commit it was closed with when there is one.
+ */
+export function planHqReportFix(input: {
+  now: number
+  /** The report's review.finding rows, oldest first. */
+  findings: readonly HqJournalEntry[]
+  autonomy: HqAutonomyConfig
+  today: ReadonlyMap<string, { sessionId: string; address: string }>
+  /** Commits named when a chat settled a finding, by finding id; null when it named none. */
+  settled: ReadonlyMap<string, string | null>
+}): { actions: HqRouteAction[]; handled: HqRouteHandled[] } {
+  const handled: HqRouteHandled[] = []
+  const byProject = new Map<string, { workspace: string; ids: string[] }>()
+  for (const finding of input.findings) {
+    if (!finding.project) {
+      continue
+    }
+    if (finding.address !== null || input.settled.has(finding.id)) {
+      handled.push({
+        project: finding.project,
+        title: finding.title,
+        address: finding.address,
+        commit: input.settled.get(finding.id) ?? null
+      })
+      continue
+    }
+    const group = byProject.get(finding.project) ?? { workspace: finding.workspace, ids: [] }
+    group.ids.push(finding.id)
+    byProject.set(finding.project, group)
+  }
+  const actions = [...byProject].map(([project, { workspace, ids }]): HqRouteAction => {
+    const level = hqAutonomyFor(input.autonomy, project)
+    const base = { project, workspace, findings: ids, level }
+    const today = input.today.get(project)
+    if (level === 0) {
+      return { ...base, kind: 'suggest', address: null, sessionId: null, note: 'autonomy 0' }
+    }
+    return today
+      ? { ...base, kind: 'continue', ...today, note: null }
+      : {
+          ...base,
+          kind: 'open',
+          address: hqCodexFixAddress(project, input.now),
+          sessionId: null,
+          note: null
+        }
+  })
+  return { actions, handled }
+}
+
 /** The commits the evening review read for the section holding these findings; short shas. */
 export function hqReviewedCommits(report: string, titles: readonly string[]): string[] {
   const sections = report.split(/^(?=## )/m)
@@ -140,8 +194,22 @@ const LEVEL_RULES: Readonly<Record<number, string>> = {
   3: 'Уровень проекта 3: можно влить по правилам проекта (зелёный CI на голове, ревью без блокеров).'
 }
 
+/** Custom build (hq-fix-now-all): how a fixing chat merges beside other chats of the same project. */
+function mergeRules(project: string, address: string): string[] {
+  return [
+    'Рядом могут работать другие чаты этого проекта. Перед вливанием (или пушем в общую ветку):',
+    `1. \`orca hq merge-slot take ${project}\` — занято другим чатом: подожди 2 минуты и повтори (до 30 минут);`,
+    '2. получил слот — подтяни свежую целевую ветку, сделай rebase, снова прогони тесты;',
+    `3. влей по правилам проекта, потом \`orca hq merge-slot release ${project}\` — и при ошибке тоже.`,
+    `Что меняли другие: \`orca hq events --project ${project} --since 1d\`; написать чату — \`orca chat send <адрес> "<текст>"\` (твой адрес: ${address}).`,
+    'Если вливание в целевую ветку само выкатывает прод (деплой в CI) — не вливай: открой MR и спроси владельца через `orca hq report --ask "Влить и выкатить <MR>?"`.'
+  ]
+}
+
 export function hqCodexFixPrompt(input: {
   projectName: string
+  /** The project's slug, for the merge slot and the journal. */
+  project: string
   address: string
   level: number
   findings: readonly HqJournalEntry[]
@@ -154,7 +222,7 @@ export function hqCodexFixPrompt(input: {
   return [
     `Orca+ · Codex: починить — ${input.projectName}`,
     '',
-    `Вечернее ревью Codex нашло в коммитах проекта серьёзные замечания. Нить: ${input.address}. Ты в отдельном worktree от ветки, где лежат эти коммиты.`,
+    `Ревью Codex нашло в коммитах проекта замечания. Нить: ${input.address}. Ты в отдельном worktree от ветки, где лежат эти коммиты.`,
     '',
     'Находки (текст Codex дословно, id — строка журнала):',
     '"""',
@@ -169,6 +237,8 @@ export function hqCodexFixPrompt(input: {
     '',
     LEVEL_RULES[input.level] ?? LEVEL_RULES[1],
     'Прод (деплой, живые данные, прод-флоу) и выкатку Orca+ не трогай ни при каком уровне — только после «да» владельца. Сообщения людям — только через Approve.',
+    '',
+    ...mergeRules(input.project, input.address),
     '',
     'Закрой каждую находку командой:',
     '- `orca hq settle <id> --done --commit <sha>` — починено или уже исправлено;',
