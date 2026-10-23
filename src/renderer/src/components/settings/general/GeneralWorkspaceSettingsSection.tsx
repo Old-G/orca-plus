@@ -8,6 +8,7 @@ import { SettingsSwitchRow } from '../form-controls/SettingsFormControls'
 import { WorkspaceDirectorySetting } from './WorkspaceDirectorySetting'
 import { HqDeferredSetting } from './HqDeferredSetting'
 import { HqChatCleanupSetting } from './HqChatCleanupSetting'
+import { HqFeedPopupsSetting } from './HqFeedPopupsSetting'
 import { HqJournalSetting } from './HqJournalSetting'
 import { HqSessionDispatcherSetting } from './HqSessionDispatcherSetting'
 import { HqPathSetting } from './HqPathSetting'
@@ -46,6 +47,7 @@ export function GeneralWorkspaceSettingsSection({
           <HqChatCleanupSetting settings={settings} updateSettings={updateSettings} />
           <HqJournalSetting settings={settings} updateSettings={updateSettings} />
           <HqSessionDispatcherSetting settings={settings} updateSettings={updateSettings} />
+          <HqFeedPopupsSetting settings={settings} updateSettings={updateSettings} />
           <SearchableSetting
             id={GENERAL_SETTING_ANCHORS.nesting}
             title={t('settings.general.folder.perProject', 'Folder per project')}

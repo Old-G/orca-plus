@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => {
 })
 
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
-vi.mock('@/lib/web-client-location', () => ({ isWebClientLocation: () => false }))
+vi.mock('@/app-shell/platform/web-client-location', () => ({ isWebClientLocation: () => false }))
 vi.mock('@/store', () => {
   const state = () => ({
     activeView: mocks.activeView,
@@ -41,6 +41,7 @@ vi.mock('./use-hq-spaces', () => ({
   useHqSpaces: () => ({ active: null, shows: () => true })
 }))
 vi.mock('./HqMessengerScreen', () => ({ HqMessengerScreen: () => <div>messenger view</div> }))
+vi.mock('../hq-plus/HqPlusScreen', () => ({ HqPlusScreen: () => <div>hq+ view</div> }))
 vi.mock('./HqDeferredStrip', () => ({ HqDeferredStrip: () => null }))
 vi.mock('./use-hq-deferred-sessions', () => ({
   useHqDeferredSessions: () => ({ sessions: [], close: () => {} })
