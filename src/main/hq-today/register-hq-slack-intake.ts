@@ -41,7 +41,7 @@ export function registerHqSlackIntake(
         const name = async (userId: string) =>
           people().find((person) => person.slackUserId === userId)?.name ??
           (await names.userName(userId))
-        return run(createSlackIntakeApi(token, owner, name))
+        return run(createSlackIntakeApi(token, owner, name, (userId) => names.isBot(userId)))
       }),
     raised: () =>
       new Map(
