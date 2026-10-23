@@ -7,6 +7,7 @@ import type {
   HqWhoami
 } from '../shared/hq-journal'
 import type { HqRouteActionKind, HqRouteResult } from '../shared/hq-routing'
+import type { HqWhereResult } from '../shared/hq-context'
 
 const BODY_PREVIEW = 160
 
@@ -107,4 +108,12 @@ export function formatHqRoute(result: HqRouteResult): string {
     ...(lines.length > 0 ? lines : ['Nothing to route now.']),
     ...result.problems.map((problem) => `routing.yaml: ${problem}`)
   ].join('\n')
+}
+
+/** Custom build (hq-plus-context): the knowledge map's best rows for a question. */
+export function formatHqWhere(result: HqWhereResult): string {
+  if (result.answers.length === 0) {
+    return `Nothing in ${result.file} matches; read it whole or ask the owner where this lives.`
+  }
+  return result.answers.map((answer) => `${answer.question}\n  → ${answer.where}`).join('\n')
 }
