@@ -478,6 +478,17 @@ export function HqPlusCardView({
                 {action.label}
               </button>
             ))}
+            {/* Custom build (hq-plus-side-blocks): handled outside HQ+ already — Done closes the request. */}
+            {look.kind === 'inbox' ? (
+              <button
+                type="button"
+                className="hqp-opt"
+                disabled={busy}
+                onClick={() => run(() => markHqPlusDone(card, 'done'))}
+              >
+                {translate('auto.hqPlus.queue.done', 'Done')}
+              </button>
+            ) : null}
             {look.kind === 'inbox' && onNotNow ? (
               <button type="button" className="hqp-opt" data-ghost="true" onClick={onNotNow}>
                 {translate('auto.hqPlus.notNow', 'Not now')}

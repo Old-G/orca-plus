@@ -1367,7 +1367,8 @@
   background: transparent;
   border: 0;
   border-left: 2px solid var(--hqp-src);
-  border-radius: 0;
+  /* Custom build (hq-plus-side-blocks): rounded like every other card, so its selection ring is too. */
+  border-radius: 12px;
   box-shadow: none;
 }
 .hqp-card[data-look='inbox'][data-source='clickup'] {
