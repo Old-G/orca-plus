@@ -2,7 +2,7 @@
 // with Open — the desktop banner only shows while Orca+ is in the background. A chat stopped on its
 // Claude limit pops one too, with the item's own buttons (continue on another subscription). A held
 // outgoing call pops as its whole decision card, and so does a new Slack request and a person's answer.
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   PULSE_BELL_ACTION,
@@ -28,6 +28,7 @@ import {
 import { syncHqIntakeToasts } from './hq-intake-toasts'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
+import { useHqPopupsGoToFeed } from '../hq-plus/hq-plus-popups'
 
 const TOASTED_KINDS: ReadonlySet<string> = new Set([
   PULSE_BELL_KIND.agentFinished,
@@ -64,7 +65,10 @@ function act(item: PulseInboxItem, actionId: string): void {
 
 export function usePulseBellToasts(): void {
   useHqRequestsFromPhone()
-  const items = usePulseBellInbox()
+  const inbox = usePulseBellInbox()
+  // Custom build (hq-plus-ui): with the feed on, nothing pops up; HQ+ shows each item as a card.
+  const toFeed = useHqPopupsGoToFeed()
+  const items = useMemo(() => (toFeed ? [] : inbox), [toFeed, inbox])
   // Why: null until the first list lands — items already open at launch stay in the Inbox only.
   const known = useRef<Set<string> | null>(null)
   const shown = useRef(new Set<string>())
@@ -89,8 +93,9 @@ export function usePulseBellToasts(): void {
         shown.current.delete(id)
       }
     }
-    if (known.current === null) {
-      known.current = open
+    if (known.current === null || toFeed) {
+      // Why: what the feed already showed must not pop up when the owner turns popups back on.
+      known.current = new Set(inbox.map((item) => item.id))
       return
     }
     for (const item of finished) {
@@ -120,5 +125,5 @@ export function usePulseBellToasts(): void {
         }
       })
     }
-  }, [items])
+  }, [items, inbox, toFeed])
 }
