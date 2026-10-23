@@ -138,7 +138,11 @@ export function HqPlusTakePanel({
     }
     const projectName = repoName(repoId)
     const draft = request.draft
-    if (draft && chat === HQ_ROUTE_NEW_CHAT) {
+    // Why: the scout's take path drops the owner's note and a ClickUp task's edited text; with
+    // either, the prompt path below carries both.
+    const plainTake =
+      !note.trim() && (draft?.source !== 'clickup' || text.trim() === request.text.trim())
+    if (draft && chat === HQ_ROUTE_NEW_CHAT && plainTake) {
       const slug = await slugOfRepo(repoId)
       if (slug) {
         const taken = await doHqSlackRequest({ ...draft, project: slug, description: text })
