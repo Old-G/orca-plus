@@ -4,7 +4,7 @@ import type { HqReplyRule } from '../../shared/hq-reply-routing'
 import type { PulseWaiting } from '../../shared/pulse-types'
 import { PulseDb } from '../orca-plus/pulse/pulse-db'
 import { passHqWaitingReply } from '../hq-today/hq-waiting-reply-pass'
-import { createHqReplyRouting, HQ_REPLY_HOLD_MS, type HqReplyDispatch } from './hq-routing-replies'
+import { createHqReplyRouting, HQ_REPLY_HOLD_MS } from './hq-routing-replies'
 
 const DM = 'slack:D0AAAAAAAAA:1792184200.000100'
 const LINK = 'https://acme.slack.com/archives/D0AAAAAAAAA/p1792184300000100'
@@ -27,7 +27,6 @@ let db: PulseDb
 let clock: number
 let verdict: string | null
 let chatOpen: boolean
-let dispatched: HqReplyDispatch | null
 let delivered: { sessionId: string | null; prompt: string }[]
 let judge: ReturnType<typeof vi.fn<(prompt: string) => Promise<string | null>>>
 
@@ -51,11 +50,12 @@ function routing() {
         replyTs,
         prompt
       ),
-    markDelivered: (id, ts) => void db.markWaitingReplyDelivered(id, ts),
     address: (sessionId) => (sessionId === 'chat-1' ? 'acme-api/orders' : null),
-    dispatch: async (_address, prompt) => {
-      delivered.push({ sessionId: 'dispatcher', prompt })
-      return dispatched
+    asked: (personId) => {
+      const person = db.listPeople().find((entry) => entry.id === personId)
+      return person
+        ? { slackUserId: person.slackUserId, clickupUserId: person.clickupUserId }
+        : null
     },
     roomOf: async () => 'acme',
     personName: () => 'Ann',
@@ -67,8 +67,13 @@ function routing() {
 
 let asked = 0
 
-function answered(reply: string, change: { agentSessionId?: string | null } = {}): PulseWaiting {
+function answered(
+  reply: string,
+  change: { agentSessionId?: string | null } = {},
+  authorId = 'U0ANN'
+): PulseWaiting {
   asked += 1
+  const ann = db.upsertPerson({ name: 'Ann', slackUserId: 'U0ANN' })
   const waiting = db.addWaiting({
     direction: 'on-them',
     // Why: an open waiting with the same title is the same waiting.
@@ -78,13 +83,15 @@ function answered(reply: string, change: { agentSessionId?: string | null } = {}
     source: 'slack',
     sourceRef: DM,
     agentSessionId: 'chat-1',
+    personId: ann.id,
     ...change
   })
   db.recordWaitingReply(waiting.id, {
     text: reply,
     author: 'Ann',
     ts: '1792184300.000100',
-    link: LINK
+    link: LINK,
+    authorId
   })
   const recorded = db.getWaiting(waiting.id)
   if (!recorded) {
@@ -105,7 +112,6 @@ beforeEach(() => {
   db = new PulseDb(':memory:', { now: () => clock, newId: () => `w${++id}` })
   verdict = VERDICT()
   chatOpen = true
-  dispatched = null
   delivered = []
   judge = vi.fn(async (_prompt: string) => verdict)
 })
@@ -118,6 +124,7 @@ describe('person.reply routing', () => {
     expect(first?.kind).toBe('pass')
     expect(delivered).toHaveLength(1)
     expect(delivered[0]?.prompt).toContain('routing rule')
+    expect(delivered[0]?.prompt).toContain('untrusted data')
     expect(delivered[0]?.prompt).toContain('is it the replica?')
     expect(delivered[0]?.prompt).toContain('The orders live in the reporting replica.')
     expect(db.getWaiting(waiting.id)?.replyDeliveredAt).toEqual(expect.any(Number))
@@ -174,19 +181,20 @@ describe('person.reply routing', () => {
     })
   })
 
-  it("gives a closed chat's thread to the dispatcher, else leaves a card", async () => {
+  it('never lets an unreviewed answer open a chat: a closed asking chat means a card', async () => {
     const replies = routing()
     chatOpen = false
-    dispatched = { acted: true, how: 'new', note: null }
-    const first = answered('The orders live in the reporting replica.')
-    expect((await replies.route(RULE, { dryRun: false }))[0]).toMatchObject({
-      kind: 'dispatch',
-      address: 'acme-api/orders'
-    })
-    expect(db.getWaiting(first.id)?.replyDeliveredAt).toEqual(expect.any(Number))
-    dispatched = { acted: false, how: 'new', note: 'Report mode: nothing done.' }
-    answered('The orders live in the reporting replica, yes.')
+    const waiting = answered('The orders live in the reporting replica.')
     expect((await replies.route(RULE, { dryRun: false }))[0]?.reasons).toEqual(['chat-closed'])
+    expect(delivered).toEqual([])
+    expect(db.getWaiting(waiting.id)?.replyDeliveredAt).toBeNull()
+  })
+
+  it('leaves an answer someone else wrote to the owner, before any model reads it', async () => {
+    const replies = routing()
+    answered('The orders live in the reporting replica.', {}, 'U0BOB')
+    expect((await replies.route(RULE, { dryRun: false }))[0]?.reasons).toEqual(['other-author'])
+    expect(judge).not.toHaveBeenCalled()
   })
 
   it('does nothing and asks no model without the rule; a dry run looks back over handled ones', async () => {

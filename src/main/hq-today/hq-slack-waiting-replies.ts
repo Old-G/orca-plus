@@ -266,12 +266,16 @@ async function recordWatch(
   const text = await describe(messages)
   const channel = channelOf.get(newest.ts)
   const link = channel ? await api.permalink(channel, newest.ts).catch(() => null) : null
+  // Why: the asking chat may get the answer by itself only when one known person said all of it.
+  const authors = new Set(messages.map((message) => message.user ?? ''))
+  const [onlyAuthor] = authors
   return (
     deps.recordReply(waiting.id, {
       text,
       author: names.get(newest.user ?? '') ?? null,
       ts: newest.ts,
-      link
+      link,
+      authorId: authors.size === 1 && onlyAuthor ? onlyAuthor : null
     }) !== null
   )
 }
