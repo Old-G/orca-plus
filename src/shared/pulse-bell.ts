@@ -98,6 +98,9 @@ export type FinishedAgent = {
   lastMessage: string | null
 }
 
+// Why: the journal keeps up to 4 KB of a body; the rest of a long reply stays in the chat.
+const FULL_REPLY_MAX = 4000
+
 /** One open item per pane: a newer finish replaces the older one. */
 export function agentFinishedBellItem(agent: FinishedAgent): PulseBellInput {
   const who = [agent.agentLabel, agent.place, agent.sessionTitle].filter(Boolean).join(' · ')
@@ -115,7 +118,9 @@ export function agentFinishedBellItem(agent: FinishedAgent): PulseBellInput {
       agent: agent.agentLabel,
       place: agent.place,
       title: agent.sessionTitle,
-      said: said ? said.slice(0, 300) : null
+      said: said ? said.slice(0, 300) : null,
+      // Custom build (hq-plus-ui-v5): HQ+'s chat card shows the whole reply, lines kept.
+      full: agent.lastMessage?.trim() ? agent.lastMessage.trim().slice(0, FULL_REPLY_MAX) : null
     }),
     actions: [
       { id: PULSE_BELL_ACTION.open, label: 'Open' },

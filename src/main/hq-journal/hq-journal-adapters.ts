@@ -268,7 +268,7 @@ export function finishedChatJournal(
           sessionId: chat.sessionId,
           personId: null,
           title: `${chat.title ?? chat.place ?? chat.agent ?? 'Agent'}: ${said}`,
-          body: chat.lastMessage,
+          body: chat.fullMessage ?? chat.lastMessage,
           needs: 'nobody',
           status: 'done',
           replyTo: null,

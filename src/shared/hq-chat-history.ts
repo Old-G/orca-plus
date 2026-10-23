@@ -81,7 +81,19 @@ function details(item: HqHistorySource): Details {
   return detailsFromBody(item.body)
 }
 
-export type HqFinishedChat = Omit<HqHistoryEntry, 'finishes'>
+export type HqFinishedChat = Omit<HqHistoryEntry, 'finishes'> & {
+  /** Custom build (hq-plus-ui-v5): the whole last reply with its lines, when the item kept it. */
+  fullMessage: string | null
+}
+
+function fullMessageOf(refId: string | null): string | null {
+  try {
+    const parsed: unknown = refId ? JSON.parse(refId) : null
+    return parsed && typeof parsed === 'object' ? text(Reflect.get(parsed, 'full')) : null
+  } catch {
+    return null
+  }
+}
 
 /** Custom build (hq-plus-journal): one agent-finished item as the chat and turn it names; null for
  *  any other item. */
@@ -99,7 +111,8 @@ export function readHqFinishedChat(item: HqHistorySource): HqFinishedChat | null
       ? ref.tabId.slice(STRUCTURED_TAB_PREFIX.length)
       : null,
     finishedAt: item.createdAt,
-    ...details(item)
+    ...details(item),
+    fullMessage: fullMessageOf(item.refId)
   }
 }
 

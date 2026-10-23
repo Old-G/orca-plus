@@ -7,6 +7,7 @@ import {
 } from './hq-slack-scout'
 import type { HqProjectPage } from './hq-project-pages'
 import type { PulseBellInput } from './pulse-bell'
+import { hqSourceService } from './hq-source-link'
 
 export const HQ_SLACK_REQUEST_BELL_KIND = 'slack-request'
 
@@ -45,7 +46,18 @@ export function hqProjectShortName(page: Pick<HqProjectPage, 'slug' | 'title'>):
   return page.title?.split(' — ')[0]?.trim() || page.slug
 }
 
-export type HqSlackRequestRef = { id: string; kind: HqSlackRequestKind }
+export type HqSlackRequestRef = { id: string; kind: HqSlackRequestKind; link?: string }
+
+/** The Slack message or ClickUp task a request came from, when the scout recorded it. */
+function sourceLinkOf(draft: HqSlackScoutDraft): string | null {
+  const permalink = draft.permalink?.trim()
+  if (permalink && hqSourceService(permalink)) {
+    return permalink
+  }
+  return draft.clickupTaskId
+    ? `https://app.clickup.com/t/${encodeURIComponent(draft.clickupTaskId)}`
+    : null
+}
 
 /** Short stable hash, so a corrected request replaces its bell item instead of keeping the old text. */
 function contentKey(text: string): string {
@@ -67,7 +79,9 @@ export function slackRequestBellItem(
     .join(' · ')
   const quote = draft.quote.replace(/\s+/g, ' ').trim()
   const why = draft.why?.replace(/\s+/g, ' ').trim()
-  const ref: HqSlackRequestRef = { id: draft.id, kind }
+  // Custom build (hq-plus-ui-v5): where the request lives, so its card can open the thread or task.
+  const link = sourceLinkOf(draft)
+  const ref: HqSlackRequestRef = { id: draft.id, kind, ...(link ? { link } : {}) }
   const title = draft.author ? `${draft.author}: ${ask}` : ask
   // Custom build (hq-scout-context): the scout's reason says more than the quote does.
   const second = why ? `→ ${why.slice(0, 200)}` : quote ? `«${quote.slice(0, 200)}»` : null
