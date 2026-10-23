@@ -253,7 +253,15 @@ export function claudeLimitsAccountId(limits: ProviderRateLimits): string | null
   if (!provenance) {
     return undefined
   }
-  return provenance.startsWith('managed:') ? provenance.slice('managed:'.length) : null
+  if (provenance.startsWith('managed:')) {
+    return provenance.slice('managed:'.length)
+  }
+  // Why: since per-account Claude folders a reading names its account as `profile:<id>[:wsl:<distro>]`.
+  if (provenance.startsWith('profile:')) {
+    const accountId = provenance.slice('profile:'.length).split(':')[0]
+    return accountId && accountId !== 'unavailable' ? accountId : undefined
+  }
+  return null
 }
 
 /** Custom build (hq-clickup-review): what is left of the active account's tighter window; null when
