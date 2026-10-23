@@ -29,7 +29,9 @@ export const HqSpaceSchema = z.object({
   git: z
     .object({ name: z.string().max(100), email: z.string().max(200) })
     .nullable()
-    .optional()
+    .optional(),
+  /** Custom build (hq-plus-room-mcp): MCP servers its chats start without (`mcp: { deny: [...] }`). */
+  mcpDeny: z.array(z.string().max(100)).max(64).optional()
 })
 export type HqSpace = z.infer<typeof HqSpaceSchema>
 
@@ -53,6 +55,8 @@ export type HqSpaceFile = {
   git: HqSpaceGitAuthor | null
   /** Custom build (hq-plus-journal): `default: true` — where HQ projects no workspace claims belong. */
   isDefault: boolean
+  /** Custom build (hq-plus-room-mcp): `mcp: { deny: [...] }`, as written. */
+  mcpDeny: string[]
 }
 
 export type HqSpaceGitAuthor = { name: string; email: string }
@@ -76,6 +80,13 @@ function stringList(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === 'string' && entry.trim() !== '')
     : []
+}
+
+function readMcpDeny(value: unknown): string[] {
+  const deny = value && typeof value === 'object' ? Reflect.get(value, 'deny') : undefined
+  return stringList(deny)
+    .map((entry) => entry.trim().slice(0, 100))
+    .slice(0, 64)
 }
 
 /** A parsed `workspace.yaml`; anything malformed falls back field by field. */
@@ -103,7 +114,8 @@ export function readHqSpaceFile(slug: string, data: unknown): HqSpaceFile | null
     messenger: source('messenger'),
     tasks: source('tasks'),
     git: readGitAuthor(field('git')),
-    isDefault: field('default') === true
+    isDefault: field('default') === true,
+    mcpDeny: readMcpDeny(field('mcp'))
   }
 }
 
@@ -135,7 +147,8 @@ export function resolveHqSpaces(
         projects: [...new Set([...mine.map((project) => project.slug), ...file.projects])].sort(),
         messenger: file.messenger,
         tasks: file.tasks,
-        git: file.git
+        git: file.git,
+        ...(file.mcpDeny.length ? { mcpDeny: file.mcpDeny } : {})
       }
     })
 }
