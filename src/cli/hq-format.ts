@@ -135,7 +135,7 @@ export function formatHqRoute(result: HqRouteResult): string {
         ? 'left for the owner'
         : reply.kind === 'wait'
           ? 'waits'
-          : `${result.dryRun ? 'would pass' : 'passed'} to ${where}${reply.kind === 'dispatch' ? ' via the dispatcher' : ''}`
+          : `${result.dryRun ? 'would pass' : 'passed'} to ${where}`
     const why = reply.note ? ` — ${reply.note}` : reply.answered ? ` (${reply.answered})` : ''
     return `answer · ${reply.author} on «${reply.question.slice(0, 60)}»: ${verb}${why}`
   })

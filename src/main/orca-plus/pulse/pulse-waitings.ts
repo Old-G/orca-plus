@@ -39,7 +39,8 @@ function toWaiting(row: SqliteRow): PulseWaiting {
     replyTs: optionalText(row, 'reply_ts'),
     repliedAt: optionalInteger(row, 'replied_at'),
     replyDeliveredAt: optionalInteger(row, 'reply_delivered_at'),
-    replyLink: optionalText(row, 'reply_link')
+    replyLink: optionalText(row, 'reply_link'),
+    replyAuthorId: optionalText(row, 'reply_author_id')
   }
 }
 
@@ -204,12 +205,13 @@ export function recordWaitingReply(
       replyTs: reply.ts,
       repliedAt: core.clock.now(),
       replyDeliveredAt: null,
-      replyLink: reply.link ?? null
+      replyLink: reply.link ?? null,
+      replyAuthorId: reply.authorId ?? null
     }
     core.db
       .prepare(
         'UPDATE waitings SET reply = ?, reply_author = ?, reply_ts = ?, replied_at = ?, ' +
-          'reply_delivered_at = NULL, reply_link = ? WHERE id = ?'
+          'reply_delivered_at = NULL, reply_link = ?, reply_author_id = ? WHERE id = ?'
       )
       .run(
         replied.reply,
@@ -217,6 +219,7 @@ export function recordWaitingReply(
         replied.replyTs,
         replied.repliedAt,
         reply.link ?? null,
+        reply.authorId ?? null,
         id
       )
     core.emit('waiting.replied', 'waiting', id, replied)
