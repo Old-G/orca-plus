@@ -71,7 +71,8 @@ export const HQ_JOURNAL_METHODS = [
         needs: params.needs,
         kind: params.kind,
         limit: params.limit,
-        room: params.room
+        room: params.room,
+        text: params.query
       })
   }),
   // Custom build (hq-plus-reports): a turn's report, a thread, a message into another chat's thread.

@@ -19,6 +19,7 @@ import { readHqSpacePlacing, type HqSpacePlacing } from '../hq-today/hq-spaces'
 import { collectHqJournal, type HqJournalPulse } from './hq-journal-collect'
 import {
   hqCallerScope,
+  hqPlaceOf,
   type HqCaller,
   type HqCallerScope,
   type HqRoomSources
@@ -48,6 +49,8 @@ export type HqEventsRequest = HqCaller & {
   kind?: string
   limit?: number
   room?: string
+  /** Custom build (hq-plus-ask): only rows holding every word. */
+  text?: string
 }
 
 export type HqJournalService = {
@@ -182,7 +185,8 @@ export function createHqJournalService(deps: HqJournalServiceDeps): HqJournalSer
         // Why: a settled row is nobody's move any more, whoever it once waited on.
         status: needs && needs !== 'nobody' ? 'open' : undefined,
         kind: request.kind,
-        limit: request.limit
+        limit: request.limit,
+        text: request.text
       }
       if (scope.kind === 'overview' && !request.room) {
         return { scope: 'overview', headers: deps.pulse.list(query).map(header) }
@@ -192,14 +196,24 @@ export function createHqJournalService(deps: HqJournalServiceDeps): HqJournalSer
           `This chat works in room ${scope.room}; only HQ+ reads another room's entries.`
         )
       }
-      const room = request.room ?? (scope.kind === 'room' ? scope.room : HQ_JOURNAL_UNASSIGNED)
       const known = [
         HQ_JOURNAL_ALL_ROOMS,
         HQ_JOURNAL_UNASSIGNED,
         ...roomSources.spaces.map((space) => space.slug)
       ]
+      // Custom build (hq-plus-ask): agents often pass the project they saw in a heading as the room.
+      const asProject =
+        scope.kind === 'overview' && request.room && !known.includes(request.room)
+          ? hqPlaceOf(roomSources, { project: request.room })
+          : null
+      if (asProject && asProject.room !== HQ_JOURNAL_UNASSIGNED) {
+        query.project ??= asProject.project ?? request.room
+      }
+      const room =
+        (asProject && asProject.room !== HQ_JOURNAL_UNASSIGNED ? asProject.room : request.room) ??
+        (scope.kind === 'room' ? scope.room : HQ_JOURNAL_UNASSIGNED)
       if (!known.includes(room)) {
-        throw new Error(`No room ${room}; rooms: ${known.join(', ')}`)
+        throw new Error(`No room or project ${room}; rooms: ${known.join(', ')}`)
       }
       if (scope.kind === 'overview' && deps.enabled()) {
         // Why: HQ+ reading one room in full is itself an event the owner can look back on.
