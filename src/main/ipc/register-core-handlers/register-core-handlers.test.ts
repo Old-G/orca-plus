@@ -493,6 +493,10 @@ vi.mock('../../orca-plus/pulse-bell/register-pulse-bell', () => ({
 
 vi.mock('../../hq-today/hq-morning-briefing', () => ({ startHqMorningBriefing: vi.fn() }))
 
+vi.mock('../../hq-journal/register-hq-journal', () => ({ registerHqJournal: vi.fn() }))
+
+vi.mock('../../hq-routing/register-hq-routing', () => ({ registerHqRouting: vi.fn() }))
+
 vi.mock('../../orca-plus/outgoing-approval/register-outgoing-approval', () => ({
   registerOutgoingApproval: registerOutgoingApprovalMock
 }))
