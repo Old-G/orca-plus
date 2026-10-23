@@ -250,7 +250,8 @@ export function registerPulseBell(
     onChanged: onPulseChanged,
     now: Date.now,
     // Custom build (hq-plus-person-replies): answers the routing rule is judging, or left with a reason.
-    replyNote: (waiting) => getHqReplyRouting()?.note(waiting) ?? { hold: false, why: null }
+    // Why: the answer's card shows at once, as it always did; the rule only adds why it was left.
+    replyNote: (waiting) => ({ hold: false, why: getHqReplyRouting()?.note(waiting).why ?? null })
   })
   // Custom build (hq-clickup-waiting): answers to questions asked in ClickUp comments, the same way.
   const clickUpTaskIds = new Map<string, string>()
