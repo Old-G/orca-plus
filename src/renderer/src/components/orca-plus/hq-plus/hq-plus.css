@@ -1547,6 +1547,32 @@
   color: var(--hqp-faint);
   padding: 6px 6px 4px;
 }
+/* the owner's move: the amber frame whatever it came from — Approve and Reply keep only their badge */
+.hqp-card[data-look='move'][data-open='true'] {
+  background:
+    linear-gradient(180deg, #132232, #0c1924) padding-box,
+    var(--hqp-edge-move) border-box;
+}
+.hqp-side-sec[data-list='waiting'] {
+  max-height: 46vh;
+  overflow: auto;
+}
+.hqp-wq > span:last-child {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.hqp-chatc[data-picked='true'] {
+  border-color: var(--hqp-line-2);
+  background: color-mix(in srgb, var(--hqp-ice) 6%, var(--hqp-card));
+}
+/* an open chat fills the panel, its composer at the bottom */
+.hqp-pane:has(.hqp-chat),
+.hqp-pv:has(> .hqp-chat) {
+  height: 100%;
+  overflow: hidden;
+}
 @media (max-width: 1220px) {
   .hqp-body > .hqp-resize {
     display: none;

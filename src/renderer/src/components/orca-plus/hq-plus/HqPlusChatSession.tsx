@@ -8,8 +8,12 @@ import { HqChatBody } from '../hq/HqChatPane'
 import { HqProjectHistoryList } from '../hq/HqProjectHistoryList'
 import { useHqProjectHistory } from '../hq/use-hq-project-history'
 import type { HqPlusTile } from './HqPlusSide'
+import type { HqPlusBadge } from '../../../../../shared/hq-plus-kinds'
+import { HqPlusBadges } from './HqPlusBadge'
 
-function tileStyle(color: string | null): (React.CSSProperties & Record<'--hqp-room', string>) | undefined {
+function tileStyle(
+  color: string | null
+): (React.CSSProperties & Record<'--hqp-room', string>) | undefined {
   return color ? { '--hqp-room': color } : undefined
 }
 
@@ -74,6 +78,7 @@ function History({
 export function HqPlusChatSession({
   item,
   tile,
+  status,
   color,
   siblings,
   onPick,
@@ -81,6 +86,7 @@ export function HqPlusChatSession({
 }: {
   item: HqChatItem
   tile: HqPlusTile
+  status: HqPlusBadge | null
   color: string | undefined
   /** The project's chats open as tabs, this one included. */
   siblings: readonly HqChatItem[]
@@ -98,6 +104,7 @@ export function HqPlusChatSession({
         <span className="t" title={title}>
           {title}
         </span>
+        {status ? <HqPlusBadges badges={[status]} /> : null}
         <button
           type="button"
           className="hqp-pill"

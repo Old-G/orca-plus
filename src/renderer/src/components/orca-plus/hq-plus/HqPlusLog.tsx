@@ -24,6 +24,8 @@ export type HqPlusLogContext = {
   chatStatus: (sessionId: string | null) => HqPlusBadge | null
   /** The project's own colour, the same as in the chat list; null leaves the room's. */
   projectColor: (project: string | null) => string | null
+  /** True for the chat open on the right, so its card stands out. */
+  isOpenChat: (sessionId: string | null) => boolean
 }
 
 export function hqPlusThreadKey(item: {
@@ -92,9 +94,7 @@ function LogItem({
           <button
             type="button"
             className="hqp-link"
-            onClick={() =>
-              void runPulseBellAction(bell, action.id).then(() => ctx.onChanged())
-            }
+            onClick={() => void runPulseBellAction(bell, action.id).then(() => ctx.onChanged())}
           >
             {action.label}
           </button>
@@ -119,7 +119,11 @@ function LogItem({
     return (
       <div className="hqp-m" id={`hqp-${item.id}`}>
         {tile}
-        <div className="hqp-chatc" data-flash={flash ? 'true' : undefined}>
+        <div
+          className="hqp-chatc"
+          data-flash={flash ? 'true' : undefined}
+          data-picked={ctx.isOpenChat(item.sessionId) ? 'true' : undefined}
+        >
           <div className="hqp-row-h">
             <HqPlusBadges badges={look.badges} />
             <strong>{item.project ?? 'HQ'}</strong>
@@ -128,11 +132,11 @@ function LogItem({
             {status ? <HqPlusBadges badges={[status]} /> : null}
           </div>
           <HqPlusText text={item.title} maxLines={3} />
-          {key || openChat ? (
+          {item.address || openChat ? (
             <div className="hqp-row-f">
-              {key ? (
+              {key && item.address ? (
                 <button type="button" className="hqp-addr" onClick={() => ctx.onScope(key)}>
-                  {item.address ?? translate('auto.hqPlus.thread', 'thread')}
+                  {item.address}
                 </button>
               ) : null}
               <span className="hqp-spacer" />
@@ -170,7 +174,7 @@ function LogItem({
           hqPath={ctx.hqPath}
           hqWorktreeId={ctx.hqWorktreeId}
           when={clock(item.at)}
-          threadLabel={key ? (item.address ?? translate('auto.hqPlus.thread', 'thread')) : null}
+          threadLabel={key && item.address ? item.address : null}
           onThread={key ? () => ctx.onScope(key) : null}
           onOpenChat={openChat}
           onOpenReport={ctx.onOpenReport}
