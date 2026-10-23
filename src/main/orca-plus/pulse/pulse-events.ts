@@ -5,7 +5,7 @@ import type { PulseEvent } from '../../../shared/pulse-types'
 import type { PulseCore } from './pulse-core'
 import { integer, oneOf, text } from './pulse-row-fields'
 
-const ENTITIES = ['person', 'waiting', 'draft', 'decision', 'inbox'] as const
+const ENTITIES = ['person', 'waiting', 'draft', 'decision', 'inbox', 'journal'] as const
 const MAX_PAGE = 500
 
 function toEvent(row: SqliteRow): PulseEvent {

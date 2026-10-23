@@ -51,6 +51,8 @@ export type HqSpaceFile = {
   messenger: string | null
   tasks: string | null
   git: HqSpaceGitAuthor | null
+  /** Custom build (hq-plus-journal): `default: true` — where HQ projects no workspace claims belong. */
+  isDefault: boolean
 }
 
 export type HqSpaceGitAuthor = { name: string; email: string }
@@ -100,7 +102,8 @@ export function readHqSpaceFile(slug: string, data: unknown): HqSpaceFile | null
     order: typeof order === 'number' ? order : 100,
     messenger: source('messenger'),
     tasks: source('tasks'),
-    git: readGitAuthor(field('git'))
+    git: readGitAuthor(field('git')),
+    isDefault: field('default') === true
   }
 }
 
