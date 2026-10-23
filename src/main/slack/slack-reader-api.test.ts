@@ -83,6 +83,45 @@ describe('createSlackIntakeApi', () => {
     requestMock.mockReset()
   })
 
+  it('skips mentions from bots and apps, keeps people', async () => {
+    requestMock.mockReset()
+    requestMock.mockResolvedValueOnce({
+      ok: true,
+      messages: {
+        matches: [
+          {
+            channel: { id: 'C1' },
+            ts: '1792600010.000100',
+            user: 'UALERT',
+            text: '<@UOWNER> path was dead'
+          },
+          {
+            channel: { id: 'C1' },
+            ts: '1792600011.000100',
+            user: 'UAPP',
+            bot_id: 'B1',
+            text: '<@UOWNER> deploy done'
+          },
+          {
+            channel: { id: 'C1' },
+            ts: '1792600012.000100',
+            user: 'UANN',
+            text: '<@UOWNER> please look'
+          }
+        ]
+      }
+    })
+    const api = createSlackIntakeApi(
+      'xoxp-1',
+      'UOWNER',
+      async (id) => id,
+      async (id) => id === 'UALERT'
+    )
+    const drafts = await api.mentioned(0)
+    expect(drafts.map((draft) => draft.authorSlackId)).toEqual(['UANN'])
+    requestMock.mockReset()
+  })
+
   it('collects each link once', () => {
     expect(slackTextLinks('<https://a.dev/x|x> and <https://a.dev/x> <mailto:a@b.c|a>')).toEqual([
       'https://a.dev/x'
