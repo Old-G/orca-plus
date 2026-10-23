@@ -2,6 +2,7 @@
 // in the feed), what we wait for from people, the FYI pile to clear in one go, the live chats (the same
 // list the classic HQ shows, so a chat started a second ago is there), and three plain numbers.
 import { useState } from 'react'
+import { readHqPlusViewState, saveHqPlusViewState } from './hq-plus-view-state'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
 import type { HqPlusScreenStats } from '../../../../../shared/hq-plus-screen'
@@ -129,7 +130,12 @@ export function HqPlusSide({
   onPickChat: (item: HqChatItem) => void
   onClearFyi: () => void
 }): React.JSX.Element {
-  const [showIdle, setShowIdle] = useState(false)
+  // Custom build (hq-plus-ui-v5): the Idle fold stays as the owner left it.
+  const [showIdle, setShowIdleState] = useState(() => readHqPlusViewState().showIdle)
+  const setShowIdle = (next: boolean): void => {
+    setShowIdleState(next)
+    saveHqPlusViewState({ showIdle: next })
+  }
   const now = queue.now
   // Custom build (hq-plus-ui-v3): on top what works, waits or is unread; the read, finished ones fold.
   const idle = chats.filter((item) => hqPlusChatIsIdle(item, now))

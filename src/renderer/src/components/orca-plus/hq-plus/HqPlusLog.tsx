@@ -1,6 +1,7 @@
 // Custom build (hq-plus-ui): the conversation with HQ — oldest at the top, newest at the bottom, and it
 // follows the bottom unless the owner scrolled up to read; then a «↓ new: N» button brings it back.
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { readHqPlusViewState, saveHqPlusViewState } from './hq-plus-view-state'
 import { hqPlusNotNowKey, type HqPlusLogItem } from '../../../../../shared/hq-plus-log'
 import { hqPlusLook, type HqPlusBadge } from '../../../../../shared/hq-plus-kinds'
 import { translate } from '@/i18n/i18n'
@@ -211,7 +212,9 @@ export function HqPlusLog({
   ctx: HqPlusLogContext
 }): React.JSX.Element {
   const log = useRef<HTMLDivElement>(null)
-  const atBottom = useRef(true)
+  // Custom build (hq-plus-ui-v5): a feed left scrolled up comes back at the same spot.
+  const restore = useRef(readHqPlusViewState().fromBottom)
+  const atBottom = useRef(restore.current === null)
   const seen = useRef(items.length)
   const [unseen, setUnseen] = useState(0)
 
@@ -221,6 +224,11 @@ export function HqPlusLog({
     const added = items.length - seen.current
     seen.current = items.length
     if (!element || added <= 0) {
+      return
+    }
+    if (restore.current !== null && seen.current === added) {
+      element.scrollTop = element.scrollHeight - element.clientHeight - restore.current
+      restore.current = null
       return
     }
     if (atBottom.current) {
@@ -247,9 +255,17 @@ export function HqPlusLog({
 
   useLayoutEffect(() => {
     const element = log.current
-    if (element) {
+    if (!element) {
+      return
+    }
+    if (restore.current !== null && items.length > 0) {
+      element.scrollTop = element.scrollHeight - element.clientHeight - restore.current
+      restore.current = null
+    } else if (restore.current === null) {
       element.scrollTop = element.scrollHeight
     }
+    // Why: only the first paint restores; later growth follows the usual rules.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
@@ -262,6 +278,11 @@ export function HqPlusLog({
           const bottom =
             element.scrollHeight - element.scrollTop - element.clientHeight < BOTTOM_SLACK_PX
           atBottom.current = bottom
+          saveHqPlusViewState({
+            fromBottom: bottom
+              ? null
+              : element.scrollHeight - element.scrollTop - element.clientHeight
+          })
           if (bottom) {
             setUnseen(0)
           }
