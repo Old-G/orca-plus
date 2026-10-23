@@ -13,6 +13,7 @@ import {
   hqChatSessionId,
   type HqChatCleanupCandidate
 } from './hq-chat-cleanup'
+import { hqFlavor } from '../hq-plus/hq-plus-flavor'
 import { hqChatKey } from './hq-chat-list'
 import { isHqChatShown } from './hq-chat-open'
 import { useHqChatList } from './use-hq-chat-list'
@@ -106,8 +107,9 @@ function Cleanup(): null {
       const closed: HqChatCleanupCandidate[] = []
       if (mode === 'on') {
         for (const candidate of found) {
-          // Custom build (hq-plus-sessions): a chat whose last turn is not in the journal stays open.
-          const sessionId = hqChatSessionId(candidate.item.tab.id)
+          // Custom build (hq-plus-sessions): a chat whose last turn is not in the journal stays open
+          // — under HQ+ only; the classic HQ closes as it always did.
+          const sessionId = hqFlavor() === 'plus' ? hqChatSessionId(candidate.item.tab.id) : null
           const allowed = sessionId
             ? await window.api.hqProjects.mayCloseChat?.({ sessionId }).catch(() => null)
             : null

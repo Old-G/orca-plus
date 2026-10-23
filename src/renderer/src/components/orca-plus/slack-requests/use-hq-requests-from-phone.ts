@@ -11,6 +11,7 @@ import { useAppStore } from '@/store'
 import { startHqReportDecisions } from '../hq/hq-ask-chat'
 import { findHqWorktreeId } from '../hq/hq-today-actions'
 import { openHqRouteChat } from '../pulse-bell/hq-route-send'
+import { hqFlavor } from '../hq-plus/hq-plus-flavor'
 
 const warn = (error: unknown): void =>
   console.warn('[hq-mobile] request from the phone failed:', error)
@@ -54,7 +55,10 @@ export function useHqRequestsFromPhone(): void {
     })
     // Custom build (hq-plus-reports)
     const offReopen = window.api.hqProjects.onReopenChat?.((chat) => {
-      void openHqRouteChat(chat).catch(warn)
+      // Why: only HQ+ brings back a chat another chat wrote to; the classic HQ leaves it closed.
+      if (hqFlavor() === 'plus') {
+        void openHqRouteChat(chat).catch(warn)
+      }
     })
     return () => {
       offRequest?.()

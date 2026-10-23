@@ -72,13 +72,11 @@ function LogItem({
   }
   const key = hqPlusThreadKey(item)
   const color = ctx.roomColor(item.room)
+  // Why: a chat's line opens that chat on the right, to read on and write into it from HQ+.
+  const openLine = item.kind === 'line' ? ctx.openChat(item.sessionId) : null
   return (
     <div className="hqp-m" id={`hqp-${item.id}`}>
-      <span
-        className="hqp-tile"
-        style={color ? roomStyle(color) : undefined}
-        aria-hidden="true"
-      >
+      <span className="hqp-tile" style={color ? roomStyle(color) : undefined} aria-hidden="true">
         {tileOf(item.project)}
       </span>
       <div className="b">
@@ -87,13 +85,17 @@ function LogItem({
             {translate('auto.hqPlus.tag.person', 'person')}
           </span>
         ) : null}
-        <strong>{item.project ?? 'HQ'}:</strong>{' '}
-        {item.kind === 'line' ? item.title : null}
+        <strong>{item.project ?? 'HQ'}:</strong> {item.kind === 'line' ? item.title : null}
         {item.kind === 'card' && item.type !== 'move' ? item.title : null}
         <span className="hqp-tm">{clock(item.at)}</span>
         {key ? (
           <button type="button" className="hqp-addr" onClick={() => ctx.onScope(key)}>
             {item.address ?? translate('auto.hqPlus.thread', 'thread')}
+          </button>
+        ) : null}
+        {openLine ? (
+          <button type="button" className="hqp-addr" onClick={openLine}>
+            {translate('auto.hqPlus.open', 'Open')}
           </button>
         ) : null}
         {item.kind === 'card' ? (

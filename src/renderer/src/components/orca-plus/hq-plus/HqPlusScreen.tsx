@@ -26,8 +26,16 @@ import { useHqSpaces } from '../hq/use-hq-spaces'
 import { useHqProjectPages } from '../hq/use-hq-project-pages'
 import { findHqWorktreeId } from '../hq/hq-today-actions'
 import { HqCommandBox } from '../hq/HqCommandBox'
-import { switchHqToCode } from '../hq/hq-chat-actions'
-import { openHqScreen } from '../hq/hq-view'
+import {
+  acknowledgeHqChat,
+  openHqChatInProject,
+  setShownHqChat,
+  switchHqToCode
+} from '../hq/hq-chat-actions'
+import { rememberedHqChat } from '../hq/hq-chat-open'
+import { HqChatPane } from '../hq/HqChatPane'
+import { useHqChatList, useHqProjectColor } from '../hq/use-hq-chat-list'
+import { onHqTabRequested, openHqScreen, takeRequestedHqTab } from '../hq/hq-view'
 import { PulseBellButton } from '../pulse-bell/PulseBellButton'
 import { openHqRouteChat } from '../pulse-bell/hq-route-send'
 import { HqPlusLog, hqPlusThreadKey, type HqPlusLogContext } from './HqPlusLog'
@@ -40,16 +48,16 @@ import { setHqFlavor } from './hq-plus-flavor'
 import { useHqPlusData } from './use-hq-plus-data'
 import { putOffHqPlusCard, readHqPlusNotNow } from './hq-plus-not-now'
 import { HqPlusThreadComposer } from './HqPlusThreadComposer'
+import { hqPlusChatOfSession, hqPlusSideChats } from './hq-plus-chats'
 import './hq-plus.css'
 
 const TICK_MS = 30_000
 const FLASH_MS = 1800
-/** Live chats first; the rest is in History. */
-const SIDE_SESSIONS = 6
-const TABS = ['graph', 'river', 'session', 'report'] as const
+const TABS = ['chat', 'graph', 'river', 'session', 'report'] as const
 type Tab = (typeof TABS)[number]
 
 const TAB_LABEL: Record<Tab, [string, string]> = {
+  chat: ['auto.hqPlus.tab.chat', 'Chat'],
   graph: ['auto.hqPlus.tab.graph', 'Graph'],
   river: ['auto.hqPlus.tab.river', 'River'],
   session: ['auto.hqPlus.tab.session', 'Session'],
@@ -82,6 +90,13 @@ export function HqPlusScreen(): React.JSX.Element {
   const [tab, setTab] = useState<Tab>('graph')
   const [wide, setWide] = useState(false)
   const [reportPath, setReportPath] = useState<string | null>(null)
+  // Custom build (hq-plus-ui): the chat open on the right — picked on the left, «Open» in the log, or a
+  // chat started from HQ (the sidebar's new chat asks HQ to show it, as the classic HQ does).
+  const [chatKey, setChatKey] = useState<string | null>(() =>
+    takeRequestedHqTab() === 'chats' ? rememberedHqChat() : null
+  )
+  const { items: chatItems } = useHqChatList()
+  const colorFor = useHqProjectColor()
   const [flashId, setFlashId] = useState<string | null>(null)
 
   const room = spaces.active?.slug ?? null
@@ -160,21 +175,25 @@ export function HqPlusScreen(): React.JSX.Element {
     return counts
   }, [all])
 
-  const sessions = useMemo(
+  const roomOfRepo = useMemo(() => {
+    const rooms = new Map<string, string>()
+    if (pages.status === 'ready') {
+      for (const page of pages.pages) {
+        const pageRoom = roomOfProject.get(page.slug)
+        if (pageRoom) {
+          rooms.set(page.repoId, pageRoom)
+        }
+      }
+    }
+    return rooms
+  }, [pages, roomOfProject])
+  const sideChats = useMemo(
     () =>
-      (data.sessions?.sessions ?? [])
-        .filter(
-          (session) =>
-            session.state !== 'closed' &&
-            (!room || session.workspace === room || session.workspace === HQ_PLUS_ANY_ROOM)
-        )
-        .sort(
-          (a, b) =>
-            Number(b.state !== 'done') - Number(a.state !== 'done') ||
-            b.lastActivityAt - a.lastActivityAt
-        )
-        .slice(0, SIDE_SESSIONS),
-    [data.sessions, room]
+      hqPlusSideChats(
+        chatItems.filter((item) => !room || (roomOfRepo.get(item.repoId) ?? room) === room),
+        now
+      ),
+    [chatItems, room, roomOfRepo, now]
   )
   const names = useMemo(
     () => new Map(data.people.map((person) => [person.id, person.name])),
@@ -223,25 +242,23 @@ export function HqPlusScreen(): React.JSX.Element {
     sessionId
       ? (data.sessions?.sessions.find((session) => session.sessionId === sessionId) ?? null)
       : null
+  const showChat = (key: string): void => {
+    setChatKey(key)
+    setTab('chat')
+    acknowledgeHqChat(chatItems.find((item) => item.key === key))
+  }
   const openChat = (sessionId: string | null): (() => void) | null => {
+    const listed = hqPlusChatOfSession(chatItems, sessionId)
+    if (listed) {
+      return () => showChat(listed.key)
+    }
     const live = liveOf(sessionId)
     if (!live?.worktreeId) {
       return null
     }
     const chat = { worktreeId: live.worktreeId, sessionId: live.sessionId }
-    return () => {
-      setHqFlavor('classic')
-      void openHqRouteChat(chat)
-    }
-  }
-  const pickSession = (session: HqLiveSession): void => {
-    setPick({
-      project: session.project,
-      address: session.address,
-      sessionId: session.sessionId,
-      name: session.name
-    })
-    setTab('session')
+    // Why: a closed chat comes back first; reopening asks HQ to show it, which lands on the right.
+    return () => void openHqRouteChat(chat)
   }
   const pickProject = (project: string, sessionId: string | null): void => {
     const live = liveOf(sessionId)
@@ -301,6 +318,25 @@ export function HqPlusScreen(): React.JSX.Element {
     onChanged: data.reload
   }
   const pickKey = pick ? hqPlusThreadKey(pick) : null
+  const chatItem = chatKey ? (chatItems.find((item) => item.key === chatKey) ?? null) : null
+  const shownChat = tab === 'chat' ? chatItem : null
+  useEffect(
+    () =>
+      onHqTabRequested((requested) => {
+        const key = requested === 'chats' ? rememberedHqChat() : null
+        if (key) {
+          takeRequestedHqTab()
+          setChatKey(key)
+          setTab('chat')
+        }
+      }),
+    []
+  )
+  // Why: the chat on the right counts as shown, so its own news needs no popup (as in the classic HQ).
+  useEffect(() => {
+    setShownHqChat(shownChat)
+    return () => setShownHqChat(null)
+  }, [shownChat])
   const scopedItem = scope ? all.findLast((item) => hqPlusThreadKey(item) === scope) : undefined
   // Why: a thread without an address is keyed by its session id, which means nothing to the owner.
   const scopeLabel =
@@ -308,7 +344,9 @@ export function HqPlusScreen(): React.JSX.Element {
     (scopedItem?.project
       ? `${scopedItem.project} · ${liveOf(scopedItem.sessionId)?.name ?? translate('auto.hqPlus.chat', 'chat')}`
       : (scope ?? ''))
-  const tabs = TABS.filter((name) => name !== 'report' || reportPath)
+  const tabs = TABS.filter(
+    (name) => (name !== 'report' || reportPath) && (name !== 'chat' || chatKey)
+  )
   const unreviewed = data.sessions?.unreviewed ?? null
 
   return (
@@ -409,13 +447,13 @@ export function HqPlusScreen(): React.JSX.Element {
       <div className="hqp-body" data-wide={wide ? 'true' : undefined}>
         <HqPlusSide
           waiting={waiting}
-          sessions={sessions}
+          chats={sideChats}
           stats={data.stats}
-          picked={pick?.sessionId ?? null}
+          picked={tab === 'chat' ? chatKey : null}
           now={now}
           roomColor={roomColor}
           onJump={jump}
-          onPickSession={pickSession}
+          onPickChat={(item) => showChat(item.key)}
         />
 
         <main
@@ -506,8 +544,32 @@ export function HqPlusScreen(): React.JSX.Element {
             </button>
           </div>
           <div className="hqp-pane" role="tabpanel">
-            <div className="hqp-pv" key={tab === 'session' ? `session:${pickKey ?? ''}` : tab}>
-              {tab === 'graph' ? (
+            <div
+              className="hqp-pv"
+              key={
+                tab === 'session'
+                  ? `session:${pickKey ?? ''}`
+                  : tab === 'chat'
+                    ? `chat:${chatKey ?? ''}`
+                    : tab
+              }
+            >
+              {tab === 'chat' ? (
+                chatItem ? (
+                  <div className="hqp-chat flex h-full min-h-0 flex-col">
+                    <HqChatPane
+                      item={chatItem}
+                      color={colorFor(chatItem.repoId)}
+                      onOpenProject={openHqChatInProject}
+                      onBack={() => setTab('graph')}
+                    />
+                  </div>
+                ) : (
+                  <p className="hqp-empty">
+                    {translate('auto.hqPlus.chat.starting', 'The chat is starting…')}
+                  </p>
+                )
+              ) : tab === 'graph' ? (
                 <HqPlusGraph
                   graph={graph}
                   roomColor={roomColor}
