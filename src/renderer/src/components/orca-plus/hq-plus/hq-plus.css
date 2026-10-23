@@ -2445,3 +2445,13 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 .hqp-side-sec[data-list='waiting'][data-open='false'] {
   padding-bottom: 2px;
 }
+
+/* Custom build (hq-plus-side-blocks): a selected decision card is ringed on its own edge — its row
+   wrapper starts above the card's top margin, so a ring there floated off the card. */
+.hqp-m[data-selected='true'] > .b:has(.hqp-card) {
+  outline: none;
+}
+.hqp-m[data-selected='true'] .hqp-card {
+  outline: 1px solid var(--hqp-line-2);
+  outline-offset: -1px;
+}
