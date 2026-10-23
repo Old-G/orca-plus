@@ -283,6 +283,9 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
     const byId = new Map(open.map((finding) => [finding.id, finding]))
     const done: HqRouteAction[] = []
     for (const action of actions) {
+      if (action.kind === 'open' && action.note) {
+        deps.log(`routing: ${action.project}: ${action.note}`)
+      }
       const findings = action.findings.flatMap((id) => byId.get(id) ?? [])
       done.push(
         await carryOut(hqPath, action, findings, now, options.manual === true).catch(

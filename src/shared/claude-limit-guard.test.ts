@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   appendClaudeUsageSample,
+  claudeActiveFreePercent,
   claudeLimitsAccountId,
   claudeLimitSwitchSuggestionKey,
   describeClaudeAccount,
@@ -193,6 +194,16 @@ describe('claude account identity', () => {
     expect(claudeLimitsAccountId({ ...reading, usageMetadata: { authProvenance: 'system' } })).toBe(
       null
     )
+  })
+
+  it('reads the per-account profile provenance, so the active account free share is known', () => {
+    const reading = limits(30, 10)
+    const from = (authProvenance: string) => ({ ...reading, usageMetadata: { authProvenance } })
+    expect(claudeLimitsAccountId(from('profile:abc'))).toBe('abc')
+    expect(claudeLimitsAccountId(from('profile:abc:wsl:Ubuntu'))).toBe('abc')
+    expect(claudeLimitsAccountId(from('profile:unavailable'))).toBeUndefined()
+    expect(claudeActiveFreePercent(from('profile:abc'), 'abc')).toBe(70)
+    expect(claudeActiveFreePercent(from('profile:abc'), 'other')).toBeNull()
   })
 
   it('adds the organization only when two accounts share an email', () => {
