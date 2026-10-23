@@ -2052,8 +2052,9 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 
 /* Custom build (hq-plus-ui-v5): an inbox card's way back to its Slack thread, ClickUp task or mail. */
 .hqp-source {
-  align-self: flex-start;
+  flex: none;
   font-size: 12.5px;
+  white-space: nowrap;
 }
 
 /* Custom build (hq-plus-ui-v5): the opened reply reads like the chat — paragraphs, lists, code. */
