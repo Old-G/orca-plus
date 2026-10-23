@@ -8,9 +8,15 @@ import {
   hqPlusDayStart,
   hqPlusLog,
   hqPlusNotNowKey,
-  type HqPlusCard
+  type HqPlusCard,
+  type HqPlusLogItem
 } from '../../../../../shared/hq-plus-log'
 import { hqPlusFoldChats, hqPlusWithLiveChats } from '../../../../../shared/hq-plus-fold'
+import {
+  hqPlusInFeedFilter,
+  hqPlusMatchesSearch,
+  type HqPlusFeedFilter
+} from '../../../../../shared/hq-plus-feed-filter'
 import {
   hqPlusIsFyi,
   hqPlusNeedsOwner,
@@ -31,11 +37,11 @@ import { useHqSpaces } from '../hq/use-hq-spaces'
 import { useHqProjectPages } from '../hq/use-hq-project-pages'
 import { findHqWorktreeId } from '../hq/hq-today-actions'
 import { HqCommandBox } from '../hq/HqCommandBox'
-import { acknowledgeHqChat, setShownHqChat, switchHqToCode } from '../hq/hq-chat-actions'
+import { acknowledgeHqChat, setShownHqChat } from '../hq/hq-chat-actions'
 import { rememberedHqChat } from '../hq/hq-chat-open'
 import { useSidebarResize } from '@/hooks/useSidebarResize'
 import { useHqChatList, useHqProjectColor } from '../hq/use-hq-chat-list'
-import { onHqTabRequested, openHqScreen, takeRequestedHqTab } from '../hq/hq-view'
+import { onHqTabRequested, takeRequestedHqTab } from '../hq/hq-view'
 import { PulseBellButton } from '../pulse-bell/PulseBellButton'
 import { openHqRouteChat } from '../pulse-bell/hq-route-send'
 import { HqPlusLog, hqPlusThreadKey, hqPlusTileOf, type HqPlusLogContext } from './HqPlusLog'
@@ -43,16 +49,25 @@ import { HqPlusSide, type HqPlusTile } from './HqPlusSide'
 import type { HqPlusOtherWait } from './HqPlusSideQueues'
 import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusChatBar, HqPlusChatSession } from './HqPlusChatSession'
-import { markHqPlusDone } from './hq-plus-actions'
+import { canFinishHqPlusCard, finishHqPlusCard, markHqPlusDone } from './hq-plus-actions'
 import { HQ_PLUS_PANEL, readHqPlusPanelWidth, saveHqPlusPanelWidth } from './hq-plus-panel-widths'
 import { HqPlusRiver } from './HqPlusRiver'
 import { HqPlusGraph } from './HqPlusGraph'
 import { HqPlusSession, type HqPlusPick } from './HqPlusSession'
 import { HqPlusReportView } from './HqPlusReportView'
-import { setHqFlavor } from './hq-plus-flavor'
 import { useHqPlusData } from './use-hq-plus-data'
 import { putOffHqPlusCard, readHqPlusNotNow } from './hq-plus-not-now'
 import { HqPlusThreadComposer } from './HqPlusThreadComposer'
+import { HqPlusFeedSearch } from './HqPlusFeedSearch'
+import { useHqPlusNewMarks } from './use-hq-plus-new-marks'
+import { useHqPlusFeedKeys } from './use-hq-plus-feed-keys'
+import {
+  HqPlusFeedChips,
+  HqPlusSinceLine,
+  HqPlusYourMoveLine,
+  readHqPlusFeedFilter,
+  saveHqPlusFeedFilter
+} from './HqPlusFeedBar'
 import {
   closeHqPlusChat,
   hqPlusChatIsIdle,
@@ -96,6 +111,36 @@ export function HqPlusScreen(): React.JSX.Element {
   const sidebarOpen = useAppStore((state) => state.sidebarOpen)
   const setSidebarOpen = useAppStore((state) => state.setSidebarOpen)
   const [scope, setScope] = useState<string | null>(null)
+  // Custom build (hq-plus-ui-v4): which rows the feed shows, remembered per viewer.
+  const [feedFilter, setFeedFilter] = useState<HqPlusFeedFilter>(readHqPlusFeedFilter)
+  const changeFeedFilter = (filter: HqPlusFeedFilter): void => {
+    setFeedFilter(filter)
+    saveHqPlusFeedFilter(filter)
+  }
+  // Custom build (hq-plus-ui-v4): unfolded cards and the card the keys act on live here, so keys and
+  // clicks fold the same cards; ⌘F's words and where it stands.
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() => new Set())
+  const setExpanded = useCallback((id: string, open: boolean) => {
+    setExpandedIds((current) => {
+      if (current.has(id) === open) {
+        return current
+      }
+      const next = new Set(current)
+      if (open) {
+        next.add(id)
+      } else {
+        next.delete(id)
+      }
+      return next
+    })
+  }, [])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [search, setSearch] = useState<{ open: boolean; query: string; at: number }>({
+    open: false,
+    query: '',
+    at: -1
+  })
+  const searchRef = useRef<HTMLInputElement>(null)
   const [pick, setPick] = useState<HqPlusPick | null>(null)
   // Custom build (hq-plus-ui-v2): a chat started from HQ opens straight in «Session».
   const [requestedChat] = useState<string | null>(() =>
@@ -200,6 +245,28 @@ export function HqPlusScreen(): React.JSX.Element {
       ),
     [roomItems, scope, liveChats]
   )
+  const names = useMemo(
+    () => new Map(data.people.map((person) => [person.id, person.name])),
+    [data.people]
+  )
+  const newMarks = useHqPlusNewMarks(all, Boolean(data.feed))
+  const feedItems = useMemo(
+    () => shown.filter((item) => hqPlusInFeedFilter(item, feedFilter)),
+    [shown, feedFilter]
+  )
+  const matchIds = useMemo(
+    () =>
+      search.query.trim()
+        ? feedItems.flatMap((item) =>
+            hqPlusMatchesSearch(item, search.query, (id) => names.get(id) ?? null) ? [item.id] : []
+          )
+        : [],
+    [feedItems, search.query, names]
+  )
+  const moveIds = useMemo(
+    () => shown.flatMap((item) => (hqPlusNeedsOwner(item) ? [item.id] : [])),
+    [shown]
+  )
   const waiting = useMemo(
     () => roomItems.filter((item): item is HqPlusCard => hqPlusNeedsOwner(item)),
     [roomItems]
@@ -238,10 +305,6 @@ export function HqPlusScreen(): React.JSX.Element {
       ),
     [chatItems, room, roomOfRepo, now]
   )
-  const names = useMemo(
-    () => new Map(data.people.map((person) => [person.id, person.name])),
-    [data.people]
-  )
   const waits = useMemo<HqPlusWait[]>(
     () =>
       data.waits
@@ -269,6 +332,9 @@ export function HqPlusScreen(): React.JSX.Element {
           id: wait.id,
           who: (wait.personId ? names.get(wait.personId) : null) ?? null,
           title: wait.title,
+          detail: wait.detail,
+          link: wait.sourceRef,
+          project: wait.project,
           at: wait.createdAt,
           sessionId: wait.agentSessionId ?? null
         })),
@@ -311,7 +377,7 @@ export function HqPlusScreen(): React.JSX.Element {
         return { label: 'DONE', tone: 'done' }
       default:
         // Custom build (hq-plus-ui-v3): a chat opened a moment ago has no turn yet — it is starting.
-        return chat && !hqPlusChatIsIdle(chat, now) ? { label: 'WORKING', tone: 'working' } : null
+        return chat && !hqPlusChatIsIdle(chat, now) ? { label: 'STARTING', tone: 'working' } : null
     }
   }
   const activity = useMemo(
@@ -408,11 +474,13 @@ export function HqPlusScreen(): React.JSX.Element {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [wide, canGoBack])
-  const jump = (card: HqPlusCard): void => {
-    setScope(null)
-    // Why: the card may be hidden by a thread filter; scroll once the whole log is back.
+  // Why: a card hidden by the chips brings the whole feed back before the scroll.
+  const goToFeedItem = (id: string, item: HqPlusLogItem | undefined): void => {
+    if (item && !hqPlusInFeedFilter(item, feedFilter)) {
+      changeFeedFilter('all')
+    }
     setTimeout(() => {
-      const target = document.getElementById(`hqp-${card.id}`)
+      const target = document.getElementById(`hqp-${id}`)
       const log = target?.closest('.hqp-log')
       if (target && log) {
         // Why: scrollIntoView would also scroll the screen's own clipped frame.
@@ -422,9 +490,14 @@ export function HqPlusScreen(): React.JSX.Element {
           behavior: 'smooth'
         })
       }
-      setFlashId(card.id)
+      setFlashId(id)
       setTimeout(() => setFlashId(null), FLASH_MS)
     }, 40)
+  }
+  const jump = (card: HqPlusCard): void => {
+    // Why: the card may be hidden by a thread filter; scroll once the whole log is back.
+    setScope(null)
+    goToFeedItem(card.id, card)
   }
   const openReport = (path: string): void => {
     setReportPath(path)
@@ -474,8 +547,69 @@ export function HqPlusScreen(): React.JSX.Element {
     },
     projectColor,
     isOpenChat: (sessionId) =>
-      tab === 'session' && chatItem !== null && hqPlusChatOfSession([chatItem], sessionId) !== null
+      tab === 'session' && chatItem !== null && hqPlusChatOfSession([chatItem], sessionId) !== null,
+    isExpanded: (id) => expandedIds.has(id),
+    setExpanded,
+    selectedId,
+    onSelect: setSelectedId,
+    isNew: (id) => newMarks.newIds.has(id),
+    newKeys: [...newMarks.newIds].join('\n'),
+    markSeen: newMarks.markSeen,
+    now
   }
+  const sinceIds = shown.flatMap((item) => (newMarks.newIds.has(item.id) ? [item.id] : []))
+  const stepSearch = (direction: 1 | -1): void => {
+    if (matchIds.length === 0) {
+      return
+    }
+    const at =
+      search.at === -1 && direction === -1
+        ? matchIds.length - 1
+        : (search.at + direction + matchIds.length) % matchIds.length
+    setSearch({ ...search, at })
+    setSelectedId(matchIds[at])
+    goToFeedItem(matchIds[at], undefined)
+  }
+  const closeSearch = (): void => setSearch({ open: false, query: '', at: -1 })
+  useHqPlusFeedKeys({
+    items: feedItems,
+    moveIds,
+    filter: feedFilter,
+    selectedId,
+    select: setSelectedId,
+    isExpanded: (id) => expandedIds.has(id),
+    setExpanded,
+    open: (item) => {
+      const report = item.kind === 'card' && item.type === 'report' ? item.inbox?.refId : null
+      const chat = openChat(item.sessionId)
+      if (chat) {
+        chat()
+      } else if (report) {
+        openReport(report)
+      }
+    },
+    done: (item) => {
+      if (item.kind === 'card' && hqPlusNeedsOwner(item) && canFinishHqPlusCard(item)) {
+        void finishHqPlusCard(item).then(data.reload)
+      }
+    },
+    setFilter: changeFeedFilter,
+    openSearch: () => {
+      setSearch((current) => ({ ...current, open: true }))
+      requestAnimationFrame(() => searchRef.current?.select())
+    },
+    escape: () => {
+      if (search.open) {
+        closeSearch()
+        return true
+      }
+      if (expandedIds.size > 0) {
+        setExpandedIds(new Set())
+        return true
+      }
+      return false
+    }
+  })
   const pickKey = pick ? hqPlusThreadKey(pick) : null
   const chatItem = chatKey ? (chatItems.find((item) => item.key === chatKey) ?? null) : null
   const shownChat = tab === 'session' ? chatItem : null
@@ -602,28 +736,6 @@ export function HqPlusScreen(): React.JSX.Element {
               })}
             </span>
           ) : null}
-          <div
-            className="hqp-mode"
-            role="group"
-            aria-label={translate('auto.hq.mode.label', 'Mode')}
-          >
-            <button type="button" aria-pressed="true">
-              {translate('auto.hq.mode.hqPlus', 'HQ+')}
-            </button>
-            <button
-              type="button"
-              aria-pressed="false"
-              onClick={() => {
-                setHqFlavor('classic')
-                openHqScreen('chats')
-              }}
-            >
-              {translate('auto.hq.mode.hq', 'HQ')}
-            </button>
-            <button type="button" aria-pressed="false" onClick={switchHqToCode}>
-              {translate('auto.hq.mode.code', 'Code')}
-            </button>
-          </div>
           <PulseBellButton />
         </div>
       </header>
@@ -677,11 +789,50 @@ export function HqPlusScreen(): React.JSX.Element {
                 {translate('auto.hqPlus.feed.all', 'whole log')}
               </button>
             ) : null}
+            <span className="hqp-spacer" />
+            <HqPlusFeedChips
+              filter={feedFilter}
+              moves={moveIds.length}
+              onFilter={changeFeedFilter}
+            />
+          </div>
+          {search.open ? (
+            <HqPlusFeedSearch
+              query={search.query}
+              matches={matchIds.length}
+              at={search.at}
+              inputRef={searchRef}
+              onQuery={(query) => setSearch({ open: true, query, at: -1 })}
+              onStep={stepSearch}
+              onClose={closeSearch}
+            />
+          ) : null}
+          <div className="hqp-pins">
+            <HqPlusYourMoveLine
+              ids={moveIds}
+              onGo={(id) => {
+                setSelectedId(id)
+                goToFeedItem(
+                  id,
+                  shown.find((item) => item.id === id)
+                )
+              }}
+            />
+            <HqPlusSinceLine
+              ids={sinceIds}
+              onGo={(id) => {
+                setSelectedId(id)
+                goToFeedItem(
+                  id,
+                  shown.find((item) => item.id === id)
+                )
+              }}
+            />
           </div>
           {data.error && !data.feed ? <p className="hqp-error">{data.error}</p> : null}
           <HqPlusLog
-            key={`${room ?? ''}|${scope ?? ''}`}
-            items={shown}
+            key={`${room ?? ''}|${scope ?? ''}|${feedFilter}`}
+            items={feedItems}
             flashId={flashId}
             ctx={ctx}
           />

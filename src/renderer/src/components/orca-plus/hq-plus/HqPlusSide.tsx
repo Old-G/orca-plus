@@ -2,6 +2,7 @@
 // in the feed), what we wait for from people, the FYI pile to clear in one go, the live chats (the same
 // list the classic HQ shows, so a chat started a second ago is there), and three plain numbers.
 import { useState } from 'react'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
 import type { HqPlusScreenStats } from '../../../../../shared/hq-plus-screen'
 import { translate } from '@/i18n/i18n'
@@ -23,7 +24,7 @@ function dotStyle(color: string): React.CSSProperties & Record<'--hqp-dot', stri
 
 const GROUP_COLOR: Record<HqChatGroup, string> = {
   needs: 'var(--hqp-amber)',
-  working: 'var(--hqp-green)',
+  working: 'var(--hqp-yellow)',
   done: 'var(--hqp-ice)',
   quiet: 'var(--hqp-faint)'
 }
@@ -68,8 +69,10 @@ function ChatRow({
   onPick: (item: HqChatItem) => void
 }): React.JSX.Element {
   const title = useHqChatTitle(item)
+  // Custom build (hq-plus-ui-v4): a working or starting chat is yellow with a pulsing dot.
+  const live = item.group === 'working' || (item.group === 'quiet' && !hqPlusChatIsIdle(item, now))
   return (
-    <div className="hqp-qi-row">
+    <div className="hqp-qi-row" data-live={live ? 'true' : undefined}>
       <button
         type="button"
         className="hqp-qi ses"
@@ -80,7 +83,10 @@ function ChatRow({
           {tile.letters}
         </span>
         <span className="t">
-          <span className="hqp-dot" style={dotStyle(GROUP_COLOR[item.group])} />
+          <span
+            className="hqp-dot"
+            style={dotStyle(live ? 'var(--hqp-yellow)' : GROUP_COLOR[item.group])}
+          />
           {title}
         </span>
         <span className="ag">{groupLabel(item, now)}</span>
@@ -169,17 +175,23 @@ export function HqPlusSide({
         ) : null}
         {active.map(row)}
         {idle.length > 0 ? (
-          <button
-            type="button"
-            className="hqp-idle-h"
-            aria-expanded={showIdle}
-            onClick={() => setShowIdle(!showIdle)}
-          >
-            <span aria-hidden="true">{showIdle ? '\u25BE' : '\u25B8'}</span>
-            {translate('auto.hqPlus.side.idleCount', 'Idle · {{count}}', { count: idle.length })}
-          </button>
+          <Collapsible open={showIdle} onOpenChange={setShowIdle}>
+            <button
+              type="button"
+              className="hqp-idle-h"
+              aria-expanded={showIdle}
+              onClick={() => setShowIdle(!showIdle)}
+            >
+              <span className="hqp-caret" data-open={showIdle} aria-hidden="true">
+                {'\u25B8'}
+              </span>
+              {translate('auto.hqPlus.side.idleCount', 'Idle · {{count}}', { count: idle.length })}
+            </button>
+            <CollapsibleContent animation="height">
+              <div className="hqp-side-sec">{idle.map(row)}</div>
+            </CollapsibleContent>
+          </Collapsible>
         ) : null}
-        {showIdle ? idle.map(row) : null}
       </div>
       <div className="hqp-stats">
         <div className="hqp-st">

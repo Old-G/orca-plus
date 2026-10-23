@@ -1,6 +1,7 @@
 import {
   agentTabActionId,
   type AgentTabActionId,
+  type HqPlusKeybindingActionId,
   type KeybindingActionId,
   type KeybindingDefinition,
   type PluginKeybindingActionId
@@ -9,9 +10,10 @@ import { ALL_TUI_AGENTS, TUI_AGENT_DISPLAY_NAMES } from '../../../../shared/tui-
 import { translate } from '@/i18n/i18n'
 import { uniqueKeywords } from './settings-search-keywords'
 
+// Custom build (hq-plus-ui-v4): HQ+'s feed keys keep their registry titles; HQ+ is English-only.
 type StaticKeybindingActionId = Exclude<
   KeybindingActionId,
-  AgentTabActionId | PluginKeybindingActionId
+  AgentTabActionId | PluginKeybindingActionId | HqPlusKeybindingActionId
 >
 
 // Literal keys keep extraction and coverage gates aware of every shortcut title.

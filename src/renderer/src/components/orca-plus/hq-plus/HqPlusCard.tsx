@@ -137,7 +137,9 @@ export function HqPlusCardView({
   onOpenChat,
   onOpenReport,
   onNotNow,
-  onChanged
+  onChanged,
+  expanded,
+  onExpand
 }: {
   card: Card
   look: HqPlusLook
@@ -151,8 +153,11 @@ export function HqPlusCardView({
   onOpenReport: (path: string) => void
   onNotNow: (() => void) | null
   onChanged: () => void
+  /** Custom build (hq-plus-ui-v4): a decided card unfolded; kept by the feed so keys can fold it too. */
+  expanded: boolean
+  onExpand: (open: boolean) => void
 }): React.JSX.Element {
-  const [expanded, setExpanded] = useState(false)
+  const setExpanded = onExpand
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [text, setText] = useState('')
@@ -257,7 +262,7 @@ export function HqPlusCardView({
           <>
             {card.type === 'approve' ? null : (
               <p className="hqp-q">
-                <HqPlusText text={questionOf(card)} maxLines={3} />
+                <HqPlusText text={questionOf(card)} />
               </p>
             )}
             {card.report?.done || card.report?.next ? (
@@ -277,7 +282,7 @@ export function HqPlusCardView({
               </dl>
             ) : card.body && card.type !== 'approve' ? (
               <p className="hqp-text">
-                <HqPlusText text={card.body} maxLines={look.kind === 'inbox' ? 3 : 8} />
+                <HqPlusText text={card.body} />
               </p>
             ) : null}
             {card.type === 'approve' && open && card.inbox ? (
@@ -287,7 +292,7 @@ export function HqPlusCardView({
             ) : null}
             {card.type === 'approve' && !open && card.body ? (
               <p className="hqp-text">
-                <HqPlusText text={card.body} maxLines={4} />
+                <HqPlusText text={card.body} />
               </p>
             ) : null}
           </>

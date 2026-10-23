@@ -11,6 +11,8 @@ export type KeybindingScope =
   | 'composer'
   | 'chat'
   | 'settings'
+  // Custom build (hq-plus-ui-v4): HQ+'s feed keys, handled by the HQ+ screen itself.
+  | 'hqPlus'
 
 export type KeybindingContext = 'app' | 'terminal' | 'browser'
 
@@ -24,6 +26,21 @@ export type KeybindingMatchOptions = {
 }
 
 export type AgentTabActionId = `tab.newAgent.${TuiAgent}`
+/** Custom build (hq-plus-ui-v4): the feed keys of the HQ+ screen. */
+export type HqPlusKeybindingActionId =
+  | 'hqPlus.next'
+  | 'hqPlus.previous'
+  | 'hqPlus.toggle'
+  | 'hqPlus.open'
+  | 'hqPlus.reply'
+  | 'hqPlus.done'
+  | 'hqPlus.close'
+  | 'hqPlus.search'
+  | 'hqPlus.filterAll'
+  | 'hqPlus.filterMove'
+  | 'hqPlus.filterChats'
+  | 'hqPlus.filterInbox'
+  | 'hqPlus.escape'
 export type PluginKeybindingActionId = `plugin:${string}`
 
 export type KeybindingActionId =
@@ -123,6 +140,7 @@ export type KeybindingActionId =
   | 'terminal.splitDown'
   | 'terminal.switchInputSource'
   | 'terminal.toggleNativeChat'
+  | HqPlusKeybindingActionId
   | PluginKeybindingActionId
 
 export type KeybindingOverrides = Partial<Record<KeybindingActionId, string[]>>
@@ -169,6 +187,9 @@ export type KeybindingDefinition = {
   allowInTextField?: 'non-default-chords'
   allowBareKeybindings?: boolean
   allowShiftOnlyKeybindings?: boolean
+  /** Custom build (hq-plus-ui-v4): a single letter, digit or sign with no modifier, for a screen that
+   *  handles its own keys only while nothing takes text. */
+  allowPrintableBareKeybindings?: boolean
   conflictGroup?: string
   conflictGroups?: readonly KeybindingScope[]
   implicitDefaultYields?: boolean
@@ -205,6 +226,7 @@ export type ParsedKeybinding = {
 export type NormalizeKeybindingOptions = {
   allowBareKeybindings?: boolean
   allowShiftOnlyKeybindings?: boolean
+  allowPrintableBareKeybindings?: boolean
 }
 
 export type KeybindingValidationResult =
