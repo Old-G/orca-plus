@@ -1,8 +1,9 @@
 // Custom build (hq-plus-ui): with one thread on view, the bottom field writes into that thread's chat
 // (its address, else its session), as the prototype does; with the whole log on view it is Ask HQ.
-import { useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
+import { HqCommandDictation } from '../hq/HqCommandDictation'
 import { replyOnHqPlusCard, sendIntoHqPlusChat, type HqPlusChatTarget } from './hq-plus-actions'
 
 export function HqPlusThreadComposer({
@@ -19,7 +20,11 @@ export function HqPlusThreadComposer({
   hqPath: string | null
   onSent: () => void
 }): React.JSX.Element {
+  const inputId = useId()
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
+  // Custom build (hq-plus-ui-v3): what just went out, until the chat answers and the card moves on.
+  const [sent, setSent] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const send = (): void => {
@@ -35,6 +40,7 @@ export function HqPlusThreadComposer({
     )
       .then((result) => {
         if (result.ok) {
+          setSent(text.trim())
           setText('')
           onSent()
         } else {
@@ -52,18 +58,28 @@ export function HqPlusThreadComposer({
           send()
         }}
       >
-        <label className="hqp-sr" htmlFor="hqp-thread-input">
+        <label className="hqp-sr" htmlFor={inputId}>
           {translate('auto.hqPlus.threadInput', 'Write to this thread')}
         </label>
-        <input
-          id="hqp-thread-input"
+        <textarea
+          id={inputId}
+          ref={textareaRef}
+          rows={1}
           value={text}
           disabled={busy}
           placeholder={translate('auto.hqPlus.threadInputHint', 'Write to {{thread}}…', {
             thread: label
           })}
           onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => {
+            // Enter sends, Shift+Enter breaks the line; a composing IME keeps its Enter.
+            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+              event.preventDefault()
+              send()
+            }
+          }}
         />
+        <HqCommandDictation textareaRef={textareaRef} disabled={busy} />
         <span className="hqp-to">→ {target.address ?? label}</span>
         <button
           type="submit"
@@ -85,6 +101,11 @@ export function HqPlusThreadComposer({
         </button>
       </form>
       {error ? <p className="hqp-error">{error}</p> : null}
+      {sent && !error ? (
+        <p className="hqp-sent">
+          {translate('auto.hqPlus.sent', 'Sent')}: {sent}
+        </p>
+      ) : null}
     </div>
   )
 }
