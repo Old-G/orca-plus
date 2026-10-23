@@ -65,15 +65,34 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     path: ['hq', 'route'],
     summary:
       "What HQ/routing.yaml does now: fixing chats for the evening Codex findings, people's answers to the asking chat",
-    usage: 'orca hq route [--now] [--since <7d|ISO date>] [--run] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'now', 'since', 'run'],
+    usage:
+      'orca hq route [--now] [--since <7d|ISO date>] [--run] [--report <updates/…md>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'now', 'since', 'run', 'report'],
     notes: [
       'Without --run it only lists what it would do; Orca+ itself runs the rules every 5 minutes.',
       "--now ignores the rule's hour and the Claude limit; --run carries the actions out at once and implies --now.",
       "--since replaces the rules' since, to see what they would have done over the past.",
       'person.reply: a complete answer said where it was asked goes to the asking chat; money, production, a deadline, a new request, a counter-question or a partial answer stays a card.'
     ],
-    examples: ['orca hq route', 'orca hq route --now --since 2026-10-22']
+    examples: [
+      'orca hq route',
+      'orca hq route --now --since 2026-10-22',
+      'orca hq route --report updates/codex-review-2026-10-24T18-50.md --run'
+    ]
+  },
+  {
+    // Custom build (hq-fix-now-all)
+    path: ['hq', 'merge-slot'],
+    summary:
+      "Take or give back a project's merge slot, so chats working side by side merge one at a time",
+    usage: 'orca hq merge-slot <take|release|status> <project> [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'action', 'project'],
+    positionalArgs: ['action', 'project'],
+    notes: [
+      'take: busy means another chat is merging — wait 2 minutes and try again; then rebase on the fresh target, re-run tests, merge.',
+      'release right after merging, and on failure too; a slot nobody gave back frees itself after 30 minutes.'
+    ],
+    examples: ['orca hq merge-slot take acme-api', 'orca hq merge-slot release acme-api']
   },
   {
     path: ['hq', 'settle'],
