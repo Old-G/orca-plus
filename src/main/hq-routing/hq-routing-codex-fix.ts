@@ -77,6 +77,8 @@ export function planHqCodexFix(input: HqCodexFixPlanInput): HqRouteAction[] {
   const limitOk =
     input.manual ||
     (input.freePercent !== null && input.freePercent >= input.routing.minFreePercent)
+  // Why: an unread limit must not hold the evening forever; it lets one fixing chat through, no more.
+  let unreadAllowance = input.freePercent === null && input.today.size === 0 ? 1 : 0
   return [...byProject].map(([project, { workspace, ids }]): HqRouteAction => {
     const level = hqAutonomyFor(input.autonomy, project)
     const today = input.today.get(project)
@@ -86,6 +88,16 @@ export function planHqCodexFix(input: HqCodexFixPlanInput): HqRouteAction[] {
     }
     if (today) {
       return { ...base, kind: 'continue', ...today, note: null }
+    }
+    if (!limitOk && unreadAllowance > 0) {
+      unreadAllowance -= 1
+      return {
+        ...base,
+        kind: 'open',
+        address: hqCodexFixAddress(project, input.now),
+        sessionId: null,
+        note: 'Claude usage is unread — one fixing chat this evening'
+      }
     }
     if (!limitOk) {
       return {
