@@ -16,6 +16,8 @@ import {
   closeHqPlusWait,
   hqPlusReportOf,
   markHqPlusDone,
+  sendHqPlusAgentDraft,
+  settleHqPlusAgentDraft,
   replyOnHqPlusCard,
   tellHqPlusDraftingAgent,
   type HqPlusResult
@@ -394,6 +396,38 @@ export function HqPlusCardView({
               <div className="hqp-approve-host">
                 <OutgoingApprovalDecision item={card.inbox} />
               </div>
+            ) : null}
+            {card.type === 'approve' && open && !card.inbox ? (
+              <>
+                {card.body ? (
+                  <p className="hqp-text">
+                    <HqPlusText text={card.body} />
+                  </p>
+                ) : null}
+                <div className="hqp-opts">
+                  <button
+                    type="button"
+                    className="hqp-opt"
+                    data-main="true"
+                    disabled={busy || !hqWorktreeId}
+                    title={translate(
+                      'auto.hqPlus.agentDraft.sendHint',
+                      'An HQ chat sends it; the message still waits for your Approve'
+                    )}
+                    onClick={() => run(() => sendHqPlusAgentDraft(card, hqWorktreeId))}
+                  >
+                    {translate('auto.hqPlus.agentDraft.send', 'Send via HQ')}
+                  </button>
+                  <button
+                    type="button"
+                    className="hqp-opt"
+                    disabled={busy}
+                    onClick={() => run(() => settleHqPlusAgentDraft(card, 'rejected'))}
+                  >
+                    {translate('auto.hqPlus.waitDrop', 'Not needed')}
+                  </button>
+                </div>
+              </>
             ) : null}
             {card.type === 'approve' && !open && card.body ? (
               <p className="hqp-text">
