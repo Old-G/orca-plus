@@ -146,7 +146,8 @@ export function runPython(script: string, args: string[], env: NodeJS.ProcessEnv
   return new Promise((resolve, reject) => {
     execFile(
       process.platform === 'win32' ? 'python' : 'python3',
-      ['-I', script, ...args],
+      // Why: the bundled script sits inside the signed app; a __pycache__ there breaks its seal.
+      ['-I', '-B', script, ...args],
       { env, timeout: MANUAL_TIMEOUT_MS, maxBuffer: 8 * 1024 * 1024, windowsHide: true },
       (error, stdout) => (error ? reject(error) : resolve(stdout))
     )
