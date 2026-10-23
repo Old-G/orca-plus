@@ -223,7 +223,6 @@ export function HqPlusCardView({
             <HqPlusText text={card.type === 'move' ? questionOf(card) : card.title} maxLines={1} />
           </span>
           <span className="l2">✓ {hqPlusDoneLabel(card.done)}</span>
-          <span className="ex">{translate('auto.hqPlus.expand', 'expand')}</span>
         </button>
         {reportPath ? (
           <button type="button" className="hqp-cc-open" onClick={() => onOpenReport(reportPath)}>
@@ -485,14 +484,12 @@ export function HqPlusCardView({
         ) : null}
         {error ? <p className="hqp-error">{error}</p> : null}
         {!open && expanded ? (
-          <button
-            type="button"
-            className="hqp-opt"
-            data-ghost="true"
-            onClick={() => setExpanded(false)}
-          >
-            {translate('auto.hqPlus.collapse', 'collapse')}
-          </button>
+          <div className="hqp-row-f">
+            <span className="hqp-spacer" />
+            <button type="button" className="hqp-pill" onClick={() => setExpanded(false)}>
+              {translate('auto.hqPlus.collapseCard', 'Collapse')}
+            </button>
+          </div>
         ) : null}
       </div>
     </div>
