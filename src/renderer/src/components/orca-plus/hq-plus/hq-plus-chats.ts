@@ -46,6 +46,17 @@ export function hqPlusChatIsIdle(item: HqChatItem, now: number): boolean {
 }
 
 /**
+ * Custom build (hq-plus-ui-v5): when a chat last started working or finished, so its feed card moves
+ * to the bottom before the journal writes the turn. Null for a read, quiet chat.
+ */
+function hqPlusChatActiveAt(item: HqChatItem): number | null {
+  if (!item.card || item.group === 'quiet') {
+    return null
+  }
+  return Math.max(item.card.stateChangedAt, item.card.finishedAt ?? 0) || null
+}
+
+/**
  * Custom build (hq-plus-ui-v3): the open chats the feed shows before the journal knows them — today's,
  * and older ones only while they work or wait on the owner. `place` gives a project's room.
  */
@@ -60,7 +71,14 @@ export function hqPlusLiveChats(
     }
     const sessionId = hqChatSessionId(item.tab.id)
     const at = item.tab.createdAt
-    if (!sessionId || (at < since && item.group !== 'working' && item.group !== 'needs')) {
+    const activeAt = hqPlusChatActiveAt(item)
+    if (
+      !sessionId ||
+      (at < since &&
+        item.group !== 'working' &&
+        item.group !== 'needs' &&
+        (activeAt ?? 0) < since)
+    ) {
       return []
     }
     return [
@@ -69,7 +87,8 @@ export function hqPlusLiveChats(
         project: item.projectName,
         room: place(item.projectName),
         title: item.tab.label || item.projectName,
-        at
+        at,
+        activeAt
       }
     ]
   })
