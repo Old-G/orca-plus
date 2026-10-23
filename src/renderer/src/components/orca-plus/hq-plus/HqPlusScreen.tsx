@@ -105,7 +105,7 @@ const TAB_LABEL: Record<Tab, [string, string]> = {
   graph: ['auto.hqPlus.tab.graph', 'Graph'],
   river: ['auto.hqPlus.tab.river', 'River'],
   session: ['auto.hqPlus.tab.session', 'Session'],
-  report: ['auto.hqPlus.tab.report', 'Report'],
+  report: ['auto.hqPlus.tab.reports', 'Reports'],
   agents: ['auto.hqPlus.tab.agents', 'Agents']
 }
 
@@ -721,7 +721,6 @@ export function HqPlusScreen(): React.JSX.Element {
     (scopedItem?.project
       ? `${scopedItem.project} · ${liveOf(scopedItem.sessionId)?.name ?? translate('auto.hqPlus.chat', 'chat')}`
       : (scope ?? ''))
-  const tabs = TABS.filter((name) => name !== 'report' || reportPath)
   const left = useSidebarResize<HTMLDivElement>({
     isOpen: true,
     width: leftWidth,
@@ -964,7 +963,7 @@ export function HqPlusScreen(): React.JSX.Element {
           aria-label={translate('auto.hqPlus.panel', 'Graph, River, Session, Agents')}
         >
           <div className="hqp-tabs" role="tablist">
-            {tabs.map((name) => {
+            {TABS.map((name) => {
               const [key, fallback] = TAB_LABEL[name]
               return (
                 <button
@@ -1092,7 +1091,7 @@ export function HqPlusScreen(): React.JSX.Element {
                   onBack={backFromPick}
                 />
               ) : (
-                <HqPlusReportView path={reportPath} />
+                <HqPlusReportView path={reportPath} onPick={setReportPath} />
               )}
             </div>
           </div>
