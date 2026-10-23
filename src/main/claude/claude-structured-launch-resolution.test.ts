@@ -426,6 +426,38 @@ describe('claude structured launch resolution', () => {
     ])
   })
 
+  it("starts a chat without the tools its room hides, and with all of them when the room can't say", async () => {
+    const launchWith = (resolveDeniedTools: () => Promise<readonly string[]>) =>
+      createClaudeStructuredLaunchResolver({
+        store: { getRecord: () => record(), pinLaunchDirectory: vi.fn() },
+        resolveWorkspacePath: async (id) => `/repos/${id}`,
+        resolveCommand: () => '/usr/local/bin/claude',
+        resolveAuthPolicy: () => ({ account: 'system' }),
+        hasTranscript: async () => true,
+        resolveLaunchArgs: () => [],
+        resolveDeniedTools
+      })({ identity: IDENTITY })
+    const asked = vi.fn(async () => ['mcp__acme_crm', 'mcp__claude_ai_Acme*'])
+
+    expect((await launchWith(asked)).options.disallowedTools).toEqual([
+      'mcp__acme_crm',
+      'mcp__claude_ai_Acme*'
+    ])
+    expect(asked).toHaveBeenCalledWith({ sessionId: SESSION_ID, cwd: '/repos/workspace-1' })
+    expect((await launchWith(async () => [])).options).not.toHaveProperty('disallowedTools')
+    expect(
+      (await launchWith(() => Promise.reject(new Error('unreadable')))).options
+    ).not.toHaveProperty('disallowedTools')
+    vi.useFakeTimers()
+    try {
+      const slow = launchWith(() => new Promise<readonly string[]>(() => {}))
+      await vi.advanceTimersByTimeAsync(2_000)
+      expect((await slow).options).not.toHaveProperty('disallowedTools')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('builds on the supplied inherited env instead of Orca process env', async () => {
     const launch = await createClaudeStructuredLaunchResolver({
       resolveLaunchArgs: () => [],

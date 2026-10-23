@@ -16,6 +16,8 @@ import {
 } from '../../shared/hq-journal'
 import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
 import { readHqSpacePlacing, type HqSpacePlacing } from '../hq-today/hq-spaces'
+import type { HqSpace } from '../../shared/hq-spaces'
+import { hqRoomMcpHidden } from '../../shared/hq-room-mcp'
 import { collectHqJournal, type HqJournalPulse } from './hq-journal-collect'
 import {
   hqCallerScope,
@@ -56,6 +58,8 @@ export type HqEventsRequest = HqCaller & {
 export type HqJournalService = {
   /** The room the caller works in, by the spaces as last read. */
   scope: (caller: HqCaller) => Promise<HqCallerScope>
+  /** Custom build (hq-plus-room-mcp): that room's workspace file too; null outside a room. */
+  space: (caller: HqCaller) => Promise<{ scope: HqCallerScope; space: HqSpace | null }>
   /** Custom build (hq-plus-context): the rooms and projects as last read, to place a project. */
   sources: () => Promise<HqRoomSources>
   schedule: () => void
@@ -169,6 +173,14 @@ export function createHqJournalService(deps: HqJournalServiceDeps): HqJournalSer
 
   return {
     scope: async (caller) => (await scopeOf(caller)).scope,
+    space: async (caller) => {
+      const { scope, roomSources } = await scopeOf(caller)
+      const space =
+        scope.kind === 'room'
+          ? (roomSources.spaces.find((entry) => entry.slug === scope.room) ?? null)
+          : null
+      return { scope, space }
+    },
     sources,
     schedule: () => flight.schedule(),
     sync: () => flight.runNow(),
@@ -257,7 +269,10 @@ export function createHqJournalService(deps: HqJournalServiceDeps): HqJournalSer
         project: scope.kind === 'room' ? (scope.project ?? session?.project ?? null) : null,
         address: session?.address ?? null,
         task: session?.taskRef ?? null,
-        worktreeId: scope.worktreeId
+        worktreeId: scope.worktreeId,
+        mcpHidden: hqRoomMcpHidden(
+          room ? roomSources.spaces.find((space) => space.slug === room)?.mcpDeny : undefined
+        )
       }
     }
   }
