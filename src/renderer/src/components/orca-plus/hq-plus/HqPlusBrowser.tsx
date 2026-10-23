@@ -22,13 +22,15 @@ export function hqPlusBrowserUrl(input: string): string | null {
   }
 }
 
+/** A page HQ+ asks for; `n` grows with every ask, so asking for the same page again navigates too. */
+export type HqPlusBrowserAsk = { url: string; n: number }
+
 export function HqPlusBrowser({
-  url,
+  ask,
   onUrl,
   onOpen
 }: {
-  /** The page HQ+ asked for; a new value navigates. */
-  url: string | null
+  ask: HqPlusBrowserAsk | null
   /** The page the owner is on now, to come back to it. */
   onUrl: (url: string) => void
   /** An address typed before any page was open. */
@@ -37,8 +39,10 @@ export function HqPlusBrowser({
   const hostRef = useRef<HTMLDivElement>(null)
   const webviewRef = useRef<Electron.WebviewTag | null>(null)
   const history = useDocPreviewWebviewHistory(webviewRef)
+  const url = ask?.url ?? null
   const [address, setAddress] = useState(url ?? '')
   const [current, setCurrent] = useState(url)
+  const [outside, setOutside] = useState(false)
   const [failed, setFailed] = useState(false)
   const onUrlRef = useRef(onUrl)
   onUrlRef.current = onUrl
@@ -65,6 +69,12 @@ export function HqPlusBrowser({
       creatingRef.current = false
       const host = hostRef.current
       const wanted = wantedRef.current
+      if (!partition && wanted) {
+        // Why: no browser session here (a web client); the page opens outside rather than nowhere.
+        setOutside(true)
+        void window.api.shell.openUrl(wanted)
+        return
+      }
       if (!partition || !host?.isConnected || !wanted || webviewRef.current) {
         return
       }
@@ -95,7 +105,7 @@ export function HqPlusBrowser({
       created.setAttribute('src', wanted)
       webviewRef.current = created
     })
-  }, [url, sync])
+  }, [ask, url, sync])
 
   // Why: the page lives as long as HQ+ does; leaving HQ+ drops it with focus moved off it first.
   useEffect(
@@ -136,6 +146,7 @@ export function HqPlusBrowser({
           type="button"
           className="hqp-link"
           disabled={!history.canGoBack}
+          title={translate('auto.hqPlus.browser.back', 'Back')}
           aria-label={translate('auto.hqPlus.browser.back', 'Back')}
           onClick={history.goBack}
         >
@@ -145,6 +156,7 @@ export function HqPlusBrowser({
           type="button"
           className="hqp-link"
           disabled={!history.canGoForward}
+          title={translate('auto.hqPlus.browser.forward', 'Forward')}
           aria-label={translate('auto.hqPlus.browser.forward', 'Forward')}
           onClick={history.goForward}
         >
@@ -168,6 +180,11 @@ export function HqPlusBrowser({
           ↗
         </button>
       </form>
+      {outside ? (
+        <p className="hqp-empty">
+          {translate('auto.hqPlus.browser.openedOutside', 'Opened in the system browser.')}
+        </p>
+      ) : null}
       {failed ? (
         <p className="hqp-empty">
           {translate('auto.hqPlus.browser.failed', 'The page did not load.')}
