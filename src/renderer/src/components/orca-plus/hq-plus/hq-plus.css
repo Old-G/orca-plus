@@ -2231,3 +2231,25 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
     animation: none;
   }
 }
+
+/* Custom build (hq-plus-ui-v5): the owner's queue reads as its own block; we-wait stays neutral,
+   FYI is a quiet line, chats start after a rule. */
+.hqp-side-sec[data-list='waiting'] {
+  padding: 8px 8px 10px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--hqp-amber) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--hqp-amber) 22%, transparent);
+  border-top: 2px solid color-mix(in srgb, var(--hqp-amber) 55%, transparent);
+}
+.hqp-fyi {
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  font-size: 12px;
+  color: var(--hqp-faint);
+}
+.hqp-side-sec[data-list='chats'] {
+  padding-top: 12px;
+  border-top: 1px solid var(--hqp-line);
+}
