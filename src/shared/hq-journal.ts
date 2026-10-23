@@ -135,6 +135,9 @@ export type HqWhoami = {
   address: string | null
   task: string | null
   worktreeId: string | null
+  /** Custom build (hq-plus-room-mcp): MCP servers the room's chats start without; absent from an
+   *  older Orca. */
+  mcpHidden?: string[]
 }
 
 export const HQ_JOURNAL_DEFAULT_LIMIT = 50

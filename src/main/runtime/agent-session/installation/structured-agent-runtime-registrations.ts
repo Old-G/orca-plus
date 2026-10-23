@@ -42,6 +42,8 @@ import type {
   StructuredAgentRuntimeAdapter,
   StructuredAgentRuntimeRegistration
 } from './structured-agent-runtime-registration-types'
+import { getHqJournalService } from '../../../hq-journal/hq-journal-service'
+import { hqRoomDeniedTools } from '../../../hq-room-mcp/hq-room-mcp'
 
 function savedProviderTurns(context: StructuredAgentAdapterContext): SavedProviderTurnReads {
   const { readers } = context.journalDatabase
@@ -142,7 +144,9 @@ function createClaudeAdapter(
         ...(deps.claudeCliFlags ? { cliFlags: deps.claudeCliFlags } : {}),
         ...(deps.nativeChatPromptSuggestions
           ? { promptSuggestions: deps.nativeChatPromptSuggestions }
-          : {})
+          : {}),
+        // Custom build (hq-plus-room-mcp): a chat starts without the MCP servers its HQ room hides.
+        resolveDeniedTools: (chat) => hqRoomDeniedTools(getHqJournalService(), chat)
       })
     ),
     ...(deps.resolveClaudeCommand ? { resolveClaudeCommand: deps.resolveClaudeCommand } : {}),
