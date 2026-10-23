@@ -12,6 +12,7 @@ import type { HqChatGroup, HqChatItem } from '../hq/hq-chat-list'
 import { useHqChatTitle } from '../hq/HqChatAvatar'
 import { hqPlusChatIsIdle } from './hq-plus-chats'
 import { HqPlusCloseChat, type HqPlusChatCloser } from './HqPlusCloseChat'
+import { HqPlusSideBlock } from './HqPlusSideBlock'
 import {
   HqPlusWaitingQueue,
   HqPlusWeWaitQueue,
@@ -170,10 +171,10 @@ export function HqPlusSide({
           </button>
         </div>
       ) : null}
-      <div className="hqp-side-sec" data-list="chats">
-        <div className="hqp-hl hqp-side-h">
-          {translate('auto.hqPlus.side.chats', 'chats · {{count}}', { count: chats.length })}
-        </div>
+      <HqPlusSideBlock
+        id="chats"
+        title={translate('auto.hqPlus.side.chats', 'chats · {{count}}', { count: chats.length })}
+      >
         {chats.length === 0 ? (
           <p className="hqp-empty hqp-quiet">
             {translate('auto.hqPlus.side.noSessions', 'no live chats')}
@@ -198,7 +199,7 @@ export function HqPlusSide({
             </CollapsibleContent>
           </Collapsible>
         ) : null}
-      </div>
+      </HqPlusSideBlock>
       <div className="hqp-stats">
         <div className="hqp-st">
           <span>
