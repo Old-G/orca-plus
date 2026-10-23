@@ -55,6 +55,32 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     notes: ["Without an address it shows this chat's own thread."]
   },
   {
+    // Custom build (hq-plus-routing)
+    path: ['hq', 'route'],
+    summary: 'What HQ/routing.yaml does now: fixing chats for the evening Codex findings',
+    usage: 'orca hq route [--now] [--since <7d|ISO date>] [--run] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'now', 'since', 'run'],
+    notes: [
+      'Without --run it only lists what it would do; Orca+ itself runs the rules every 5 minutes.',
+      "--now ignores the rule's hour and the Claude limit; --run carries the actions out at once and implies --now.",
+      "--since replaces the rules' since, to see what they would have done over the past."
+    ],
+    examples: ['orca hq route', 'orca hq route --now --since 2026-10-22']
+  },
+  {
+    path: ['hq', 'settle'],
+    summary:
+      'Close a journal row this chat was handed: fixed (with the commit) or not needed (with why)',
+    usage: 'orca hq settle <id> (--done [--commit <sha>] | --dropped --why <text>) [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'id', 'done', 'dropped', 'commit', 'why'],
+    positionalArgs: ['id'],
+    notes: ['A Codex finding handed to a «Codex: починить» chat closes this way, one per finding.'],
+    examples: [
+      'orca hq settle e-0193… --done --commit 1a2b3c4d5e',
+      'orca hq settle e-0193… --dropped --why "Intended: the cap is per order"'
+    ]
+  },
+  {
     path: ['hq', 'whoami'],
     summary: 'Where this chat works: its room, project, thread address and task',
     usage: 'orca hq whoami [--json]',
