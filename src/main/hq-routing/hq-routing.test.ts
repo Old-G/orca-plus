@@ -40,6 +40,7 @@ let launched: { repoId: string; name: string; baseBranch?: string }[]
 let delivered: { sessionId: string; prompt: string }[]
 let launchError: string | null
 let free: number | null
+let busy: string | null
 
 beforeEach(() => {
   db = new PulseDb(':memory:')
@@ -48,6 +49,7 @@ beforeEach(() => {
   delivered = []
   launchError = null
   free = 80
+  busy = null
   const rooms: Record<string, string> = { 'Acme API': 'acme-api', Kite: 'kite' }
   db.recordJournal(
     codexReviewJournal(REPORT_NAME, REPORT, ({ project }) => ({
@@ -93,6 +95,7 @@ beforeEach(() => {
       return true
     },
     freePercent: () => free,
+    projectBusy: async () => busy,
     now: () => clock,
     log: () => {}
   })
@@ -148,6 +151,18 @@ describe('HQ+ routing: Codex findings to a fixing chat', () => {
     expect(launched).toEqual([])
     const past = await routing.run({ dryRun: true, manual: true, since: at(19, 0) })
     expect(past.actions).toEqual([])
+  })
+
+  it('a project with two live chats gets no third until one frees up', async () => {
+    clock = at(19, 0)
+    busy = 'acme-api already has 2 live chats'
+    expect((await routing.run()).actions[0]).toMatchObject({
+      kind: 'wait',
+      note: 'acme-api already has 2 live chats'
+    })
+    expect(launched).toEqual([])
+    busy = null
+    expect((await routing.run()).actions[0]).toMatchObject({ kind: 'open' })
   })
 
   it('a failed launch tells the owner once and tries again within the hour', async () => {

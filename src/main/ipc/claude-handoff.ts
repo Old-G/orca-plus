@@ -28,6 +28,7 @@ import { getRuntimePathBasename } from '../../shared/cross-platform-path'
 import { splitWorktreeId } from '../../shared/worktree/id'
 import { parsePaneKey } from '../../shared/stable-pane-id'
 import { getHqThreads } from '../hq-journal/hq-journal-threads'
+import { getHqSessions } from '../hq-sessions/hq-sessions'
 
 /** The tab the launch opened, so HQ can show the new chat in place; absent from older hosts. */
 function readLaunchedTabId(result: unknown): string | undefined {
@@ -79,6 +80,10 @@ async function closeHandedOffChat(
     return
   }
   try {
+    // Custom build (hq-plus-sessions): the close is a step of the thread's life in the journal.
+    await getHqSessions()
+      ?.mayClose(offer.tabId.slice(NATIVE_CHAT_TAB.length), 'handoff')
+      .catch(() => null)
     await runtime.closeMobileSessionTab(`id:${offer.worktreeId}`, offer.tabId, { reason: 'user' })
   } catch (error) {
     console.warn('[claude-handoff] closing the handed-off chat failed:', error)
@@ -180,50 +185,76 @@ export function registerClaudeHandoffHandlers(
       offers.dismiss(id)
     }
   })
+  const launch = async (
+    id: string,
+    presentation?: 'background'
+  ): Promise<ClaudeHandoffLaunchResult> => {
+    if (launching.has(id)) {
+      return { ok: false, error: 'This handoff is already starting.' }
+    }
+    launching.add(id)
+    try {
+      const resolved = await offers.resolve(id)
+      if (!resolved) {
+        return { ok: false, error: 'The handoff file is gone or no longer valid.' }
+      }
+      const response = await dispatcher.dispatch({
+        id: randomUUID(),
+        authToken: '',
+        method: 'agent.launch',
+        params: {
+          agent: 'claude',
+          target: { kind: 'existing', worktree: `id:${resolved.offer.worktreeId}` },
+          prompt: { text: resolved.file.prompt, delivery: 'submit' },
+          // Custom build (hq-plus-sessions): a successor the dispatcher starts opens beside the owner's work.
+          ...(presentation ? { presentation, nativeChatDefault: true } : {})
+        }
+      })
+      if (!response.ok) {
+        return { ok: false, error: response.error.message }
+      }
+      offers.dismiss(id)
+      const tabId = readLaunchedTabId(response.result)
+      moveWaitingsToSuccessor(pulseDb, resolved.offer, tabId)
+      await closeHandedOffChat(runtime, resolved.offer, tabId)
+      // Custom build (hq-plus-reports): the new chat continues the old one's thread.
+      if (resolved.offer.tabId?.startsWith(NATIVE_CHAT_TAB) && tabId?.startsWith(NATIVE_CHAT_TAB)) {
+        getHqThreads()?.handoff(
+          resolved.offer.tabId.slice(NATIVE_CHAT_TAB.length),
+          tabId.slice(NATIVE_CHAT_TAB.length)
+        )
+      }
+      return { ok: true, worktreeId: resolved.offer.worktreeId, ...(tabId ? { tabId } : {}) }
+    } finally {
+      launching.delete(id)
+    }
+  }
   ipcMain.handle(
     'claudeHandoff:launch',
-    async (_event, id: unknown): Promise<ClaudeHandoffLaunchResult> => {
-      if (typeof id !== 'string' || launching.has(id)) {
-        return { ok: false, error: 'This handoff is already starting.' }
-      }
-      launching.add(id)
-      try {
-        const resolved = await offers.resolve(id)
-        if (!resolved) {
-          return { ok: false, error: 'The handoff file is gone or no longer valid.' }
-        }
-        const response = await dispatcher.dispatch({
-          id: randomUUID(),
-          authToken: '',
-          method: 'agent.launch',
-          params: {
-            agent: 'claude',
-            target: { kind: 'existing', worktree: `id:${resolved.offer.worktreeId}` },
-            prompt: { text: resolved.file.prompt, delivery: 'submit' }
-          }
-        })
-        if (!response.ok) {
-          return { ok: false, error: response.error.message }
-        }
-        offers.dismiss(id)
-        const tabId = readLaunchedTabId(response.result)
-        moveWaitingsToSuccessor(pulseDb, resolved.offer, tabId)
-        await closeHandedOffChat(runtime, resolved.offer, tabId)
-        // Custom build (hq-plus-reports): the new chat continues the old one's thread.
-        if (
-          resolved.offer.tabId?.startsWith(NATIVE_CHAT_TAB) &&
-          tabId?.startsWith(NATIVE_CHAT_TAB)
-        ) {
-          getHqThreads()?.handoff(
-            resolved.offer.tabId.slice(NATIVE_CHAT_TAB.length),
-            tabId.slice(NATIVE_CHAT_TAB.length)
-          )
-        }
-        return { ok: true, worktreeId: resolved.offer.worktreeId, ...(tabId ? { tabId } : {}) }
-      } finally {
-        launching.delete(id)
-      }
-    }
+    async (_event, id: unknown): Promise<ClaudeHandoffLaunchResult> =>
+      typeof id === 'string'
+        ? launch(id)
+        : { ok: false, error: 'This handoff is already starting.' }
   )
+  provideClaudeHandoffLauncher({
+    list: () => offers.list(),
+    launch: (id) => launch(id, 'background')
+  })
   return offers
+}
+
+/** Custom build (hq-plus-sessions): the offers and their launch, for the session dispatcher. */
+export type ClaudeHandoffLauncher = {
+  list: () => ClaudeHandoffOffer[]
+  launch: (id: string) => Promise<ClaudeHandoffLaunchResult>
+}
+
+let launcher: ClaudeHandoffLauncher | null = null
+
+function provideClaudeHandoffLauncher(value: ClaudeHandoffLauncher): void {
+  launcher = value
+}
+
+export function getClaudeHandoffLauncher(): ClaudeHandoffLauncher | null {
+  return launcher
 }
