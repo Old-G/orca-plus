@@ -101,8 +101,7 @@ const INBOX_ACTION_LABEL: Readonly<Record<string, string>> = {
   'slack-review': 'Investigate'
 }
 
-/** Custom build (hq-plus-ui-v5): the Slack thread, ClickUp task or mail an inbox card came from. */
-function hqPlusSourceLink(refId: string | null): { url: string; label: string } | null {
+function inboxSourceUrl(refId: string | null): string | null {
   let parsed: unknown = null
   try {
     parsed = refId ? JSON.parse(refId) : null
@@ -113,7 +112,16 @@ function hqPlusSourceLink(refId: string | null): { url: string; label: string } 
     return null
   }
   const raw: unknown = Reflect.get(parsed, 'link') ?? Reflect.get(parsed, 'permalink')
-  if (typeof raw !== 'string' || !raw.startsWith('https://')) {
+  return typeof raw === 'string' ? raw : null
+}
+
+/**
+ * Custom build (hq-plus-ui-v5): the Slack thread, ClickUp task or mail a card came from — an inbox
+ * item's own link, else the first link its journal row keeps (a waiting's source message).
+ */
+function hqPlusSourceLink(card: Card): { url: string; label: string } | null {
+  const raw = inboxSourceUrl(card.inbox?.refId ?? null) ?? card.entry?.links[0]?.url ?? null
+  if (!raw || !raw.startsWith('https://')) {
     return null
   }
   const service = hqSourceService(raw)
@@ -303,7 +311,7 @@ export function HqPlusCardView({
   const choices = card.report?.options.length ? card.report.options : hqPlusChoices(card.body)
   const reply = (value: string): void => run(() => replyOnHqPlusCard(card, value, hqPath))
   const canReply = card.type === 'move' && Boolean(card.address || card.sessionId)
-  const sourceLink = hqPlusSourceLink(card.inbox?.refId ?? null)
+  const sourceLink = hqPlusSourceLink(card)
 
   return (
     <div
@@ -364,7 +372,7 @@ export function HqPlusCardView({
             ) : null}
           </>
         )}
-        {look.kind === 'inbox' && sourceLink ? (
+        {sourceLink ? (
           <button
             type="button"
             className="hqp-link hqp-source"

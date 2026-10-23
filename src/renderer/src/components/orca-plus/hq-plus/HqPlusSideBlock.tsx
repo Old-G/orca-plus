@@ -1,5 +1,5 @@
 // Custom build (hq-plus-side-blocks): a left-column block whose title folds it; the list scrolls
-// inside the block, so the owner's queue and what we wait for get the same height. Folds are remembered.
+// inside the block, so the queues get the same height. Folds are remembered.
 import { useState } from 'react'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import {
