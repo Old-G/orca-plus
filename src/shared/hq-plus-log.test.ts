@@ -321,6 +321,63 @@ describe('decided before the day', () => {
   })
 })
 
+describe('a question the owner answered', () => {
+  const answered = (askedAt: number) =>
+    hqPlusLog(
+      [
+        row({
+          id: 'q',
+          at: askedAt,
+          title: 'Limits read — Cap per order or per day?',
+          body: 'Done: Limits read\nQuestion: Cap per order or per day? (options: order | day)',
+          needs: 'owner:decide',
+          status: 'done'
+        }),
+        row({
+          id: 'r',
+          at: NOW - HOUR,
+          kind: 'chat.message',
+          title: 'From HQ+: order',
+          body: '> Limits read — Cap per order or per day?\n\norder',
+          replyTo: 'q',
+          source: 'chat-send'
+        })
+      ],
+      [],
+      NOW - 12 * HOUR
+    ).find((item) => item.id === 'q')
+
+  it('stays a folded card once its row is settled', () => {
+    expect(answered(NOW - 2 * HOUR)).toMatchObject({
+      kind: 'card',
+      open: false,
+      done: { by: 'reply', text: 'order' }
+    })
+  })
+
+  it('keeps its card when it was asked before the day', () => {
+    expect(answered(NOW - 30 * HOUR)).toMatchObject({ kind: 'card', open: false })
+  })
+
+  it('stays open when another chat, not the owner, replied', () => {
+    const log = hqPlusLog(
+      [
+        row({ id: 'q', title: 'Ship behind a flag?', needs: 'owner:decide', status: 'open' }),
+        row({
+          at: NOW - HOUR / 2,
+          kind: 'chat.message',
+          title: 'From acme-api/refund-limits: API side is ready.',
+          replyTo: 'q',
+          source: 'chat-send'
+        })
+      ],
+      [],
+      DAY_START
+    )
+    expect(log.find((item) => item.id === 'q')).toMatchObject({ kind: 'card', open: true })
+  })
+})
+
 describe('a report decided today', () => {
   it('keeps its folded card though it came yesterday', () => {
     const log = hqPlusLog(
