@@ -47,6 +47,7 @@ import {
   getWaiting,
   listWaitings,
   markWaitingReplyDelivered,
+  moveOpenWaitingsToChat,
   recordWaitingReply,
   updateWaiting
 } from './pulse-waitings'
@@ -94,6 +95,9 @@ export class PulseDb {
   }
   markWaitingReplyDelivered(id: string, replyTs?: string) {
     return markWaitingReplyDelivered(this.core, id, replyTs)
+  }
+  moveOpenWaitingsToChat(fromSessionId: string, toSessionId: string) {
+    return moveOpenWaitingsToChat(this.core, fromSessionId, toSessionId)
   }
 
   addDraft(input: PulseDraftInput) {
