@@ -1,6 +1,8 @@
 // Custom build (hq-plus-ui-v3): one chat's card in HQ+'s feed — a click opens its full reply and a reply
 // box below. Custom build (hq-plus-ui-v4): it grows and folds smoothly, and the keys can select it.
 import { useLayoutEffect, useRef, useState } from 'react'
+import { NativeChatMarkdown } from '../../native-chat/NativeChatMarkdown'
+import { useHqPlusLastReply } from './use-hq-plus-last-reply'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import { translate } from '@/i18n/i18n'
 import type { HqPlusLogItem } from '../../../../../shared/hq-plus-log'
@@ -41,8 +43,11 @@ export function ChatCard({
   ctx: HqPlusLogContext
 }): React.JSX.Element {
   const open = ctx.isExpanded(item.id)
+  // Custom build (hq-plus-ui-v5): opened, the card reads the whole latest reply from the chat itself.
+  const fullReply = useHqPlusLastReply(item.sessionId, open, item.at)
   const status = ctx.chatStatus(item.sessionId) ?? DONE
-  const closer = ctx.closeChat(item.sessionId)
+  const cardKey = item.sessionId ?? item.address
+  const closer = ctx.closeChat(item.sessionId, cardKey ? { key: cardKey, at: item.at } : undefined)
   const key = item.address ?? item.sessionId
   const canReply = Boolean(item.address || item.sessionId)
   return (
@@ -73,7 +78,7 @@ export function ChatCard({
         </div>
         <HqPlusGrow>
           {/* Custom build (hq-plus-ui-v4): one text, four lines with a fade when folded, all of it open. */}
-          <ChatText text={item.body?.trim() || item.title} open={open} />
+          <ChatText text={item.body?.trim() || item.title} full={fullReply} open={open} />
         </HqPlusGrow>
         {item.earlier && item.earlier.length > 0 ? <ChatEarlier earlier={item.earlier} /> : null}
         {canReply ? (
@@ -126,7 +131,15 @@ export function ChatCard({
 }
 
 /** Folded: four lines, fading out only when there is more below. */
-function ChatText({ text, open }: { text: string; open: boolean }): React.JSX.Element {
+function ChatText({
+  text,
+  full,
+  open
+}: {
+  text: string
+  full: string | null
+  open: boolean
+}): React.JSX.Element {
   const box = useRef<HTMLDivElement>(null)
   const [more, setMore] = useState(false)
   useLayoutEffect(() => {
@@ -147,7 +160,11 @@ function ChatText({ text, open }: { text: string; open: boolean }): React.JSX.El
       data-open={open ? 'true' : undefined}
       data-more={more && !open ? 'true' : undefined}
     >
-      <HqPlusText text={text} />
+      {open ? (
+        <NativeChatMarkdown className="hqp-md" content={full ?? text} />
+      ) : (
+        <HqPlusText text={text} />
+      )}
     </div>
   )
 }

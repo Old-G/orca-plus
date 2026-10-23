@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { translate } from '@/i18n/i18n'
 
-export type HqPlusChatCloser = { working: boolean; close: () => void }
+export type HqPlusChatCloser = { working: boolean; close: () => void; dismiss?: boolean }
 
 export function HqPlusCloseChat({
   closer,
@@ -35,8 +35,19 @@ export function HqPlusCloseChat({
     <button
       type="button"
       className="hqp-x"
-      aria-label={translate('auto.hqPlus.closeChat.label', 'Close chat {{name}}', { name })}
-      title={translate('auto.hqPlus.closeChat.title', 'Close chat (stays in History)')}
+      aria-label={
+        closer.dismiss
+          ? translate('auto.hqPlus.dismissCard', 'Dismiss card')
+          : translate('auto.hqPlus.closeChat.label', 'Close chat {{name}}', { name })
+      }
+      title={
+        closer.dismiss
+          ? translate(
+              'auto.hqPlus.dismissCard.title',
+              'Hide this card (the chat is already closed)'
+            )
+          : translate('auto.hqPlus.closeChat.title', 'Close chat (stays in History)')
+      }
       onClick={() => (closer.working ? setAsking(true) : closer.close())}
     >
       <svg
