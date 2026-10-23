@@ -6,6 +6,7 @@ import { SettingsSubsectionHeader, SettingsSwitchRow } from './SettingsFormContr
 import { WorkspaceDirectorySetting } from './WorkspaceDirectorySetting'
 import { HqDeferredSetting } from './HqDeferredSetting'
 import { HqChatCleanupSetting } from './HqChatCleanupSetting'
+import { HqFeedPopupsSetting } from './HqFeedPopupsSetting'
 import { HqJournalSetting } from './HqJournalSetting'
 import { HqSessionDispatcherSetting } from './HqSessionDispatcherSetting'
 import { HqPathSetting } from './HqPathSetting'
@@ -46,6 +47,7 @@ export function GeneralWorkspaceSettingsSection({
       <HqDeferredSetting settings={settings} updateSettings={updateSettings} />
       <HqChatCleanupSetting settings={settings} updateSettings={updateSettings} />
       <HqJournalSetting settings={settings} updateSettings={updateSettings} />
+      <HqFeedPopupsSetting settings={settings} updateSettings={updateSettings} />
       <HqSessionDispatcherSetting settings={settings} updateSettings={updateSettings} />
 
       <div

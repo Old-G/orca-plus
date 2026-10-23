@@ -105,6 +105,20 @@ describe('decideOutgoingCall', () => {
     expect(comment && deps.moved.take(comment)).toEqual({ footer: true })
   })
 
+  it('holds a message back and tells the agent what the owner wants changed', async () => {
+    const { gate, deps, submit } = setup()
+    const id = submit(
+      'mcp__claude_ai_Slack__slack_send_message',
+      { channel_id: 'C0AAAAAAAAA', message: text },
+      't1'
+    )
+    decideOutgoingCall(deps, id, 'rejected', undefined, { note: 'Make it shorter' })
+    const told = hookOutput(await gate.wait(id))
+    expect(told.permissionDecision).toBe('deny')
+    expect(told.permissionDecisionReason).toContain('Make it shorter')
+    expect(told.permissionDecisionReason).toContain('has not sent this yet')
+  })
+
   it('refuses a move the card did not offer', () => {
     const { deps, submit } = setup()
     const id = submit(
