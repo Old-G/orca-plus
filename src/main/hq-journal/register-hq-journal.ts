@@ -8,6 +8,7 @@ import { createHqJournalService, provideHqJournalService } from './hq-journal-se
 import { createHqThreads, provideHqThreads } from './hq-journal-threads'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { runHqReopenChatOnDesktop } from '../hq-today/hq-request-on-desktop'
+import { registerHqContext } from '../hq-context/register-hq-context'
 
 // Why: the evening review writes its report once a day; the pulse writes wake the journal sooner.
 const REREAD_EVERY_MS = 5 * 60_000
@@ -61,6 +62,7 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
     log: (message) => console.log('[hq-journal]', message)
   })
   provideHqJournalService(service)
+  registerHqContext(store, runtime, service)
   provideHqThreads(
     createHqThreads({
       enabled,
