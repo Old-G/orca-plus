@@ -7,6 +7,7 @@ import {
 } from './hq-slack-scout'
 import type { HqProjectPage } from './hq-project-pages'
 import type { PulseBellInput } from './pulse-bell'
+import { hqSourceService } from './hq-source-link'
 
 export const HQ_SLACK_REQUEST_BELL_KIND = 'slack-request'
 
@@ -50,7 +51,7 @@ export type HqSlackRequestRef = { id: string; kind: HqSlackRequestKind; link?: s
 /** The Slack message or ClickUp task a request came from, when the scout recorded it. */
 function sourceLinkOf(draft: HqSlackScoutDraft): string | null {
   const permalink = draft.permalink?.trim()
-  if (permalink && /^https:\/\//.test(permalink)) {
+  if (permalink && hqSourceService(permalink)) {
     return permalink
   }
   return draft.clickupTaskId

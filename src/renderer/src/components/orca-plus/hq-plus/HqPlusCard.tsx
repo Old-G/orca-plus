@@ -22,6 +22,7 @@ import {
 import { HqPlusReportBody } from './HqPlusReportBody'
 import type { HqPlusLook } from '../../../../../shared/hq-plus-kinds'
 import { readHqSlackRequestRef } from '../../../../../shared/hq-slack-request-bell'
+import { hqSourceService } from '../../../../../shared/hq-source-link'
 import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 
@@ -108,20 +109,17 @@ function hqPlusSourceLink(refId: string | null): { url: string; label: string } 
   if (typeof raw !== 'string' || !/^https:\/\//.test(raw)) {
     return null
   }
-  const host = (() => {
-    try {
-      return new URL(raw).hostname
-    } catch {
-      return ''
-    }
-  })()
-  const label = host.endsWith('slack.com')
-    ? translate('auto.hqPlus.source.slack', 'Open in Slack')
-    : host.endsWith('clickup.com')
-      ? translate('auto.hqPlus.source.clickup', 'Open in ClickUp')
-      : host === 'mail.google.com'
-        ? translate('auto.hqPlus.source.gmail', 'Open in Gmail')
-        : translate('auto.hqPlus.source.other', 'Open source')
+  const service = hqSourceService(raw)
+  const label =
+    service === 'slack'
+      ? translate('auto.hqPlus.source.slack', 'Open in Slack')
+      : service === 'clickup'
+        ? translate('auto.hqPlus.source.clickup', 'Open in ClickUp')
+        : service === 'gmail'
+          ? translate('auto.hqPlus.source.gmail', 'Open in Gmail')
+          : service === 'gitlab'
+            ? translate('auto.hqPlus.source.gitlab', 'Open in GitLab')
+            : translate('auto.hqPlus.source.other', 'Open external site')
   return { url: raw, label }
 }
 
