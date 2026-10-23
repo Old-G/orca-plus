@@ -30,6 +30,7 @@ import { registerHqProjectPagesHandlers } from '../../hq-project-pages/register-
 import { startHqMorningBriefing } from '../../hq-today/hq-morning-briefing'
 import { registerHqPulseMirror } from '../../hq-pulse-mirror/register-hq-pulse-mirror'
 import { registerPulseBell } from '../../orca-plus/pulse-bell/register-pulse-bell'
+import { registerHqJournal } from '../../hq-journal/register-hq-journal'
 import { registerOutgoingApproval } from '../../orca-plus/outgoing-approval/register-outgoing-approval'
 import { registerWebPush } from '../../orca-plus/web-push/register-web-push'
 import { registerBitbucketHandlers } from '../bitbucket'
@@ -234,6 +235,7 @@ export function registerCoreHandlers(
   registerHqProjectPagesHandlers(store, () => runtime.getCommitMessageAgentEnvironmentResolvers())
   registerHqPulseMirror(store)
   registerPulseBell(store, runtime, rateLimits)
+  registerHqJournal(store, runtime)
   startHqMorningBriefing({
     now: Date.now,
     listInbox: () => runtime.pulseListInbox(true),

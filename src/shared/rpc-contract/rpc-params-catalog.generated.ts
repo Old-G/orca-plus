@@ -340,6 +340,7 @@ import {
   HostedReviewCreationEligibility,
   HostedReviewForBranch
 } from './hosted-review-params'
+import { HqEventsParams, HqWhoamiParams } from './hq-journal-params'
 import {
   HqBellActionOnDesktopParams,
   HqClickUpReplyParams,
@@ -661,11 +662,11 @@ import {
   TerminalUpdateViewport
 } from './terminal-viewport-schemas-params'
 import { UpdaterCheckParams } from './updater-params'
-import { WebPushSubscribeParams } from './web-push-params'
 import {
   UsageCredentialApiKeyParams,
   UsageCredentialSessionCookieParams
 } from './usage-credentials-params'
+import { WebPushSubscribeParams } from './web-push-params'
 import { LayoutReopenHeldPanesParams } from './workspace-layout-held-panes-params'
 import {
   LayoutApplyParams,
@@ -1130,6 +1131,8 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.createStacked': HostedReviewCreate,
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
+  'hq.events': HqEventsParams,
+  'hq.whoami': HqWhoamiParams,
   'hqProjects.answerSlackDraft': HqSlackDraftRefParams,
   'hqProjects.chatList': null,
   'hqProjects.createSlackDraftTask': HqSlackDraftCreateParams,

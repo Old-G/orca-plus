@@ -140,7 +140,55 @@ DELETE FROM feed WHERE kind = 'sent';`
 // Custom build (hq-reply-source-link): where the answer was said (Slack permalink, ClickUp comment).
 const V7 = `ALTER TABLE waitings ADD COLUMN reply_link TEXT;`
 
-const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7]
+// Custom build (hq-plus-journal): HQ+'s event journal, one row per thing that happened, its room
+// first; and the agent sessions working on its threads. IF NOT EXISTS: older-version tests re-run it.
+const V8 = `
+CREATE TABLE IF NOT EXISTS journal (
+  id TEXT PRIMARY KEY,
+  at INTEGER NOT NULL,
+  workspace TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  project TEXT,
+  address TEXT,
+  session_id TEXT,
+  person_id TEXT REFERENCES people(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  body TEXT,
+  needs TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'done', 'dropped')),
+  reply_to TEXT,
+  ref_kind TEXT,
+  ref_id TEXT,
+  links TEXT NOT NULL DEFAULT '[]',
+  source TEXT NOT NULL,
+  dedupe_key TEXT
+);
+CREATE INDEX IF NOT EXISTS journal_by_workspace ON journal(workspace, at);
+CREATE INDEX IF NOT EXISTS journal_by_address ON journal(address, at);
+CREATE INDEX IF NOT EXISTS journal_by_needs ON journal(needs, status);
+CREATE INDEX IF NOT EXISTS journal_by_project ON journal(project, at);
+CREATE UNIQUE INDEX IF NOT EXISTS journal_dedupe ON journal(dedupe_key);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  session_id TEXT PRIMARY KEY,
+  address TEXT,
+  agent TEXT,
+  worktree_id TEXT,
+  workspace TEXT NOT NULL,
+  project TEXT,
+  state TEXT NOT NULL CHECK (state IN ('queued', 'working', 'waiting', 'done', 'closed')),
+  context_pct INTEGER,
+  opened_at INTEGER NOT NULL,
+  last_activity_at INTEGER NOT NULL,
+  closed_at INTEGER,
+  parent_session_id TEXT,
+  task_ref TEXT
+);
+CREATE INDEX IF NOT EXISTS sessions_by_address ON sessions(address, opened_at);
+CREATE INDEX IF NOT EXISTS sessions_by_workspace ON sessions(workspace, last_activity_at);
+`
+
+const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 

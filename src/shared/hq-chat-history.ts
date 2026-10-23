@@ -81,6 +81,28 @@ function details(item: HqHistorySource): Details {
   return detailsFromBody(item.body)
 }
 
+export type HqFinishedChat = Omit<HqHistoryEntry, 'finishes'>
+
+/** Custom build (hq-plus-journal): one agent-finished item as the chat and turn it names; null for
+ *  any other item. */
+export function readHqFinishedChat(item: HqHistorySource): HqFinishedChat | null {
+  const ref = item.kind === PULSE_BELL_KIND.agentFinished ? readPulseBellPaneRef(item.refId) : null
+  if (!ref) {
+    return null
+  }
+  return {
+    key: ref.worktreeId && ref.tabId ? `${ref.worktreeId}\u0000${ref.tabId}` : ref.paneKey,
+    paneKey: ref.paneKey,
+    worktreeId: ref.worktreeId,
+    tabId: ref.tabId,
+    sessionId: ref.tabId?.startsWith(STRUCTURED_TAB_PREFIX)
+      ? ref.tabId.slice(STRUCTURED_TAB_PREFIX.length)
+      : null,
+    finishedAt: item.createdAt,
+    ...details(item)
+  }
+}
+
 /** One row per chat, newest finish first; finishes older than the window are left out. */
 export function buildHqChatHistory(
   items: readonly HqHistorySource[],
@@ -89,32 +111,18 @@ export function buildHqChatHistory(
   const since = now - HQ_HISTORY_WINDOW_MS
   const byChat = new Map<string, HqHistoryEntry>()
   for (const item of items) {
-    const ref =
-      item.kind === PULSE_BELL_KIND.agentFinished ? readPulseBellPaneRef(item.refId) : null
-    if (!ref || item.createdAt < since) {
+    const chat = readHqFinishedChat(item)
+    if (!chat || item.createdAt < since) {
       continue
     }
-    const key = ref.worktreeId && ref.tabId ? `${ref.worktreeId}\u0000${ref.tabId}` : ref.paneKey
-    const known = byChat.get(key)
+    const known = byChat.get(chat.key)
     if (known) {
       known.finishes += 1
       if (item.createdAt <= known.finishedAt) {
         continue
       }
     }
-    const sessionId = ref.tabId?.startsWith(STRUCTURED_TAB_PREFIX)
-      ? ref.tabId.slice(STRUCTURED_TAB_PREFIX.length)
-      : null
-    byChat.set(key, {
-      key,
-      paneKey: ref.paneKey,
-      worktreeId: ref.worktreeId,
-      tabId: ref.tabId,
-      sessionId,
-      finishedAt: item.createdAt,
-      finishes: known?.finishes ?? 1,
-      ...details(item)
-    })
+    byChat.set(chat.key, { ...chat, finishes: known?.finishes ?? 1 })
   }
   return [...byChat.values()].sort((a, b) => b.finishedAt - a.finishedAt)
 }
