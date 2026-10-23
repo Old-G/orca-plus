@@ -36,9 +36,9 @@ export const getGeneralWorkspaceSearchDescriptors = createLocalizedCatalog(() =>
       ...translateSearchKeyword('auto.hq.setting.keyword.registry', 'registry'),
       ...translateSearchKeyword('auto.hq.setting.keyword.strata', 'strata')
     ]
-  },
+  }),
   // Custom build (chat-cleanup): found by search too, not only by scrolling to it.
-  {
+  generalSetting(GENERAL_SETTING_ANCHORS.folder, {
     title: translate('auto.hq.chatCleanup.settingTitle', 'Close quiet chats'),
     description: translate(
       'auto.hq.chatCleanup.settingDescription',
