@@ -24,6 +24,7 @@ export const hqProjectsApi = {
   takeSlackDraft: (ref) => ipcRenderer.invoke('hqProjects:takeSlackDraft', ref),
   restoreSlackDraft: (ref) => ipcRenderer.invoke('hqProjects:restoreSlackDraft', ref),
   startClickUpReview: (ref) => ipcRenderer.invoke('hqProjects:startClickUpReview', ref),
+  mayCloseChat: (ref) => ipcRenderer.invoke('hqProjects:mayCloseChat', ref),
   draftClickUpReply: (ref) => ipcRenderer.invoke('hqProjects:draftClickUpReply', ref),
   sendClickUpReply: (reply) => ipcRenderer.invoke('hqProjects:sendClickUpReply', reply),
   onRunRequest: (listener) => {

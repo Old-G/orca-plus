@@ -53,6 +53,8 @@ export type HqRoutingDeps = {
   nameChat: (sessionId: string, name: string) => Promise<void>
   deliver: (sessionId: string, prompt: string) => Promise<boolean>
   freePercent: () => number | null
+  /** Custom build (hq-plus-sessions): why the project takes no new chat now; null when it does. */
+  projectBusy: (project: string) => Promise<string | null>
   now: () => number
   log: (message: string) => void
 }
@@ -177,6 +179,11 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
         )
       ])
       return { ...action, note: error }
+    }
+    // Why: the dispatcher's cap — a project with two live chats gets no third; tried again later.
+    const busy = await deps.projectBusy(action.project)
+    if (busy) {
+      return { ...action, kind: 'wait', note: busy }
     }
     const workspace = await deps.workspaceFor(action.project)
     if (!workspace) {
