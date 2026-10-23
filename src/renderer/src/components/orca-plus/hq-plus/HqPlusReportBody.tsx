@@ -2,6 +2,7 @@
 // moves that start work from it: an HQ chat on it, the proposals accepted, the Codex fixes run now.
 import { useState } from 'react'
 import { HqPlusText } from './HqPlusText'
+import { HqPlusReplyField } from './HqPlusReplyField'
 import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
 import { summarizeHqPlusReport } from '../../../../../shared/hq-plus-screen'
 import { translate } from '@/i18n/i18n'
@@ -160,7 +161,7 @@ export function HqPlusReportBody({
           <label className="hqp-sr" htmlFor={`hqp-rr-${card.id}`}>
             {translate('auto.hqPlus.report.replyLabel', 'Decisions on this report')}
           </label>
-          <input
+          <HqPlusReplyField
             id={`hqp-rr-${card.id}`}
             value={text}
             disabled={busy}

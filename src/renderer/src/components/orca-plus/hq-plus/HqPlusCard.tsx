@@ -26,6 +26,7 @@ import { readHqSlackRequestRef } from '../../../../../shared/hq-slack-request-be
 import { hqSourceService } from '../../../../../shared/hq-source-link'
 import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
+import { HqPlusReplyField } from './HqPlusReplyField'
 
 const DONE_ACTION: Record<string, [string, string]> = {
   open: ['auto.hqPlus.done.open', 'opened'],
@@ -481,7 +482,7 @@ export function HqPlusCardView({
             <label className="hqp-sr" htmlFor={`hqp-t-${card.id}`}>
               {translate('auto.hqPlus.tellAgent', 'Tell agent')}
             </label>
-            <input
+            <HqPlusReplyField
               id={`hqp-t-${card.id}`}
               value={text}
               disabled={busy}
@@ -535,7 +536,7 @@ export function HqPlusCardView({
             <label className="hqp-sr" htmlFor={`hqp-r-${card.id}`}>
               {translate('auto.hqPlus.replyLabel', 'Answer this chat')}
             </label>
-            <input
+            <HqPlusReplyField
               id={`hqp-r-${card.id}`}
               value={text}
               disabled={busy}
