@@ -30,6 +30,8 @@ export type HqContextCardInput = {
   sessions: readonly HqSession[]
   reports: readonly HqJournalEntry[]
   personName: (id: string | null) => string | null
+  /** Custom build (hq-closed-loop): who works on it, by the dossiers in HQ's `people/`. */
+  people?: readonly { name: string; role: string | null; write: string | null }[]
   where: readonly { label: string; value: string }[]
   now: number
 }
@@ -122,6 +124,15 @@ export function buildHqContextCard(input: HqContextCardInput): string[] {
   const lines = [
     ...head,
     ...planBlock(input),
+    ...block(
+      'Люди',
+      'orca hq who · orca hq person <имя>',
+      (input.people ?? []).map(
+        (person) =>
+          `- ${person.name}${person.role ? ` — ${person.role}` : ''}${person.write ? ` · писать: ${person.write}` : ''}`
+      ),
+      'в досье пока никто не назван'
+    ),
     ...block(
       'Кого ждём',
       'orca pulse wait',
