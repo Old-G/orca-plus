@@ -255,12 +255,17 @@ if [ "$dry" = 0 ]; then
   "$repo/scripts/orca-plus-shared-config-snapshot.sh" check "$backup/shared" || ok=0
   claude_org_matches || ok=0
   version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")
+  commit=$(git -C "$repo" rev-parse --short HEAD)
+  # Why: HQ+ shows the ship in thread job/ship, so nobody has to ask whether it landed (24.10).
   if [ "$ok" = 1 ]; then
     step "OK — Orca+ $version installed, profile intact. Backup: $backup"
+    orca_plus_cli hq job --job ship --did "Orca+ $version installed ($commit), profile intact" >/dev/null || true
     step "prune backups, keeping only this one"
     prune_backups 1
   else
     step "MISMATCH — check above. Old app and profile are in $backup"
+    orca_plus_cli hq job --job ship --found "Orca+ $version ($commit) installed, profile check failed; old app and profile in $backup" \
+      --ask "Roll back to the backup?" --options "roll back|keep" >/dev/null || true
     exit 1
   fi
 fi
