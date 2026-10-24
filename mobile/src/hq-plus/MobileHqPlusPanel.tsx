@@ -4,7 +4,13 @@ import { useCallback, useMemo } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import type { HqChatWireItem } from '../../../src/shared/hq-chat-wire'
 import type { HqPlusCard } from '../../../src/shared/hq-plus-log'
-import { hqPlusGraph, hqPlusLanes, type HqPlusWait } from '../../../src/shared/hq-plus-river-graph'
+import {
+  hqPlusGraph,
+  hqPlusGraphMembers,
+  hqPlusLanes,
+  type HqPlusWait
+} from '../../../src/shared/hq-plus-river-graph'
+import type { HqPeopleRow } from '../../../src/shared/hq-people'
 import type { HqPlusScreenStats } from '../../../src/shared/hq-plus-screen'
 import type { HqWaiting } from '../../../src/shared/hq-pulse-snapshot'
 import { MobileHqReportsPage } from '../hq/MobileHqReportsPage'
@@ -12,7 +18,8 @@ import type { MobileHqSpaceFilter } from '../hq/mobile-hq-spaces'
 import { useMobileHqPoll } from '../hq/use-mobile-hq-poll'
 import { runRpcOperation } from '../transport/rpc-operation'
 import type { RpcClient } from '../transport/rpc-client'
-import { hqPlusPagesRead, hqPlusStatsRead } from './hq-plus-phone-operations'
+import { hqPlusPagesRead, hqPlusPeopleRead, hqPlusStatsRead } from './hq-plus-phone-operations'
+import { MobileHqPlusPeople } from './MobileHqPlusPeople'
 import { HQP_TOUCH, hqp, hqpStyles, hqpWeb } from './hq-plus-phone-theme'
 import type { HqpFeedContext } from './mobile-hq-plus-feed-context'
 import { HQP_VIEWS, type HqpView } from './mobile-hq-plus-views-model'
@@ -25,6 +32,8 @@ import {
 } from './MobileHqPlusViewBodies'
 
 type Pages = { slug: string; relations: string[] }[]
+
+const EMPTY_PEOPLE: HqPeopleRow[] = []
 
 async function readStats(
   client: RpcClient
@@ -40,6 +49,17 @@ async function readPages(client: RpcClient): Promise<{ value: Pages } | { error:
   try {
     const reply = await runRpcOperation(client, hqPlusPagesRead)
     return reply.ok ? { value: reply.pages } : { error: reply.error }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+async function readPeople(
+  client: RpcClient
+): Promise<{ value: HqPeopleRow[] } | { error: string }> {
+  try {
+    const reply = await runRpcOperation(client, hqPlusPeopleRead)
+    return reply.ok ? { value: reply.people } : { error: reply.error }
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) }
   }
@@ -90,6 +110,9 @@ export function MobileHqPlusPanel({
   const statsClient = needsStats ? client : null
   const stats = useMobileHqPoll(statsClient, readStats)
   const pages = useMobileHqPoll(view === 'graph' ? client : null, readPages)
+  // Custom build (hq-closed-loop): People, and the graph's people-in-projects from their dossiers.
+  const people = useMobileHqPoll(view === 'people' || view === 'graph' ? client : null, readPeople)
+  const peopleRows = people.state.status === 'ready' ? people.state.value : EMPTY_PEOPLE
   const inRoom = useCallback(
     (project: string | null) => !room || roomOfProject(project) === room,
     [room, roomOfProject]
@@ -126,9 +149,10 @@ export function MobileHqPlusPanel({
         active: new Set(
           lanes.filter((lane) => lane.lastAt >= now - 24 * 60 * 60_000).map((lane) => lane.project)
         ),
-        now
+        now,
+        members: hqPlusGraphMembers(peopleRows)
       }),
-    [shaped, pages.state, inRoom, roomOfProject, lanes, now]
+    [shaped, pages.state, inRoom, roomOfProject, lanes, now, peopleRows]
   )
   const label = HQP_VIEWS.find((entry) => entry.id === view)?.label ?? 'HQ+'
   return (
@@ -180,6 +204,12 @@ export function MobileHqPlusPanel({
       <ScrollView style={hqpWeb.noScrollbar} contentContainerStyle={styles.body}>
         {view === 'agents' ? (
           <HqpAgentsView chats={chats} now={now} onOpen={ctx.openChat} />
+        ) : view === 'people' ? (
+          <MobileHqPlusPeople
+            client={client}
+            people={peopleRows}
+            error={people.state.status === 'error' ? people.state.message : null}
+          />
         ) : view === 'river' ? (
           stats.state.status === 'error' ? (
             <Text style={hqpStyles.error}>{stats.state.message}</Text>
