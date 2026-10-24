@@ -120,6 +120,17 @@ export async function replyOnHqPlusCard(
   return markHqPlusDone(card, `${HQ_PLUS_REPLY_ACTION}${words.slice(0, REPLY_KEEP)}`, true)
 }
 
+/** Custom build (hq-closed-loop): a background job's card answered — the words wait in the job's
+ *  thread for its next run. */
+export async function replyOnHqPlusJob(card: HqPlusCard, text: string): Promise<HqPlusResult> {
+  const words = text.trim()
+  if (!words || !card.entry) {
+    return OK
+  }
+  const sent = await hqPlusCall('hq.jobReply', { entryId: card.entry.id, text: words })
+  return sent.ok ? OK : sent
+}
+
 /** «Tell agent» on a held message: not sent; the drafting chat gets the owner's words and drafts again. */
 export async function tellHqPlusDraftingAgent(
   card: HqPlusCard,
