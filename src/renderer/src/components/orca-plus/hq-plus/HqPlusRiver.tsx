@@ -1,7 +1,7 @@
 // Custom build (hq-plus-ui): Река — one lane per project over the last seven days: green where an agent
 // worked, dashed where it waits on a person (red once that is old), and what still runs today below.
 import type { HqPlusLane } from '../../../../../shared/hq-plus-river-graph'
-import type { HqPlusUpcoming } from './hq-plus-rpc-readers'
+import type { HqPlusUpcoming } from '../../../../../shared/hq-plus-rpc-readers'
 import { translate } from '@/i18n/i18n'
 
 const DAY_MS = 24 * 60 * 60_000
@@ -115,19 +115,11 @@ export function HqPlusRiver({
           {translate('auto.hqPlus.river.legendWork', 'an agent worked')}
         </span>
         <span>
-          <i
-            className="hqp-sw"
-            data-dash="true"
-            style={swatch('var(--hqp-red)')}
-          />
+          <i className="hqp-sw" data-dash="true" style={swatch('var(--hqp-red)')} />
           {translate('auto.hqPlus.river.legendLong', 'waiting on a person, long')}
         </span>
         <span>
-          <i
-            className="hqp-sw"
-            data-dash="true"
-            style={swatch('var(--hqp-amber)')}
-          />
+          <i className="hqp-sw" data-dash="true" style={swatch('var(--hqp-amber)')} />
           {translate('auto.hqPlus.river.legendWait', 'waiting on a person')}
         </span>
       </div>

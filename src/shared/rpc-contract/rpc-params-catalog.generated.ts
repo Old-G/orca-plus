@@ -359,6 +359,7 @@ import {
   HqWorkspaceAddParams
 } from './hq-journal-params'
 import {
+  HqAskOnDesktopParams,
   HqBellActionOnDesktopParams,
   HqClickUpReplyParams,
   HqClickUpReviewReplyParams,
@@ -1170,6 +1171,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'hq.whoami': HqWhoamiParams,
   'hq.workspaceAdd': HqWorkspaceAddParams,
   'hqProjects.answerSlackDraft': HqSlackDraftRefParams,
+  'hqProjects.askHqOnDesktop': HqAskOnDesktopParams,
   'hqProjects.chatList': null,
   'hqProjects.createSlackDraftTask': HqSlackDraftCreateParams,
   'hqProjects.createVoiceTask': HqVoiceIdeaParams,
