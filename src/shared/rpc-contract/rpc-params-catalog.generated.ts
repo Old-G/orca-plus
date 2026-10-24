@@ -379,6 +379,7 @@ import {
   HqJobReplyParams,
   HqLadderParams,
   HqMergeSlotParams,
+  HqPersonLookupParams,
   HqReportParams,
   HqRouteParams,
   HqSessionsParams,
@@ -386,6 +387,7 @@ import {
   HqStepParams,
   HqThreadParams,
   HqWhereParams,
+  HqWhoParams,
   HqWhoamiParams,
   HqWorkspaceAddParams
 } from './hq-journal-params'
@@ -1236,6 +1238,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'hq.jobReply': HqJobReplyParams,
   'hq.ladder': HqLadderParams,
   'hq.mergeSlot': HqMergeSlotParams,
+  'hq.person': HqPersonLookupParams,
   'hq.report': HqReportParams,
   'hq.route': HqRouteParams,
   'hq.screenStats': HqFeedParams,
@@ -1244,6 +1247,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'hq.step': HqStepParams,
   'hq.thread': HqThreadParams,
   'hq.where': HqWhereParams,
+  'hq.who': HqWhoParams,
   'hq.whoami': HqWhoamiParams,
   'hq.workspaceAdd': HqWorkspaceAddParams,
   'hqProjects.answerSlackDraft': HqSlackDraftRefParams,

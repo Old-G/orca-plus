@@ -60,7 +60,7 @@ function service(): HqProjectPagesService {
 }
 
 // Custom build (hq-people): the org matrix and person pages joined with the pulse's people.
-async function peopleSources(runtime: OrcaRuntimeService) {
+export async function peopleSources(runtime: OrcaRuntimeService) {
   const hqPath = service().settings().hqPath
   return {
     files: hqPath ? await readHqPeopleFiles(hqPath) : { org: [], pages: [] },

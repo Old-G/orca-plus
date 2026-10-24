@@ -83,6 +83,27 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     ]
   },
   {
+    // Custom build (hq-closed-loop)
+    path: ['hq', 'person'],
+    summary: 'Who someone is: role, projects, where to write them, what is open between you',
+    usage: 'orca hq person <name|@handle|Slack id|ClickUp id> [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'query'],
+    positionalArgs: ['query'],
+    notes: [
+      "Read from HQ's people/<name>.md dossier, the org matrix and the pulse. Before writing someone, check here where to write them.",
+      'Several matches list them; ask again with the full name.'
+    ],
+    examples: ['orca hq person Ann', 'orca hq person @ann.b']
+  },
+  {
+    path: ['hq', 'who'],
+    summary: "A project's people: who decides, who builds, where to write each",
+    usage: 'orca hq who <project> [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'project'],
+    positionalArgs: ['project'],
+    examples: ['orca hq who acme-api']
+  },
+  {
     path: ['hq', 'thread'],
     summary: 'Everything said in one thread, oldest first, with what each answer replied to',
     usage: 'orca hq thread [<project>/<task>] [--json]',
