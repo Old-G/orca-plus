@@ -20,7 +20,7 @@ const EDGE_COLOR: Record<HqPlusGraphEdge['kind'], string> = {
   'wait-long': 'var(--hqp-red)',
   wait: 'var(--hqp-amber)',
   owe: 'var(--hqp-ice)',
-  member: 'var(--hqp-rel)'
+  member: 'var(--hqp-violet)'
 }
 
 type Placed = { id: string; label: string; x: number; y: number; column: 0 | 1 | 2 }
@@ -317,6 +317,10 @@ export function HqPlusGraph({
         <span>
           <i className="hqp-sw" style={{ borderTopColor: EDGE_COLOR.relation }} />
           {translate('auto.hqPlus.graph.legendRel', 'depends on')}
+        </span>
+        <span>
+          <i className="hqp-sw" style={{ borderTopColor: EDGE_COLOR.member }} />
+          {translate('auto.hqPlus.graph.legendMember', 'works on')}
         </span>
         <span>
           <i className="hqp-sw" data-dash="true" style={{ borderTopColor: EDGE_COLOR.owe }} />

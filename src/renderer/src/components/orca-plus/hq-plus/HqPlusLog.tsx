@@ -196,7 +196,8 @@ function LogItem({
   if (look.kind === 'bg' && item.kind === 'card' && item.inbox?.kind === HQ_DEFERRED_KIND) {
     return <DeferredLine item={item} look={look} flash={flash} ctx={ctx} />
   }
-  if (look.kind === 'bg') {
+  // Custom build (hq-closed-loop): a job's lesson stays a card, so it can be undone.
+  if (look.kind === 'bg' && !(item.kind === 'card' && item.job)) {
     const card = item.kind === 'card' ? item : null
     const bell = card?.open ? card.inbox : null
     const action = bell?.actions[0] ?? null
