@@ -24,6 +24,14 @@ export const HQ_PLUS_REPLY_ACTION = 'reply:'
 /** `bell`: any other bell item the feed shows instead of a popup, with the item's own buttons. */
 export type HqPlusCardType = 'move' | 'approve' | 'reply' | 'wait' | 'report' | 'bell'
 
+/** Custom build (hq-closed-loop): a chat's question the chat itself moved past, or handed over. */
+export const HQ_PLUS_DONE_IN_CHAT = 'in-chat'
+export const HQ_PLUS_DONE_HANDED_OFF = 'handed-off'
+
+/** Custom build (hq-closed-loop): what a handoff offer asks, said plainly. */
+export const HQ_PLUS_HANDOFF_TITLE =
+  "A chat's context is full and it saved where it stopped. «New session» continues the work in a new chat"
+
 /** How a card was settled: the owner's own words, a button, or the row closing elsewhere. */
 export type HqPlusDone =
   | { by: 'reply'; text: string; at: number }
@@ -64,6 +72,8 @@ export type HqPlusLogItem =
       done: HqPlusDone | null
       entry: HqJournalEntry | null
       inbox: PulseInboxItem | null
+      /** Custom build (hq-closed-loop): the background job a card is from; its answer goes to the job. */
+      job?: string | null
     })
 
 export type HqPlusCard = Extract<HqPlusLogItem, { kind: 'card' }>
@@ -176,6 +186,47 @@ function inboxDone(item: PulseInboxItem | null): HqPlusDone | null {
     : { by: 'action', action: item.doneAction, at: item.doneAt }
 }
 
+const CHAT_TURN_KINDS: ReadonlySet<string> = new Set([
+  HQ_JOURNAL_KIND.chatReport,
+  HQ_JOURNAL_KIND.chatMessage,
+  HQ_CHAT_EFFORT_KIND
+])
+
+/** Custom build (hq-closed-loop): a chat's question is settled once the chat took another turn — the
+ *  owner answered in the chat itself — or a new chat took its work over. */
+function chatActivity(
+  entries: readonly HqJournalEntry[]
+): (entry: HqJournalEntry) => HqPlusDone | null {
+  const lastTurn = new Map<string, number>()
+  const handedOff = new Map<string, number>()
+  for (const entry of entries) {
+    if (entry.sessionId && CHAT_TURN_KINDS.has(entry.kind)) {
+      lastTurn.set(entry.sessionId, Math.max(lastTurn.get(entry.sessionId) ?? 0, entry.at))
+    }
+    const from =
+      entry.kind === HQ_JOURNAL_KIND.sessionHandoff
+        ? entry.refId
+        : entry.kind === HQ_JOURNAL_KIND.sessionClose
+          ? entry.sessionId
+          : null
+    if (from) {
+      handedOff.set(from, Math.max(handedOff.get(from) ?? 0, entry.at))
+    }
+  }
+  return (entry) => {
+    const sessionId = entry.sessionId
+    if (!sessionId) {
+      return null
+    }
+    if ((handedOff.get(sessionId) ?? 0) > entry.at) {
+      return { by: 'status', status: HQ_PLUS_DONE_HANDED_OFF }
+    }
+    return (lastTurn.get(sessionId) ?? 0) > entry.at
+      ? { by: 'status', status: HQ_PLUS_DONE_IN_CHAT }
+      : null
+  }
+}
+
 /**
  * The day's log, oldest first. `since` is where the day starts; what still waits on the owner is kept
  * however old it is.
@@ -209,7 +260,9 @@ export function hqPlusLog(
   const card = (
     entry: HqJournalEntry | null,
     item: PulseInboxItem | null,
-    fields: Pick<HqPlusCard, 'type' | 'title' | 'body' | 'open' | 'done'> & Partial<Where>
+    fields: Pick<HqPlusCard, 'type' | 'title' | 'body' | 'open' | 'done'> &
+      Partial<Where> &
+      Pick<Partial<HqPlusCard>, 'job'>
   ): HqPlusCard => ({
     kind: 'card',
     id: entry ? entry.id : `inbox:${item?.id ?? ''}`,
@@ -227,6 +280,7 @@ export function hqPlusLog(
       entry.at >= since && entry.refId && SETTLING_KINDS.has(entry.kind) ? [entry.refId] : []
     )
   )
+  const later = chatActivity(entries)
   for (const entry of [...entries].sort((a, b) => a.at - b.at)) {
     const asked = entry.needs.startsWith('owner:')
     const ownerOpen = entry.status === 'open' && asked
@@ -249,7 +303,7 @@ export function hqPlusLog(
       }
       const explicit = ownerOpen
       if (explicit || answered || hqPlusAsksOwner(entry.body)) {
-        const done = replyDone(entry) ?? inboxDone(item ?? null)
+        const done = replyDone(entry) ?? inboxDone(item ?? null) ?? later(entry)
         items.push(
           card(entry, item ?? null, {
             type: 'move',
@@ -275,6 +329,37 @@ export function hqPlusLog(
           at: entry.at,
           ...where(entry),
           tone: 'agent',
+          title: entry.title,
+          body: entry.body,
+          journalKind: entry.kind
+        })
+      }
+      continue
+    }
+    if (entry.kind === HQ_JOURNAL_KIND.jobReport) {
+      // Custom build (hq-closed-loop): a job's question or what it learned is a card; the rest a quiet line.
+      const report = parseHqPlusReport(entry.body)
+      if (ownerOpen || answered || report?.learned) {
+        const done =
+          replyDone(entry) ??
+          (asked && !ownerOpen ? { by: 'status' as const, status: 'superseded' } : null)
+        items.push(
+          card(entry, null, {
+            type: 'move',
+            title: entry.title,
+            body: entry.body,
+            open: ownerOpen && !done,
+            done,
+            job: entry.refId
+          })
+        )
+      } else {
+        items.push({
+          kind: 'line',
+          id: entry.id,
+          at: entry.at,
+          ...where(entry),
+          tone: 'system',
           title: entry.title,
           body: entry.body,
           journalKind: entry.kind
@@ -398,7 +483,12 @@ export function hqPlusLog(
           : item.kind === HQ_WAITING_REPLY_KIND
             ? 'reply'
             : 'bell'
-    const title = type === 'report' ? (item.body ?? item.title) : item.title
+    const title =
+      type === 'report'
+        ? (item.body ?? item.title)
+        : item.kind === PULSE_BELL_KIND.handoff
+          ? HQ_PLUS_HANDOFF_TITLE
+          : item.title
     items.push(
       card(null, item, { type, title, body: item.body, open: !done, done, ...whereOfItem(item) })
     )
