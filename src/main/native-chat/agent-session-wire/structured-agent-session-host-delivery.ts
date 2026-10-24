@@ -41,6 +41,7 @@ import type { StructuredAgentSessionAcquireAborts } from './structured-agent-ses
 import { settleStructuredAgentSessionLeftovers } from './structured-agent-session-leftover-settlement'
 import { createStructuredAgentSessionRanRecorder } from './structured-agent-session-ran-options'
 import { withAutoEffort } from '../auto-effort/native-chat-auto-effort'
+import { saveAutoEffortPick } from '../auto-effort/save-auto-effort-pick'
 
 export type StructuredAgentSessionConversationDelivery = {
   loop: StructuredAgentSessionDeliveryLoop
@@ -154,12 +155,19 @@ export function createStructuredAgentSessionConversationDelivery(input: {
     startFlights: input.startFlights,
     deliveryOrder: input.deliveryOrder,
     // Custom build (chat-auto-effort): the effort a small model picked for this message.
-    autoEffortOptions: (sessionId, submission) =>
-      withAutoEffort(
+    autoEffortOptions: async (sessionId, submission) => {
+      const options = await withAutoEffort(
         submission,
         deps.store.getRecord(sessionId),
         sessions.get(sessionId)?.journal
-      ),
+      )
+      if (options !== submission.options) {
+        await saveAutoEffortPick(deps.store, sessionId, options, (message, details) =>
+          deps.logger.warn(message, details)
+        )
+      }
+      return options
+    },
     conversationFence: (sessionId) =>
       structuredAgentSessionConversationFence(deps.store, sessionId),
     closeWhatTheUserClosed: async (sessionId) => {
