@@ -82,6 +82,21 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
     printResult(result, json, (r) => `Reported in ${r.address} (${r.entry.needs}).  ${r.entry.id}`)
   },
 
+  // Custom build (hq-closed-loop)
+  'hq job': async ({ flags, client, json }) => {
+    const options = getOptionalStringFlag(flags, 'options')
+    const result = await client.call<{ address: string; needs: string; room: string }>('hq.job', {
+      job: getRequiredStringFlag(flags, 'job'),
+      found: getOptionalStringFlag(flags, 'found'),
+      ask: getOptionalStringFlag(flags, 'ask'),
+      options: options?.split('|').map((option) => option.trim()),
+      did: getOptionalStringFlag(flags, 'did'),
+      links: getRepeatedStringFlag(flags, 'link'),
+      project: getOptionalStringFlag(flags, 'project')
+    })
+    printResult(result, json, (r) => `Reported in ${r.address} (${r.needs}, room ${r.room}).`)
+  },
+
   'hq thread': async ({ flags, client, json }) => {
     const result = await client.call<HqThreadResult>('hq.thread', {
       ...caller(),
