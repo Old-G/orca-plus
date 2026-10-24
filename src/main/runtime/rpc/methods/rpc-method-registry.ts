@@ -127,6 +127,7 @@ import { WEB_PUSH_METHODS } from './web-push'
 import { HQ_CLICKUP_REVIEW_METHODS } from './hq-clickup-review'
 import { HQ_JOURNAL_METHODS } from './hq-journal'
 import { HQ_PLUS_PHONE_METHODS } from './hq-plus-phone'
+import { HQ_JOB_METHODS } from './hq-jobs'
 
 // Keep registration order and the full RPC/security surface visible in one manifest.
 const CORE_RPC_METHODS = [
@@ -261,7 +262,8 @@ const SERVICE_RPC_METHODS = [
   ...WEB_PUSH_METHODS,
   ...HQ_CLICKUP_REVIEW_METHODS,
   ...HQ_JOURNAL_METHODS,
-  ...HQ_PLUS_PHONE_METHODS
+  ...HQ_PLUS_PHONE_METHODS,
+  ...HQ_JOB_METHODS
 ] as const
 
 type ConcatMethods<A extends readonly unknown[], B extends readonly unknown[]> = readonly [
