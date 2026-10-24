@@ -12,6 +12,7 @@ import { HqPlusText } from './HqPlusText'
 import { HqPlusThreadComposer } from './HqPlusThreadComposer'
 import { HqPlusCloseChat } from './HqPlusCloseChat'
 import { HqPlusGrow } from './HqPlusGrow'
+import { HqPlusChatName } from './HqPlusChatName'
 import { hqPlusPinWhileMoving } from './hq-plus-scroll-pin'
 import type { HqPlusLogContext } from './HqPlusLog'
 
@@ -71,6 +72,7 @@ export function ChatCard({
           <HqPlusBadges badges={badges} />
           <NewMark item={item} ctx={ctx} />
           <strong>{item.project ?? 'HQ'}</strong>
+          <HqPlusChatName chat={ctx.chatOf(item.sessionId)} />
           <span className="hqp-tm">{clock(item.at)}</span>
           <span className="hqp-spacer" />
           <HqPlusBadges badges={[status]} />

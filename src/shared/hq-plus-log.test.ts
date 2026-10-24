@@ -121,7 +121,7 @@ describe('hqPlusLog', () => {
     expect(log.at(-1)).toMatchObject({ kind: 'me', text: 'yes' })
   })
 
-  it('keeps an agent\'s own draft open for the owner though no bell card stands for it', () => {
+  it("keeps an agent's own draft open for the owner though no bell card stands for it", () => {
     const draft = (status: 'open' | 'done') =>
       hqPlusLog(
         [
@@ -520,6 +520,17 @@ describe('hqPlusWithLiveChats', () => {
       sessionId: 's9',
       title: 'New chat'
     })
+  })
+
+  it('keeps the card while the chat has only its effort row and the owner message', () => {
+    const rows = [
+      row({ kind: 'chat.effort', sessionId: 's9', at: NOW - 8_000, source: 'effort:ok:high' }),
+      row({ kind: 'chat.message', sessionId: 's9', at: NOW - 8_000, title: 'From HQ+: go on' })
+    ]
+    const feed = hqPlusFoldChats(hqPlusWithLiveChats(hqPlusLog(rows, [], NOW - HOUR), [live]))
+    expect(feed.filter((item) => item.kind === 'line')).toEqual([
+      expect.objectContaining({ id: 'live:s9', tone: 'agent' })
+    ])
   })
 
   it('lets the journal rows carry the card once the chat has one', () => {

@@ -15,6 +15,7 @@ import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 import { HqPlusThreadComposer } from './HqPlusThreadComposer'
 import { canFinishHqPlusCard, finishHqPlusCard } from './hq-plus-actions'
+import type { HqPlusLinkClick } from './hq-plus-link-open'
 
 export type HqPlusOtherWait = {
   id: string
@@ -44,7 +45,7 @@ export type HqPlusQueueActions = {
   onNotNow: (card: HqPlusCard) => void
   onChanged: () => void
   /** Custom build (hq-plus-round6): a link opens in HQ+'s Browser tab. */
-  openLink: (url: string) => void
+  openLink: (url: string, event?: HqPlusLinkClick) => void
 }
 
 function waitingText(card: HqPlusCard): string {
