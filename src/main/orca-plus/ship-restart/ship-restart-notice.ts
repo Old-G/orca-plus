@@ -47,6 +47,8 @@ export type ShipRestartNoticeDeps = {
   /** True once the chat took the message, sent or queued. */
   deliver: (sessionId: string, prompt: string) => Promise<boolean>
   now: () => number
+  /** When this app process started; a start held up (the Keychain window) must not age the marker. */
+  startedAt: number
   schedule: (run: () => void, ms: number) => void
 }
 
@@ -57,8 +59,15 @@ export async function runShipRestartNotice(deps: ShipRestartNoticeDeps): Promise
     return
   }
   const marker = parseShipRestartMarker(text)
+  const firstTry = deps.now()
   const attempt = async (): Promise<void> => {
-    if (!marker || deps.now() - marker.writtenAt > SHIP_RESTART_MAX_AGE_MS) {
+    // Why: a marker written long before this launch is a ship that never restarted; once launched,
+    // the chat gets the same span to take the message, however long the start itself took (24.10: 33 min).
+    if (
+      !marker ||
+      deps.startedAt - marker.writtenAt > SHIP_RESTART_MAX_AGE_MS ||
+      deps.now() - firstTry > SHIP_RESTART_MAX_AGE_MS
+    ) {
       await deps.removeMarker()
       return
     }
@@ -91,6 +100,7 @@ export function startShipRestartNotice(): void {
     deliver: (sessionId, prompt) =>
       deliverToNativeChat(sessionId, prompt, 'ship-restart-notice', operationId),
     now: Date.now,
+    startedAt: Date.now() - process.uptime() * 1000,
     schedule: (run, ms) => setTimeout(run, ms).unref?.()
   }).catch(warn)
 }
