@@ -14,7 +14,12 @@ const MARKER = JSON.stringify({
   writtenAt: '2026-10-19T10:00:00Z'
 })
 
-function harness(text: string | null, delivered: boolean[], now = WRITTEN + 60_000) {
+function harness(
+  text: string | null,
+  delivered: boolean[],
+  now = WRITTEN + 60_000,
+  startedAt = WRITTEN + 5_000
+) {
   let marker = text
   const scheduled: (() => void)[] = []
   const deps: ShipRestartNoticeDeps = {
@@ -24,6 +29,7 @@ function harness(text: string | null, delivered: boolean[], now = WRITTEN + 60_0
     }),
     deliver: vi.fn(async () => delivered.shift() ?? false),
     now: () => now,
+    startedAt,
     schedule: (run) => void scheduled.push(run)
   }
   return { deps, scheduled, marker: () => marker }
@@ -63,11 +69,18 @@ describe('runShipRestartNotice', () => {
     expect(h.deps.deliver).not.toHaveBeenCalled()
   })
 
-  it('drops a marker older than 30 minutes without sending', async () => {
-    const h = harness(MARKER, [true], WRITTEN + SHIP_RESTART_MAX_AGE_MS + 1)
+  it('drops a marker written more than 30 minutes before this launch without sending', async () => {
+    const launched = WRITTEN + SHIP_RESTART_MAX_AGE_MS + 1
+    const h = harness(MARKER, [true], launched + 1_000, launched)
     await runShipRestartNotice(h.deps)
     expect(h.deps.deliver).not.toHaveBeenCalled()
     expect(h.marker()).toBeNull()
+  })
+
+  it('still sends after a start that hung 33 minutes on the Keychain window', async () => {
+    const h = harness(MARKER, [true], WRITTEN + 34 * 60_000, WRITTEN + 3_000)
+    await runShipRestartNotice(h.deps)
+    expect(h.deps.deliver).toHaveBeenCalledOnce()
   })
 
   it('drops an unreadable marker', async () => {
