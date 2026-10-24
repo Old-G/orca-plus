@@ -89,6 +89,7 @@ import { WEB_PUSH_METHODS } from './web-push'
 import { HQ_CLICKUP_REVIEW_METHODS } from './hq-clickup-review'
 import { HQ_JOURNAL_METHODS } from './hq-journal'
 import { HQ_PLUS_PHONE_METHODS } from './hq-plus-phone'
+import { HQ_JOB_METHODS } from './hq-jobs'
 
 // Keep registration order and the full RPC/security surface visible in one manifest.
 export const ALL_RPC_METHODS = [
@@ -179,5 +180,6 @@ export const ALL_RPC_METHODS = [
   ...WEB_PUSH_METHODS,
   ...HQ_CLICKUP_REVIEW_METHODS,
   ...HQ_JOURNAL_METHODS,
-  ...HQ_PLUS_PHONE_METHODS
+  ...HQ_PLUS_PHONE_METHODS,
+  ...HQ_JOB_METHODS
 ]
