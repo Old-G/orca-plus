@@ -18,7 +18,10 @@ import {
   HqPinnedSeenParams,
   HqPinnedCountsParams,
   HqSpaceKeyParams,
-  HqPersonParams
+  HqPersonParams,
+  HqRoomCreateParams,
+  HqRoomUpdateParams,
+  HqRoomRemoveParams
 } from '../../../../shared/rpc-contract/hq-projects-params'
 import type { OrcaRuntimeService } from '../../orca-runtime'
 import {
@@ -28,6 +31,13 @@ import {
 } from '../../../hq-today/hq-people'
 import { markHqPinnedSeen, readHqPinnedCounts } from '../../../hq-today/hq-pinned-counts'
 import { listHqSpaces } from '../../../hq-today/hq-spaces'
+import { addHqRoom } from '../../../hq-context/hq-room-add'
+import {
+  createHqRoomWithGroup,
+  hqRoomGroupsOf,
+  removeHqRoom,
+  updateHqRoom
+} from '../../../hq-context/hq-room-edit'
 import { listHqSpaceKeys, setHqSpaceKey } from '../../../hq-today/hq-space-keys'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../../../shared/outgoing-approval/outgoing-approval-bell'
 import {
@@ -152,6 +162,49 @@ export const HQ_PROJECTS_METHODS = [
     handler: async (params) => markHqPinnedSeen(service(), params.id, Date.now())
   }),
   // Custom build (hq-space-keys): which workspaces keep their own tokens, and saving one — on the Mac only.
+  // Custom build (hq-rooms): HQ+'s «+» and a room's menu — the room and its sidebar group together.
+  defineMethod({
+    name: 'hqProjects.roomCreate',
+
+    permission: 'settings-write',
+    params: HqRoomCreateParams,
+    handler: async (params, { runtime }) => {
+      const hqPath = service().settings().hqPath
+      if (!hqPath) {
+        throw new Error('HQ is not set up.')
+      }
+      return createHqRoomWithGroup(hqRoomGroupsOf(runtime), params, (groupId) =>
+        addHqRoom(hqPath, { name: params.name, color: params.color, groupId })
+      )
+    }
+  }),
+  defineMethod({
+    name: 'hqProjects.roomUpdate',
+
+    permission: 'settings-write',
+    params: HqRoomUpdateParams,
+    handler: async (params, { runtime }) => {
+      const hqPath = service().settings().hqPath
+      if (!hqPath) {
+        throw new Error('HQ is not set up.')
+      }
+      await updateHqRoom(hqRoomGroupsOf(runtime), hqPath, params.space, params)
+      return { ok: true }
+    }
+  }),
+  defineMethod({
+    name: 'hqProjects.roomRemove',
+
+    permission: 'settings-write',
+    params: HqRoomRemoveParams,
+    handler: async (params, { runtime }) => {
+      const hqPath = service().settings().hqPath
+      if (!hqPath) {
+        throw new Error('HQ is not set up.')
+      }
+      return removeHqRoom(hqRoomGroupsOf(runtime), hqPath, params.space, new Date())
+    }
+  }),
   defineMethod({
     name: 'hqProjects.spaceKeys',
 

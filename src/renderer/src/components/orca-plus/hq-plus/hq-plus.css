@@ -2628,3 +2628,106 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
     animation: none;
   }
 }
+
+/* Custom build (hq-rooms): «+» and a room's «⋯» — the popover sits outside .hq-plus, so it takes the
+   HQ+ tokens it needs here. */
+.hq-plus-pop {
+  --hqp-card: #0b1823;
+  --hqp-soft-2: rgba(143, 233, 255, 0.09);
+  --hqp-line: rgba(143, 233, 255, 0.14);
+  --hqp-line-2: rgba(143, 233, 255, 0.38);
+  --hqp-ice: #8fe9ff;
+  --hqp-ice-ink: #04131b;
+  --hqp-fg: #eaf7fb;
+  --hqp-mute: #a3c1cc;
+  --hqp-faint: #6f8d99;
+  --hqp-red: #ff6b62;
+  --hqp-mono: var(--font-mono);
+  background: var(--hqp-card);
+  color: var(--hqp-fg);
+  border-color: var(--hqp-line-2);
+}
+.hqp-room-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+.hqp-room-more {
+  width: 22px;
+  height: 26px;
+  margin-left: -6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--hqp-faint);
+  font-size: 14px;
+  line-height: 1;
+}
+.hqp-room-more:hover {
+  color: var(--hqp-fg);
+  background: var(--hqp-soft-2);
+}
+.hqp-room-add {
+  width: 32px;
+  justify-content: center;
+  padding: 0;
+  font-size: 16px;
+  color: var(--hqp-faint);
+}
+.hqp-room-add:hover {
+  color: var(--hqp-fg);
+  background: var(--hqp-soft-2);
+}
+.hqp-roomform {
+  display: grid;
+  gap: 10px;
+}
+.hqp-roomform-l {
+  font-family: var(--hqp-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hqp-mute);
+}
+.hqp-roomform-in {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--hqp-line-2);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--hqp-fg);
+  font-size: 14px;
+}
+.hqp-roomform-in:focus-visible {
+  outline: 2px solid var(--hqp-ice);
+  outline-offset: 1px;
+}
+.hqp-roomform-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--hqp-faint);
+}
+.hqp-roomform-acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hqp-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hqp-swatches button {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--hqp-room);
+}
+.hqp-swatches button[aria-checked='true'] {
+  border-color: var(--hqp-fg);
+}
+.hqp-opt[data-danger='true'] {
+  background: color-mix(in srgb, var(--hqp-red) 22%, transparent);
+  color: var(--hqp-fg);
+}
