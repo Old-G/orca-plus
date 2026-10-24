@@ -54,6 +54,17 @@ ci.failed:
   })
 
   // Custom build (hq-plus-person-replies)
+  it('reads the trust ladder and refuses a step that is not one', () => {
+    const routing = parseHqRouting(
+      'ladder:\n  bell:hq-intake: 1\n  slack-send-message: { step: 2, allow_people: true }\n  odd: 7\n'
+    )
+    expect(routing.ladder).toEqual({
+      'bell:hq-intake': { step: 1, allowPeople: false },
+      'slack-send-message': { step: 2, allowPeople: true }
+    })
+    expect(routing.problems).toEqual(['ladder.odd: a step is 0, 1, 2 or 3'])
+  })
+
   it('reads the answers rule, and an unreadable one leaves every answer a card', () => {
     expect(
       parseHqRouting('person.reply:\n  - do: send_to_asking_session\n    since: 2026-10-24\n')

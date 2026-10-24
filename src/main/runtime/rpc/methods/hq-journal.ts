@@ -8,6 +8,7 @@ import {
   HqMergeSlotParams,
   HqReportParams,
   HqRouteParams,
+  HqLadderParams,
   HqSessionsParams,
   HqSettleParams,
   HqStepParams,
@@ -28,6 +29,9 @@ import { getHqThreads, type HqThreads } from '../../../hq-journal/hq-journal-thr
 import { getHqJournalService, type HqJournalService } from '../../../hq-journal/hq-journal-service'
 import { getHqRouting } from '../../../hq-routing/hq-routing'
 import { getHqMergeSlots } from '../../../hq-routing/hq-merge-slot'
+import { getHqLadderReport } from '../../../hq-routing/hq-ladder-report'
+
+const LADDER_DEFAULT_MS = 30 * 24 * 60 * 60_000
 import { getHqPlusStats } from '../../../hq-plus-ui/hq-plus-screen-stats'
 import { getHqContext, type HqContextService } from '../../../hq-context/hq-context'
 import { getHqSessions, type HqSessionsService } from '../../../hq-sessions/hq-sessions'
@@ -157,6 +161,20 @@ export const HQ_JOURNAL_METHODS = [
         since: params.since,
         report: params.report
       })
+    }
+  }),
+  // Custom build (hq-plus-ladder): per kind of action, how the owner decided and the step it has.
+  defineMethod({
+    name: 'hq.ladder',
+
+    permission: 'workspace',
+    params: HqLadderParams,
+    handler: async (params) => {
+      const report = getHqLadderReport()
+      if (!report) {
+        throw new Error('The HQ+ trust ladder is not available on this host.')
+      }
+      return report(params.since ?? Date.now() - LADDER_DEFAULT_MS)
     }
   }),
   // Custom build (hq-fix-now-all): a fixing chat takes the project's merge slot before merging.
