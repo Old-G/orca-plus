@@ -205,7 +205,10 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
         throw new Error('This chat has no thread yet; its first `orca hq report` names one.')
       }
       // Custom build (hq-closed-loop): a background job (no chat) reads its own thread from any room.
-      const jobReads = !scope.sessionId && address.startsWith(HQ_JOB_THREAD_PREFIX)
+      // Why: only a caller of no chat, workspace or project (a launchd script); a terminal in a project keeps its room.
+      const unplaced =
+        !scope.sessionId && !scope.worktreeId && (scope.kind === 'overview' || !scope.project)
+      const jobReads = unplaced && address.startsWith(HQ_JOB_THREAD_PREFIX)
       const seen = (workspace: string): boolean => jobReads || visible(scope, workspace)
       const entries = deps.pulse
         .list({ address, oldestFirst: true, limit: HQ_JOURNAL_MAX_LIMIT })
