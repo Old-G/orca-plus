@@ -531,6 +531,35 @@ describe('decided before the day', () => {
   })
 })
 
+describe("a chat's question on the desktop", () => {
+  const asked = (over: Partial<HqJournalEntry>) =>
+    hqPlusLog(
+      [
+        row({
+          id: 'q',
+          at: NOW - HOUR,
+          title: 'Limits read — Cap per order or per day?',
+          body: 'Done: Limits read\nQuestion: Cap per order or per day? (options: order | day)',
+          needs: 'owner:decide',
+          status: 'open',
+          ...over
+        })
+      ],
+      [],
+      DAY_START,
+      { chatQuestions: 'line' }
+    ).find((item) => item.id === 'q')
+
+  it("stays in the chat's row, which shows it and takes the answer", () => {
+    expect(asked({ sessionId: 's1' })).toMatchObject({ kind: 'line', sessionId: 's1' })
+    expect(asked({ address: 'kite/login' })).toMatchObject({ kind: 'line' })
+  })
+
+  it('is a card when no chat row could take the answer', () => {
+    expect(asked({})).toMatchObject({ kind: 'card', open: true })
+  })
+})
+
 describe('a question the owner answered', () => {
   const answered = (askedAt: number) =>
     hqPlusLog(
