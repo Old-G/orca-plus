@@ -20,6 +20,15 @@ describe('trust ladder', () => {
     })
     expect(readHqOwnerDecisionSource('approve-gate')).toBe(null)
     expect(hqApprovalKind('Slack · send message')).toBe('slack-send-message')
+    // Custom build (hq-closed-loop): an agent's draft counts as the action, not as its addressee.
+    for (const title of [
+      'message → Slack DM Ann (U0000ANN01)',
+      'message → D00000BOB1',
+      'Slack · в тред DEV-1 (Bob)'
+    ]) {
+      expect(hqApprovalKind(title)).toBe('slack-send-message')
+    }
+    expect(hqApprovalKind('Slack · create canvas')).toBe('slack-create-canvas')
   })
 
   it('offers step 1 after 20 cases at 90%, and holds a message to people at step 1', () => {
