@@ -42,6 +42,7 @@ import {
   getJournalEntry,
   journalActivity,
   listJournal,
+  countJournalBySource,
   recordJournal
 } from './pulse-journal'
 import {
@@ -208,6 +209,9 @@ export class PulseDb {
   }
   listJournal(query?: HqJournalQuery) {
     return listJournal(this.core, query)
+  }
+  countJournalBySource(kind: string, since: number) {
+    return countJournalBySource(this.core, kind, since)
   }
   /** Custom build (hq-plus-ui). */
   countJournal(since: number) {

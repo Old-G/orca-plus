@@ -44,6 +44,22 @@ function noteOutcome(outcome: AutoEffortOutcome): void {
   console.info(`[chat-auto-effort] ${outcome.result} → ${outcome.effort ?? 'chat default'}`)
 }
 
+/** Custom build (hq-plus-ladder): every message's effort, for the journal — a hand pick included. */
+export type AutoEffortLogEntry = {
+  sessionId: string | null
+  messageId: string | null
+  at: number
+  effort: string | null
+  result: AutoEffortOutcome['result'] | 'hand-picked'
+  message: string
+}
+
+let log: ((entry: AutoEffortLogEntry) => void) | null = null
+
+export function provideAutoEffortLog(next: ((entry: AutoEffortLogEntry) => void) | null): void {
+  log = next
+}
+
 /** Newest first. */
 export function recentAutoEffortOutcomes(): readonly AutoEffortOutcome[] {
   return outcomes
@@ -81,6 +97,8 @@ export async function autoEffortMessageOptions(input: {
   items: () => readonly AgentJournalRenderItem[]
   /** Levels the message's model offers; null when the model list does not say. */
   effortLevels?: () => ReadonlySet<string> | null
+  sessionId?: string | null
+  messageId?: string | null
 }): Promise<MessageOptions> {
   const current = service
   if (!current || input.provider !== 'claude' || !current.enabled()) {
@@ -91,11 +109,25 @@ export async function autoEffortMessageOptions(input: {
   }
   const message = messageText(input.body, 'user')
   const handPicked = input.options?.effort
+  const logged = (result: AutoEffortLogEntry['result'], effort: string | null): void =>
+    log?.({
+      sessionId: input.sessionId ?? null,
+      messageId: input.messageId ?? null,
+      at: Date.now(),
+      effort,
+      result,
+      message: message.slice(0, 80)
+    })
   if (!message || (handPicked && HAND_PICKED_EFFORTS.has(handPicked))) {
+    if (message && handPicked) {
+      logged('hand-picked', handPicked)
+    }
     return input.options
   }
-  const note = (result: AutoEffortOutcome['result'], effort: string | null): void =>
+  const note = (result: AutoEffortOutcome['result'], effort: string | null): void => {
     noteOutcome({ at: Date.now(), effort, result, message: message.slice(0, 80) })
+    logged(result, effort)
+  }
   // Why: a model with no effort control (Haiku) would refuse the pick, or fail the start it rides on.
   const levels = input.effortLevels?.() ?? null
   if (levels && !AUTO_EFFORT_LEVELS.some((level) => levels.has(level))) {
@@ -142,7 +174,9 @@ export function withAutoEffort(
     options,
     body: journal.itemBody(agentJournalSubmissionKey(id)) ?? undefined,
     items: () => journal.snapshot().items,
-    effortLevels: () => chatModelEffortLevels(record, options?.model)
+    effortLevels: () => chatModelEffortLevels(record, options?.model),
+    sessionId: record?.sessionId ?? null,
+    messageId: id
   })
   picked.set(id, pending)
   if (picked.size > PICKED_KEPT) {

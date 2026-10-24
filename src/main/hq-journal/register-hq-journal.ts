@@ -5,6 +5,9 @@ import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { onPulseChanged } from '../orca-plus/pulse/pulse-change-events'
 import { PULSE_BELL_KIND } from '../../shared/pulse-bell'
 import { createHqJournalService, provideHqJournalService } from './hq-journal-service'
+import { effortJournal } from './hq-effort-journal'
+import { hqPlaceOf } from './hq-journal-rooms'
+import { provideAutoEffortLog } from '../native-chat/auto-effort/native-chat-auto-effort'
 import { createHqThreads, provideHqThreads } from './hq-journal-threads'
 import { registerHqSessions } from '../hq-sessions/register-hq-sessions'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
@@ -75,6 +78,7 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
       listDecisions: (limit) => runtime.pulseListDecisions(limit),
       listFinishedChats: (since) =>
         runtime.pulseListInbox(true, { kind: PULSE_BELL_KIND.agentFinished, since }),
+      listBell: (since) => runtime.pulseListInbox(true, { since }),
       listPeople: () => runtime.pulseListPeople(),
       record: (inputs) => runtime.pulseRecordJournal(inputs),
       noteSessions: (inputs) => runtime.pulseNoteSessions(inputs),
@@ -85,6 +89,18 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
     log: (message) => console.log('[hq-journal]', message)
   })
   provideHqJournalService(service)
+  // Custom build (hq-plus-ladder): each message's effort goes to the journal, while it is on.
+  provideAutoEffortLog((entry) => {
+    if (!enabled()) {
+      return
+    }
+    void service
+      .sources()
+      .then((sources) =>
+        runtime.pulseRecordJournal([effortJournal(entry, (ref) => hqPlaceOf(sources, ref))])
+      )
+      .catch((error: unknown) => console.warn('[hq-journal] effort row failed:', error))
+  })
   registerHqContext(store, runtime, service)
   provideHqThreads(
     createHqThreads({
