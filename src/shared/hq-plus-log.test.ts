@@ -69,7 +69,9 @@ describe('parseHqPlusReport', () => {
       ask: 'ship now?',
       options: ['yes', 'later'],
       next: 'docs',
-      waitingOn: null
+      waitingOn: null,
+      found: null,
+      learned: null
     })
   })
 
@@ -119,6 +121,93 @@ describe('hqPlusLog', () => {
     const card = log.find((item) => item.id === 'q')
     expect(card).toMatchObject({ kind: 'card', open: false, done: { by: 'reply', text: 'yes' } })
     expect(log.at(-1)).toMatchObject({ kind: 'me', text: 'yes' })
+  })
+
+  it("settles a chat's question once the chat took another turn or a new chat took it over", () => {
+    const ask = row({
+      id: 'q',
+      at: NOW - 2 * HOUR,
+      sessionId: 's1',
+      needs: 'owner:decide',
+      status: 'open',
+      body: 'Done: mockup\nQuestion: ship it?'
+    })
+    const open = (rows: HqJournalEntry[]) =>
+      hqPlusLog([ask, ...rows], [], DAY_START).find((item) => item.id === 'q')
+    expect(open([])).toMatchObject({ kind: 'card', open: true })
+    expect(open([row({ at: NOW - HOUR, sessionId: 's1', kind: 'chat.effort' })])).toMatchObject({
+      open: false,
+      done: { by: 'status', status: 'in-chat' }
+    })
+    expect(
+      open([row({ at: NOW - HOUR, sessionId: 's2', kind: 'session.handoff', refId: 's1' })])
+    ).toMatchObject({ open: false, done: { by: 'status', status: 'handed-off' } })
+    expect(open([row({ at: NOW - HOUR, sessionId: 's9', kind: 'chat.effort' })])).toMatchObject({
+      open: true
+    })
+  })
+
+  it("shows a job's question or lesson as a card, the rest as a quiet line, and takes its answer", () => {
+    const job = (over: Partial<HqJournalEntry>) =>
+      row({
+        kind: 'job.report',
+        refKind: 'job',
+        refId: 'commit-review',
+        address: 'job/commit-review',
+        ...over
+      })
+    const log = hqPlusLog(
+      [
+        job({ id: 'quiet', at: NOW - 3 * HOUR, body: 'Found: nothing new' }),
+        job({
+          id: 'ask',
+          at: NOW - 2 * HOUR,
+          needs: 'owner:decide',
+          status: 'open',
+          body: 'Found: 1 P1\nQuestion: Fix now? (options: now | later)'
+        }),
+        job({ id: 'learn', at: NOW - HOUR, body: 'Learned: task number goes first' })
+      ],
+      [],
+      DAY_START
+    )
+    expect(log.map((item) => [item.id, item.kind])).toEqual([
+      ['quiet', 'line'],
+      ['ask', 'card'],
+      ['learn', 'card']
+    ])
+    expect(log[1]).toMatchObject({
+      open: true,
+      job: 'commit-review',
+      report: { options: ['now', 'later'] }
+    })
+    expect(log[2]).toMatchObject({
+      open: false,
+      done: null,
+      report: { learned: 'task number goes first' }
+    })
+    const answered = hqPlusLog(
+      [
+        job({
+          id: 'ask',
+          at: NOW - 2 * HOUR,
+          needs: 'owner:decide',
+          status: 'done',
+          body: 'Question: Fix now?'
+        }),
+        row({
+          at: NOW - HOUR,
+          kind: 'chat.message',
+          title: 'From HQ+: now',
+          body: '> q\n\nnow',
+          replyTo: 'ask',
+          address: 'job/commit-review'
+        })
+      ],
+      [],
+      DAY_START
+    ).find((item) => item.id === 'ask')
+    expect(answered).toMatchObject({ open: false, done: { by: 'reply', text: 'now' } })
   })
 
   it("keeps an agent's own draft open for the owner though no bell card stands for it", () => {
