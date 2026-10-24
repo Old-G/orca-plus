@@ -147,6 +147,7 @@ beforeEach(async () => {
       listDecisions: (limit) => db.listDecisions({ limit }),
       listFinishedChats: (since) =>
         db.listInbox({ includeDone: true, kind: 'agent-finished', since }),
+      listBell: (since) => db.listInbox({ includeDone: true, since }),
       listPeople: () => db.listPeople(),
       record: (inputs) => db.recordJournal(inputs),
       noteSessions: (inputs) => db.noteSessions(inputs),
@@ -189,7 +190,12 @@ describe('HQ+ journal', () => {
     )
     expect(overview.headers.some((entry) => Reflect.has(entry, 'body'))).toBe(false)
     const replies = db.listJournal({ kind: 'person.reply' })
-    expect(replies.map((entry) => [entry.source, entry.needs, entry.status])).toEqual([
+    // Why: both answers carry the same moment; their order between them means nothing.
+    expect(
+      replies
+        .map((entry) => [entry.source, entry.needs, entry.status])
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+    ).toEqual([
       ['clickup-poller', 'owner:decide', 'done'],
       ['slack-reader', 'agent:claude_api', 'open']
     ])
@@ -198,6 +204,20 @@ describe('HQ+ journal', () => {
     expect(
       agentsMove.scope === 'overview' && agentsMove.headers.map((entry) => entry.kind)
     ).toEqual(['person.reply', 'review.finding'])
+  })
+
+  it("logs the owner's own choices for the trust ladder, and not cards that closed by themselves", async () => {
+    const skipped = db.addInboxItem({ kind: 'hq-intake', title: 'Ann: look at the export' })
+    db.markInboxDone(skipped.record.id, 'skipped')
+    const gone = db.addInboxItem({ kind: 'slack-request', title: 'Bob: synced away' })
+    db.markInboxDone(gone.record.id, 'gone')
+    await service.sync()
+    const sources = db.listJournal({ kind: 'owner.decision' }).map((entry) => entry.source)
+    expect(sources).toContain('owner:bell:hq-intake:rejected')
+    expect(sources.some((source) => source?.startsWith('owner:bell:slack-request'))).toBe(false)
+    expect(
+      sources.some((source) => /^owner:[a-z-]+:(accepted|edited|rejected)$/.test(source ?? ''))
+    ).toBe(true)
   })
 
   it("never shows a chat another room's entries", async () => {

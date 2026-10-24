@@ -26,6 +26,7 @@ import {
   waitingJournal
 } from './hq-journal-adapters'
 import { codexReviewJournal, readHqCodexReviews } from './hq-journal-codex-review'
+import { approvalOwnerDecision, bellOwnerDecision } from './hq-owner-decisions'
 import { hqPlaceOf, type HqRoomRef, type HqRoomSources } from './hq-journal-rooms'
 
 const DAY_MS = 24 * 60 * 60_000
@@ -39,6 +40,8 @@ export type HqJournalPulse = {
   listDecisions: (limit: number) => PulseDecision[]
   /** The bell's agent-finished items since `since`, done ones too. */
   listFinishedChats: (since: number) => PulseInboxItem[]
+  /** Custom build (hq-plus-ladder): every bell item since `since`, done ones too. */
+  listBell: (since: number) => PulseInboxItem[]
   listPeople: () => PulsePerson[]
   record: (inputs: readonly HqJournalInput[]) => HqJournalRecordResult
   noteSessions: (inputs: readonly HqSessionInput[]) => number
@@ -108,6 +111,16 @@ export async function collectHqJournal(
     const entry = decision.decidedAt >= since ? decisionJournal(decision, place, draft) : null
     if (entry) {
       entries.push(entry)
+      const owner = approvalOwnerDecision(decision, entry)
+      if (owner) {
+        entries.push(owner)
+      }
+    }
+  }
+  for (const item of pulse.listBell(since)) {
+    const owner = bellOwnerDecision(item, place)
+    if (owner) {
+      entries.push(owner)
     }
   }
   const sessions: HqSessionInput[] = []
