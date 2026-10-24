@@ -10,6 +10,7 @@ import type { HqPlusBadge } from '../../../../../shared/hq-plus-kinds'
 import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 import { HqPlusThreadComposer } from './HqPlusThreadComposer'
+import { openPane } from '../pulse-bell/pulse-bell-actions'
 import { HqPlusCloseChat } from './HqPlusCloseChat'
 import { HqPlusGrow } from './HqPlusGrow'
 import { HqPlusChatName } from './HqPlusChatName'
@@ -50,7 +51,10 @@ export function ChatCard({
   const cardKey = item.sessionId ?? item.address
   const closer = ctx.closeChat(item.sessionId, cardKey ? { key: cardKey, at: item.at } : undefined)
   const key = item.address ?? item.sessionId
-  const canReply = Boolean(item.address || item.sessionId)
+  const canReply = Boolean(item.address || item.sessionId || item.pane)
+  // Custom build (hq-closed-loop): a terminal agent's run opens its pane, as the bell's «Open» does.
+  const pane = item.pane ?? null
+  const openRun = openChat ?? (pane ? () => openPane(pane) : null)
   return (
     <FeedRow item={item} ctx={ctx} tile={tile}>
       <div
@@ -92,7 +96,8 @@ export function ChatCard({
                     address: item.address,
                     sessionId: item.sessionId,
                     replyTo: null,
-                    about: null
+                    about: null,
+                    pane: item.pane ?? null
                   }}
                   openQuestion={null}
                   label={item.address ?? item.project ?? 'chat'}
@@ -103,7 +108,7 @@ export function ChatCard({
             </CollapsibleContent>
           </Collapsible>
         ) : null}
-        {item.address || openChat || open ? (
+        {item.address || openRun || open ? (
           <div className="hqp-row-f">
             {key && item.address ? (
               <button type="button" className="hqp-addr" onClick={() => ctx.onScope(key)}>
@@ -120,8 +125,8 @@ export function ChatCard({
                 {translate('auto.hqPlus.collapseCard', 'Collapse')}
               </button>
             ) : null}
-            {openChat ? (
-              <button type="button" className="hqp-pill" onClick={openChat}>
+            {openRun ? (
+              <button type="button" className="hqp-pill" onClick={openRun}>
                 {translate('auto.hqPlus.open', 'Open')}
               </button>
             ) : null}

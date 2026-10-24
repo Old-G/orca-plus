@@ -5,11 +5,13 @@ import { useState } from 'react'
 import {
   HQ_PLUS_DONE_HANDED_OFF,
   HQ_PLUS_DONE_IN_CHAT,
+  HQ_PLUS_QUESTION_LINE,
   hqPlusChoices,
   type HqPlusCard as Card,
   type HqPlusDone
 } from '../../../../../shared/hq-plus-log'
 import { HQ_JOB_UNDO } from '../../../../../shared/hq-journal'
+import { readPulseBellPaneRef } from '../../../../../shared/pulse-bell'
 import { translate } from '@/i18n/i18n'
 import { OutgoingApprovalDecision } from '../outgoing-approval/OutgoingApprovalCard'
 import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
@@ -111,7 +113,7 @@ function questionOf(card: Card): string {
     return card.report.learned
   }
   const lines = (card.body ?? '').split('\n').map((line) => line.replace(/\*\*/g, '').trim())
-  const asked = lines.toReversed().find((line) => line.endsWith('?'))
+  const asked = lines.toReversed().find((line) => HQ_PLUS_QUESTION_LINE.test(line))
   return asked ?? card.title
 }
 
@@ -416,7 +418,14 @@ export function HqPlusCardView({
   const choices = card.report?.options.length ? card.report.options : hqPlusChoices(card.body)
   const reply = (value: string): void =>
     run(() => (card.job ? replyOnHqPlusJob(card, value) : replyOnHqPlusCard(card, value, hqPath)))
-  const canReply = card.type === 'move' && Boolean(card.job || card.address || card.sessionId)
+  const canReply =
+    card.type === 'move' &&
+    Boolean(
+      card.job ||
+      card.address ||
+      card.sessionId ||
+      (card.inbox && readPulseBellPaneRef(card.inbox.refId))
+    )
 
   return (
     <div
