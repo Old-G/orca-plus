@@ -61,6 +61,19 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     notes: ["Without an address it shows this chat's own thread."]
   },
   {
+    // Custom build (hq-plus-ladder)
+    path: ['hq', 'ladder'],
+    summary:
+      'The trust ladder: per kind of action, how you decided on what was offered, its step and the move the counts call for',
+    usage: 'orca hq ladder [--since <24h|7d|ISO date>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'since'],
+    notes: [
+      'Steps live in HQ/routing.yaml under ladder: 0 suggest, 1 acts with a card, 2 acts and says so, 3 acts quietly.',
+      'Raise: 0→1 at ≥20 decisions with ≥90% taken as offered; 1→2 at ≥50 with ≤5% changed; 3 only by your word. Messages to people stay at 1 without allow_people; prod and irreversible never pass 1.',
+      'Also counts the effort each chat message went with. --since defaults to 30 days.'
+    ]
+  },
+  {
     // Custom build (hq-plus-routing)
     path: ['hq', 'route'],
     summary:
