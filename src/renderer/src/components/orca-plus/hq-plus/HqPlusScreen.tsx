@@ -43,7 +43,7 @@ import { useHqSpaces } from '../hq/use-hq-spaces'
 import { useHqProjectPages } from '../hq/use-hq-project-pages'
 import { findHqWorktreeId } from '../hq/hq-today-actions'
 import { HqCommandBox } from '../hq/HqCommandBox'
-import { acknowledgeHqChat, openHqChatInProject, setShownHqChat } from '../hq/hq-chat-actions'
+import { acknowledgeHqChat, setShownHqChat } from '../hq/hq-chat-actions'
 import { useHqPeople } from '../hq/HqPeopleTab'
 import { HqPlusPeople, HqPlusSidePeople } from './HqPlusPeople'
 import { rememberedHqChat } from '../hq/hq-chat-open'
@@ -181,6 +181,9 @@ export function HqPlusScreen(): React.JSX.Element {
   // Custom build (hq-plus-ui-v3): the open chat folded to a bar under Graph / River, until «Expand».
   const [chatFolded, setChatFolded] = useState(view.chatFolded)
   const [take, setTake] = useState<PulseInboxItem | null>(null)
+  // Custom build (hq-closed-loop): «Open» on the chat already open on the right lights it up briefly.
+  const [chatFlash, setChatFlash] = useState(false)
+  const chatFlashTimer = useRef<number | null>(null)
   // Custom build (hq-plus-ui-v3): where a project picked in the River or Graph came from, for «← Back».
   const [pickedFrom, setPickedFrom] = useState<'river' | 'graph' | null>(view.pickedFrom)
   const [leftWidth, setLeftWidth] = useState(() => readHqPlusPanelWidth('left'))
@@ -530,12 +533,30 @@ export function HqPlusScreen(): React.JSX.Element {
     setTake(null)
     setTab('people')
   }
+  const flashChat = (): void => {
+    if (chatFlashTimer.current !== null) {
+      window.clearTimeout(chatFlashTimer.current)
+    }
+    // Why: off, then on in the next frame, so a second click replays the glow.
+    setChatFlash(false)
+    window.requestAnimationFrame(() => setChatFlash(true))
+    chatFlashTimer.current = window.setTimeout(() => setChatFlash(false), 1200)
+  }
+  useEffect(
+    () => () => {
+      if (chatFlashTimer.current !== null) {
+        window.clearTimeout(chatFlashTimer.current)
+      }
+    },
+    []
+  )
   const openChat = (sessionId: string | null): (() => void) | null => {
     const listed = hqPlusChatOfSession(chatItems, sessionId)
     if (listed) {
-      // Why: a chat already open on the right opens whole, in its project, rather than doing nothing.
+      // Why: a chat already open on the right stays where it is — leaving HQ+ for its project
+      // only lost the owner's place (25.10); the panel lights up so he sees where it is.
       return tab === 'session' && chatKey === listed.key && !chatFolded
-        ? () => void openHqChatInProject(listed)
+        ? flashChat
         : () => showChat(listed.key)
     }
     const live = liveOf(sessionId)
@@ -1098,7 +1119,7 @@ export function HqPlusScreen(): React.JSX.Element {
             ) : null}
             <div
               hidden={tab === 'browser' && !take}
-              className="hqp-pv"
+              className={chatFlash && tab === 'session' && !take ? 'hqp-pv hqp-flash' : 'hqp-pv'}
               key={
                 take
                   ? `take:${take.id}`
