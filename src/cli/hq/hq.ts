@@ -31,6 +31,12 @@ import {
   formatHqWhere,
   formatHqWhoami
 } from '../hq-format'
+import {
+  formatHqPerson,
+  formatHqWho,
+  type HqPersonResult,
+  type HqWhoResult
+} from '../hq-people-format'
 
 /** Who is asking, as the agent's environment says; the host turns it into a room. */
 function caller(): { callerSessionId?: string; callerWorktreeId?: string; callerCwd: string } {
@@ -96,6 +102,21 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       project: getOptionalStringFlag(flags, 'project')
     })
     printResult(result, json, (r) => `Reported in ${r.address} (${r.needs}, room ${r.room}).`)
+  },
+
+  // Custom build (hq-closed-loop)
+  'hq person': async ({ flags, client, json }) => {
+    const result = await client.call<HqPersonResult>('hq.person', {
+      query: getRequiredStringFlag(flags, 'query')
+    })
+    printResult(result, json, formatHqPerson)
+  },
+
+  'hq who': async ({ flags, client, json }) => {
+    const result = await client.call<HqWhoResult>('hq.who', {
+      project: getRequiredStringFlag(flags, 'project')
+    })
+    printResult(result, json, formatHqWho)
   },
 
   'hq thread': async ({ flags, client, json }) => {
