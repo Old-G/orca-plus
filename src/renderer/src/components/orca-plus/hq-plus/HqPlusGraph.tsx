@@ -19,7 +19,8 @@ const EDGE_COLOR: Record<HqPlusGraphEdge['kind'], string> = {
   relation: 'var(--hqp-rel)',
   'wait-long': 'var(--hqp-red)',
   wait: 'var(--hqp-amber)',
-  owe: 'var(--hqp-ice)'
+  owe: 'var(--hqp-ice)',
+  member: 'var(--hqp-rel)'
 }
 
 type Placed = { id: string; label: string; x: number; y: number; column: 0 | 1 | 2 }
@@ -179,7 +180,7 @@ export function HqPlusGraph({
           if (!from || !to) {
             return null
           }
-          const flow = edge.kind !== 'relation'
+          const flow = edge.kind !== 'relation' && edge.kind !== 'member'
           const lit = !selected || edge.from === selected || edge.to === selected
           return (
             <path
