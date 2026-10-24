@@ -233,6 +233,44 @@ describe('hqPlusLog', () => {
     expect(offer(NOW)).toMatchObject({ kind: 'line', journalKind: 'session.handoff' })
   })
 
+  it("keeps a terminal agent's pane on its turn, so the card can open it and take an answer", () => {
+    const pane = { paneKey: 'tab1:leaf1', tabId: 'tab1', worktreeId: 'wt1' }
+    const [line] = hqPlusLog(
+      [row({ id: 'r', body: 'Report written.', refKind: 'inbox', refId: 'i1' })],
+      [bell({ id: 'i1', refKind: 'pane', refId: JSON.stringify(pane), doneAt: NOW })],
+      DAY_START
+    )
+    expect(line).toMatchObject({ kind: 'line', pane })
+  })
+
+  it("keeps a terminal agent's question open when a short follow-up turn replaced its bell item", () => {
+    const pane = (key: string) => JSON.stringify({ paneKey: key, tabId: 'tab1', worktreeId: 'wt1' })
+    const ask = row({
+      id: 'q',
+      at: NOW - 2 * HOUR,
+      body: 'Which to apply? (numbers / none)',
+      refKind: 'inbox',
+      refId: 'i1'
+    })
+    const replaced = bell({
+      id: 'i1',
+      refKind: 'pane',
+      refId: pane('tab1:leaf1'),
+      doneAt: NOW - HOUR,
+      doneAction: 'replaced'
+    })
+    expect(hqPlusLog([ask], [replaced], DAY_START)[0]).toMatchObject({
+      kind: 'card',
+      open: true,
+      done: null
+    })
+    const next = row({ id: 'n', at: NOW - HOUR, body: 'Applied 1.', refKind: 'inbox', refId: 'i2' })
+    const nextBell = bell({ id: 'i2', refKind: 'pane', refId: pane('tab1:leaf1') })
+    expect(hqPlusLog([ask, next], [replaced, nextBell], DAY_START)[0]).toMatchObject({
+      open: false
+    })
+  })
+
   it("keeps an agent's own draft open for the owner though no bell card stands for it", () => {
     const draft = (status: 'open' | 'done') =>
       hqPlusLog(
@@ -305,6 +343,7 @@ describe('hqPlusLog', () => {
   it('asks the owner only when the turn ends on a question', () => {
     expect(hqPlusAsksOwner('Done. Which one: A or B?')).toBe(true)
     expect(hqPlusAsksOwner('Is it fine? I checked, it is. Shipped.')).toBe(false)
+    expect(hqPlusAsksOwner('Two ideas.\n\nWhich to apply? (numbers / none)')).toBe(true)
   })
 })
 
