@@ -1480,9 +1480,12 @@
   }
   .hqp-side-wrap {
     width: 260px;
+    /* Why: the drag line is the panel's edge; buttons and cards keep a gap from it. */
+    padding-right: 14px;
   }
   .hqp-ctx {
     transition: none;
+    padding-left: 14px;
   }
 }
 .hqp-resize {
