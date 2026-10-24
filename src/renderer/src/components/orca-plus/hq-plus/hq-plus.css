@@ -727,14 +727,26 @@
 }
 .hqp-tabs {
   display: flex;
-  gap: 4px;
+  gap: 8px;
   align-items: center;
   min-width: 0;
+}
+.hqp-tabs-scroll {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+  align-items: center;
   overflow-x: auto;
   scrollbar-width: none;
+  /* Why: a faded edge says more tabs are there to scroll to. */
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
 }
-.hqp-tabs::-webkit-scrollbar {
+.hqp-tabs-scroll::-webkit-scrollbar {
   display: none;
+}
+.hqp-tabs > .hqp-exp {
+  flex-shrink: 0;
 }
 .hqp-tab {
   flex-shrink: 0;

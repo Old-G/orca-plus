@@ -1030,48 +1030,52 @@ export function HqPlusScreen(): React.JSX.Element {
           ref={right.containerRef}
           aria-label={translate('auto.hqPlus.panel', 'Graph, River, Session, Agents')}
         >
-          <div className="hqp-tabs" role="tablist">
-            {TABS.map((name) => {
-              const [key, fallback] = TAB_LABEL[name]
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  role="tab"
-                  aria-selected={!take && tab === name}
-                  className="hqp-tab"
-                  onClick={() => {
-                    setTab(name)
-                    setTake(null)
-                    if (name === 'session') {
-                      setChatFolded(false)
-                    }
-                  }}
-                >
-                  {translate(key, fallback)}
-                </button>
-              )
-            })}
-            <span className="hqp-spacer" />
-            {tab === 'session' && chatItem ? (
-              <button
-                type="button"
-                className="hqp-tab hqp-exp"
-                aria-label={translate('auto.hqPlus.foldChat', 'Fold the chat to the bottom')}
-                title={translate('auto.hqPlus.foldChat', 'Fold the chat to the bottom')}
-                onClick={() => {
-                  setChatFolded(true)
-                  setWide(false)
-                  setTab(pickedFrom ?? 'graph')
-                }}
-              >
-                ⌄
-              </button>
-            ) : null}
+          <div className="hqp-tabs">
+            {/* Custom build (hq-closed-loop): only the tabs scroll sideways; «widen» stays in view. */}
+            <div
+              className="hqp-tabs-scroll"
+              role="tablist"
+              onWheel={(event) => {
+                if (event.deltaY !== 0 && event.deltaX === 0) {
+                  event.currentTarget.scrollLeft += event.deltaY
+                }
+              }}
+            >
+              {TABS.map((name) => {
+                const [key, fallback] = TAB_LABEL[name]
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    role="tab"
+                    aria-selected={!take && tab === name}
+                    className="hqp-tab"
+                    onClick={() => {
+                      // Why: leaving an open chat folds it to the bar at the foot, one click back.
+                      if (name !== 'session' && tab === 'session' && chatItem) {
+                        setChatFolded(true)
+                      }
+                      setTab(name)
+                      setTake(null)
+                      if (name === 'session') {
+                        setChatFolded(false)
+                      }
+                    }}
+                  >
+                    {translate(key, fallback)}
+                  </button>
+                )
+              })}
+            </div>
             <button
               type="button"
               className="hqp-tab hqp-exp"
               aria-label={
+                wide
+                  ? translate('auto.hqPlus.narrow', 'Narrow the panel')
+                  : translate('auto.hqPlus.widen', 'Widen the panel')
+              }
+              title={
                 wide
                   ? translate('auto.hqPlus.narrow', 'Narrow the panel')
                   : translate('auto.hqPlus.widen', 'Widen the panel')
