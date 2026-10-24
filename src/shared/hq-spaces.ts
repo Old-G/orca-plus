@@ -31,7 +31,11 @@ export const HqSpaceSchema = z.object({
     .nullable()
     .optional(),
   /** Custom build (hq-plus-room-mcp): MCP servers its chats start without (`mcp: { deny: [...] }`). */
-  mcpDeny: z.array(z.string().max(100)).max(64).optional()
+  mcpDeny: z.array(z.string().max(100)).max(64).optional(),
+  /** Custom build (hq-rooms): the Orca sidebar group this room is; its name and colour are the group's. */
+  groupId: z.string().max(200).nullable().optional(),
+  /** Custom build (hq-rooms): the room projects in no group belong to. */
+  isDefault: z.boolean().optional()
 })
 export type HqSpace = z.infer<typeof HqSpaceSchema>
 
@@ -57,6 +61,8 @@ export type HqSpaceFile = {
   isDefault: boolean
   /** Custom build (hq-plus-room-mcp): `mcp: { deny: [...] }`, as written. */
   mcpDeny: string[]
+  /** Custom build (hq-rooms): `group_id:` — the Orca sidebar group this room is. */
+  groupId: string | null
 }
 
 export type HqSpaceGitAuthor = { name: string; email: string }
@@ -115,42 +121,89 @@ export function readHqSpaceFile(slug: string, data: unknown): HqSpaceFile | null
     tasks: source('tasks'),
     git: readGitAuthor(field('git')),
     isDefault: field('default') === true,
-    mcpDeny: readMcpDeny(field('mcp'))
+    mcpDeny: readMcpDeny(field('mcp')),
+    groupId: (() => {
+      const value = field('group_id')
+      return typeof value === 'string' && value.trim() ? value.trim().slice(0, 200) : null
+    })()
   }
 }
 
-export type HqSpaceProject = { repoId: string; slug: string; group: string | null }
+export type HqSpaceProject = {
+  repoId: string
+  slug: string
+  group: string | null
+  /** Custom build (hq-rooms): the repo's Orca group and the groups above it, nearest first. */
+  groupIds?: readonly string[]
+}
 
-/** Each space with the projects it holds; a project claimed twice stays with the first space. */
+/** Custom build (hq-rooms): an Orca sidebar group as rooms read it. */
+export type HqSpaceGroup = { id: string; name: string; color: string | null }
+
+/**
+ * Each space with the projects it holds. Custom build (hq-rooms): a room that is an Orca group
+ * (`group_id`) takes every project inside that group, nested groups too, before any name or list
+ * claims; then the `groups` names and `projects` lists, first room by order; what is left goes to
+ * the `default: true` room. A room that is a group shows the group's name and colour.
+ */
 export function resolveHqSpaces(
   files: readonly { slug: string; file: HqSpaceFile }[],
-  projects: readonly HqSpaceProject[]
+  projects: readonly HqSpaceProject[],
+  groups: readonly HqSpaceGroup[] = []
 ): HqSpace[] {
-  const claimed = new Set<string>()
-  return [...files]
-    .sort((a, b) => a.file.order - b.file.order || a.slug.localeCompare(b.slug))
-    .map(({ slug, file }) => {
-      const mine = projects.filter(
-        (project) =>
-          !claimed.has(project.slug) &&
-          (file.projects.includes(project.slug) ||
-            (project.group !== null && file.groups.includes(project.group)))
-      )
-      for (const project of mine) {
-        claimed.add(project.slug)
+  const sorted = [...files].sort(
+    (a, b) => a.file.order - b.file.order || a.slug.localeCompare(b.slug)
+  )
+  const owner = new Map<string, string>()
+  const claim = (slug: string, wants: (project: HqSpaceProject) => boolean): void => {
+    for (const project of projects) {
+      if (!owner.has(project.slug) && wants(project)) {
+        owner.set(project.slug, slug)
       }
-      return {
-        slug,
-        name: file.name,
-        color: file.color,
-        repoIds: mine.map((project) => project.repoId),
-        projects: [...new Set([...mine.map((project) => project.slug), ...file.projects])].sort(),
-        messenger: file.messenger,
-        tasks: file.tasks,
-        git: file.git,
-        ...(file.mcpDeny.length ? { mcpDeny: file.mcpDeny } : {})
-      }
-    })
+    }
+  }
+  for (const { slug, file } of sorted) {
+    const groupId = file.groupId
+    if (groupId) {
+      claim(slug, (project) => project.groupIds?.includes(groupId) ?? false)
+    }
+  }
+  for (const { slug, file } of sorted) {
+    claim(
+      slug,
+      (project) =>
+        file.projects.includes(project.slug) ||
+        (project.group !== null && file.groups.includes(project.group))
+    )
+  }
+  const fallback = sorted.find(({ file }) => file.isDefault)
+  if (fallback) {
+    claim(fallback.slug, () => true)
+  }
+  const groupById = new Map(groups.map((group) => [group.id, group]))
+  return sorted.map(({ slug, file }) => {
+    const mine = projects.filter((project) => owner.get(project.slug) === slug)
+    const group = file.groupId ? groupById.get(file.groupId) : undefined
+    return {
+      slug,
+      name: group?.name.trim() ? group.name.trim().slice(0, 80) : file.name,
+      color: group?.color && COLOR.test(group.color) ? group.color : file.color,
+      repoIds: mine.map((project) => project.repoId),
+      projects: [
+        ...new Set([
+          ...mine.map((project) => project.slug),
+          // Why: a listed slug another room's group took is not this room's any more.
+          ...file.projects.filter((listed) => (owner.get(listed) ?? slug) === slug)
+        ])
+      ].sort(),
+      messenger: file.messenger,
+      tasks: file.tasks,
+      git: file.git,
+      ...(file.mcpDeny.length ? { mcpDeny: file.mcpDeny } : {}),
+      groupId: file.groupId,
+      ...(file.isDefault ? { isDefault: true } : {})
+    }
+  })
 }
 
 /** Where a record belongs: by its repo, or by its HQ project slug. */
