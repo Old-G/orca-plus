@@ -307,3 +307,50 @@ export function hqPersonChannelLine(channel: Record<string, string> | undefined)
     .map(([kind, where]) => `${kind}: ${where}`)
   return [first, ...rest].filter(Boolean).join(' · ')
 }
+
+/** Custom build (hq-closed-loop): someone the owner works with — a page, pulse records or a dossier. */
+export function isHqPlusPersonOfMine(row: HqPeopleRow): boolean {
+  return isHqKnownPerson(row) || (row.projects?.length ?? 0) > 0
+}
+
+/** HQ+'s People list: what is open between them first, then by name; `query` as in findHqPeople. */
+export function hqPlusPeopleList(
+  rows: readonly HqPeopleRow[],
+  options: { mine: boolean; query: string }
+): HqPeopleRow[] {
+  const pool = options.query.trim() ? findHqPeople(rows, options.query) : [...rows]
+  const shown = options.mine && !options.query.trim() ? pool.filter(isHqPlusPersonOfMine) : pool
+  return shown.sort(
+    (a, b) => b.onThem + b.onMe - (a.onThem + a.onMe) || a.name.localeCompare(b.name)
+  )
+}
+
+/** What the dossier still lacks for an agent to work with them. */
+export function hqDossierGaps(row: HqPeopleRow): ('projects' | 'channel')[] {
+  return [
+    ...((row.projects?.length ?? 0) === 0 ? (['projects'] as const) : []),
+    ...(hqPersonChannelLine(row.channel) ? [] : (['channel'] as const))
+  ]
+}
+
+function whoOf(row: HqPeopleRow): string {
+  const role = row.jobTitle ? `, ${row.jobTitle}` : ''
+  return `${row.name}${row.orgName && row.orgName !== row.name ? ` (${row.orgName})` : ''}${role}`
+}
+
+/** «Write» on a person: an HQ chat asks what to say and sends it the ask-person way, through Approve. */
+export function hqWritePersonPrompt(row: HqPeopleRow): string {
+  return (
+    `Хочу написать: ${whoOf(row)}. Скилл ask-person: где ему писать — по досье (\`orca hq person "${row.name}"\`), ` +
+    'спроси меня, что именно написать, и отправь только через Approve.'
+  )
+}
+
+/** «Fill in» on a dossier with gaps: the people interview for this one person. */
+export function hqFillDossierPrompt(row: HqPeopleRow): string {
+  return (
+    `Скилл hq-people-interview для одного человека: ${whoOf(row)}` +
+    `${row.pagePath ? ` (HQ/${row.pagePath})` : ''}. Собери черновик досье из журнала, Slack, ClickUp и матрицы, ` +
+    'спроси меня только пробелы, запиши в front matter страницы.'
+  )
+}

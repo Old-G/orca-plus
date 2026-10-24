@@ -2731,3 +2731,134 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   background: color-mix(in srgb, var(--hqp-red) 22%, transparent);
   color: var(--hqp-fg);
 }
+
+/* Custom build (hq-closed-loop): People — the list on the right and one person's dossier. */
+.hqp-people {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 10px 12px 18px;
+  min-width: 0;
+}
+.hqp-people > .hqp-link {
+  justify-self: start;
+}
+.hqp-people-f {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.hqp-people-f .hqp-search {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.hqp-people-list {
+  display: grid;
+  gap: 2px;
+}
+.hqp-prow {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  text-align: left;
+  width: 100%;
+}
+.hqp-prow:hover {
+  background: var(--hqp-soft-2);
+}
+.hqp-prow .who {
+  display: grid;
+  min-width: 0;
+}
+.hqp-prow .t {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.hqp-prow .m {
+  font-size: 11.5px;
+  color: var(--hqp-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hqp-prow .w {
+  font-family: var(--hqp-mono);
+  font-size: 10.5px;
+  color: var(--hqp-amber);
+  white-space: nowrap;
+}
+.hqp-dossier {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background:
+    linear-gradient(var(--hqp-card), var(--hqp-card)) padding-box,
+    var(--hqp-edge) border-box;
+}
+.hqp-dossier-who {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+.hqp-dossier-who .hqp-tile {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 15px;
+}
+.hqp-dossier-who h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.hqp-dossier-who p {
+  margin: 2px 0 0;
+  color: var(--hqp-mute);
+  font-size: 12.5px;
+}
+.hqp-dossier-gap {
+  margin: 0;
+  color: var(--hqp-amber);
+  font-size: 12.5px;
+}
+.hqp-dossier-pill {
+  display: inline-block;
+  margin: 0 5px 4px 0;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--hqp-fg);
+}
+.hqp-dossier-pill small {
+  color: var(--hqp-faint);
+  font-family: var(--hqp-mono);
+  font-size: 10px;
+}
+.hqp-dossier-ids {
+  font-family: var(--hqp-mono);
+  font-size: 12px;
+  color: var(--hqp-mute);
+  overflow-wrap: anywhere;
+}
+.hqp-dossier-notes {
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--hqp-mute);
+}
+.hqp-dossier-notes p,
+.hqp-dossier-page {
+  margin: 0;
+}
+.hqp-dossier-page {
+  font-family: var(--hqp-mono);
+  font-size: 11px;
+}
