@@ -245,12 +245,14 @@ function chatActivity(
 
 /**
  * The day's log, oldest first. `since` is where the day starts; what still waits on the owner is kept
- * however old it is.
+ * however old it is. `chatQuestions: 'line'` keeps a chat's question in the chat's own row — the
+ * desktop's chat card shows it and takes the answer; the phone's row cannot, so there it stays a card.
  */
 export function hqPlusLog(
   entries: readonly HqJournalEntry[],
   inbox: readonly PulseInboxItem[],
-  since: number
+  since: number,
+  options: { chatQuestions?: 'card' | 'line' } = {}
 ): HqPlusLogItem[] {
   const items: HqPlusLogItem[] = []
   const inboxById = new Map(inbox.map((item) => [item.id, item]))
@@ -340,8 +342,12 @@ export function hqPlusLog(
       const explicit = ownerOpen
       const asks = explicit || answered || hqPlusAsksOwner(entry.body)
       const done = asks ? (replyDone(entry) ?? turnDone(entry, item ?? null) ?? later(entry)) : null
+      const pane = !entry.sessionId && item ? readPulseBellPaneRef(item.refId) : null
+      // Custom build (hq-closed-loop): a chat card answers its own question, so a second card was noise (25.10).
+      const inChatRow =
+        options.chatQuestions === 'line' && Boolean(entry.sessionId || entry.address || pane)
       // Custom build (hq-closed-loop): only a question still waiting is a card; answered, it is the chat's line.
-      if (asks && !done) {
+      if (asks && !done && !inChatRow) {
         items.push(
           card(entry, item ?? null, {
             type: 'move',
@@ -373,7 +379,7 @@ export function hqPlusLog(
           title: entry.title,
           body: entry.body,
           journalKind: entry.kind,
-          pane: !entry.sessionId && item ? readPulseBellPaneRef(item.refId) : null
+          pane
         })
       }
       continue
