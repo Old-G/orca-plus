@@ -4,6 +4,7 @@ import type { HqPlusCard, HqPlusDone } from '../../../src/shared/hq-plus-log'
 import {
   HQ_PLUS_DONE_HANDED_OFF,
   HQ_PLUS_DONE_IN_CHAT,
+  HQ_PLUS_QUESTION_LINE,
   hqPlusChoices
 } from '../../../src/shared/hq-plus-log'
 import type { HqPlusLook } from '../../../src/shared/hq-plus-kinds'
@@ -79,7 +80,7 @@ export function hqpQuestionOf(card: HqPlusCard): string {
     return card.report.learned
   }
   const lines = (card.body ?? '').split('\n').map((line) => line.replace(/\*\*/g, '').trim())
-  return lines.toReversed().find((line) => line.endsWith('?')) ?? card.title
+  return lines.toReversed().find((line) => HQ_PLUS_QUESTION_LINE.test(line)) ?? card.title
 }
 
 export function hqpChoices(card: HqPlusCard): string[] {
