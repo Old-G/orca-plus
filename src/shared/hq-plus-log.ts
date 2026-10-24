@@ -32,6 +32,9 @@ export const HQ_PLUS_DONE_HANDED_OFF = 'handed-off'
 export const HQ_PLUS_HANDOFF_TITLE =
   "A chat's context is full and it saved where it stopped. «New session» continues the work in a new chat"
 
+export const HQ_PLUS_HANDOFF_DONE =
+  'Handoff: a new chat continued the work where the old one stopped'
+
 /** How a card was settled: the owner's own words, a button, or the row closing elsewhere. */
 export type HqPlusDone =
   | { by: 'reply'; text: string; at: number }
@@ -473,6 +476,19 @@ export function hqPlusLog(
       if (done?.by === 'reply') {
         items.push({ kind: 'me', id: `${item.id}:reply`, at: done.at, ...place, text: done.text })
       }
+      continue
+    }
+    // Custom build (hq-closed-loop): a handoff already taken is news, not a decision card.
+    if (item.kind === PULSE_BELL_KIND.handoff && done) {
+      items.push({
+        kind: 'line',
+        id: `inbox:${item.id}`,
+        at: item.createdAt,
+        ...whereOfItem(item),
+        tone: 'system',
+        title: `${HQ_PLUS_HANDOFF_DONE}${item.body ? ` · ${item.body}` : ''}`,
+        journalKind: HQ_JOURNAL_KIND.sessionHandoff
+      })
       continue
     }
     const type: HqPlusCardType =

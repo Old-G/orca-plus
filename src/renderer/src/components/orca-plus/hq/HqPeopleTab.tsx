@@ -12,7 +12,7 @@ const REFRESH_MS = 60_000
 
 type PeopleState = { people: HqPeopleRow[]; error: string | null; loaded: boolean }
 
-function useHqPeople(): PeopleState {
+export function useHqPeople(): PeopleState {
   const [state, setState] = useState<PeopleState>({ people: [], error: null, loaded: false })
   const load = useCallback(async () => {
     const response = await window.api.runtime.call({ method: 'hqProjects.people' })

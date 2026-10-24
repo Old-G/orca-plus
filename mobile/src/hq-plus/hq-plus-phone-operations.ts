@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { HqFeedResult, HqPlusScreenStats } from '../../../src/shared/hq-plus-screen'
 import { isHqFeed, isHqScreenStats } from '../../../src/shared/hq-plus-rpc-readers'
 import { HqWriteReplySchema } from '../../../src/shared/hq-requests-reply'
+import { HqPeopleRowSchema, HqPersonCardSchema } from '../../../src/shared/hq-people'
 import { defineRpcOperation } from '../transport/rpc-operation'
 import type { RpcCompatibleReader } from '../transport/rpc-operation-contract'
 import { rpcResultVariant } from '../transport/rpc-operation-result-reader'
@@ -133,5 +134,31 @@ export const hqPlusPagesRead = defineRpcOperation({
       }),
       z.object({ ok: z.literal(false), error: z.string() })
     ])
+  )
+})
+
+const Refused = z.object({ ok: z.literal(false), error: z.string() })
+
+/** Custom build (hq-closed-loop): People — everyone HQ knows, with their dossiers. */
+export const hqPlusPeopleRead = defineRpcOperation({
+  name: 'hq-plus.people',
+  method: 'hqProjects.people',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant(
+    'hq-plus-people',
+    z.union([z.object({ ok: z.literal(true), people: z.array(HqPeopleRowSchema) }), Refused])
+  )
+})
+
+/** One person's card: what is open both ways, what went to them, the owner's notes. */
+export const hqPlusPersonRead = defineRpcOperation({
+  name: 'hq-plus.person',
+  method: 'hqProjects.person',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant(
+    'hq-plus-person',
+    z.union([HqPersonCardSchema.extend({ ok: z.literal(true) }), Refused])
   )
 })
