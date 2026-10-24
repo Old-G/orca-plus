@@ -120,7 +120,7 @@ export function HqpGraphView({ graph }: { graph: HqPlusGraph }) {
   )
   const links = graph.edges.map((edge) => ({
     key: `${edge.from}>${edge.to}`,
-    text: `${label.get(edge.from) ?? edge.from} ${edge.kind === 'relation' ? '→' : '┄'} ${label.get(edge.to) ?? edge.to}`,
+    text: `${label.get(edge.from) ?? edge.from} ${edge.kind === 'relation' || edge.kind === 'member' ? '→' : '┄'} ${label.get(edge.to) ?? edge.to}`,
     tone: edge.kind === 'wait-long' ? hqp.red : edge.kind === 'relation' ? hqp.mute : hqp.amber
   }))
   return (

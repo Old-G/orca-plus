@@ -12,10 +12,11 @@ export const HQ_PLUS_VIEW_TABS = [
   'session',
   'report',
   'agents',
+  'people',
   'browser'
 ] as const
 export type HqPlusViewTab = (typeof HQ_PLUS_VIEW_TABS)[number]
-export const HQ_PLUS_SIDE_BLOCKS = ['waiting', 'weWait', 'tracked', 'chats'] as const
+export const HQ_PLUS_SIDE_BLOCKS = ['waiting', 'weWait', 'tracked', 'people', 'chats'] as const
 export type HqPlusSideBlockId = (typeof HQ_PLUS_SIDE_BLOCKS)[number]
 
 export type HqPlusViewState = {
