@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { listHqSpaces } from './hq-spaces'
+import { listHqSpaces, setHqSpaceLiveGroups } from './hq-spaces'
 
 let hq: string | null = null
 
@@ -35,9 +35,33 @@ describe('listHqSpaces', () => {
         projects: ['acme-api'],
         messenger: null,
         tasks: null,
-        git: null
+        git: null,
+        groupId: null
       }
     ])
+  })
+
+  it('places a project by its live sidebar group, not by its page of the last sync', async () => {
+    hq = await mkdtemp(join(tmpdir(), 'hq-spaces-'))
+    await mkdir(join(hq, 'projects'))
+    await writeFile(
+      join(hq, 'projects', 'odoo.md'),
+      '---\nid: r-odoo\nproject: odoo\ngroup: null\n---\n# odoo\n'
+    )
+    await mkdir(join(hq, 'workspaces', 'acme'), { recursive: true })
+    await writeFile(
+      join(hq, 'workspaces', 'acme', 'workspace.yaml'),
+      'name: Acme\ngroup_id: g-acme\n'
+    )
+    setHqSpaceLiveGroups(() => ({
+      repos: [{ id: 'r-odoo', projectGroupId: 'g-acme' }],
+      groups: [{ id: 'g-acme', name: 'Acme', color: null, parentGroupId: null }]
+    }))
+    try {
+      expect((await listHqSpaces(hq))[0]?.projects).toEqual(['odoo'])
+    } finally {
+      setHqSpaceLiveGroups(null)
+    }
   })
 
   it('is empty without a workspaces folder', async () => {
