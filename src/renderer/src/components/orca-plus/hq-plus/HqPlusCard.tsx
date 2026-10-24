@@ -455,7 +455,11 @@ export function HqPlusCardView({
                 ) : null}
                 {card.report.done ? (
                   <>
-                    <dt>{translate('auto.hqPlus.done', 'done')}</dt>
+                    <dt>
+                      {card.job
+                        ? translate('auto.hqPlus.did', 'did')
+                        : translate('auto.hqPlus.done', 'done')}
+                    </dt>
                     <dd>{card.report.done}</dd>
                   </>
                 ) : null}
