@@ -8,10 +8,11 @@ import {
   type HqRouting
 } from '../../shared/hq-routing'
 import { HQ_REPLY_DO, type HqReplyRule } from '../../shared/hq-reply-routing'
+import type { HqLadder } from '../../shared/hq-ladder'
 
 const FINDING_KIND = 'review.finding'
 const REPLY_KIND = 'person.reply'
-const KNOWN_KEYS = new Set([FINDING_KIND, REPLY_KIND, 'min_free'])
+const KNOWN_KEYS = new Set([FINDING_KIND, REPLY_KIND, 'min_free', 'ladder'])
 
 function field(value: unknown, key: string): unknown {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -93,11 +94,39 @@ function readReplyRule(raw: unknown, problems: string[]): HqReplyRule | null {
   return null
 }
 
+const LADDER_KEY = 'ladder'
+const STEPS = [0, 1, 2, 3] as const
+
+/** Custom build (hq-plus-ladder): `ladder: { kind: 1, other: { step: 2, allow_people: true } }`. */
+function readLadder(raw: unknown, problems: string[]): HqLadder {
+  if (raw === undefined || raw === null) {
+    return {}
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    problems.push('ladder must be a map of action kinds to steps')
+    return {}
+  }
+  const ladder: HqLadder = {}
+  for (const [kind, value] of Object.entries(raw)) {
+    const stepValue = typeof value === 'object' && value !== null ? field(value, 'step') : value
+    const step = STEPS.find((candidate) => candidate === Number(stepValue))
+    if (step === undefined) {
+      problems.push(`ladder.${kind}: a step is 0, 1, 2 or 3`)
+      continue
+    }
+    const allowPeople =
+      typeof value === 'object' && value !== null && field(value, 'allow_people') === true
+    ladder[kind] = { step, allowPeople }
+  }
+  return ladder
+}
+
 export function parseHqRouting(text: string | null): HqRouting {
   const routing: HqRouting = {
     findings: [],
     replies: null,
     minFreePercent: HQ_ROUTING_DEFAULT_MIN_FREE,
+    ladder: {},
     problems: []
   }
   if (text === null || !text.trim()) {
@@ -144,6 +173,7 @@ export function parseHqRouting(text: string | null): HqRouting {
   if (replies !== undefined && replies !== null) {
     routing.replies = readReplyRule(replies, routing.problems)
   }
+  routing.ladder = readLadder(field(doc, LADDER_KEY), routing.problems)
   return routing
 }
 
