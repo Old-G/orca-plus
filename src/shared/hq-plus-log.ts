@@ -3,7 +3,12 @@
 // bell's open decisions (Approve, people's answers, new reports) folded in where they arrived.
 import { HQ_JOURNAL_KIND, type HqJournalEntry } from './hq-journal'
 import type { PulseInboxItem } from './pulse-types'
-import { PULSE_BELL_KIND, readPulseBellSessionId } from './pulse-bell'
+import {
+  PULSE_BELL_KIND,
+  readPulseBellPaneRef,
+  readPulseBellSessionId,
+  type PulseBellPaneRef
+} from './pulse-bell'
 import { readHqFinishedChat } from './hq-chat-history'
 import { HQ_SLACK_REQUEST_BELL_KIND } from './hq-slack-request-bell'
 import { HQ_INTAKE_KIND } from './hq-slack-intake'
@@ -23,6 +28,8 @@ export const HQ_PLUS_REPLY_ACTION = 'reply:'
 
 /** `bell`: any other bell item the feed shows instead of a popup, with the item's own buttons. */
 export type HqPlusCardType = 'move' | 'approve' | 'reply' | 'wait' | 'report' | 'bell'
+
+const HQ_PLUS_BELL_REPLACED = 'replaced'
 
 /** Custom build (hq-closed-loop): a chat's question the chat itself moved past, or handed over. */
 export const HQ_PLUS_DONE_IN_CHAT = 'in-chat'
@@ -61,6 +68,8 @@ export type HqPlusLogItem =
       body?: string | null
       /** Custom build (hq-plus-ui-v3): the chat's earlier turns this row folds, oldest first. */
       earlier?: readonly { id: string; at: number; title: string }[]
+      /** Custom build (hq-closed-loop): the terminal pane of an agent with no chat session. */
+      pane?: PulseBellPaneRef | null
     })
   | (Where & { kind: 'me'; id: string; at: number; text: string })
   | (Where & {
@@ -150,10 +159,14 @@ const SETTLING_KINDS: ReadonlySet<string> = new Set([
 
 const ASK_TAIL = 400
 
+/** A line that asks: it ends on «?», or on «?» and its options in brackets. */
+export const HQ_PLUS_QUESTION_LINE = /\?\s*(?:\([^()]{1,80}\))?$/
+
 /** A finished turn that ends on a question to the owner waits for him. */
 export function hqPlusAsksOwner(text: string | null): boolean {
   const tail = (text ?? '').trim().slice(-ASK_TAIL)
-  return /\?\s*(?:\*\*)?\s*$/.test(tail) || /\?\s*\n/.test(tail)
+  // Why: a question may end on its options in brackets — «Что применить? (номера / ничего)».
+  return /\?\s*(?:\*\*)?\s*(?:\([^()\n]{1,80}\))?\s*$/.test(tail) || /\?\s*\n/.test(tail)
 }
 
 const OWNER_SENDER = /^From HQ\+:\s*/
@@ -284,6 +297,26 @@ export function hqPlusLog(
     )
   )
   const later = chatActivity(entries)
+  // Custom build (hq-closed-loop): a terminal agent's question «replaced» by a short follow-up turn
+  // (its turn report, say) still waits; only a newer reported turn of the same pane settles it.
+  const paneOf = (entry: HqJournalEntry): string | null => {
+    const bellItem = entry.refKind === 'inbox' && entry.refId ? inboxById.get(entry.refId) : null
+    return bellItem ? (readPulseBellPaneRef(bellItem.refId)?.paneKey ?? null) : null
+  }
+  const lastPaneTurn = new Map<string, number>()
+  for (const entry of entries) {
+    const pane = entry.kind === HQ_JOURNAL_KIND.chatReport ? paneOf(entry) : null
+    if (pane) {
+      lastPaneTurn.set(pane, Math.max(lastPaneTurn.get(pane) ?? 0, entry.at))
+    }
+  }
+  const turnDone = (entry: HqJournalEntry, item: PulseInboxItem | null): HqPlusDone | null => {
+    if (item?.doneAction !== HQ_PLUS_BELL_REPLACED) {
+      return inboxDone(item)
+    }
+    const pane = paneOf(entry)
+    return pane && (lastPaneTurn.get(pane) ?? 0) > entry.at ? inboxDone(item) : null
+  }
   for (const entry of [...entries].sort((a, b) => a.at - b.at)) {
     const asked = entry.needs.startsWith('owner:')
     const ownerOpen = entry.status === 'open' && asked
@@ -306,13 +339,16 @@ export function hqPlusLog(
       }
       const explicit = ownerOpen
       if (explicit || answered || hqPlusAsksOwner(entry.body)) {
-        const done = replyDone(entry) ?? inboxDone(item ?? null) ?? later(entry)
+        const done = replyDone(entry) ?? turnDone(entry, item ?? null) ?? later(entry)
         items.push(
           card(entry, item ?? null, {
             type: 'move',
             title: entry.title,
             body: entry.body,
-            open: !done && (explicit || Boolean(item && !item.doneAt)),
+            open:
+              !done &&
+              (explicit ||
+                Boolean(item && (!item.doneAt || item.doneAction === HQ_PLUS_BELL_REPLACED))),
             done
           })
         )
@@ -334,7 +370,8 @@ export function hqPlusLog(
           tone: 'agent',
           title: entry.title,
           body: entry.body,
-          journalKind: entry.kind
+          journalKind: entry.kind,
+          pane: !entry.sessionId && item ? readPulseBellPaneRef(item.refId) : null
         })
       }
       continue

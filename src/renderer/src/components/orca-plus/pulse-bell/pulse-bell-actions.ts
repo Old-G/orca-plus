@@ -52,7 +52,8 @@ function paneRefTabId(ref: PulseBellPaneRef): string | undefined {
   return ref.tabId ?? parsePaneKey(ref.paneKey)?.tabId
 }
 
-function openPane(ref: PulseBellPaneRef): void {
+/** Custom build (hq-closed-loop): also HQ+'s «Open» on a terminal agent's run. */
+export function openPane(ref: PulseBellPaneRef): void {
   if (!ref.worktreeId) {
     return
   }
