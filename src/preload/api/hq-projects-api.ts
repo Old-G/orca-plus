@@ -94,6 +94,8 @@ export type HqProjectsApi = {
   }) => Promise<{ ok: true } | { ok: false; error: string }>
   /** Custom build (hq-reports): decisions on a report dictated on the phone, for an HQ chat here. */
   onRunReportDecisions?: (listener: (request: { path: string; text: string }) => void) => () => void
+  /** Custom build (hq-plus-phone): a question HQ+ on the phone asks the Ask HQ chat here. */
+  onAskHq?: (listener: (request: { text: string }) => void) => () => void
   /** Custom build (hq-plus-reports): `orca chat send` found the chat closed; bring it back here. */
   onReopenChat?: (
     listener: (request: { sessionId: string; worktreeId: string }) => void

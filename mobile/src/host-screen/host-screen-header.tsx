@@ -104,10 +104,10 @@ export function HostScreenHeader({
   const hostPath = `/h/${encodeURIComponent(hostId)}`
 
   const navigationGroup: ActionSheetAction[] = [
-    // Custom build (hq-mobile): HQ on the phone, first in the menu and as its own bar button.
+    // Custom build (hq-mobile, hq-plus-phone): HQ+ on the phone, first in the menu and as its own bar button.
     {
       id: 'hq',
-      label: t('hostScreen.hostScreenHeader.hq', 'HQ'),
+      label: t('hostScreen.hostScreenHeader.hqPlus', 'HQ+'),
       icon: Inbox,
       disabled: disconnected,
       closeBeforePress: true,
@@ -188,7 +188,7 @@ export function HostScreenHeader({
           <>
             <NavBarButton
               icon={Inbox}
-              accessibilityLabel={t('hostScreen.hostScreenHeader.hq', 'HQ')}
+              accessibilityLabel={t('hostScreen.hostScreenHeader.hqPlus', 'HQ+')}
               disabled={disconnected}
               onPress={() => actions.navigateFromHostList(`${hostPath}/hq`)}
             />

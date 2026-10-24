@@ -1,9 +1,10 @@
 // Custom build (hq-plus-ui): checks on what the HQ+ screen's runtime calls return, so a host on an
-// older build answers with an empty screen instead of a crash.
-import type { HqJournalEntry, HqSession } from '../../../../../shared/hq-journal'
-import type { HqFeedResult, HqPlusScreenStats } from '../../../../../shared/hq-plus-screen'
-import type { HqSessionsResult } from '../../../../../shared/hq-sessions'
-import type { PulseInboxItem, PulsePerson, PulseWaiting } from '../../../../../shared/pulse-types'
+// older build answers with an empty screen instead of a crash. Custom build (hq-plus-phone): shared
+// with the phone's HQ+.
+import type { HqJournalEntry, HqSession } from './hq-journal'
+import type { HqFeedResult, HqPlusScreenStats } from './hq-plus-screen'
+import type { HqSessionsResult } from './hq-sessions'
+import type { PulseInboxItem, PulsePerson, PulseWaiting } from './pulse-types'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
