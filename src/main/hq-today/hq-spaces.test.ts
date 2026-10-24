@@ -2,7 +2,8 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { listHqSpaces, setHqSpaceLiveGroups } from './hq-spaces'
+import { hqSpaceOf } from '../../shared/hq-spaces'
+import { listHqSpaces, readHqSpacePlacing, setHqSpaceLiveGroups } from './hq-spaces'
 
 let hq: string | null = null
 
@@ -59,6 +60,40 @@ describe('listHqSpaces', () => {
     }))
     try {
       expect((await listHqSpaces(hq))[0]?.projects).toEqual(['odoo'])
+    } finally {
+      setHqSpaceLiveGroups(null)
+    }
+  })
+
+  it('places a live repo HQ has no page for yet by its group, else in the default room', async () => {
+    const hqRoot = await mkdtemp(join(tmpdir(), 'hq-spaces-'))
+    hq = hqRoot
+    await mkdir(join(hq, 'projects'))
+    await mkdir(join(hq, 'workspaces', 'acme'), { recursive: true })
+    await writeFile(
+      join(hq, 'workspaces', 'acme', 'workspace.yaml'),
+      'name: Acme\ngroup_id: g-acme\n'
+    )
+    await mkdir(join(hq, 'workspaces', 'personal'), { recursive: true })
+    await writeFile(
+      join(hq, 'workspaces', 'personal', 'workspace.yaml'),
+      'name: Personal\ndefault: true\n'
+    )
+    setHqSpaceLiveGroups(() => ({
+      repos: [
+        { id: 'r-new', projectGroupId: 'g-acme' },
+        { id: 'r-loose' },
+        { id: 'r-hq', path: hqRoot }
+      ],
+      groups: [{ id: 'g-acme', name: 'Acme', color: null, parentGroupId: null }]
+    }))
+    try {
+      const placing = await readHqSpacePlacing(hq)
+      expect(placing.spaces.map((space) => [space.slug, space.repoIds, space.projects])).toEqual([
+        ['acme', ['r-new'], []],
+        ['personal', ['r-loose'], []]
+      ])
+      expect(hqSpaceOf(placing.spaces, { repoId: 'r-new' })?.slug).toBe('acme')
     } finally {
       setHqSpaceLiveGroups(null)
     }
