@@ -29,6 +29,7 @@ import {
 } from '../../../../../shared/hq-plus-kinds'
 import {
   hqPlusGraph,
+  hqPlusGraphMembers,
   hqPlusLanes,
   type HqPlusLane,
   type HqPlusWait
@@ -43,6 +44,8 @@ import { useHqProjectPages } from '../hq/use-hq-project-pages'
 import { findHqWorktreeId } from '../hq/hq-today-actions'
 import { HqCommandBox } from '../hq/HqCommandBox'
 import { acknowledgeHqChat, openHqChatInProject, setShownHqChat } from '../hq/hq-chat-actions'
+import { useHqPeople } from '../hq/HqPeopleTab'
+import { HqPlusPeople, HqPlusSidePeople } from './HqPlusPeople'
 import { rememberedHqChat } from '../hq/hq-chat-open'
 import { useSidebarResize } from '@/hooks/useSidebarResize'
 import { useHqChatList, useHqProjectColor } from '../hq/use-hq-chat-list'
@@ -116,6 +119,7 @@ const TAB_LABEL: Record<Tab, [string, string]> = {
   session: ['auto.hqPlus.tab.session', 'Session'],
   report: ['auto.hqPlus.tab.reports', 'Reports'],
   agents: ['auto.hqPlus.tab.agents', 'Agents'],
+  people: ['auto.hqPlus.tab.people', 'People'],
   browser: ['auto.hqPlus.tab.browser', 'Browser']
 }
 
@@ -195,6 +199,9 @@ export function HqPlusScreen(): React.JSX.Element {
   // chat started from HQ (the sidebar's new chat asks HQ to show it, as the classic HQ does).
   const [chatKey, setChatKey] = useState<string | null>(requestedChat ?? view.chatKey)
   const { items: chatItems } = useHqChatList()
+  // Custom build (hq-closed-loop): People — the left block, the right tab and the graph's members.
+  const peopleState = useHqPeople()
+  const [personKey, setPersonKey] = useState<string | null>(null)
   useEffect(() => {
     saveHqPlusViewState({
       scope,
@@ -502,9 +509,10 @@ export function HqPlusScreen(): React.JSX.Element {
         active: new Set(
           lanes.filter((lane) => lane.lastAt >= now - 24 * 60 * 60_000).map((lane) => lane.project)
         ),
+        members: hqPlusGraphMembers(peopleState.people),
         now
       }),
-    [waits, pages, roomOfProject, lanes, now]
+    [waits, pages, roomOfProject, lanes, now, peopleState.people]
   )
 
   const liveOf = (sessionId: string | null): HqLiveSession | null =>
@@ -516,6 +524,11 @@ export function HqPlusScreen(): React.JSX.Element {
     setChatFolded(false)
     setTab('session')
     acknowledgeHqChat(chatItems.find((item) => item.key === key))
+  }
+  const showPerson = (key: string | null): void => {
+    setPersonKey(key)
+    setTake(null)
+    setTab('people')
   }
   const openChat = (sessionId: string | null): (() => void) | null => {
     const listed = hqPlusChatOfSession(chatItems, sessionId)
@@ -892,6 +905,14 @@ export function HqPlusScreen(): React.JSX.Element {
             }}
             onPickChat={(item) => showChat(item.key)}
             onClearFyi={clearFyi}
+            peopleBlock={
+              <HqPlusSidePeople
+                state={peopleState}
+                picked={tab === 'people' ? personKey : null}
+                onPick={(key) => showPerson(key)}
+                onAll={() => showPerson(null)}
+              />
+            }
           />
         </div>
         <button
@@ -1117,6 +1138,13 @@ export function HqPlusScreen(): React.JSX.Element {
                       lanes.find((lane) => lane.project === project)?.sessionId ?? null
                     )
                   }
+                />
+              ) : tab === 'people' ? (
+                <HqPlusPeople
+                  state={peopleState}
+                  picked={personKey}
+                  onPick={setPersonKey}
+                  hqWorktreeId={hqWorktreeId}
                 />
               ) : tab === 'agents' ? (
                 <HqPlusAgents

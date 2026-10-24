@@ -2,6 +2,7 @@
 // from the right as tabs of one panel.
 export const HQP_VIEWS = [
   { id: 'agents', label: 'Agents', note: 'MAP' },
+  { id: 'people', label: 'People', note: 'WHO' },
   { id: 'river', label: 'River', note: 'WEEK' },
   { id: 'graph', label: 'Graph', note: 'PEOPLE' },
   { id: 'reports', label: 'Reports', note: 'HQ' },

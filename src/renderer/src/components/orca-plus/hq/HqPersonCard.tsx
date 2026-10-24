@@ -14,7 +14,7 @@ import CommentMarkdown from '@/components/sidebar/CommentMarkdown'
 import { Button } from '@/components/ui/button'
 import { useNow } from '@/hooks/use-now'
 import { translate } from '@/i18n/i18n'
-import { formatShortTimeAgo } from '@/lib/short-time-ago'
+import { formatShortTimeAgo } from '@/lib/time-format/short-time-ago'
 import { useAppStore } from '@/store'
 import { startHqChatWithPrompt } from './hq-ask-chat'
 import { findHqWorktreeId } from './hq-today-actions'
@@ -27,7 +27,7 @@ type CardState =
   | { status: 'ready'; card: Card }
   | { status: 'error'; message: string }
 
-function useHqPersonCard(key: string, refresh: number): CardState {
+export function useHqPersonCard(key: string, refresh: number): CardState {
   const [state, setState] = useState<CardState>({ status: 'loading' })
   useEffect(() => {
     let live = true
