@@ -182,11 +182,6 @@ export function MobileHqPlusCard({
           />
         </HqpButtons>
       ) : null}
-      {card.open && card.type === 'report' && report ? (
-        <HqpButtons>
-          <HqpButton label="Open report" main onPress={() => ctx.openReport(report.path)} />
-        </HqpButtons>
-      ) : null}
       {card.open && card.type === 'move' && card.address ? (
         <View style={styles.replyRow}>
           <TextInput
@@ -298,7 +293,27 @@ function Buttons({
     )
   }
   if (card.type === 'report') {
-    return null
+    const report = hqpReportPath(card)
+    // Why: read on the phone, the report leaves «Waiting on you» there too, as Done does on the Mac.
+    return (
+      <HqpButtons>
+        {report ? (
+          <HqpButton label="Open report" main onPress={() => ctx.openReport(report.path)} />
+        ) : null}
+        <HqpButton
+          label="Done"
+          main={!report}
+          ghost={report !== null}
+          disabled={busy !== null || !card.inbox}
+          onPress={() =>
+            run(
+              'seen',
+              withClient((rpc) => markHqPlusPhoneDone(rpc, card, 'seen'))
+            )
+          }
+        />
+      </HqpButtons>
+    )
   }
   if (!card.inbox || card.type === 'approve') {
     return null
