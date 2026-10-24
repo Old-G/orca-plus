@@ -32,7 +32,11 @@ export const HQ_JOB_METHODS = [
 
     permission: 'workspace',
     params: HqJobReplyParams,
-    handler: (params, { runtime }) => {
+    handler: (params, { runtime, caller }) => {
+      // Why: an answer is the owner's; only his own window or paired phone gives it, never the CLI or a chat.
+      if (caller?.kind !== 'desktop' && caller?.kind !== 'paired-device') {
+        throw new Error("Only the owner answers a job's card, from HQ+ on the Mac or the phone.")
+      }
       const entry = runtime.pulseGetJournalEntry(params.entryId)
       if (!entry) {
         throw new Error(`No journal entry ${params.entryId}.`)
