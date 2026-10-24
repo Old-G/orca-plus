@@ -36,7 +36,7 @@ export const PAIRED_DESKTOP_METHODS = [
   // Custom build (hq-closed-loop): a background job's card answered, and People with a person's card.
   'hq.jobReply',
   'hqProjects.people',
-  'hqProjects.personCard',
+  'hqProjects.person',
   // Its notes, waitings and bell, which live in the Mac's pulse database.
   'pulse.snapshot',
   'pulse.upsertPerson',

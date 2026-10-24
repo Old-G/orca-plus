@@ -28,6 +28,8 @@ import {
   type HqSession
 } from '../../shared/hq-journal'
 import { HQ_SPACES_DIR } from '../../shared/hq-spaces'
+import { hqPeopleOfProject, hqPersonChannelLine } from '../../shared/hq-people'
+import { buildHqPeopleRows, readHqPeopleFiles } from '../hq-today/hq-people'
 import { hqRoomMcpHidden } from '../../shared/hq-room-mcp'
 import type { PulseDecision, PulsePerson, PulseWaiting } from '../../shared/pulse-types'
 import { readHqProjectPageFields } from '../hq-project-pages/hq-project-pages'
@@ -188,7 +190,20 @@ export function createHqContextService(deps: HqContextDeps): HqContextService {
       // Custom build (hq-plus-room-mcp): so a chat knows why a system's tools are missing here.
       ...(hiddenMcp.length ? [{ label: 'MCP скрыты комнатой', value: hiddenMcp.join(', ') }] : [])
     ]
-    const names = new Map(deps.pulse.listPeople().map((person) => [person.id, person.name]))
+    const pulsePeople = deps.pulse.listPeople()
+    const names = new Map(pulsePeople.map((person) => [person.id, person.name]))
+    // Custom build (hq-closed-loop): the project's people, from the dossiers that name it.
+    const peopleFiles = await readHqPeopleFiles(root).catch(() => null)
+    const people = peopleFiles
+      ? hqPeopleOfProject(
+          buildHqPeopleRows({ files: peopleFiles, people: pulsePeople, waitings: [] }),
+          project
+        ).map(({ row, role }) => ({
+          name: row.name,
+          role,
+          write: hqPersonChannelLine(row.channel)
+        }))
+      : []
     return buildHqContextCard({
       project,
       // Why: synced pages head with «<slug> — what it is»; the card already starts with the slug.
@@ -213,6 +228,7 @@ export function createHqContextService(deps: HqContextDeps): HqContextService {
       sessions: deps.pulse.listSessionsByProject(project),
       reports: deps.pulse.list({ kind: HQ_JOURNAL_KIND.chatReport, project, limit: 3 }),
       personName: (id) => (id ? (names.get(id) ?? null) : null),
+      people,
       where,
       now: deps.now()
     })
