@@ -50,6 +50,7 @@ const BG_TAG: Readonly<Record<string, string>> = {
   [HQ_JOURNAL_KIND.approveRequest]: 'APPROVE',
   [HQ_JOURNAL_KIND.chatMessage]: 'CHAT',
   [HQ_JOURNAL_KIND.sessionHandoff]: 'SESSIONS',
+  [HQ_JOURNAL_KIND.jobReport]: 'BACKGROUND',
   [HQ_REMIND_KIND]: 'NOTES',
   [HQ_DEFERRED_KIND]: 'UNFINISHED',
   [PULSE_BELL_KIND.claudeChatLimit]: 'LIMIT',
@@ -57,6 +58,8 @@ const BG_TAG: Readonly<Record<string, string>> = {
 }
 
 const MOVE: HqPlusBadge = { label: 'YOUR MOVE', tone: 'move' }
+const BACKGROUND: HqPlusBadge = { label: 'BACKGROUND', tone: 'bg' }
+const LEARNED: HqPlusBadge = { label: 'LEARNED', tone: 'done' }
 
 function bgTag(kind: string | null | undefined): HqPlusBadge {
   const known = kind ? BG_TAG[kind] : undefined
@@ -100,6 +103,10 @@ export function hqPlusLook(item: HqPlusLogItem): HqPlusLook {
     case 'reply':
       return look('move', moveIfOpen([{ label: 'REPLY', tone: 'report' }]))
     case 'move':
+      if (item.job) {
+        const badges = [BACKGROUND, ...(item.report?.learned ? [LEARNED] : [])]
+        return item.open ? look('move', [MOVE, ...badges]) : look('bg', badges)
+      }
       return look('move', item.open ? [MOVE] : [{ label: 'CHAT', tone: 'chat' }])
     case 'wait':
       return look('move', item.open ? [MOVE] : [{ label: 'NOTES', tone: 'bg' }])

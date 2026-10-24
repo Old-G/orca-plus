@@ -1,7 +1,11 @@
 // Custom build (hq-plus-phone): what a decision card says and offers on the phone — the desktop
 // card's question, its buttons' names and hints, where it came from and how it was settled.
 import type { HqPlusCard, HqPlusDone } from '../../../src/shared/hq-plus-log'
-import { hqPlusChoices } from '../../../src/shared/hq-plus-log'
+import {
+  HQ_PLUS_DONE_HANDED_OFF,
+  HQ_PLUS_DONE_IN_CHAT,
+  hqPlusChoices
+} from '../../../src/shared/hq-plus-log'
 import type { HqPlusLook } from '../../../src/shared/hq-plus-kinds'
 import { PULSE_BELL_ACTION } from '../../../src/shared/pulse-bell'
 import { hqSourceService, type HqSourceService } from '../../../src/shared/hq-source-link'
@@ -51,9 +55,13 @@ export function hqpDoneLabel(done: HqPlusDone): string {
   if (done.by === 'status') {
     return done.status === 'superseded'
       ? 'a newer report came'
-      : done.status === 'dropped'
-        ? 'dropped'
-        : 'closed'
+      : done.status === HQ_PLUS_DONE_IN_CHAT
+        ? 'answered in the chat'
+        : done.status === HQ_PLUS_DONE_HANDED_OFF
+          ? 'a new chat took it over'
+          : done.status === 'dropped'
+            ? 'dropped'
+            : 'closed'
   }
   if (done.action?.startsWith(HQ_FIX_NOW_DONE_PREFIX)) {
     return done.action.slice(HQ_FIX_NOW_DONE_PREFIX.length)
@@ -66,6 +74,9 @@ export function hqpDoneLabel(done: HqPlusDone): string {
 export function hqpQuestionOf(card: HqPlusCard): string {
   if (card.report?.ask) {
     return card.report.ask
+  }
+  if (card.job && card.report?.learned) {
+    return card.report.learned
   }
   const lines = (card.body ?? '').split('\n').map((line) => line.replace(/\*\*/g, '').trim())
   return lines.toReversed().find((line) => line.endsWith('?')) ?? card.title

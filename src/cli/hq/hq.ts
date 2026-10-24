@@ -91,6 +91,7 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       ask: getOptionalStringFlag(flags, 'ask'),
       options: options?.split('|').map((option) => option.trim()),
       did: getOptionalStringFlag(flags, 'did'),
+      learned: getOptionalStringFlag(flags, 'learned'),
       links: getRepeatedStringFlag(flags, 'link'),
       project: getOptionalStringFlag(flags, 'project')
     })
