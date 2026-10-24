@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { HqJournalEntry } from './hq-journal'
 import type { PulseInboxItem } from './pulse-types'
-import { hqPlusGraph, hqPlusLanes } from './hq-plus-river-graph'
+import { hqPlusGraph, hqPlusGraphMembers, hqPlusLanes } from './hq-plus-river-graph'
 import { hqPlusAsksOwner, hqPlusChoices, hqPlusLog, hqPlusWaiting } from './hq-plus-log'
 import { parseHqPlusReport, summarizeHqPlusReport } from './hq-plus-screen'
 import { hqPlusFoldChats, hqPlusLiftActiveChats, hqPlusWithLiveChats } from './hq-plus-fold'
@@ -210,6 +210,29 @@ describe('hqPlusLog', () => {
     expect(answered).toMatchObject({ open: false, done: { by: 'reply', text: 'now' } })
   })
 
+  it('asks about an open handoff plainly and folds a taken one to a line', () => {
+    const offer = (doneAt: number | null) =>
+      hqPlusLog(
+        [],
+        [
+          bell({
+            id: 'h',
+            kind: 'handoff',
+            title: 'Handoff saved',
+            doneAt,
+            doneAction: doneAt ? 'gone' : null
+          })
+        ],
+        DAY_START
+      )[0]
+    expect(offer(null)).toMatchObject({
+      kind: 'card',
+      open: true,
+      title: expect.stringContaining('New session')
+    })
+    expect(offer(NOW)).toMatchObject({ kind: 'line', journalKind: 'session.handoff' })
+  })
+
   it("keeps an agent's own draft open for the owner though no bell card stands for it", () => {
     const draft = (status: 'open' | 'done') =>
       hqPlusLog(
@@ -353,6 +376,22 @@ describe('hqPlusGraph', () => {
       ])
     )
     expect(graph.people.map((node) => node.id)).toEqual(['p1', 'p2', 'owner'])
+  })
+
+  it('draws people into their projects by dossier, without waits', () => {
+    const graph = hqPlusGraph({
+      waits: [],
+      pages: [{ slug: 'kite', room: 'acme', relations: [] }],
+      active: new Set(),
+      now: NOW,
+      members: hqPlusGraphMembers([
+        { key: '1', name: 'Ann', pulsePersonId: 'p1', projects: [{ slug: 'kite' }] },
+        { key: '2', name: 'Bob', pulsePersonId: null, projects: [] }
+      ])
+    })
+    expect(graph.people.map((person) => person.label)).toEqual(['Ann'])
+    expect(graph.projects.map((project) => project.id)).toEqual(['kite'])
+    expect(graph.edges).toEqual([{ from: 'p1', to: 'kite', kind: 'member' }])
   })
 
   it('keeps a one-way relation whatever the slug order, and draws a mutual one once', () => {

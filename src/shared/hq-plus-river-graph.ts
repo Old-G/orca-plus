@@ -134,8 +134,14 @@ export type HqPlusGraphNode = { id: string; label: string; detail: string }
 export type HqPlusGraphEdge = {
   from: string
   to: string
-  kind: 'relation' | 'wait-long' | 'wait' | 'owe'
+  /** Custom build (hq-closed-loop): `member` — a dossier names the person in the project. */
+  kind: 'relation' | 'wait-long' | 'wait' | 'owe' | 'member'
 }
+
+/** Custom build (hq-closed-loop): a person in a project, by their dossier. */
+export type HqPlusGraphMember = { personId: string; label: string; project: string }
+
+const MEMBERS_SHOWN = 16
 export type HqPlusGraph = {
   people: (HqPlusGraphNode & { owner?: boolean })[]
   projects: (HqPlusGraphNode & { room: string; active: boolean })[]
@@ -155,8 +161,10 @@ export function hqPlusGraph(input: {
   active: ReadonlySet<string>
   now: number
   limit?: number
+  members?: readonly HqPlusGraphMember[]
 }): HqPlusGraph {
   const limit = input.limit ?? 8
+  const members = input.members ?? []
   const pageBySlug = new Map(input.pages.map((page) => [page.slug, page]))
   const owes = new Map<string, { label: string; count: number; oldest: number }>()
   const edges: HqPlusGraphEdge[] = []
@@ -186,6 +194,9 @@ export function hqPlusGraph(input: {
     }
   }
   for (const project of input.active) {
+    projectWeight.set(project, (projectWeight.get(project) ?? 0) + 1)
+  }
+  for (const project of new Set(members.map((member) => member.project))) {
     projectWeight.set(project, (projectWeight.get(project) ?? 0) + 1)
   }
   const projects = [...projectWeight.entries()]
@@ -231,13 +242,21 @@ export function hqPlusGraph(input: {
       }
     }
   }
+  for (const member of members) {
+    if (shown.has(member.project)) {
+      edges.push({ from: member.personId, to: member.project, kind: 'member' })
+      if (!owes.has(member.personId)) {
+        owes.set(member.personId, { label: member.label, count: 0, oldest: input.now })
+      }
+    }
+  }
   const linkedPeople = new Set(
     edges.flatMap((edge) => (edge.kind === 'relation' ? [] : [edge.from, edge.to]))
   )
   const people = [...owes.entries()]
     .filter(([id]) => linkedPeople.has(id))
     .sort((a, b) => b[1].count - a[1].count)
-    .slice(0, limit - 1)
+    .slice(0, members.length > 0 ? MEMBERS_SHOWN : limit - 1)
     .map(([id, person]) => ({
       id,
       label: person.label,
@@ -256,7 +275,27 @@ export function hqPlusGraph(input: {
     })),
     systems: systems.map((slug) => ({ id: slug, label: slug, detail: '' })),
     edges: edges.filter(
-      (edge) => edge.kind !== 'owe' || people.some((person) => person.id === edge.to)
+      (edge) =>
+        (edge.kind !== 'owe' && edge.kind !== 'member') ||
+        people.some((person) => person.id === (edge.kind === 'owe' ? edge.to : edge.from))
     )
   }
+}
+
+/** Custom build (hq-closed-loop): the graph's people-in-projects, from People rows with dossiers. */
+export function hqPlusGraphMembers(
+  rows: readonly {
+    key: string
+    name: string
+    pulsePersonId: string | null
+    projects?: readonly { slug: string }[]
+  }[]
+): HqPlusGraphMember[] {
+  return rows.flatMap((row) =>
+    (row.projects ?? []).map((entry) => ({
+      personId: row.pulsePersonId ?? row.key,
+      label: row.name,
+      project: entry.slug
+    }))
+  )
 }
