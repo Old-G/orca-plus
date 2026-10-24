@@ -246,6 +246,27 @@ export function getJournalEntry(core: PulseCore, id: string): HqJournalEntry | n
   return row ? toEntry(row) : null
 }
 
+/** Custom build (hq-plus-ladder): how many rows of a kind since a moment carry each source — the day
+ *  review's effort counts, which run past a list's row limit. */
+export function countJournalBySource(
+  core: PulseCore,
+  kind: string,
+  since: number
+): { source: string | null; count: number }[] {
+  return core.db
+    .prepare(
+      'SELECT source, COUNT(*) AS count FROM journal WHERE kind = ? AND at >= ? GROUP BY source ORDER BY count DESC'
+    )
+    .all(kind, since)
+    .flatMap((row) => {
+      const source = Reflect.get(Object(row), 'source')
+      const count = Number(Reflect.get(Object(row), 'count'))
+      return Number.isFinite(count)
+        ? [{ source: typeof source === 'string' ? source : null, count }]
+        : []
+    })
+}
+
 /** Newest first; a `needs` party matches all its values, a `kind` ending in `*` a whole family. */
 export function listJournal(core: PulseCore, query: HqJournalQuery = {}): HqJournalEntry[] {
   const where: string[] = []
