@@ -1103,6 +1103,18 @@
       transform: translateX(14px);
     }
   }
+  /* Custom build (hq-closed-loop): «Open» on the chat already shown — a short glow, not a jump */
+  .hqp-pv.hqp-flash > .hqp-chat {
+    animation: hqp-flash 1.1s ease-out;
+  }
+  @keyframes hqp-flash {
+    25% {
+      border-color: var(--hqp-ice);
+      box-shadow:
+        0 0 0 2px rgba(143, 233, 255, 0.35),
+        0 0 22px rgba(143, 233, 255, 0.25);
+    }
+  }
   .hqp-log > * {
     animation: hqp-fade 0.3s ease;
   }
@@ -2886,4 +2898,10 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 .hqp-dossier-page {
   font-family: var(--hqp-mono);
   font-size: 11px;
+}
+/* Custom build (hq-closed-loop): without motion the shown chat's edge still marks it for a moment */
+@media (prefers-reduced-motion: reduce) {
+  .hqp-pv.hqp-flash > .hqp-chat {
+    border-color: var(--hqp-ice);
+  }
 }
