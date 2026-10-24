@@ -119,7 +119,7 @@ describe('hqPlusLog', () => {
       DAY_START
     )
     const card = log.find((item) => item.id === 'q')
-    expect(card).toMatchObject({ kind: 'card', open: false, done: { by: 'reply', text: 'yes' } })
+    expect(card).toMatchObject({ kind: 'line' })
     expect(log.at(-1)).toMatchObject({ kind: 'me', text: 'yes' })
   })
 
@@ -136,12 +136,11 @@ describe('hqPlusLog', () => {
       hqPlusLog([ask, ...rows], [], DAY_START).find((item) => item.id === 'q')
     expect(open([])).toMatchObject({ kind: 'card', open: true })
     expect(open([row({ at: NOW - HOUR, sessionId: 's1', kind: 'chat.effort' })])).toMatchObject({
-      open: false,
-      done: { by: 'status', status: 'in-chat' }
+      kind: 'line'
     })
     expect(
       open([row({ at: NOW - HOUR, sessionId: 's2', kind: 'session.handoff', refId: 's1' })])
-    ).toMatchObject({ open: false, done: { by: 'status', status: 'handed-off' } })
+    ).toMatchObject({ kind: 'line' })
     expect(open([row({ at: NOW - HOUR, sessionId: 's9', kind: 'chat.effort' })])).toMatchObject({
       open: true
     })
@@ -267,7 +266,7 @@ describe('hqPlusLog', () => {
     const next = row({ id: 'n', at: NOW - HOUR, body: 'Applied 1.', refKind: 'inbox', refId: 'i2' })
     const nextBell = bell({ id: 'i2', refKind: 'pane', refId: pane('tab1:leaf1') })
     expect(hqPlusLog([ask, next], [replaced, nextBell], DAY_START)[0]).toMatchObject({
-      open: false
+      kind: 'line'
     })
   })
 
@@ -558,16 +557,12 @@ describe('a question the owner answered', () => {
       NOW - 12 * HOUR
     ).find((item) => item.id === 'q')
 
-  it('stays a folded card once its row is settled', () => {
-    expect(answered(NOW - 2 * HOUR)).toMatchObject({
-      kind: 'card',
-      open: false,
-      done: { by: 'reply', text: 'order' }
-    })
+  it("becomes the chat's line once answered", () => {
+    expect(answered(NOW - 2 * HOUR)).toMatchObject({ kind: 'line' })
   })
 
-  it('keeps its card when it was asked before the day', () => {
-    expect(answered(NOW - 30 * HOUR)).toMatchObject({ kind: 'card', open: false })
+  it('keeps its row when it was asked before the day', () => {
+    expect(answered(NOW - 30 * HOUR)).toMatchObject({ kind: 'line' })
   })
 
   it('stays open when another chat, not the owner, replied', () => {
