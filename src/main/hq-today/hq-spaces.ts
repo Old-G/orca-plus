@@ -12,12 +12,13 @@ import {
   type HqSpaceFile,
   type HqSpaceGroup
 } from '../../shared/hq-spaces'
+import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
 import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
 
 /** Custom build (hq-rooms): Orca's live repos and sidebar groups, so a «Move to group» moves the
  *  project's room at once — HQ's pages learn of it only at the next sync. */
 export type HqSpaceLiveGroups = {
-  repos: readonly { id: string; projectGroupId?: string | null }[]
+  repos: readonly { id: string; path?: string; projectGroupId?: string | null }[]
   groups: readonly (HqSpaceGroup & { parentGroupId: string | null })[]
 }
 
@@ -108,24 +109,48 @@ export async function readHqSpacePlacing(hqPath: string): Promise<HqSpacePlacing
   const live = liveGroups?.() ?? null
   const groupById = new Map((live?.groups ?? []).map((group) => [group.id, group]))
   const repoGroup = new Map((live?.repos ?? []).map((repo) => [repo.id, repo.projectGroupId]))
+  const paged = new Set(pages.map((page) => page.repoId))
   const spaces = resolveHqSpaces(
     files,
-    pages.map((page) => {
-      const chain = repoGroup.has(page.repoId)
-        ? groupChain(repoGroup.get(page.repoId), groupById)
-        : []
-      return {
-        repoId: page.repoId,
-        slug: page.slug,
-        // Why: the live group's name beats the page's, which waits for the next HQ sync.
-        group: repoGroup.has(page.repoId)
-          ? chain.length
-            ? (groupById.get(chain[0])?.name ?? null)
-            : null
-          : page.group,
-        groupIds: chain
-      }
-    }),
+    [
+      ...pages.map((page) => {
+        const chain = repoGroup.has(page.repoId)
+          ? groupChain(repoGroup.get(page.repoId), groupById)
+          : []
+        return {
+          repoId: page.repoId,
+          slug: page.slug,
+          // Why: the live group's name beats the page's, which waits for the next HQ sync.
+          group: repoGroup.has(page.repoId)
+            ? chain.length
+              ? (groupById.get(chain[0])?.name ?? null)
+              : null
+            : page.group,
+          groupIds: chain
+        }
+      }),
+      // Why: a repo added to a group before the next HQ sync wrote its page still takes a room.
+      ...(live?.repos ?? [])
+        .filter(
+          (repo) =>
+            !paged.has(repo.id) &&
+            // Why: HQ's own repo is no project and never gets a page.
+            !(
+              repo.path &&
+              normalizeRuntimePathForComparison(repo.path) ===
+                normalizeRuntimePathForComparison(hqPath)
+            )
+        )
+        .map((repo) => {
+          const chain = groupChain(repo.projectGroupId, groupById)
+          return {
+            repoId: repo.id,
+            slug: null,
+            group: chain.length ? (groupById.get(chain[0])?.name ?? null) : null,
+            groupIds: chain
+          }
+        })
+    ],
     live?.groups ?? []
   )
   const groupRooms = new Map<string, string>()
