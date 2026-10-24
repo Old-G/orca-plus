@@ -1,10 +1,10 @@
 // Custom build (hq-closed-loop): `orca hq job` — a background job (launchd script, automation, the
 // ship) tells HQ+ what it found, what it needs the owner to decide and what it did by itself.
 import { defineMethod } from '../core'
-import { HqJobParams } from '../../../../shared/rpc-contract/hq-journal-params'
+import { HqJobParams, HqJobReplyParams } from '../../../../shared/rpc-contract/hq-journal-params'
 import { getHqJournalService } from '../../../hq-journal/hq-journal-service'
 import { hqPlaceOf } from '../../../hq-journal/hq-journal-rooms'
-import { hqJobAddress, hqJobRow } from '../../../hq-journal/hq-journal-jobs'
+import { hqJobAddress, hqJobReplyRows, hqJobRow } from '../../../hq-journal/hq-journal-jobs'
 import { HQ_JOURNAL_ALL_ROOMS } from '../../../../shared/hq-journal'
 
 export const HQ_JOB_METHODS = [
@@ -25,6 +25,20 @@ export const HQ_JOB_METHODS = [
       const row = hqJobRow(params, place, Date.now())
       const recorded = runtime.pulseRecordJournal([row])
       return { address: hqJobAddress(params.job), needs: row.needs, room: row.workspace, recorded }
+    }
+  }),
+  defineMethod({
+    name: 'hq.jobReply',
+
+    permission: 'workspace',
+    params: HqJobReplyParams,
+    handler: (params, { runtime }) => {
+      const entry = runtime.pulseGetJournalEntry(params.entryId)
+      if (!entry) {
+        throw new Error(`No journal entry ${params.entryId}.`)
+      }
+      const recorded = runtime.pulseRecordJournal(hqJobReplyRows(entry, params.text, Date.now()))
+      return { address: entry.address, recorded }
     }
   })
 ]

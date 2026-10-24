@@ -20,21 +20,37 @@ export type HqPlusReport = {
   options: string[]
   next: string | null
   waitingOn: string | null
+  /** Custom build (hq-closed-loop): a background job's `Found:` and `Learned:` lines. */
+  found: string | null
+  learned: string | null
 }
 
-/** `Done: …\nQuestion: … (options: a | b)\nNext: …` as `orca hq report` writes it. */
+/** `Done: …\nQuestion: … (options: a | b)\nNext: …` as `orca hq report` writes it; a job's
+ *  `Found: … Did: … Learned: …` as `orca hq job` does. */
 export function parseHqPlusReport(body: string | null): HqPlusReport | null {
   if (!body) {
     return null
   }
-  const report: HqPlusReport = { done: null, ask: null, options: [], next: null, waitingOn: null }
+  const report: HqPlusReport = {
+    done: null,
+    ask: null,
+    options: [],
+    next: null,
+    waitingOn: null,
+    found: null,
+    learned: null
+  }
   for (const line of body.split('\n')) {
-    const match = /^(Done|Question|Next|Waiting on):\s*(.*)$/.exec(line.trim())
+    const match = /^(Done|Did|Question|Next|Waiting on|Found|Learned):\s*(.*)$/.exec(line.trim())
     if (!match) {
       continue
     }
     const value = match[2].trim()
-    if (match[1] === 'Done') {
+    if (match[1] === 'Found') {
+      report.found = value
+    } else if (match[1] === 'Learned') {
+      report.learned = value
+    } else if (match[1] === 'Done' || match[1] === 'Did') {
       report.done = value
     } else if (match[1] === 'Next') {
       report.next = value
@@ -46,7 +62,7 @@ export function parseHqPlusReport(body: string | null): HqPlusReport | null {
       report.options = options ? options[1].split(' | ').map((option) => option.trim()) : []
     }
   }
-  return report.done || report.ask || report.next ? report : null
+  return report.done || report.ask || report.next || report.found || report.learned ? report : null
 }
 
 /** What HQ's files and the 17.11 counter tell; a part this install cannot tell is null. */

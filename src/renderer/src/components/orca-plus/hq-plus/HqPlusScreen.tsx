@@ -42,7 +42,7 @@ import { useHqSpaces } from '../hq/use-hq-spaces'
 import { useHqProjectPages } from '../hq/use-hq-project-pages'
 import { findHqWorktreeId } from '../hq/hq-today-actions'
 import { HqCommandBox } from '../hq/HqCommandBox'
-import { acknowledgeHqChat, setShownHqChat } from '../hq/hq-chat-actions'
+import { acknowledgeHqChat, openHqChatInProject, setShownHqChat } from '../hq/hq-chat-actions'
 import { rememberedHqChat } from '../hq/hq-chat-open'
 import { useSidebarResize } from '@/hooks/useSidebarResize'
 import { useHqChatList, useHqProjectColor } from '../hq/use-hq-chat-list'
@@ -249,21 +249,44 @@ export function HqPlusScreen(): React.JSX.Element {
   // Why: put-off cards are read back on every render; bumping the version makes one happen.
   const notNowIds = [...readHqPlusNotNow(now)].sort().join('\n')
   const notNow = useMemo(() => new Set(notNowIds ? notNowIds.split('\n') : []), [notNowIds])
+  const rightChat =
+    tab === 'session' && !chatFolded ? chatItems.find((c) => c.key === chatKey) : null
+  const shownSessionId = rightChat?.kind === 'chat' ? rightChat.tab.entityId : null
   const all = useMemo(
     () =>
       (data.feed ? hqPlusLog(data.feed.entries, data.feed.inbox ?? [], dayStart) : []).map(
-        (item) => {
+        (item): HqPlusLogItem => {
           // Why: a bell item knows its project, not its room; HQ's rooms place it.
           const placed =
             item.room === HQ_PLUS_ANY_ROOM && item.project && roomOfProject.has(item.project)
               ? { ...item, room: roomOfProject.get(item.project) ?? item.room }
               : item
-          return placed.kind === 'card' && placed.open && notNow.has(hqPlusNotNowKey(placed))
+          if (placed.kind !== 'card' || !placed.open) {
+            return placed
+          }
+          // Custom build (hq-closed-loop): the chat open on the right asks there, not twice.
+          if (placed.type === 'move' && placed.sessionId && placed.sessionId === shownSessionId) {
+            const { id, at, room, project, address, sessionId, title, body, entry } = placed
+            return {
+              kind: 'line',
+              id,
+              at,
+              room,
+              project,
+              address,
+              sessionId,
+              tone: 'agent',
+              title,
+              body,
+              journalKind: entry?.kind ?? null
+            }
+          }
+          return notNow.has(hqPlusNotNowKey(placed))
             ? { ...placed, open: false, done: { by: 'status' as const, status: 'not-now' } }
             : placed
         }
       ),
-    [data.feed, dayStart, roomOfProject, notNow]
+    [data.feed, dayStart, roomOfProject, notNow, shownSessionId]
   )
   // Why: what has no room (HQ's own rows, a bell item of an unknown project) shows in All only.
   const roomItems = useMemo(() => all.filter((item) => !room || item.room === room), [all, room])
@@ -497,7 +520,10 @@ export function HqPlusScreen(): React.JSX.Element {
   const openChat = (sessionId: string | null): (() => void) | null => {
     const listed = hqPlusChatOfSession(chatItems, sessionId)
     if (listed) {
-      return () => showChat(listed.key)
+      // Why: a chat already open on the right opens whole, in its project, rather than doing nothing.
+      return tab === 'session' && chatKey === listed.key && !chatFolded
+        ? () => void openHqChatInProject(listed)
+        : () => showChat(listed.key)
     }
     const live = liveOf(sessionId)
     if (!live?.worktreeId) {

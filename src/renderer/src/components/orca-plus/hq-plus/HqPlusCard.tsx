@@ -3,10 +3,13 @@
 // two lines that say what was chosen, and opens again on a click.
 import { useState } from 'react'
 import {
+  HQ_PLUS_DONE_HANDED_OFF,
+  HQ_PLUS_DONE_IN_CHAT,
   hqPlusChoices,
   type HqPlusCard as Card,
   type HqPlusDone
 } from '../../../../../shared/hq-plus-log'
+import { HQ_JOB_UNDO } from '../../../../../shared/hq-journal'
 import { translate } from '@/i18n/i18n'
 import { OutgoingApprovalDecision } from '../outgoing-approval/OutgoingApprovalCard'
 import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
@@ -19,6 +22,7 @@ import {
   sendHqPlusAgentDraft,
   settleHqPlusAgentDraft,
   replyOnHqPlusCard,
+  replyOnHqPlusJob,
   tellHqPlusDraftingAgent,
   type HqPlusResult
 } from './hq-plus-actions'
@@ -77,6 +81,12 @@ export function hqPlusDoneLabel(done: HqPlusDone): string {
     if (done.status === 'superseded') {
       return translate('auto.hqPlus.done.superseded', 'a newer report came')
     }
+    if (done.status === HQ_PLUS_DONE_IN_CHAT) {
+      return translate('auto.hqPlus.done.inChat', 'answered in the chat')
+    }
+    if (done.status === HQ_PLUS_DONE_HANDED_OFF) {
+      return translate('auto.hqPlus.done.handedOff', 'a new chat took it over')
+    }
     return done.status === 'dropped'
       ? translate('auto.hqPlus.done.dropped', 'dropped')
       : translate('auto.hqPlus.done.closed', 'closed')
@@ -96,6 +106,9 @@ export function hqPlusDoneLabel(done: HqPlusDone): string {
 function questionOf(card: Card): string {
   if (card.report?.ask) {
     return card.report.ask
+  }
+  if (card.job && card.report?.learned) {
+    return card.report.learned
   }
   const lines = (card.body ?? '').split('\n').map((line) => line.replace(/\*\*/g, '').trim())
   const asked = lines.toReversed().find((line) => line.endsWith('?'))
@@ -294,7 +307,7 @@ export function HqPlusCardView({
     <div className="hqp-row-h">
       <HqPlusBadges badges={look.badges} />
       {note ? <span className="hqp-note">{note}</span> : null}
-      <strong>{card.project ?? 'HQ'}</strong>
+      <strong>{card.job ?? card.project ?? 'HQ'}</strong>
       <HqPlusChatName chat={chat} />
       <span className="hqp-tm">{when}</span>
       {threadLabel && onThread ? (
@@ -401,8 +414,9 @@ export function HqPlusCardView({
   }
 
   const choices = card.report?.options.length ? card.report.options : hqPlusChoices(card.body)
-  const reply = (value: string): void => run(() => replyOnHqPlusCard(card, value, hqPath))
-  const canReply = card.type === 'move' && Boolean(card.address || card.sessionId)
+  const reply = (value: string): void =>
+    run(() => (card.job ? replyOnHqPlusJob(card, value) : replyOnHqPlusCard(card, value, hqPath)))
+  const canReply = card.type === 'move' && Boolean(card.job || card.address || card.sessionId)
 
   return (
     <div
@@ -431,8 +445,14 @@ export function HqPlusCardView({
                 <HqPlusText text={questionOf(card)} />
               </p>
             )}
-            {card.report?.done || card.report?.next ? (
+            {card.report?.done || card.report?.next || card.report?.found ? (
               <dl className="hqp-rep">
+                {card.report.found ? (
+                  <>
+                    <dt>{translate('auto.hqPlus.found', 'found')}</dt>
+                    <dd>{card.report.found}</dd>
+                  </>
+                ) : null}
                 {card.report.done ? (
                   <>
                     <dt>{translate('auto.hqPlus.done', 'done')}</dt>
@@ -443,6 +463,12 @@ export function HqPlusCardView({
                   <>
                     <dt>{translate('auto.hqPlus.next', 'next')}</dt>
                     <dd>{card.report.next}</dd>
+                  </>
+                ) : null}
+                {card.report.learned && card.report.ask ? (
+                  <>
+                    <dt>{translate('auto.hqPlus.learned', 'learned')}</dt>
+                    <dd>{card.report.learned}</dd>
                   </>
                 ) : null}
               </dl>
@@ -544,6 +570,23 @@ export function HqPlusCardView({
                 {translate('auto.hqPlus.gotIt', 'Got it')}
               </button>
             ) : null}
+          </div>
+        ) : null}
+        {!open && !card.done && card.job && card.report?.learned ? (
+          <div className="hqp-opts">
+            <button
+              type="button"
+              className="hqp-opt"
+              data-ghost="true"
+              disabled={busy}
+              title={translate(
+                'auto.hqPlus.job.undoHint',
+                'The job reads this on its next run and takes the rule back'
+              )}
+              onClick={() => reply(HQ_JOB_UNDO)}
+            >
+              {translate('auto.hqPlus.job.undo', 'Undo')}
+            </button>
           </div>
         ) : null}
         {open && card.type === 'wait' ? (

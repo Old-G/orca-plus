@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { HqPlusCard } from '../../../src/shared/hq-plus-log'
+import { HQ_JOB_UNDO } from '../../../src/shared/hq-journal'
 import { hqPlusLook } from '../../../src/shared/hq-plus-kinds'
 import type { HqPlusPhoneResult } from './hq-plus-phone-actions'
 import {
@@ -79,7 +80,7 @@ export function MobileHqPlusCard({
         <HqpBadge key={badge.label} badge={badge} />
       ))}
       {note ? <Text style={styles.note}>{note}</Text> : null}
-      <Text style={s.project}>{card.project ?? 'HQ'}</Text>
+      <Text style={s.project}>{card.job ?? card.project ?? 'HQ'}</Text>
       <Text style={s.time}>{clock(card.at)}</Text>
     </HqpHead>
   )
@@ -150,8 +151,16 @@ export function MobileHqPlusCard({
       ) : (
         <>
           <Text style={s.question}>{hqpQuestionOf(card)}</Text>
-          {card.report?.done ? <Text style={s.text}>Done: {card.report.done}</Text> : null}
+          {card.report?.found ? <Text style={s.text}>Found: {card.report.found}</Text> : null}
+          {card.report?.done ? (
+            <Text style={s.text}>
+              {card.job ? 'Did' : 'Done'}: {card.report.done}
+            </Text>
+          ) : null}
           {card.report?.next ? <Text style={s.text}>Next: {card.report.next}</Text> : null}
+          {card.report?.learned && card.report.ask ? (
+            <Text style={s.text}>Learned: {card.report.learned}</Text>
+          ) : null}
           {!card.report && card.body && card.body !== hqpQuestionOf(card) ? (
             <Text style={card.type === 'reply' ? s.said : s.text} numberOfLines={8}>
               {card.body}
@@ -162,6 +171,16 @@ export function MobileHqPlusCard({
       {card.done ? <Text style={s.done}>✓ {hqpDoneLabel(card.done)}</Text> : null}
       {card.open ? (
         <Buttons card={card} ctx={ctx} busy={busy} run={run} reply={reply} openChat={openChat} />
+      ) : null}
+      {!card.open && !card.done && card.job && card.report?.learned ? (
+        <HqpButtons>
+          <HqpButton
+            label="Undo"
+            ghost
+            disabled={busy !== null}
+            onPress={() => reply(HQ_JOB_UNDO)}
+          />
+        </HqpButtons>
       ) : null}
       {card.open && card.type === 'report' && report ? (
         <HqpButtons>
