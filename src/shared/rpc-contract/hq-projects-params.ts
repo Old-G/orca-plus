@@ -135,5 +135,18 @@ export const HqSpaceKeyParams = z.object({
   value: z.string().max(4000).nullable()
 })
 
+/** Custom build (hq-rooms): a room made, renamed or recoloured, or removed — with its sidebar group. */
+const RoomColor = z.string().regex(/^#[0-9a-fA-F]{6}$/)
+export const HqRoomCreateParams = z.object({
+  name: z.string().trim().min(1).max(80),
+  color: RoomColor.optional()
+})
+export const HqRoomUpdateParams = z.object({
+  space: z.string().regex(HQ_SPACE_SLUG),
+  name: z.string().trim().min(1).max(80).optional(),
+  color: RoomColor.optional()
+})
+export const HqRoomRemoveParams = z.object({ space: z.string().regex(HQ_SPACE_SLUG) })
+
 /** Custom build (hq-people): one person of HQ's People list, by its row key. */
 export const HqPersonParams = z.object({ key: z.string().min(1).max(200) })
