@@ -61,7 +61,8 @@ describe('readHqSpaceFile', () => {
       tasks: null,
       git: null,
       isDefault: false,
-      mcpDeny: []
+      mcpDeny: [],
+      groupId: null
     })
     expect(readHqSpaceFile('../etc', {})).toBeNull()
   })
@@ -85,7 +86,8 @@ describe('resolveHqSpaces', () => {
         projects: ['acme-api', 'billing'],
         messenger: 'slack',
         tasks: 'clickup',
-        git: { name: 'Alex Owner', email: 'owner@acme.example' }
+        git: { name: 'Alex Owner', email: 'owner@acme.example' },
+        groupId: null
       },
       {
         slug: 'personal',
@@ -95,8 +97,36 @@ describe('resolveHqSpaces', () => {
         projects: ['orca-custom'],
         messenger: null,
         tasks: null,
-        git: null
+        git: null,
+        groupId: null
       }
+    ])
+  })
+
+  it('gives a room that is a sidebar group everything inside it, under the group’s name', () => {
+    const resolved = resolveHqSpaces(
+      [
+        {
+          slug: 'personal',
+          file: file('personal', { name: 'Личное', projects: ['billing'], order: 1, default: true })
+        },
+        {
+          slug: 'acme',
+          file: file('acme', { name: 'Old name', group_id: 'g-acme', color: '#3b82f6', order: 2 })
+        }
+      ],
+      [
+        { repoId: 'r-api', slug: 'acme-api', group: 'In process', groupIds: ['g-wip', 'g-acme'] },
+        { repoId: 'r-fb', slug: 'billing', group: 'Acme', groupIds: ['g-acme'] },
+        { repoId: 'r-hobby', slug: 'hobby', group: null, groupIds: [] }
+      ],
+      [{ id: 'g-acme', name: 'Acme', color: '#22c55e' }]
+    )
+    expect(
+      resolved.map(({ slug, name, color, projects }) => ({ slug, name, color, projects }))
+    ).toEqual([
+      { slug: 'personal', name: 'Личное', color: '#737373', projects: ['hobby'] },
+      { slug: 'acme', name: 'Acme', color: '#22c55e', projects: ['acme-api', 'billing'] }
     ])
   })
 })
