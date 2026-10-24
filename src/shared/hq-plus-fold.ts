@@ -77,7 +77,12 @@ export function hqPlusWithLiveChats(
   items: readonly HqPlusLogItem[],
   live: readonly HqPlusLiveChat[]
 ): HqPlusLogItem[] {
-  const known = new Set(items.flatMap((item) => (item.sessionId ? [item.sessionId] : [])))
+  // Why: only a turn or a card shows the chat; the owner's message or a background row of it does not.
+  const known = new Set(
+    items.flatMap((item) =>
+      item.sessionId && (item.kind === 'card' || chatFoldKey(item) !== null) ? [item.sessionId] : []
+    )
+  )
   const added: HqPlusLogItem[] = live
     .filter((chat) => !known.has(chat.sessionId))
     .map((chat) => ({

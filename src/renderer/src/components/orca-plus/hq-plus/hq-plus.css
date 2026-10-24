@@ -510,6 +510,7 @@
 .hqp-cb {
   padding: 14px 16px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 .hqp-lab {
@@ -1307,6 +1308,8 @@
 /* chat: a card with a thin line */
 .hqp-chatc {
   display: grid;
+  /* Why: an auto column grows to the longest unbreakable line (a path in a code block) and every row follows it. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
   min-width: 0;
   padding: 10px 14px;
@@ -2591,4 +2594,35 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 .hqp-browser-bar .hqp-link:disabled {
   opacity: 0.3;
   cursor: default;
+}
+
+/* Custom build (hq-plus-links): which chat a card is — the name the Chats list on the left shows. */
+.hqp-chat-name {
+  min-width: 0;
+  max-width: 28em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--hqp-mute);
+}
+/* Custom build (hq-plus-links): a pressed button that waits on a slow action (a new session) says so. */
+.hqp-opt[aria-busy='true']::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  animation: hqp-spin 0.7s linear infinite;
+}
+@keyframes hqp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hqp-opt[aria-busy='true']::before {
+    animation: none;
+  }
 }
