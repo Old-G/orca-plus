@@ -18,6 +18,9 @@ export type HqOrgPerson = {
   supervisorKey: string | null
   slackUserId: string | null
   clickupUserId: string | null
+  /** Custom build (hq-closed-loop): where to write them, and the @name they go by in Slack. */
+  email: string | null
+  slackHandle: string | null
 }
 
 /** A person page under `people/`: whose it is, and the owner's notes on them. */
@@ -97,7 +100,9 @@ export function parseHqOrgCsv(text: string): HqOrgPerson[] {
         location: at(row, 'location'),
         supervisorKey: at(row, 'supervisor_id'),
         slackUserId: at(row, 'slack_user_id'),
-        clickupUserId: at(row, 'clickup_user_id')
+        clickupUserId: at(row, 'clickup_user_id'),
+        email: at(row, 'email'),
+        slackHandle: at(row, 'slack_handle')
       }
     ]
   })
@@ -159,6 +164,9 @@ export const HqPeopleRowSchema = z.object({
   supervisorKey: z.string().nullable(),
   slackUserId: z.string().nullable(),
   clickupUserId: z.string().nullable(),
+  /** Custom build (hq-closed-loop): absent from older hosts. */
+  email: z.string().nullable().optional(),
+  slackHandle: z.string().nullable().optional(),
   pulsePersonId: z.string().nullable(),
   pagePath: z.string().nullable(),
   /** Open waitings: they wait on the owner / the owner waits on them. */
