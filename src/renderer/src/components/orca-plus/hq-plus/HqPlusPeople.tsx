@@ -95,9 +95,10 @@ export function HqPlusSidePeople({
           <PersonTile row={row} />
           <span className="t">{row.name}</span>
           <span className="ag">
-            {hqDossierGaps(row).length > 0 && isHqPlusPersonOfMine(row)
-              ? translate('auto.hqPlus.people.gapShort', 'dossier?')
-              : (waitsLabel(row) ?? row.jobTitle ?? '')}
+            {waitsLabel(row) ??
+              (hqDossierGaps(row).length > 0
+                ? translate('auto.hqPlus.people.gapShort', 'dossier?')
+                : (row.jobTitle ?? ''))}
           </span>
         </button>
       ))}
