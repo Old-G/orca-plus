@@ -43,7 +43,16 @@ beforeEach(() => {
   threads = createHqThreads({
     enabled: () => true,
     scope: async (caller) =>
-      SCOPES[caller.sessionId ?? ''] ?? { kind: 'overview', sessionId: null, worktreeId: null },
+      SCOPES[caller.sessionId ?? ''] ??
+      (caller.worktreeId
+        ? {
+            kind: 'room',
+            room: 'acme',
+            project: 'acme-api',
+            sessionId: null,
+            worktreeId: caller.worktreeId
+          }
+        : { kind: 'overview', sessionId: null, worktreeId: null }),
     pulse: {
       record: (inputs) => db.recordJournal(inputs),
       list: (query) => db.listJournal(query),
@@ -162,6 +171,9 @@ describe('HQ+ threads', () => {
     ])
     expect((await threads.thread({}, 'job/scout')).entries).toHaveLength(1)
     await expect(threads.thread({ sessionId: 'claude_api' }, 'job/scout')).rejects.toThrow(
+      /No thread/
+    )
+    await expect(threads.thread({ worktreeId: 'r-api::/w/api' }, 'job/scout')).rejects.toThrow(
       /No thread/
     )
   })
