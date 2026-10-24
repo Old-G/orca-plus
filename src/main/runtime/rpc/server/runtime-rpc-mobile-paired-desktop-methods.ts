@@ -33,6 +33,10 @@ export const PAIRED_DESKTOP_METHODS = [
   'chat.send',
   'pulse.markInboxDone',
   'hqProjects.askHqOnDesktop',
+  // Custom build (hq-closed-loop): a background job's card answered, and People with a person's card.
+  'hq.jobReply',
+  'hqProjects.people',
+  'hqProjects.personCard',
   // Its notes, waitings and bell, which live in the Mac's pulse database.
   'pulse.snapshot',
   'pulse.upsertPerson',
