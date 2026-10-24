@@ -33,8 +33,15 @@ export function readHqOwnerDecisionSource(
   return match && outcome ? { kind: match[1], outcome } : null
 }
 
+// Custom build (hq-closed-loop): an agent's own draft is titled by its addressee («message → Slack DM
+// Ann (U…)», «Slack · в тред DEV-1»); counted by addressee, every person became a kind of their own.
+const SLACK_DRAFT = /^(?:message\s*→\s*(?:slack\b|[CDGU][A-Z0-9]{6,}\b)|slack\s*·\s*(?:в\s|dm\b))/i
+
 /** «Slack · send message» → `slack-send-message`: the kind an Approve card's call stands for. */
 export function hqApprovalKind(title: string): string {
+  if (SLACK_DRAFT.test(title.trim())) {
+    return 'slack-send-message'
+  }
   const slug = title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
