@@ -105,6 +105,8 @@ export function buildHqPeopleRows({ files, people, waitings }: PeopleSources): H
       supervisorKey: row.supervisorKey,
       slackUserId: row.slackUserId ?? person?.slackUserId ?? null,
       clickupUserId: row.clickupUserId ?? person?.clickupUserId ?? null,
+      email: row.email,
+      slackHandle: row.slackHandle,
       pulsePersonId: person?.id ?? null,
       pagePath: pageOf(person?.id ?? null, row.key),
       ...counts(person?.id ?? null)

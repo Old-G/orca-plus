@@ -31,7 +31,9 @@ export const HQ_JOURNAL_KIND = {
   sessionContinue: 'session.continue',
   sessionQueued: 'session.queued',
   sessionClose: 'session.close',
-  sessionPlan: 'session.plan'
+  sessionPlan: 'session.plan',
+  /** Custom build (hq-closed-loop): a background job's report (`orca hq job`). */
+  jobReport: 'job.report'
 } as const
 
 /** Who moves next: `nobody`, the owner (`owner:decide|approve|reply`), an agent (`agent:<address>`,

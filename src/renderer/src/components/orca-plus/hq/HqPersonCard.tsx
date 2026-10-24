@@ -244,9 +244,11 @@ export function HqPersonCard({
               : translate('auto.hq.wiki.loading', 'Loading…')}
           </p>
         )}
-        {row.slackUserId || row.clickupUserId ? (
+        {row.slackUserId || row.clickupUserId || row.email ? (
           <p className="font-mono text-[11px] text-muted-foreground">
             {[
+              row.email ?? null,
+              row.slackHandle ? `@${row.slackHandle}` : null,
               row.slackUserId ? `Slack ${row.slackUserId}` : null,
               row.clickupUserId ? `ClickUp ${row.clickupUserId}` : null
             ]

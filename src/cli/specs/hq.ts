@@ -53,6 +53,24 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     ]
   },
   {
+    // Custom build (hq-closed-loop)
+    path: ['hq', 'job'],
+    summary: 'Report a background run: what it found, what the owner must decide, what it did',
+    usage:
+      'orca hq job --job <name> [--found <text>] [--ask <question> --options <a|b|c>] [--did <text>] [--link <url>]... [--project <slug>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'job', 'found', 'ask', 'options', 'did', 'link', 'project'],
+    repeatableFlags: ['link'],
+    notes: [
+      'For scripts and automations, not chats (a chat runs `orca hq report`). Lands in the journal as job.report, thread job/<name>.',
+      "--ask makes it the owner's move in HQ+; the job's next report settles its older open question.",
+      'Nothing found and nothing done? Skip the call: an empty run is not news.'
+    ],
+    examples: [
+      'orca hq job --job slack-scout --found "3 new requests, 1 urgent" --did "2 answered in threads already"',
+      'orca hq job --job commit-review --project acme-app --ask "Fix the P1 in billing now?" --options "now|tonight|skip"'
+    ]
+  },
+  {
     path: ['hq', 'thread'],
     summary: 'Everything said in one thread, oldest first, with what each answer replied to',
     usage: 'orca hq thread [<project>/<task>] [--json]',
