@@ -13,6 +13,7 @@ import { HQ_REPORT_BELL_KIND } from './hq-reports'
 import { parseHqPlusReport, type HqPlusReport } from './hq-plus-screen'
 import { HQ_REMIND_KIND } from './hq-remind'
 import { HQ_DEFERRED_KIND } from './hq-morning-briefing'
+import { HQ_CHAT_EFFORT_KIND, HQ_OWNER_DECISION_KIND } from './hq-ladder'
 
 /** HQ+ itself, in a room or above them: an item every room's view shows. */
 export const HQ_PLUS_ANY_ROOM = '_all'
@@ -122,7 +123,10 @@ export function hqPlusNotNowKey(card: HqPlusCard): string {
 const SILENT_KINDS: ReadonlySet<string> = new Set([
   HQ_JOURNAL_KIND.approveResult,
   HQ_JOURNAL_KIND.crossRead,
-  'entry.settled'
+  'entry.settled',
+  // Custom build (hq-plus-links): the trust ladder's bookkeeping, one row per message or decision.
+  HQ_CHAT_EFFORT_KIND,
+  HQ_OWNER_DECISION_KIND
 ])
 
 /** Rows that close an earlier row of the same ref. */
