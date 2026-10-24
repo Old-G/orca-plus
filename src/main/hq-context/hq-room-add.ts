@@ -18,6 +18,8 @@ export type HqRoomAddInput = {
   color?: string
   messenger?: string
   tasks?: string
+  /** Custom build (hq-rooms): the Orca sidebar group this room is. */
+  groupId?: string
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -45,6 +47,7 @@ export async function addHqRoom(hqPath: string, input: HqRoomAddInput): Promise<
     name,
     color: input.color ?? '#737373',
     order: 100,
+    ...(input.groupId ? { group_id: input.groupId } : {}),
     groups: [],
     projects: [],
     messenger: input.messenger ?? null,

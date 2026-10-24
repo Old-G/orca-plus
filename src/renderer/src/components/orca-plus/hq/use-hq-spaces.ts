@@ -1,6 +1,6 @@
 // Custom build (hq-spaces): the workspaces under the global HQ and the one HQ shows — read once and
 // shared by every HQ surface, so a switch filters chats, Feed, Notes and the counts together.
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import {
   hqSpaceOf,
   hqSpaceShows,
@@ -32,6 +32,11 @@ function load(): void {
     .catch((error: unknown) => console.warn('[hq] workspaces failed:', error))
 }
 
+/** Custom build (hq-rooms): read the rooms again now, after one was made, renamed or removed. */
+export function reloadHqSpaces(): void {
+  load()
+}
+
 function subscribe(listener: (spaces: HqSpace[]) => void): () => void {
   listeners.add(listener)
   if (listeners.size === 1) {
@@ -59,9 +64,27 @@ export type HqSpacesView = {
   stripeOf: (ref: HqSpaceRef) => string | null
 }
 
+// Custom build (hq-rooms): rooms are sidebar groups, so a «Move to group», a renamed or recoloured
+// group re-reads them at once instead of at the next minute.
+function groupArrangement(state: ReturnType<typeof useAppStore.getState>): string {
+  const groups = (state.projectGroups ?? []).map(
+    (group) => `${group.id}:${group.name}:${group.color ?? ''}:${group.parentGroupId ?? ''}`
+  )
+  const repos = state.repos.map((repo) => `${repo.id}:${repo.projectGroupId ?? ''}`)
+  return [...groups, ...repos].join('|')
+}
+
 export function useHqSpaces(): HqSpacesView {
   const [spaces, setSpaces] = useState<HqSpace[]>(cached)
   useEffect(() => subscribe(setSpaces), [])
+  const arrangement = useAppStore(groupArrangement)
+  const seenArrangement = useRef(arrangement)
+  useEffect(() => {
+    if (seenArrangement.current !== arrangement) {
+      seenArrangement.current = arrangement
+      load()
+    }
+  }, [arrangement])
   const activeSlug = useAppStore((state) => state.settings?.hqActiveSpace ?? null)
   const updateSettings = useAppStore((state) => state.updateSettings)
   const setActive = useCallback(
