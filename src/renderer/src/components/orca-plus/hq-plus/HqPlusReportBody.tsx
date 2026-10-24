@@ -16,8 +16,6 @@ import {
   type HqPlusResult
 } from './hq-plus-actions'
 
-const DISCUSS_PROMPT = 'Разбери этот отчёт со мной: что из него важно и что делать первым.'
-
 export function HqPlusReportBody({
   card,
   busy,
@@ -90,16 +88,16 @@ export function HqPlusReportBody({
             </>
           ) : (
             <>
+              {/* Custom build (hq-plus-stale): read and fine — the report leaves «waiting on you». */}
               <button
                 type="button"
                 className="hqp-opt"
                 data-main="true"
-                disabled={busy || !hqWorktreeId}
-                onClick={() =>
-                  run(() => sendHqPlusReport(card, DISCUSS_PROMPT, hqWorktreeId, 'review'))
-                }
+                disabled={busy}
+                title={translate('auto.hqPlus.report.doneHint', 'Read it, nothing to do')}
+                onClick={() => run(() => markHqPlusDone(card, 'seen'))}
               >
-                {translate('auto.hqPlus.report.discuss', 'Discuss in chat')}
+                {translate('auto.hqPlus.report.done', 'Done')}
               </button>
               {proposals.length > 0 ? (
                 <button
@@ -165,10 +163,15 @@ export function HqPlusReportBody({
             id={`hqp-rr-${card.id}`}
             value={text}
             disabled={busy}
-            placeholder={translate('auto.hqPlus.report.replyHint', '«1 да, 2 нет» or a word…')}
+            placeholder={translate(
+              'auto.hqPlus.report.replyHintChat',
+              'Decide or ask — «1 да, 2 нет» or a question…'
+            )}
             onChange={(event) => setText(event.target.value)}
           />
-          <span className="hqp-to">→ HQ</span>
+          <span className="hqp-to">
+            → {translate('auto.hqPlus.report.toNewChat', 'new HQ chat')}
+          </span>
           <button
             type="submit"
             className="hqp-go"
