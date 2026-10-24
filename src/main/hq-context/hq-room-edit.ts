@@ -3,6 +3,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parseDocument } from 'yaml'
+import { getProjectGroupSubtreeIds } from '../../shared/project-groups'
 import {
   HQ_SPACE_FILE,
   HQ_SPACE_SLUG,
@@ -67,6 +68,8 @@ export type HqRoomGroups = {
   create: (name: string) => Promise<{ id: string }>
   update: (id: string, updates: { name?: string; color?: string | null }) => Promise<unknown>
   remove: (id: string) => Promise<unknown>
+  /** What else lives under the group; removing it would delete these, not ungroup them. */
+  contents: (id: string) => Promise<{ groups: number; folders: number }>
 }
 
 const COLOR = /^#[0-9a-fA-F]{6}$/
@@ -120,6 +123,8 @@ export async function updateHqRoom(
   await setHqRoomFields(hqPath, slug, { name, color: changes.color })
 }
 
+const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`
+
 /** Removes a room and its group; the group's projects stay in the sidebar, in no group. */
 export async function removeHqRoom(
   groups: HqRoomGroups,
@@ -128,6 +133,19 @@ export async function removeHqRoom(
   now: Date
 ): Promise<{ archived: string }> {
   const file = await readHqRoom(hqPath, slug)
+  if (file.groupId) {
+    // Why: deleting a group drops its nested groups and folder workspaces (and their sessions).
+    const held = await groups.contents(file.groupId)
+    if (held.groups > 0 || held.folders > 0) {
+      const parts = [
+        held.folders > 0 ? plural(held.folders, 'folder workspace') : null,
+        held.groups > 0 ? plural(held.groups, 'group') : null
+      ].filter(Boolean)
+      throw new Error(
+        `Room ${file.name} holds ${parts.join(' and ')} in its sidebar group; move them out of the group first.`
+      )
+    }
+  }
   const archived = await removeHqRoomFolder(hqPath, slug, now)
   if (file.groupId) {
     await groups.remove(file.groupId)
@@ -143,10 +161,21 @@ export function hqRoomGroupsOf(runtime: {
     updates: { name?: string; color?: string | null }
   ) => Promise<unknown>
   deleteProjectGroup: (id: string) => Promise<unknown>
+  listProjectGroups: () => { id: string; parentGroupId: string | null }[]
+  listFolderWorkspaces: () => { projectGroupId: string }[]
 }): HqRoomGroups {
   return {
     create: (name) => runtime.createProjectGroup({ name }),
     update: (id, updates) => runtime.updateProjectGroup(id, updates),
-    remove: (id) => runtime.deleteProjectGroup(id)
+    remove: (id) => runtime.deleteProjectGroup(id),
+    contents: async (id) => {
+      const subtree = getProjectGroupSubtreeIds(runtime.listProjectGroups(), id)
+      return {
+        groups: subtree.size - 1,
+        folders: runtime
+          .listFolderWorkspaces()
+          .filter((folder) => subtree.has(folder.projectGroupId)).length
+      }
+    }
   }
 }
