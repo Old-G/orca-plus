@@ -26,11 +26,11 @@ export const HOST_STACK_SCREENS = [
       return translate('navigation.hostStackScreens.tasks', 'Tasks')
     }
   },
-  // Custom build (hq-mobile): HQ, the requests to the owner and what was done for him.
+  // Custom build (hq-mobile, hq-plus-phone): HQ+, the requests to the owner and what was done for him.
   {
     name: '[hostId]/hq',
     get title() {
-      return translate('navigation.hostStackScreens.hq', 'HQ')
+      return translate('navigation.hostStackScreens.hqPlus', 'HQ+')
     }
   },
   {

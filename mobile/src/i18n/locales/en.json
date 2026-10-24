@@ -699,6 +699,7 @@
       "hideSidebar": "Hide sidebar",
       "accounts": "Accounts",
       "tasks": "Tasks",
+      "hqPlus": "HQ+",
       "moreActions": "More actions",
       "automations": "Automations"
     },
@@ -845,6 +846,7 @@
       "changes": "Changes",
       "pullRequest": "Pull Request",
       "workspace": "Workspace",
+      "hqPlus": "HQ+",
       "automations": "Automations"
     }
   },

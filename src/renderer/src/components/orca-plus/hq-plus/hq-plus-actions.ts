@@ -7,7 +7,7 @@ import type { HqReport } from '../../../../../shared/hq-reports'
 import { translate } from '@/i18n/i18n'
 import { startHqChatWithPrompt, startHqReportDecisions } from '../hq/hq-ask-chat'
 import { hqPlusCall } from './use-hq-plus-data'
-import { hqResultField } from './hq-plus-rpc-readers'
+import { hqResultField } from '../../../../../shared/hq-plus-rpc-readers'
 
 export type HqPlusResult = { ok: true } | { ok: false; message: string }
 

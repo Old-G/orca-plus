@@ -1,7 +1,7 @@
 // Custom build (hq-mobile-messenger): HQ's chat list as the desktop window last built it, slimmed
 // for the phone — the same sections (needs you, working, done, active projects, quiet) and enough to
 // open each chat in the phone's session screen.
-import { z } from 'zod'
+import * as z from 'zod'
 
 export const HQ_CHAT_WIRE_GROUPS = ['needs', 'working', 'done', 'active', 'quiet'] as const
 export type HqChatWireGroup = (typeof HQ_CHAT_WIRE_GROUPS)[number]
@@ -23,7 +23,9 @@ export const HqChatWireItemSchema = z.object({
   sortAt: z.number(),
   color: z.string().max(40).nullable(),
   /** Custom build (hq-spaces): places the chat in its workspace; absent from older Macs. */
-  repoId: z.string().max(200).optional()
+  repoId: z.string().max(200).optional(),
+  /** Custom build (hq-plus-phone): the native chat's session, as HQ+'s feed names it; absent from older Macs. */
+  sessionId: z.string().max(200).nullable().optional()
 })
 export type HqChatWireItem = z.infer<typeof HqChatWireItemSchema>
 
