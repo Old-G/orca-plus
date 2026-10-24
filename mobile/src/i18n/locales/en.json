@@ -562,7 +562,8 @@
       "tasks": "Tasks",
       "closeSearch": "Close search",
       "searchWorkspaces": "Search workspaces",
-      "newWorkspace": "New workspace"
+      "newWorkspace": "New workspace",
+      "hqPlus": "HQ+"
     },
     "hostScreenOverlays": {
       "deleteWorktree": "Delete Worktree",
@@ -686,7 +687,8 @@
       "agentSessionHistory": "Agent Session History",
       "changes": "Changes",
       "pullRequest": "Pull Request",
-      "workspace": "Workspace"
+      "workspace": "Workspace",
+      "hqPlus": "HQ+"
     }
   },
   "notifications": {

@@ -114,14 +114,17 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
           onPress={() => actions.navigateFromHostList(`/h/${encodeURIComponent(hostId)}/hq`)}
           disabled={connState !== 'connected'}
           accessibilityRole="button"
-          accessibilityLabel={t('hostScreen.hostScreenHeader.hq', 'HQ')}
+          accessibilityLabel={t('hostScreen.hostScreenHeader.hqPlus', 'HQ+')}
           hitSlop={8}
         >
           <Inbox
             size={14}
             color={connState === 'connected' ? colors.textPrimary : colors.textMuted}
           />
-          <Text style={styles.reconnectButtonText}>{t('hostScreen.hostScreenHeader.hq', 'HQ')}</Text>
+          {/* Custom build (hq-plus-phone): the phone's HQ is HQ+ now. */}
+          <Text style={styles.reconnectButtonText}>
+            {t('hostScreen.hostScreenHeader.hqPlus', 'HQ+')}
+          </Text>
         </Pressable>
         {!embedded && floatingWorkspaceEnabled ? (
           <Pressable

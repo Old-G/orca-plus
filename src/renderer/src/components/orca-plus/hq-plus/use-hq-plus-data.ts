@@ -18,7 +18,7 @@ import {
   isPulseWaitings,
   readUpcomingAutomations,
   type HqPlusUpcoming
-} from './hq-plus-rpc-readers'
+} from '../../../../../shared/hq-plus-rpc-readers'
 
 const RELOAD_MS = 20_000
 

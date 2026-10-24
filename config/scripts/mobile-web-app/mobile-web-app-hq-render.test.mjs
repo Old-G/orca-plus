@@ -14,15 +14,25 @@ import {
 } from './preview/mobile-web-app-render-harness.mjs'
 
 /**
- * Custom build (hq-mobile): HQ's page route in a real browser — the requests to the owner and what
- * was done for him, painted from the Mac's replies, and the verbs each button sends.
- * `ORCA_MOBILE_WEB_RENDER_SHOT` saves a screenshot of the first render for a visual check.
+ * Custom build (hq-mobile): HQ's page route in a real browser. Custom build (hq-plus-phone): the route
+ * is HQ+ now — the feed painted from the Mac's replies by the desktop's rules, the drawer, the link
+ * sheet, and the verbs each button sends; an approval shows its text and offers no way to send it.
+ * `ORCA_MOBILE_WEB_RENDER_SHOT` saves a screenshot of each state for a visual check.
  */
 
 const HOST_ROUTE = '/h/render-check-host'
 const HQ_ROUTE = `${HOST_ROUTE}/hq`
 const PAGE_ROUTE_PATTERNS = ['/h/[hostId]', '/h/[hostId]/hq']
-const HQ_GRANTS = ['navigate', 'storage', 'externalLink', 'haptics']
+const HQ_GRANTS = [
+  'navigate',
+  'storage',
+  'externalLink',
+  'haptics',
+  'native.clipboard.write',
+  'native.audio.start',
+  'native.audio.read',
+  'native.audio.stop'
+]
 const SHELL_HOST = {
   id: 'render-check-host',
   name: 'Render Check Host',
@@ -31,119 +41,158 @@ const SHELL_HOST = {
 }
 
 const NOW = Date.now()
+const entry = (fields) => ({
+  workspace: 'acme',
+  project: 'acme-app',
+  address: null,
+  sessionId: null,
+  personId: null,
+  body: null,
+  needs: 'nobody',
+  status: 'done',
+  replyTo: null,
+  refKind: null,
+  refId: null,
+  links: [],
+  source: 'hq-plus',
+  dedupeKey: null,
+  ...fields
+})
+const bell = (fields) => ({
+  urgency: 'normal',
+  refKind: null,
+  refId: null,
+  dedupeKey: null,
+  readAt: null,
+  doneAt: null,
+  doneAction: null,
+  ...fields
+})
 const REPLIES = {
-  'hqProjects.slackDrafts': {
-    ok: true,
-    configured: true,
-    lastRunAt: null,
-    failedAt: null,
-    drafts: [
-      {
-        id: 'D1:1.1',
-        kind: 'do',
-        channelName: 'DM Вера',
-        author: 'Вера',
-        permalink: 'https://lev.slack.com/archives/D1/p11',
-        quote: 'проверь тикеты',
-        ask: 'Проверь тикеты по возвратам',
-        title: 'Тикеты по возвратам',
-        description: '',
-        project: 'acme_support_service',
-        foundAt: new Date(NOW).toISOString()
-      },
-      {
-        id: 'clickup:t1:c1',
-        source: 'clickup',
-        clickupTaskId: 't1',
-        kind: 'answer',
-        channelName: 'ClickUp · DEV-12345',
-        author: 'Петя',
-        permalink: 'https://app.clickup.com/t/t1',
-        quote: 'Когда выкатываем?',
-        ask: 'Когда выкатываем автоответ?',
-        title: 'Зенит: автоответ',
-        description: '',
-        project: null,
-        foundAt: new Date(NOW).toISOString()
-      }
+  'hq.feed': {
+    now: NOW,
+    sessions: [],
+    entries: [
+      entry({
+        id: 'e-chat',
+        at: NOW - 30 * 60_000,
+        kind: 'chat.report',
+        sessionId: 's-chat',
+        title: 'Release notes drafted',
+        body: 'Release notes drafted and checked against the changelog.'
+      }),
+      entry({
+        id: 'e-move',
+        at: NOW - 20 * 60_000,
+        kind: 'chat.report',
+        address: 'acme-app/billing',
+        sessionId: 's-move',
+        needs: 'owner:decide',
+        status: 'open',
+        title: 'Billing: which plan first?',
+        body: 'Which plan goes first?\n- **(a) Monthly**\n- **(b) Yearly**'
+      }),
+      entry({
+        id: 'e-approve',
+        at: NOW - 10 * 60_000,
+        kind: 'approve.request',
+        needs: 'owner:approve',
+        status: 'open',
+        refKind: 'draft',
+        refId: 'd1',
+        title: 'Approve: Slack · #general',
+        body: 'Ann, the billing page ships today.'
+      })
     ],
-    done: [
+    inbox: [
+      bell({
+        id: 'i-approve',
+        kind: 'outgoing-approval',
+        title: 'Approve an outgoing action',
+        body: 'Slack · send message',
+        urgency: 'high',
+        refKind: 'draft',
+        refId: 'd1',
+        actions: [{ id: 'approve', label: 'Approve' }],
+        createdAt: NOW - 10 * 60_000
+      }),
+      bell({
+        id: 'i-reply',
+        kind: 'hq-waiting-reply',
+        title: 'Bob answered: access to the dashboard',
+        body: 'Bob: yes, the same keys work, access by tonight.',
+        refId: JSON.stringify({
+          waitingId: 'w1',
+          author: 'Bob',
+          project: 'acme-app',
+          link: 'https://acme.slack.com/archives/C1/p1'
+        }),
+        actions: [
+          { id: 'reply-deliver', label: 'Pass to chat' },
+          { id: 'reply-open', label: 'Open' },
+          { id: 'reply-skip', label: 'Skip' }
+        ],
+        createdAt: NOW - 5 * 60_000
+      })
+    ]
+  },
+  'hqProjects.spaces': {
+    ok: true,
+    spaces: [
       {
-        id: 'C1:2.2',
-        decision: 'rejected',
-        at: NOW - 600_000,
-        title: 'Старый вопрос',
-        author: 'Nora'
+        slug: 'personal',
+        name: 'Personal',
+        color: '#22c55e',
+        repoIds: [],
+        projects: ['notes'],
+        isDefault: true
+      },
+      { slug: 'acme', name: 'Acme', color: '#3b82f6', repoIds: ['r1'], projects: ['acme-app'] }
+    ]
+  },
+  'hqProjects.chatList': {
+    publishedAt: NOW,
+    items: [
+      {
+        key: 'wt1\u0000structured-agent-session-s-chat',
+        group: 'working',
+        worktreeId: 'wt1',
+        paneKey: 'pane-chat',
+        executionHostId: null,
+        projectName: 'acme-app',
+        worktreeName: 'main',
+        title: 'Release notes',
+        preview: 'Drafting the release notes',
+        agentType: 'claude',
+        unseen: false,
+        sortAt: NOW - 60_000,
+        color: '#4a2e54',
+        repoId: 'r1'
       }
     ]
   },
-  'hqProjects.runRequestOnDesktop': { ok: true },
-  'hqProjects.runBellActionOnDesktop': { ok: true },
   'pulse.snapshot': {
-    people: [{ id: 'p1', name: 'Петя' }],
+    people: [{ id: 'p1', name: 'Bob' }],
     waitings: [
       {
         id: 'w1',
         direction: 'on-them',
-        title: 'Выгрузка возвратов',
+        title: 'Dashboard access',
         personId: 'p1',
-        project: null,
+        project: 'acme-app',
         dueAt: null,
-        createdAt: NOW,
+        createdAt: NOW - 2 * 24 * 60 * 60_000,
         source: 'manual'
-      },
-      {
-        id: 'w2',
-        direction: 'on-me',
-        title: 'Купить домен',
-        personId: null,
-        project: null,
-        dueAt: null,
-        createdAt: NOW,
-        source: 'note'
       }
     ],
     decisions: []
   },
-  'pulse.upsertPerson': { id: 'p2', name: 'Вера' },
-  'pulse.addWaiting': { id: 'w3' },
-  'pulse.closeWaiting': { id: 'w1' },
-  'pulse.listInbox': [
-    {
-      id: 'i1',
-      kind: 'agent-finished',
-      title: 'Claude finished DEV-12345',
-      body: 'Zenith · tests green',
-      urgency: 'normal',
-      refKind: null,
-      refId: null,
-      actions: [{ id: 'open', label: 'Open' }],
-      dedupeKey: null,
-      createdAt: NOW,
-      readAt: null,
-      doneAt: null,
-      doneAction: null
-    },
-    {
-      id: 'i2',
-      kind: 'outgoing-approval',
-      title: 'Approve an outgoing action',
-      body: 'Slack · send message',
-      urgency: 'high',
-      refKind: 'draft',
-      refId: 'd1',
-      actions: [{ id: 'approve', label: 'Approve' }],
-      dedupeKey: null,
-      createdAt: NOW - 60_000,
-      readAt: null,
-      doneAt: null,
-      doneAction: null
-    }
-  ],
-  'pulse.markInboxRead': { id: 'i1' },
-  'hqProjects.rejectSlackDraft': { ok: true },
-  'hqProjects.draftClickUpReply': { ok: true, text: 'Сегодня вечером.' },
-  'hqProjects.sendClickUpReply': { ok: true }
+  'settings.get': { settings: { hqPath: '/Users/me/HQ' } },
+  'chat.send': { delivered: true },
+  'pulse.markInboxDone': { id: 'i-reply' },
+  'hqProjects.runBellActionOnDesktop': { ok: true },
+  'hqProjects.askHqOnDesktop': { ok: true },
+  'hqProjects.settings': { hqVoicePromptsEnabled: false }
 }
 
 const bundles = mobileWebAppDependenciesPresent()
@@ -164,7 +213,7 @@ beforeAll(async () => {
   cspHeader = await readShellCsp()
   bridgeVersion = await readBridgeProtocolVersion()
   faultGrant = await readBridgeFaultGrant()
-  scratch = await mkdtemp(join(tmpdir(), 'orca-mobile-web-app-hq-'))
+  scratch = await mkdtemp(join(tmpdir(), 'orca-mobile-web-app-hq-plus-'))
   const built = await buildMobileWebAppBundle({ outDir: join(scratch, 'bundle') })
   const served = await createBundleServer({ outDir: built.outDir, cspHeader })
   server = served.server
@@ -183,7 +232,7 @@ afterAll(async () => {
 
 async function openHq(
   pathname = HQ_ROUTE,
-  ready = 'done for you',
+  ready = 'today',
   replies = REPLIES,
   safeAreaInsets = null
 ) {
@@ -233,146 +282,115 @@ const sent = (page, method) =>
     method
   )
 
-describeRender('the HQ route in a real browser', () => {
-  it('opens HQ from the worktree list header without leaving the document', async () => {
+describeRender('HQ+ on the phone in a real browser', () => {
+  it('opens HQ+ from the worktree list header without leaving the document', async () => {
     const { page, errors } = await openHq(HOST_ROUTE, SHELL_HOST.name.toLowerCase())
-    await shot(page, '-host')
-    expect(await page.evaluate(() => document.body.innerText)).toContain('Orca+')
-    const mark = page.getByRole('img', { name: 'Orca+' })
-    await mark.waitFor()
-    expect(await mark.boundingBox()).toMatchObject({ width: 22, height: 22 })
-    await page.getByRole('button', { name: 'HQ' }).click()
-    await page.waitForFunction(() => document.body.innerText.toLowerCase().includes('done for you'))
+    await page.getByRole('button', { name: 'HQ+' }).click()
+    await page.waitForFunction(() => document.body.innerText.includes('TODAY'))
     expect(await page.evaluate(() => location.pathname)).toBe(HQ_ROUTE)
     expect(errors).toEqual([])
     await page.close()
   }, 60_000)
 
-  it('tells the owner to reopen the app once the Mac serves a newer page', async () => {
-    const served = (buildId) => ({
-      ...REPLIES,
-      'mobileWeb.bundle.manifest': { manifest: { buildId }, chunkBytes: 65536 }
-    })
-    const stale = await openHq(HOST_ROUTE, SHELL_HOST.name.toLowerCase(), served('newer-build'))
-    await stale.page.waitForFunction(() => document.body.innerText.includes('newer version'))
-    await shot(stale.page, '-stale')
-    await stale.page.getByRole('button', { name: 'Dismiss notice' }).click()
-    await stale.page.waitForFunction(() => !document.body.innerText.includes('newer version'))
-    await stale.page.close()
-
-    const fresh = await openHq(
-      HOST_ROUTE,
-      SHELL_HOST.name.toLowerCase(),
-      served('render-check-build')
-    )
-    await fresh.page.waitForFunction(() =>
-      globalThis.__orcaRenderCheckRequests.some((r) => r.method === 'mobileWeb.bundle.manifest')
-    )
-    // The reply lands after the request is recorded; give it the time the stale case needed.
-    await fresh.page.waitForTimeout(1_000)
-    expect(await fresh.page.evaluate(() => document.body.innerText)).not.toContain('newer version')
-    await fresh.page.close()
-  }, 60_000)
-
-  it("keeps HQ's header below the phone's status bar", async () => {
-    const top = 59
-    const { page } = await openHq(HQ_ROUTE, 'done for you', REPLIES, {
-      top,
-      right: 0,
-      bottom: 34,
-      left: 0
-    })
-    const back = await page.getByRole('button', { name: 'Back to workspaces' }).boundingBox()
-    expect(back?.y).toBeGreaterThanOrEqual(top)
-    await shot(page, '-inset')
-    await page.close()
-  }, 60_000)
-
-  it('paints the requests to the owner and what was done for him', async () => {
+  it('paints the feed by the desktop rules, with the approval read only', async () => {
     const { page, errors } = await openHq()
+    await page.waitForFunction(() => document.body.innerText.includes('Approve on Mac'))
     const text = await page.evaluate(() => document.body.innerText)
-    // Section titles are upper-cased by style, which innerText reflects.
-    expect(text.toLowerCase()).toContain('needs you · 2')
-    expect(text).toContain('Вера: Проверь тикеты по возвратам')
-    expect(text).toContain('Петя: Когда выкатываем автоответ?')
-    expect(text).toContain('Skipped')
-    expect(text).toContain('Bring back')
-    expect(text).not.toContain('Unmatched Route')
+    expect(text).toContain('Release notes drafted')
+    expect(text).toContain('Which plan goes first?')
+    expect(text).toContain('Ann, the billing page ships today.')
+    expect(text).toContain('YOUR MOVE')
+    expect(text).toContain('Send answer to chat')
+    expect(text).toContain('→ All')
+    for (const room of ['All', 'Personal', 'Acme']) {
+      expect(await page.getByRole('button', { name: room, exact: true }).count()).toBe(1)
+    }
+    expect(await page.getByRole('button', { name: /^Approve/ }).count()).toBe(0)
+    expect(await page.getByRole('button', { name: 'Reject' }).count()).toBe(0)
     await shot(page, '')
     expect(errors).toEqual([])
     await page.close()
   }, 60_000)
 
-  it('hands Do on a Slack request to the Mac, and says it started there', async () => {
+  it("answers the agent's question into its thread, as the desktop card does", async () => {
     const { page } = await openHq()
-    await page.getByRole('button', { name: 'Do' }).first().click()
-    await page.waitForFunction(() => document.body.innerText.includes('Started on your Mac'))
-    expect(await sent(page, 'hqProjects.runRequestOnDesktop')).toEqual([
-      { method: 'hqProjects.runRequestOnDesktop', params: { id: 'D1:1.1', action: 'do' } }
-    ])
-    await page.close()
-  }, 60_000)
-
-  it('drafts a ClickUp reply on the phone and sends the edited text with the draft', async () => {
-    const { page } = await openHq()
-    await page.getByRole('button', { name: 'Just reply' }).nth(1).click()
-    const box = page.getByLabel('Reply in ClickUp')
-    await page.waitForFunction(
-      () => document.querySelector('textarea')?.value === 'Сегодня вечером.'
+    await page.getByRole('button', { name: '(a) Monthly' }).click()
+    await page.waitForFunction(() =>
+      globalThis.__orcaRenderCheckRequests.some((r) => r.method === 'chat.send')
     )
-    await box.fill('Сегодня')
-    await page.getByRole('button', { name: 'Send' }).click()
-    await page.waitForFunction(() => document.body.innerText.includes('Reply posted in ClickUp.'))
-    expect(await sent(page, 'hqProjects.sendClickUpReply')).toEqual([
+    expect(await sent(page, 'chat.send')).toEqual([
       {
-        method: 'hqProjects.sendClickUpReply',
-        params: { id: 'clickup:t1:c1', text: 'Сегодня', draft: 'Сегодня вечером.' }
+        method: 'chat.send',
+        params: {
+          address: 'acme-app/billing',
+          text: '(a) Monthly',
+          replyTo: 'e-move',
+          callerCwd: '/Users/me/HQ'
+        }
       }
     ])
-    expect(await sent(page, 'hqProjects.runRequestOnDesktop')).toEqual([])
     await page.close()
   }, 60_000)
 
-  it('jots a note for a person in one line, the way the Mac reads it', async () => {
-    const { page, errors } = await openHq()
-    await page.getByRole('tab', { name: 'Notes' }).click()
-    await page.waitForFunction(() => document.body.innerText.includes('Выгрузка возвратов'))
-    const text = await page.evaluate(() => document.body.innerText.toLowerCase())
-    expect(text).toContain("i'm waiting on · 1")
-    expect(text).toContain('just notes · 1')
-    await page.getByLabel('New note').fill('@Вера жду выгрузку')
-    await page.waitForFunction(() => document.body.innerText.includes('waiting on Вера'))
-    await shot(page, '-notes')
-    await page.getByRole('button', { name: 'Add' }).click()
+  it("passes a person's answer on in the Mac's window", async () => {
+    const { page } = await openHq()
+    await page.getByRole('button', { name: 'Send answer to chat' }).click()
     await page.waitForFunction(() =>
-      globalThis.__orcaRenderCheckRequests.some((r) => r.method === 'pulse.addWaiting')
+      globalThis.__orcaRenderCheckRequests.some(
+        (r) => r.method === 'hqProjects.runBellActionOnDesktop'
+      )
     )
-    expect(await sent(page, 'pulse.upsertPerson')).toEqual([
-      { method: 'pulse.upsertPerson', params: { name: 'Вера' } }
+    expect(await sent(page, 'hqProjects.runBellActionOnDesktop')).toEqual([
+      {
+        method: 'hqProjects.runBellActionOnDesktop',
+        params: { itemId: 'i-reply', actionId: 'reply-deliver' }
+      }
     ])
-    expect((await sent(page, 'pulse.addWaiting'))[0]?.params).toMatchObject({
-      direction: 'on-them',
-      personId: 'p2',
-      source: 'manual'
-    })
+    await page.close()
+  }, 60_000)
+
+  it('keeps the rest in the drawer and flashes a picked card in the feed', async () => {
+    const { page, errors } = await openHq()
+    await page.getByRole('button', { name: 'Menu: waiting on you, chats, views' }).click()
+    await page.waitForFunction(() => /WAITING ON YOU · 3/i.test(document.body.innerText))
+    // Why: the waits are read once the drawer opens.
+    await page.waitForFunction(() => document.body.innerText.includes('Bob · Dashboard access'))
+    const text = await page.evaluate(() => document.body.innerText)
+    expect(text).toMatch(/WE WAIT · 1/i)
+    expect(text).toContain('Bob · Dashboard access')
+    expect(text).toContain('Release notes')
+    await shot(page, '-drawer')
+    await page.getByRole('button', { name: 'Which plan goes first?' }).click()
+    const drawer = page.getByTestId('hq-plus-drawer')
+    await page.waitForTimeout(400)
+    expect((await drawer.boundingBox())?.x ?? 0).toBeLessThan(0)
     expect(errors).toEqual([])
     await page.close()
   }, 60_000)
 
-  it("runs a bell item's button on the Mac, and offers none on an approval", async () => {
+  it('asks where a link opens: Orca browser, Safari or copied', async () => {
     const { page } = await openHq()
-    await page.getByRole('tab', { name: 'Inbox' }).click()
-    await page.waitForFunction(() => document.body.innerText.includes('Claude finished DEV-12345'))
-    const text = await page.evaluate(() => document.body.innerText)
-    expect(text).toContain('Approve this on your Mac.')
-    await shot(page, '-inbox')
-    expect(await page.getByRole('button', { name: 'Approve' }).count()).toBe(0)
-    await page.getByRole('button', { name: 'Open' }).click()
-    await page.waitForFunction(() => document.body.innerText.includes('ran on your Mac'))
-    expect(await sent(page, 'hqProjects.runBellActionOnDesktop')).toEqual([
+    await page.getByRole('link', { name: 'Slack ↗' }).click()
+    const sheet = page.getByTestId('hq-plus-link-sheet')
+    await page.waitForTimeout(400)
+    const text = await sheet.innerText()
+    expect(text).toContain('https://acme.slack.com/archives/C1/p1')
+    expect(text).toContain('Orca Browser')
+    expect(text).toContain('Safari')
+    expect(text).toContain('Copy link')
+    await shot(page, '-link')
+    await page.close()
+  }, 60_000)
+
+  it('sends «Write to HQ» to the Ask HQ chat on the Mac', async () => {
+    const { page } = await openHq()
+    await page.getByLabel('Write to HQ').fill('What did we decide about billing?')
+    await page.getByRole('button', { name: 'Send' }).last().click()
+    await page.waitForFunction(() => document.body.innerText.includes('Sent to Ask HQ on the Mac'))
+    expect(await sent(page, 'hqProjects.askHqOnDesktop')).toEqual([
       {
-        method: 'hqProjects.runBellActionOnDesktop',
-        params: { itemId: 'i1', actionId: 'open' }
+        method: 'hqProjects.askHqOnDesktop',
+        params: { text: 'What did we decide about billing?' }
       }
     ])
     await page.close()

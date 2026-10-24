@@ -8,7 +8,7 @@ import type { HqJournalEntry } from '../../../../../shared/hq-journal'
 import { translate } from '@/i18n/i18n'
 import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
 import { hqPlusCall } from './use-hq-plus-data'
-import { hqResultField, isHqJournalEntries } from './hq-plus-rpc-readers'
+import { hqResultField, isHqJournalEntries } from '../../../../../shared/hq-plus-rpc-readers'
 
 export type HqPlusPick = {
   project: string | null

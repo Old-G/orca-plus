@@ -23,7 +23,9 @@ export const HqChatWireItemSchema = z.object({
   sortAt: z.number(),
   color: z.string().max(40).nullable(),
   /** Custom build (hq-spaces): places the chat in its workspace; absent from older Macs. */
-  repoId: z.string().max(200).optional()
+  repoId: z.string().max(200).optional(),
+  /** Custom build (hq-plus-phone): the native chat's session, as HQ+'s feed names it; absent from older Macs. */
+  sessionId: z.string().max(200).nullable().optional()
 })
 export type HqChatWireItem = z.infer<typeof HqChatWireItemSchema>
 

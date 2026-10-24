@@ -86,6 +86,11 @@ export const HqReportDecisionsParams = z.object({
   text: z.string().trim().min(1).max(8000)
 })
 
+// Custom build (hq-plus-phone): a question for the Ask HQ chat, written on the phone.
+export const HqAskOnDesktopParams = z.object({
+  text: z.string().trim().min(1).max(8000)
+})
+
 export const HqClickUpReplyParams = z.object({
   id: z.string().min(1).max(200),
   text: z.string().trim().min(1).max(20_000),

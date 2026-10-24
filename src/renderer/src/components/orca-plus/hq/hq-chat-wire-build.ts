@@ -5,6 +5,7 @@ import { structuredAgentSessionPaneKey } from '../../../../../shared/structured-
 import { formatAgentTypeLabel } from '@/lib/agent-status'
 import { resolveAgentSessionTabTitle } from '../../tab-bar/tab-bar-item-model'
 import type { HqActiveProject } from './hq-active-projects'
+import { hqChatSessionId } from './hq-chat-cleanup'
 import type { HqChatItem } from './hq-chat-list'
 
 const PREVIEW_MAX = 400
@@ -54,7 +55,8 @@ export function buildHqChatWire(
     agentType: item.agentType,
     unseen: item.card?.unseen === true,
     sortAt: item.sortAt,
-    color: colorFor(item.repoId)
+    color: colorFor(item.repoId),
+    sessionId: item.kind === 'chat' ? hqChatSessionId(item.tab.id) : null
   })
   return [
     ...groups.needs.map((item) => wire(item, 'needs')),
