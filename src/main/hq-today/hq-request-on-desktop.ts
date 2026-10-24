@@ -24,6 +24,11 @@ export function runHqReportDecisionsOnDesktop(path: string, text: string): Run {
   return sender?.('hqProjects:runReportDecisions', { path, text }) ? { ok: true } : NO_WINDOW
 }
 
+/** Custom build (hq-plus-phone): HQ+'s «Write to HQ» on the phone, for the Ask HQ chat in the window. */
+export function runHqAskOnDesktop(text: string): Run {
+  return sender?.('hqProjects:askHq', { text }) ? { ok: true } : NO_WINDOW
+}
+
 export function runHqBellActionOnDesktop(itemId: string, actionId: string): Run {
   return sender?.('hqProjects:runBellAction', { itemId, actionId }) ? { ok: true } : NO_WINDOW
 }
