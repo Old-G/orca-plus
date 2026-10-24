@@ -338,8 +338,10 @@ export function hqPlusLog(
         used.add(item.id)
       }
       const explicit = ownerOpen
-      if (explicit || answered || hqPlusAsksOwner(entry.body)) {
-        const done = replyDone(entry) ?? turnDone(entry, item ?? null) ?? later(entry)
+      const asks = explicit || answered || hqPlusAsksOwner(entry.body)
+      const done = asks ? (replyDone(entry) ?? turnDone(entry, item ?? null) ?? later(entry)) : null
+      // Custom build (hq-closed-loop): only a question still waiting is a card; answered, it is the chat's line.
+      if (asks && !done) {
         items.push(
           card(entry, item ?? null, {
             type: 'move',
@@ -352,6 +354,7 @@ export function hqPlusLog(
             done
           })
         )
+      } else {
         if (done?.by === 'reply' && !answers.has(entry.id)) {
           items.push({
             kind: 'me',
@@ -361,7 +364,6 @@ export function hqPlusLog(
             text: done.text
           })
         }
-      } else {
         items.push({
           kind: 'line',
           id: entry.id,
