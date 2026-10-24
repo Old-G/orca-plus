@@ -35,11 +35,14 @@ function manualRoutingScript(): string | null {
   return candidates.find((path) => existsSync(path)) ?? null
 }
 import { registerHqContext } from '../hq-context/register-hq-context'
+import { setHqSpaceLiveGroups } from '../hq-today/hq-spaces'
 
 // Why: the evening review writes its report once a day; the pulse writes wake the journal sooner.
 const REREAD_EVERY_MS = 5 * 60_000
 
 export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): void {
+  // Custom build (hq-rooms): rooms read the sidebar's groups live, not HQ's pages of a past sync.
+  setHqSpaceLiveGroups(() => ({ repos: store.getRepos(), groups: store.getProjectGroups() }))
   const record = (sessionId: string) => {
     try {
       return runtime.openedAgentSessionRecordStore()?.getRecord(sessionId) ?? null

@@ -61,6 +61,7 @@ import { HqPlusGraph } from './HqPlusGraph'
 import { HqPlusSession, type HqPlusPick } from './HqPlusSession'
 import { HqPlusAgents } from './HqPlusAgents'
 import { HqPlusBrowser, type HqPlusBrowserAsk } from './HqPlusBrowser'
+import { HqPlusRooms } from './HqPlusRooms'
 import { LinkActionPopover } from '@/components/link-actions/LinkActionPopover'
 import {
   closeLinkActionRequest,
@@ -116,12 +117,6 @@ const TAB_LABEL: Record<Tab, [string, string]> = {
   report: ['auto.hqPlus.tab.reports', 'Reports'],
   agents: ['auto.hqPlus.tab.agents', 'Agents'],
   browser: ['auto.hqPlus.tab.browser', 'Browser']
-}
-
-function roomStyle(
-  color: string | null
-): (React.CSSProperties & Record<'--hqp-room', string>) | undefined {
-  return color ? { '--hqp-room': color } : undefined
 }
 
 function ringStyle(share: number): React.CSSProperties & Record<'--hqp-p', string> {
@@ -814,39 +809,18 @@ export function HqPlusScreen(): React.JSX.Element {
           </span>
           HQ+
         </span>
-        <div
-          className="hqp-rooms"
-          role="group"
-          aria-label={translate('auto.hqPlus.rooms', 'Rooms')}
-        >
-          <button
-            type="button"
-            className="hqp-room"
-            aria-pressed={room === null}
-            onClick={() => spaces.setActive(null)}
-          >
-            <i aria-hidden="true" />
-            {translate('auto.hqPlus.overview', 'All')}
-            {waitingCount(openByRoom, null) ? <em>{waitingCount(openByRoom, null)}</em> : null}
-          </button>
-          {spaces.spaces.map((space) => (
-            <button
-              key={space.slug}
-              type="button"
-              className="hqp-room"
-              style={roomStyle(space.color)}
-              aria-pressed={room === space.slug}
-              onClick={() => {
-                spaces.setActive(space.slug)
-                setScope(null)
-              }}
-            >
-              <i aria-hidden="true" />
-              {space.name}
-              {openByRoom.get(space.slug) ? <em>{openByRoom.get(space.slug)}</em> : null}
-            </button>
-          ))}
-        </div>
+        <HqPlusRooms
+          spaces={spaces.spaces}
+          active={room}
+          allLabel={translate('auto.hqPlus.overview', 'All')}
+          countOf={(slug) => waitingCount(openByRoom, slug)}
+          onPick={(slug) => {
+            spaces.setActive(slug)
+            if (slug !== null) {
+              setScope(null)
+            }
+          }}
+        />
         <span className="hqp-spacer" />
         <div className="hqp-meter">
           {unreviewed !== null ? (
