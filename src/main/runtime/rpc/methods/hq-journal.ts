@@ -34,6 +34,7 @@ import { getHqLadderReport } from '../../../hq-routing/hq-ladder-report'
 const LADDER_DEFAULT_MS = 30 * 24 * 60 * 60_000
 import { getHqPlusStats } from '../../../hq-plus-ui/hq-plus-screen-stats'
 import { getHqContext, type HqContextService } from '../../../hq-context/hq-context'
+import { createHqRoomWithGroup, hqRoomGroupsOf } from '../../../hq-context/hq-room-edit'
 import { getHqSessions, type HqSessionsService } from '../../../hq-sessions/hq-sessions'
 
 const DAY_MS = 24 * 60 * 60_000
@@ -249,8 +250,14 @@ export const HQ_JOURNAL_METHODS = [
 
     permission: 'workspace',
     params: HqWorkspaceAddParams,
-    handler: async ({ callerSessionId: _s, callerWorktreeId: _w, callerCwd: _c, ...input }) =>
-      context().addRoom(input)
+    // Custom build (hq-rooms): a room made here is a sidebar group too, as from HQ+'s «+».
+    handler: async (
+      { callerSessionId: _s, callerWorktreeId: _w, callerCwd: _c, ...input },
+      { runtime }
+    ) =>
+      createHqRoomWithGroup(hqRoomGroupsOf(runtime), input, (groupId) =>
+        context().addRoom({ ...input, groupId })
+      )
   }),
   // Custom build (hq-plus-sessions): hand work to a thread; the chats and what the dispatcher would do.
   defineMethod({

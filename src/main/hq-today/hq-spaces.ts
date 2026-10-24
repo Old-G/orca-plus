@@ -9,9 +9,37 @@ import {
   readHqSpaceFile,
   resolveHqSpaces,
   type HqSpace,
-  type HqSpaceFile
+  type HqSpaceFile,
+  type HqSpaceGroup
 } from '../../shared/hq-spaces'
 import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
+
+/** Custom build (hq-rooms): Orca's live repos and sidebar groups, so a «Move to group» moves the
+ *  project's room at once — HQ's pages learn of it only at the next sync. */
+export type HqSpaceLiveGroups = {
+  repos: readonly { id: string; projectGroupId?: string | null }[]
+  groups: readonly (HqSpaceGroup & { parentGroupId: string | null })[]
+}
+
+let liveGroups: (() => HqSpaceLiveGroups | null) | null = null
+
+export function setHqSpaceLiveGroups(reader: (() => HqSpaceLiveGroups | null) | null): void {
+  liveGroups = reader
+}
+
+/** A repo's group and the groups above it, nearest first; a loop in the tree stops the walk. */
+function groupChain(
+  groupId: string | null | undefined,
+  byId: ReadonlyMap<string, { parentGroupId: string | null }>
+): string[] {
+  const chain: string[] = []
+  let current = groupId ?? null
+  while (current && !chain.includes(current) && byId.has(current)) {
+    chain.push(current)
+    current = byId.get(current)?.parentGroupId ?? null
+  }
+  return chain
+}
 
 type SpaceFiles = { files: { slug: string; file: HqSpaceFile }[]; complete: boolean }
 
@@ -77,13 +105,39 @@ export async function readHqSpacePlacing(hqPath: string): Promise<HqSpacePlacing
     pagesRead = isMissing(error)
     return []
   })
+  const live = liveGroups?.() ?? null
+  const groupById = new Map((live?.groups ?? []).map((group) => [group.id, group]))
+  const repoGroup = new Map((live?.repos ?? []).map((repo) => [repo.id, repo.projectGroupId]))
   const spaces = resolveHqSpaces(
     files,
-    pages.map((page) => ({ repoId: page.repoId, slug: page.slug, group: page.group }))
+    pages.map((page) => {
+      const chain = repoGroup.has(page.repoId)
+        ? groupChain(repoGroup.get(page.repoId), groupById)
+        : []
+      return {
+        repoId: page.repoId,
+        slug: page.slug,
+        // Why: the live group's name beats the page's, which waits for the next HQ sync.
+        group: repoGroup.has(page.repoId)
+          ? chain.length
+            ? (groupById.get(chain[0])?.name ?? null)
+            : null
+          : page.group,
+        groupIds: chain
+      }
+    }),
+    live?.groups ?? []
   )
   const groupRooms = new Map<string, string>()
   for (const space of spaces) {
-    for (const group of files.find((entry) => entry.slug === space.slug)?.file.groups ?? []) {
+    const file = files.find((entry) => entry.slug === space.slug)?.file
+    // Custom build (hq-rooms): a room that is a group claims its own name and its nested groups' names.
+    const named = file?.groupId
+      ? [...groupById.values()]
+          .filter((group) => groupChain(group.id, groupById).includes(file.groupId ?? ''))
+          .map((group) => group.name)
+      : []
+    for (const group of [...named, ...(file?.groups ?? [])]) {
       // Why: like a project, a group claimed twice stays with the first workspace.
       if (!groupRooms.has(group)) {
         groupRooms.set(group, space.slug)
