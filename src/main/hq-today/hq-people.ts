@@ -3,6 +3,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
+  HQ_EMPTY_DOSSIER,
   HQ_ORG_FILES,
   HQ_ORG_PERSON_KEY,
   HQ_PEOPLE_DIR,
@@ -24,6 +25,7 @@ import type {
   PulseWaiting
 } from '../../shared/pulse-types'
 import { PERSON_ID_KEY, readFrontValue } from '../hq-pulse-mirror/hq-pulse-pages'
+import { readHqPersonDossier } from './hq-person-dossier'
 
 const REFRESH_MS = 10 * 60_000
 const CARD_SENT_MAX = 10
@@ -53,6 +55,7 @@ export async function readHqPeopleFiles(hqPath: string): Promise<HqPeopleFiles> 
           pulsePersonId: readFrontValue(markdown, PERSON_ID_KEY),
           orgKey: readFrontValue(markdown, HQ_ORG_PERSON_KEY),
           notes: hqPersonPageNotes(markdown),
+          dossier: readHqPersonDossier(markdown),
           markdown
         }
       })
@@ -87,14 +90,30 @@ export function buildHqPeopleRows({ files, people, waitings }: PeopleSources): H
       ? waitings.filter((w) => w.personId === personId && w.direction === 'on-them').length
       : 0
   })
-  const pageOf = (pulseId: string | null, orgKey: string | null): string | null =>
+  const pageOf = (pulseId: string | null, orgKey: string | null) =>
     files.pages.find(
       (page) =>
         (pulseId !== null && page.pulsePersonId === pulseId) ||
         (orgKey !== null && page.orgKey === orgKey)
-    )?.path ?? null
+    ) ?? null
+  // Custom build (hq-closed-loop): the dossier on the page; its ids fill what the matrix lacks.
+  const dossierOf = (page: HqPersonPage | null) => {
+    const dossier = page?.dossier ?? HQ_EMPTY_DOSSIER
+    return {
+      fields: {
+        aliases: dossier.aliases,
+        projects: dossier.projects,
+        decides: dossier.decides,
+        channel: dossier.channel,
+        timezone: dossier.timezone
+      },
+      dossier
+    }
+  }
   const orgRows = files.org.map((row): HqPeopleRow => {
     const person = pulseOf.get(row.key) ?? null
+    const page = pageOf(person?.id ?? null, row.key)
+    const { fields, dossier } = dossierOf(page)
     return {
       key: row.key,
       name: person?.name ?? row.name,
@@ -103,29 +122,37 @@ export function buildHqPeopleRows({ files, people, waitings }: PeopleSources): H
       department: row.department,
       location: row.location,
       supervisorKey: row.supervisorKey,
-      slackUserId: row.slackUserId ?? person?.slackUserId ?? null,
-      clickupUserId: row.clickupUserId ?? person?.clickupUserId ?? null,
-      email: row.email,
-      slackHandle: row.slackHandle,
+      slackUserId: row.slackUserId ?? person?.slackUserId ?? dossier.slackUserId,
+      clickupUserId: row.clickupUserId ?? person?.clickupUserId ?? dossier.clickupUserId,
+      email: row.email ?? dossier.email,
+      slackHandle: row.slackHandle ?? dossier.slackHandle,
       pulsePersonId: person?.id ?? null,
-      pagePath: pageOf(person?.id ?? null, row.key),
-      ...counts(person?.id ?? null)
+      pagePath: page?.path ?? null,
+      ...counts(person?.id ?? null),
+      ...fields
     }
   })
-  const looseRows = loose.map((person): HqPeopleRow => ({
-    key: `${HQ_PULSE_ONLY_PREFIX}${person.id}`,
-    name: person.name,
-    orgName: null,
-    jobTitle: person.role,
-    department: null,
-    location: null,
-    supervisorKey: null,
-    slackUserId: person.slackUserId,
-    clickupUserId: person.clickupUserId,
-    pulsePersonId: person.id,
-    pagePath: pageOf(person.id, null),
-    ...counts(person.id)
-  }))
+  const looseRows = loose.map((person): HqPeopleRow => {
+    const page = pageOf(person.id, null)
+    const { fields, dossier } = dossierOf(page)
+    return {
+      key: `${HQ_PULSE_ONLY_PREFIX}${person.id}`,
+      name: person.name,
+      orgName: null,
+      jobTitle: person.role,
+      department: null,
+      location: null,
+      supervisorKey: null,
+      slackUserId: person.slackUserId ?? dossier.slackUserId,
+      clickupUserId: person.clickupUserId ?? dossier.clickupUserId,
+      email: dossier.email,
+      slackHandle: dossier.slackHandle,
+      pulsePersonId: person.id,
+      pagePath: page?.path ?? null,
+      ...counts(person.id),
+      ...fields
+    }
+  })
   return [...orgRows, ...looseRows]
 }
 

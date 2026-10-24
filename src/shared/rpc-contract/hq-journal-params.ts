@@ -159,3 +159,7 @@ export const HqJobReplyParams = z.object({
   entryId: z.string().trim().min(1).max(200),
   text: z.string().trim().min(1).max(2000)
 })
+
+/** Custom build (hq-closed-loop): `orca hq person <name|@handle|id>` and `orca hq who <project>`. */
+export const HqPersonLookupParams = z.object({ query: z.string().trim().min(1).max(200) })
+export const HqWhoParams = z.object({ project: z.string().trim().min(1).max(200) })

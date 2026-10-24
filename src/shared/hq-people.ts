@@ -23,12 +23,41 @@ export type HqOrgPerson = {
   slackHandle: string | null
 }
 
+/** Custom build (hq-closed-loop): a person's dossier — the front matter of their page under `people/`,
+ *  written by hand or by the people interview. Any field may be missing. */
+export type HqPersonDossier = {
+  aliases: string[]
+  projects: { slug: string; role: string | null }[]
+  /** What they decide themselves. */
+  decides: string[]
+  /** Where to write them: `default`, and per kind of message (`status`, `urgent`, …). */
+  channel: Record<string, string>
+  timezone: string | null
+  slackUserId: string | null
+  slackHandle: string | null
+  email: string | null
+  clickupUserId: string | null
+}
+
+export const HQ_EMPTY_DOSSIER: HqPersonDossier = {
+  aliases: [],
+  projects: [],
+  decides: [],
+  channel: {},
+  timezone: null,
+  slackUserId: null,
+  slackHandle: null,
+  email: null,
+  clickupUserId: null
+}
+
 /** A person page under `people/`: whose it is, and the owner's notes on them. */
 export type HqPersonPage = {
   path: string
   pulsePersonId: string | null
   orgKey: string | null
   notes: string | null
+  dossier?: HqPersonDossier
 }
 
 /** Splits one CSV line set into rows; quoted fields may hold commas, quotes and newlines. */
@@ -171,7 +200,13 @@ export const HqPeopleRowSchema = z.object({
   pagePath: z.string().nullable(),
   /** Open waitings: they wait on the owner / the owner waits on them. */
   onMe: z.number(),
-  onThem: z.number()
+  onThem: z.number(),
+  /** Custom build (hq-closed-loop): the dossier on their page; absent from older hosts. */
+  aliases: z.array(z.string()).optional(),
+  projects: z.array(z.object({ slug: z.string(), role: z.string().nullable() })).optional(),
+  decides: z.array(z.string()).optional(),
+  channel: z.record(z.string(), z.string()).optional(),
+  timezone: z.string().nullable().optional()
 })
 export type HqPeopleRow = z.infer<typeof HqPeopleRowSchema>
 
@@ -222,4 +257,53 @@ export function hqMeetingPrepPrompt(row: HqPeopleRow): string {
     '(кто кого ждёт), что я обещал, что ушло через Approve, темы Slack и задачи ClickUp с ним за две ' +
     `недели, заметки из HQ${row.pagePath ? ` (${row.pagePath})` : ''}. В конце — 3 вопроса, которые стоит обсудить.`
   )
+}
+
+const folded = (text: string): string => text.trim().toLocaleLowerCase()
+
+/** Custom build (hq-closed-loop): who a name, @handle, Slack/ClickUp id or org key means — an exact
+ *  match first, then names and aliases that contain the words. */
+export function findHqPeople(rows: readonly HqPeopleRow[], query: string): HqPeopleRow[] {
+  const asked = folded(query).replace(/^@/, '')
+  if (!asked) {
+    return []
+  }
+  const names = (row: HqPeopleRow): string[] =>
+    [row.name, row.orgName, row.slackHandle, ...(row.aliases ?? [])]
+      .filter((name): name is string => Boolean(name))
+      .map(folded)
+  const ids = (row: HqPeopleRow): string[] =>
+    [row.key, row.pulsePersonId, row.slackUserId, row.clickupUserId, row.email]
+      .filter((id): id is string => Boolean(id))
+      .map(folded)
+  const exact = rows.filter((row) => ids(row).includes(asked) || names(row).includes(asked))
+  if (exact.length > 0) {
+    return exact
+  }
+  const words = asked.split(/\s+/)
+  return rows.filter((row) => words.every((word) => names(row).some((name) => name.includes(word))))
+}
+
+/** Custom build (hq-closed-loop): the people a project's dossiers name, with their role in it. */
+export function hqPeopleOfProject(
+  rows: readonly HqPeopleRow[],
+  project: string
+): { row: HqPeopleRow; role: string | null }[] {
+  return rows.flatMap((row) => {
+    const held = row.projects?.find((entry) => entry.slug === project)
+    return held ? [{ row, role: held.role }] : []
+  })
+}
+
+/** Where to write them, said in one line: the default first, then per kind. */
+export function hqPersonChannelLine(channel: Record<string, string> | undefined): string | null {
+  const entries = Object.entries(channel ?? {})
+  if (entries.length === 0) {
+    return null
+  }
+  const first = channel?.default
+  const rest = entries
+    .filter(([kind]) => kind !== 'default')
+    .map(([kind, where]) => `${kind}: ${where}`)
+  return [first, ...rest].filter(Boolean).join(' · ')
 }

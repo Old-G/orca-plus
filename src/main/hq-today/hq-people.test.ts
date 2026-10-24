@@ -2,7 +2,13 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { hqPersonPageNotes, parseHqOrgCsv } from '../../shared/hq-people'
+import {
+  findHqPeople,
+  hqPeopleOfProject,
+  hqPersonChannelLine,
+  hqPersonPageNotes,
+  parseHqOrgCsv
+} from '../../shared/hq-people'
 import type { OutgoingSentContext } from '../../shared/outgoing-approval/outgoing-sent-context'
 import type {
   PulseApprovalOutcome,
@@ -199,6 +205,53 @@ describe('HQ people', () => {
       jobTitle: 'Дизайнер',
       onThem: 1
     })
+  })
+
+  it("reads a dossier from the page's front matter and finds the person by alias, handle or words", async () => {
+    const dossier = [
+      '---',
+      'org_person_id: "196"',
+      'aliases: [Ollie, O. Brown]',
+      'slack_handle: "@obrown"',
+      'projects:',
+      '  - {slug: acme-api, role: decides}',
+      '  - acme-web',
+      'decides: [architecture of acme services]',
+      'channel: {default: task thread, urgent: dm}',
+      'timezone: Europe/Kyiv',
+      '---',
+      '',
+      '# Oliver',
+      '',
+      '## Notes',
+      ''
+    ].join('\n')
+    const broken = '---\nprojects: [unclosed\n---\n# Clara\n'
+    const files = await readHqPeopleFiles(
+      hqWithPeople({ 'oliver.md': dossier, 'clara.md': broken })
+    )
+    const rows = buildHqPeopleRows({ files, people: [], waitings: [] })
+    const oliver = rows.find((row) => row.key === '196')
+    expect(oliver).toMatchObject({
+      aliases: ['Ollie', 'O. Brown'],
+      slackHandle: 'obrown',
+      projects: [
+        { slug: 'acme-api', role: 'decides' },
+        { slug: 'acme-web', role: null }
+      ],
+      decides: ['architecture of acme services'],
+      channel: { default: 'task thread', urgent: 'dm' },
+      timezone: 'Europe/Kyiv'
+    })
+    expect(hqPersonChannelLine(oliver?.channel)).toBe('task thread · urgent: dm')
+    expect(findHqPeople(rows, 'ollie').map((row) => row.key)).toEqual(['196'])
+    expect(findHqPeople(rows, '@obrown').map((row) => row.key)).toEqual(['196'])
+    expect(findHqPeople(rows, 'U173').map((row) => row.key)).toEqual(['173'])
+    expect(findHqPeople(rows, 'brown oli').map((row) => row.key)).toEqual(['196'])
+    expect(findHqPeople(rows, 'nobody here')).toEqual([])
+    expect(hqPeopleOfProject(rows, 'acme-api').map(({ row, role }) => [row.key, role])).toEqual([
+      ['196', 'decides']
+    ])
   })
 
   it('lists what went to the person through Approve, by Slack id or a DM in their name', async () => {
