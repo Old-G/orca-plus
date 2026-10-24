@@ -31,6 +31,12 @@ import { HqPlusReplyField } from './HqPlusReplyField'
 import { HQ_FIX_NOW_DONE_PREFIX } from '../../../../../shared/hq-fix-now'
 import { useHqPlusDraftLink } from './use-hq-plus-draft-link'
 import { hqPlusSourceLabel } from './hq-plus-source-label'
+import type { HqPlusLinkClick } from './hq-plus-link-open'
+import { HqPlusChatName, type HqPlusChatRef } from './HqPlusChatName'
+import {
+  HQ_WAITING_REPLY_ACTION,
+  readHqWaitingReplyRef
+} from '../../../../../shared/hq-waiting-reply-bell'
 
 const DONE_ACTION: Record<string, [string, string]> = {
   open: ['auto.hqPlus.done.open', 'opened'],
@@ -136,8 +142,53 @@ function hqPlusSourceLink(
 
 const TO_WORK_ACTIONS: ReadonlySet<string> = new Set(['slack-do', 'intake-open'])
 
-function inboxActions(card: Card, look: HqPlusLook): { id: string; label: string }[] {
+type CardAction = { id: string; label: string; hint?: string }
+
+/** Custom build (hq-plus-links): a person's answer says what each button does with it. */
+function replyActions(card: Card, actions: readonly CardAction[]): CardAction[] {
+  const author = readHqWaitingReplyRef(card.inbox?.refId ?? null)?.author ?? ''
+  return actions.map((action) => {
+    switch (action.id) {
+      case HQ_WAITING_REPLY_ACTION.deliver:
+        return {
+          id: action.id,
+          label: translate('auto.hqPlus.reply.deliver', 'Send answer to chat'),
+          hint: translate(
+            'auto.hqPlus.reply.deliverHint',
+            'Sends {{author}}’s answer to the chat that asked, and the chat carries on with it',
+            { author }
+          )
+        }
+      case HQ_WAITING_REPLY_ACTION.open:
+        return {
+          ...action,
+          hint: translate(
+            'auto.hqPlus.reply.openHint',
+            'Opens the chat that asked; the answer is not sent'
+          )
+        }
+      case HQ_WAITING_REPLY_ACTION.skip:
+        return {
+          ...action,
+          hint: translate('auto.hqPlus.reply.skipHint', 'Closes the answer; the chat never gets it')
+        }
+      default:
+        return action
+    }
+  })
+}
+
+/** Buttons that open the card's chat, so the head needs no «Open» of its own. */
+const OPEN_CHAT_ACTIONS: ReadonlySet<string> = new Set([
+  HQ_WAITING_REPLY_ACTION.open,
+  PULSE_BELL_ACTION.open
+])
+
+function inboxActions(card: Card, look: HqPlusLook): CardAction[] {
   const actions = card.inbox?.actions ?? []
+  if (card.type === 'reply') {
+    return replyActions(card, actions)
+  }
   if (look.kind !== 'inbox') {
     return actions
   }
@@ -177,6 +228,7 @@ export function HqPlusCardView({
   when,
   threadLabel,
   onThread,
+  chat,
   onOpenChat,
   onOpenLink,
   onOpenReport,
@@ -194,9 +246,11 @@ export function HqPlusCardView({
   when: string
   threadLabel: string | null
   onThread: (() => void) | null
+  /** Custom build (hq-plus-links): the card's chat, named as in the Chats list. */
+  chat: HqPlusChatRef | null
   onOpenChat: (() => void) | null
   /** Custom build (hq-plus-round6): opens a link in HQ+'s Browser tab. */
-  onOpenLink: (url: string) => void
+  onOpenLink: (url: string, event?: HqPlusLinkClick) => void
   onOpenReport: (path: string) => void
   onNotNow: (() => void) | null
   onChanged: () => void
@@ -208,6 +262,8 @@ export function HqPlusCardView({
 }): React.JSX.Element {
   const setExpanded = onExpand
   const [busy, setBusy] = useState(false)
+  // Custom build (hq-plus-links): the pressed button, so a slow action (a new session) shows it works.
+  const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [text, setText] = useState('')
   const open = card.open
@@ -215,6 +271,12 @@ export function HqPlusCardView({
   const note = noteOf(card)
   const draftUrl = useHqPlusDraftLink(card.inbox?.refId ?? null)
   const sourceLink = hqPlusSourceLink(card, draftUrl)
+  const actions =
+    open && (card.type === 'reply' || card.type === 'bell') && card.inbox
+      ? inboxActions(card, look)
+      : []
+  const rowOpensChat =
+    open && (card.type === 'move' || actions.some((action) => OPEN_CHAT_ACTIONS.has(action.id)))
   const sourceInActions =
     open &&
     (card.type === 'wait' || ((card.type === 'reply' || card.type === 'bell') && !!card.inbox))
@@ -223,7 +285,7 @@ export function HqPlusCardView({
       type="button"
       className="hqp-opt"
       data-ghost="true"
-      onClick={() => onOpenLink(sourceLink.url)}
+      onClick={(event) => onOpenLink(sourceLink.url, event)}
     >
       {sourceLink.label} ↗
     </button>
@@ -233,6 +295,7 @@ export function HqPlusCardView({
       <HqPlusBadges badges={look.badges} />
       {note ? <span className="hqp-note">{note}</span> : null}
       <strong>{card.project ?? 'HQ'}</strong>
+      <HqPlusChatName chat={chat} />
       <span className="hqp-tm">{when}</span>
       {threadLabel && onThread ? (
         <button type="button" className="hqp-addr" onClick={onThread}>
@@ -246,23 +309,24 @@ export function HqPlusCardView({
         <button
           type="button"
           className="hqp-link hqp-source"
-          onClick={() => onOpenLink(sourceLink.url)}
+          onClick={(event) => onOpenLink(sourceLink.url, event)}
         >
           {sourceLink.label} ↗
         </button>
       ) : null}
-      {onOpenChat && !(open && card.type === 'move') ? (
+      {onOpenChat && !rowOpensChat ? (
         <button type="button" className="hqp-pill" onClick={onOpenChat}>
           {translate('auto.hqPlus.open', 'Open')}
         </button>
       ) : null}
     </div>
   )
-  const run = (action: () => Promise<HqPlusResult>): void => {
+  const run = (action: () => Promise<HqPlusResult>, key: string | null = null): void => {
     if (busy) {
       return
     }
     setBusy(true)
+    setPending(key)
     setError(null)
     void action()
       .then((result) => {
@@ -275,7 +339,10 @@ export function HqPlusCardView({
         }
       })
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
-      .finally(() => setBusy(false))
+      .finally(() => {
+        setBusy(false)
+        setPending(null)
+      })
   }
 
   // Custom build (hq-plus-ui-v5): a request waits folded — who and one line; a click unfolds it.
@@ -503,13 +570,15 @@ export function HqPlusCardView({
         ) : null}
         {open && (card.type === 'reply' || card.type === 'bell') && card.inbox ? (
           <div className="hqp-opts">
-            {inboxActions(card, look).map((action, index) => (
+            {actions.map((action, index) => (
               <button
                 key={action.id}
                 type="button"
                 className="hqp-opt"
                 data-main={index === 0 ? 'true' : undefined}
+                aria-busy={pending === action.id ? 'true' : undefined}
                 disabled={busy}
+                title={action.hint}
                 onClick={() => {
                   const item = card.inbox
                   if (item && onToWork && TO_WORK_ACTIONS.has(action.id)) {
@@ -518,11 +587,13 @@ export function HqPlusCardView({
                     run(async () => {
                       await runPulseBellAction(item, action.id)
                       return { ok: true }
-                    })
+                    }, action.id)
                   }
                 }}
               >
-                {action.label}
+                {pending === action.id && action.id === PULSE_BELL_ACTION.launch
+                  ? translate('auto.hqPlus.starting', 'Starting…')
+                  : action.label}
               </button>
             ))}
             {/* Custom build (hq-plus-side-blocks): handled outside HQ+ already — Done closes the request. */}

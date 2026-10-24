@@ -61,6 +61,12 @@ import { HqPlusGraph } from './HqPlusGraph'
 import { HqPlusSession, type HqPlusPick } from './HqPlusSession'
 import { HqPlusAgents } from './HqPlusAgents'
 import { HqPlusBrowser, type HqPlusBrowserAsk } from './HqPlusBrowser'
+import { LinkActionPopover } from '@/components/link-actions/LinkActionPopover'
+import {
+  closeLinkActionRequest,
+  type LinkActionRequest
+} from '@/components/link-actions/link-action-request'
+import { hqPlusLinkClick, type HqPlusLinkClick } from './hq-plus-link-open'
 import { readHqWaitingTags } from '../../../../../shared/hq-waiting-tags'
 import { HqPlusTakePanel } from './HqPlusTakePanel'
 import {
@@ -188,6 +194,8 @@ export function HqPlusScreen(): React.JSX.Element {
   // Why: a new ask each time, so the same link clicked again comes back from wherever the page went.
   const askBrowser = (url: string): void =>
     setBrowserAsk((previous) => ({ url, n: (previous?.n ?? 0) + 1 }))
+  // Custom build (hq-plus-links): where a clicked link should open — the popover chat links show.
+  const [linkRequest, setLinkRequest] = useState<LinkActionRequest | null>(null)
   // Custom build (hq-plus-ui): the chat open on the right — picked on the left, «Open» in the log, or a
   // chat started from HQ (the sidebar's new chat asks HQ to show it, as the classic HQ does).
   const [chatKey, setChatKey] = useState<string | null>(requestedChat ?? view.chatKey)
@@ -575,15 +583,21 @@ export function HqPlusScreen(): React.JSX.Element {
     setScope(null)
     goToFeedItem(card.id, card)
   }
-  const openLink = (url: string): void => {
-    // Why: a web client has no browser session to show a page in.
-    if (isWebClientLocation()) {
-      void window.api.shell.openUrl(url)
-      return
-    }
-    askBrowser(url)
-    setTab('browser')
-  }
+  const openLink = (url: string, event?: HqPlusLinkClick): void =>
+    hqPlusLinkClick(url, event, {
+      settings: useAppStore.getState().settings,
+      // Why: a web client has no browser session to show a page in.
+      canOpenInOrca: !isWebClientLocation(),
+      open: (target, destination) => {
+        if (destination === 'system') {
+          void window.api.shell.openUrl(target)
+          return
+        }
+        askBrowser(target)
+        setTab('browser')
+      },
+      request: setLinkRequest
+    })
   const openReport = (path: string): void => {
     setReportPath(path)
     setTab('report')
@@ -650,6 +664,11 @@ export function HqPlusScreen(): React.JSX.Element {
       return fallback ? { working: false, dismiss: true, close: dismiss } : null
     },
     projectColor,
+    chatOf: (sessionId) => {
+      const item = hqPlusChatOfSession(chatItems, sessionId)
+      const name = liveOf(sessionId)?.name ?? null
+      return item || name ? { item, name } : null
+    },
     isOpenChat: (sessionId) =>
       tab === 'session' && chatItem !== null && hqPlusChatOfSession([chatItem], sessionId) !== null,
     isExpanded: (id) => expandedIds.has(id),
@@ -1144,6 +1163,12 @@ export function HqPlusScreen(): React.JSX.Element {
           ) : null}
         </aside>
       </div>
+      <LinkActionPopover
+        request={linkRequest}
+        onClose={(dismissed) =>
+          setLinkRequest((current) => closeLinkActionRequest(current, dismissed))
+        }
+      />
     </div>
   )
 }

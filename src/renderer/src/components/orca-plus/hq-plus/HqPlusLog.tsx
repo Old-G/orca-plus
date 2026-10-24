@@ -18,6 +18,8 @@ import type { HqPlusTile } from './HqPlusSide'
 import { ChatCard, FeedRow, NewMark, hqPlusClock as clock } from './HqPlusChatCard'
 import { observeHqPlusNewRows } from './use-hq-plus-new-marks'
 import { hqPlusDaysAgo, hqPlusSameDay } from '../../../../../shared/hq-plus-feed-days'
+import type { HqPlusLinkClick } from './hq-plus-link-open'
+import type { HqPlusChatRef } from './HqPlusChatName'
 
 const BOTTOM_SLACK_PX = 40
 
@@ -27,11 +29,13 @@ export type HqPlusLogContext = {
   roomColor: (room: string) => string | null
   openChat: (sessionId: string | null) => (() => void) | null
   /** Custom build (hq-plus-round6): a link opens in HQ+'s Browser tab. */
-  openLink: (url: string) => void
+  openLink: (url: string, event?: HqPlusLinkClick) => void
   onScope: (key: string) => void
   onOpenReport: (path: string) => void
   onNotNow: (id: string) => void
   onChanged: () => void
+  /** Custom build (hq-plus-links): the chat a row belongs to, for its name; null for none. */
+  chatOf: (sessionId: string | null) => HqPlusChatRef | null
   /** Custom build (hq-plus-ui-v2): the live chat's state badge (working, waits on someone, done). */
   chatStatus: (sessionId: string | null) => HqPlusBadge | null
   /** Custom build (hq-plus-ui-v3): closing the chat's tab; null when it is not open. */
@@ -274,6 +278,7 @@ function LogItem({
             when={clock(item.at)}
             threadLabel={key && item.address ? item.address : null}
             onThread={key ? () => ctx.onScope(key) : null}
+            chat={ctx.chatOf(item.sessionId)}
             onOpenChat={openChat}
             onOpenLink={ctx.openLink}
             onOpenReport={ctx.onOpenReport}
