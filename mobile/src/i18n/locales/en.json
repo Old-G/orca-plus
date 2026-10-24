@@ -853,6 +853,7 @@
       "hideSidebar": "Hide sidebar",
       "accounts": "Accounts",
       "tasks": "Tasks",
+      "hqPlus": "HQ+",
       "moreActions": "More actions",
       "automations": "Automations",
       "sharedLinks": "Shared links",
@@ -1031,6 +1032,7 @@
       "changes": "Changes",
       "pullRequest": "Pull Request",
       "workspace": "Workspace",
+      "hqPlus": "HQ+",
       "automations": "Automations",
       "mcpServers": "MCP servers",
       "editComputer": "Edit computer"

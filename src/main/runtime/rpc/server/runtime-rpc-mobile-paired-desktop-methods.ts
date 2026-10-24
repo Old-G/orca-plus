@@ -26,6 +26,13 @@ export const PAIRED_DESKTOP_METHODS = [
   'hqProjects.saveIdea',
   'hqProjects.createVoiceTask',
   'pulse.feed',
+  // Custom build (hq-plus-phone): HQ+ on the phone — its feed and the week's work, a reply into a
+  // thread, a card marked done (approval cards refuse), and «Write to HQ» for the Ask HQ chat.
+  'hq.feed',
+  'hq.screenStats',
+  'chat.send',
+  'pulse.markInboxDone',
+  'hqProjects.askHqOnDesktop',
   // Its notes, waitings and bell, which live in the Mac's pulse database.
   'pulse.snapshot',
   'pulse.upsertPerson',
