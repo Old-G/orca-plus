@@ -14,6 +14,7 @@ import type {
   HqSessionsResult,
   HqSweepAction
 } from '../shared/hq-sessions'
+import type { HqLadderReport } from '../shared/hq-ladder'
 
 const BODY_PREVIEW = 160
 
@@ -240,4 +241,39 @@ export function formatHqSessions(result: HqSessionsResult): string {
       ? result.actions.map((action) => sweepLine(action, would))
       : ['Nothing for the dispatcher to do now.'])
   ].join('\n')
+}
+
+const STEP_NAME = ['suggest', 'acts with a card', 'acts and says so', 'acts quietly']
+
+/** Custom build (hq-plus-ladder): one line per kind, the moves first, then the effort mix. */
+export function formatHqLadder(report: HqLadderReport): string {
+  const day = new Date(report.since).toISOString().slice(0, 10)
+  const lines = [`Trust ladder since ${day}`]
+  if (report.kinds.length === 0) {
+    lines.push('  no decisions logged yet')
+  }
+  const ordered = [...report.kinds].sort(
+    (a, b) => Number(Boolean(b.proposal)) - Number(Boolean(a.proposal))
+  )
+  for (const row of ordered) {
+    const match = row.match === null ? '—' : `${Math.round(row.match * 100)}%`
+    const move = row.proposal
+      ? `  → step ${row.proposal.to} (${row.proposal.why})`
+      : row.held
+        ? `  held: ${row.held}`
+        : ''
+    const counts = `${row.accepted}✓ ${row.edited}✎ ${row.rejected}✗ ${row.deferred}…`
+    lines.push(
+      `  ${row.kind}: step ${row.step} ${STEP_NAME[row.step]} · ${row.total} decided, ${match} as offered (${counts})${move}`
+    )
+  }
+  if (report.effort.length > 0) {
+    const total = report.effort.reduce((sum, row) => sum + row.count, 0)
+    const mix = report.effort.map((row) => `${row.effort} ${row.result} ${row.count}`).join(' · ')
+    lines.push(`Effort, ${total} messages: ${mix}`)
+  }
+  for (const problem of report.problems) {
+    lines.push(`  ! ${problem}`)
+  }
+  return lines.join('\n')
 }
