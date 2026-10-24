@@ -150,9 +150,14 @@ describe('HQ+ threads', () => {
     expect(delivered).toEqual([])
   })
 
-  it('keeps the address when a handoff hands the chat on', async () => {
-    const api = await threads.report({ sessionId: 'claude_api' }, { done: 'Half done' })
+  it('keeps the address when a handoff hands the chat on, and settles its open question', async () => {
+    const api = await threads.report(
+      { sessionId: 'claude_api' },
+      { done: 'Half done', ask: 'Ship it?', options: ['yes', 'no'] }
+    )
+    expect(api.entry.status).toBe('open')
     threads.handoff('claude_api', 'claude_api_2')
+    expect(db.getJournalEntry(api.entry.id)?.status).toBe('done')
     expect(db.getSession('claude_api_2')).toMatchObject({
       address: api.address,
       parentSessionId: 'claude_api'

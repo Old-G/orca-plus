@@ -146,9 +146,16 @@ export const HqJobParams = z
     ask: OptionalString,
     options: z.array(z.string().max(200)).max(10).optional(),
     did: OptionalString,
+    learned: OptionalString,
     links: z.array(z.string().max(1000)).max(20).optional(),
     project: OptionalString
   })
-  .refine((input) => Boolean(input.found || input.ask || input.did), {
-    message: 'Say what the job found (--found), asks (--ask) or did (--did)'
+  .refine((input) => Boolean(input.found || input.ask || input.did || input.learned), {
+    message: 'Say what the job found (--found), asks (--ask), did (--did) or learned (--learned)'
   })
+
+/** Custom build (hq-closed-loop): the owner's answer on a background job's card in HQ+. */
+export const HqJobReplyParams = z.object({
+  entryId: z.string().trim().min(1).max(200),
+  text: z.string().trim().min(1).max(2000)
+})

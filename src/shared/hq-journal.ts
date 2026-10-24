@@ -36,6 +36,9 @@ export const HQ_JOURNAL_KIND = {
   jobReport: 'job.report'
 } as const
 
+/** Custom build (hq-closed-loop): the owner's answer that asks a job to take back what it learned. */
+export const HQ_JOB_UNDO = 'undo'
+
 /** Who moves next: `nobody`, the owner (`owner:decide|approve|reply`), an agent (`agent:<address>`,
  *  `agent:new`) or a person (`person:<id>`). */
 const NEEDS = /^(?:nobody|owner:(?:decide|approve|reply)|agent:\S{1,200}|person:\S{1,200})$/
