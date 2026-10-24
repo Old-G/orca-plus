@@ -8,7 +8,7 @@ import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
 import { runHqSlackRequestAction } from './hq-slack-request-actions'
 import { HQ_REPORT_FOLDERS } from '../../../../../shared/hq-reports'
 import { useAppStore } from '@/store'
-import { startHqReportDecisions } from '../hq/hq-ask-chat'
+import { askHq, startHqReportDecisions } from '../hq/hq-ask-chat'
 import { findHqWorktreeId } from '../hq/hq-today-actions'
 import { openHqRouteChat } from '../pulse-bell/hq-route-send'
 import { hqFlavor } from '../hq-plus/hq-plus-flavor'
@@ -41,6 +41,19 @@ async function runReportDecisions(path: string, text: string): Promise<void> {
   }
 }
 
+/** Custom build (hq-plus-phone): «Write to HQ» on the phone asks the Ask HQ chat here. */
+async function askHqFromPhone(text: string): Promise<void> {
+  const state = useAppStore.getState()
+  const worktreeId = findHqWorktreeId(state.settings?.hqPath, state.repos, state.worktreesByRepo)
+  if (!worktreeId) {
+    return
+  }
+  const result = await askHq(worktreeId, text)
+  if (!result.ok) {
+    warn(result.message)
+  }
+}
+
 export function useHqRequestsFromPhone(): void {
   useEffect(() => {
     const offRequest = window.api.hqProjects.onRunRequest?.(({ id, action }) => {
@@ -53,6 +66,9 @@ export function useHqRequestsFromPhone(): void {
     const offReport = window.api.hqProjects.onRunReportDecisions?.(({ path, text }) => {
       void runReportDecisions(path, text).catch(warn)
     })
+    const offAsk = window.api.hqProjects.onAskHq?.(({ text }) => {
+      void askHqFromPhone(text).catch(warn)
+    })
     // Custom build (hq-plus-reports)
     const offReopen = window.api.hqProjects.onReopenChat?.((chat) => {
       // Why: only HQ+ brings back a chat another chat wrote to; the classic HQ leaves it closed.
@@ -64,6 +80,7 @@ export function useHqRequestsFromPhone(): void {
       offRequest?.()
       offBell?.()
       offReport?.()
+      offAsk?.()
       offReopen?.()
     }
   }, [])

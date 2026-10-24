@@ -1,6 +1,6 @@
 // Custom build (hq): params of the hqProjects.* RPC — what HQ's tabs read from the Mac, so the
 // paired web client can open HQ too. Every method only reads.
-import { z } from 'zod'
+import * as z from 'zod'
 import { OptionalBoolean, requiredString } from './rpc-param-primitives'
 import { HQ_PINNED_SEEN_IDS } from '../hq-pinned-counts-wire'
 import { HQ_REPORT_PATH } from '../hq-reports'
@@ -83,6 +83,11 @@ export const HqBellActionOnDesktopParams = z.object({
 // Custom build (hq-reports): a report by its HQ path and the owner's decisions on it.
 export const HqReportDecisionsParams = z.object({
   path: z.string().min(1).max(500).regex(HQ_REPORT_PATH, 'Not an HQ report'),
+  text: z.string().trim().min(1).max(8000)
+})
+
+// Custom build (hq-plus-phone): a question for the Ask HQ chat, written on the phone.
+export const HqAskOnDesktopParams = z.object({
   text: z.string().trim().min(1).max(8000)
 })
 

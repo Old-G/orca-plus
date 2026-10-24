@@ -48,6 +48,11 @@ export const hqProjectsApi = {
     ipcRenderer.on('hqProjects:reopenChat', handler)
     return () => ipcRenderer.removeListener('hqProjects:reopenChat', handler)
   },
+  onAskHq: (listener) => {
+    const handler = (_event: unknown, request: { text: string }): void => listener(request)
+    ipcRenderer.on('hqProjects:askHq', handler)
+    return () => ipcRenderer.removeListener('hqProjects:askHq', handler)
+  },
   onRunReportDecisions: (listener) => {
     const handler = (_event: unknown, request: { path: string; text: string }): void =>
       listener(request)
