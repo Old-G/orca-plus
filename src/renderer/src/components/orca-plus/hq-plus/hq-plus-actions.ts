@@ -8,6 +8,10 @@ import { translate } from '@/i18n/i18n'
 import { startHqChatWithPrompt, startHqReportDecisions } from '../hq/hq-ask-chat'
 import { hqPlusCall } from './use-hq-plus-data'
 import { hqResultField } from '../../../../../shared/hq-plus-rpc-readers'
+import { readPulseBellPaneRef, type PulseBellPaneRef } from '../../../../../shared/pulse-bell'
+import { parsePaneKey } from '../../../../../shared/stable-pane-id'
+import { sendBracketedPasteToRunningAgent } from '@/lib/agent-paste-draft'
+import { useAppStore } from '@/store'
 
 export type HqPlusResult = { ok: true } | { ok: false; message: string }
 
@@ -48,6 +52,28 @@ export type HqPlusChatTarget = {
   replyTo: string | null
   /** What the agent is reminded of when there is no thread to quote. */
   about: string | null
+  /** Custom build (hq-closed-loop): a terminal agent (an automation's run) has a pane, no chat. */
+  pane?: PulseBellPaneRef | null
+}
+
+/** The owner's words typed into a terminal agent's prompt, as a paste plus Enter. */
+async function sendIntoHqPlusPane(pane: PulseBellPaneRef, prompt: string): Promise<HqPlusResult> {
+  const parsed = parsePaneKey(pane.paneKey)
+  const tabId = pane.tabId ?? parsed?.tabId ?? null
+  const ptyId =
+    tabId && parsed
+      ? useAppStore.getState().terminalLayoutsByTabId[tabId]?.ptyIdsByLeafId?.[parsed.leafId]
+      : undefined
+  const sent = ptyId ? await sendBracketedPasteToRunningAgent({ ptyId, content: prompt }) : false
+  return sent
+    ? OK
+    : {
+        ok: false,
+        message: translate(
+          'auto.hqPlus.paneClosed',
+          'The terminal of this run is closed; nothing was sent.'
+        )
+      }
 }
 
 /** The owner's words into a chat: by its thread when it has one, else straight to the chat. */
@@ -68,6 +94,12 @@ export async function sendIntoHqPlusChat(
       ...(hqPath ? { callerCwd: hqPath } : {})
     })
     return sent.ok ? OK : sent
+  }
+  if (!target.sessionId && target.pane) {
+    return sendIntoHqPlusPane(
+      target.pane,
+      `${target.about ? `Orca+ · the owner answered from HQ+ («${target.about}»): ` : ''}${words}`
+    )
   }
   const bell = window.api.pulseBell
   if (!target.sessionId || !bell) {
@@ -108,7 +140,8 @@ export async function replyOnHqPlusCard(
       address: card.address,
       sessionId: card.sessionId,
       replyTo: card.entry?.id ?? null,
-      about: card.title
+      about: card.title,
+      pane: card.inbox ? readPulseBellPaneRef(card.inbox.refId) : null
     },
     words,
     hqPath
