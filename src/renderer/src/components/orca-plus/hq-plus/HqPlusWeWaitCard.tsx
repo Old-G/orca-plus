@@ -121,7 +121,7 @@ export function HqPlusWeWaitCard({
                   <button
                     type="button"
                     className="hqp-chip"
-                    onClick={() => actions.openLink(linked)}
+                    onClick={(event) => actions.openLink(linked, event)}
                   >
                     {wait.task.replace(/^https:\/\/app\.clickup\.com\/t\/(?:\d+\/)?/, '')} ↗
                   </button>
@@ -197,7 +197,7 @@ export function HqPlusWeWaitCard({
                   type="button"
                   className="hqp-link"
                   data-ghost="true"
-                  onClick={() => actions.openLink(sourceUrl)}
+                  onClick={(event) => actions.openLink(sourceUrl, event)}
                 >
                   {hqPlusSourceLabel(sourceUrl)} ↗
                 </button>
