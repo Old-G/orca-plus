@@ -63,6 +63,12 @@ export const HqRouteParams = z.object({
   report: OptionalString
 })
 
+// Custom build (hq-plus-ladder): the trust ladder's counts since a moment.
+export const HqLadderParams = z.object({
+  ...CallerFields,
+  since: OptionalFiniteNumber
+})
+
 // Custom build (hq-fix-now-all): one merge per project at a time among chats working side by side.
 export const HqMergeSlotParams = z.object({
   ...CallerFields,

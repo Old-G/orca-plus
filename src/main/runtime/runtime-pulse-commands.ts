@@ -192,6 +192,14 @@ export class RuntimePulseCommands {
     return this.db().listJournal(query)
   }
 
+  /** Custom build (hq-plus-ladder): rows of a kind since a moment, counted by source. */
+  pulseCountJournalBySource(
+    kind: string,
+    since: number
+  ): { source: string | null; count: number }[] {
+    return this.db().countJournalBySource(kind, since)
+  }
+
   /** Custom build (hq-plus-ui): HQ+'s day count and River. */
   pulseCountJournal(since: number): number {
     return this.db().countJournal(since)

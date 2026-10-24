@@ -2,6 +2,7 @@
 // Orca+ carries out by itself and notes in the journal. The first kind it acts on is the evening
 // Codex review: serious findings open a fixing chat per project, the minor ones wait.
 import type { HqReplyRouteAction, HqReplyRule } from './hq-reply-routing'
+import type { HqLadder } from './hq-ladder'
 
 export const HQ_ROUTING_FILE = 'routing.yaml'
 
@@ -31,6 +32,8 @@ export type HqRouting = {
   replies: HqReplyRule | null
   /** The share of the Claude limit that must stay free before a chat is started by itself. */
   minFreePercent: number
+  /** Custom build (hq-plus-ladder): the trust ladder — how far each kind of action may go alone. */
+  ladder: HqLadder
   /** What in the file was not understood; such a line acts on nothing. */
   problems: string[]
 }

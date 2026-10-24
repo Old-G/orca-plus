@@ -23,6 +23,7 @@ import { passHqWaitingReply } from '../hq-today/hq-waiting-reply-pass'
 import { generateHqText } from '../hq-today/hq-task-questions'
 import { getHqJournalService } from '../hq-journal/hq-journal-service'
 import { hqPlaceOf } from '../hq-journal/hq-journal-rooms'
+import { hqLadderReport, provideHqLadderReport } from './hq-ladder-report'
 
 const EVERY_MS = 5 * 60_000
 const SENDER = 'hq-routing'
@@ -155,6 +156,17 @@ export function registerHqRouting(
     log: (message) => console.log('[hq-routing]', message)
   })
   provideHqReplyRouting(replies)
+  provideHqLadderReport((since) =>
+    hqLadderReport(
+      {
+        hqPath,
+        readText,
+        list: (query) => runtime.pulseListJournal(query),
+        countBySource: (kind, from) => runtime.pulseCountJournalBySource(kind, from)
+      },
+      since
+    )
+  )
   const routeReplies = async (dryRun: boolean, since?: number) => {
     const hq = hqPath()
     if (!hq || store.getSettings().hqPlusJournalEnabled === false) {

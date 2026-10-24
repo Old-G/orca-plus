@@ -8,6 +8,7 @@ import {
   type HqWhoami
 } from '../../shared/hq-journal'
 import type { HqMergeSlotResult, HqRouteResult, HqSettleResult } from '../../shared/hq-routing'
+import type { HqLadderReport } from '../../shared/hq-ladder'
 import type { HqDispatchResult, HqSessionsResult } from '../../shared/hq-sessions'
 import type {
   HqContextResult,
@@ -22,6 +23,7 @@ import { printResult } from '../format'
 import {
   formatHqDispatch,
   formatHqEvents,
+  formatHqLadder,
   formatHqMergeSlot,
   formatHqRoute,
   formatHqSessions,
@@ -103,6 +105,17 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
   },
 
   // Custom build (hq-plus-routing)
+  // Custom build (hq-plus-ladder)
+  'hq ladder': async ({ flags, client, json }) => {
+    const sinceFlag = getOptionalStringFlag(flags, 'since')
+    const since = sinceFlag === undefined ? undefined : parseHqJournalSince(sinceFlag, Date.now())
+    if (since === null) {
+      throw new Error(`--since takes 24h, 7d, 2w or an ISO date, got "${sinceFlag}"`)
+    }
+    const result = await client.call<HqLadderReport>('hq.ladder', { ...caller(), since })
+    printResult(result, json, formatHqLadder)
+  },
+
   'hq route': async ({ flags, client, json }) => {
     const sinceFlag = getOptionalStringFlag(flags, 'since')
     const since = sinceFlag === undefined ? undefined : parseHqJournalSince(sinceFlag, Date.now())
