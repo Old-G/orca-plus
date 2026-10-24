@@ -103,10 +103,16 @@ claude_org_matches() {
   echo "claude CLI org $got (folder: $(routed_claude_home || true)) != selected account org $want"
   return 1
 }
-# Why: 15 minutes — a first launch can sit on the macOS Keychain prompt until the owner answers it.
+# Why: 45 minutes — a launch sits on the macOS Keychain window until the owner answers it (24.10: 33 min);
+# the log says so once, so a stalled ship reads as «answer the window», not as a broken app.
 wait_runtime_ready() {
-  for _ in $(seq 1 450); do
+  local told=0
+  for _ in $(seq 1 1350); do
     orca_plus_cli status --json 2>/dev/null | grep -q '"state": "ready"' && return 0
+    if [ "$told" = 0 ] && pgrep -x SecurityAgent >/dev/null; then
+      step "waiting for the Keychain window — answer «Always Allow» so the next ship does not ask"
+      told=1
+    fi
     sleep 2
   done
   return 1
@@ -155,7 +161,7 @@ installed_whole=1
 if [ "$dry" = 0 ] && [ "$installed_whole" = 1 ] && ! app_running; then
   step "Orca+ is not running — launch the installed one first"
   launch_orca_plus
-  wait_runtime_ready || { step "runtime not ready after 15 minutes — abort, nothing changed"; exit 1; }
+  wait_runtime_ready || { step "runtime not ready after 45 minutes — abort, nothing changed"; exit 1; }
 fi
 
 step "prune backups, keeping the newest one"
@@ -239,7 +245,7 @@ run launch_orca_plus
 step "verify profile"
 if [ "$dry" = 0 ]; then
   ok=1
-  wait_runtime_ready || { echo "runtime not ready after 15 minutes"; ok=0; }
+  wait_runtime_ready || { echo "runtime not ready after 45 minutes"; ok=0; }
   shasum -c "$backup/state.sha" || ok=0
   if [ -f "$backup/repos.count" ]; then
     [ "$(repo_count)" = "$(cat "$backup/repos.count")" ] || { echo "repo count changed"; ok=0; }
