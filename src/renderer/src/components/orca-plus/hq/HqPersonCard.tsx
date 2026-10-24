@@ -27,7 +27,7 @@ type CardState =
   | { status: 'ready'; card: Card }
   | { status: 'error'; message: string }
 
-function useHqPersonCard(key: string, refresh: number): CardState {
+export function useHqPersonCard(key: string, refresh: number): CardState {
   const [state, setState] = useState<CardState>({ status: 'loading' })
   useEffect(() => {
     let live = true
