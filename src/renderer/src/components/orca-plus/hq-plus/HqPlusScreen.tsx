@@ -264,38 +264,39 @@ export function HqPlusScreen(): React.JSX.Element {
   const shownSessionId = rightChat?.kind === 'chat' ? rightChat.tab.entityId : null
   const all = useMemo(
     () =>
-      (data.feed ? hqPlusLog(data.feed.entries, data.feed.inbox ?? [], dayStart) : []).map(
-        (item): HqPlusLogItem => {
-          // Why: a bell item knows its project, not its room; HQ's rooms place it.
-          const placed =
-            item.room === HQ_PLUS_ANY_ROOM && item.project && roomOfProject.has(item.project)
-              ? { ...item, room: roomOfProject.get(item.project) ?? item.room }
-              : item
-          if (placed.kind !== 'card' || !placed.open) {
-            return placed
-          }
-          // Custom build (hq-closed-loop): the chat open on the right asks there, not twice.
-          if (placed.type === 'move' && placed.sessionId && placed.sessionId === shownSessionId) {
-            const { id, at, room, project, address, sessionId, title, body, entry } = placed
-            return {
-              kind: 'line',
-              id,
-              at,
-              room,
-              project,
-              address,
-              sessionId,
-              tone: 'agent',
-              title,
-              body,
-              journalKind: entry?.kind ?? null
-            }
-          }
-          return notNow.has(hqPlusNotNowKey(placed))
-            ? { ...placed, open: false, done: { by: 'status' as const, status: 'not-now' } }
-            : placed
+      (data.feed
+        ? hqPlusLog(data.feed.entries, data.feed.inbox ?? [], dayStart, { chatQuestions: 'line' })
+        : []
+      ).map((item): HqPlusLogItem => {
+        // Why: a bell item knows its project, not its room; HQ's rooms place it.
+        const placed =
+          item.room === HQ_PLUS_ANY_ROOM && item.project && roomOfProject.has(item.project)
+            ? { ...item, room: roomOfProject.get(item.project) ?? item.room }
+            : item
+        if (placed.kind !== 'card' || !placed.open) {
+          return placed
         }
-      ),
+        // Custom build (hq-closed-loop): the chat open on the right asks there, not twice.
+        if (placed.type === 'move' && placed.sessionId && placed.sessionId === shownSessionId) {
+          const { id, at, room, project, address, sessionId, title, body, entry } = placed
+          return {
+            kind: 'line',
+            id,
+            at,
+            room,
+            project,
+            address,
+            sessionId,
+            tone: 'agent',
+            title,
+            body,
+            journalKind: entry?.kind ?? null
+          }
+        }
+        return notNow.has(hqPlusNotNowKey(placed))
+          ? { ...placed, open: false, done: { by: 'status' as const, status: 'not-now' } }
+          : placed
+      }),
     [data.feed, dayStart, roomOfProject, notNow, shownSessionId]
   )
   // Why: what has no room (HQ's own rows, a bell item of an unknown project) shows in All only.
