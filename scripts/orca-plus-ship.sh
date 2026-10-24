@@ -2,7 +2,7 @@
 # Ships a verified build into the installed Orca+ without losing the profile.
 #
 #   scripts/orca-plus-ship.sh --dry-run   print the steps, touch nothing
-#   scripts/orca-plus-ship.sh             back up → build → quit Orca+ → swap app → launch → verify
+#   scripts/orca-plus-ship.sh             back up → build → stage → quit Orca+ → swap app → launch → verify
 #   scripts/orca-plus-ship.sh --no-build  ship the existing dist/mac-*/Orca Plus.app
 #
 # Runs itself under nohup once it quits Orca+, so it survives being started from an Orca+
@@ -145,8 +145,14 @@ if [ "$dry" = 0 ] && [ "$detached" = 0 ]; then
   exit 0
 fi
 
+# Why: a ship cut off mid-copy (before staging, 24.10) left an app without Info.plist that cannot
+# start; then there is nothing to ask for a repo count, and the new app goes in all the same.
+installed_whole=1
+[ -f "$app/Contents/Info.plist" ] || installed_whole=0
+[ "$installed_whole" = 0 ] && step "the installed Orca+ is incomplete — installing the new one over it"
+
 # Why: the repo count and Claude org below are read from the running app.
-if [ "$dry" = 0 ] && ! app_running; then
+if [ "$dry" = 0 ] && [ "$installed_whole" = 1 ] && ! app_running; then
   step "Orca+ is not running — launch the installed one first"
   launch_orca_plus
   wait_runtime_ready || { step "runtime not ready after 15 minutes — abort, nothing changed"; exit 1; }
@@ -165,7 +171,7 @@ backup_profile() { copy_profile || copy_profile; }
 run backup_profile
 if [ "$dry" = 0 ]; then
   shasum "${state_files[@]}" 2>/dev/null >"$backup/state.sha" || true
-  repo_count >"$backup/repos.count"
+  if [ "$installed_whole" = 1 ]; then repo_count >"$backup/repos.count"; fi
   "$repo/scripts/orca-plus-shared-config-snapshot.sh" save "$backup/shared"
 fi
 
@@ -180,6 +186,13 @@ if [ -z "$new" ] && [ "$dry" = 0 ]; then
 fi
 step "new app: ${new:-<dist/mac-*/Orca Plus.app>}"
 [ "$dry" = 0 ] && codesign --verify --deep --strict "$new"
+
+# Why: the long copy happens while the old app still runs; after the quit only two renames are left,
+# so a ship killed at any moment never leaves a half-copied app in /Applications (24.10).
+staged="$backup/Orca Plus.app.new"
+step "stage the new app beside the backup"
+run ditto "$new" "$staged"
+[ "$dry" = 0 ] && codesign --verify --deep --strict "$staged"
 
 step "restart marker for chat ${ORCA_AGENT_SESSION_ID:-<none>}"
 run write_restart_marker
@@ -206,15 +219,14 @@ if [ "$dry" = 0 ]; then
 fi
 
 step "swap app (old one kept in the backup)"
-run mv "$app" "$backup/Orca Plus.app.old"
-if [ "$dry" = 0 ] && ! ditto "$new" "$app"; then
-  step "copy failed — restoring the old app"
+[ -e "$app" ] && run mv "$app" "$backup/Orca Plus.app.old"
+if [ "$dry" = 0 ] && ! mv "$staged" "$app"; then
+  step "swap failed — restoring the old app"
   rm -f "$restart_marker"
-  mv "$backup/Orca Plus.app.old" "$app"
+  [ -e "$backup/Orca Plus.app.old" ] && mv "$backup/Orca Plus.app.old" "$app"
   launch_orca_plus
   exit 1
 fi
-[ "$dry" = 1 ] && echo "  would run: ditto $new $app"
 
 # Why: a registered dist/ copy is what Spotlight, Raycast and `open -b` start next time.
 # A copy that was never registered fails with -10814; under set -e that ended the ship before launch.
@@ -229,7 +241,11 @@ if [ "$dry" = 0 ]; then
   ok=1
   wait_runtime_ready || { echo "runtime not ready after 15 minutes"; ok=0; }
   shasum -c "$backup/state.sha" || ok=0
-  [ "$(repo_count)" = "$(cat "$backup/repos.count")" ] || { echo "repo count changed"; ok=0; }
+  if [ -f "$backup/repos.count" ]; then
+    [ "$(repo_count)" = "$(cat "$backup/repos.count")" ] || { echo "repo count changed"; ok=0; }
+  else
+    echo "repo count not compared: the old app was incomplete — now $(repo_count)"
+  fi
   "$repo/scripts/orca-plus-shared-config-snapshot.sh" check "$backup/shared" || ok=0
   claude_org_matches || ok=0
   version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")
