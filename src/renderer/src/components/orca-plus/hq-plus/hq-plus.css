@@ -385,11 +385,13 @@
 }
 .hqp-log {
   overflow: auto;
+  /* Why: macOS draws a thin scrollbar over the content; the right padding keeps it off the cards. */
+  scrollbar-gutter: stable;
   min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 4px 6px 4px 0;
+  padding: 4px 14px 4px 0;
 }
 .hqp-m {
   display: grid;
