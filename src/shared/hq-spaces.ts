@@ -131,7 +131,8 @@ export function readHqSpaceFile(slug: string, data: unknown): HqSpaceFile | null
 
 export type HqSpaceProject = {
   repoId: string
-  slug: string
+  /** Null for a live repo HQ has no page for yet: it still takes a room, by its repo. */
+  slug: string | null
   group: string | null
   /** Custom build (hq-rooms): the repo's Orca group and the groups above it, nearest first. */
   groupIds?: readonly string[]
@@ -154,11 +155,12 @@ export function resolveHqSpaces(
   const sorted = [...files].sort(
     (a, b) => a.file.order - b.file.order || a.slug.localeCompare(b.slug)
   )
+  // Why: keyed by repo — a repo with no HQ page yet has no slug.
   const owner = new Map<string, string>()
   const claim = (slug: string, wants: (project: HqSpaceProject) => boolean): void => {
     for (const project of projects) {
-      if (!owner.has(project.slug) && wants(project)) {
-        owner.set(project.slug, slug)
+      if (!owner.has(project.repoId) && wants(project)) {
+        owner.set(project.repoId, slug)
       }
     }
   }
@@ -172,7 +174,7 @@ export function resolveHqSpaces(
     claim(
       slug,
       (project) =>
-        file.projects.includes(project.slug) ||
+        (project.slug !== null && file.projects.includes(project.slug)) ||
         (project.group !== null && file.groups.includes(project.group))
     )
   }
@@ -180,9 +182,15 @@ export function resolveHqSpaces(
   if (fallback) {
     claim(fallback.slug, () => true)
   }
+  const ownerOfSlug = new Map(
+    projects.flatMap((project): [string, string][] => {
+      const room = owner.get(project.repoId)
+      return project.slug !== null && room ? [[project.slug, room]] : []
+    })
+  )
   const groupById = new Map(groups.map((group) => [group.id, group]))
   return sorted.map(({ slug, file }) => {
-    const mine = projects.filter((project) => owner.get(project.slug) === slug)
+    const mine = projects.filter((project) => owner.get(project.repoId) === slug)
     const group = file.groupId ? groupById.get(file.groupId) : undefined
     return {
       slug,
@@ -191,9 +199,9 @@ export function resolveHqSpaces(
       repoIds: mine.map((project) => project.repoId),
       projects: [
         ...new Set([
-          ...mine.map((project) => project.slug),
+          ...mine.flatMap((project) => (project.slug === null ? [] : [project.slug])),
           // Why: a listed slug another room's group took is not this room's any more.
-          ...file.projects.filter((listed) => (owner.get(listed) ?? slug) === slug)
+          ...file.projects.filter((listed) => (ownerOfSlug.get(listed) ?? slug) === slug)
         ])
       ].sort(),
       messenger: file.messenger,
