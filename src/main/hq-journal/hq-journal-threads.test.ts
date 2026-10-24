@@ -139,6 +139,33 @@ describe('HQ+ threads', () => {
     expect(db.listJournal({ needs: 'owner', status: 'open' })).toEqual([])
   })
 
+  it("lets a background job, and no chat of another room, read the job's thread", async () => {
+    db.recordJournal([
+      {
+        workspace: 'hobby',
+        kind: 'job.report',
+        project: 'kite',
+        address: 'job/scout',
+        sessionId: null,
+        personId: null,
+        at: 5,
+        title: 'scout: ship?',
+        body: null,
+        needs: 'owner:decide',
+        status: 'open',
+        replyTo: null,
+        refKind: 'job',
+        refId: 'scout',
+        source: 'job:scout',
+        dedupeKey: 'job:scout:1'
+      }
+    ])
+    expect((await threads.thread({}, 'job/scout')).entries).toHaveLength(1)
+    await expect(threads.thread({ sessionId: 'claude_api' }, 'job/scout')).rejects.toThrow(
+      /No thread/
+    )
+  })
+
   it("never reaches another room's thread", async () => {
     const kite = await threads.report({ sessionId: 'claude_kite' }, { done: 'Palette moved' })
     await expect(

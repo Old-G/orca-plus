@@ -85,6 +85,8 @@ function roomOf(scope: HqCallerScope): string {
 }
 
 /** A room's chat sees its room only; HQ+ sees every room. */
+const HQ_JOB_THREAD_PREFIX = 'job/'
+
 function visible(scope: HqCallerScope, workspace: string): boolean {
   return scope.kind === 'overview' || scope.room === workspace
 }
@@ -202,12 +204,15 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
       if (!address) {
         throw new Error('This chat has no thread yet; its first `orca hq report` names one.')
       }
+      // Custom build (hq-closed-loop): a background job (no chat) reads its own thread from any room.
+      const jobReads = !scope.sessionId && address.startsWith(HQ_JOB_THREAD_PREFIX)
+      const seen = (workspace: string): boolean => jobReads || visible(scope, workspace)
       const entries = deps.pulse
         .list({ address, oldestFirst: true, limit: HQ_JOURNAL_MAX_LIMIT })
-        .filter((entry) => visible(scope, entry.workspace))
+        .filter((entry) => seen(entry.workspace))
       const sessions = deps.pulse
         .listSessionsByAddress(address)
-        .filter((session) => visible(scope, session.workspace))
+        .filter((session) => seen(session.workspace))
       if (entries.length === 0 && sessions.length === 0) {
         throw new Error(`No thread ${address} in this chat's room.`)
       }
