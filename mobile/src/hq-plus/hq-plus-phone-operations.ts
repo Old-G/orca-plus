@@ -44,6 +44,15 @@ export const hqPlusChatSend = defineRpcOperation({
   read: rpcResultVariant('hq-plus-chat-sent', z.unknown())
 })
 
+/** Custom build (hq-closed-loop): the owner's answer on a background job's card. */
+export const hqPlusJobReply = defineRpcOperation({
+  name: 'hq-plus.job-reply',
+  method: 'hq.jobReply',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-plus-job-replied', z.unknown())
+})
+
 /** «Got it», «Done» and a reply's words on a bell card; the Mac refuses approval cards. */
 export const hqPlusMarkDone = defineRpcOperation({
   name: 'hq-plus.mark-done',

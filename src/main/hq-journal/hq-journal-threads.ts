@@ -362,7 +362,17 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
       deps.pulse.noteSessions([
         { ...from, sessionId: toSessionId, parentSessionId: fromSessionId, state: 'working', at }
       ])
+      // Why: the new chat carries the old one's open questions; they are no longer the owner's move there.
+      const asked = deps.pulse
+        .list({
+          sessionId: fromSessionId,
+          needs: 'owner',
+          status: 'open',
+          limit: HQ_JOURNAL_MAX_LIMIT
+        })
+        .filter((entry) => entry.kind === HQ_JOURNAL_KIND.chatReport && entry.dedupeKey)
       deps.pulse.record([
+        ...asked.map((entry) => journalEntryAsInput(entry, { status: 'done' })),
         {
           workspace: from.workspace,
           placement: 'firm',

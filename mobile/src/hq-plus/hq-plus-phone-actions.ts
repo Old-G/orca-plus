@@ -6,7 +6,12 @@ import { hqBellActionOnDesktop, hqWaitingClose } from '../hq/hq-operations'
 import { errorText } from '../hq/use-mobile-hq-poll'
 import { runRpcOperation } from '../transport/rpc-operation'
 import type { RpcClient } from '../transport/rpc-client'
-import { hqPlusAskHq, hqPlusChatSend, hqPlusMarkDone } from './hq-plus-phone-operations'
+import {
+  hqPlusAskHq,
+  hqPlusChatSend,
+  hqPlusJobReply,
+  hqPlusMarkDone
+} from './hq-plus-phone-operations'
 
 export type HqPlusPhoneResult = { ok: true } | { ok: false; message: string }
 
@@ -48,6 +53,14 @@ export function replyOnHqPlusPhoneCard(
   const address = card.address
   if (!words) {
     return Promise.resolve(OK)
+  }
+  const entryId = card.entry?.id
+  if (card.job && entryId) {
+    // Why: a job has no chat; its next run reads the answer in its thread.
+    return attempt(async () => {
+      await runRpcOperation(client, hqPlusJobReply, { entryId, text: words })
+      return OK
+    })
   }
   if (!address) {
     return Promise.resolve({ ok: false, message: 'This chat has no thread; open it to answer.' })
