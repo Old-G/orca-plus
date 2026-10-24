@@ -23,6 +23,7 @@ import { HQ_PROJECTS_METHODS } from './hq-projects'
 import { WEB_PUSH_METHODS } from './web-push'
 import { HQ_CLICKUP_REVIEW_METHODS } from './hq-clickup-review'
 import { HQ_JOURNAL_METHODS } from './hq-journal'
+import { HQ_PLUS_PHONE_METHODS } from './hq-plus-phone'
 
 export { DEFAULT_LAZY_RPC_METHOD_GROUPS }
 
@@ -50,7 +51,8 @@ export const EAGER_SERVICE_RPC_METHODS = [
   ...HQ_PROJECTS_METHODS,
   ...WEB_PUSH_METHODS,
   ...HQ_CLICKUP_REVIEW_METHODS,
-  ...HQ_JOURNAL_METHODS
+  ...HQ_JOURNAL_METHODS,
+  ...HQ_PLUS_PHONE_METHODS
 ] as const
 
 export const EAGER_RPC_METHODS = [...EAGER_CORE_RPC_METHODS, ...EAGER_SERVICE_RPC_METHODS] as const
