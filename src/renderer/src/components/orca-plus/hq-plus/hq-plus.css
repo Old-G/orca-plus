@@ -718,6 +718,8 @@
 /* right: Граф / Река / Сессия / Отчёт */
 .hqp-ctx {
   display: grid;
+  /* Why: the tab row is wider than the panel; it scrolls instead of widening the column. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
   min-height: 0;
@@ -727,8 +729,16 @@
   display: flex;
   gap: 4px;
   align-items: center;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.hqp-tabs::-webkit-scrollbar {
+  display: none;
 }
 .hqp-tab {
+  flex-shrink: 0;
+  white-space: nowrap;
   height: 32px;
   padding: 0 14px;
   border-radius: 999px;
