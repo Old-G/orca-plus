@@ -66,6 +66,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     keys: [
       'hq events',
       'hq report',
+      'hq job',
       'hq thread',
       'hq whoami',
       'hq route',

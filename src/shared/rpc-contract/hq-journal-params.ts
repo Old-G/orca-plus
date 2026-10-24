@@ -133,3 +133,22 @@ export const HqFeedParams = z.object({
   since: OptionalFiniteNumber,
   limit: OptionalPositiveInt
 })
+
+// Custom build (hq-closed-loop): a background job's report — what it found, what it asks the owner,
+// what it did by itself. Not a chat, so no caller: the job names itself and, when it has one, the project.
+export const HqJobParams = z
+  .object({
+    job: z
+      .string()
+      .trim()
+      .regex(/^[a-z0-9][a-z0-9-]{0,62}$/, '--job is a short name: a-z, 0-9 and -'),
+    found: OptionalString,
+    ask: OptionalString,
+    options: z.array(z.string().max(200)).max(10).optional(),
+    did: OptionalString,
+    links: z.array(z.string().max(1000)).max(20).optional(),
+    project: OptionalString
+  })
+  .refine((input) => Boolean(input.found || input.ask || input.did), {
+    message: 'Say what the job found (--found), asks (--ask) or did (--did)'
+  })
