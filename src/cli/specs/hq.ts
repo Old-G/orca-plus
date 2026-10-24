@@ -57,13 +57,25 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     path: ['hq', 'job'],
     summary: 'Report a background run: what it found, what the owner must decide, what it did',
     usage:
-      'orca hq job --job <name> [--found <text>] [--ask <question> --options <a|b|c>] [--did <text>] [--link <url>]... [--project <slug>] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'job', 'found', 'ask', 'options', 'did', 'link', 'project'],
+      'orca hq job --job <name> [--found <text>] [--ask <question> --options <a|b|c>] [--did <text>] [--learned <rule>] [--link <url>]... [--project <slug>] [--json]',
+    allowedFlags: [
+      ...GLOBAL_FLAGS,
+      'job',
+      'found',
+      'ask',
+      'options',
+      'did',
+      'learned',
+      'link',
+      'project'
+    ],
     repeatableFlags: ['link'],
     notes: [
       'For scripts and automations, not chats (a chat runs `orca hq report`). Lands in the journal as job.report, thread job/<name>.',
       "--ask makes it the owner's move in HQ+; the job's next report settles its older open question.",
-      'Nothing found and nothing done? Skip the call: an empty run is not news.'
+      "--learned names a rule the job wrote from the owner's corrections: HQ+ shows it as a card he can undo.",
+      'The owner answers in thread job/<name>; read it on the next run with `orca hq thread job/<name>`.',
+      'Without --ask or --learned the run is a quiet line. A job that runs every few minutes reports only when it found or did something.'
     ],
     examples: [
       'orca hq job --job slack-scout --found "3 new requests, 1 urgent" --did "2 answered in threads already"',
