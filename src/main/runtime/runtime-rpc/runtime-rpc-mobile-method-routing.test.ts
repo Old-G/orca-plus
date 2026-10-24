@@ -26,6 +26,27 @@ describe('mobile RPC method routing census', () => {
     expect(MOBILE_RPC_METHOD_ROUTES.has('ui.setCollapsed')).toBe(false)
   })
 
+  // Custom build (hq-plus-phone): HQ+ on the phone reads and replies through the Mac; Approve stays there.
+  it.each([
+    'hq.feed',
+    'hq.screenStats',
+    'chat.send',
+    'pulse.markInboxDone',
+    'hqProjects.askHqOnDesktop',
+    'hqProjects.spaces',
+    'hqProjects.chatList',
+    'pulse.snapshot'
+  ])('answers HQ+ %s on the paired desktop', (method) => {
+    expect(MOBILE_RPC_METHOD_ROUTES.get(method)).toBe('paired-desktop')
+  })
+
+  it('routes no way to decide an outgoing message from the phone', () => {
+    const routed = [...MOBILE_RPC_METHOD_ROUTES.keys()]
+    expect(
+      routed.filter((method) => /^(pulse|outgoingApproval)\.(decide|.*[Dd]eliver)/.test(method))
+    ).toEqual([])
+  })
+
   it('sends a targeted status to the server, whose features a server workspace gates on', () => {
     expect(MOBILE_RPC_METHOD_ROUTES.get('status.get')).toBe('execution-host')
   })

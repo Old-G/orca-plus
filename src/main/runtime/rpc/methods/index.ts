@@ -41,6 +41,7 @@ import { CLICKUP_METHODS } from './clickup'
 import { PULSE_METHODS } from './pulse'
 import { HQ_JOURNAL_METHODS } from './hq-journal'
 import { HQ_PROJECTS_METHODS } from './hq-projects'
+import { HQ_PLUS_PHONE_METHODS } from './hq-plus-phone'
 import { HQ_CLICKUP_REVIEW_METHODS } from './hq-clickup-review'
 import { WEB_PUSH_METHODS } from './web-push'
 import { SSH_METHODS } from './ssh'
@@ -138,6 +139,7 @@ export const ALL_RPC_METHODS = [
   ...PULSE_METHODS,
   ...HQ_JOURNAL_METHODS,
   ...HQ_PROJECTS_METHODS,
+  ...HQ_PLUS_PHONE_METHODS,
   ...HQ_CLICKUP_REVIEW_METHODS,
   ...WEB_PUSH_METHODS,
   ...SSH_METHODS,

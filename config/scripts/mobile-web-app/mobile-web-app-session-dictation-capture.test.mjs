@@ -119,7 +119,7 @@ describeClosure(
       expect(await grantsMissingForRoutes(MOBILE_WEB_PAGE_ROUTES)).toEqual([])
     })
 
-    it('finds the seam in exactly one closure, which is the session route', async () => {
+    it('finds the seam only in the session route and HQ+ (custom build hq-plus-phone)', async () => {
       const reaching = []
       for (const route of MOBILE_WEB_PAGE_ROUTES) {
         const module = PAGE_ROUTE_MODULES.get(route.pathname)
@@ -134,7 +134,8 @@ describeClosure(
       // One, now that C7.7 registers it: dictation lives on the session screen and nowhere else,
       // so this is both the list and the reason no other route carries an audio grant. The control
       // below is still what proves the rule can fail at all.
-      expect(reaching).toEqual([SESSION_PATHNAME])
+      // Custom build (hq-plus-phone): HQ+'s composer has the session's mic too.
+      expect(reaching).toEqual(['/h/[hostId]/hq', SESSION_PATHNAME])
       const session = await closureOf(SESSION)
       expect(session.local).toContain(SEAM)
     })

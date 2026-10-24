@@ -48,9 +48,20 @@ export const MOBILE_WEB_PAGE_ROUTES = [
   // worktree list's grants, so the list's HQ button pushes it inside the document: `navigate` for
   // its Back, `storage` for the host layout above every page, `externalLink` for that layout's
   // wall, `haptics` because the layout's closure reaches the seam.
+  // Custom build (hq-plus-phone): HQ+ — `native.clipboard.write` for a link's Copy, and the three
+  // audio verbs for the composer's mic, which is the session screen's dictation (all three or none).
   {
     pathname: '/h/[hostId]/hq',
-    grants: ['navigate', 'storage', 'externalLink', 'haptics']
+    grants: [
+      'navigate',
+      'storage',
+      'externalLink',
+      'haptics',
+      'native.clipboard.write',
+      'native.audio.start',
+      'native.audio.read',
+      'native.audio.stop'
+    ]
   },
   // Tasks. `navigate` for the session screens its rows open and for the Back that pops the native
   // stack; `storage` for the shared components it renders; `externalLink` for the provider links

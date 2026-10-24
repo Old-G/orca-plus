@@ -83,7 +83,9 @@ export function mobileWebAppBundleBudgetBytes(manifest) {
  * fitted to. The spread it shows is 1 to 13: `pr` adds one script, `session` adds thirteen.
  * The root `./_layout.tsx` (the page's web sibling of the native root) sorts first; with it the
  * swept tree reads 99 scripts at 17 routes, with theme tokens in the entry (re-measured with HQ's
- * route, Custom build hq-mobile).
+ * route, Custom build hq-mobile). Custom build (hq-plus-phone): 106 once HQ's route is HQ+ — its
+ * mic, Markdown and clipboard are the session's, so the modules they share split into more chunks;
+ * the worst route is still 13.
  *
  * This table is the fence's only input, so a route added to the tree stales it and the pins beside
  * the fence fail until it is re-measured. That is the point: the bound is re-derived, never bumped.
@@ -97,15 +99,15 @@ export const MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP = [
   ['./h/[hostId]/files/[worktreeId].tsx', 24],
   ['./h/[hostId]/files/preview/[worktreeId].tsx', 31],
   ['./h/[hostId]/history/[worktreeId].tsx', 34],
-  ['./h/[hostId]/hq.tsx', 41],
-  ['./h/[hostId]/index.tsx', 48],
-  ['./h/[hostId]/new-workspace.tsx', 58],
-  ['./h/[hostId]/pr/[worktreeId].tsx', 59],
-  ['./h/[hostId]/review/[worktreeId].tsx', 67],
-  ['./h/[hostId]/session/[worktreeId].tsx', 80],
-  ['./h/[hostId]/source-control/[worktreeId].tsx', 85],
-  ['./h/[hostId]/tasks.tsx', 95],
-  ['./h/_layout.tsx', 99]
+  ['./h/[hostId]/hq.tsx', 43],
+  ['./h/[hostId]/index.tsx', 52],
+  ['./h/[hostId]/new-workspace.tsx', 61],
+  ['./h/[hostId]/pr/[worktreeId].tsx', 62],
+  ['./h/[hostId]/review/[worktreeId].tsx', 73],
+  ['./h/[hostId]/session/[worktreeId].tsx', 86],
+  ['./h/[hostId]/source-control/[worktreeId].tsx', 91],
+  ['./h/[hostId]/tasks.tsx', 102],
+  ['./h/_layout.tsx', 106]
 ]
 
 const sweptScripts = MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP.map(([, scripts]) => scripts)
