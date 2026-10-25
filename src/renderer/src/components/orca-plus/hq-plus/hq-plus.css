@@ -2887,12 +2887,25 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 .hqp-side-sec[data-list='chats'] {
   position: relative;
 }
+/* Why: title and buttons share one row, so a long title shrinks instead of running under them. */
+.hqp-side-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.hqp-side-row > .hqp-side-fold {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .hqp-side-acts {
-  position: absolute;
-  top: -4px;
-  right: 8px;
+  flex: none;
   display: flex;
   gap: 6px;
+  padding-right: 8px;
 }
 .hqp-side-sub {
   padding: 8px 10px 2px;
