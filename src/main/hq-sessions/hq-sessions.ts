@@ -9,7 +9,6 @@ import {
   isHqThreadAddress
 } from '../../shared/hq-journal'
 import {
-  HQ_SESSION_PROJECT_CAP,
   type HqDispatchDecision,
   type HqDispatchResult,
   type HqMayCloseResult,
@@ -17,7 +16,7 @@ import {
 } from '../../shared/hq-sessions'
 import type { HqCaller } from '../hq-journal/hq-journal-rooms'
 import { carryOutHqDispatch } from './hq-session-act'
-import { decideHqDispatch, hqLiveOnProject } from './hq-session-decide'
+import { decideHqDispatch } from './hq-session-decide'
 import {
   createHqSessionJournal,
   describeHqDispatch,
@@ -39,8 +38,6 @@ export type HqSessionsService = {
   /** The chats and what the dispatcher would do now; `run` carries it out (mode on). */
   sweep: (options?: { run?: boolean }) => Promise<HqSessionsResult>
   mayClose: (sessionId: string, reason: 'cleanup' | 'handoff') => Promise<HqMayCloseResult>
-  /** Why the project takes no new chat now (two live ones); null when it does. */
-  projectBusy: (project: string) => Promise<string | null>
 }
 
 export function createHqSessions(deps: HqSessionsDeps): HqSessionsService {
@@ -123,13 +120,6 @@ export function createHqSessions(deps: HqSessionsDeps): HqSessionsService {
         })
       }
       return sweeping
-    },
-
-    async projectBusy(project) {
-      const live = hqLiveOnProject(await deps.live(), project, deps.now())
-      return live.length >= HQ_SESSION_PROJECT_CAP
-        ? `${project} already has ${live.length} live chats`
-        : null
     },
 
     async mayClose(sessionId, reason) {
