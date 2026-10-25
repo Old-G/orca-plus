@@ -35,7 +35,6 @@ import {
   type HqPlusWait
 } from '../../../../../shared/hq-plus-river-graph'
 import type { HqLiveSession } from '../../../../../shared/hq-sessions'
-import { HQ_SESSION_UNREVIEWED_CAP } from '../../../../../shared/hq-sessions'
 import { useNow } from '@/hooks/use-now'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
@@ -50,7 +49,7 @@ import {
   setShownHqChat
 } from '../hq/hq-chat-actions'
 import { useHqPeople } from '../hq/HqPeopleTab'
-import { HqPlusPeople, HqPlusSidePeople } from './HqPlusPeople'
+import { HqPlusPeople } from './HqPlusPeople'
 import { rememberedHqChat } from '../hq/hq-chat-open'
 import { useSidebarResize } from '@/hooks/useSidebarResize'
 import { useHqChatList, useHqProjectColor } from '../hq/use-hq-chat-list'
@@ -127,10 +126,6 @@ const TAB_LABEL: Record<Tab, [string, string]> = {
   agents: ['auto.hqPlus.tab.agents', 'Agents'],
   people: ['auto.hqPlus.tab.people', 'People'],
   browser: ['auto.hqPlus.tab.browser', 'Browser']
-}
-
-function ringStyle(share: number): React.CSSProperties & Record<'--hqp-p', string> {
-  return { '--hqp-p': `${Math.round(Math.min(1, share) * 100)}%` }
 }
 
 export function HqPlusScreen(): React.JSX.Element {
@@ -538,11 +533,6 @@ export function HqPlusScreen(): React.JSX.Element {
     setTab('session')
     acknowledgeHqChat(chatItems.find((item) => item.key === key))
   }
-  const showPerson = (key: string | null): void => {
-    setPersonKey(key)
-    setTake(null)
-    setTab('people')
-  }
   const flashChat = (): void => {
     if (chatFlashTimer.current !== null) {
       window.clearTimeout(chatFlashTimer.current)
@@ -859,7 +849,6 @@ export function HqPlusScreen(): React.JSX.Element {
   const clearFyi = (): void => {
     void Promise.all(fyi.map((card) => markHqPlusDone(card, 'seen'))).then(() => data.reload())
   }
-  const unreviewed = data.sessions?.unreviewed ?? null
 
   return (
     <div className="hq-plus dark">
@@ -893,22 +882,6 @@ export function HqPlusScreen(): React.JSX.Element {
         />
         <span className="hqp-spacer" />
         <div className="hqp-meter">
-          {unreviewed !== null ? (
-            <span
-              className="hqp-meter-n"
-              title={translate('auto.hqPlus.reviewHint', 'Finished chats waiting for your look')}
-            >
-              <span
-                className="hqp-ring"
-                style={ringStyle(unreviewed / HQ_SESSION_UNREVIEWED_CAP)}
-                aria-hidden="true"
-              />
-              {translate('auto.hqPlus.review', 'to review {{count}} of {{cap}}', {
-                count: unreviewed,
-                cap: HQ_SESSION_UNREVIEWED_CAP
-              })}
-            </span>
-          ) : null}
           <PulseBellButton />
         </div>
       </header>
@@ -943,14 +916,6 @@ export function HqPlusScreen(): React.JSX.Element {
             }}
             onPickChat={(item) => showChat(item.key)}
             onClearFyi={clearFyi}
-            peopleBlock={
-              <HqPlusSidePeople
-                state={peopleState}
-                picked={tab === 'people' ? personKey : null}
-                onPick={(key) => showPerson(key)}
-                onAll={() => showPerson(null)}
-              />
-            }
           />
         </div>
         <button
