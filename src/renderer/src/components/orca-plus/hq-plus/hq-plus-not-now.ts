@@ -9,7 +9,9 @@ function read(): Record<string, number> {
       return {}
     }
     return Object.fromEntries(
-      Object.entries(parsed).filter((entry): entry is [string, number] => typeof entry[1] === 'number')
+      Object.entries(parsed).filter(
+        (entry): entry is [string, number] => typeof entry[1] === 'number'
+      )
     )
   } catch {
     return {}
