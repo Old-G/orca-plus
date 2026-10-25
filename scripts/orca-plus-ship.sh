@@ -176,7 +176,8 @@ run mkdir -p "$backup"
 copy_profile() {
   rsync -a --exclude '/claude-profiles/*/home/sessions/' "$profile/" "$backup/profile/" || [ $? = 24 ]
 }
-backup_profile() { copy_profile || copy_profile; }
+# Why: macOS openrsync fails the whole pass on one vanished file, so one retry was not always enough.
+backup_profile() { copy_profile || copy_profile || copy_profile; }
 run backup_profile
 if [ "$dry" = 0 ]; then
   shasum "${state_files[@]}" 2>/dev/null >"$backup/state.sha" || true
