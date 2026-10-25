@@ -121,14 +121,14 @@ function ProjectHeader({
     value0: project.projectName
   })
   return (
-    <div className="hqp-proj">
-      <span className="hqp-proj-dot" style={tileStyle(color)} aria-hidden="true" />
-      <span className="hqp-proj-name">{project.projectName}</span>
-      <span className="hqp-proj-n">{project.items.length}</span>
+    <div className="hqp-pgrp">
+      <span className="hqp-pgrp-dot" style={tileStyle(color)} aria-hidden="true" />
+      <span className="hqp-pgrp-name">{project.projectName}</span>
+      <span className="hqp-pgrp-n">{project.items.length}</span>
       {worktreeId ? (
         <button
           type="button"
-          className="hqp-proj-btn"
+          className="hqp-pgrp-btn"
           aria-label={newLabel}
           title={newLabel}
           onClick={() => void startHqChat(worktreeId)}
@@ -138,7 +138,7 @@ function ProjectHeader({
       ) : null}
       <button
         type="button"
-        className="hqp-proj-btn"
+        className="hqp-pgrp-btn"
         aria-label={keepLabel}
         title={keepLabel}
         aria-pressed={project.kept}
@@ -259,7 +259,7 @@ export function HqPlusSide({
           </>
         ) : null}
         {chats.projects.map((project) => (
-          <div key={project.repoId} className="hqp-proj-sec">
+          <div key={project.repoId} className="hqp-pgrp-sec">
             <ProjectHeader
               project={project}
               color={colorFor(project.repoId)}
