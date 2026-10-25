@@ -70,7 +70,11 @@ export function HqPlusReportView({
         </button>
       </div>
       {page?.status === 'ready' ? (
-        <CommentMarkdown variant="document" content={hqWikiBody(page.markdown)} className="text-sm" />
+        <CommentMarkdown
+          variant="document"
+          content={hqWikiBody(page.markdown)}
+          className="text-sm"
+        />
       ) : (
         <p className="hqp-empty">
           {page?.status === 'error'
