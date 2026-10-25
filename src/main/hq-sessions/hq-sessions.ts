@@ -69,7 +69,6 @@ export function createHqSessions(deps: HqSessionsDeps): HqSessionsService {
         project,
         address,
         sessions: await deps.live([address]),
-        unreviewed: journal.unreviewed(),
         now: deps.now()
       })
       const result = (
