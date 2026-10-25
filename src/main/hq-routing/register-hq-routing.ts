@@ -9,7 +9,6 @@ import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { launchHqBackgroundChat, limitHqChatToAuto } from '../hq-today/hq-background-chat'
 import { claudeActiveFreePercent } from '../../shared/claude-limit-guard'
-import { getHqSessions } from '../hq-sessions/hq-sessions'
 import { createHqRouting, provideHqRouting } from './hq-routing'
 import { createHqMergeSlots, provideHqMergeSlots } from './hq-merge-slot'
 import { createHqReplyRouting, HQ_REPLY_HOLD_MS, provideHqReplyRouting } from './hq-routing-replies'
@@ -102,7 +101,6 @@ export function registerHqRouting(
           null
       )
     },
-    projectBusy: async (project) => (await getHqSessions()?.projectBusy(project)) ?? null,
     now: Date.now,
     log: (message) => console.log('[hq-routing]', message)
   })
