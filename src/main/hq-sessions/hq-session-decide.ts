@@ -4,7 +4,6 @@ import {
   HQ_SESSION_CONTINUE_BELOW_PCT,
   HQ_SESSION_HANDOFF_GRACE_MS,
   HQ_SESSION_OWNER_IN_MS,
-  HQ_SESSION_PROJECT_CAP,
   HQ_SESSION_QUIET_MS,
   type HqDispatchDecision,
   type HqLiveSession
@@ -23,21 +22,6 @@ export function hqOwnerIn(session: HqLiveSession, now: number): boolean {
   return session.ownerAt !== null && now - session.ownerAt < HQ_SESSION_OWNER_IN_MS
 }
 
-/** Chats on the project that hold a place: open, not closed, active within the quiet window. */
-export function hqLiveOnProject(
-  sessions: readonly HqLiveSession[],
-  project: string,
-  now: number
-): HqLiveSession[] {
-  return sessions.filter(
-    (session) =>
-      session.project === project &&
-      session.tabOpen &&
-      (session.state === 'working' || session.state === 'waiting') &&
-      now - session.lastActivityAt < HQ_SESSION_QUIET_MS
-  )
-}
-
 export type HqDispatchInput = {
   project: string
   address: string
@@ -48,8 +32,7 @@ export type HqDispatchInput = {
 /**
  * Section 11 of the HQ+ plan: the same thread continues in its chat while context < 60% and it was
  * active in the last 12 h; otherwise a new chat takes it over, seeded from the old one. A chat the
- * owner is in, or one mid-turn, is not handed work — it waits in the queue. A new chat waits too
- * while the project already has two live chats or five questions wait for the owner.
+ * owner is in, or one mid-turn, is not handed work — it waits in the queue. New chats have no cap.
  */
 export function decideHqDispatch(input: HqDispatchInput): HqDispatchDecision {
   const { address, project, now } = input
@@ -88,14 +71,6 @@ export function decideHqDispatch(input: HqDispatchInput): HqDispatchDecision {
     why = full
       ? `${label(latest)} is ${latest.contextPct}% full`
       : `${label(latest)} has been quiet ${hours(quiet)}`
-  }
-  const live = hqLiveOnProject(input.sessions, project, now)
-  if (live.length >= HQ_SESSION_PROJECT_CAP) {
-    return {
-      kind: 'queue',
-      address,
-      why: `${project} already has ${live.length} live chats (${live.map(label).join(', ')})`
-    }
   }
   return { kind: 'new', address, project, seedFrom, why }
 }
