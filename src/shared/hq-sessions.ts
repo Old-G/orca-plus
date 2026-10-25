@@ -15,8 +15,6 @@ export const HQ_SESSION_CONTINUE_BELOW_PCT = 60
 export const HQ_SESSION_QUIET_MS = 12 * 60 * 60_000
 /** Live chats on one project the dispatcher will not add to. */
 export const HQ_SESSION_PROJECT_CAP = 2
-/** Questions to the owner left open; past this, new chats wait until he answers some. */
-export const HQ_SESSION_UNREVIEWED_CAP = 5
 /** The owner looked at or typed into a chat this recently: the dispatcher keeps its hands off. */
 export const HQ_SESSION_OWNER_IN_MS = 30 * 60_000
 /** A handoff the owner has not taken up in this long is started by the dispatcher. */
