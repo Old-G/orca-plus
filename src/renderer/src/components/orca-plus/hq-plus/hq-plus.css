@@ -1420,7 +1420,7 @@
   padding: 7px 8px;
   border: 0;
   border-radius: 8px;
-  background: var(--hqp-soft);
+  background: none;
   color: var(--hqp-fg);
   text-align: left;
   font-size: 13px;
@@ -2265,7 +2265,6 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   padding: 8px 8px 10px;
   margin-bottom: 8px;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--hqp-amber) 6%, transparent);
   border: 1px solid color-mix(in srgb, var(--hqp-amber) 22%, transparent);
   border-top: 2px solid color-mix(in srgb, var(--hqp-amber) 55%, transparent);
 }
