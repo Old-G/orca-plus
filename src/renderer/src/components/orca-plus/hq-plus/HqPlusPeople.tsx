@@ -16,9 +16,7 @@ import {
 import { translate } from '@/i18n/i18n'
 import { startHqChatWithPrompt } from '../hq/hq-ask-chat'
 import { useHqPersonCard } from '../hq/HqPersonCard'
-import { HqPlusSideBlock } from './HqPlusSideBlock'
 
-const SIDE_MAX = 6
 const ITEMS_MAX = 4
 const NOTES_MAX = 10
 const TILE_COLORS = ['#1f4d3a', '#54422a', '#28465a', '#3a2e54', '#2e3f5a', '#5a2a2a', '#4a2e54']
@@ -61,58 +59,6 @@ function waitsLabel(row: HqPeopleRow): string | null {
 function subline(row: HqPeopleRow): string {
   const projects = (row.projects ?? []).map((entry) => entry.slug).join(' · ')
   return [row.jobTitle, projects].filter(Boolean).join(' · ')
-}
-
-/** The left column's People: the few with something open, then the rest by search on the right. */
-export function HqPlusSidePeople({
-  state,
-  picked,
-  onPick,
-  onAll
-}: {
-  state: HqPlusPeopleState
-  picked: string | null
-  onPick: (key: string) => void
-  onAll: () => void
-}): React.JSX.Element | null {
-  if (!state.loaded || state.people.length === 0) {
-    return null
-  }
-  const mine = hqPlusPeopleList(state.people, { mine: true, query: '' })
-  return (
-    <HqPlusSideBlock
-      id="people"
-      title={translate('auto.hqPlus.side.people', 'people · {{count}}', { count: mine.length })}
-    >
-      {mine.slice(0, SIDE_MAX).map((row) => (
-        <button
-          key={row.key}
-          type="button"
-          className="hqp-qi ses"
-          aria-current={picked === row.key ? 'true' : undefined}
-          onClick={() => onPick(row.key)}
-        >
-          <PersonTile row={row} />
-          <span className="t">{row.name}</span>
-          <span className="ag">
-            {waitsLabel(row) ??
-              (hqDossierGaps(row).length > 0
-                ? translate('auto.hqPlus.people.gapShort', 'dossier?')
-                : (row.jobTitle ?? ''))}
-          </span>
-        </button>
-      ))}
-      <button type="button" className="hqp-qi ses" onClick={onAll}>
-        <span />
-        <span className="t hqp-quiet">
-          {translate('auto.hqPlus.people.all', 'All {{count}} · search ›', {
-            count: state.people.length
-          })}
-        </span>
-        <span />
-      </button>
-    </HqPlusSideBlock>
-  )
 }
 
 /** The right panel's People tab: the list, or one person's dossier. */

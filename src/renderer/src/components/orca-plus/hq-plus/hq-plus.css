@@ -211,25 +211,6 @@
   font-size: 13px;
   color: var(--hqp-mute);
 }
-.hqp-ring {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: conic-gradient(
-    var(--hqp-amber) 0 var(--hqp-p),
-    rgba(143, 233, 255, 0.12) var(--hqp-p) 100%
-  );
-  display: grid;
-  place-items: center;
-}
-.hqp-ring::after {
-  content: '';
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--hqp-bg-2);
-}
-
 /* body */
 .hqp-body {
   display: grid;
@@ -989,12 +970,6 @@
   color: var(--hqp-mute);
 }
 
-/* top bar: the review ring */
-.hqp-meter-n {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 .hqp-exp {
   font-size: 15px;
 }
