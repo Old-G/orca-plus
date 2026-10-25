@@ -59,7 +59,6 @@ export async function sweepHqSessions(
       project: entry.project,
       address: entry.address,
       sessions: live,
-      unreviewed: open,
       now
     })
     if (decision.kind !== 'queue') {

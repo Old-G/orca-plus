@@ -6,7 +6,6 @@ import {
   HQ_SESSION_OWNER_IN_MS,
   HQ_SESSION_PROJECT_CAP,
   HQ_SESSION_QUIET_MS,
-  HQ_SESSION_UNREVIEWED_CAP,
   type HqDispatchDecision,
   type HqLiveSession
 } from '../../shared/hq-sessions'
@@ -43,8 +42,6 @@ export type HqDispatchInput = {
   project: string
   address: string
   sessions: readonly HqLiveSession[]
-  /** Open questions to the owner (`chat.report` needing `owner:*`). */
-  unreviewed: number
   now: number
 }
 
@@ -99,9 +96,6 @@ export function decideHqDispatch(input: HqDispatchInput): HqDispatchDecision {
       address,
       why: `${project} already has ${live.length} live chats (${live.map(label).join(', ')})`
     }
-  }
-  if (input.unreviewed >= HQ_SESSION_UNREVIEWED_CAP) {
-    return { kind: 'queue', address, why: `${input.unreviewed} questions wait for the owner` }
   }
   return { kind: 'new', address, project, seedFrom, why }
 }
