@@ -172,7 +172,10 @@ run mkdir -p "$backup"
 [ "$dry" = 0 ] && trap drop_unused_backup EXIT
 # Why: the profile is live — an agent can delete a temp file mid-copy (rsync 24, or 23 when it goes
 # between listing and open); one more pass picks up the rest. state_files are checked below.
-copy_profile() { rsync -a "$profile/" "$backup/profile/" || [ $? = 24 ]; }
+# Claude's per-process session records (sessions/<pid>.json) come and go every second; a backup needs none.
+copy_profile() {
+  rsync -a --exclude '/claude-profiles/*/home/sessions/' "$profile/" "$backup/profile/" || [ $? = 24 ]
+}
 backup_profile() { copy_profile || copy_profile; }
 run backup_profile
 if [ "$dry" = 0 ]; then
