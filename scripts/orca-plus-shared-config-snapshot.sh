@@ -32,7 +32,22 @@ case "$mode" in
     echo "orca-plus-shared-config-snapshot: saved $(wc -l <"$dir/shared.sha" | tr -d ' ') files to $dir"
     ;;
   check)
-    if hash_all | diff "$dir/shared.sha" -; then
+    # Why: every Orca version rewrites its agent hook scripts at launch, so an upgrade changes them
+    # legitimately; they count as intact while they still parse. Everything else must be identical.
+    regenerated='^\.orca/agent-hooks/[^/]*-hook\.sh$'
+    strip() { awk -v re="$regenerated" '{ path = $0; sub(/^[0-9a-f]+  /, "", path) } path !~ re'; }
+    if hash_all | strip | diff <(strip <"$dir/shared.sha") -; then
+      broken=0
+      while IFS= read -r path; do
+        [ -n "$path" ] || continue
+        if bash -n "$HOME/$path" 2>/dev/null; then
+          echo "orca-plus-shared-config-snapshot: $path rewritten by the new version (parses)"
+        else
+          echo "orca-plus-shared-config-snapshot: $path rewritten and does not parse" >&2
+          broken=1
+        fi
+      done < <(hash_all | diff "$dir/shared.sha" - | sed -n 's/^> [0-9a-f]*  //p' | grep -E "$regenerated" || true)
+      [ "$broken" = 0 ] || exit 1
       echo "orca-plus-shared-config-snapshot: unchanged"
     else
       echo "orca-plus-shared-config-snapshot: CHANGED (backup in $dir/files)" >&2
