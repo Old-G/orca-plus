@@ -2,15 +2,18 @@
 // in the feed), what we wait for from people, the FYI pile to clear in one go, the live chats (the same
 // list the classic HQ shows, so a chat started a second ago is there), and three plain numbers.
 import { useState } from 'react'
+import { Pin, PinOff, Plus } from 'lucide-react'
 import { readHqPlusViewState, saveHqPlusViewState } from './hq-plus-view-state'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
 import type { HqPlusScreenStats } from '../../../../../shared/hq-plus-screen'
 import { translate } from '@/i18n/i18n'
 import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
-import type { HqChatGroup, HqChatItem } from '../hq/hq-chat-list'
+import type { HqChatItem } from '../hq/hq-chat-list'
 import { useHqChatTitle } from '../hq/HqChatAvatar'
-import { hqPlusChatIsIdle } from './hq-plus-chats'
+import { hqPlusChatIsIdle, type HqPlusProjectChats } from './hq-plus-chats'
+import { HqPlusNewChat } from './HqPlusNewChat'
+import { startHqChat } from '../hq/hq-new-chat'
 import { HqPlusCloseChat, type HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusSideBlock } from './HqPlusSideBlock'
 import {
@@ -20,31 +23,30 @@ import {
   type HqPlusQueueActions
 } from './HqPlusSideQueues'
 
-function dotStyle(color: string): React.CSSProperties & Record<'--hqp-dot', string> {
-  return { '--hqp-dot': color }
-}
-
-const GROUP_COLOR: Record<HqChatGroup, string> = {
-  needs: 'var(--hqp-amber)',
-  working: 'var(--hqp-yellow)',
-  done: 'var(--hqp-ice)',
-  quiet: 'var(--hqp-faint)'
-}
-
-function groupLabel(item: HqChatItem, now: number): string {
+/** Custom build (hq-plus-chats-by-project): what the chat is doing, as a coloured chip; none once read. */
+function chipOf(item: HqChatItem, now: number): { label: string; tone: string } | null {
   switch (item.group) {
     case 'needs':
-      return translate('auto.hqPlus.side.waiting', 'waits on you')
+      return { label: translate('auto.hqPlus.side.waiting', 'waits on you'), tone: 'move' }
     case 'working':
-      return translate('auto.hqPlus.side.working', 'working')
+      return { label: translate('auto.hqPlus.side.working', 'working'), tone: 'working' }
     case 'done':
-      return translate('auto.hqPlus.side.done', 'done')
+      return { label: translate('auto.hqPlus.side.done', 'done'), tone: 'done' }
     case 'quiet':
       // Why: a chat opened a moment ago has no turn yet; it is starting, not idle.
       return hqPlusChatIsIdle(item, now)
-        ? translate('auto.hqPlus.side.idle', 'idle')
-        : translate('auto.hqPlus.side.starting', 'starting')
+        ? null
+        : { label: translate('auto.hqPlus.side.starting', 'starting'), tone: 'working' }
   }
+}
+
+/** One line under the chat's name: the question while it waits, else the latest word from it. */
+function previewOf(item: HqChatItem): string {
+  const card = item.card
+  if (item.group === 'needs') {
+    return card?.askSummary ?? translate('auto.hq.chats.waitsForYou', 'Waiting for you')
+  }
+  return card?.lastAgentMessage ?? card?.lastUserMessage ?? (card?.task || item.worktreeName)
 }
 
 export type HqPlusTile = { letters: string; color: string | null }
@@ -71,34 +73,79 @@ function ChatRow({
   onPick: (item: HqChatItem) => void
 }): React.JSX.Element {
   const title = useHqChatTitle(item)
-  // Custom build (hq-plus-ui-v4): a working or starting chat is yellow with a pulsing dot.
+  const chip = chipOf(item, now)
+  // Custom build (hq-plus-ui-v4): a working or starting chat pulses.
   const live = item.group === 'working' || (item.group === 'quiet' && !hqPlusChatIsIdle(item, now))
   return (
     <div className="hqp-qi-row" data-live={live ? 'true' : undefined}>
       <button
         type="button"
-        className="hqp-qi ses"
+        className="hqp-pc"
         aria-current={picked ? 'true' : undefined}
+        data-read={chip ? undefined : 'true'}
         onClick={() => onPick(item)}
       >
         <span className="hqp-tile" style={tileStyle(tile.color)} aria-hidden="true">
           {tile.letters}
         </span>
         <span className="t">
-          <span
-            className="hqp-dot"
-            style={dotStyle(live ? 'var(--hqp-yellow)' : GROUP_COLOR[item.group])}
-          />
+          {chip ? (
+            <span className="hqp-badge" data-tone={chip.tone}>
+              {chip.label}
+            </span>
+          ) : null}
           {title}
         </span>
-        <span className="ag">{groupLabel(item, now)}</span>
-        <span className="s">
-          {[item.projectName, item.sortAt ? formatRelativeTime(item.sortAt, now) : null]
-            .filter(Boolean)
-            .join(' · ')}
-        </span>
+        <span className="w">{item.sortAt ? formatRelativeTime(item.sortAt, now) : ''}</span>
+        <span className="s">{previewOf(item)}</span>
       </button>
       {closer ? <HqPlusCloseChat closer={closer} name={title} /> : null}
+    </div>
+  )
+}
+
+function ProjectHeader({
+  project,
+  color,
+  onKeep
+}: {
+  project: HqPlusProjectChats
+  color: string
+  onKeep: (repoId: string, kept: boolean) => void
+}): React.JSX.Element {
+  const worktreeId = project.items[0]?.worktreeId
+  const keepLabel = project.kept
+    ? translate('auto.hq.chats.unkeepProject', 'Stop keeping in HQ')
+    : translate('auto.hq.chats.keepProject', 'Keep in HQ')
+  const newLabel = translate('auto.hq.chats.newChat', 'New chat in {{value0}}', {
+    value0: project.projectName
+  })
+  return (
+    <div className="hqp-proj">
+      <span className="hqp-proj-dot" style={tileStyle(color)} aria-hidden="true" />
+      <span className="hqp-proj-name">{project.projectName}</span>
+      <span className="hqp-proj-n">{project.items.length}</span>
+      {worktreeId ? (
+        <button
+          type="button"
+          className="hqp-proj-btn"
+          aria-label={newLabel}
+          title={newLabel}
+          onClick={() => void startHqChat(worktreeId)}
+        >
+          <Plus aria-hidden="true" />
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="hqp-proj-btn"
+        aria-label={keepLabel}
+        title={keepLabel}
+        aria-pressed={project.kept}
+        onClick={() => onKeep(project.repoId, !project.kept)}
+      >
+        {project.kept ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
+      </button>
     </div>
   )
 }
@@ -108,6 +155,10 @@ export function HqPlusSide({
   fyi,
   waitsOnThem,
   chats,
+  colorFor,
+  tileOfRepo,
+  onKeepProject,
+  onMarkDoneRead,
   stats,
   picked,
   tileOf,
@@ -122,7 +173,12 @@ export function HqPlusSide({
   fyi: HqPlusCard[]
   /** What we wait for from people, oldest first. */
   waitsOnThem: HqPlusOtherWait[]
-  chats: HqChatItem[]
+  /** Custom build (hq-plus-chats-by-project): the chats by project, as the classic HQ lists them. */
+  chats: { marked: HqChatItem[]; projects: HqPlusProjectChats[]; quiet: HqChatItem[] }
+  colorFor: (repoId: string) => string
+  tileOfRepo: (repoId: string, name: string) => HqPlusTile
+  onKeepProject: (repoId: string, kept: boolean) => void
+  onMarkDoneRead: (items: HqChatItem[]) => void
   stats: HqPlusScreenStats | null
   /** The key of the chat open on the right. */
   picked: string | null
@@ -141,9 +197,10 @@ export function HqPlusSide({
     saveHqPlusViewState({ showIdle: next })
   }
   const now = queue.now
-  // Custom build (hq-plus-ui-v3): on top what works, waits or is unread; the read, finished ones fold.
-  const idle = chats.filter((item) => hqPlusChatIsIdle(item, now))
-  const active = chats.filter((item) => !idle.includes(item))
+  const listed = chats.marked.length + chats.projects.reduce((n, p) => n + p.items.length, 0)
+  const done = [...chats.marked, ...chats.projects.flatMap((project) => project.items)].filter(
+    (item) => item.group === 'done'
+  )
   const row = (item: HqChatItem): React.JSX.Element => (
     <ChatRow
       key={item.key}
@@ -177,15 +234,45 @@ export function HqPlusSide({
       {peopleBlock}
       <HqPlusSideBlock
         id="chats"
-        title={translate('auto.hqPlus.side.chats', 'chats · {{count}}', { count: chats.length })}
+        title={translate('auto.hqPlus.side.chats', 'chats · {{count}}', { count: listed })}
+        actions={
+          <>
+            {done.length > 0 ? (
+              <button type="button" className="hqp-pill" onClick={() => onMarkDoneRead(done)}>
+                {translate('auto.hqPlus.side.markDoneRead', 'Mark done read')}
+              </button>
+            ) : null}
+            <HqPlusNewChat
+              activeRepoIds={chats.projects.map((project) => project.repoId)}
+              tileOf={tileOfRepo}
+            />
+          </>
+        }
       >
-        {chats.length === 0 ? (
+        {listed === 0 && chats.quiet.length === 0 ? (
           <p className="hqp-empty hqp-quiet">
             {translate('auto.hqPlus.side.noSessions', 'no live chats')}
           </p>
         ) : null}
-        {active.map(row)}
-        {idle.length > 0 ? (
+        {chats.marked.length > 0 ? (
+          <>
+            <div className="hqp-side-sub">
+              {translate('auto.hq.chats.group.marked', 'Come back to')} · {chats.marked.length}
+            </div>
+            {chats.marked.map(row)}
+          </>
+        ) : null}
+        {chats.projects.map((project) => (
+          <div key={project.repoId} className="hqp-proj-sec">
+            <ProjectHeader
+              project={project}
+              color={colorFor(project.repoId)}
+              onKeep={onKeepProject}
+            />
+            {project.items.map(row)}
+          </div>
+        ))}
+        {chats.quiet.length > 0 ? (
           <Collapsible open={showIdle} onOpenChange={setShowIdle}>
             <button
               type="button"
@@ -196,10 +283,12 @@ export function HqPlusSide({
               <span className="hqp-caret" data-open={showIdle} aria-hidden="true">
                 {'\u25B8'}
               </span>
-              {translate('auto.hqPlus.side.idleCount', 'Idle · {{count}}', { count: idle.length })}
+              {translate('auto.hqPlus.side.quietCount', 'Quiet · {{count}}', {
+                count: chats.quiet.length
+              })}
             </button>
             <CollapsibleContent animation="height">
-              <div className="hqp-side-sec">{idle.map(row)}</div>
+              <div className="hqp-side-sec">{chats.quiet.map(row)}</div>
             </CollapsibleContent>
           </Collapsible>
         ) : null}

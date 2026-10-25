@@ -43,7 +43,12 @@ import { useHqSpaces } from '../hq/use-hq-spaces'
 import { useHqProjectPages } from '../hq/use-hq-project-pages'
 import { findHqWorktreeId } from '../hq/hq-today-actions'
 import { HqCommandBox } from '../hq/HqCommandBox'
-import { acknowledgeHqChat, setShownHqChat } from '../hq/hq-chat-actions'
+import {
+  acknowledgeHqChat,
+  acknowledgeHqChats,
+  setHqProjectKept,
+  setShownHqChat
+} from '../hq/hq-chat-actions'
 import { useHqPeople } from '../hq/HqPeopleTab'
 import { HqPlusPeople, HqPlusSidePeople } from './HqPlusPeople'
 import { rememberedHqChat } from '../hq/hq-chat-open'
@@ -104,11 +109,12 @@ import {
   hqPlusChatIsIdle,
   hqPlusChatOfSession,
   hqPlusLiveChats,
-  hqPlusSideChats
+  hqPlusProjectChats
 } from './hq-plus-chats'
 import './hq-plus.css'
 
 const TICK_MS = 30_000
+const NO_IDS: string[] = []
 const FLASH_MS = 1800
 const TABS = HQ_PLUS_VIEW_TABS
 type Tab = HqPlusViewTab
@@ -394,15 +400,18 @@ export function HqPlusScreen(): React.JSX.Element {
     }
     return rooms
   }, [pages, roomOfProject])
+  const keptProjectIds = useAppStore((state) => state.settings?.hqKeptProjectIds) ?? NO_IDS
+  const markedChatKeys = useAppStore((state) => state.settings?.hqMarkedChatKeys) ?? NO_IDS
+  // Custom build (hq-plus-chats-by-project): the left column lists chats by project, as the classic HQ.
   const sideChats = useMemo(
     () =>
-      hqPlusSideChats(
+      hqPlusProjectChats(
         chatItems.filter((item) => !room || (roomOfRepo.get(item.repoId) ?? room) === room),
-        now,
-        // Why: the read, finished chats fold under «Idle», so the list keeps every open chat.
-        Number.POSITIVE_INFINITY
+        keptProjectIds,
+        markedChatKeys,
+        now
       ),
-    [chatItems, room, roomOfRepo, now]
+    [chatItems, room, roomOfRepo, keptProjectIds, markedChatKeys, now]
   )
   const waits = useMemo<HqPlusWait[]>(
     () =>
@@ -911,6 +920,13 @@ export function HqPlusScreen(): React.JSX.Element {
             fyi={fyi}
             waitsOnThem={waitsOnThem}
             chats={sideChats}
+            colorFor={colorFor}
+            tileOfRepo={(repoId, name) => ({
+              letters: hqPlusTileOf(slugOfRepo.get(repoId) ?? name),
+              color: colorFor(repoId)
+            })}
+            onKeepProject={setHqProjectKept}
+            onMarkDoneRead={acknowledgeHqChats}
             stats={data.stats}
             picked={tab === 'session' ? chatKey : null}
             tileOf={tileOfChat}
