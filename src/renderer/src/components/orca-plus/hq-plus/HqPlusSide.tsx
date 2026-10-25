@@ -166,7 +166,6 @@ export function HqPlusSide({
   queue,
   onPickChat,
   onClearFyi,
-  peopleBlock
 }: {
   waiting: HqPlusCard[]
   /** Open items for the owner's information only. */
@@ -187,8 +186,6 @@ export function HqPlusSide({
   queue: HqPlusQueueActions
   onPickChat: (item: HqChatItem) => void
   onClearFyi: () => void
-  /** Custom build (hq-closed-loop): the People block, above the chats. */
-  peopleBlock?: React.ReactNode
 }): React.JSX.Element {
   // Custom build (hq-plus-ui-v5): the Idle fold stays as the owner left it.
   const [showIdle, setShowIdleState] = useState(() => readHqPlusViewState().showIdle)
@@ -231,7 +228,6 @@ export function HqPlusSide({
           </button>
         </div>
       ) : null}
-      {peopleBlock}
       <HqPlusSideBlock
         id="chats"
         title={translate('auto.hqPlus.side.chats', 'chats · {{count}}', { count: listed })}

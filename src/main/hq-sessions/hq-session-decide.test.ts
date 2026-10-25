@@ -24,12 +24,11 @@ function chat(over: Partial<HqLiveSession> = {}): HqLiveSession {
   }
 }
 
-const decide = (sessions: HqLiveSession[], unreviewed = 0) =>
+const decide = (sessions: HqLiveSession[]) =>
   decideHqDispatch({
     project: 'acme-api',
     address: 'acme-api/refunds',
     sessions,
-    unreviewed,
     now: NOW
   })
 
@@ -82,7 +81,7 @@ describe('HQ+ session dispatcher: continue, new or queue', () => {
     })
   })
 
-  it('opens no third live chat on a project, nor a new one while five questions wait', () => {
+  it('opens no third live chat on a project', () => {
     const others = [
       chat({ sessionId: 'claude_b', address: 'acme-api/docs', state: 'working', name: 'docs' }),
       chat({ sessionId: 'claude_c', address: 'acme-api/ci', state: 'waiting', name: 'ci' })
@@ -92,7 +91,6 @@ describe('HQ+ session dispatcher: continue, new or queue', () => {
       address: 'acme-api/refunds',
       why: 'acme-api already has 2 live chats («docs», «ci»)'
     })
-    expect(decide([], 5)).toMatchObject({ kind: 'queue', why: '5 questions wait for the owner' })
     // A quiet chat on the project no longer holds a place.
     expect(decide([others[0], { ...others[1], lastActivityAt: NOW - 13 * HOUR }])).toMatchObject({
       kind: 'new',
