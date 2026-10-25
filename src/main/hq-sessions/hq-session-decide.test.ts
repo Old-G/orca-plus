@@ -81,21 +81,12 @@ describe('HQ+ session dispatcher: continue, new or queue', () => {
     })
   })
 
-  it('opens no third live chat on a project', () => {
+  it('opens a new chat however many others are live on the project', () => {
     const others = [
       chat({ sessionId: 'claude_b', address: 'acme-api/docs', state: 'working', name: 'docs' }),
       chat({ sessionId: 'claude_c', address: 'acme-api/ci', state: 'waiting', name: 'ci' })
     ]
-    expect(decide(others)).toEqual({
-      kind: 'queue',
-      address: 'acme-api/refunds',
-      why: 'acme-api already has 2 live chats («docs», «ci»)'
-    })
-    // A quiet chat on the project no longer holds a place.
-    expect(decide([others[0], { ...others[1], lastActivityAt: NOW - 13 * HOUR }])).toMatchObject({
-      kind: 'new',
-      seedFrom: null
-    })
+    expect(decide(others)).toMatchObject({ kind: 'new', seedFrom: null })
   })
 })
 
