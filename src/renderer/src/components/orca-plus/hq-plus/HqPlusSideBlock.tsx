@@ -13,6 +13,7 @@ export function HqPlusSideBlock({
   title,
   tone,
   startFolded = false,
+  actions,
   children
 }: {
   id: HqPlusSideBlockId
@@ -20,6 +21,8 @@ export function HqPlusSideBlock({
   tone?: 'move'
   /** Custom build (hq-plus-round6): folded until the owner opens it (Tracked). */
   startFolded?: boolean
+  /** Custom build (hq-plus-chats-by-project): buttons on the title's line, outside the fold. */
+  actions?: React.ReactNode
   children: React.ReactNode
 }): React.JSX.Element {
   const [open, setOpenState] = useState(() => {
@@ -52,6 +55,7 @@ export function HqPlusSideBlock({
           </span>
           {title}
         </button>
+        {actions ? <div className="hqp-side-acts">{actions}</div> : null}
         <CollapsibleContent animation="height">
           <div className="hqp-side-list scrollbar-sleek">{children}</div>
         </CollapsibleContent>
