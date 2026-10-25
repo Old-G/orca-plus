@@ -2914,25 +2914,25 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   text-transform: uppercase;
   color: var(--hqp-faint);
 }
-.hqp-proj-sec {
+.hqp-pgrp-sec {
   display: grid;
   gap: 2px;
   padding-top: 8px;
 }
-.hqp-proj {
+.hqp-pgrp {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 2px 2px 2px 10px;
 }
-.hqp-proj-dot {
+.hqp-pgrp-dot {
   width: 9px;
   height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
   background: var(--hqp-room, var(--hqp-ice));
 }
-.hqp-proj-name {
+.hqp-pgrp-name {
   flex: 1;
   min-width: 0;
   font-size: 13px;
@@ -2941,12 +2941,12 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.hqp-proj-n {
+.hqp-pgrp-n {
   font-family: var(--hqp-mono);
   font-size: 10.5px;
   color: var(--hqp-faint);
 }
-.hqp-proj-btn {
+.hqp-pgrp-btn {
   width: 26px;
   height: 26px;
   display: grid;
@@ -2956,18 +2956,18 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   background: none;
   color: var(--hqp-faint);
 }
-.hqp-proj-btn svg {
+.hqp-pgrp-btn svg {
   width: 14px;
   height: 14px;
 }
-.hqp-proj-btn:hover,
-.hqp-proj-btn[aria-pressed='true'] {
+.hqp-pgrp-btn:hover,
+.hqp-pgrp-btn[aria-pressed='true'] {
   color: var(--hqp-ice);
 }
-.hqp-proj-btn:hover {
+.hqp-pgrp-btn:hover {
   background: var(--hqp-soft-2);
 }
-.hqp-proj-btn:focus-visible,
+.hqp-pgrp-btn:focus-visible,
 .hqp-pc:focus-visible,
 .hqp-newchat-opt:focus-visible {
   outline: 2px solid var(--hqp-ice);
