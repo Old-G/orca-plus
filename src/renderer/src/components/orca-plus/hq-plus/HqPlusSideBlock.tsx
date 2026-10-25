@@ -43,19 +43,21 @@ export function HqPlusSideBlock({
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="hqp-side-sec" data-list={id} data-open={open}>
-        <button
-          type="button"
-          className="hqp-hl hqp-side-h hqp-side-fold"
-          data-tone={tone}
-          aria-expanded={open}
-          onClick={() => setOpen(!open)}
-        >
-          <span className="hqp-caret" data-open={open} aria-hidden="true">
-            ▸
-          </span>
-          {title}
-        </button>
-        {actions ? <div className="hqp-side-acts">{actions}</div> : null}
+        <div className="hqp-side-row">
+          <button
+            type="button"
+            className="hqp-hl hqp-side-h hqp-side-fold"
+            data-tone={tone}
+            aria-expanded={open}
+            onClick={() => setOpen(!open)}
+          >
+            <span className="hqp-caret" data-open={open} aria-hidden="true">
+              ▸
+            </span>
+            {title}
+          </button>
+          {actions ? <div className="hqp-side-acts">{actions}</div> : null}
+        </div>
         <CollapsibleContent animation="height">
           <div className="hqp-side-list scrollbar-sleek">{children}</div>
         </CollapsibleContent>
