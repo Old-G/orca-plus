@@ -206,11 +206,8 @@ describe('HQ+ session dispatcher', () => {
     expect(rows(HQ_JOURNAL_KIND.sessionOpen)).toHaveLength(1)
   })
 
-  it('queues work it may not start, and the sweep starts it once the project frees up', async () => {
-    live = [
-      chat({ sessionId: 'claude_b', address: 'acme-api/docs', state: 'working', midTurn: true }),
-      chat({ sessionId: 'claude_c', address: 'acme-api/ci', state: 'waiting' })
-    ]
+  it('queues work while the thread’s chat is mid-turn, and the sweep starts it afterwards', async () => {
+    live = [chat({ state: 'working', midTurn: true, lastActivityAt: clock - MIN })]
     const queued = await service.dispatch(
       { cwd: '/w/api' },
       {
@@ -224,7 +221,7 @@ describe('HQ+ session dispatcher', () => {
     ])
     expect((await service.sweep({ run: true })).actions).toEqual([])
 
-    live = [live[0]]
+    live = [chat({ contextPct: 70 })]
     const swept = await service.sweep({ run: true })
     expect(swept.actions).toMatchObject([{ kind: 'drain', decision: { kind: 'new' } }])
     expect(launched).toHaveLength(1)
