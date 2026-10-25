@@ -3,30 +3,13 @@
 import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
 import { useAppStore } from '@/store'
 import type { HqPlusLiveChat } from '../../../../../shared/hq-plus-fold'
-import { groupHqChats, hqChatRecentlyDone, type HqChatItem } from '../hq/hq-chat-list'
+import { groupHqChats, type HqChatItem } from '../hq/hq-chat-list'
+import { splitHqActiveProjects } from '../hq/hq-active-projects'
+import { splitHqMarkedChats } from '../hq/hq-marked-chats'
 import { hqChatSessionId } from '../hq/hq-chat-cleanup'
 
-export const HQ_PLUS_SIDE_CHATS = 10
 // Why: a chat opened a moment ago has no turn yet, so the board calls it quiet; it is the newest work.
 const JUST_OPENED_MS = 30 * 60_000
-
-/** Needs you, just opened, working, then finished lately; other quiet ones fill what is left. */
-export function hqPlusSideChats(
-  items: readonly HqChatItem[],
-  now: number,
-  limit = HQ_PLUS_SIDE_CHATS
-): HqChatItem[] {
-  const groups = groupHqChats(items)
-  const justOpened = groups.quiet.filter(
-    (item) => item.card === null && now - item.sortAt < JUST_OPENED_MS
-  )
-  const recent = [...groups.done, ...groups.quiet].filter(
-    (item) => item.group === 'done' || hqChatRecentlyDone(item, now)
-  )
-  const shown = [...groups.needs, ...justOpened, ...groups.working, ...recent]
-  const rest = groups.quiet.filter((item) => !shown.includes(item))
-  return [...shown, ...rest].slice(0, limit)
-}
 
 /** The listed chat a native session runs in; null while its tab is closed or not there yet. */
 export function hqPlusChatOfSession(
@@ -74,10 +57,7 @@ export function hqPlusLiveChats(
     const activeAt = hqPlusChatActiveAt(item)
     if (
       !sessionId ||
-      (at < since &&
-        item.group !== 'working' &&
-        item.group !== 'needs' &&
-        (activeAt ?? 0) < since)
+      (at < since && item.group !== 'working' && item.group !== 'needs' && (activeAt ?? 0) < since)
     ) {
       return []
     }
@@ -99,4 +79,55 @@ export function closeHqPlusChat(item: HqChatItem): void {
   if (item.kind === 'chat') {
     useAppStore.getState().closeUnifiedTab(item.tab.id, { preserveWorktreeSelection: true })
   }
+}
+
+export type HqPlusProjectChats = {
+  repoId: string
+  projectName: string
+  /** Kept by the owner, so it stays even when it has gone quiet. */
+  kept: boolean
+  items: HqChatItem[]
+}
+
+const GROUP_ORDER = { needs: 0, working: 1, done: 2, quiet: 3 } as const
+
+/**
+ * Custom build (hq-plus-chats-by-project): the left column's chats as the classic HQ's Active projects
+ * (owner, 25.10) — each project with what needs him, works or is unread, then its recent read chats;
+ * marked chats above, every other quiet chat folded. A project that waits on him comes first.
+ */
+export function hqPlusProjectChats(
+  items: readonly HqChatItem[],
+  keptRepoIds: readonly string[],
+  markedKeys: readonly string[],
+  now: number
+): { marked: HqChatItem[]; projects: HqPlusProjectChats[]; quiet: HqChatItem[] } {
+  const { marked, groups } = splitHqMarkedChats(groupHqChats(items), markedKeys)
+  const split = splitHqActiveProjects(items, keptRepoIds, now, new Set(markedKeys))
+  const byRepo = new Map<string, HqPlusProjectChats>(
+    split.active.map((project) => [project.repoId, { ...project, items: [...project.items] }])
+  )
+  for (const item of [...groups.needs, ...groups.working, ...groups.done]) {
+    const project = byRepo.get(item.repoId) ?? {
+      repoId: item.repoId,
+      projectName: item.projectName,
+      kept: keptRepoIds.includes(item.repoId),
+      items: []
+    }
+    project.items.push(item)
+    byRepo.set(item.repoId, project)
+  }
+  const rank = (project: HqPlusProjectChats): number =>
+    Math.min(...project.items.map((item) => GROUP_ORDER[item.group]), GROUP_ORDER.quiet)
+  const latest = (project: HqPlusProjectChats): number =>
+    Math.max(0, ...project.items.map((item) => item.sortAt))
+  const projects = [...byRepo.values()]
+    .map((project) => ({
+      ...project,
+      items: project.items.sort(
+        (a, b) => GROUP_ORDER[a.group] - GROUP_ORDER[b.group] || b.sortAt - a.sortAt
+      )
+    }))
+    .sort((a, b) => rank(a) - rank(b) || latest(b) - latest(a))
+  return { marked, projects, quiet: split.quiet.filter((item) => !markedKeys.includes(item.key)) }
 }
