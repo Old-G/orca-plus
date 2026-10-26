@@ -1559,8 +1559,18 @@
   overflow: hidden;
 }
 /* Custom build (hq-plus-ui-v5): the chat open on the right shows on the border only; the card keeps its ground. */
+/* Custom build (hq-plus-picked-chat): the chat open on the right stands out in the feed — an ice frame
+   and a bolder head — so the eye finds it among the other chats. */
 .hqp-chatc[data-picked='true'] {
-  border-color: var(--hqp-line-2);
+  border-color: var(--hqp-ice);
+  box-shadow:
+    0 0 0 1px var(--hqp-ice),
+    0 0 22px rgba(143, 233, 255, 0.22);
+}
+.hqp-chatc[data-picked='true'] .hqp-row-h strong,
+.hqp-chatc[data-picked='true'] .hqp-chat-name {
+  font-weight: 700;
+  color: var(--hqp-fg);
 }
 /* an open chat fills the panel, its composer at the bottom */
 .hqp-pane:has(.hqp-chat),
