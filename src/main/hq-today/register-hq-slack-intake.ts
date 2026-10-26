@@ -1,6 +1,8 @@
 // Custom build (hq-slack-intake): the 👾 watch and the «To work» card's buttons, wired to Orca+.
 import { ipcMain } from 'electron'
 import { HQ_INTAKE_KIND } from '../../shared/hq-slack-intake'
+import { HQ_JOURNAL_ALL_ROOMS } from '../../shared/hq-journal'
+import { hqJobRow } from '../hq-journal/hq-journal-jobs'
 import { parseSlackThreadRef } from '../../shared/hq-waiting-replies'
 import type { Store } from '../persistence'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
@@ -22,6 +24,8 @@ import { startHqSlackIntake } from './hq-slack-intake'
 import { generateHqText } from './hq-task-questions'
 
 const RAISED_LOOKBACK_MS = 8 * 24 * 60 * 60_000
+const ERROR_REPEAT_MS = 60 * 60_000
+let lastError: { key: string; at: number } | null = null
 // Why: routing a message is a small judgement; HQ's main text model would be slow and dear here.
 const INTAKE_MODEL = 'haiku'
 
@@ -99,7 +103,22 @@ export function registerHqSlackIntake(
         }
       }),
     sync: (kind, items) => void runtime.pulseSyncInboxKind(kind, items),
-    now: Date.now
+    now: Date.now,
+    // Why: a failing poll used to leave cards stale with no word anywhere the owner looks (26.10).
+    onError: (message) => {
+      const key = message.slice(0, 120)
+      if (lastError?.key === key && Date.now() - lastError.at < ERROR_REPEAT_MS) {
+        return
+      }
+      lastError = { key, at: Date.now() }
+      runtime.pulseRecordJournal([
+        hqJobRow(
+          { job: 'slack-intake', found: `Slack mentions and 👾 marks not read: ${key}` },
+          { room: HQ_JOURNAL_ALL_ROOMS, project: null, firm: false },
+          Date.now()
+        )
+      ])
+    }
   })
 
   const deps: HqIntakeActionDeps = {
