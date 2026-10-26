@@ -29,6 +29,10 @@ export type HqIntake = {
   at: number
   /** Custom build (hq-slack-mentions): a message that @mentions the owner; absent = a 👾 mark. */
   via?: 'mention'
+  /** Custom build (hq-intake-one-card): later messages of the same burst folded into this card. */
+  more?: string[]
+  /** When the last of them was said, ms. */
+  lastAt?: number
   /** Orca+'s guess at the project, and what is being sent, in one line. */
   repoId: string | null
   project: string | null
@@ -102,6 +106,10 @@ export function readHqIntake(refId: string | null): HqIntake | null {
     permalink: text(raw, 'permalink'),
     at: typeof at === 'number' ? at : 0,
     ...(text(raw, 'via') === 'mention' ? { via: 'mention' as const } : {}),
+    ...(strings(raw, 'more').length > 0 ? { more: strings(raw, 'more') } : {}),
+    ...(typeof Reflect.get(raw, 'lastAt') === 'number'
+      ? { lastAt: Number(Reflect.get(raw, 'lastAt')) }
+      : {}),
     repoId: text(raw, 'repoId'),
     project: text(raw, 'project'),
     summary: text(raw, 'summary') ?? ''
