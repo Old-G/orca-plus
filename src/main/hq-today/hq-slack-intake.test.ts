@@ -173,6 +173,18 @@ describe('pollHqSlackIntake', () => {
     deps.answers = () => [{ channel: 'C0AAAAAAAAA', authorSlackId: 'U1', at: mention.at + 30_000 }]
     await pollHqSlackIntake(deps)
     expect(synced[0]).toEqual([])
+
+    // Why: a partial read of the 👾 marks must not bring the answered mention's card back.
+    const raised = hqIntakeBellItem({ ...mention, repoId: null, project: null, summary: '' })
+    const partial = setup(
+      [],
+      new Map([[raised.dedupeKey, raised.refId ?? null]]),
+      async () => [],
+      false
+    )
+    partial.deps.answers = deps.answers
+    await pollHqSlackIntake(partial.deps)
+    expect(partial.synced[0]).toEqual([])
   })
 
   it('folds a burst of one person into one card, and a later one after it was handled into its own', async () => {
