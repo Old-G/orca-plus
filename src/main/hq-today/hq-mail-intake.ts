@@ -143,16 +143,22 @@ function answeredAfter(
   return index !== -1 && ordered.slice(index + 1).some((comment) => comment.author?.id === ownerId)
 }
 
-/** The comments a comment sits among, oldest first: the task's own, or its thread when it is a reply
- *  there — ClickUp threads are one level deep, and an answer to a reply lands beside it. */
+/** The comments a comment sits among, oldest first: the task's own with the comment's thread right
+ *  after it, or its thread when it is a reply there — ClickUp threads are one level deep, and an
+ *  answer to a reply lands beside it. */
 async function commentsAround(
   deps: Pick<HqMailIntakeDeps, 'listComments' | 'listReplies'>,
   taskId: string,
   commentId: string
 ): Promise<ClickUpComment[]> {
   const top = clickUpCommentsOldestFirst(await deps.listComments(taskId))
-  if (top.some((comment) => comment.id === commentId)) {
-    return top
+  const index = top.findIndex((comment) => comment.id === commentId)
+  if (index !== -1) {
+    // Why: the owner often answers in the comment's own thread rather than on the task.
+    const replies = top[index]?.replyCount
+      ? clickUpCommentsOldestFirst(await deps.listReplies(commentId))
+      : []
+    return [...top.slice(0, index + 1), ...replies, ...top.slice(index + 1)]
   }
   for (const parent of top.toReversed()) {
     if (parent.replyCount === 0) {
