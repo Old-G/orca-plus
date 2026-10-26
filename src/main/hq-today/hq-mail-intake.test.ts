@@ -45,6 +45,7 @@ function deps(mails: HqMail[], overrides: Partial<HqMailIntakeDeps> = {}): HqMai
     getMail: async (id) => mails.find((mail) => mail.id === id) ?? null,
     getTask: async () => task,
     listComments: async () => [comment('101', ANN, NOW - 5000, '@Owner I will share cases here.')],
+    listReplies: async () => [],
     viewer: async () => OWNER,
     projectForList: () => 'support',
     listOpenWaitings: () => [],
@@ -138,6 +139,32 @@ describe('collectHqMailIntake', () => {
           comment('102', OWNER, NOW - 1000, 'Done')
         ]
       })
+    )
+    expect(await cards(path)).toEqual([])
+  })
+
+  it('finds a mention made as a reply in a comment thread, and retires it once answered there', async () => {
+    const path = await hq()
+    const reply = comment('201', ANN, NOW - 4000, '@Owner Please review two more tickets.')
+    const thread = (extra: ClickUpComment[]): Partial<HqMailIntakeDeps> => ({
+      listComments: async () => [
+        { ...comment('101', ANN, NOW - 9000, '@Owner I will share cases here.'), replyCount: 1 },
+        { ...comment('100', ANN, NOW - 9500, 'Unrelated'), replyCount: 0 }
+      ],
+      listReplies: async (id) => (id === '101' ? [reply, ...extra] : [])
+    })
+    const inThread: HqMail = {
+      ...mention,
+      body: 'Ann Lee mentioned you\nhttps://app.clickup.com/t/task1?comment=201'
+    }
+    expect(await collectHqMailIntake(path, deps([inThread], thread([])))).toBe(1)
+    expect(await cards(path)).toMatchObject([
+      { id: 'clickup:task1:201', ask: '@Owner Please review two more tickets.' }
+    ])
+
+    await collectHqMailIntake(
+      path,
+      deps([], thread([comment('202', OWNER, NOW - 1000, 'Looking')]))
     )
     expect(await cards(path)).toEqual([])
   })
