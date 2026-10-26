@@ -5,7 +5,7 @@ import type { HqIntakeReadApi } from '../hq-today/hq-slack-intake'
 import type { HqIntakeDraft } from '../hq-today/hq-slack-intake-suggest'
 import { HQ_INTAKE_EMOJI, HQ_INTAKE_TEXT_MAX } from '../../shared/hq-slack-intake'
 import { plainSlackText } from '../hq-today/hq-slack-waiting-replies'
-import { asSlackRecord, slackRequest } from './slack-request'
+import { asSlackRecord, SlackApiError, slackRequest } from './slack-request'
 
 // Why: a new DM appears rarely; one list per half hour keeps the watch to a call per thread.
 const DM_LIST_TTL_MS = 30 * 60_000
@@ -204,11 +204,21 @@ export function createSlackIntakeApi(
       const entries: unknown[] = []
       let cursor: string | null = null
       for (let page = 0; page < REACTION_PAGES; page += 1) {
-        const body = await slackRequest(token, 'reactions.list', {
-          full: true,
-          limit: 100,
-          ...(cursor ? { cursor } : {})
-        })
+        let body: Record<string, unknown>
+        try {
+          body = await slackRequest(token, 'reactions.list', {
+            full: true,
+            limit: 100,
+            ...(cursor ? { cursor } : {})
+          })
+        } catch (error) {
+          // Why: Slack sometimes refuses its own next_cursor; the pages read so far still count, as a
+          // partial read, so the mentions and the waiting-answer check go on (26.10).
+          if (cursor && error instanceof SlackApiError && error.code === 'invalid_cursor') {
+            break
+          }
+          throw error
+        }
         entries.push(...(Array.isArray(body.items) ? body.items : []))
         cursor = asString(asSlackRecord(body.response_metadata).next_cursor)
         if (!cursor) {
