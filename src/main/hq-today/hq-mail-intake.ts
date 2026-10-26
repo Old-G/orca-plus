@@ -52,6 +52,8 @@ export type HqMailIntakeDeps = {
   getMail: (id: string) => Promise<HqMail | null>
   getTask: (ref: string) => Promise<HqMailTask | null>
   listComments: (taskId: string) => Promise<ClickUpComment[]>
+  /** The threaded replies under one comment; the task's comments leave them out. */
+  listReplies: (commentId: string) => Promise<ClickUpComment[]>
   viewer: () => Promise<{ id: string; username: string }>
   projectForList: (listId: string | null) => string | null
   listOpenWaitings: () => readonly Pick<PulseWaiting, 'id' | 'title' | 'sourceRef'>[]
@@ -141,6 +143,29 @@ function answeredAfter(
   return index !== -1 && ordered.slice(index + 1).some((comment) => comment.author?.id === ownerId)
 }
 
+/** The comments a comment sits among, oldest first: the task's own, or its thread when it is a reply
+ *  there — ClickUp threads are one level deep, and an answer to a reply lands beside it. */
+async function commentsAround(
+  deps: Pick<HqMailIntakeDeps, 'listComments' | 'listReplies'>,
+  taskId: string,
+  commentId: string
+): Promise<ClickUpComment[]> {
+  const top = clickUpCommentsOldestFirst(await deps.listComments(taskId))
+  if (top.some((comment) => comment.id === commentId)) {
+    return top
+  }
+  for (const parent of top.toReversed()) {
+    if (parent.replyCount === 0) {
+      continue
+    }
+    const replies = clickUpCommentsOldestFirst(await deps.listReplies(parent.id))
+    if (replies.some((reply) => reply.id === commentId)) {
+      return [parent, ...replies]
+    }
+  }
+  return top
+}
+
 /** Reads the emails that came since the last look and acts on each one once. Returns how many
  *  request cards were added. */
 export async function collectHqMailIntake(hqPath: string, deps: HqMailIntakeDeps): Promise<number> {
@@ -222,7 +247,7 @@ export async function collectHqMailIntake(hqPath: string, deps: HqMailIntakeDeps
       continue
     }
     const me = await owner()
-    const ordered = clickUpCommentsOldestFirst(await deps.listComments(task.id))
+    const ordered = await commentsAround(deps, task.id, event.commentId)
     const comment = ordered.find((item) => item.id === event.commentId)
     const cardId = `clickup:${task.id}:${event.commentId}`
     if (
@@ -247,8 +272,9 @@ export async function collectHqMailIntake(hqPath: string, deps: HqMailIntakeDeps
     const me = await owner()
     const answered = new Set<string>()
     for (const draft of recheck) {
-      const ordered = clickUpCommentsOldestFirst(await deps.listComments(draft.clickupTaskId ?? ''))
-      if (answeredAfter(ordered, draft.id.split(':')[2] ?? '', me.id)) {
+      const commentId = draft.id.split(':')[2] ?? ''
+      const ordered = await commentsAround(deps, draft.clickupTaskId ?? '', commentId)
+      if (answeredAfter(ordered, commentId, me.id)) {
         answered.add(draft.id)
       }
     }
