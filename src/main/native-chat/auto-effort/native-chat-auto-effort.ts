@@ -1,5 +1,6 @@
 // Custom build (chat-auto-effort): a Claude chat's effort follows each message the person sends —
-// medium for a quick step, high for ordinary work, xhigh for hard or risky work — picked by a small
+// low for a trivial reply, medium for a quick step, high for ordinary work, xhigh for hard or risky
+// work — picked by a small
 // classifier as the message is handed over. Any miss keeps the effort the chat already has.
 import type {
   AgentJournalItemBody,
@@ -12,11 +13,12 @@ import type { ChatAutoEffortOutcome } from '../../../shared/chat-auto-effort-sta
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
 import { chatModelEffortLevels } from './chat-model-effort-levels'
 
-export const AUTO_EFFORT_LEVELS = ['medium', 'high', 'xhigh'] as const
+export const AUTO_EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh'] as const
 export type AutoEffortLevel = (typeof AUTO_EFFORT_LEVELS)[number]
 
 // Why: a level outside the range was picked by hand on purpose; the classifier leaves it alone.
-const HAND_PICKED_EFFORTS = new Set(['none', 'minimal', 'low', 'max'])
+// Low is in the range: a pick is saved as the chat's effort, and a low one must not stop the next.
+const HAND_PICKED_EFFORTS = new Set(['none', 'minimal', 'max'])
 
 type MessageOptions = AgentJournalSubmission['options']
 

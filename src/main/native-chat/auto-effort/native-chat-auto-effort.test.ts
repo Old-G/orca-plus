@@ -51,6 +51,21 @@ describe('chat auto effort', () => {
     })
   })
 
+  it('picks low for a trivial message, and keeps picking after a chat went low', async () => {
+    const pick = vi.fn(async () => 'low' as const)
+    serve({ pick })
+    const base = { provider: 'claude', body: user('ок'), items: () => [] }
+    expect(await autoEffortMessageOptions({ ...base, options: { effort: 'high' } })).toEqual({
+      effort: 'low'
+    })
+    // Why: the pick is saved as the chat's effort, so the next message arrives with low.
+    serve()
+    expect(await autoEffortMessageOptions({ ...base, options: { effort: 'low' } })).toEqual({
+      effort: 'xhigh'
+    })
+    expect(pick).toHaveBeenCalledOnce()
+  })
+
   it('never hands an effort to a model with no effort control, or one it does not offer', async () => {
     const base = { provider: 'claude', body: user('go'), items: () => [] }
     const pick = serve()
@@ -138,6 +153,7 @@ describe('Jev effort pick', () => {
     ).toBe('medium')
     const sent: unknown = fetchImpl.mock.lastCall
     expect(JSON.stringify(sent)).toContain('xhigh')
+    expect(JSON.stringify(sent)).toContain('Trivial')
   })
 
   it('answers null on an error status, an unknown level or a network failure', async () => {
