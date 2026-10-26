@@ -4,6 +4,7 @@
 // him are raised the same way and stay until he handles them.
 import {
   HQ_INTAKE_KIND,
+  HQ_INTAKE_TEXT_MAX,
   hqIntakeBellItem,
   hqIntakeKey,
   readHqIntake,
@@ -28,11 +29,57 @@ export type HqIntakeReadApi = {
   mentioned: (since: number) => Promise<HqIntakeDraft[]>
 }
 
+// Custom build (hq-intake-one-card): a person's messages this close together in one thread are one
+// request, and a message that answered a waiting already has its card (26.10: three cards for one).
+export const HQ_INTAKE_BURST_MS = 10 * 60_000
+const ANSWER_SPAN_MS = 15 * 60_000
+
+/** A Slack answer to a waiting: its card is the answer's, not a second «To work». */
+export type HqIntakeAnswer = { channel: string; authorSlackId: string | null; at: number }
+
+function answersWaiting(draft: HqIntakeDraft, answers: readonly HqIntakeAnswer[]): boolean {
+  return answers.some(
+    (answer) =>
+      answer.channel === draft.channel &&
+      (answer.authorSlackId === null || answer.authorSlackId === draft.authorSlackId) &&
+      draft.at >= answer.at - ANSWER_SPAN_MS &&
+      draft.at <= answer.at + 2 * 60_000
+  )
+}
+
+function sameBurst(card: HqIntake, draft: HqIntakeDraft): boolean {
+  return (
+    card.via === 'mention' &&
+    draft.via === 'mention' &&
+    card.channel === draft.channel &&
+    card.threadTs === draft.threadTs &&
+    card.authorSlackId !== null &&
+    card.authorSlackId === draft.authorSlackId &&
+    draft.at >= card.at &&
+    draft.at - (card.lastAt ?? card.at) <= HQ_INTAKE_BURST_MS
+  )
+}
+
+function folded(card: HqIntake, draft: HqIntakeDraft): HqIntake {
+  return {
+    ...card,
+    text: `${card.text}\n${draft.text}`.slice(0, HQ_INTAKE_TEXT_MAX),
+    links: [...new Set([...card.links, ...draft.links])],
+    files: [...new Set([...card.files, ...draft.files])],
+    more: [...(card.more ?? []), draft.ts],
+    lastAt: Math.max(card.lastAt ?? card.at, draft.at)
+  }
+}
+
 export type HqSlackIntakeDeps = {
   /** Null when no reader token is saved. */
   read: <T>(run: (api: HqIntakeReadApi) => Promise<T>) => Promise<T | null>
   /** Bell items of this kind already raised (open or handled), by dedupe key. */
   raised: () => Map<string, string | null>
+  /** Custom build (hq-intake-one-card): keys of raised items the owner already handled. */
+  handled?: () => ReadonlySet<string>
+  /** Slack answers to waitings, recent. */
+  answers?: () => readonly HqIntakeAnswer[]
   guess: (draft: HqIntakeDraft) => Promise<HqIntakeGuess>
   sync: (kind: string, items: readonly PulseBellInput[]) => void
   now: () => number
@@ -55,37 +102,64 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
     return 0
   }
   const raised = deps.raised()
-  const items = new Map<string, PulseBellInput>()
-  let guessed = 0
-  for (const draft of [...read.marked.drafts, ...read.mentioned]) {
-    const key = hqIntakeKey(draft)
-    if (deps.now() - draft.at > HQ_INTAKE_WINDOW_MS || items.has(key)) {
-      continue
-    }
-    const known = readHqIntake(raised.get(key) ?? null)
-    let intake: HqIntake
-    if (known) {
-      intake = known
-    } else {
-      intake = { ...draft, ...(await deps.guess(draft)) }
-      guessed += 1
-    }
-    items.set(key, hqIntakeBellItem(intake))
-  }
-  // Why: a mention has no mark to take away, so its card stays until the owner handles it; a mark
-  // a partial read did not reach is not known to be gone.
+  const handled = deps.handled?.() ?? new Set<string>()
+  const answers = deps.answers?.() ?? []
+  const cards = new Map<string, HqIntake>()
+  // Why: a mention has no mark to take away, so its card stays until the owner handles it — unless
+  // it turned out to be the answer to a waiting, which has its own card.
   for (const [key, payload] of raised) {
     const intake = readHqIntake(payload)
     if (
-      intake &&
-      (intake.via === 'mention' || !read.marked.complete) &&
-      !items.has(key) &&
-      deps.now() - intake.at <= HQ_INTAKE_WINDOW_MS
+      intake?.via === 'mention' &&
+      deps.now() - intake.at <= HQ_INTAKE_WINDOW_MS &&
+      !answersWaiting(intake, answers)
     ) {
-      items.set(key, hqIntakeBellItem(intake))
+      cards.set(key, intake)
     }
   }
-  deps.sync(HQ_INTAKE_KIND, [...items.values()])
+  const drafts = [
+    ...read.marked.drafts,
+    ...read.mentioned.filter((draft) => !answersWaiting(draft, answers))
+  ].sort((a, b) => a.at - b.at)
+  let guessed = 0
+  for (const draft of drafts) {
+    const key = hqIntakeKey(draft)
+    if (
+      deps.now() - draft.at > HQ_INTAKE_WINDOW_MS ||
+      cards.has(key) ||
+      [...cards.values()].some((card) => card.more?.includes(draft.ts))
+    ) {
+      continue
+    }
+    // Why: a follow-up joins the card still waiting; once handled, it is news of its own.
+    const burst = [...cards.entries()].find(
+      ([cardKey, card]) => !handled.has(cardKey) && sameBurst(card, draft)
+    )
+    if (burst) {
+      cards.set(burst[0], folded(burst[1], draft))
+      continue
+    }
+    const known = readHqIntake(raised.get(key) ?? null)
+    if (known) {
+      cards.set(key, known)
+    } else {
+      cards.set(key, { ...draft, ...(await deps.guess(draft)) })
+      guessed += 1
+    }
+  }
+  // Why: a mark a partial read did not reach is not known to be gone.
+  if (!read.marked.complete) {
+    for (const [key, payload] of raised) {
+      const intake = readHqIntake(payload)
+      if (intake && !cards.has(key) && deps.now() - intake.at <= HQ_INTAKE_WINDOW_MS) {
+        cards.set(key, intake)
+      }
+    }
+  }
+  deps.sync(
+    HQ_INTAKE_KIND,
+    [...cards.values()].map((intake) => hqIntakeBellItem(intake))
+  )
   return guessed
 }
 
