@@ -36,8 +36,10 @@ export type HqPlusLogContext = {
   onChanged: () => void
   /** Custom build (hq-plus-links): the chat a row belongs to, for its name; null for none. */
   chatOf: (sessionId: string | null) => HqPlusChatRef | null
-  /** Custom build (hq-plus-ui-v2): the live chat's state badge (working, waits on someone, done). */
+  /** Custom build (hq-plus-ui-v2): the live chat's state badge (working, waits for the owner, done). */
   chatStatus: (sessionId: string | null) => HqPlusBadge | null
+  /** Custom build (hq-plus-ui-v2): who the chat waits on, beside its state; null when nobody. */
+  chatWaitsOn: (sessionId: string | null) => HqPlusBadge | null
   /** Custom build (hq-plus-ui-v3): closing the chat's tab; null when it is not open. */
   /** `fallback` names the card to dismiss when the chat has no open tab. */
   closeChat: (
