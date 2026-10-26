@@ -289,6 +289,37 @@ async function recordWatch(
     }
     return (await pick) === waiting.id
   }
+  // Why: one reply in a thread several questions were asked in answers one of them, not each.
+  const threadNewest = messages.filter((message) => inThread.has(message.ts)).at(-1)
+  const threadSharing = claims.watches.filter(
+    (other) =>
+      thread !== null &&
+      other.thread?.channel === thread.channel &&
+      other.thread.threadTs === thread.threadTs &&
+      threadNewest &&
+      newer(threadNewest.ts, other.after)
+  )
+  if (thread && threadNewest && threadSharing.length > 1 && deps.pickAnswer) {
+    const key = `${thread.channel}:${threadNewest.ts}`
+    let pick = claims.picked.get(key)
+    if (!pick) {
+      const sharing = threadSharing
+      const said = await describe(messages.filter((message) => inThread.has(message.ts)))
+      pick = deps
+        .pickAnswer(
+          sharing.map((other) => other.waiting.title),
+          said
+        )
+        .catch(() => null)
+        // Why: a reply in the question's own thread is an answer; unsure, the oldest question takes it.
+        .then((index) => sharing[index ?? 0]?.waiting.id ?? null)
+      claims.picked.set(key, pick)
+    }
+    if ((await pick) !== waiting.id) {
+      handled.set(waiting.id, threadNewest.ts)
+      messages = messages.filter((message) => !inThread.has(message.ts))
+    }
+  }
   if (dmNewest && !(await dmAnswers())) {
     handled.set(waiting.id, dmNewest.ts)
     messages = messages.filter((message) => inThread.has(message.ts))

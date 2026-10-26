@@ -278,6 +278,32 @@ describe('pollHqSlackWaitingReplies relevance', () => {
 })
 
 describe('plainSlackText', () => {
+  it('gives a channel-thread reply to one of the questions asked in that thread, not to each', async () => {
+    const { db, thread, deps, at } = setup()
+    const parent = '1792184199.000100'
+    const ask = (title: string) =>
+      db.addWaiting({
+        direction: 'on-them',
+        title,
+        source: 'slack',
+        sourceRef: `slack:C0AAAAAAAAA:${parent}`
+      })
+    const merge = ask('Merge hub !296')
+    const move = ask('Repeat the move after the collision')
+    const pick = vi.fn(async (questions: readonly string[]) =>
+      questions.findIndex((question) => question.includes('Merge'))
+    )
+    deps.pickAnswer = pick
+    thread.push(msg(ASKED_AT + 50_000, 'UCAROL', '@owner merged', { threadTs: parent }))
+    at(ASKED_AT + 5 * 60_000)
+    expect(await pollHqSlackWaitingReplies(deps)).toBe(1)
+    expect(pick).toHaveBeenCalledTimes(1)
+    expect(db.getWaiting(merge.id)?.reply).toContain('merged')
+    expect(db.getWaiting(move.id)?.reply ?? null).toBeNull()
+    // Why: the next poll does not offer the same reply to the other question again.
+    expect(await pollHqSlackWaitingReplies(deps)).toBe(0)
+  })
+
   it('gives a DM burst to the one open question it answers, not to every question in that DM', async () => {
     const { db, anna, dm, deps, at } = setup()
     const ask = (title: string) =>
