@@ -57,6 +57,34 @@ export type HqPlusChatTarget = {
 }
 
 /** The owner's words typed into a terminal agent's prompt, as a paste plus Enter. */
+// Custom build (hq-closed-loop): an automation's terminal often lives in a workspace this window has
+// not loaded, so its layout is not in the store; the runtime still knows it by its pane.
+async function sendThroughRuntime(pane: PulseBellPaneRef, prompt: string): Promise<boolean> {
+  const listed = await hqPlusCall('terminal.list', { includeVisualLayouts: false })
+  const terminals: unknown = listed.ok ? hqResultField(listed.result, 'terminals') : null
+  const match = Array.isArray(terminals)
+    ? terminals.find((terminal: unknown) => {
+        const field = (key: string): unknown =>
+          terminal && typeof terminal === 'object' ? Reflect.get(terminal, key) : null
+        return (
+          field('recordedPaneKey') === pane.paneKey ||
+          `${String(field('tabId'))}:${String(field('leafId'))}` === pane.paneKey
+        )
+      })
+    : null
+  const handle: unknown = match && typeof match === 'object' ? Reflect.get(match, 'handle') : null
+  if (typeof handle !== 'string') {
+    return false
+  }
+  const sent = await hqPlusCall('terminal.send', {
+    terminal: handle,
+    text: prompt,
+    enter: true,
+    agentPrompt: true
+  })
+  return sent.ok
+}
+
 async function sendIntoHqPlusPane(pane: PulseBellPaneRef, prompt: string): Promise<HqPlusResult> {
   const parsed = parsePaneKey(pane.paneKey)
   const tabId = pane.tabId ?? parsed?.tabId ?? null
@@ -64,7 +92,9 @@ async function sendIntoHqPlusPane(pane: PulseBellPaneRef, prompt: string): Promi
     tabId && parsed
       ? useAppStore.getState().terminalLayoutsByTabId[tabId]?.ptyIdsByLeafId?.[parsed.leafId]
       : undefined
-  const sent = ptyId ? await sendBracketedPasteToRunningAgent({ ptyId, content: prompt }) : false
+  const sent = ptyId
+    ? await sendBracketedPasteToRunningAgent({ ptyId, content: prompt })
+    : await sendThroughRuntime(pane, prompt)
   return sent
     ? OK
     : {
