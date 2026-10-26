@@ -151,7 +151,12 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
   if (!read.marked.complete) {
     for (const [key, payload] of raised) {
       const intake = readHqIntake(payload)
-      if (intake && !cards.has(key) && deps.now() - intake.at <= HQ_INTAKE_WINDOW_MS) {
+      if (
+        intake &&
+        intake.via !== 'mention' &&
+        !cards.has(key) &&
+        deps.now() - intake.at <= HQ_INTAKE_WINDOW_MS
+      ) {
         cards.set(key, intake)
       }
     }
