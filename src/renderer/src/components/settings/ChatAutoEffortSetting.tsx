@@ -69,7 +69,7 @@ export function ChatAutoEffortSetting({
         label={translate('auto.chat.autoEffort.title', 'Effort per Message')}
         description={translate(
           'auto.chat.autoEffort.description',
-          'Each message to a Claude chat sets its effort: medium for a quick step, high for ordinary work, extra high for hard or risky work. Picked by Jev on OpenRouter in about a second; Low and Max picked by hand stay.'
+          'Each message to a Claude chat sets its effort: low for a trivial reply, medium for a quick step, high for ordinary work, extra high for hard or risky work. Picked by Jev on OpenRouter in about a second; Max picked by hand stays.'
         )}
         checked={enabled}
         onChange={() => updateSettings({ nativeChatAutoEffort: !enabled })}
