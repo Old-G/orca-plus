@@ -46,6 +46,18 @@ describe('hqMailEvent', () => {
     ).toEqual({ kind: 'clickup-comment', taskRef: '86abc1xyz', commentId: '1000000000000001' })
   })
 
+  it('takes the reply, not its thread, when a mention was made in a comment thread', () => {
+    expect(
+      hqMailEvent(
+        mail({
+          from: 'notifications@tasks.clickup.com',
+          subject: 'Review Auto-Hold Logic',
+          body: `Ann Lee mentioned you\nView comment ${clickUpLink('86abc1xyz%253Fcomment%253D1000000000000001%2526threadedComment%253D1000000000000009')}`
+        })
+      )
+    ).toEqual({ kind: 'clickup-comment', taskRef: '86abc1xyz', commentId: '1000000000000009' })
+  })
+
   it('reads who shared or assigned a task', () => {
     expect(
       hqMailEvent(

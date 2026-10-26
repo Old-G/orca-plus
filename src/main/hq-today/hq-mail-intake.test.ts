@@ -169,6 +169,35 @@ describe('collectHqMailIntake', () => {
     expect(await cards(path)).toEqual([])
   })
 
+  it('takes the reply posted with the email when the email names only the thread', async () => {
+    const path = await hq()
+    const card = {
+      id: 'clickup:task1:101',
+      title: 'x',
+      clickupTaskId: 'task1',
+      source: 'clickup',
+      foundAt: new Date(NOW - 99_000).toISOString()
+    }
+    await writeFile(join(path, 'slack-scout', 'mail.json'), JSON.stringify({ drafts: [card] }))
+    const d = deps([mention], {
+      listComments: async () => [
+        {
+          ...comment('101', ANN, NOW - 86_400_000, '@Owner I will share cases here.'),
+          replyCount: 2
+        }
+      ],
+      listReplies: async () => [
+        comment('200', ANN, NOW - 3_600_000, '@Owner An older reply'),
+        comment('201', ANN, NOW - 61_000, '@Owner Please review two more tickets.')
+      ]
+    })
+    expect(await collectHqMailIntake(path, d)).toBe(1)
+    expect((await cards(path)).map((item) => item.id)).toEqual([
+      'clickup:task1:101',
+      'clickup:task1:201'
+    ])
+  })
+
   it('makes a shared task a request to take, unless the triage already raised it', async () => {
     const shared: HqMail = {
       id: 's1',
