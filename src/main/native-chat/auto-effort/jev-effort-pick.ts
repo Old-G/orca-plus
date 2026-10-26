@@ -8,6 +8,7 @@ const JEV_TIMEOUT_MS = 3000
 const STATE_CHARS = 4000
 
 const CRITERIA: Record<AutoEffortLevel, string> = {
+  low: "Trivial, nothing to work out: thanks or an acknowledgement ('ok', 'got it'), a yes/no about something the agent just showed, re-checking a status the agent just reported, reading out a value, a typo fix the agent already named.",
   medium:
     'Simple, short or routine: a status check, a quick factual answer, a one-line edit, running a known command, a small follow-up step of an easy task.',
   high: 'Normal engineering work: a contained bug fix or feature in known code, a review, a multi-step task with a clear plan.',
