@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { PulseDb } from '../orca-plus/pulse/pulse-db'
 import { SlackApiError } from '../slack/slack-request'
 import {
+  parseHqReplyPick,
   parseHqReplyRelevance,
   plainSlackText,
   pollHqSlackWaitingReplies,
@@ -277,6 +278,33 @@ describe('pollHqSlackWaitingReplies relevance', () => {
 })
 
 describe('plainSlackText', () => {
+  it('gives a DM burst to the one open question it answers, not to every question in that DM', async () => {
+    const { db, anna, dm, deps, at } = setup()
+    const ask = (title: string) =>
+      db.addWaiting({
+        direction: 'on-them',
+        title,
+        personId: anna.id,
+        source: 'slack',
+        sourceRef: 'slack:DANNA01:1792184199.000100'
+      })
+    const cases = ask('Confirm the 18 eval cases')
+    const refund = ask('Which amount to charge on a card update')
+    const connector = ask('Did the hub connector connect')
+    const pick = vi.fn(async (questions: readonly string[]) =>
+      questions.findIndex((question) => question.includes('connector'))
+    )
+    deps.pickAnswer = pick
+    dm.push(msg(ASKED_AT + 60_000, ANNA, 'Hi'))
+    dm.push(msg(ASKED_AT + 70_000, ANNA, 'the connector works too'))
+    at(ASKED_AT + 160_000)
+    expect(await pollHqSlackWaitingReplies(deps)).toBe(1)
+    expect(pick).toHaveBeenCalledTimes(1)
+    expect(db.getWaiting(connector.id)?.reply).toContain('the connector works too')
+    expect(db.getWaiting(cases.id)?.reply ?? null).toBeNull()
+    expect(db.getWaiting(refund.id)?.reply ?? null).toBeNull()
+  })
+
   it('turns Slack link markup into readable text', () => {
     expect(plainSlackText('see <https://x.dev/a|the doc> &amp; <https://x.dev/b>')).toBe(
       'see the doc (https://x.dev/a) & https://x.dev/b'
@@ -289,5 +317,14 @@ describe('parseHqReplyRelevance', () => {
     expect(parseHqReplyRelevance('{"answer": false}')).toBe(false)
     expect(parseHqReplyRelevance('Sure: {"answer": true}')).toBe(true)
     expect(parseHqReplyRelevance('no idea')).toBe(true)
+  })
+})
+
+describe('parseHqReplyPick', () => {
+  it('reads a question number in range, and none for anything else', () => {
+    expect(parseHqReplyPick('{"answers": 2}', 3)).toBe(1)
+    expect(parseHqReplyPick('{"answers": null}', 3)).toBeNull()
+    expect(parseHqReplyPick('{"answers": 4}', 3)).toBeNull()
+    expect(parseHqReplyPick('no idea', 3)).toBeNull()
   })
 })
