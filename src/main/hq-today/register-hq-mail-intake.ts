@@ -4,7 +4,12 @@ import type { Store } from '../persistence'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { getGmailMail, listGmailMessageIds } from '../gmail/gmail-api'
 import { gmailAccount } from '../gmail/gmail-credential-store'
-import { getClickUpTask, getClickUpViewer, listClickUpTaskComments } from '../clickup/clickup-tasks'
+import {
+  getClickUpTask,
+  getClickUpViewer,
+  listClickUpCommentReplies,
+  listClickUpTaskComments
+} from '../clickup/clickup-tasks'
 import { glabExecFileAsync } from '../git/runner'
 import { hqClickUpListProjects } from './hq-clickup-list-projects'
 import { collectHqMailIntake, startHqMailIntake } from './hq-mail-intake'
@@ -43,6 +48,7 @@ export function registerHqMailIntake(store: Store, runtime: OrcaRuntimeService):
         getMail: getGmailMail,
         getTask: getClickUpTask,
         listComments: listClickUpTaskComments,
+        listReplies: listClickUpCommentReplies,
         viewer: getClickUpViewer,
         projectForList: await hqClickUpListProjects(
           hq,
