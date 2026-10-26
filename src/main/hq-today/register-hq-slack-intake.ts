@@ -1,6 +1,7 @@
 // Custom build (hq-slack-intake): the 👾 watch and the «To work» card's buttons, wired to Orca+.
 import { ipcMain } from 'electron'
 import { HQ_INTAKE_KIND } from '../../shared/hq-slack-intake'
+import { parseSlackThreadRef } from '../../shared/hq-waiting-replies'
 import type { Store } from '../persistence'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
@@ -49,6 +50,20 @@ export function registerHqSlackIntake(
           .pulseListInbox(true, { kind: HQ_INTAKE_KIND, since: Date.now() - RAISED_LOOKBACK_MS })
           .flatMap((item) => (item.dedupeKey ? [[item.dedupeKey, item.refId] as const] : []))
       ),
+    handled: () =>
+      new Set(
+        runtime
+          .pulseListInbox(true, { kind: HQ_INTAKE_KIND, since: Date.now() - RAISED_LOOKBACK_MS })
+          .flatMap((item) => (item.dedupeKey && item.doneAt !== null ? [item.dedupeKey] : []))
+      ),
+    answers: () =>
+      runtime.pulseListWaitings({ direction: 'on-them' }).flatMap((waiting) => {
+        const thread = parseSlackThreadRef(waiting.sourceRef)
+        const at = waiting.replyTs ? Math.round(Number(waiting.replyTs) * 1000) : 0
+        return thread && at > Date.now() - RAISED_LOOKBACK_MS
+          ? [{ channel: thread.channel, authorSlackId: waiting.replyAuthorId ?? null, at }]
+          : []
+      }),
     guess: (draft) =>
       guessHqIntake(draft, {
         pages: async () => {
