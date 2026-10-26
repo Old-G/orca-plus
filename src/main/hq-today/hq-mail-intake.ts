@@ -166,6 +166,31 @@ async function commentsAround(
   return top
 }
 
+// Why: the reply an email is about is posted the moment ClickUp sends it; this allows for a slow queue.
+const POSTED_WITH_MS = 15 * 60_000
+
+/** An email about a reply in a thread can name the thread's first comment instead: when that comment
+ *  is older than the email, the email is about the newest reply posted with it — that reply and its
+ *  thread, oldest first. Null when the named comment is the one the email is about. */
+async function replyPostedWith(
+  deps: Pick<HqMailIntakeDeps, 'listReplies'>,
+  named: ClickUpComment,
+  receivedAt: number,
+  ownerId: string
+): Promise<[ClickUpComment[], ClickUpComment] | null> {
+  if (!named.replyCount || (named.createdAt ?? receivedAt) >= receivedAt - POSTED_WITH_MS) {
+    return null
+  }
+  const replies = clickUpCommentsOldestFirst(await deps.listReplies(named.id))
+  const reply = replies.findLast(
+    (item) =>
+      item.author?.id !== ownerId &&
+      item.createdAt !== null &&
+      Math.abs(item.createdAt - receivedAt) <= POSTED_WITH_MS
+  )
+  return reply ? [[named, ...replies], reply] : null
+}
+
 /** Reads the emails that came since the last look and acts on each one once. Returns how many
  *  request cards were added. */
 export async function collectHqMailIntake(hqPath: string, deps: HqMailIntakeDeps): Promise<number> {
@@ -212,7 +237,7 @@ export async function collectHqMailIntake(hqPath: string, deps: HqMailIntakeDeps
     const mail = await deps.getMail(id)
     seen.add(id)
     const event = mail && mail.receivedAt >= since ? hqMailEvent(mail) : null
-    if (!event) {
+    if (!mail || !event) {
       continue
     }
     if (event.kind === 'mr-merged') {
@@ -247,9 +272,13 @@ export async function collectHqMailIntake(hqPath: string, deps: HqMailIntakeDeps
       continue
     }
     const me = await owner()
-    const ordered = await commentsAround(deps, task.id, event.commentId)
-    const comment = ordered.find((item) => item.id === event.commentId)
-    const cardId = `clickup:${task.id}:${event.commentId}`
+    let ordered = await commentsAround(deps, task.id, event.commentId)
+    let comment = ordered.find((item) => item.id === event.commentId)
+    const thread = comment ? await replyPostedWith(deps, comment, mail.receivedAt, me.id) : null
+    if (thread) {
+      ;[ordered, comment] = thread
+    }
+    const cardId = `clickup:${task.id}:${comment?.id ?? event.commentId}`
     if (
       !comment?.author ||
       comment.author.id === me.id ||
