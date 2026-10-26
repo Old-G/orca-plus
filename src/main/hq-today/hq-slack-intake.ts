@@ -163,12 +163,17 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
   return guessed
 }
 
-export function startHqSlackIntake(deps: HqSlackIntakeDeps): () => void {
+export function startHqSlackIntake(
+  deps: HqSlackIntakeDeps & { onError?: (message: string) => void }
+): () => void {
   const flight = createDebouncedSingleFlight(
     async () => {
       await pollHqSlackIntake(deps)
     },
-    (error) => console.warn('[hq-slack-intake] poll failed:', error),
+    (error) => {
+      console.warn('[hq-slack-intake] poll failed:', error)
+      deps.onError?.(error instanceof Error ? error.message : String(error))
+    },
     FIRST_POLL_MS
   )
   const timer = setInterval(() => void flight.runNow(), POLL_MS)
