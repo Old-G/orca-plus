@@ -476,15 +476,18 @@ export function HqPlusScreen(): React.JSX.Element {
       color: repoId ? colorFor(repoId) : null
     }
   }
-  const chatStatus = (sessionId: string | null): HqPlusBadge | null => {
-    const chat = hqPlusChatOfSession(chatItems, sessionId)
+  const chatWaitsOn = (sessionId: string | null): HqPlusBadge | null => {
     const waitingOn = sessionId
       ? data.waits.find((wait) => wait.direction === 'on-them' && wait.agentSessionId === sessionId)
       : undefined
-    if (waitingOn) {
-      const who = waitingOn.personId ? names.get(waitingOn.personId) : null
-      return { label: who ? `WAITS · ${who}` : 'WAITS', tone: 'waits' }
+    if (!waitingOn) {
+      return null
     }
+    const who = waitingOn.personId ? names.get(waitingOn.personId) : null
+    return { label: who ? `WAITS · ${who}` : 'WAITS', tone: 'waits' }
+  }
+  const chatStatus = (sessionId: string | null): HqPlusBadge | null => {
+    const chat = hqPlusChatOfSession(chatItems, sessionId)
     switch (chat?.group) {
       case 'needs':
         return { label: 'WAITS · YOU', tone: 'move' }
@@ -696,6 +699,7 @@ export function HqPlusScreen(): React.JSX.Element {
     onNotNow: putOff,
     onChanged: data.reload,
     chatStatus,
+    chatWaitsOn,
     closeChat: (sessionId, fallback) => {
       const listed = hqPlusChatOfSession(chatItems, sessionId)
       const closer = listed ? closerOf(listed) : null
