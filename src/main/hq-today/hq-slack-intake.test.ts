@@ -140,7 +140,7 @@ describe('pollHqSlackIntake', () => {
       }
     )
     await pollHqSlackIntake(later.deps)
-    expect(later.synced[0]?.map((entry) => entry.title)).toEqual([
+    expect(later.synced[0]?.map((entry) => entry.title).sort()).toEqual([
       'To work: Анна',
       'To work: Анна mentioned you'
     ])
@@ -161,6 +161,39 @@ describe('pollHqSlackIntake', () => {
     const full = setup([], raised)
     await pollHqSlackIntake(full.deps)
     expect(full.synced[0]).toEqual([])
+  })
+
+  it('gives no second card to a mention that already came in as the answer to a waiting', async () => {
+    const mention = draft('1792630000.000100', {
+      channel: 'C0AAAAAAAAA',
+      venue: 'channel',
+      via: 'mention'
+    })
+    const { deps, synced } = setup([], new Map(), async () => [mention])
+    deps.answers = () => [{ channel: 'C0AAAAAAAAA', authorSlackId: 'U1', at: mention.at + 30_000 }]
+    await pollHqSlackIntake(deps)
+    expect(synced[0]).toEqual([])
+  })
+
+  it('folds a burst of one person into one card, and a later one after it was handled into its own', async () => {
+    const thread = { channel: 'C0AAAAAAAAA', venue: 'channel' as const, via: 'mention' as const }
+    const first = draft('1792630000.000100', { ...thread, text: 'Документы не переехали' })
+    const second = draft('1792630120.000100', { ...thread, text: 'Вот эти шесть' })
+    const late = draft('1792630420.000100', { ...thread, text: 'Ещё одно' })
+    const burst = setup([], new Map(), async () => [second, first])
+    expect(await pollHqSlackIntake(burst.deps)).toBe(1)
+    expect(burst.synced[0]).toHaveLength(1)
+    expect(burst.synced[0]?.[0]?.body).toContain('Вот эти шесть')
+
+    const card = burst.synced[0]?.[0]
+    const again = setup([], new Map([[card?.dedupeKey ?? '', card?.refId ?? null]]), async () => [
+      late,
+      second,
+      first
+    ])
+    again.deps.handled = () => new Set([card?.dedupeKey ?? ''])
+    await pollHqSlackIntake(again.deps)
+    expect(again.synced[0]).toHaveLength(2)
   })
 
   it('leaves the bell alone without a token', async () => {
