@@ -56,7 +56,8 @@ export function ChatCard({
   const canReply = Boolean(item.address || item.sessionId || item.pane)
   // Custom build (hq-closed-loop): a terminal agent's run opens its pane, as the bell's «Open» does.
   const pane = item.pane ?? null
-  const openRun = openChat ?? (pane ? () => openPane(pane) : null)
+  // Why: a terminal HQ+ lists opens on the right like a chat, where it can be typed into (26.10).
+  const openRun = openChat ?? (pane ? (ctx.openPane(pane.paneKey) ?? (() => openPane(pane))) : null)
   return (
     <FeedRow item={item} ctx={ctx} tile={tile}>
       <div
