@@ -10,7 +10,9 @@ import { deliverWaitingReply } from '../orca-plus/waiting-replies/deliver-waitin
 import { createSlackReadApi, createSlackReaderCache } from '../slack/slack-reader-api'
 import { getSlackReaderStatus, withSlackReader } from '../slack/slack-reader'
 import {
+  hqReplyPickPrompt,
   hqReplyRelevancePrompt,
+  parseHqReplyPick,
   parseHqReplyRelevance,
   startHqSlackWaitingReplies
 } from './hq-slack-waiting-replies'
@@ -60,6 +62,22 @@ export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeServi
         }
       )
       return result.ok ? parseHqReplyRelevance(result.text) : true
+    },
+    pickAnswer: async (questions, said) => {
+      const hqPath = store.getSettings().hqPath
+      if (!hqPath) {
+        return null
+      }
+      const result = await generateHqText(
+        hqReplyPickPrompt(questions, said),
+        { emptyResultName: 'reply pick', operation: 'hq-slack-intake', model: 'haiku' },
+        {
+          settings: store.getSettings(),
+          cwd: hqPath,
+          getAgentEnvResolvers: () => runtime.getCommitMessageAgentEnvironmentResolvers()
+        }
+      )
+      return result.ok ? parseHqReplyPick(result.text, questions.length) : null
     },
     now: Date.now
   })
