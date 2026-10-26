@@ -48,6 +48,8 @@ export function ChatCard({
   // Custom build (hq-plus-ui-v5): opened, the card reads the whole latest reply from the chat itself.
   const fullReply = useHqPlusLastReply(item.sessionId, open, item.at)
   const status = ctx.chatStatus(item.sessionId) ?? DONE
+  // Why: a chat that waits on someone has still finished or not; both show.
+  const waitsOn = ctx.chatWaitsOn(item.sessionId)
   const cardKey = item.sessionId ?? item.address
   const closer = ctx.closeChat(item.sessionId, cardKey ? { key: cardKey, at: item.at } : undefined)
   const key = item.address ?? item.sessionId
@@ -79,7 +81,7 @@ export function ChatCard({
           <HqPlusChatName chat={ctx.chatOf(item.sessionId)} />
           <span className="hqp-tm">{clock(item.at)}</span>
           <span className="hqp-spacer" />
-          <HqPlusBadges badges={[status]} />
+          <HqPlusBadges badges={waitsOn ? [waitsOn, status] : [status]} />
           {closer ? <HqPlusCloseChat closer={closer} name={item.project ?? 'chat'} /> : null}
         </div>
         <HqPlusGrow>
