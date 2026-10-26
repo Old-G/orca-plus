@@ -70,7 +70,10 @@ function clickUpEvent(mail: HqMail): HqMailEvent | null {
   if (CLICKUP_NOISE.test(mail.subject) || CLICKUP_NOISE.test(mail.body)) {
     return null
   }
-  const links = [...unwrapLinks(mail.body).matchAll(CLICKUP_TASK_LINK)]
+  const unwrapped = unwrapLinks(mail.body)
+  const links = [...unwrapped.matchAll(CLICKUP_TASK_LINK)]
+  // Why: a mention made in a comment thread links the thread's first comment plus the reply.
+  const threaded = /[?&]threadedComment=(\d+)/.exec(unwrapped)?.[1]
   const marked = {
     task: /task_id_start-([A-Za-z0-9_-]+?)-task_id_end/.exec(mail.body)?.[1],
     comment: /comment_id_start-(\d+)-comment_id_end/.exec(mail.body)?.[1]
@@ -89,12 +92,12 @@ function clickUpEvent(mail: HqMail): HqMailEvent | null {
     return { kind: 'clickup-task', taskRef, action: 'assigned' }
   }
   if (marked.task && marked.comment) {
-    return { kind: 'clickup-comment', taskRef: marked.task, commentId: marked.comment }
+    return { kind: 'clickup-comment', taskRef: marked.task, commentId: threaded ?? marked.comment }
   }
   // Why: a comment can link other tasks; the «View comment» link is the one with the comment id.
   const comment = links.find((link) => link[2])
   return comment?.[1] && comment[2]
-    ? { kind: 'clickup-comment', taskRef: comment[1], commentId: comment[2] }
+    ? { kind: 'clickup-comment', taskRef: comment[1], commentId: threaded ?? comment[2] }
     : null
 }
 
