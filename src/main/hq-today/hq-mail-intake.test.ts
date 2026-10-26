@@ -169,6 +169,21 @@ describe('collectHqMailIntake', () => {
     expect(await cards(path)).toEqual([])
   })
 
+  it('retires a card once the owner answers in its comment thread', async () => {
+    const path = await hq()
+    await collectHqMailIntake(path, deps([mention]))
+    await collectHqMailIntake(
+      path,
+      deps([], {
+        listComments: async () => [
+          { ...comment('101', ANN, NOW - 5000, '@Owner I will share cases here.'), replyCount: 1 }
+        ],
+        listReplies: async (id) => (id === '101' ? [comment('102', OWNER, NOW - 1000, 'Done')] : [])
+      })
+    )
+    expect(await cards(path)).toEqual([])
+  })
+
   it('takes the reply posted with the email when the email names only the thread', async () => {
     const path = await hq()
     const card = {
