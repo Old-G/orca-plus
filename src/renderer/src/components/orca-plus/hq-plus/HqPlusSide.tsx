@@ -16,6 +16,7 @@ import { HqPlusNewChat } from './HqPlusNewChat'
 import { startHqChat } from '../hq/hq-new-chat'
 import { HqPlusCloseChat, type HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusSideBlock } from './HqPlusSideBlock'
+import type { HqPlusDraftChat } from './use-hq-plus-drafts'
 import {
   HqPlusWaitingQueue,
   HqPlusWeWaitQueue,
@@ -63,7 +64,8 @@ function ChatRow({
   now,
   tile,
   closer,
-  onPick
+  onPick,
+  draft
 }: {
   item: HqChatItem
   picked: boolean
@@ -71,6 +73,8 @@ function ChatRow({
   tile: HqPlusTile
   closer: HqPlusChatCloser | null
   onPick: (item: HqChatItem) => void
+  /** Custom build (hq-plus-drafts): the owner's unsent words, shown instead of the chat's last line. */
+  draft?: string
 }): React.JSX.Element {
   const title = useHqChatTitle(item)
   const chip = chipOf(item, now)
@@ -97,7 +101,9 @@ function ChatRow({
           {title}
         </span>
         <span className="w">{item.sortAt ? formatRelativeTime(item.sortAt, now) : ''}</span>
-        <span className="s">{previewOf(item)}</span>
+        <span className="s">
+          {draft ? `✎ ${draft.replace(/\s+/g, ' ').slice(0, 120)}` : previewOf(item)}
+        </span>
       </button>
       {closer ? <HqPlusCloseChat closer={closer} name={title} /> : null}
     </div>
@@ -154,7 +160,8 @@ export function HqPlusSide({
   waiting,
   fyi,
   waitsOnThem,
-  chats,
+  chats: allChats,
+  drafts,
   colorFor,
   tileOfRepo,
   onKeepProject,
@@ -165,7 +172,7 @@ export function HqPlusSide({
   closerOf,
   queue,
   onPickChat,
-  onClearFyi,
+  onClearFyi
 }: {
   waiting: HqPlusCard[]
   /** Open items for the owner's information only. */
@@ -174,6 +181,8 @@ export function HqPlusSide({
   waitsOnThem: HqPlusOtherWait[]
   /** Custom build (hq-plus-chats-by-project): the chats by project, as the classic HQ lists them. */
   chats: { marked: HqChatItem[]; projects: HqPlusProjectChats[]; quiet: HqChatItem[] }
+  /** Custom build (hq-plus-drafts): chats with unsent words, above the rest. */
+  drafts: HqPlusDraftChat[]
   colorFor: (repoId: string) => string
   tileOfRepo: (repoId: string, name: string) => HqPlusTile
   onKeepProject: (repoId: string, kept: boolean) => void
@@ -194,6 +203,18 @@ export function HqPlusSide({
     saveHqPlusViewState({ showIdle: next })
   }
   const now = queue.now
+  // Custom build (hq-plus-drafts): a chat with unsent words shows once, in Drafts.
+  const drafted = new Set(drafts.map((draft) => draft.item.key))
+  const chats = {
+    marked: allChats.marked.filter((item) => !drafted.has(item.key)),
+    projects: allChats.projects
+      .map((project) => ({
+        ...project,
+        items: project.items.filter((item) => !drafted.has(item.key))
+      }))
+      .filter((project) => project.items.length > 0 || project.kept),
+    quiet: allChats.quiet.filter((item) => !drafted.has(item.key))
+  }
   const listed = chats.marked.length + chats.projects.reduce((n, p) => n + p.items.length, 0)
   const done = [...chats.marked, ...chats.projects.flatMap((project) => project.items)].filter(
     (item) => item.group === 'done'
@@ -245,10 +266,29 @@ export function HqPlusSide({
           </>
         }
       >
-        {listed === 0 && chats.quiet.length === 0 ? (
+        {listed === 0 && chats.quiet.length === 0 && drafts.length === 0 ? (
           <p className="hqp-empty hqp-quiet">
             {translate('auto.hqPlus.side.noSessions', 'no live chats')}
           </p>
+        ) : null}
+        {drafts.length > 0 ? (
+          <>
+            <div className="hqp-side-sub">
+              {translate('auto.hqPlus.side.drafts', 'Drafts')} · {drafts.length}
+            </div>
+            {drafts.map((draft) => (
+              <ChatRow
+                key={draft.item.key}
+                item={draft.item}
+                picked={picked === draft.item.key}
+                now={now}
+                tile={tileOf(draft.item)}
+                closer={closerOf(draft.item)}
+                onPick={onPickChat}
+                draft={draft.text}
+              />
+            ))}
+          </>
         ) : null}
         {chats.marked.length > 0 ? (
           <>
