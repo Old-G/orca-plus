@@ -4,6 +4,7 @@ import {
   PULSE_BELL_ACTION,
   PULSE_BELL_KIND,
   readContinueOnSubscriptionAction,
+  readHandoffBellOfferId,
   readPulseBellPaneRef,
   readPulseBellSessionId,
   type PulseBellPaneRef
@@ -169,13 +170,15 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
     await window.api.pulseBell.markRead([item.id])
     return
   }
-  if (item.kind === PULSE_BELL_KIND.handoff && item.refId) {
+  const handoffOfferId =
+    item.kind === PULSE_BELL_KIND.handoff ? readHandoffBellOfferId(item.refId) : null
+  if (handoffOfferId) {
     if (actionId === PULSE_BELL_ACTION.launch) {
-      await launchClaudeHandoffOffer(item.refId)
+      await launchClaudeHandoffOffer(handoffOfferId)
       return
     }
     if (actionId === PULSE_BELL_ACTION.dismiss) {
-      await window.api.claudeHandoff.dismiss(item.refId)
+      await window.api.claudeHandoff.dismiss(handoffOfferId)
       return
     }
   }
