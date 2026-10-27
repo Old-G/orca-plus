@@ -25,6 +25,7 @@ import {
   records,
   refusedScopes,
   scopeListeners,
+  anyScopeListeners,
   reconcileRestoredImageChecks,
   type DraftAppend,
   type DraftRecord
@@ -107,6 +108,26 @@ export function subscribeToNativeChatComposerDraft(
       scopeListeners.delete(scopeKey)
     }
   }
+}
+
+/** Custom build (hq-plus-drafts): every scope's change, for a list of all unsent drafts. */
+export function subscribeToNativeChatComposerDrafts(listener: () => void): () => void {
+  anyScopeListeners.add(listener)
+  return () => {
+    anyScopeListeners.delete(listener)
+  }
+}
+
+/** Custom build (hq-plus-drafts): the scopes holding unsent words, newest first. */
+export function listNativeChatComposerDrafts(): {
+  scopeKey: string
+  text: string
+  savedAt: number
+}[] {
+  return [...records.entries()]
+    .filter(([, draft]) => draft.text.trim() !== '')
+    .map(([scopeKey, draft]) => ({ scopeKey, text: draft.text, savedAt: draft.savedAt }))
+    .sort((a, b) => b.savedAt - a.savedAt)
 }
 
 /** A draft storage refused to save: it is kept in memory only until a later write lands. */

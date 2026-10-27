@@ -1935,7 +1935,7 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 }
 .hqp-m[data-selected='true'] > :last-child,
 .hqp-bgl[data-selected='true'] {
-  outline: 1px solid var(--hqp-line-2);
+  outline: 2px solid var(--hqp-ice);
   /* Custom build (hq-plus-ui-v5): drawn inside the row, so the feed's edge never clips it. */
   outline-offset: -1px;
   border-radius: 12px;
@@ -1943,7 +1943,10 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 /* Custom build (hq-plus-ui-v5): a chat card shows selection on its own border — one line, no ring. */
 .hqp-m[data-selected='true'] > .hqp-chatc {
   outline: none;
-  border-color: var(--hqp-line-2);
+  border-color: var(--hqp-ice);
+  box-shadow:
+    0 0 0 1px var(--hqp-ice),
+    0 0 22px rgba(143, 233, 255, 0.22);
 }
 .hqp-day {
   display: flex;
@@ -2484,8 +2487,9 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   outline: none;
 }
 .hqp-m[data-selected='true'] .hqp-card {
-  outline: 1px solid var(--hqp-line-2);
+  outline: 2px solid var(--hqp-ice);
   outline-offset: -1px;
+  box-shadow: 0 0 22px rgba(143, 233, 255, 0.22);
 }
 
 /* Custom build (hq-plus-side-blocks): the Reports tab's list — a title over its kind and age. */
