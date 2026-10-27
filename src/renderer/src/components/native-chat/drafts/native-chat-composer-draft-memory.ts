@@ -142,6 +142,9 @@ export function nextSavedAt(): number {
   return lastSavedAt
 }
 
+/** Custom build (hq-plus-drafts): told of every scope's change, for a list of all unsent drafts. */
+export const anyScopeListeners = new Set<() => void>()
+
 export function notifyScope(scopeKey: string): void {
   scopeListeners.get(currentDraftScope(scopeKey))?.forEach((listener) => listener())
 }
@@ -168,6 +171,7 @@ export function writeLaunchSetupOptions(
     setup.options.set(slot, record)
     notifyScope(scope)
   }
+  anyScopeListeners.forEach((listener) => listener())
 }
 
 /** A local change not yet in storage, which a write from another window must not replace. */
