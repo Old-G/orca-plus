@@ -137,6 +137,12 @@ describe('createClaudeHandoffOffers', () => {
     expect(offers.list()).toEqual([])
   })
 
+  it('offers a handoff whose agent guessed a creation time later than now', async () => {
+    const { offers } = setup({ [PATH]: fileText('2026-09-27T12:57:00+03:00') })
+    await offers.onStatus(stop())
+    expect(offers.list().map((offer) => offer.id)).toEqual([SESSION])
+  })
+
   it('offers one handoff once, even after it was dismissed and the session stops again', async () => {
     const { offers, onOffersChanged } = setup({ [PATH]: fileText() })
     await offers.onStatus(stop())

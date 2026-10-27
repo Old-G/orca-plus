@@ -46,7 +46,6 @@ export type ClaudeHandoffOffers = {
 
 // Why: the file is written in the very turn that stops, so an older one is a leftover.
 const FRESH_FOR_MS = 30 * 60_000
-const CLOCK_SKEW_MS = 5 * 60_000
 const SEEN_LIMIT = 200
 
 export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeHandoffOffers {
@@ -125,8 +124,10 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
         if (!file) {
           return
         }
+        // Why no lower bound: the agent writes `created` from a guess, often later than the real
+        // time (27.10: 22:58 on a file written at 22:01); the file is this session's, so it is fresh.
         const age = now() - Date.parse(file.created)
-        if (age > FRESH_FOR_MS || age < -CLOCK_SKEW_MS) {
+        if (age > FRESH_FOR_MS) {
           return
         }
         if (await contextFilled(worktreeId, sessionId)) {
@@ -161,7 +162,7 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
       }
       // Why: measured against the stop, not now — the limit may lift hours after the handoff.
       const beforeStop = stoppedAt - Date.parse(file.created)
-      if (beforeStop > FRESH_FOR_MS || beforeStop < -CLOCK_SKEW_MS) {
+      if (beforeStop > FRESH_FOR_MS) {
         return false
       }
       // Why: with room left in the context the stopped session itself should resume.
