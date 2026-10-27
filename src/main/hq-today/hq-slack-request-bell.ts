@@ -20,10 +20,12 @@ export type HqSlackRequestBellDeps = {
   listPages: (hqPath: string) => Promise<HqProjectPage[]>
   sync: (kind: string, items: readonly PulseBellInput[]) => void
   onChanged: (listener: () => void) => () => void
+  /** Custom build (hq-one-card): `channel:ts` of Slack messages another card already shows. */
+  covered?: () => ReadonlySet<string>
 }
 
 export async function hqSlackRequestBellItems(
-  deps: Pick<HqSlackRequestBellDeps, 'hqPath' | 'enabled' | 'readScout' | 'listPages'>
+  deps: Pick<HqSlackRequestBellDeps, 'hqPath' | 'enabled' | 'readScout' | 'listPages' | 'covered'>
 ): Promise<PulseBellInput[] | null> {
   const hq = deps.hqPath()
   if (!hq || !deps.enabled()) {
@@ -33,11 +35,13 @@ export async function hqSlackRequestBellItems(
   if (!scout.ok) {
     return null
   }
-  const pages = scout.drafts.some((draft) => draft.project)
+  const covered = deps.covered?.() ?? new Set<string>()
+  const drafts = scout.drafts.filter((draft) => !covered.has(draft.id))
+  const pages = drafts.some((draft) => draft.project)
     ? await deps.listPages(hq).catch(() => [])
     : []
   const names = new Map(pages.map((page) => [page.slug, hqProjectShortName(page)]))
-  return scout.drafts.map((draft) =>
+  return drafts.map((draft) =>
     slackRequestBellItem(draft, draft.project ? (names.get(draft.project) ?? draft.project) : null)
   )
 }
