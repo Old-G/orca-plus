@@ -57,6 +57,7 @@ import { onHqTabRequested, takeRequestedHqTab } from '../hq/hq-view'
 import { PulseBellButton } from '../pulse-bell/PulseBellButton'
 import { openHqRouteChat } from '../pulse-bell/hq-route-send'
 import { HqPlusLog, hqPlusThreadKey, hqPlusTileOf, type HqPlusLogContext } from './HqPlusLog'
+import { useHqPlusDraftChats } from './use-hq-plus-drafts'
 import { HqPlusSide, type HqPlusTile } from './HqPlusSide'
 import type { HqPlusOtherWait } from './HqPlusSideQueues'
 import type { HqPlusChatCloser } from './HqPlusCloseChat'
@@ -408,6 +409,12 @@ export function HqPlusScreen(): React.JSX.Element {
       ),
     [chatItems, room, roomOfRepo, keptProjectIds, markedChatKeys, now]
   )
+  // Custom build (hq-plus-drafts): chats the owner left unsent on purpose, at the top of the column.
+  const roomChats = useMemo(
+    () => chatItems.filter((item) => !room || (roomOfRepo.get(item.repoId) ?? room) === room),
+    [chatItems, room, roomOfRepo]
+  )
+  const draftChats = useHqPlusDraftChats(roomChats)
   const waits = useMemo<HqPlusWait[]>(
     () =>
       data.waits
@@ -639,6 +646,8 @@ export function HqPlusScreen(): React.JSX.Element {
   const jump = (card: HqPlusCard): void => {
     // Why: the card may be hidden by a thread filter; scroll once the whole log is back.
     setScope(null)
+    // Custom build (hq-plus-picked-chat): the card stays marked, so the owner sees which one it is.
+    setSelectedId(card.id)
     goToFeedItem(card.id, card)
   }
   const openLink = (url: string, event?: HqPlusLinkClick): void =>
@@ -897,6 +906,7 @@ export function HqPlusScreen(): React.JSX.Element {
             fyi={fyi}
             waitsOnThem={waitsOnThem}
             chats={sideChats}
+            drafts={draftChats}
             colorFor={colorFor}
             tileOfRepo={(repoId, name) => ({
               letters: hqPlusTileOf(slugOfRepo.get(repoId) ?? name),
