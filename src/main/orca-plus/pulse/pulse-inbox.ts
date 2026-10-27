@@ -113,7 +113,8 @@ function addInboxItemInTransaction(
  */
 function replacesAutoClose(previous: string | null, action: string | undefined): boolean {
   return (
-    (previous === INBOX_GONE_ACTION || previous === 'seen') && action?.startsWith(HQ_PLUS_REPLY_ACTION) === true
+    (previous === INBOX_GONE_ACTION || previous === 'seen') &&
+    action?.startsWith(HQ_PLUS_REPLY_ACTION) === true
   )
 }
 
@@ -205,6 +206,44 @@ export const INBOX_GONE_ACTION = 'gone'
  * Makes the open items of `kind` match what a producer reports now: raises the missing ones,
  * closes those it no longer reports. One the user already answered stays closed for its key.
  */
+/** Custom build (hq-reply-in-place): an open item takes a newer version of itself — new words and
+ *  key, moved to now and unread — so a card follows what it is about instead of piling up copies. */
+function refreshInTransaction(
+  core: PulseCore,
+  existing: PulseInboxItem,
+  input: PulseInboxInput & { dedupeKey: string }
+): void {
+  const next: PulseInboxItem = {
+    ...existing,
+    title: input.title,
+    body: input.body ?? null,
+    urgency: input.urgency ?? existing.urgency,
+    refKind: input.refKind ?? null,
+    refId: input.refId ?? null,
+    actions: input.actions ?? [],
+    dedupeKey: input.dedupeKey,
+    createdAt: core.clock.now(),
+    readAt: null
+  }
+  core.db
+    .prepare(
+      'UPDATE inbox SET title = ?, body = ?, urgency = ?, ref_kind = ?, ref_id = ?, actions = ?, ' +
+        'dedupe_key = ?, created_at = ?, read_at = NULL WHERE id = ?'
+    )
+    .run(
+      next.title,
+      next.body,
+      next.urgency,
+      next.refKind,
+      next.refId,
+      JSON.stringify(next.actions),
+      next.dedupeKey,
+      next.createdAt,
+      existing.id
+    )
+  core.emit('inbox.updated', 'inbox', existing.id, next)
+}
+
 export function syncInboxKind(
   core: PulseCore,
   kind: string,
@@ -212,9 +251,22 @@ export function syncInboxKind(
 ): { raised: number; closed: number } {
   return core.transaction(() => {
     const wanted = new Map(desired.map((input) => [input.dedupeKey, input]))
+    const open = listInbox(core).filter((entry) => entry.kind === kind)
+    const openKeys = new Set(open.map((entry) => entry.dedupeKey))
     let closed = 0
-    for (const item of listInbox(core).filter((entry) => entry.kind === kind)) {
+    for (const item of open) {
       if (!item.dedupeKey || !wanted.has(item.dedupeKey)) {
+        const successor = [...wanted.values()].find(
+          (input) =>
+            input.replaces &&
+            item.dedupeKey?.startsWith(input.replaces) &&
+            !openKeys.has(input.dedupeKey)
+        )
+        if (successor) {
+          refreshInTransaction(core, item, { ...successor, kind })
+          openKeys.add(successor.dedupeKey)
+          continue
+        }
         updateInTransaction(core, item.id, 'done', INBOX_GONE_ACTION)
         closed += 1
       }

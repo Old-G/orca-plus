@@ -107,4 +107,27 @@ describe('an HQ+ answer on a closed turn', () => {
     expect(db.markInboxDone(auto.id, 'reply:(a) Geist').doneAction).toBe('reply:(a) Geist')
     expect(db.markInboxDone(decided.id, 'reply:(a) Geist').doneAction).toBe('dismiss')
   })
+  it('keeps one card for a waiting whose answer grows, and a new one once the owner handled it', () => {
+    const db = openDb()
+    const reply = (ts: string, body: string) => ({
+      kind: 'ignored',
+      title: 'Ann replied',
+      body,
+      dedupeKey: `reply:w1:${ts}`,
+      replaces: 'reply:w1:'
+    })
+    db.syncInboxKind('hq-waiting-reply', [reply('1.0', 'Hi')])
+    const [first] = db.listInbox()
+    db.markInboxRead(first?.id ?? '')
+    expect(db.syncInboxKind('hq-waiting-reply', [reply('2.0', 'Hi\nYes')])).toEqual({
+      raised: 0,
+      closed: 0
+    })
+    const [same] = db.listInbox()
+    expect(same).toMatchObject({ id: first?.id, body: 'Hi\nYes', dedupeKey: 'reply:w1:2.0' })
+    expect(same?.readAt).toBeNull()
+    expect(same?.createdAt).toBeGreaterThan(first?.createdAt ?? 0)
+    db.markInboxDone(first?.id ?? '', 'reply-skip')
+    expect(db.syncInboxKind('hq-waiting-reply', [reply('3.0', 'Also')]).raised).toBe(1)
+  })
 })

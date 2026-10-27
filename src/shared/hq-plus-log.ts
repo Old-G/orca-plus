@@ -13,7 +13,7 @@ import { readHqFinishedChat } from './hq-chat-history'
 import { HQ_SLACK_REQUEST_BELL_KIND } from './hq-slack-request-bell'
 import { HQ_INTAKE_KIND } from './hq-slack-intake'
 import { OUTGOING_APPROVAL_BELL_KIND } from './outgoing-approval/outgoing-approval-bell'
-import { HQ_WAITING_REPLY_KIND } from './hq-waiting-reply-bell'
+import { HQ_WAITING_REPLY_KIND, readHqWaitingReplyRef } from './hq-waiting-reply-bell'
 import { HQ_REPORT_BELL_KIND } from './hq-reports'
 import { parseHqPlusReport, type HqPlusReport } from './hq-plus-screen'
 import { HQ_REMIND_KIND } from './hq-remind'
@@ -262,6 +262,14 @@ export function hqPlusLog(
       .map((item) => [item.refId ?? '', item])
   )
   const used = new Set<string>()
+  // Custom build (hq-reply-in-place): a person's answer that has its card needs no journal line too.
+  const carded = new Set(
+    inbox.flatMap((item) =>
+      item.kind === HQ_WAITING_REPLY_KIND
+        ? [readHqWaitingReplyRef(item.refId)?.waitingId ?? '']
+        : []
+    )
+  )
   const answers = new Map<string, HqJournalEntry>()
   for (const entry of entries) {
     if (isHqPlusOwnerMessage(entry) && entry.replyTo) {
@@ -452,6 +460,9 @@ export function hqPlusLog(
       continue
     }
     if (entry.kind === HQ_JOURNAL_KIND.reviewFinding && !/^\[P[01]\]/.test(entry.title)) {
+      continue
+    }
+    if (entry.kind === HQ_JOURNAL_KIND.personReply && entry.refId && carded.has(entry.refId)) {
       continue
     }
     items.push({
