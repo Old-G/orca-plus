@@ -65,6 +65,9 @@ export type HqSlackWaitingDeps = {
    *  messages answer (its index), or null for none; a failed check answers none. */
   pickAnswer?: (questions: readonly string[], said: string) => Promise<number | null>
   now: () => number
+  /** Custom build (hq-one-card): closed waitings that took an answer lately; what they took stays
+   *  theirs, so a question still open does not take the same message after them. */
+  listTaken?: () => PulseWaiting[]
 }
 
 type Watch = {
@@ -182,10 +185,11 @@ export async function pollHqSlackWaitingReplies(
         console.warn(`[hq-slack-waiting] reading DM ${channel} failed:`, error)
       }
     }
+    const taken = takenRanges(deps)
     const gathered: Gathered[] = []
     for (const watch of watches) {
       try {
-        const found = await gather(deps, api, watch, dmMessages)
+        const found = await gather(deps, api, watch, dmMessages, taken)
         if (found) {
           gathered.push(found)
         }
@@ -242,11 +246,41 @@ function describer(deps: HqSlackWaitingDeps, api: SlackReadApi): Describe {
   }
 }
 
+/** What a closed waiting took: its person's messages, or its thread's, from its question to its answer. */
+type TakenRange = { from: string; to: string; user: string | null; channel: string | null }
+
+function takenRanges(deps: HqSlackWaitingDeps): TakenRange[] {
+  return (deps.listTaken?.() ?? []).flatMap((waiting) => {
+    if (waiting.direction !== 'on-them' || waiting.status === 'open' || !waiting.replyTs) {
+      return []
+    }
+    const user = waiting.personId ? deps.personSlackId(waiting.personId) : null
+    const channel = parseSlackThreadRef(waiting.sourceRef)?.channel ?? null
+    return user || channel
+      ? [{ from: slackTsAt(waiting.createdAt), to: waiting.replyTs, user, channel }]
+      : []
+  })
+}
+
+function isTaken(
+  taken: readonly TakenRange[],
+  message: SlackReadMessage,
+  channel: string
+): boolean {
+  return taken.some(
+    (range) =>
+      newer(message.ts, range.from) &&
+      !newer(message.ts, range.to) &&
+      ((range.user !== null && message.user === range.user) || range.channel === channel)
+  )
+}
+
 async function gather(
   deps: HqSlackWaitingDeps,
   api: SlackReadApi,
   watch: Watch,
-  dmMessages: Map<string, SlackReadMessage[]>
+  dmMessages: Map<string, SlackReadMessage[]>,
+  taken: readonly TakenRange[] = []
 ): Promise<Gathered | null> {
   const { waiting, after, thread, dm } = watch
   const found = new Map<string, SlackReadMessage>()
@@ -264,7 +298,11 @@ async function gather(
       console.warn(`[hq-slack-waiting] reading thread of ${waiting.id} failed:`, error)
     }
     for (const message of answers(replies, api.owner)) {
-      if (message.ts !== thread.threadTs && newer(message.ts, after)) {
+      if (
+        message.ts !== thread.threadTs &&
+        newer(message.ts, after) &&
+        !isTaken(taken, message, thread.channel)
+      ) {
         found.set(message.ts, message)
         channelOf.set(message.ts, thread.channel)
         inThread.add(message.ts)
@@ -272,7 +310,12 @@ async function gather(
     }
   }
   for (const message of dm ? (dmMessages.get(dm.channel) ?? []) : []) {
-    if (dm && newer(message.ts, after) && (!dm.from || message.user === dm.from)) {
+    if (
+      dm &&
+      newer(message.ts, after) &&
+      (!dm.from || message.user === dm.from) &&
+      !isTaken(taken, message, dm.channel)
+    ) {
       found.set(message.ts, message)
       channelOf.set(message.ts, dm.channel)
     }
