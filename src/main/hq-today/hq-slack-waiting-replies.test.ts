@@ -304,6 +304,36 @@ describe('plainSlackText', () => {
     expect(await pollHqSlackWaitingReplies(deps)).toBe(0)
   })
 
+  it('gives one DM message to one of the questions asked in separate DM threads, also after a restart', async () => {
+    const { db, anna, dm, deps, at } = setup()
+    const ask = (title: string, threadTs: string) =>
+      db.addWaiting({
+        direction: 'on-them',
+        title,
+        personId: anna.id,
+        source: 'slack',
+        sourceRef: `slack:DANNA01:${threadTs}`
+      })
+    at(ASKED_AT - 3_000)
+    const connector = ask('Did the hub connector connect', '1792184100.000100')
+    at(ASKED_AT - 2_000)
+    const cases = ask('Confirm the 18 eval cases', '1792184150.000100')
+    at(ASKED_AT - 1_000)
+    const amount = ask('Which amount to charge on a card update', '1792184199.000100')
+    const pick = vi.fn(async (questions: readonly string[]) => questions.length - 1)
+    deps.pickAnswer = pick
+    dm.push(msg(ASKED_AT + 60_000, ANNA, 'Привет'))
+    dm.push(msg(ASKED_AT + 70_000, ANNA, 'Да'))
+    at(ASKED_AT + 160_000)
+    expect(await pollHqSlackWaitingReplies(deps)).toBe(1)
+    expect(db.getWaiting(amount.id)?.reply).toContain('Да')
+    expect(db.getWaiting(connector.id)?.reply ?? null).toBeNull()
+    expect(db.getWaiting(cases.id)?.reply ?? null).toBeNull()
+    // Why a fresh map: a restart forgets what this pass handed out; the owner keeps the message.
+    expect(await pollHqSlackWaitingReplies(deps, new Map())).toBe(0)
+    expect(pick).toHaveBeenCalledTimes(1)
+  })
+
   it('gives a DM burst to the one open question it answers, not to every question in that DM', async () => {
     const { db, anna, dm, deps, at } = setup()
     const ask = (title: string) =>

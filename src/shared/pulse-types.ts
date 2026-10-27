@@ -202,6 +202,9 @@ export type PulseInboxInput = {
   refId?: string | null
   actions?: PulseInboxAction[]
   dedupeKey?: string | null
+  /** Custom build (hq-reply-in-place): an open item of the same kind whose dedupe key starts with this
+   *  becomes the new one — same card, new words, moved to now — instead of closing for a second one. */
+  replaces?: string | null
 }
 
 // Custom build (hq-plus-journal): journal rows follow the same change feed.

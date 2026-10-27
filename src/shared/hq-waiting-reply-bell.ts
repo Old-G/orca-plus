@@ -91,7 +91,9 @@ export function hqWaitingReplyBellItems(
               { id: HQ_WAITING_REPLY_ACTION.skip, label: 'Skip' }
             ]
           : [{ id: HQ_WAITING_REPLY_ACTION.skip, label: 'Got it' }],
-        dedupeKey: `${HQ_WAITING_REPLY_KIND}:${waiting.id}:${waiting.replyTs}`
+        dedupeKey: `${HQ_WAITING_REPLY_KIND}:${waiting.id}:${waiting.replyTs}`,
+        // Why: a person answers in a burst; each new message grows the same card, not a new one.
+        replaces: `${HQ_WAITING_REPLY_KIND}:${waiting.id}:`
       }
     ]
   })
