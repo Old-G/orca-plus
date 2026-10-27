@@ -52,8 +52,8 @@ describe('groupHqWaitingReplies', () => {
     const groups = groupHqWaitingReplies(
       inbox([answered('old', 1, 'Привет\nдоступ выдал'), answered('new', 5, 'доступ выдал')])
     )
-    expect([...groups.keys()]).toEqual(['Борис:1792184300.000100'])
-    expect(groups.get('Борис:1792184300.000100')?.map((target) => target.ref.waitingId)).toEqual([
+    expect([...groups.keys()]).toEqual(['Борис:new,old'])
+    expect(groups.get('Борис:new,old')?.map((target) => target.ref.waitingId)).toEqual([
       'new',
       'old'
     ])
