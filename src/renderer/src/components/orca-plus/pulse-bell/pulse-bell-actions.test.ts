@@ -102,6 +102,12 @@ describe('runPulseBellAction', () => {
     await runPulseBellAction(bellItem('handoff', 'offer-1'), 'dismiss')
     expect(mocks.dismiss).toHaveBeenCalledWith('offer-1')
     expect(mocks.markDone).not.toHaveBeenCalled()
+    // Why: the ref now carries the project and chat beside the offer id.
+    const ref = JSON.stringify({ offerId: 'offer-2', project: 'app', sessionId: 'claude_s1' })
+    await runPulseBellAction(bellItem('handoff', ref), 'launch')
+    expect(mocks.launchClaudeHandoffOffer).toHaveBeenLastCalledWith('offer-2')
+    await runPulseBellAction(bellItem('handoff', ref), 'dismiss')
+    expect(mocks.dismiss).toHaveBeenLastCalledWith('offer-2')
   })
 
   it('opens a waiting agent and only marks the item read', async () => {
