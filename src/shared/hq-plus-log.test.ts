@@ -81,6 +81,27 @@ describe('parseHqPlusReport', () => {
 })
 
 describe('hqPlusLog', () => {
+  it('shows a person’s answer once — its card, not also a journal line', () => {
+    const answer = row({
+      kind: 'person.reply',
+      title: 'Ann: yes',
+      refKind: 'waiting',
+      refId: 'w1',
+      needs: 'agent:kite/main',
+      status: 'open'
+    })
+    const lone = row({ kind: 'person.reply', title: 'Bob: no', refKind: 'waiting', refId: 'w2' })
+    const replyCard = bell({
+      kind: 'hq-waiting-reply',
+      title: 'Ann replied',
+      refKind: 'waiting',
+      refId: JSON.stringify({ waitingId: 'w1', replyTs: '1.0', author: 'Ann', reply: 'yes' })
+    })
+    const log = hqPlusLog([answer, lone], [replyCard], DAY_START)
+    expect(log.filter((item) => item.kind === 'line').map((item) => item.id)).toEqual([lone.id])
+    expect(log.some((item) => item.kind === 'card' && item.inbox?.id === replyCard.id)).toBe(true)
+  })
+
   it('keeps the day in order and turns a turn that ends on a question into an open card', () => {
     const asked = bell({ id: 'i1' })
     const log = hqPlusLog(

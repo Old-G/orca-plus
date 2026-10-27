@@ -6,6 +6,8 @@ import type { Store } from '../../persistence'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import type { RateLimitService } from '../../rate-limits/service'
 import { agentHookServer } from '../../agent-hooks/server'
+import { hqCoveredSlackMessages } from '../../../shared/hq-covered-slack'
+import { HQ_INTAKE_KIND } from '../../../shared/hq-slack-intake'
 import { describeWorktree, onClaudeHandoffOffersChanged } from '../../ipc/claude-handoff'
 import type { ClaudeHandoffOffer } from '../../../shared/claude-handoff-file'
 import {
@@ -127,7 +129,13 @@ export function registerPulseBell(
     readScout: readHqSlackScout,
     listPages: listHqProjectPages,
     sync,
-    onChanged: onHqSlackScoutChanged
+    onChanged: onHqSlackScoutChanged,
+    covered: () =>
+      hqCoveredSlackMessages(
+        runtime.pulseListWaitings(),
+        runtime.pulseListInbox(true, { kind: HQ_INTAKE_KIND }),
+        Date.now() - 2 * 24 * 60 * 60_000
+      )
   })
   // Custom build (hq-scout-digest): Slack in one bell item at the digest hours.
   startHqSlackDigest({

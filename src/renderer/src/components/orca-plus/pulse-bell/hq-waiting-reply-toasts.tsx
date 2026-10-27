@@ -250,11 +250,18 @@ export function groupHqWaitingReplies(items: readonly PulseInboxItem[]): Map<str
     const answer = `${ref.author}:${ref.replyTs}`
     groups.set(answer, [...(groups.get(answer) ?? []), { itemId: item.id, ref }])
   }
-  // Why newest question first: its words since that question are the card's quote.
+  // Custom build (hq-reply-in-place): a card is named by the questions it answers, not by the newest
+  // message, so the person's next message redraws it instead of popping a new one.
+  const byQuestions = new Map<string, Target[]>()
   for (const targets of groups.values()) {
+    const ids = targets.map((target) => target.ref.waitingId).sort()
+    byQuestions.set(`${targets[0]?.ref.author ?? ''}:${ids.join(',')}`, targets)
+  }
+  // Why newest question first: its words since that question are the card's quote.
+  for (const targets of byQuestions.values()) {
     targets.sort((a, b) => b.ref.askedAt - a.ref.askedAt)
   }
-  return groups
+  return byQuestions
 }
 
 /** Pops each new answer, redraws a card whose chats changed, and closes the ones handled. */
@@ -271,7 +278,7 @@ export function syncHqWaitingReplyToasts(
     }
   }
   for (const [answer, targets] of groups) {
-    const drawn = targets.map((target) => target.itemId).join(',')
+    const drawn = targets.map((target) => `${target.itemId}@${target.ref.replyTs}`).join(',')
     const shown = memory.shown.get(answer)
     if (
       shown === drawn ||
