@@ -715,9 +715,11 @@ export function HqPlusCardView({
             </button>
           </form>
         ) : null}
+        {/* Custom build (hq-closed-loop): an item with its own «Not now» (a handoff) shows it once. */}
         {open &&
         onNotNow &&
         look.kind !== 'inbox' &&
+        !card.inbox?.actions.some((action) => action.id === PULSE_BELL_ACTION.dismiss) &&
         (card.type === 'approve' || card.type === 'bell') ? (
           <div className="hqp-opts">
             <button type="button" className="hqp-opt" data-ghost="true" onClick={onNotNow}>
