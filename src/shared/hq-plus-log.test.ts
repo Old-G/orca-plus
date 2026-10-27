@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { HqJournalEntry } from './hq-journal'
 import type { PulseInboxItem } from './pulse-types'
+import { handoffBellItem, readHandoffBellOfferId } from './pulse-bell'
 import { hqPlusGraph, hqPlusGraphMembers, hqPlusLanes } from './hq-plus-river-graph'
 import { hqPlusAsksOwner, hqPlusChoices, hqPlusLog, hqPlusWaiting } from './hq-plus-log'
 import { parseHqPlusReport, summarizeHqPlusReport } from './hq-plus-screen'
@@ -251,6 +252,25 @@ describe('hqPlusLog', () => {
       title: expect.stringContaining('New session')
     })
     expect(offer(NOW)).toMatchObject({ kind: 'line', journalKind: 'session.handoff' })
+  })
+
+  it("puts an open handoff in its project's room and on the chat that wrote it", () => {
+    const { dedupeKey, ...input } = handoffBellItem({
+      id: 'offer-1',
+      worktreeId: 'repo::/work/app',
+      worktreeTitle: 'app / feature-x',
+      sessionId: 'offer-1',
+      created: '2026-10-27T23:06:36+03:00',
+      branch: 'feature-x',
+      head: null,
+      pushed: null,
+      tabId: 'structured-agent-session-claude_s1'
+    })
+    const [card] = hqPlusLog([], [bell({ ...input, dedupeKey, id: 'h' })], DAY_START)
+    expect(card).toMatchObject({ kind: 'card', open: true, project: 'app', sessionId: 'claude_s1' })
+    expect(readHandoffBellOfferId(input.refId ?? null)).toBe('offer-1')
+    // Why: items written before the ref carried JSON hold the bare offer id.
+    expect(readHandoffBellOfferId('offer-0')).toBe('offer-0')
   })
 
   it("keeps a terminal agent's pane on its turn, so the card can open it and take an answer", () => {
