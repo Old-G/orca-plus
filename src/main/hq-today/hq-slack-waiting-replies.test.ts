@@ -334,6 +334,29 @@ describe('plainSlackText', () => {
     expect(pick).toHaveBeenCalledTimes(1)
   })
 
+  it('does not hand a message a question took to another one after the first is closed', async () => {
+    const { db, anna, dm, deps, at } = setup()
+    const ask = (title: string) =>
+      db.addWaiting({ direction: 'on-them', title, personId: anna.id, source: 'manual' })
+    at(ASKED_AT - 2_000)
+    const review = ask('Approve hub MR !316')
+    at(ASKED_AT - 1_000)
+    const connector = ask('Did the hub connector connect')
+    deps.pickAnswer = vi.fn(async (questions: readonly string[]) =>
+      questions.findIndex((question) => question.includes('!316'))
+    )
+    deps.listTaken = () => db.listWaitings({}).filter((waiting) => waiting.status !== 'open')
+    dm.push(msg(ASKED_AT + 60_000, ANNA, 'Looked at !316, all fine, approving'))
+    at(ASKED_AT + 160_000)
+    await pollHqSlackWaitingReplies(deps)
+    expect(db.getWaiting(review.id)?.reply).toContain('!316')
+    db.closeWaiting(review.id, 'resolved')
+    at(ASKED_AT + 60 * 60_000)
+    // Why a fresh map: an hour later, or after a restart, nothing of this pass is remembered.
+    expect(await pollHqSlackWaitingReplies(deps, new Map())).toBe(0)
+    expect(db.getWaiting(connector.id)?.reply ?? null).toBeNull()
+  })
+
   it('gives a DM burst to the one open question it answers, not to every question in that DM', async () => {
     const { db, anna, dm, deps, at } = setup()
     const ask = (title: string) =>

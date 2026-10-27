@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
 import { translate } from '@/i18n/i18n'
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/class-names'
 import { useOutgoingApprovalOptions } from './use-outgoing-approval-options'
 import { OutgoingApprovalVenue } from './OutgoingApprovalVenue'
 import type { OutgoingApprovalChoice } from '../../../../../shared/outgoing-approval/outgoing-approval-options'
@@ -108,29 +108,8 @@ export function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): Re
           onChange={(event) => setEditing(event.target.value)}
         />
       )}
-      {/* Custom build (outgoing-footer): the line Approve adds, which the owner can leave off. */}
-      {options.footer ? (
-        <label className="flex items-start gap-1.5 text-xs text-muted-foreground">
-          <Checkbox
-            checked={withFooter}
-            disabled={busy}
-            onCheckedChange={(next) => setWithFooter(next === true)}
-            className="mt-px"
-            aria-label={translate('auto.outgoingApproval.footer', 'Add the footer')}
-          />
-          <span className="min-w-0 break-words [overflow-wrap:anywhere]">{options.footer}</span>
-        </label>
-      ) : null}
-      <OutgoingApprovalVenue
-        options={options}
-        threadTs={threadTs}
-        busy={busy}
-        onThread={setThreadTs}
-        onMove={(moveTo) =>
-          decide(editing === null ? 'approved' : 'edited', editing ?? undefined, { moveTo })
-        }
-      />
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {/* Custom build (hq-approve-steady): the buttons sit right under the text; what loads later
+          (footer, another venue) appears below them, so Approve never moves under the pointer. */}
       <div className="flex justify-end gap-1">
         {editing === null ? (
           <>
@@ -187,6 +166,29 @@ export function OutgoingApprovalDecision({ item }: { item: PulseInboxItem }): Re
           </>
         )}
       </div>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {/* Custom build (outgoing-footer): the line Approve adds, which the owner can leave off. */}
+      {options.footer ? (
+        <label className="flex items-start gap-1.5 text-xs text-muted-foreground">
+          <Checkbox
+            checked={withFooter}
+            disabled={busy}
+            onCheckedChange={(next) => setWithFooter(next === true)}
+            className="mt-px"
+            aria-label={translate('auto.outgoingApproval.footer', 'Add the footer')}
+          />
+          <span className="min-w-0 break-words [overflow-wrap:anywhere]">{options.footer}</span>
+        </label>
+      ) : null}
+      <OutgoingApprovalVenue
+        options={options}
+        threadTs={threadTs}
+        busy={busy}
+        onThread={setThreadTs}
+        onMove={(moveTo) =>
+          decide(editing === null ? 'approved' : 'edited', editing ?? undefined, { moveTo })
+        }
+      />
     </>
   )
 }
