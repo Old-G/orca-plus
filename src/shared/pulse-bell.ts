@@ -33,19 +33,42 @@ export const RENDERER_SYNCED_PULSE_BELL_KINDS: readonly string[] = [
 
 export type PulseBellInput = PulseInboxInput & { dedupeKey: string }
 
+const NATIVE_CHAT_TAB_PREFIX = 'structured-agent-session-'
+
+/** Custom build (hq-closed-loop): the offer's project and chat ride in its ref, so HQ+ puts the card in
+ *  the project's room and on the chat's thread — with a bare id it showed under «All» only. */
 export function handoffBellItem(offer: ClaudeHandoffOffer): PulseBellInput {
   const place = [offer.worktreeTitle, offer.branch].filter(Boolean).join(' · ')
+  const project = offer.worktreeTitle.split(' / ')[0]?.trim() || null
+  const sessionId = offer.tabId?.startsWith(NATIVE_CHAT_TAB_PREFIX)
+    ? offer.tabId.slice(NATIVE_CHAT_TAB_PREFIX.length)
+    : null
   return {
     kind: PULSE_BELL_KIND.handoff,
     title: 'Handoff saved, new session ready',
     body: place || null,
     refKind: 'handoff',
-    refId: offer.id,
+    refId: JSON.stringify({ offerId: offer.id, project, sessionId }),
     actions: [
       { id: PULSE_BELL_ACTION.launch, label: 'New session' },
       { id: PULSE_BELL_ACTION.dismiss, label: 'Not now' }
     ],
     dedupeKey: `handoff:${offer.id}`
+  }
+}
+
+/** The offer a handoff item launches; items written before the ref carried JSON hold the bare id. */
+export function readHandoffBellOfferId(refId: string | null): string | null {
+  if (!refId) {
+    return null
+  }
+  try {
+    const parsed: unknown = JSON.parse(refId)
+    const offerId: unknown =
+      parsed && typeof parsed === 'object' ? Reflect.get(parsed, 'offerId') : null
+    return typeof offerId === 'string' && offerId ? offerId : null
+  } catch {
+    return refId
   }
 }
 
