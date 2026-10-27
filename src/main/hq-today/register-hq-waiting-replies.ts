@@ -79,6 +79,14 @@ export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeServi
       )
       return result.ok ? parseHqReplyPick(result.text, questions.length) : null
     },
+    // Why three days: a closed question keeps the answer it took while that answer is fresh.
+    listTaken: () =>
+      runtime
+        .pulseListWaitings({ direction: 'on-them' })
+        .filter(
+          (waiting) =>
+            waiting.status !== 'open' && (waiting.resolvedAt ?? 0) > Date.now() - 3 * 86_400_000
+        ),
     now: Date.now
   })
   // Custom build (hq-slack-intake): 👾-marked messages, read with the same token and name cache.
