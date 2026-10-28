@@ -6,6 +6,9 @@ export const HQ_CLICKUP_CHANGES_FILE = 'clickup-changes.json'
 
 /** Edits of one task within this long of each other are one change. */
 export const CLICKUP_CHANGE_QUIET_MS = 30 * 60_000
+/** Custom build (hq-clickup-new-task): a task just set on the owner waits only for its first edits;
+ *  28.10 a new task was done and closed before its half-hour wait was over, so it never showed. */
+export const CLICKUP_NEW_TASK_QUIET_MS = 5 * 60_000
 // Why: a task nobody touched for a month is dropped; seeing it again starts a fresh baseline.
 const SNAPSHOT_KEEP_MS = 30 * 24 * 60 * 60_000
 const TEXT_KEEP = 8_000
@@ -157,7 +160,11 @@ export function splitReadyClickUpChanges(
   pending: readonly ClickUpChangeEvent[],
   now: number
 ): { ready: ClickUpChangeEvent[]; settling: ClickUpChangeEvent[] } {
-  const ready = pending.filter((event) => now - event.lastAt >= CLICKUP_CHANGE_QUIET_MS)
+  const ready = pending.filter(
+    (event) =>
+      now - event.lastAt >=
+      (event.kinds.includes('created') ? CLICKUP_NEW_TASK_QUIET_MS : CLICKUP_CHANGE_QUIET_MS)
+  )
   return { ready, settling: pending.filter((event) => !ready.includes(event)) }
 }
 
