@@ -18,6 +18,7 @@ import { mainProcessState } from '../startup/main-process-state'
 import {
   CLAUDE_LIMIT_CONTINUE_PROMPT,
   claudeLimitStopIsAuth,
+  claudeLimitStopTabId,
   claudeLimitsAccountId,
   type ClaudeLimitStoppedAgent
 } from '../../shared/claude-limit-guard'
@@ -192,7 +193,12 @@ export function registerClaudeLimitGuardHandlers(
       // Why: a native chat's tab may have been unknown at the stop and restored since.
       const worktreeId = stop.worktreeId ?? (sessionId ? nativeChatWorktreeId(sessionId) : null)
       return sessionId && worktreeId
-        ? handoffs.checkStoppedSession(worktreeId, sessionId, stop.stoppedAt)
+        ? handoffs.checkStoppedSession(
+            worktreeId,
+            sessionId,
+            stop.stoppedAt,
+            claudeLimitStopTabId(stop)
+          )
         : false
     },
     log: (message) => console.log('[claude-limit-guard]', message)

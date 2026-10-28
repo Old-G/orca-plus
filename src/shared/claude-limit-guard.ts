@@ -1,5 +1,7 @@
 // Custom build (claude-limit-guard): pace forecast and switch suggestion for two Claude subscriptions.
 import type { InactiveAccountUsage, ProviderRateLimits, RateLimitWindow } from './rate-limit-types'
+import { parsePaneKey } from './stable-pane-id'
+import { structuredAgentSessionTabId } from './structured-agent-session-projection'
 
 export const CLAUDE_LIMIT_SWITCH_THRESHOLD_PERCENT = 90
 
@@ -215,6 +217,13 @@ export type ClaudeLimitStoppedAgent = {
 /** Managed-account switching rewrites only the base `~/.claude` sign-in, so it helps only stops made there. */
 export function claudeLimitStopOnBaseSignIn(stop: ClaudeLimitStoppedAgent): boolean {
   return !stop.subscriptionId || stop.subscriptionId === 'base'
+}
+
+/** Custom build (hq-closed-loop): the tab of the stopped agent, so a handoff it raises names its chat. */
+export function claudeLimitStopTabId(stop: ClaudeLimitStoppedAgent): string | undefined {
+  return stop.kind === 'native-chat'
+    ? structuredAgentSessionTabId(stop.key)
+    : parsePaneKey(stop.key)?.tabId
 }
 
 export function claudeLimitStopIsAuth(stop: ClaudeLimitStoppedAgent): boolean {

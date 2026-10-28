@@ -3,6 +3,7 @@ import {
   appendClaudeUsageSample,
   claudeActiveFreePercent,
   claudeLimitsAccountId,
+  claudeLimitStopTabId,
   claudeLimitSwitchSuggestionKey,
   describeClaudeAccount,
   forecastClaudeUsage,
@@ -323,5 +324,22 @@ describe('shouldAutoSwitchClaudeAccount', () => {
         lastAutoSwitchAt: NOW - CLAUDE_LIMIT_AUTO_SWITCH_COOLDOWN_MS
       })
     ).toBe(true)
+  })
+})
+
+describe('claudeLimitStopTabId', () => {
+  const base = { worktreeId: 'w', accountId: null, stoppedAt: 1, resetsAt: null }
+  it("names the stopped native chat's tab and the stopped terminal's tab", () => {
+    expect(claudeLimitStopTabId({ ...base, kind: 'native-chat', key: 'sess-1' })).toBe(
+      'structured-agent-session-sess-1'
+    )
+    expect(
+      claudeLimitStopTabId({
+        ...base,
+        kind: 'terminal',
+        key: 'tab-7:11111111-1111-4111-8111-111111111111'
+      })
+    ).toBe('tab-7')
+    expect(claudeLimitStopTabId({ ...base, kind: 'terminal', key: 'not-a-pane' })).toBeUndefined()
   })
 })

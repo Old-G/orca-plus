@@ -201,6 +201,14 @@ describe('createClaudeHandoffOffers', () => {
     expect(onOffersChanged).toHaveBeenCalledTimes(1)
   })
 
+  it("keeps the stopped chat's tab on a limit-stop offer, so HQ+ puts it on that chat", async () => {
+    const { offers } = setup({ [PATH]: fileText('2026-09-27T11:50:00+03:00') })
+    const stoppedAt = Date.parse('2026-09-27T11:50:03+03:00')
+    const tabId = `structured-agent-session-${SESSION}`
+    expect(await offers.checkStoppedSession(WORKTREE, SESSION, stoppedAt, tabId)).toBe(true)
+    expect(offers.list()).toEqual([expect.objectContaining({ id: SESSION, tabId })])
+  })
+
   it('does not tie a handoff from an earlier turn to a later limit stop', async () => {
     const { offers } = setup({ [PATH]: fileText('2026-09-27T09:00:00+03:00') })
     expect(await offers.checkStoppedSession(WORKTREE, SESSION, NOW)).toBe(false)
