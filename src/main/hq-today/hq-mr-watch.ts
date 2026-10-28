@@ -11,6 +11,7 @@ import {
   hqMrRepoByName,
   hqMrRepoPrompt,
   parseHqMrRepo,
+  HQ_MR_HOST,
   type HqMrRef,
   type HqMrState
 } from '../../shared/hq-mr-watch'
@@ -19,7 +20,6 @@ import { slackTsAt } from '../../shared/hq-waiting-replies'
 import type { PulseWaiting, PulseWaitingReply } from '../../shared/pulse-types'
 
 export const HQ_MR_WATCH_EVERY_MS = 5 * 60_000
-const GITLAB_HOST = 'gitlab.com'
 
 export type HqMrWatchDeps = {
   listOpen: () => PulseWaiting[]
@@ -83,7 +83,7 @@ export function createHqMrWatch(deps: HqMrWatchDeps): HqMrWatch {
     }
     const repo = await repoFor(waiting.project, waiting.title)
     return repo
-      ? [...refs, ...bare.map((iid) => ({ host: GITLAB_HOST, projectPath: repo, iid }))]
+      ? [...refs, ...bare.map((iid) => ({ host: HQ_MR_HOST, projectPath: repo, iid }))]
       : refs
   }
 
