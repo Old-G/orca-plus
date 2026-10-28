@@ -17,7 +17,7 @@ import { notifyHqSlackScoutChanged } from './hq-slack-scout'
 import { registerGmailHandlers } from '../ipc/gmail'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { HqMrRef, HqMrState } from '../../shared/hq-mr-watch'
+import { HQ_MR_HOST, type HqMrRef, type HqMrState } from '../../shared/hq-mr-watch'
 import {
   HQ_SLACK_SCOUT_CONFIG_FILE,
   HQ_SLACK_SCOUT_DIR,
@@ -39,8 +39,19 @@ function text(value: unknown): string | null {
   return typeof value === 'string' && value ? value : null
 }
 
+function sameHost(url: string | null, host: string): string | null {
+  try {
+    return url && new URL(url).hostname.toLowerCase() === host ? url : null
+  } catch {
+    return null
+  }
+}
+
 /** Custom build (hq-mr-watch): GitLab's word on one MR — its state, who merged and who approved it. */
 async function gitLabMr(ref: HqMrRef): Promise<HqMrState | null> {
+  if (ref.host !== HQ_MR_HOST) {
+    return null
+  }
   const base = `projects/${encodeURIComponent(ref.projectPath)}/merge_requests/${ref.iid}`
   const mr = await glabJson(ref.host, base)
   const state = text(field(mr, 'state'))
@@ -52,7 +63,9 @@ async function gitLabMr(ref: HqMrRef): Promise<HqMrState | null> {
   return {
     state,
     title: text(field(mr, 'title')) ?? '',
-    url: text(field(mr, 'web_url')) ?? `https://${ref.host}/${ref.projectPath}/-/merge_requests/${ref.iid}`,
+    // Why: only a link back to the same host becomes the card's «Open in GitLab».
+    url: sameHost(text(field(mr, 'web_url')), ref.host) ??
+      `https://${ref.host}/${ref.projectPath}/-/merge_requests/${ref.iid}`,
     mergedBy: text(field(field(mr, 'merged_by'), 'name')),
     mergedAt: text(field(mr, 'merged_at')),
     closedAt: text(field(mr, 'closed_at')),
@@ -78,7 +91,7 @@ function gitLabRepos(hqPath: () => string | null): () => Promise<string[]> {
     const repos: string[] = []
     for (const group of groups) {
       const listed = await glabJson(
-        'gitlab.com',
+        HQ_MR_HOST,
         `groups/${encodeURIComponent(group)}/projects?per_page=100&include_subgroups=true&simple=true`
       ).catch(() => [])
       for (const project of Array.isArray(listed) ? listed : []) {

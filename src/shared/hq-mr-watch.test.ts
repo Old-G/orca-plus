@@ -34,6 +34,8 @@ describe('hqMrMentions', () => {
       bare: [380]
     })
     expect(hqMrMentions('No MR here, just DEV-17099!')).toEqual({ refs: [], bare: [] })
+    // Why: glab is never sent to a host a waiting's words name.
+    expect(hqMrMentions('see https://evil.example/acme/hub/-/merge_requests/9').refs).toEqual([])
   })
 })
 
