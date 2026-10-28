@@ -355,6 +355,49 @@ describe('hqPlusLog', () => {
     expect(draft('done')).toMatchObject({ kind: 'card', type: 'approve', open: false })
   })
 
+  it('says where a decided message went and what the owner chose, not «decided»', () => {
+    const log = hqPlusLog(
+      [
+        row({
+          id: 'h',
+          at: NOW - HOUR,
+          kind: 'approve.request',
+          title: 'Approve: Slack · send message',
+          body: 'Ann, a question for DEV-1?\nSecond line',
+          needs: 'owner:approve',
+          status: 'done',
+          refKind: 'draft',
+          refId: 'd1'
+        }),
+        row({
+          id: 'r',
+          at: NOW - HOUR + 60_000,
+          kind: 'approve.result',
+          title: 'Approved with edits → DM with Ann: Slack · send message',
+          body: 'Ann, a question for DEV-1?\nSecond line',
+          refKind: 'decision',
+          refId: 'dec1'
+        })
+      ],
+      [
+        bell({
+          id: 'ap',
+          kind: 'outgoing-approval',
+          refId: 'd1',
+          doneAt: NOW - HOUR,
+          doneAction: 'gone'
+        })
+      ],
+      DAY_START
+    )
+    expect(log).toHaveLength(1)
+    expect(log[0]).toMatchObject({
+      type: 'approve',
+      title: 'To DM with Ann: Ann, a question for DEV-1?',
+      done: { by: 'action', action: 'edit', at: NOW - HOUR + 60_000 }
+    })
+  })
+
   it('folds held messages, answers and reports from the bell where they arrived', () => {
     const log = hqPlusLog(
       [
