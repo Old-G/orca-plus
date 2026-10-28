@@ -33,6 +33,7 @@ import type { HqPlusLook } from '../../../../../shared/hq-plus-kinds'
 import { readHqSlackRequestRef } from '../../../../../shared/hq-slack-request-bell'
 import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
+import { hqPlusSaid } from '../../../../../shared/hq-plus-said'
 import { HqPlusReplyField } from './HqPlusReplyField'
 import { HQ_FIX_NOW_DONE_PREFIX } from '../../../../../shared/hq-fix-now'
 import { useHqPlusDraftLink } from './use-hq-plus-draft-link'
@@ -54,7 +55,18 @@ const DONE_ACTION: Record<string, [string, string]> = {
   accept: ['auto.hqPlus.done.accept', 'proposals accepted'],
   approve: ['auto.hqPlus.done.approve', 'sent'],
   reject: ['auto.hqPlus.done.reject', 'rejected'],
-  edit: ['auto.hqPlus.done.edit', 'edited and sent']
+  edit: ['auto.hqPlus.done.edit', 'edited and sent'],
+  // Custom build (hq-plus-cards): a person's answer says what became of it.
+  [HQ_WAITING_REPLY_ACTION.deliver]: ['auto.hqPlus.done.replyDeliver', 'sent to the chat'],
+  [HQ_WAITING_REPLY_ACTION.skip]: [
+    'auto.hqPlus.done.replySkip',
+    'skipped, the chat did not get it'
+  ],
+  [HQ_WAITING_REPLY_ACTION.open]: ['auto.hqPlus.done.replyOpen', 'opened the chat'],
+  gone: ['auto.hqPlus.done.gone', 'closed'],
+  done: ['auto.hqPlus.done.done', 'done'],
+  sent: ['auto.hqPlus.done.sent', 'sent to the chat'],
+  skipped: ['auto.hqPlus.done.skipped', 'skipped']
 }
 
 const BELL_LABEL: Record<string, string> = {
@@ -109,7 +121,7 @@ function questionOf(card: Card): string {
   // Custom build (hq-plus-cards): a person's answer reads as who answered what.
   const answer = card.type === 'reply' ? readHqWaitingReplyRef(card.inbox?.refId ?? null) : null
   if (answer) {
-    return `**${answer.author}** → «${answer.question}»`
+    return hqPlusSaid(answer.reply, answer.author).text || answer.question
   }
   if (card.report?.ask) {
     return card.report.ask
@@ -240,32 +252,40 @@ function noteOf(card: Card): string | null {
 }
 
 /**
- * Custom build (hq-plus-cards): a person's answer under what it answers — the owner's own words when
- * the reader found them, then theirs — so the card says what the talk is about without opening Slack.
+ * Custom build (hq-plus-cards): what a person's answer answers — the owner's own words when the reader
+ * found them, else the waiting — under the answer itself, so the card reads without opening Slack.
  */
-function HqPlusReplyConvo({
+function HqPlusReplyContext({
   card,
-  answer
+  answer,
+  files,
+  onFiles
 }: {
   card: Card
   answer: NonNullable<ReturnType<typeof readHqWaitingReplyRef>>
+  files: number
+  onFiles: (() => void) | null
 }): React.JSX.Element {
   // Why: the routing rule's note, when it left the answer for the owner, is the body's third line.
   const why = (card.body ?? '').split('\n')[2]?.trim() || null
+  const asked = answer.asked ? hqPlusSaid(answer.asked).text : ''
   return (
-    <div className="hqp-convo">
-      {answer.asked ? (
-        <div className="hqp-convo-line" data-who="me">
-          <span className="who">{translate('auto.hqPlus.convo.you', 'You')}</span>
-          <HqPlusText text={answer.asked} maxLines={4} />
-        </div>
+    <>
+      {files > 0 && onFiles ? (
+        <button type="button" className="hqp-files" onClick={onFiles}>
+          {translate('auto.hqPlus.files', '{{count}} file(s) ↗', { count: files })}
+        </button>
       ) : null}
-      <div className="hqp-convo-line" data-who="them">
-        <span className="who">{answer.author}</span>
-        <HqPlusText text={answer.reply} />
-      </div>
+      <p className="hqp-ctx">
+        <span className="who">
+          {asked
+            ? translate('auto.hqPlus.convo.youAsked', 'You asked')
+            : translate('auto.hqPlus.convo.waiting', 'Waiting')}
+        </span>
+        <HqPlusText text={asked || answer.question} maxLines={2} />
+      </p>
       {why ? <p className="hqp-convo-why">{why}</p> : null}
-    </div>
+    </>
   )
 }
 
@@ -340,14 +360,30 @@ export function HqPlusCardView({
       {sourceLink.label} ↗
     </button>
   ) : null
+  const answerOf = card.type === 'reply' ? readHqWaitingReplyRef(card.inbox?.refId ?? null) : null
+  // Custom build (hq-plus-cards): the chat's name opens it, so no separate «Open» stands beside it.
+  const chatOpens = Boolean(onOpenChat && chat && (chat.item || chat.name))
   const head = (
     <div className="hqp-row-h">
       <HqPlusBadges badges={look.badges} />
-      {note ? <span className="hqp-note">{note}</span> : null}
-      <strong>{card.job ?? card.project ?? 'HQ'}</strong>
-      <HqPlusChatName chat={chat} />
+      {/* Custom build (hq-plus-cards): one head for every card — who, then where it belongs. */}
+      {answerOf ? (
+        <>
+          <strong>{answerOf.author}</strong>
+          <span className="hqp-note">
+            {translate('auto.hqPlus.answered', 'answered')} · {card.project ?? 'HQ'}
+          </span>
+        </>
+      ) : (
+        <>
+          {note ? <span className="hqp-note">{note}</span> : null}
+          <strong>{card.job ?? card.project ?? 'HQ'}</strong>
+        </>
+      )}
+      <HqPlusChatName chat={chat} onOpen={chatOpens ? onOpenChat : null} />
       <span className="hqp-tm">{when}</span>
-      {threadLabel && onThread ? (
+      {/* Custom build (hq-plus-cards): the thread's address only on a card still open and nameless. */}
+      {threadLabel && onThread && open && !(chat?.item || chat?.name) ? (
         <button type="button" className="hqp-addr" onClick={onThread}>
           {threadLabel}
         </button>
@@ -364,7 +400,7 @@ export function HqPlusCardView({
           {sourceLink.label} ↗
         </button>
       ) : null}
-      {onOpenChat && !rowOpensChat ? (
+      {onOpenChat && !rowOpensChat && !chatOpens ? (
         <button type="button" className="hqp-pill" onClick={onOpenChat}>
           {translate('auto.hqPlus.open', 'Open')}
         </button>
@@ -437,7 +473,10 @@ export function HqPlusCardView({
           onClick={() => setExpanded(true)}
         >
           <span className="l1">
-            <HqPlusText text={card.type === 'move' ? questionOf(card) : card.title} maxLines={1} />
+            <HqPlusText
+              text={card.type === 'move' || card.type === 'reply' ? questionOf(card) : card.title}
+              maxLines={1}
+            />
           </span>
           <span className="l2">✓ {hqPlusDoneLabel(card.done)}</span>
         </button>
@@ -522,7 +561,12 @@ export function HqPlusCardView({
                 ) : null}
               </dl>
             ) : card.type === 'reply' && replyRef ? (
-              <HqPlusReplyConvo card={card} answer={replyRef} />
+              <HqPlusReplyContext
+                card={card}
+                answer={replyRef}
+                files={hqPlusSaid(replyRef.reply, replyRef.author).files}
+                onFiles={sourceLink ? () => onOpenLink(sourceLink.url) : null}
+              />
             ) : card.body && card.type !== 'approve' ? (
               <p className="hqp-text">
                 <HqPlusText text={card.body} />
@@ -572,12 +616,7 @@ export function HqPlusCardView({
             ) : null}
           </>
         )}
-        {card.done ? (
-          <dl className="hqp-rep">
-            <dt>{translate('auto.hqPlus.decided', 'decided')}</dt>
-            <dd>{hqPlusDoneLabel(card.done)}</dd>
-          </dl>
-        ) : null}
+        {card.done ? <p className="hqp-done">✓ {hqPlusDoneLabel(card.done)}</p> : null}
         {open && card.type === 'move' ? (
           <div className="hqp-opts">
             {choices.map((choice, index) => (
