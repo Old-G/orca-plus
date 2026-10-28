@@ -64,12 +64,13 @@ export function createHqMrWatch(deps: HqMrWatchDeps): HqMrWatch {
     }
     const repos = await deps.listRepos()
     const byName = hqMrRepoByName(project, repos)
-    const repo =
-      byName ??
-      (repos.length > 0
-        ? parseHqMrRepo((await deps.judge(hqMrRepoPrompt(project, sample, repos))) ?? '', repos)
-        : null)
-    repoOfProject.set(project, repo)
+    const judged =
+      byName || repos.length === 0 ? null : await deps.judge(hqMrRepoPrompt(project, sample, repos))
+    const repo = byName ?? (judged === null ? null : parseHqMrRepo(judged, repos))
+    // Why: a miss with no repos listed or no model answer is a failure, not a verdict — ask again next pass.
+    if (repo || (repos.length > 0 && judged !== null)) {
+      repoOfProject.set(project, repo)
+    }
     return repo
   }
 
@@ -93,7 +94,10 @@ export function createHqMrWatch(deps: HqMrWatchDeps): HqMrWatch {
       let answered = 0
       let watched = 0
       for (const waiting of deps.listOpen().filter(watchable)) {
-        const refs = await refsOf(waiting).catch(() => [])
+        const refs = await refsOf(waiting).catch((error: unknown) => {
+          console.warn('[hq-mr-watch] could not read the MR of a waiting:', error)
+          return []
+        })
         if (refs.length === 0) {
           continue
         }
@@ -101,7 +105,13 @@ export function createHqMrWatch(deps: HqMrWatchDeps): HqMrWatch {
         const intent = hqMrIntent(waiting.title)
         const statuses: string[] = []
         for (const ref of refs) {
-          const mr = await deps.getMr(ref).catch(() => null)
+          const mr = await deps.getMr(ref).catch((error: unknown) => {
+            console.warn(
+              `[hq-mr-watch] GitLab did not answer for ${ref.projectPath}!${ref.iid}:`,
+              error
+            )
+            return null
+          })
           if (!mr) {
             continue
           }
