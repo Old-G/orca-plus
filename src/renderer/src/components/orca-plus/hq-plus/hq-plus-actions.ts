@@ -11,6 +11,7 @@ import { hqResultField } from '../../../../../shared/hq-plus-rpc-readers'
 import { readPulseBellPaneRef, type PulseBellPaneRef } from '../../../../../shared/pulse-bell'
 import { parsePaneKey } from '../../../../../shared/stable-pane-id'
 import { sendBracketedPasteToRunningAgent } from '@/lib/agent-paste-draft'
+import { sendPromptWithGuardedPasteAndEnter } from '@/lib/active-agent-note-send-delivery'
 import { useAppStore } from '@/store'
 
 export type HqPlusResult = { ok: true } | { ok: false; message: string }
@@ -56,10 +57,17 @@ export type HqPlusChatTarget = {
   pane?: PulseBellPaneRef | null
 }
 
+function paneRefused(fallback: string, message: string): HqPlusResult {
+  return { ok: false, message: translate(fallback, message) }
+}
+
+const PANE_CLOSED = (): HqPlusResult =>
+  paneRefused('auto.hqPlus.paneClosed', 'The terminal of this run is closed; nothing was sent.')
+
 /** The owner's words typed into a terminal agent's prompt, as a paste plus Enter. */
 // Custom build (hq-closed-loop): an automation's terminal often lives in a workspace this window has
 // not loaded, so its layout is not in the store; the runtime still knows it by its pane.
-async function sendThroughRuntime(pane: PulseBellPaneRef, prompt: string): Promise<boolean> {
+async function sendThroughRuntime(pane: PulseBellPaneRef, prompt: string): Promise<HqPlusResult> {
   const listed = await hqPlusCall('terminal.list', { includeVisualLayouts: false })
   const terminals: unknown = listed.ok ? hqResultField(listed.result, 'terminals') : null
   const match = Array.isArray(terminals)
@@ -74,15 +82,35 @@ async function sendThroughRuntime(pane: PulseBellPaneRef, prompt: string): Promi
     : null
   const handle: unknown = match && typeof match === 'object' ? Reflect.get(match, 'handle') : null
   if (typeof handle !== 'string') {
-    return false
+    return PANE_CLOSED()
   }
-  const sent = await hqPlusCall('terminal.send', {
-    terminal: handle,
-    text: prompt,
-    enter: true,
-    agentPrompt: true
-  })
-  return sent.ok
+  // Why: the run's agent may have exited with its terminal left open — a plain write would hand a
+  // multiline answer to the shell. The guarded paste checks the agent before the paste and the Enter,
+  // and an older host without that check refuses instead of writing.
+  const sent = await sendPromptWithGuardedPasteAndEnter({ kind: 'local' }, handle, prompt, {
+    allowLegacyFallback: false
+  }).catch(() => ({ status: 'status-unavailable' as const }))
+  switch (sent.status) {
+    case 'sent':
+      return OK
+    case 'no-agent':
+      return paneRefused(
+        'auto.hqPlus.paneNoAgent',
+        'The agent of this run has exited; nothing was sent.'
+      )
+    case 'permission':
+      return paneRefused(
+        'auto.hqPlus.panePermission',
+        'The agent of this run is asking for permission; answer it in its terminal.'
+      )
+    case 'partial-submit-failed':
+      return paneRefused(
+        'auto.hqPlus.paneNotSubmitted',
+        'The answer is typed into the run but was not submitted; press Enter in its terminal.'
+      )
+    default:
+      return PANE_CLOSED()
+  }
 }
 
 async function sendIntoHqPlusPane(pane: PulseBellPaneRef, prompt: string): Promise<HqPlusResult> {
@@ -92,18 +120,10 @@ async function sendIntoHqPlusPane(pane: PulseBellPaneRef, prompt: string): Promi
     tabId && parsed
       ? useAppStore.getState().terminalLayoutsByTabId[tabId]?.ptyIdsByLeafId?.[parsed.leafId]
       : undefined
-  const sent = ptyId
-    ? await sendBracketedPasteToRunningAgent({ ptyId, content: prompt })
-    : await sendThroughRuntime(pane, prompt)
-  return sent
-    ? OK
-    : {
-        ok: false,
-        message: translate(
-          'auto.hqPlus.paneClosed',
-          'The terminal of this run is closed; nothing was sent.'
-        )
-      }
+  if (!ptyId) {
+    return await sendThroughRuntime(pane, prompt)
+  }
+  return (await sendBracketedPasteToRunningAgent({ ptyId, content: prompt })) ? OK : PANE_CLOSED()
 }
 
 /** The owner's words into a chat: by its thread when it has one, else straight to the chat. */
