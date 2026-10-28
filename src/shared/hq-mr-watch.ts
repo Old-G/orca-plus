@@ -23,15 +23,19 @@ export function hqMrIntent(text: string): HqMrIntent {
   return !MERGE_WORDS.test(text) && APPROVE_WORDS.test(text) ? 'approve' : 'merge'
 }
 
+/** The only GitLab host the watch asks; a link to any other host in a waiting's words is ignored. */
+export const HQ_MR_HOST = 'gitlab.com'
+
 /** MR links in the text, and bare «!N» numbers that still need a repo. */
 export function hqMrMentions(text: string): { refs: HqMrRef[]; bare: number[] } {
   const refs: HqMrRef[] = []
   for (const match of text.matchAll(MR_URL)) {
-    refs.push({
-      host: (match[1] ?? '').toLowerCase(),
-      projectPath: match[2] ?? '',
-      iid: Number(match[3])
-    })
+    const host = (match[1] ?? '').toLowerCase()
+    // Why: a waiting's words can carry text from Slack; glab must never be sent to a host they name.
+    if (host !== HQ_MR_HOST) {
+      continue
+    }
+    refs.push({ host, projectPath: match[2] ?? '', iid: Number(match[3]) })
   }
   const withoutUrls = text.replace(MR_URL, ' ')
   const bare = [...withoutUrls.matchAll(BARE_MR)]
