@@ -13,6 +13,7 @@ import {
   parseHqMrRepo,
   HQ_MR_HOST,
   type HqMrRef,
+  type HqMrRepoListing,
   type HqMrState
 } from '../../shared/hq-mr-watch'
 import { hqWaitingDay, readHqWaitingTags, withHqWaitingTag } from '../../shared/hq-waiting-tags'
@@ -24,7 +25,7 @@ export const HQ_MR_WATCH_EVERY_MS = 5 * 60_000
 export type HqMrWatchDeps = {
   listOpen: () => PulseWaiting[]
   /** `group/repo` paths of the GitLab groups HQ follows. */
-  listRepos: () => Promise<string[]>
+  listRepos: () => Promise<HqMrRepoListing>
   getMr: (ref: HqMrRef) => Promise<HqMrState | null>
   /** The small model's text; null when it could not be asked. */
   judge: (prompt: string) => Promise<string | null>
@@ -62,13 +63,13 @@ export function createHqMrWatch(deps: HqMrWatchDeps): HqMrWatch {
     if (repoOfProject.has(project)) {
       return repoOfProject.get(project) ?? null
     }
-    const repos = await deps.listRepos()
+    const { repos, complete } = await deps.listRepos()
     const byName = hqMrRepoByName(project, repos)
     const judged =
       byName || repos.length === 0 ? null : await deps.judge(hqMrRepoPrompt(project, sample, repos))
     const repo = byName ?? (judged === null ? null : parseHqMrRepo(judged, repos))
-    // Why: a miss with no repos listed or no model answer is a failure, not a verdict — ask again next pass.
-    if (repo || (repos.length > 0 && judged !== null)) {
+    // Why: a miss on a partial listing or with no model answer is a failure, not a verdict — ask again next pass.
+    if (repo || (complete && repos.length > 0 && judged !== null)) {
       repoOfProject.set(project, repo)
     }
     return repo
