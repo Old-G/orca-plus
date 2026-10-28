@@ -114,3 +114,19 @@ export function hqWaitingTaskRef(input: string): string | null {
   }
   return /^[A-Z][A-Z0-9]{1,9}-\d+$/.test(value.toUpperCase()) ? value.toUpperCase() : null
 }
+
+/**
+ * Custom build (hq-plus-cards): the owner's words that asked become the detail's text when it has
+ * none, ahead of its tag lines; a line that reads like a tag is dropped so it is not taken for one.
+ */
+export function withHqWaitingAsked(detail: string | null, asked: string | null | undefined): string | null {
+  const words = (asked ?? '')
+    .split('\n')
+    .filter((line) => !LINE.test(line.trim()))
+    .join('\n')
+    .trim()
+  if (!words || readHqWaitingTags(detail).text !== null) {
+    return detail
+  }
+  return detail ? `${words}\n${detail}` : words
+}

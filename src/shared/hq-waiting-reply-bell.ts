@@ -4,6 +4,7 @@
 import type { PulseBellInput } from './pulse-bell'
 import type { PulseWaiting } from './pulse-types'
 import { clickUpWaitingUrl, slackThreadUrl } from './hq-waiting-replies'
+import { readHqWaitingTags } from './hq-waiting-tags'
 
 export const HQ_WAITING_REPLY_KIND = 'hq-waiting-reply'
 
@@ -22,6 +23,8 @@ export type HqWaitingReplyRef = {
   /** What the chat waits for, and when it asked. */
   question: string
   askedAt: number
+  /** Custom build (hq-plus-cards): the owner's own words that asked, when the reader found them. */
+  asked?: string | null
   author: string
   replyTs: string
   reply: string
@@ -63,6 +66,7 @@ export function hqWaitingReplyBellItems(
       project: waiting.project,
       question: waiting.title,
       askedAt: waiting.createdAt,
+      asked: readHqWaitingTags(waiting.detail).text?.slice(0, 600) ?? null,
       author,
       replyTs: waiting.replyTs,
       reply: waiting.reply,
@@ -125,6 +129,7 @@ export function readHqWaitingReplyRef(refId: string | null): HqWaitingReplyRef |
     worktreeId: field('worktreeId'),
     project: field('project'),
     question: field('question') ?? '',
+    asked: field('asked'),
     askedAt:
       typeof Reflect.get(raw, 'askedAt') === 'number' ? Number(Reflect.get(raw, 'askedAt')) : 0,
     author: field('author') ?? 'Someone',

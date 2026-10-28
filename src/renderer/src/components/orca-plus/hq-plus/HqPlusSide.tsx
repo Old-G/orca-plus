@@ -5,7 +5,6 @@ import { useState } from 'react'
 import { Pin, PinOff, Plus } from 'lucide-react'
 import { readHqPlusViewState, saveHqPlusViewState } from './hq-plus-view-state'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
-import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
 import type { HqPlusScreenStats } from '../../../../../shared/hq-plus-screen'
 import { translate } from '@/i18n/i18n'
 import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
@@ -17,12 +16,7 @@ import { startHqChat } from '../hq/hq-new-chat'
 import { HqPlusCloseChat, type HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusSideBlock } from './HqPlusSideBlock'
 import type { HqPlusDraftChat } from './use-hq-plus-drafts'
-import {
-  HqPlusWaitingQueue,
-  HqPlusWeWaitQueue,
-  type HqPlusOtherWait,
-  type HqPlusQueueActions
-} from './HqPlusSideQueues'
+import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
 
 /** Custom build (hq-plus-chats-by-project): what the chat is doing, as a coloured chip; none once read. */
 function chipOf(item: HqChatItem, now: number): { label: string; tone: string } | null {
@@ -41,13 +35,35 @@ function chipOf(item: HqChatItem, now: number): { label: string; tone: string } 
   }
 }
 
-/** One line under the chat's name: the question while it waits, else the latest word from it. */
-function previewOf(item: HqChatItem): string {
+/**
+ * Custom build (hq-plus-chat-waits): one line under the chat's name says what it waits for — the owner
+ * (its question), a person (who and what), or nothing because it works or is done. The latest word
+ * from it moved to the row's tooltip.
+ */
+function previewOf(item: HqChatItem, waitsOn: HqPlusOtherWait | null): string {
   const card = item.card
   if (item.group === 'needs') {
     return card?.askSummary ?? translate('auto.hq.chats.waitsForYou', 'Waiting for you')
   }
-  return card?.lastAgentMessage ?? card?.lastUserMessage ?? (card?.task || item.worktreeName)
+  if (waitsOn) {
+    return translate('auto.hqPlus.side.waitsFor', 'Waits for {{who}} · {{what}}', {
+      who: waitsOn.who ?? translate('auto.hqPlus.side.someone', 'someone'),
+      what: waitsOn.title
+    })
+  }
+  switch (item.group) {
+    case 'working':
+      return translate('auto.hqPlus.side.worksAlone', 'Working on its own')
+    case 'done':
+      return translate('auto.hqPlus.side.doneUnread', 'Finished — not read yet')
+    case 'quiet':
+      return translate('auto.hqPlus.side.nothing', 'Idle')
+  }
+}
+
+function lastWordOf(item: HqChatItem): string | undefined {
+  const card = item.card
+  return card?.lastAgentMessage ?? card?.lastUserMessage ?? (card?.task || undefined)
 }
 
 export type HqPlusTile = { letters: string; color: string | null }
@@ -65,7 +81,8 @@ function ChatRow({
   tile,
   closer,
   onPick,
-  draft
+  draft,
+  waitsOn = null
 }: {
   item: HqChatItem
   picked: boolean
@@ -75,6 +92,8 @@ function ChatRow({
   onPick: (item: HqChatItem) => void
   /** Custom build (hq-plus-drafts): the owner's unsent words, shown instead of the chat's last line. */
   draft?: string
+  /** Custom build (hq-plus-chat-waits): what we wait for from a person on this chat's behalf. */
+  waitsOn?: HqPlusOtherWait | null
 }): React.JSX.Element {
   const title = useHqChatTitle(item)
   const chip = chipOf(item, now)
@@ -85,6 +104,7 @@ function ChatRow({
       <button
         type="button"
         className="hqp-pc"
+        title={lastWordOf(item)?.replace(/\s+/g, ' ').slice(0, 300)}
         aria-current={picked ? 'true' : undefined}
         data-read={chip ? undefined : 'true'}
         onClick={() => onPick(item)}
@@ -102,7 +122,7 @@ function ChatRow({
         </span>
         <span className="w">{item.sortAt ? formatRelativeTime(item.sortAt, now) : ''}</span>
         <span className="s">
-          {draft ? `✎ ${draft.replace(/\s+/g, ' ').slice(0, 120)}` : previewOf(item)}
+          {draft ? `✎ ${draft.replace(/\s+/g, ' ').slice(0, 120)}` : previewOf(item, waitsOn)}
         </span>
       </button>
       {closer ? <HqPlusCloseChat closer={closer} name={title} /> : null}
@@ -157,8 +177,7 @@ function ProjectHeader({
 }
 
 export function HqPlusSide({
-  waiting,
-  fyi,
+  ticker,
   waitsOnThem,
   chats: allChats,
   drafts,
@@ -171,13 +190,11 @@ export function HqPlusSide({
   tileOf,
   closerOf,
   queue,
-  onPickChat,
-  onClearFyi
+  onPickChat
 }: {
-  waiting: HqPlusCard[]
-  /** Open items for the owner's information only. */
-  fyi: HqPlusCard[]
-  /** What we wait for from people, oldest first. */
+  /** Custom build (hq-plus-ticker): the live strip above the chats. */
+  ticker: React.ReactNode
+  /** What we wait for from people, oldest first; each chat row says whom it waits on. */
   waitsOnThem: HqPlusOtherWait[]
   /** Custom build (hq-plus-chats-by-project): the chats by project, as the classic HQ lists them. */
   chats: { marked: HqChatItem[]; projects: HqPlusProjectChats[]; quiet: HqChatItem[] }
@@ -194,7 +211,6 @@ export function HqPlusSide({
   closerOf: (item: HqChatItem) => HqPlusChatCloser | null
   queue: HqPlusQueueActions
   onPickChat: (item: HqChatItem) => void
-  onClearFyi: () => void
 }): React.JSX.Element {
   // Custom build (hq-plus-ui-v5): the Idle fold stays as the owner left it.
   const [showIdle, setShowIdleState] = useState(() => readHqPlusViewState().showIdle)
@@ -219,6 +235,15 @@ export function HqPlusSide({
   const done = [...chats.marked, ...chats.projects.flatMap((project) => project.items)].filter(
     (item) => item.group === 'done'
   )
+  // Custom build (hq-plus-chat-waits): the person each chat waits on, by its session.
+  const waitOfSession = new Map<string, HqPlusOtherWait>()
+  for (const wait of waitsOnThem) {
+    if (wait.sessionId && !waitOfSession.has(wait.sessionId)) {
+      waitOfSession.set(wait.sessionId, wait)
+    }
+  }
+  const waitOf = (item: HqChatItem): HqPlusOtherWait | null =>
+    item.kind === 'chat' ? (waitOfSession.get(item.tab.entityId) ?? null) : null
   const row = (item: HqChatItem): React.JSX.Element => (
     <ChatRow
       key={item.key}
@@ -228,27 +253,17 @@ export function HqPlusSide({
       tile={tileOf(item)}
       closer={closerOf(item)}
       onPick={onPickChat}
+      waitsOn={waitOf(item)}
     />
   )
   return (
     <aside
       className="hqp-side"
-      aria-label={translate('auto.hqPlus.side.label', 'Waiting on you and chats')}
+      aria-label={translate('auto.hqPlus.side.label', 'Live and chats')}
     >
-      <HqPlusWaitingQueue waiting={waiting} actions={queue} />
-      <HqPlusWeWaitQueue waits={waitsOnThem} actions={queue} />
-      {fyi.length > 0 ? (
-        <div className="hqp-fyi">
-          <span>
-            {translate('auto.hqPlus.side.fyi', 'FYI · {{count}} — they are in the feed', {
-              count: fyi.length
-            })}
-          </span>
-          <button type="button" className="hqp-pill" onClick={onClearFyi}>
-            {translate('auto.hqPlus.side.clearFyi', 'Clear all')}
-          </button>
-        </div>
-      ) : null}
+      {/* Custom build (hq-plus-ticker): «Waiting on you» and «We wait for» live in the feed's chips now;
+          their place is a live strip of what comes in and what the chats do (owner, 28.10). */}
+      {ticker}
       <HqPlusSideBlock
         id="chats"
         title={translate('auto.hqPlus.side.chats', 'chats · {{count}}', { count: listed })}

@@ -34,6 +34,8 @@ export type HqPlusOtherWait = {
   task: string | null
   snoozedUntil: number | null
   checked: string | null
+  /** Custom build (hq-plus-cards): the open card of this waiting's answer; the row then leads to it. */
+  answer?: HqPlusCard | null
 }
 
 export type HqPlusQueueActions = {

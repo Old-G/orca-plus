@@ -140,6 +140,35 @@ describe('pollHqSlackWaitingReplies', () => {
     })
   })
 
+  it("keeps the owner's message that opened the thread as what was asked, beside the tags", async () => {
+    const { db, anna, thread, api, deps, at } = setup()
+    const parentTs = '1792184199.000100'
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'Phone hours',
+      detail: 'Task: DEV-7',
+      personId: anna.id,
+      source: 'slack',
+      sourceRef: `slack:DANNA01:${parentTs}`,
+      agentSessionId: 'chat-1'
+    })
+    // Why: Slack returns a thread's parent first, whatever `oldest` says.
+    vi.mocked(api.replies).mockImplementation(async (_channel, _threadTs, oldest) => [
+      msg(ASKED_AT - 1_000, OWNER, 'Which <@UANNA> hours do we put on the site?', {
+        ts: parentTs,
+        threadTs: parentTs
+      }),
+      ...thread.filter((m) => Number(m.ts) > Number(oldest))
+    ])
+    thread.push(msg(ASKED_AT + 60_000, ANNA, 'Sun–Thu', { threadTs: parentTs }))
+    at(ASKED_AT + 5 * 60_000)
+    expect(await pollHqSlackWaitingReplies(deps)).toBe(1)
+    expect(db.getWaiting(asked.id)).toMatchObject({
+      reply: 'Анна Ли: Sun–Thu',
+      detail: expect.stringMatching(/^Which .* hours do we put on the site\?\nTask: DEV-7$/)
+    })
+  })
+
   it('still hears the DM when the question’s thread cannot be read', async () => {
     const { db, anna, dm, api, deps, at } = setup()
     const asked = db.addWaiting({
@@ -355,6 +384,33 @@ describe('plainSlackText', () => {
     // Why a fresh map: an hour later, or after a restart, nothing of this pass is remembered.
     expect(await pollHqSlackWaitingReplies(deps, new Map())).toBe(0)
     expect(db.getWaiting(connector.id)?.reply ?? null).toBeNull()
+  })
+
+  // 28.10: the owner handled the first card and kept its question open; an hour later an older
+  // question took the very same message and raised a second card.
+  it('does not hand a message an open question took and the owner handled to another one', async () => {
+    const { db, anna, dm, deps, at } = setup()
+    const ask = (title: string) =>
+      db.addWaiting({ direction: 'on-them', title, personId: anna.id, source: 'manual' })
+    at(ASKED_AT - 2_000)
+    const older = ask('Customer search flow instead of the not-found letter')
+    at(ASKED_AT - 1_000)
+    const callback = ask('Callback template + Unassigned')
+    deps.pickAnswer = vi.fn(async (questions: readonly string[]) =>
+      questions.findIndex((question) => question.includes('Callback'))
+    )
+    deps.listTaken = () =>
+      db
+        .listWaitings({})
+        .filter((waiting) => (waiting.status === 'open' ? waiting.replyTs !== null : true))
+    dm.push(msg(ASKED_AT + 60_000, ANNA, 'If a customer asks to call back, say we will call'))
+    at(ASKED_AT + 160_000)
+    await pollHqSlackWaitingReplies(deps)
+    expect(db.getWaiting(callback.id)?.reply).toContain('call back')
+    db.markWaitingReplyDelivered(callback.id)
+    at(ASKED_AT + 60 * 60_000)
+    expect(await pollHqSlackWaitingReplies(deps, new Map())).toBe(0)
+    expect(db.getWaiting(older.id)?.reply ?? null).toBeNull()
   })
 
   it('gives a DM burst to the one open question it answers, not to every question in that DM', async () => {

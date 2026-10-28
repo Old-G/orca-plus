@@ -103,6 +103,20 @@ export function HqPlusWeWaitCard({
   }
   const sourceUrl = hqWaitingSourceUrl(wait.link)
   const linked = wait.task ? taskUrl(wait.task) : null
+  // Custom build (hq-plus-cards): one answer, one place — its card in the feed; this row only leads there.
+  const answer = wait.answer
+  if (answer) {
+    return (
+      <div className="hqp-qcard" data-kind="wait" data-answered="true">
+        <button type="button" className="hqp-wf" onClick={() => actions.onJump(answer)}>
+          <span className="hqp-qtext">
+            <HqPlusText text={`**${wait.who ?? '—'}** · ${wait.title}`} />
+          </span>
+          <span className="hqp-answered">{translate('auto.hqPlus.wait.answered', 'answered →')}</span>
+        </button>
+      </div>
+    )
+  }
   return (
     <div className="hqp-qcard" data-kind="wait" data-open={open} data-snoozed={snoozed}>
       <button type="button" className="hqp-wf" aria-expanded={open} onClick={() => setOpen(!open)}>

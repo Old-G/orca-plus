@@ -227,6 +227,8 @@ type Gathered = {
   messages: SlackReadMessage[]
   channelOf: Map<string, string>
   inThread: Set<string>
+  /** Custom build (hq-plus-cards): the owner's message that opened the thread — what was asked. */
+  asked?: string | null
 }
 
 type Describe = (list: readonly SlackReadMessage[]) => Promise<string>
@@ -246,18 +248,33 @@ function describer(deps: HqSlackWaitingDeps, api: SlackReadApi): Describe {
   }
 }
 
-/** What a closed waiting took: its person's messages, or its thread's, from its question to its answer. */
-type TakenRange = { from: string; to: string; user: string | null; channel: string | null }
+/** What a waiting already took — closed, or open with an answer: its person's messages, or its
+ *  thread's, from its question to its answer. */
+type TakenRange = {
+  waitingId: string
+  from: string
+  to: string
+  user: string | null
+  channel: string | null
+}
 
 function takenRanges(deps: HqSlackWaitingDeps): TakenRange[] {
   return (deps.listTaken?.() ?? []).flatMap((waiting) => {
-    if (waiting.direction !== 'on-them' || waiting.status === 'open' || !waiting.replyTs) {
+    if (waiting.direction !== 'on-them' || !waiting.replyTs) {
       return []
     }
     const user = waiting.personId ? deps.personSlackId(waiting.personId) : null
     const channel = parseSlackThreadRef(waiting.sourceRef)?.channel ?? null
     return user || channel
-      ? [{ from: slackTsAt(waiting.createdAt), to: waiting.replyTs, user, channel }]
+      ? [
+          {
+            waitingId: waiting.id,
+            from: slackTsAt(waiting.createdAt),
+            to: waiting.replyTs,
+            user,
+            channel
+          }
+        ]
       : []
   })
 }
@@ -265,10 +282,12 @@ function takenRanges(deps: HqSlackWaitingDeps): TakenRange[] {
 function isTaken(
   taken: readonly TakenRange[],
   message: SlackReadMessage,
-  channel: string
+  channel: string,
+  waitingId: string
 ): boolean {
   return taken.some(
     (range) =>
+      range.waitingId !== waitingId &&
       newer(message.ts, range.from) &&
       !newer(message.ts, range.to) &&
       ((range.user !== null && message.user === range.user) || range.channel === channel)
@@ -286,6 +305,7 @@ async function gather(
   const found = new Map<string, SlackReadMessage>()
   const channelOf = new Map<string, string>()
   const inThread = new Set<string>()
+  let asked: string | null = null
   if (thread) {
     let replies: SlackReadMessage[] = []
     try {
@@ -297,11 +317,13 @@ async function gather(
       }
       console.warn(`[hq-slack-waiting] reading thread of ${waiting.id} failed:`, error)
     }
+    const parent = replies.find((message) => message.ts === thread.threadTs)
+    asked = parent && parent.user === api.owner ? plainSlackText(parent.text) || null : null
     for (const message of answers(replies, api.owner)) {
       if (
         message.ts !== thread.threadTs &&
         newer(message.ts, after) &&
-        !isTaken(taken, message, thread.channel)
+        !isTaken(taken, message, thread.channel, waiting.id)
       ) {
         found.set(message.ts, message)
         channelOf.set(message.ts, thread.channel)
@@ -314,7 +336,7 @@ async function gather(
       dm &&
       newer(message.ts, after) &&
       (!dm.from || message.user === dm.from) &&
-      !isTaken(taken, message, dm.channel)
+      !isTaken(taken, message, dm.channel, waiting.id)
     ) {
       found.set(message.ts, message)
       channelOf.set(message.ts, dm.channel)
@@ -327,7 +349,7 @@ async function gather(
   }
   // Why kept when nothing is new: a waiting that already took these messages still owns them, so
   // another question that sees them too does not take them again.
-  return { watch, messages, channelOf, inThread }
+  return { watch, messages, channelOf, inThread, asked }
 }
 
 const messageKey = (found: Gathered, message: SlackReadMessage): string =>
@@ -462,7 +484,7 @@ async function pickWinner(
 async function record(
   deps: HqSlackWaitingDeps,
   api: SlackReadApi,
-  { watch, messages, channelOf }: Gathered,
+  { watch, messages, channelOf, asked }: Gathered,
   describe: Describe
 ): Promise<boolean> {
   const newest = messages.at(-1)
@@ -482,7 +504,8 @@ async function record(
       author: user ? (deps.knownName(user) ?? (await api.userName(user))) : null,
       ts: newest.ts,
       link,
-      authorId: authors.size === 1 && onlyAuthor ? onlyAuthor : null
+      authorId: authors.size === 1 && onlyAuthor ? onlyAuthor : null,
+      asked: asked ?? null
     }) !== null
   )
 }
