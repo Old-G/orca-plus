@@ -71,6 +71,9 @@ export type PulseWaitingReply = {
   link?: string | null
   /** Custom build (hq-plus-person-replies): the one user id behind every message of the answer. */
   authorId?: string | null
+  /** Custom build (hq-plus-cards): the owner's message the answer replies to; kept as the waiting's
+   *  detail when it has none, so the card can show what was asked. */
+  asked?: string | null
 }
 
 export type PulseWaitingInput = {
