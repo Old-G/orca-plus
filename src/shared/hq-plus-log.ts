@@ -459,6 +459,10 @@ export function hqPlusLog(
       })
       continue
     }
+    // Why: what one chat sends another is seen in that chat; in the feed it read as the owner's words.
+    if (entry.kind === HQ_JOURNAL_KIND.chatMessage) {
+      continue
+    }
     if (entry.kind === HQ_JOURNAL_KIND.reviewFinding && !/^\[P[01]\]/.test(entry.title)) {
       continue
     }
