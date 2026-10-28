@@ -106,6 +106,11 @@ export function hqPlusDoneLabel(done: HqPlusDone): string {
 
 /** The question a turn ends on, else its title. */
 function questionOf(card: Card): string {
+  // Custom build (hq-plus-cards): a person's answer reads as who answered what.
+  const answer = card.type === 'reply' ? readHqWaitingReplyRef(card.inbox?.refId ?? null) : null
+  if (answer) {
+    return `**${answer.author}** → «${answer.question}»`
+  }
   if (card.report?.ask) {
     return card.report.ask
   }
@@ -232,6 +237,36 @@ function noteOf(card: Card): string | null {
     return translate('auto.hqPlus.ask.do', 'asks you to do it')
   }
   return BELL_LABEL[card.inbox?.kind ?? ''] ?? null
+}
+
+/**
+ * Custom build (hq-plus-cards): a person's answer under what it answers — the owner's own words when
+ * the reader found them, then theirs — so the card says what the talk is about without opening Slack.
+ */
+function HqPlusReplyConvo({
+  card,
+  answer
+}: {
+  card: Card
+  answer: NonNullable<ReturnType<typeof readHqWaitingReplyRef>>
+}): React.JSX.Element {
+  // Why: the routing rule's note, when it left the answer for the owner, is the body's third line.
+  const why = (card.body ?? '').split('\n')[2]?.trim() || null
+  return (
+    <div className="hqp-convo">
+      {answer.asked ? (
+        <div className="hqp-convo-line" data-who="me">
+          <span className="who">{translate('auto.hqPlus.convo.you', 'You')}</span>
+          <HqPlusText text={answer.asked} maxLines={4} />
+        </div>
+      ) : null}
+      <div className="hqp-convo-line" data-who="them">
+        <span className="who">{answer.author}</span>
+        <HqPlusText text={answer.reply} />
+      </div>
+      {why ? <p className="hqp-convo-why">{why}</p> : null}
+    </div>
+  )
 }
 
 export function HqPlusCardView({
@@ -415,6 +450,7 @@ export function HqPlusCardView({
     )
   }
 
+  const replyRef = card.type === 'reply' ? readHqWaitingReplyRef(card.inbox?.refId ?? null) : null
   const choices = card.report?.options.length ? card.report.options : hqPlusChoices(card.body)
   const reply = (value: string): void =>
     run(() => (card.job ? replyOnHqPlusJob(card, value) : replyOnHqPlusCard(card, value, hqPath)))
@@ -485,6 +521,8 @@ export function HqPlusCardView({
                   </>
                 ) : null}
               </dl>
+            ) : card.type === 'reply' && replyRef ? (
+              <HqPlusReplyConvo card={card} answer={replyRef} />
             ) : card.body && card.type !== 'approve' ? (
               <p className="hqp-text">
                 <HqPlusText text={card.body} />
