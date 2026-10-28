@@ -1,13 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
 import { PulseDb } from '../orca-plus/pulse/pulse-db'
-import type { HqMrRef, HqMrState } from '../../shared/hq-mr-watch'
+import type { HqMrRef, HqMrRepoListing, HqMrState } from '../../shared/hq-mr-watch'
 import { readHqWaitingTags } from '../../shared/hq-waiting-tags'
 import { createHqMrWatch } from './hq-mr-watch'
 
 const NOW = 1_800_000_000_000
 const REPOS = ['acme/acme-hub', 'acme/acme-priority-bridge']
 
-function setup(states: Record<number, Partial<HqMrState>>, listRepos = async () => REPOS) {
+function setup(
+  states: Record<number, Partial<HqMrState>>,
+  listRepos: () => Promise<HqMrRepoListing> = async () => ({ repos: REPOS, complete: true })
+) {
   let id = 0
   const db = new PulseDb(':memory:', { now: () => NOW, newId: () => `w${++id}` })
   const getMr = vi.fn(async (ref: HqMrRef): Promise<HqMrState | null> => {
@@ -71,9 +74,9 @@ describe('MR watch', () => {
 
   it('asks again next pass when the repos could not be listed (glab not on PATH yet at startup)', async () => {
     const listRepos = vi
-      .fn<() => Promise<string[]>>()
-      .mockResolvedValueOnce([])
-      .mockResolvedValue(REPOS)
+      .fn<() => Promise<HqMrRepoListing>>()
+      .mockResolvedValueOnce({ repos: [], complete: false })
+      .mockResolvedValue({ repos: REPOS, complete: true })
     const { db, watch, ask } = setup({ 380: {} }, listRepos)
     const approve = ask('Апрув hub !380: spec edits', 'acme-hub')
     await watch.poll()
@@ -82,6 +85,24 @@ describe('MR watch', () => {
     expect(readHqWaitingTags(db.getWaiting(approve.id)?.detail ?? null).checked).toMatch(
       /— GitLab: !380 opened, no approvals$/
     )
+  })
+
+  it('does not settle «no repo» from a listing a GitLab group failed in', async () => {
+    const listRepos = vi
+      .fn<() => Promise<HqMrRepoListing>>()
+      .mockResolvedValueOnce({ repos: ['acme/acme-hub'], complete: false })
+      .mockResolvedValue({ repos: REPOS, complete: true })
+    const { watch, judge, getMr, ask } = setup({ 12: {} }, listRepos)
+    judge.mockResolvedValueOnce('NONE')
+    ask('Влить !12 — SDK switch', 'flowbridge')
+    await watch.poll()
+    expect(getMr).not.toHaveBeenCalled()
+    await watch.poll()
+    expect(getMr).toHaveBeenCalledWith({
+      host: 'gitlab.com',
+      projectPath: 'acme/acme-priority-bridge',
+      iid: 12
+    })
   })
 
   it('asks the model for the repo once per project when the name does not match', async () => {
