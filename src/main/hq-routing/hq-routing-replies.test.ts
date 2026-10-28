@@ -50,6 +50,7 @@ function routing() {
         replyTs,
         prompt
       ),
+    settle: (id, ts) => void db.markWaitingReplyDelivered(id, ts),
     address: (sessionId) => (sessionId === 'chat-1' ? 'acme-api/orders' : null),
     asked: (personId) => {
       const person = db.listPeople().find((entry) => entry.id === personId)
@@ -163,7 +164,8 @@ describe('person.reply routing', () => {
     const replies = routing()
     verdict = 'sorry'
     const waiting = answered('The orders live in the reporting replica.')
-    expect(replies.note(waiting).hold).toBe(false)
+    // Why: a fresh answer is held from the start, until it is judged.
+    expect(replies.note(waiting).hold).toBe(true)
     expect((await replies.route(RULE, { dryRun: false }))[0]?.kind).toBe('wait')
     expect(replies.note(waiting).hold).toBe(true)
     await replies.route(RULE, { dryRun: false })
@@ -197,15 +199,38 @@ describe('person.reply routing', () => {
     expect(judge).not.toHaveBeenCalled()
   })
 
-  it('does nothing and asks no model without the rule; a dry run looks back over handled ones', async () => {
+  it('without the rule only sorts out the owner\'s own talk; a dry run looks back over handled ones', async () => {
     const replies = routing()
     const waiting = answered('The orders live in the reporting replica.')
+    judge.mockResolvedValueOnce('CHAT')
     expect(await replies.route(null, { dryRun: false })).toEqual([])
-    expect(judge).not.toHaveBeenCalled()
+    await replies.route(null, { dryRun: false })
+    expect(judge).toHaveBeenCalledTimes(1)
     db.markWaitingReplyDelivered(waiting.id, '1792184300.000100')
     const looked = await replies.route(null, { dryRun: true, since: 0 })
     expect(looked.map((action) => action.kind)).toEqual(['pass'])
     expect(delivered).toEqual([])
     expect(decisions()).toEqual([])
+  })
+})
+
+// 28.10: with the rule off every answer was a card, even talk the owner answers himself in Slack.
+describe('with the rule off', () => {
+  it("settles the owner's own talk without a card and keeps the chat's answer for the card", async () => {
+    const service = routing()
+    const talk = answered('License goes through Priority support now, it depends on them')
+    judge.mockResolvedValueOnce('OWNER')
+    expect(service.note(talk)).toEqual({ hold: true, why: null })
+    await service.route(null, { dryRun: false })
+    expect(db.getWaiting(talk.id)?.replyDeliveredAt).not.toBeNull()
+    expect(decisions()).toEqual([
+      expect.objectContaining({ needs: 'nobody', status: 'done' })
+    ])
+    const fact = answered('Postgres, the replica is read-only')
+    judge.mockResolvedValueOnce('CHAT')
+    await service.route(null, { dryRun: false })
+    expect(db.getWaiting(fact.id)?.replyDeliveredAt).toBeNull()
+    expect(service.note(fact)).toEqual({ hold: false, why: null })
+    expect(delivered).toEqual([])
   })
 })
