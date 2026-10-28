@@ -18,11 +18,8 @@ import { registerGmailHandlers } from '../ipc/gmail'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { HQ_MR_HOST, type HqMrRef, type HqMrState } from '../../shared/hq-mr-watch'
-import {
-  HQ_SLACK_SCOUT_CONFIG_FILE,
-  HQ_SLACK_SCOUT_DIR,
-  parseHqScoutConfigValues
-} from '../../shared/hq-slack-scout'
+import { HQ_SLACK_SCOUT_CONFIG_FILE, HQ_SLACK_SCOUT_DIR } from '../../shared/hq-slack-scout'
+import { createHqGitLabRepos } from './hq-gitlab-repos'
 import { createHqMrWatch, HQ_MR_WATCH_EVERY_MS } from './hq-mr-watch'
 import { generateHqText } from './hq-task-questions'
 
@@ -76,51 +73,25 @@ async function gitLabMr(ref: HqMrRef): Promise<HqMrState | null> {
   }
 }
 
-/** The repos of the GitLab groups HQ's config names (`gitlab_groups`), cached for an hour. */
-function gitLabRepos(hqPath: () => string | null): () => Promise<string[]> {
-  let cached: { at: number; repos: string[] } | null = null
-  return async () => {
-    if (cached && Date.now() - cached.at < 60 * 60_000) {
-      return cached.repos
-    }
-    const hq = hqPath()
-    const config = hq
-      ? await readFile(join(hq, HQ_SLACK_SCOUT_DIR, HQ_SLACK_SCOUT_CONFIG_FILE), 'utf8').catch(
-          () => ''
-        )
-      : ''
-    const groups = [
-      ...(parseHqScoutConfigValues(config).get('gitlab_groups') ?? '').matchAll(/[\w./-]+/g)
-    ].map((match) => match[0])
-    const repos: string[] = []
-    for (const group of groups) {
-      const listed = await glabJson(
-        HQ_MR_HOST,
-        `groups/${encodeURIComponent(group)}/projects?per_page=100&include_subgroups=true&simple=true`
-      ).catch((error: unknown) => {
-        console.warn(`[hq-mr-watch] could not list the GitLab group ${group}:`, error)
-        return []
-      })
-      for (const project of Array.isArray(listed) ? listed : []) {
-        const path = text(field(project, 'path_with_namespace'))
-        if (path) {
-          repos.push(path)
-        }
-      }
-    }
-    // Why: an empty list (glab not on PATH yet at startup, GitLab down) is asked again next pass.
-    cached = repos.length > 0 ? { at: Date.now(), repos } : null
-    return repos
-  }
-}
-
 export function registerHqMailIntake(store: Store, runtime: OrcaRuntimeService): void {
   registerGmailHandlers()
   // Custom build (hq-mr-watch): waitings that name an MR, checked against GitLab every few minutes.
   const hqPath = (): string | null => store.getSettings().hqPath ?? null
   const watch = createHqMrWatch({
     listOpen: () => runtime.pulseListWaitings({ status: 'open' }),
-    listRepos: gitLabRepos(hqPath),
+    listRepos: createHqGitLabRepos({
+      readConfig: async () => {
+        const hq = hqPath()
+        return hq
+          ? readFile(join(hq, HQ_SLACK_SCOUT_DIR, HQ_SLACK_SCOUT_CONFIG_FILE), 'utf8').catch(
+              () => ''
+            )
+          : ''
+      },
+      glabJson: (path) => glabJson(HQ_MR_HOST, path),
+      now: Date.now,
+      warn: (message, error) => console.warn(message, error)
+    }),
     getMr: gitLabMr,
     judge: async (prompt) => {
       const hq = hqPath()
