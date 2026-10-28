@@ -4,7 +4,7 @@ import type { PreloadApi } from '../api-types'
 
 export const claudeHandoffApi = {
   list: () => ipcRenderer.invoke('claudeHandoff:list'),
-  launch: (id) => ipcRenderer.invoke('claudeHandoff:launch', id),
+  launch: (id, keepOld) => ipcRenderer.invoke('claudeHandoff:launch', id, keepOld === true),
   dismiss: (id) => ipcRenderer.invoke('claudeHandoff:dismiss', id),
   onOffersChanged: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, offers: ClaudeHandoffOffer[]): void =>
