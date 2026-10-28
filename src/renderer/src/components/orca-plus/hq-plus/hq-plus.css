@@ -1237,7 +1237,8 @@
     grid-template-columns: minmax(0, 1fr);
     padding: 8px 12px 14px;
   }
-  .hqp-log {
+  .hqp-log,
+  .hqp-waits {
     max-height: 70vh;
   }
 }
@@ -3274,7 +3275,16 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 }
 .hqp-waits {
   display: grid;
+  align-content: start;
   gap: 14px;
+  /* Why: like the log, the list scrolls inside the feed — past the screen it clipped the composer. */
+  overflow: auto;
+  scrollbar-gutter: stable;
+  min-height: 0;
+  padding-right: 14px;
+}
+.hqp-feed > .hqp-waits {
+  flex: 1 1 0;
 }
 .hqp-waits-project {
   display: grid;
