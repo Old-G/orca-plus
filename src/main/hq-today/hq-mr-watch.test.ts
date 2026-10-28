@@ -7,7 +7,7 @@ import { createHqMrWatch } from './hq-mr-watch'
 const NOW = 1_800_000_000_000
 const REPOS = ['acme/acme-hub', 'acme/acme-priority-bridge']
 
-function setup(states: Record<number, Partial<HqMrState>>) {
+function setup(states: Record<number, Partial<HqMrState>>, listRepos = async () => REPOS) {
   let id = 0
   const db = new PulseDb(':memory:', { now: () => NOW, newId: () => `w${++id}` })
   const getMr = vi.fn(async (ref: HqMrRef): Promise<HqMrState | null> => {
@@ -28,7 +28,7 @@ function setup(states: Record<number, Partial<HqMrState>>) {
   const judge = vi.fn(async () => 'acme/acme-priority-bridge')
   const watch = createHqMrWatch({
     listOpen: () => db.listWaitings({ status: 'open' }),
-    listRepos: async () => REPOS,
+    listRepos,
     getMr,
     judge,
     recordReply: (waitingId, reply) => db.recordWaitingReply(waitingId, reply),
@@ -69,6 +69,21 @@ describe('MR watch', () => {
     expect(watch.watched()).toBe(1)
   })
 
+  it('asks again next pass when the repos could not be listed (glab not on PATH yet at startup)', async () => {
+    const listRepos = vi
+      .fn<() => Promise<string[]>>()
+      .mockResolvedValueOnce([])
+      .mockResolvedValue(REPOS)
+    const { db, watch, ask } = setup({ 380: {} }, listRepos)
+    const approve = ask('Апрув hub !380: spec edits', 'acme-hub')
+    await watch.poll()
+    expect(watch.watched()).toBe(0)
+    await watch.poll()
+    expect(readHqWaitingTags(db.getWaiting(approve.id)?.detail ?? null).checked).toMatch(
+      /— GitLab: !380 opened, no approvals$/
+    )
+  })
+
   it('asks the model for the repo once per project when the name does not match', async () => {
     const { db, watch, judge, getMr, ask } = setup({ 12: { state: 'merged' } })
     ask('Влить !12 — SDK switch', 'flowbridge')
@@ -80,7 +95,9 @@ describe('MR watch', () => {
       projectPath: 'acme/acme-priority-bridge',
       iid: 12
     })
-    expect(db.listWaitings({ status: 'open' }).filter((w) => w.replyAuthorId === 'gitlab')).toHaveLength(1)
+    expect(
+      db.listWaitings({ status: 'open' }).filter((w) => w.replyAuthorId === 'gitlab')
+    ).toHaveLength(1)
   })
 
   it("leaves a waiting alone while a person's answer is not handled yet", async () => {
