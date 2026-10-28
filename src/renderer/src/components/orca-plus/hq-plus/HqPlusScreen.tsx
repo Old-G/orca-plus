@@ -22,10 +22,7 @@ import {
   hqPlusMatchesSearch,
   type HqPlusFeedFilter
 } from '../../../../../shared/hq-plus-feed-filter'
-import {
-  hqPlusNeedsOwner,
-  type HqPlusBadge
-} from '../../../../../shared/hq-plus-kinds'
+import { hqPlusNeedsOwner, type HqPlusBadge } from '../../../../../shared/hq-plus-kinds'
 import {
   hqPlusGraph,
   hqPlusGraphMembers,
@@ -69,7 +66,6 @@ import { HqPlusRiver } from './HqPlusRiver'
 import { HqPlusGraph } from './HqPlusGraph'
 import { HqPlusSession, type HqPlusPick } from './HqPlusSession'
 import { HqPlusAgents } from './HqPlusAgents'
-import { HqPlusBrowser, type HqPlusBrowserAsk } from './HqPlusBrowser'
 import { HqPlusRooms } from './HqPlusRooms'
 import { LinkActionPopover } from '@/components/link-actions/LinkActionPopover'
 import {
@@ -89,6 +85,7 @@ import {
 } from './hq-plus-view-state'
 import { HqPlusReportView } from './HqPlusReportView'
 import { HqPlusCenterFile } from './HqPlusCenterFile'
+import { HqPlusCenterBrowser, openHqPlusBrowserPage } from './HqPlusCenterBrowser'
 import { registerHqPlusCenterFile } from './hq-plus-center-file'
 import { useHqPlusData } from './use-hq-plus-data'
 import { putOffHqPlusCard, readHqPlusNotNow } from './hq-plus-not-now'
@@ -180,7 +177,10 @@ export function HqPlusScreen(): React.JSX.Element {
   const [requestedChat] = useState<string | null>(() =>
     takeRequestedHqTab() === 'chats' ? rememberedHqChat() : null
   )
-  const [tab, setTab] = useState<Tab>(requestedChat ? 'session' : view.tab)
+  // Why: Browser opens in the center now; a panel left on it comes back on the chat.
+  const [tab, setTab] = useState<Tab>(
+    requestedChat || view.tab === 'browser' ? 'session' : view.tab
+  )
   const [wide, setWide] = useState(view.wide)
   // Custom build (hq-plus-ui-v3): the open chat folded to a bar under Graph / River, until «Expand».
   const [chatFolded, setChatFolded] = useState(view.chatFolded)
@@ -193,18 +193,30 @@ export function HqPlusScreen(): React.JSX.Element {
   const [leftWidth, setLeftWidth] = useState(() => readHqPlusPanelWidth('left'))
   const [rightWidth, setRightWidth] = useState(() => readHqPlusPanelWidth('right'))
   const [reportPath, setReportPath] = useState<string | null>(view.reportPath)
-  // Custom build (hq-plus-round6): the page asked of the Browser tab; it stays mounted once opened.
-  const [browserAsk, setBrowserAsk] = useState<HqPlusBrowserAsk | null>(
-    view.browserUrl ? { url: view.browserUrl, n: 0 } : null
-  )
-  // Why: a new ask each time, so the same link clicked again comes back from wherever the page went.
-  const askBrowser = (url: string): void =>
-    setBrowserAsk((previous) => ({ url, n: (previous?.n ?? 0) + 1 }))
   // Custom build (hq-plus-links): where a clicked link should open — the popover chat links show.
   const [linkRequest, setLinkRequest] = useState<LinkActionRequest | null>(null)
   // Custom build (hq-plus-center-file): a file opened from HQ+ shows in the center over the feed.
   const [centerFile, setCenterFile] = useState(false)
   useEffect(() => registerHqPlusCenterFile(() => setCenterFile(true)), [])
+  // Custom build (hq-plus-center-browser): Orca's own browser over the feed, and whether it has the window.
+  const [centerBrowser, setCenterBrowser] = useState(false)
+  const [browserFull, setBrowserFull] = useState(false)
+  /** Shows Orca's browser in the center, on `url` when given; false when this workspace cannot browse. */
+  // Why: the HQ folder's workspace holds the browser tab; without it, the workspace open in Orca does.
+  const activeWorktreeId = useAppStore((state) => state.activeWorktreeId)
+  const browserWorktreeId = hqWorktreeId ?? activeWorktreeId
+  const showBrowser = (url: string | null): boolean => {
+    if (!browserWorktreeId || !openHqPlusBrowserPage(browserWorktreeId, url)) {
+      return false
+    }
+    setCenterFile(false)
+    setCenterBrowser(true)
+    return true
+  }
+  const closeBrowser = (): void => {
+    setCenterBrowser(false)
+    setBrowserFull(false)
+  }
   // Custom build (hq-plus-ui): the chat open on the right — picked on the left, «Open» in the log, or a
   // chat started from HQ (the sidebar's new chat asks HQ to show it, as the classic HQ does).
   const [chatKey, setChatKey] = useState<string | null>(requestedChat ?? view.chatKey)
@@ -672,8 +684,9 @@ export function HqPlusScreen(): React.JSX.Element {
           void window.api.shell.openUrl(target)
           return
         }
-        askBrowser(target)
-        setTab('browser')
+        if (!showBrowser(target)) {
+          void window.api.shell.openUrl(target)
+        }
       },
       request: setLinkRequest
     })
@@ -913,7 +926,11 @@ export function HqPlusScreen(): React.JSX.Element {
         </div>
       </header>
 
-      <div className="hqp-body" data-wide={wide ? 'true' : undefined}>
+      <div
+        className="hqp-body"
+        data-wide={wide ? 'true' : undefined}
+        data-center-full={centerBrowser && browserFull ? 'true' : undefined}
+      >
         <div className="hqp-side-wrap" ref={left.containerRef}>
           <HqPlusSide
             ticker={
@@ -1049,6 +1066,14 @@ export function HqPlusScreen(): React.JSX.Element {
             )}
           </div>
           {centerFile ? <HqPlusCenterFile onClose={() => setCenterFile(false)} /> : null}
+          {centerBrowser && browserWorktreeId && !centerFile ? (
+            <HqPlusCenterBrowser
+              worktreeId={browserWorktreeId}
+              full={browserFull}
+              onFull={setBrowserFull}
+              onClose={closeBrowser}
+            />
+          ) : null}
         </main>
 
         <button
@@ -1086,6 +1111,11 @@ export function HqPlusScreen(): React.JSX.Element {
                     aria-selected={!take && tab === name}
                     className="hqp-tab"
                     onClick={() => {
+                      // Custom build (hq-plus-center-browser): Browser opens Orca's own in the center.
+                      if (name === 'browser') {
+                        showBrowser(null)
+                        return
+                      }
                       // Why: leaving an open chat folds it to the bar at the foot, one click back.
                       if (name !== 'session' && tab === 'session' && chatItem) {
                         setChatFolded(true)
@@ -1122,17 +1152,7 @@ export function HqPlusScreen(): React.JSX.Element {
             </button>
           </div>
           <div className="hqp-pane" role="tabpanel">
-            {browserAsk !== null || tab === 'browser' ? (
-              <div className="hqp-pv" hidden={tab !== 'browser' || Boolean(take)}>
-                <HqPlusBrowser
-                  ask={browserAsk}
-                  onOpen={askBrowser}
-                  onUrl={(url) => saveHqPlusViewState({ browserUrl: url })}
-                />
-              </div>
-            ) : null}
             <div
-              hidden={tab === 'browser' && !take}
               className={chatFlash && tab === 'session' && !take ? 'hqp-pv hqp-flash' : 'hqp-pv'}
               key={
                 take
