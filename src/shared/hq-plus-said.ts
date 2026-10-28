@@ -16,27 +16,34 @@ export function hqPlusSaid(raw: string, author: string | null = null): HqPlusSai
   let text = raw.replace(APPROVE_FOOTER, '').replace(SENT_USING, '')
   const files = text.match(FILE_MARK)?.length ?? 0
   text = text
-    .replace(FILE_MARK, '')
     .split('\n')
-    // Why: a line left with only its speaker («Ann:») once its file mark is gone says nothing.
-    .filter((line) => !/^[^\n:]{1,40}:\s*$/.test(line.trim()))
+    .flatMap((line) => {
+      if (!line.includes('[file: ')) {
+        return [line]
+      }
+      const left = line.replace(FILE_MARK, '')
+      // Why: a line left with only its speaker («Ann:») once its file mark is gone says nothing.
+      return /^(?:[^\n:]{1,40}:)?\s*$/.test(left.trim()) ? [] : [left]
+    })
     .join('\n')
   const name = author?.trim()
-  if (name) {
+  // Why: a reply read from Slack starts with its speaker, and the card names the author already. A
+  // thread that opens with someone else («Bob: …») keeps every name, so who said what stays clear.
+  if (name && text.startsWith(`${name}:`)) {
     const prefix = `${name}:`
-    // Why: a reply read from Slack starts with its speaker; the card names the author already.
-    const speakers = text.split('\n').filter((line) => /^[^\s:][^:\n]{0,40}:\s/.test(line))
-    if (text.startsWith(prefix) && speakers.every((line) => line.startsWith(prefix))) {
-      text = text
-        .split('\n')
-        .map((line) => (line.startsWith(prefix) ? line.slice(prefix.length).trimStart() : line))
-        .join('\n')
-    }
+    text = text
+      .split('\n')
+      .map((line) => (line.startsWith(prefix) ? line.slice(prefix.length).trimStart() : line))
+      .join('\n')
   }
   text = text
     // Why: a reply opens by tagging the owner, who reads it on his own card.
     .replace(/^\s*<@[UW][A-Z0-9]+>[\s,:]*/, '')
     // Why: Slack's *bold* is one star; the feed's text reads markdown's two.
     .replace(/(^|[\s(\u00ab"])\*([^*\n]+?)\*(?=$|[\s.,!?;:)\u00bb"])/gm, '$1**$2**')
+    // Why: Slack's bullets come with a tab; the feed's list reads «• text».
+    .replace(/^(\s*)\u2022\s+/gm, '$1\u2022 ')
+    // Why: a Slack link reads «label (https://…)»; the label stays, the address becomes a small ↗.
+    .replace(/ \((https?:\/\/[^\s)]+)\)/g, ' [\u2197]($1)')
   return { text: text.replace(/[ \t]+$/gm, '').trim(), files }
 }
