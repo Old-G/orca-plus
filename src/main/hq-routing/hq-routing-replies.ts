@@ -1,6 +1,7 @@
 // Custom build (hq-plus-person-replies): carries out `person.reply` in HQ/routing.yaml. A person's
 // answer that is clear, complete, said by the person asked where the question was asked goes to the
 // live chat that asked; anything else — a closed chat included — stays the owner's card, saying why. Each decision is a journal row, so it is made once and can be looked back on.
+import { HQ_GITLAB_AUTHOR_ID } from '../../shared/hq-mr-watch'
 import {
   HQ_JOURNAL_MAX_LIMIT,
   hqJournalTitle,
@@ -242,6 +243,11 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
     for (const waiting of deps.listWaitings().filter(pendingAnswer)) {
       const id = key(waiting)
       if (sorted.has(id)) {
+        continue
+      }
+      // Why: GitLab's word that the MR is merged is always the chat's to act on.
+      if (waiting.replyAuthorId === HQ_GITLAB_AUTHOR_ID) {
+        sorted.set(id, 'chat')
         continue
       }
       const failed = unread.get(id)
