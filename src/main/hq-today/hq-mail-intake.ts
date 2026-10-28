@@ -1,14 +1,14 @@
 // Custom build (hq-mail-intake): GitLab and ClickUp notification emails, read by Orca+ itself through
 // the Gmail API. An email only names what happened; GitLab and ClickUp are asked whether it is so —
-// a merged MR closes the waiting that holds its link, a ClickUp mention or a shared task becomes a
-// request card exactly like the ones the ClickUp API finds.
+// a merged MR wakes the MR watch, which asks GitLab and answers the waiting that names it (closing
+// nothing by itself, owner 28.10); a ClickUp mention or a shared task becomes a request card exactly
+// like the ones the ClickUp API finds.
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ClickUpComment, ClickUpTask } from '../../shared/clickup-types'
 import {
   HQ_MAIL_SENDERS,
   hqMailEvent,
-  hqMergeRequestKey,
   type HqMail,
   type HqMailEvent
 } from '../../shared/hq-mail-events'
@@ -25,7 +25,6 @@ import {
   type HqSlackScoutDraft
 } from '../../shared/hq-slack-scout'
 import { HQ_CLICKUP_TRIAGE_FILE } from '../../shared/hq-clickup-triage'
-import type { PulseWaiting } from '../../shared/pulse-types'
 import {
   asksTheOwner,
   clickUpCommentsOldestFirst,
@@ -56,11 +55,8 @@ export type HqMailIntakeDeps = {
   listReplies: (commentId: string) => Promise<ClickUpComment[]>
   viewer: () => Promise<{ id: string; username: string }>
   projectForList: (listId: string | null) => string | null
-  listOpenWaitings: () => readonly Pick<PulseWaiting, 'id' | 'title' | 'sourceRef'>[]
-  /** Who merged the MR when GitLab says it is merged, `null` when it does not say who; false if not merged. */
-  mergedBy: (event: Extract<HqMailEvent, { kind: 'mr-merged' }>) => Promise<string | null | false>
-  closeWaiting: (id: string, resolution: string) => void
-  notify: (title: string, body: string) => void
+  /** Custom build (hq-mr-watch): a merge email only makes the MR watch look at GitLab now. */
+  mrMerged: (event: Extract<HqMailEvent, { kind: 'mr-merged' }>) => void
   now: () => number
 }
 
@@ -247,18 +243,7 @@ export async function collectHqMailIntake(hqPath: string, deps: HqMailIntakeDeps
       continue
     }
     if (event.kind === 'mr-merged') {
-      const key = hqMergeRequestKey(event.mrUrl)
-      const waiting = deps
-        .listOpenWaitings()
-        .filter((item) => item.sourceRef && hqMergeRequestKey(item.sourceRef) === key)
-      const merged = waiting.length > 0 ? await deps.mergedBy(event) : false
-      if (merged === false) {
-        continue
-      }
-      for (const item of waiting) {
-        deps.closeWaiting(item.id, `MR !${event.iid} merged${merged ? ` by ${merged}` : ''}`)
-        deps.notify('MR merged', `${item.title} — closed in Notes`)
-      }
+      deps.mrMerged(event)
       continue
     }
     const task = await deps.getTask(event.taskRef)

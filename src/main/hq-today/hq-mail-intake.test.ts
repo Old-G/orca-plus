@@ -4,7 +4,6 @@ import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClickUpComment } from '../../shared/clickup-types'
 import type { HqMail } from '../../shared/hq-mail-events'
-import type { PulseWaiting } from '../../shared/pulse-types'
 import { collectHqMailIntake, type HqMailIntakeDeps, type HqMailTask } from './hq-mail-intake'
 
 const NOW = 1_800_000_000_000
@@ -29,10 +28,6 @@ function comment(
   return { id, body, author: { ...ANN, ...author }, createdAt: at }
 }
 
-function waiting(id: string, sourceRef: string): Pick<PulseWaiting, 'id' | 'title' | 'sourceRef'> {
-  return { id, title: `hub !215: merge rule`, sourceRef }
-}
-
 async function hq(): Promise<string> {
   const path = await mkdtemp(join(tmpdir(), 'hq-mail-'))
   await mkdir(join(path, 'slack-scout'))
@@ -48,10 +43,7 @@ function deps(mails: HqMail[], overrides: Partial<HqMailIntakeDeps> = {}): HqMai
     listReplies: async () => [],
     viewer: async () => OWNER,
     projectForList: () => 'support',
-    listOpenWaitings: () => [],
-    mergedBy: async () => 'Marta',
-    closeWaiting: vi.fn(),
-    notify: vi.fn(),
+    mrMerged: vi.fn(),
     now: () => NOW,
     ...overrides
   }
@@ -78,29 +70,17 @@ async function cards(path: string): Promise<{ id: string; ask?: string }[]> {
 }
 
 describe('collectHqMailIntake', () => {
-  it('closes the waiting that holds a merged MR, once GitLab confirms it', async () => {
+  // 28.10: a merge email closes nothing by itself; the MR watch asks GitLab and the owner decides.
+  it('only wakes the MR watch on a merge email, once per email', async () => {
     const path = await hq()
-    const d = deps([merged], {
-      listOpenWaitings: () => [
-        waiting('w1', 'https://gitlab.com/acme/hub/-/merge_requests/215'),
-        waiting('w2', 'https://gitlab.com/acme/hub/-/merge_requests/216')
-      ]
-    })
+    const d = deps([merged])
     await collectHqMailIntake(path, d)
-    expect(d.closeWaiting).toHaveBeenCalledExactlyOnceWith('w1', 'MR !215 merged by Marta')
-    expect(d.notify).toHaveBeenCalledOnce()
+    expect(d.mrMerged).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ kind: 'mr-merged', iid: 215 })
+    )
     // Why: a second look reads only new emails.
     await collectHqMailIntake(path, d)
-    expect(d.closeWaiting).toHaveBeenCalledOnce()
-  })
-
-  it('keeps the waiting when GitLab does not show the MR merged', async () => {
-    const d = deps([merged], {
-      listOpenWaitings: () => [waiting('w1', 'https://gitlab.com/acme/hub/-/merge_requests/215')],
-      mergedBy: async () => false
-    })
-    await collectHqMailIntake(await hq(), d)
-    expect(d.closeWaiting).not.toHaveBeenCalled()
+    expect(d.mrMerged).toHaveBeenCalledOnce()
   })
 
   it('turns a ClickUp mention into the same request the ClickUp collector would make', async () => {
