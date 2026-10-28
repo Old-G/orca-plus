@@ -80,12 +80,15 @@ export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeServi
       return result.ok ? parseHqReplyPick(result.text, questions.length) : null
     },
     // Why three days: a closed question keeps the answer it took while that answer is fresh.
+    // Custom build (hq-plus-cards): an open one that already took an answer keeps it too (28.10: the
+    // same message reached a second, older question after the owner had handled the first card).
     listTaken: () =>
       runtime
         .pulseListWaitings({ direction: 'on-them' })
-        .filter(
-          (waiting) =>
-            waiting.status !== 'open' && (waiting.resolvedAt ?? 0) > Date.now() - 3 * 86_400_000
+        .filter((waiting) =>
+          waiting.status === 'open'
+            ? waiting.replyTs !== null
+            : (waiting.resolvedAt ?? 0) > Date.now() - 3 * 86_400_000
         ),
     now: Date.now
   })

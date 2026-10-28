@@ -83,9 +83,11 @@ export function slackRequestBellItem(
   const link = sourceLinkOf(draft)
   const ref: HqSlackRequestRef = { id: draft.id, kind, ...(link ? { link } : {}) }
   const title = draft.author ? `${draft.author}: ${ask}` : ask
-  // Custom build (hq-scout-context): the scout's reason says more than the quote does.
-  const second = why ? `→ ${why.slice(0, 200)}` : quote ? `«${quote.slice(0, 200)}»` : null
-  const body = second ? `${meta}\n${second}` : meta
+  // Custom build (hq-plus-cards): what the person wrote, then the scout's reason it needs the owner —
+  // both, so the card says what the talk is about without opening Slack.
+  const body = [meta, quote ? `«${quote.slice(0, 400)}»` : null, why ? `→ ${why.slice(0, 200)}` : null]
+    .filter(Boolean)
+    .join('\n')
   return {
     kind: HQ_SLACK_REQUEST_BELL_KIND,
     title,
