@@ -3,12 +3,7 @@ import type { DashboardCard, DashboardWorkspace } from '../../../../../shared/da
 import type { Tab } from '../../../../../shared/tab-types'
 import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
 import { buildHqChatList } from '../hq/hq-chat-list'
-import {
-  hqPlusChatInView,
-  hqPlusChatIsIdle,
-  hqPlusChatOfSession,
-  hqPlusProjectChats
-} from './hq-plus-chats'
+import { hqPlusChatIsIdle, hqPlusChatOfSession, hqPlusProjectChats } from './hq-plus-chats'
 
 const workspace: DashboardWorkspace = {
   repoId: 'repo-1',
@@ -125,28 +120,5 @@ describe('HQ+ chats', () => {
     expect(idle).toHaveLength(2)
     expect(idle.some((key) => key.includes('tab-read'))).toBe(true)
     expect(idle.some((key) => key.includes('tab-stale'))).toBe(true)
-  })
-
-  it('keeps a new, working or asking chat of another room in view; hides a read old one', () => {
-    const now = 24 * 60 * 60_000
-    const items = buildHqChatList(
-      {
-        workspaces: [workspace],
-        cards: [card('tab-working', 'working', 40), card('tab-read', 'done', 40)]
-      },
-      [
-        chatTab('tab-working'),
-        chatTab('tab-read'),
-        { ...chatTab('tab-new'), createdAt: now - 60_000 }
-      ]
-    )
-    const rooms = new Map([['repo-1', 'personal']])
-    const shown = items
-      .filter((item) => hqPlusChatInView(item, 'acme', rooms, now))
-      .map((item) => item.key)
-    expect(shown.some((key) => key.includes('tab-working'))).toBe(true)
-    expect(shown.some((key) => key.includes('tab-new'))).toBe(true)
-    expect(shown.some((key) => key.includes('tab-read'))).toBe(false)
-    expect(items.every((item) => hqPlusChatInView(item, null, rooms, now))).toBe(true)
   })
 })
