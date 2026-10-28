@@ -347,6 +347,26 @@
 .hqp-feed > * {
   flex-shrink: 0;
 }
+/* Custom build (hq-plus-center-file): an opened file covers the feed, which stays mounted below it */
+.hqp-feed > .hqp-center-file {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--hqp-bg);
+}
+.hqp-center-file-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--hqp-line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--background);
+}
 .hqp-feed > .hqp-log {
   flex: 1 1 0;
 }
@@ -1012,6 +1032,34 @@
 }
 .hqp-report-view .hqp-fh {
   margin-bottom: 10px;
+}
+/* Custom build (hq-plus-report-chat): an open report scrolls above its decisions box, as in Reports */
+.hqp-pv:has(> .hqp-report-view[data-open='true']) {
+  height: 100%;
+  overflow: hidden;
+}
+.hqp-report-view[data-open='true'] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.hqp-report-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.hqp-report-ask {
+  flex: none;
+  margin-top: 10px;
+  border: 1px solid var(--hqp-line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--hqp-card);
+}
+.hqp-report-ask > div {
+  border-top: 0;
+  background: transparent;
 }
 /* the bell's other items, and the thread's own input */
 .hqp-card[data-type='bell'][data-open='true'] {
@@ -3096,4 +3144,139 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* Custom build (hq-plus-cards): a person's answer under the owner's words it answers */
+.hqp-convo {
+  display: grid;
+  gap: 6px;
+  margin: 2px 0 4px;
+}
+.hqp-convo-line {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: baseline;
+  padding-left: 8px;
+  border-left: 2px solid var(--hqp-line-2);
+  font-size: 13px;
+  color: var(--hqp-mute);
+  min-width: 0;
+}
+.hqp-convo-line[data-who='them'] {
+  border-left-color: var(--hqp-yellow);
+  color: var(--hqp-fg);
+}
+.hqp-convo-line .who {
+  font-weight: 600;
+  color: var(--hqp-fg);
+  white-space: nowrap;
+}
+.hqp-convo-why {
+  margin: 0;
+  font-size: 12px;
+  color: var(--hqp-faint);
+}
+.hqp-qcard[data-answered='true'] {
+  border-color: var(--hqp-yellow);
+}
+.hqp-answered {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--hqp-yellow);
+  white-space: nowrap;
+}
+/* Custom build (hq-plus-ticker): the left column's live strip, newest sliding in at the bottom */
+.hqp-ticker {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 168px;
+  flex: none;
+  border: 1px solid var(--hqp-line);
+  border-radius: 12px;
+  background: var(--hqp-card);
+  overflow: hidden;
+}
+.hqp-ticker-h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 4px;
+  font: 600 10.5px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hqp-faint);
+}
+.hqp-ticker-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff6a5c;
+}
+.hqp-ticker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 6px 6px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.hqp-ticker-list li {
+  animation: hqp-ticker-in 0.35s var(--hqp-ease, ease-out);
+}
+.hqp-ticker-list button {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--hqp-mute);
+  font-size: 12px;
+  text-align: left;
+}
+.hqp-ticker-list button:hover {
+  background: rgba(143, 233, 255, 0.06);
+  color: var(--hqp-fg);
+}
+.hqp-ticker-list .tm {
+  flex: none;
+  font: 10.5px var(--font-mono, ui-monospace, monospace);
+  color: var(--hqp-faint);
+}
+.hqp-ticker-list .pj {
+  flex: none;
+  max-width: 34%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--hqp-fg);
+  font-weight: 600;
+}
+.hqp-ticker-list .tx {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@keyframes hqp-ticker-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hqp-ticker-list li {
+    animation: none;
+  }
+}
+.hqp-waits {
+  display: grid;
+  gap: 14px;
+}
+.hqp-waits-project {
+  display: grid;
+  gap: 6px;
 }

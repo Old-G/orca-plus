@@ -123,13 +123,20 @@ export async function pollHqClickUpWaitingReplies(
         ? [...replies, ...comments].filter(counts)
         : [...replies, ...comments.filter(counts)]
       const answer = newestAnswer(candidates, since, viewer, ref.commentId)
+      // Custom build (hq-plus-cards): the owner's comment that asked, shown on the answer's card.
+      const asked = ref.commentId
+        ? [...comments, ...replies]
+            .find((comment) => comment.id === ref.commentId)
+            ?.body.trim() || null
+        : null
       if (answer?.body.trim()) {
         deps.recordReply(waiting.id, {
           text: answer.body.trim().slice(0, HQ_WAITING_REPLY_MAX),
           author: answer.author?.username ?? null,
           ts: slackTsAt(answer.createdAt ?? Date.now()),
           link: `https://app.clickup.com/t/${taskId}?comment=${answer.id}`,
-          authorId: answer.author?.id ?? null
+          authorId: answer.author?.id ?? null,
+          asked: asked?.slice(0, HQ_WAITING_REPLY_MAX) ?? null
         })
         recorded += 1
       }

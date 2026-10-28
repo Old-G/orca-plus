@@ -44,6 +44,7 @@ import {
   type HttpLinkDestination
 } from '@/lib/http-link-destinations'
 import { isHtmlFilePath, localHtmlFileDestinations } from './local-html-file-destinations'
+import { takeHqPlusFileOpen } from '../orca-plus/hq-plus/hq-plus-center-file'
 
 export type FileOpenFailure = {
   /** `missing` is a verified absence; `unverifiable` means the host could not answer (dropped SSH, timeout, denied path). */
@@ -298,7 +299,8 @@ export function openDetectedFilePath(
       return
     }
 
-    if (targetWorktreeId) {
+    // Custom build (hq-plus-center-file): with HQ+ on screen the file opens in its center, not in Code.
+    if (targetWorktreeId && !takeHqPlusFileOpen(targetWorktreeId, targetExecutionHostId)) {
       // Why: the route may name a folder-workspace key, and the same worktree id can exist
       // on several hosts — dispatch by workspace shape and keep the resolved host.
       activateAndRevealWorkspace(targetWorktreeId, {

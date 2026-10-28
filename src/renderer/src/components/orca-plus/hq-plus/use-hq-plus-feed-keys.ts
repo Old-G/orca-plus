@@ -51,8 +51,8 @@ function onHqPlus(target: EventTarget | null): boolean {
     return false
   }
   // Custom build (hq-plus-panel-keys): the right panel holds a chat, a file or a page of its own; keys
-  // pressed there are its, never the feed's.
-  if (target instanceof Element && target.closest('.hqp-pv') !== null) {
+  // pressed there are its, never the feed's. So are a file's opened in the center.
+  if (target instanceof Element && target.closest('.hqp-pv, .hqp-center-file') !== null) {
     return false
   }
   return target === document.body || (target instanceof Node && screen.contains(target))

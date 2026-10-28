@@ -12,6 +12,7 @@ import type {
 import { findDuplicateWaiting } from '../../../shared/pulse-waiting-similarity'
 import type { PulseCore } from './pulse-core'
 import { integer, oneOf, optionalInteger, optionalText, text } from './pulse-row-fields'
+import { withHqWaitingAsked } from '../../../shared/hq-waiting-tags'
 
 const DIRECTIONS = ['on-me', 'on-them'] as const
 const STATUSES = ['open', 'resolved', 'cancelled'] as const
@@ -225,6 +226,7 @@ export function recordWaitingReply(
     }
     const replied: PulseWaiting = {
       ...existing,
+      detail: withHqWaitingAsked(existing.detail, reply.asked),
       reply: reply.text,
       replyAuthor: reply.author,
       replyTs: reply.ts,
@@ -235,10 +237,11 @@ export function recordWaitingReply(
     }
     core.db
       .prepare(
-        'UPDATE waitings SET reply = ?, reply_author = ?, reply_ts = ?, replied_at = ?, ' +
+        'UPDATE waitings SET detail = ?, reply = ?, reply_author = ?, reply_ts = ?, replied_at = ?, ' +
           'reply_delivered_at = NULL, reply_link = ?, reply_author_id = ? WHERE id = ?'
       )
       .run(
+        replied.detail,
         replied.reply,
         replied.replyAuthor,
         replied.replyTs,

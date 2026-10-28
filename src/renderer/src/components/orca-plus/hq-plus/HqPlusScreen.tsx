@@ -23,7 +23,6 @@ import {
   type HqPlusFeedFilter
 } from '../../../../../shared/hq-plus-feed-filter'
 import {
-  hqPlusIsFyi,
   hqPlusNeedsOwner,
   type HqPlusBadge
 } from '../../../../../shared/hq-plus-kinds'
@@ -59,10 +58,12 @@ import { openHqRouteChat } from '../pulse-bell/hq-route-send'
 import { HqPlusLog, hqPlusThreadKey, hqPlusTileOf, type HqPlusLogContext } from './HqPlusLog'
 import { useHqPlusDraftChats } from './use-hq-plus-drafts'
 import { HqPlusSide, type HqPlusTile } from './HqPlusSide'
-import type { HqPlusOtherWait } from './HqPlusSideQueues'
+import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
+import { HqPlusTicker } from './HqPlusTicker'
+import { HqPlusWaitsView } from './HqPlusWaitsView'
 import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusChatBar, HqPlusChatSession } from './HqPlusChatSession'
-import { canFinishHqPlusCard, finishHqPlusCard, markHqPlusDone } from './hq-plus-actions'
+import { canFinishHqPlusCard, finishHqPlusCard } from './hq-plus-actions'
 import { HQ_PLUS_PANEL, readHqPlusPanelWidth, saveHqPlusPanelWidth } from './hq-plus-panel-widths'
 import { HqPlusRiver } from './HqPlusRiver'
 import { HqPlusGraph } from './HqPlusGraph'
@@ -77,6 +78,7 @@ import {
 } from '@/components/link-actions/link-action-request'
 import { hqPlusLinkClick, type HqPlusLinkClick } from './hq-plus-link-open'
 import { readHqWaitingTags } from '../../../../../shared/hq-waiting-tags'
+import { readHqWaitingReplyRef } from '../../../../../shared/hq-waiting-reply-bell'
 import { HqPlusTakePanel } from './HqPlusTakePanel'
 import {
   HQ_PLUS_VIEW_TABS,
@@ -86,6 +88,8 @@ import {
   type HqPlusViewTab
 } from './hq-plus-view-state'
 import { HqPlusReportView } from './HqPlusReportView'
+import { HqPlusCenterFile } from './HqPlusCenterFile'
+import { registerHqPlusCenterFile } from './hq-plus-center-file'
 import { useHqPlusData } from './use-hq-plus-data'
 import { putOffHqPlusCard, readHqPlusNotNow } from './hq-plus-not-now'
 import {
@@ -138,8 +142,6 @@ export function HqPlusScreen(): React.JSX.Element {
   const hqWorktreeId = useAppStore((state) =>
     findHqWorktreeId(state.settings?.hqPath, state.repos, state.worktreesByRepo)
   )
-  const sidebarOpen = useAppStore((state) => state.sidebarOpen)
-  const setSidebarOpen = useAppStore((state) => state.setSidebarOpen)
   // Custom build (hq-plus-ui-v5): the screen comes back as the owner left it.
   const [view] = useState(readHqPlusViewState)
   const [scope, setScope] = useState<string | null>(view.scope)
@@ -200,6 +202,9 @@ export function HqPlusScreen(): React.JSX.Element {
     setBrowserAsk((previous) => ({ url, n: (previous?.n ?? 0) + 1 }))
   // Custom build (hq-plus-links): where a clicked link should open — the popover chat links show.
   const [linkRequest, setLinkRequest] = useState<LinkActionRequest | null>(null)
+  // Custom build (hq-plus-center-file): a file opened from HQ+ shows in the center over the feed.
+  const [centerFile, setCenterFile] = useState(false)
+  useEffect(() => registerHqPlusCenterFile(() => setCenterFile(true)), [])
   // Custom build (hq-plus-ui): the chat open on the right — picked on the left, «Open» in the log, or a
   // chat started from HQ (the sidebar's new chat asks HQ to show it, as the classic HQ does).
   const [chatKey, setChatKey] = useState<string | null>(requestedChat ?? view.chatKey)
@@ -368,14 +373,6 @@ export function HqPlusScreen(): React.JSX.Element {
     () => shown.flatMap((item) => (hqPlusNeedsOwner(item) ? [item.id] : [])),
     [shown]
   )
-  const waiting = useMemo(
-    () => roomItems.filter((item): item is HqPlusCard => hqPlusNeedsOwner(item)),
-    [roomItems]
-  )
-  const fyi = useMemo(
-    () => roomItems.filter((item): item is HqPlusCard => hqPlusIsFyi(item)),
-    [roomItems]
-  )
   const openByRoom = useMemo(() => {
     const counts = new Map<string, number>()
     for (const card of all.filter((item): item is HqPlusCard => hqPlusNeedsOwner(item))) {
@@ -429,6 +426,20 @@ export function HqPlusScreen(): React.JSX.Element {
         })),
     [data.waits, room, roomOfProject, names]
   )
+  // Custom build (hq-plus-cards): an answered waiting's text lives on its card; the row only leads there.
+  const answerOfWaiting = useMemo(() => {
+    const cards = new Map<string, HqPlusCard>()
+    for (const item of all) {
+      const waitingId =
+        item.kind === 'card' && item.type === 'reply' && item.open
+          ? readHqWaitingReplyRef(item.inbox?.refId ?? null)?.waitingId
+          : undefined
+      if (waitingId && item.kind === 'card') {
+        cards.set(waitingId, item)
+      }
+    }
+    return cards
+  }, [all])
   const waitsOnThem = useMemo<HqPlusOtherWait[]>(
     () =>
       data.waits
@@ -452,10 +463,11 @@ export function HqPlusScreen(): React.JSX.Element {
             link: wait.sourceRef,
             project: wait.project,
             at: wait.createdAt,
-            sessionId: wait.agentSessionId ?? null
+            sessionId: wait.agentSessionId ?? null,
+            answer: answerOfWaiting.get(wait.id) ?? null
           }
         }),
-    [data.waits, room, roomOfProject, names]
+    [data.waits, room, roomOfProject, names, answerOfWaiting]
   )
   const slugOfRepo = useMemo(
     () =>
@@ -679,12 +691,26 @@ export function HqPlusScreen(): React.JSX.Element {
             if (chatKey === item.key) {
               setChatKey(null)
             }
+            // Custom build (hq-closed-loop): a closed chat leaves the feed too; a later turn brings it back.
+            const now = Date.now()
+            dismissHqPlusChatCard(item.tab.entityId, now, now)
+            setDismissVersion((version) => version + 1)
           }
         }
       : null
   const putOff = (id: string): void => {
     putOffHqPlusCard(id, Date.now())
     setNotNowVersion((version) => version + 1)
+  }
+  const queue: HqPlusQueueActions = {
+    hqPath,
+    hqWorktreeId,
+    now,
+    onJump: jump,
+    openChat,
+    onNotNow: (card) => putOff(hqPlusNotNowKey(card)),
+    onChanged: data.reload,
+    openLink
   }
   const ctx: HqPlusLogContext = {
     hqPath,
@@ -859,22 +885,10 @@ export function HqPlusScreen(): React.JSX.Element {
       saveHqPlusPanelWidth('right', width)
     }, [])
   })
-  const clearFyi = (): void => {
-    void Promise.all(fyi.map((card) => markHqPlusDone(card, 'seen'))).then(() => data.reload())
-  }
 
   return (
     <div className="hq-plus dark">
       <header className="hqp-top">
-        <button
-          type="button"
-          className="hqp-icon"
-          aria-label={translate('auto.hqPlus.projects', 'Projects and new chat')}
-          aria-pressed={sidebarOpen}
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-        >
-          ☰
-        </button>
         <span className="hqp-brand">
           <span className="hqp-arc" aria-hidden="true">
             <i />
@@ -902,8 +916,16 @@ export function HqPlusScreen(): React.JSX.Element {
       <div className="hqp-body" data-wide={wide ? 'true' : undefined}>
         <div className="hqp-side-wrap" ref={left.containerRef}>
           <HqPlusSide
-            waiting={waiting}
-            fyi={fyi}
+            ticker={
+              <HqPlusTicker
+                items={all}
+                onGo={(item) => {
+                  setScope(null)
+                  setSelectedId(item.id)
+                  goToFeedItem(item.id, item)
+                }}
+              />
+            }
             waitsOnThem={waitsOnThem}
             chats={sideChats}
             drafts={draftChats}
@@ -918,18 +940,8 @@ export function HqPlusScreen(): React.JSX.Element {
             picked={tab === 'session' ? chatKey : null}
             tileOf={tileOfChat}
             closerOf={closerOf}
-            queue={{
-              hqPath,
-              hqWorktreeId,
-              now,
-              onJump: jump,
-              openChat,
-              onNotNow: (card) => putOff(hqPlusNotNowKey(card)),
-              onChanged: data.reload,
-              openLink
-            }}
+            queue={queue}
             onPickChat={(item) => showChat(item.key)}
-            onClearFyi={clearFyi}
           />
         </div>
         <button
@@ -961,6 +973,7 @@ export function HqPlusScreen(): React.JSX.Element {
             <HqPlusFeedChips
               filter={feedFilter}
               moves={moveIds.length}
+              waits={waitsOnThem.length}
               onFilter={changeFeedFilter}
             />
           </div>
@@ -998,12 +1011,16 @@ export function HqPlusScreen(): React.JSX.Element {
             />
           </div>
           {data.error && !data.feed ? <p className="hqp-error">{data.error}</p> : null}
-          <HqPlusLog
-            key={`${room ?? ''}|${scope ?? ''}|${feedFilter}`}
-            items={feedItems}
-            flashId={flashId}
-            ctx={ctx}
-          />
+          {feedFilter === 'waits' && !scope ? (
+            <HqPlusWaitsView waits={waitsOnThem} actions={queue} ctx={ctx} />
+          ) : (
+            <HqPlusLog
+              key={`${room ?? ''}|${scope ?? ''}|${feedFilter}`}
+              items={feedItems}
+              flashId={flashId}
+              ctx={ctx}
+            />
+          )}
           <div className="hqp-composer">
             {scope ? (
               <HqPlusThreadComposer
@@ -1031,6 +1048,7 @@ export function HqPlusScreen(): React.JSX.Element {
               <HqCommandBox hqWorktreeId={hqWorktreeId} />
             )}
           </div>
+          {centerFile ? <HqPlusCenterFile onClose={() => setCenterFile(false)} /> : null}
         </main>
 
         <button
