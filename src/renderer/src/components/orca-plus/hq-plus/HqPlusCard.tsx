@@ -63,6 +63,7 @@ const DONE_ACTION: Record<string, [string, string]> = {
     'skipped, the chat did not get it'
   ],
   [HQ_WAITING_REPLY_ACTION.open]: ['auto.hqPlus.done.replyOpen', 'opened the chat'],
+  [HQ_WAITING_REPLY_ACTION.close]: ['auto.hqPlus.done.replyClose', 'waiting closed'],
   gone: ['auto.hqPlus.done.gone', 'closed'],
   done: ['auto.hqPlus.done.done', 'done'],
   sent: ['auto.hqPlus.done.sent', 'sent to the chat'],
@@ -197,6 +198,14 @@ function replyActions(card: Card, actions: readonly CardAction[]): CardAction[] 
           hint: translate(
             'auto.hqPlus.reply.openHint',
             'Opens the chat that asked; the answer is not sent'
+          )
+        }
+      case HQ_WAITING_REPLY_ACTION.close:
+        return {
+          ...action,
+          hint: translate(
+            'auto.hqPlus.reply.closeHint',
+            'The answer is enough: the waiting closes and the chat is not told'
           )
         }
       case HQ_WAITING_REPLY_ACTION.skip:
