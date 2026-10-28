@@ -131,3 +131,38 @@ export function hqPlusProjectChats(
     .sort((a, b) => rank(a) - rank(b) || latest(b) - latest(a))
   return { marked, projects, quiet: split.quiet.filter((item) => !markedKeys.includes(item.key)) }
 }
+
+// Why: a chat the owner just started, or one that works or waits on him, is never hidden by the room
+// picked on top — it vanished from the list and the feed when it sat in another room (owner, 28.10).
+const FRESH_MS = 6 * 60 * 60_000
+
+/** Custom build (hq-plus-chats-by-project): whether a chat shows with `room` picked (null = All). */
+export function hqPlusChatInView(
+  item: HqChatItem,
+  room: string | null,
+  roomOfRepo: ReadonlyMap<string, string>,
+  now: number
+): boolean {
+  if (!room || (roomOfRepo.get(item.repoId) ?? room) === room) {
+    return true
+  }
+  return hqPlusChatAlwaysShown(item, now)
+}
+
+/** A chat shown in every room: it works, waits on the owner, or was started in the last hours. */
+export function hqPlusChatAlwaysShown(item: HqChatItem, now: number): boolean {
+  if (item.group === 'working' || item.group === 'needs') {
+    return true
+  }
+  return item.kind === 'chat' && now - item.tab.createdAt < FRESH_MS
+}
+
+/** The sessions of the chats shown in every room, so their feed rows follow them. */
+export function hqPlusAlwaysShownSessions(items: readonly HqChatItem[], now: number): Set<string> {
+  return new Set(
+    items.flatMap((item) => {
+      const sessionId = item.kind === 'chat' ? hqChatSessionId(item.tab.id) : null
+      return sessionId && hqPlusChatAlwaysShown(item, now) ? [sessionId] : []
+    })
+  )
+}

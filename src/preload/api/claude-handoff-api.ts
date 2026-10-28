@@ -5,7 +5,8 @@ import type {
 
 export type ClaudeHandoffApi = {
   list: () => Promise<ClaudeHandoffOffer[]>
-  launch: (id: string) => Promise<ClaudeHandoffLaunchResult>
+  /** Custom build (claude-handoff-launch): `keepOld` leaves the chat that wrote the handoff open. */
+  launch: (id: string, keepOld?: boolean) => Promise<ClaudeHandoffLaunchResult>
   dismiss: (id: string) => Promise<void>
   onOffersChanged: (callback: (offers: ClaudeHandoffOffer[]) => void) => () => void
 }

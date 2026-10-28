@@ -19,6 +19,11 @@ export type ClaudeHandoffOfferDeps = {
   contextGateFired?: (worktreeId: string, sessionId: string) => Promise<boolean | null>
   /** Handoffs the user already launched or dismissed; outlives a restart. */
   handled?: ClaudeHandoffHandledStore
+  /**
+   * Custom build (claude-handoff-launch): the other workspaces of the same project. A chat that moved
+   * into a worktree mid-session writes its handoff there, not where it started (28.10).
+   */
+  siblingWorktrees?: (worktreeId: string) => string[]
 }
 
 export type ClaudeHandoffHandledStore = {
@@ -63,7 +68,10 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
       seen.delete(seen.values().next().value ?? key)
     }
   }
-  const read = async (worktreeId: string, sessionId: string): Promise<ClaudeHandoffFile | null> => {
+  const readIn = async (
+    worktreeId: string,
+    sessionId: string
+  ): Promise<ClaudeHandoffFile | null> => {
     const relativePath = claudeHandoffRelativePath(sessionId)
     if (!relativePath) {
       return null
@@ -71,6 +79,21 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
     const content = await deps.readWorktreeFile(worktreeId, relativePath).catch(() => null)
     return content === null ? null : parseClaudeHandoffFile(content, sessionId)
   }
+  /** The session's handoff and the workspace it sits in: its own first, then the project's others. */
+  const find = async (
+    worktreeId: string,
+    sessionId: string
+  ): Promise<{ file: ClaudeHandoffFile; worktreeId: string } | null> => {
+    for (const candidate of [worktreeId, ...(deps.siblingWorktrees?.(worktreeId) ?? [])]) {
+      const file = await readIn(candidate, sessionId)
+      if (file) {
+        return { file, worktreeId: candidate }
+      }
+    }
+    return null
+  }
+  const read = async (worktreeId: string, sessionId: string): Promise<ClaudeHandoffFile | null> =>
+    (await find(worktreeId, sessionId))?.file ?? null
 
   const offerKey = (sessionId: string, created: string): string => `${sessionId}\n${created}`
   // Why: a handoff written for another reason (e.g. before a restart) must not offer a new session.
@@ -81,7 +104,8 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
     worktreeId: string,
     sessionId: string,
     file: ClaudeHandoffFile,
-    tabId?: string
+    tabId?: string,
+    tabWorktreeId?: string
   ): void => {
     const key = offerKey(sessionId, file.created)
     if (seen.has(key) || deps.handled?.has(key)) {
@@ -97,7 +121,8 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
       branch: file.branch,
       head: file.head,
       pushed: file.pushed,
-      ...(tabId ? { tabId } : {})
+      ...(tabId ? { tabId } : {}),
+      ...(tabWorktreeId && tabWorktreeId !== worktreeId ? { tabWorktreeId } : {})
     })
     publish()
   }
@@ -118,13 +143,14 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
       ) {
         return
       }
-      const worktreeId = event.worktreeId
       reading.add(sessionId)
       try {
-        const file = await read(worktreeId, sessionId)
-        if (!file) {
+        const found = await find(event.worktreeId, sessionId)
+        if (!found) {
           return
         }
+        // Why: the new session starts where the handoff was written.
+        const { file, worktreeId } = found
         // Why no lower bound: the agent writes `created` from a guess, often later than the real
         // time (27.10: 22:58 on a file written at 22:01); the file is this session's, so it is fresh.
         const age = now() - Date.parse(file.created)
@@ -132,7 +158,13 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
           return
         }
         if (await contextFilled(worktreeId, sessionId)) {
-          raise(worktreeId, sessionId, file, event.tabId ?? parsePaneKey(event.paneKey)?.tabId)
+          raise(
+            worktreeId,
+            sessionId,
+            file,
+            event.tabId ?? parsePaneKey(event.paneKey)?.tabId,
+            event.worktreeId
+          )
         }
       } finally {
         reading.delete(sessionId)
@@ -156,11 +188,12 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
         publish()
       }
     },
-    checkStoppedSession: async (worktreeId, sessionId, stoppedAt, tabId) => {
-      const file = await read(worktreeId, sessionId)
-      if (!file) {
+    checkStoppedSession: async (stoppedIn, sessionId, stoppedAt, tabId) => {
+      const found = await find(stoppedIn, sessionId)
+      if (!found) {
         return false
       }
+      const { file, worktreeId } = found
       // Why: measured against the stop, not now — the limit may lift hours after the handoff.
       const beforeStop = stoppedAt - Date.parse(file.created)
       if (beforeStop > FRESH_FOR_MS) {
@@ -170,7 +203,7 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
       if (!(await contextFilled(worktreeId, sessionId))) {
         return false
       }
-      raise(worktreeId, sessionId, file, tabId)
+      raise(worktreeId, sessionId, file, tabId, stoppedIn)
       return true
     }
   }

@@ -27,8 +27,8 @@ async function launch(offer: ClaudeHandoffOffer): Promise<void> {
 }
 
 /** Custom build (pulse-bell): the bell's "New session" runs the same launch as the toast. */
-export async function launchClaudeHandoffOffer(offerId: string): Promise<void> {
-  const result = await window.api.claudeHandoff.launch(offerId)
+export async function launchClaudeHandoffOffer(offerId: string, keepOld = false): Promise<void> {
+  const result = await window.api.claudeHandoff.launch(offerId, keepOld)
   if (!result.ok) {
     toast.error(
       translate('auto.claudeHandoff.offer.launchFailed', 'Could not start the new session'),

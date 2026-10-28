@@ -83,7 +83,11 @@ async function closeHandedOffChat(
     await getHqSessions()
       ?.mayClose(offer.tabId.slice(NATIVE_CHAT_TAB.length), 'handoff')
       .catch(() => null)
-    await runtime.closeMobileSessionTab(`id:${offer.worktreeId}`, offer.tabId, { reason: 'user' })
+    await runtime.closeMobileSessionTab(
+      `id:${offer.tabWorktreeId ?? offer.worktreeId}`,
+      offer.tabId,
+      { reason: 'user' }
+    )
   } catch (error) {
     console.warn('[claude-handoff] closing the handed-off chat failed:', error)
   }
@@ -161,7 +165,15 @@ export function registerClaudeHandoffHandlers(
     onOffersChanged: broadcastOffers,
     contextGateFired: async (worktreeId, sessionId) =>
       isLocalWorktree(store, worktreeId) ? strataContextGateFired(sessionId) : null,
-    handled: createFileHandledStore(join(app.getPath('userData'), 'claude-handoff-handled.json'))
+    handled: createFileHandledStore(join(app.getPath('userData'), 'claude-handoff-handled.json')),
+    siblingWorktrees: (worktreeId) => {
+      const repoId = splitWorktreeId(worktreeId)?.repoId
+      return repoId
+        ? Object.keys(store.getAllWorktreeMeta()).filter(
+            (id) => id !== worktreeId && splitWorktreeId(id)?.repoId === repoId
+          )
+        : []
+    }
   })
   const launching = new Set<string>()
   let db: PulseDb | null = null
@@ -181,7 +193,9 @@ export function registerClaudeHandoffHandlers(
   })
   const launch = async (
     id: string,
-    presentation?: 'background'
+    presentation?: 'background',
+    // Custom build (claude-handoff-launch): the owner may keep the old chat open beside the new one.
+    keepOld = false
   ): Promise<ClaudeHandoffLaunchResult> => {
     if (launching.has(id)) {
       return { ok: false, error: 'This handoff is already starting.' }
@@ -210,7 +224,9 @@ export function registerClaudeHandoffHandlers(
       offers.dismiss(id)
       const tabId = readLaunchedTabId(response.result)
       moveWaitingsToSuccessor(pulseDb, resolved.offer, tabId)
-      await closeHandedOffChat(runtime, resolved.offer, tabId)
+      if (!keepOld) {
+        await closeHandedOffChat(runtime, resolved.offer, tabId)
+      }
       // Custom build (hq-plus-reports): the new chat continues the old one's thread.
       if (resolved.offer.tabId?.startsWith(NATIVE_CHAT_TAB) && tabId?.startsWith(NATIVE_CHAT_TAB)) {
         getHqThreads()?.handoff(
@@ -225,9 +241,9 @@ export function registerClaudeHandoffHandlers(
   }
   ipcMain.handle(
     'claudeHandoff:launch',
-    async (_event, id: unknown): Promise<ClaudeHandoffLaunchResult> =>
+    async (_event, id: unknown, keepOld: unknown): Promise<ClaudeHandoffLaunchResult> =>
       typeof id === 'string'
-        ? launch(id)
+        ? launch(id, undefined, keepOld === true)
         : { ok: false, error: 'This handoff is already starting.' }
   )
   provideClaudeHandoffLauncher({

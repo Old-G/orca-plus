@@ -15,7 +15,12 @@ import { readPulseBellPaneRef } from '../../../../../shared/pulse-bell'
 import { translate } from '@/i18n/i18n'
 import { OutgoingApprovalDecision } from '../outgoing-approval/OutgoingApprovalCard'
 import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
-import { PULSE_BELL_ACTION } from '../../../../../shared/pulse-bell'
+import {
+  PULSE_BELL_ACTION,
+  PULSE_BELL_KIND,
+  readHandoffBellOfferId
+} from '../../../../../shared/pulse-bell'
+import { launchClaudeHandoffOffer } from '@/app-shell/use-claude-handoff-offers'
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 import {
   closeHqPlusWait,
@@ -173,21 +178,56 @@ function hqPlusSourceLink(
   return { url: raw, label: hqPlusSourceLabel(raw) }
 }
 
-const TO_WORK_ACTIONS: ReadonlySet<string> = new Set(['slack-do', 'intake-open'])
+/** HQ+'s own button on a person's answer: the project and chat picker on the right. */
+const REPLY_ROUTE = 'reply-route'
+
+const TO_WORK_ACTIONS: ReadonlySet<string> = new Set(['slack-do', 'intake-open', REPLY_ROUTE])
 
 type CardAction = { id: string; label: string; hint?: string }
+
+/**
+ * Custom build (hq-plus-cards): what a person wrote, as reading text — its paragraphs, lists and bold
+ * kept, in the body size; a long message folds to a few lines with «Show all».
+ */
+function HqPlusSaidText({ text }: { text: string }): React.JSX.Element {
+  const [all, setAll] = useState(false)
+  const paragraphs = text.split(/\n\s*\n/).filter((part) => part.trim())
+  const long = text.length > 600 || text.split('\n').length > 9
+  return (
+    <>
+      <div className="hqp-said" data-folded={long && !all ? 'true' : undefined}>
+        {paragraphs.map((part, index) => (
+          <p key={index}>
+            <HqPlusText text={part} />
+          </p>
+        ))}
+      </div>
+      {long ? (
+        <button type="button" className="hqp-said-more" onClick={() => setAll(!all)}>
+          {all
+            ? translate('auto.hqPlus.said.less', 'Show less')
+            : translate('auto.hqPlus.said.all', 'Show all')}
+        </button>
+      ) : null}
+    </>
+  )
+}
 
 /** Custom build (hq-plus-links): a person's answer says what each button does with it. */
 function replyActions(card: Card, actions: readonly CardAction[]): CardAction[] {
   const author = readHqWaitingReplyRef(card.inbox?.refId ?? null)?.author ?? ''
   // Custom build (hq-plus-cards): HQ+ alone offers «Close waiting», before Skip; the classic bell keeps its set.
   const skip = actions.findIndex((action) => action.id === HQ_WAITING_REPLY_ACTION.skip)
+  // Custom build (hq-plus-cards): «Send to…» picks the project and chat, as «To work» does.
+  const route = { id: REPLY_ROUTE, label: translate('auto.hqPlus.reply.route', 'Send to…') }
   const close = {
     id: HQ_WAITING_REPLY_ACTION.close,
     label: translate('auto.hqPlus.reply.close', 'Close waiting')
   }
   const withClose =
-    skip < 0 ? [...actions, close] : [...actions.slice(0, skip), close, ...actions.slice(skip)]
+    skip < 0
+      ? [...actions, route, close]
+      : [...actions.slice(0, skip), route, close, ...actions.slice(skip)]
   return withClose.map((action) => {
     switch (action.id) {
       case HQ_WAITING_REPLY_ACTION.deliver:
@@ -233,10 +273,37 @@ const OPEN_CHAT_ACTIONS: ReadonlySet<string> = new Set([
   PULSE_BELL_ACTION.open
 ])
 
+/** Custom build (claude-handoff-launch): HQ+'s own choice on a handoff — the old chat closes or stays. */
+const HANDOFF_KEEP = 'handoff-keep'
+
+function handoffActions(actions: readonly CardAction[]): CardAction[] {
+  return actions.flatMap((action) =>
+    action.id === PULSE_BELL_ACTION.launch
+      ? [
+          {
+            id: action.id,
+            label: translate('auto.hqPlus.handoff.closeOld', 'New session, close this chat'),
+            hint: translate(
+              'auto.hqPlus.handoff.closeOldHint',
+              'Starts the new session and closes the old chat, as its × does; History keeps it'
+            )
+          },
+          {
+            id: HANDOFF_KEEP,
+            label: translate('auto.hqPlus.handoff.keepOld', 'New session, keep this chat')
+          }
+        ]
+      : [action]
+  )
+}
+
 function inboxActions(card: Card, look: HqPlusLook): CardAction[] {
   const actions = card.inbox?.actions ?? []
   if (card.type === 'reply') {
     return replyActions(card, actions)
+  }
+  if (card.inbox?.kind === PULSE_BELL_KIND.handoff) {
+    return handoffActions(actions)
   }
   if (look.kind !== 'inbox') {
     return actions
@@ -541,7 +608,9 @@ export function HqPlusCardView({
           />
         ) : (
           <>
-            {card.type === 'approve' ? null : (
+            {card.type === 'approve' ? null : card.type === 'reply' ? (
+              <HqPlusSaidText text={questionOf(card)} />
+            ) : (
               <p className="hqp-q">
                 <HqPlusText text={questionOf(card)} />
               </p>
@@ -731,8 +800,15 @@ export function HqPlusCardView({
                 title={action.hint}
                 onClick={() => {
                   const item = card.inbox
+                  const offerId =
+                    action.id === HANDOFF_KEEP ? readHandoffBellOfferId(item?.refId ?? null) : null
                   if (item && onToWork && TO_WORK_ACTIONS.has(action.id)) {
                     onToWork(item)
+                  } else if (offerId) {
+                    run(async () => {
+                      await launchClaudeHandoffOffer(offerId, true)
+                      return { ok: true }
+                    }, action.id)
                   } else if (item) {
                     run(async () => {
                       await runPulseBellAction(item, action.id)
@@ -741,7 +817,8 @@ export function HqPlusCardView({
                   }
                 }}
               >
-                {pending === action.id && action.id === PULSE_BELL_ACTION.launch
+                {pending === action.id &&
+                (action.id === PULSE_BELL_ACTION.launch || action.id === HANDOFF_KEEP)
                   ? translate('auto.hqPlus.starting', 'Starting…')
                   : action.label}
               </button>

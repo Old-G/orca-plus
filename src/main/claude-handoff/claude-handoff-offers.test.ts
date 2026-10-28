@@ -82,6 +82,22 @@ describe('createClaudeHandoffOffers', () => {
     expect(offers.list()[0]?.tabId).toBe('structured-agent-session-s1')
   })
 
+  it('finds a handoff the chat wrote in another worktree of its project and starts there', async () => {
+    const SIBLING = 'repo-1::/work/orca-feature'
+    const onOffersChanged = vi.fn()
+    const offers = createClaudeHandoffOffers({
+      readWorktreeFile: async (worktreeId, relativePath) =>
+        worktreeId === SIBLING && relativePath === PATH ? fileText() : null,
+      describeWorktree: (worktreeId) => worktreeId,
+      onOffersChanged,
+      now: () => NOW,
+      siblingWorktrees: () => [SIBLING]
+    })
+    await offers.onStatus(stop())
+    expect(offers.list()).toMatchObject([{ sessionId: SESSION, worktreeId: SIBLING }])
+    expect(await offers.resolve(SESSION)).not.toBeNull()
+  })
+
   it('does nothing when the session left no handoff', async () => {
     const { offers, onOffersChanged } = setup()
     await offers.onStatus(stop())
