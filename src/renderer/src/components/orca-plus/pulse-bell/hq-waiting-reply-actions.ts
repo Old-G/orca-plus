@@ -56,5 +56,16 @@ export async function runHqWaitingReplyAction(
     await openHqWaitingReplyChat(ref)
   } else if (actionId === HQ_WAITING_REPLY_ACTION.skip) {
     await window.api.pulseBell.skipWaitingReply(ref.waitingId, ref.replyTs)
+  } else if (actionId === HQ_WAITING_REPLY_ACTION.close) {
+    // Custom build (hq-plus-cards): the answer is enough — the waiting closes, the chat is not told.
+    const closed = await window.api.runtime.call({
+      method: 'pulse.closeWaiting',
+      params: { id: ref.waitingId, status: 'resolved', resolution: `HQ+: ${ref.author}` }
+    })
+    if (!closed.ok) {
+      toast.error(translate('auto.hqWaitingReply.closeFailed', 'The waiting could not be closed'))
+      return
+    }
+    await window.api.pulseBell.skipWaitingReply(ref.waitingId, ref.replyTs)
   }
 }
