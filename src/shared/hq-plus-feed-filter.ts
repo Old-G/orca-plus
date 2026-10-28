@@ -1,10 +1,12 @@
 // Custom build (hq-plus-ui-v4): the chips above HQ+'s feed — everything, only what waits on the owner,
 // only the chats, only what came in (Slack / ClickUp / mail requests and reports). Background lines
 // show in «All» only.
+// Custom build (hq-plus-cards): «We wait for» — what people owe, by project, with any answer in place;
+// it replaced the left column's blocks (owner, 28.10).
 import type { HqPlusLogItem } from './hq-plus-log'
 import { hqPlusLook, hqPlusNeedsOwner } from './hq-plus-kinds'
 
-export const HQ_PLUS_FEED_FILTERS = ['all', 'move', 'chats', 'inbox'] as const
+export const HQ_PLUS_FEED_FILTERS = ['all', 'move', 'waits', 'chats', 'inbox'] as const
 export type HqPlusFeedFilter = (typeof HQ_PLUS_FEED_FILTERS)[number]
 
 export function hqPlusInFeedFilter(item: HqPlusLogItem, filter: HqPlusFeedFilter): boolean {
@@ -13,6 +15,8 @@ export function hqPlusInFeedFilter(item: HqPlusLogItem, filter: HqPlusFeedFilter
       return true
     case 'move':
       return hqPlusNeedsOwner(item)
+    case 'waits':
+      return item.kind === 'card' && item.type === 'reply'
     case 'chats': {
       const kind = hqPlusLook(item).kind
       return kind === 'chat' || kind === 'me'

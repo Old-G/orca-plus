@@ -42,6 +42,7 @@ import {
   type HttpLinkDestination
 } from '@/lib/browser/navigation/http-link-destinations'
 import { isHtmlFilePath, localHtmlFileDestinations } from './local-html-file-destinations'
+import { takeHqPlusFileOpen } from '../../../orca-plus/hq-plus/hq-plus-center-file'
 
 type TerminalFileOpenDeps = {
   worktreeId: string
@@ -278,7 +279,8 @@ export function openDetectedFilePath(
       return
     }
 
-    if (targetWorktreeId) {
+    // Custom build (hq-plus-center-file): with HQ+ on screen the file opens in its center, not in Code.
+    if (targetWorktreeId && !takeHqPlusFileOpen(targetWorktreeId, targetExecutionHostId)) {
       // Route by workspace shape and resolved host: folder keys are valid and worktree ids can repeat across hosts.
       activateAndRevealWorkspace(targetWorktreeId, {
         providesInitialSurface: true,
