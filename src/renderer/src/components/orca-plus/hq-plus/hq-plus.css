@@ -3146,31 +3146,36 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Custom build (hq-plus-cards): a person's answer under the owner's words it answers */
-.hqp-convo {
+/* Custom build (hq-plus-cards): what a person's answer answers, one quiet line under it */
+.hqp-ctx {
   display: grid;
-  gap: 6px;
-  margin: 2px 0 4px;
-}
-.hqp-convo-line {
-  display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 8px;
   align-items: baseline;
-  padding-left: 8px;
+  margin: 0;
+  padding-left: 9px;
   border-left: 2px solid var(--hqp-line-2);
   font-size: 13px;
   color: var(--hqp-mute);
-  min-width: 0;
 }
-.hqp-convo-line[data-who='them'] {
-  border-left-color: var(--hqp-yellow);
-  color: var(--hqp-fg);
-}
-.hqp-convo-line .who {
-  font-weight: 600;
-  color: var(--hqp-fg);
+.hqp-ctx .who {
+  font-family: var(--hqp-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hqp-faint);
   white-space: nowrap;
+}
+.hqp-files {
+  justify-self: start;
+  font: inherit;
+  font-size: 12px;
+  color: var(--hqp-ice);
+  background: none;
+  border: 1px solid var(--hqp-line);
+  border-radius: 999px;
+  padding: 3px 9px;
+  cursor: pointer;
 }
 .hqp-convo-why {
   margin: 0;
@@ -3289,4 +3294,106 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 .hqp-waits-project {
   display: grid;
   gap: 6px;
+}
+
+/* Custom build (hq-plus-cards): clean cards — an open card carries one quiet tint and its edge, a
+   decided one sits flat as two lines; what was done reads as one «✓ …» line. */
+.hqp-card {
+  box-shadow: none;
+}
+.hqp-card[data-flash='true'] {
+  box-shadow: 0 0 0 2px rgba(143, 233, 255, 0.35);
+}
+.hqp-card:not([data-open='true']) {
+  background: transparent;
+  border: 1px solid var(--hqp-line);
+}
+.hqp-card:not([data-open='true']) .hqp-cc .l1 {
+  color: var(--hqp-mute);
+}
+.hqp-cb {
+  gap: 8px;
+}
+.hqp-q {
+  font-size: 15.5px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+.hqp-done {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--hqp-green, #5fe0a0);
+}
+button.hqp-chat-name[data-opens='true'] {
+  font: inherit;
+  font-size: 13px;
+  color: var(--hqp-fg);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--hqp-line-2);
+  text-underline-offset: 3px;
+}
+button.hqp-chat-name[data-opens='true']:hover {
+  text-decoration-color: var(--hqp-ice);
+}
+/* a folded card's line stays one line */
+.hqp-cc .l1 .hqp-txt {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hqp-cc .l1 .hqp-txt-l {
+  display: inline;
+}
+.hqp-cc .l1 .hqp-txt-l + .hqp-txt-l::before {
+  content: ' ';
+}
+/* Custom build (hq-plus-ticker): Live reads alive — a softly pulsing red dot, a mark per line, and the
+   lines that ask the owner in his colour */
+.hqp-ticker {
+  background: linear-gradient(180deg, rgba(255, 106, 92, 0.06), transparent 40%), var(--hqp-card);
+}
+.hqp-ticker-h {
+  color: #ffb1a8;
+}
+.hqp-ticker-dot {
+  width: 7px;
+  height: 7px;
+  box-shadow: 0 0 0 0 rgba(255, 106, 92, 0.6);
+  animation: hqp-live-pulse 1.8s ease-in-out infinite;
+}
+@keyframes hqp-live-pulse {
+  0% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 106, 92, 0.55);
+  }
+  60% {
+    opacity: 0.55;
+    box-shadow: 0 0 0 6px rgba(255, 106, 92, 0);
+  }
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 106, 92, 0);
+  }
+}
+.hqp-ticker-list .mk {
+  flex: none;
+  width: 1.3em;
+  text-align: center;
+  font-size: 12px;
+}
+.hqp-ticker-list button[data-asks='true'] .tx {
+  color: var(--hqp-amber);
+}
+.hqp-ticker-list li:last-child button {
+  background: rgba(143, 233, 255, 0.05);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hqp-ticker-dot {
+    animation: none;
+  }
 }

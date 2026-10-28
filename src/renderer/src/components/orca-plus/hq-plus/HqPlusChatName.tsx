@@ -10,22 +10,40 @@ export type HqPlusChatRef = {
   name: string | null
 }
 
-function ListedName({ item }: { item: HqChatItem }): React.JSX.Element {
-  const title = useHqChatTitle(item)
-  return (
+type OnOpen = (() => void) | null | undefined
+
+function Name({ title, onOpen }: { title: string; onOpen: OnOpen }): React.JSX.Element {
+  // Custom build (hq-plus-cards): a card's chat name opens the chat.
+  return onOpen ? (
+    <button
+      type="button"
+      className="hqp-chat-name"
+      data-opens="true"
+      title={title}
+      onClick={onOpen}
+    >
+      {title}
+    </button>
+  ) : (
     <span className="hqp-chat-name" title={title}>
       {title}
     </span>
   )
 }
 
-export function HqPlusChatName({ chat }: { chat: HqPlusChatRef | null }): React.JSX.Element | null {
+function ListedName({ item, onOpen }: { item: HqChatItem; onOpen: OnOpen }): React.JSX.Element {
+  return <Name title={useHqChatTitle(item)} onOpen={onOpen} />
+}
+
+export function HqPlusChatName({
+  chat,
+  onOpen
+}: {
+  chat: HqPlusChatRef | null
+  onOpen?: OnOpen
+}): React.JSX.Element | null {
   if (chat?.item) {
-    return <ListedName item={chat.item} />
+    return <ListedName item={chat.item} onOpen={onOpen} />
   }
-  return chat?.name ? (
-    <span className="hqp-chat-name" title={chat.name}>
-      {chat.name}
-    </span>
-  ) : null
+  return chat?.name ? <Name title={chat.name} onOpen={onOpen} /> : null
 }
