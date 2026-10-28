@@ -22,6 +22,8 @@ export type ClaudeHandoffOffer = {
   pushed: string | null
   /** Custom build (chat-cleanup): the tab of the session that wrote it, closed once the new one starts. */
   tabId?: string
+  /** Custom build (claude-handoff-launch): the workspace that tab is in, when the handoff sits in another. */
+  tabWorktreeId?: string
 }
 
 export type ClaudeHandoffLaunchResult =

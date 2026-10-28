@@ -109,6 +109,8 @@ import {
   closeHqPlusChat,
   hqPlusChatIsIdle,
   hqPlusChatOfSession,
+  hqPlusAlwaysShownSessions,
+  hqPlusChatInView,
   hqPlusLiveChats,
   hqPlusProjectChats
 } from './hq-plus-chats'
@@ -319,7 +321,19 @@ export function HqPlusScreen(): React.JSX.Element {
     [data.feed, dayStart, roomOfProject, notNow, shownSessionId]
   )
   // Why: what has no room (HQ's own rows, a bell item of an unknown project) shows in All only.
-  const roomItems = useMemo(() => all.filter((item) => !room || item.room === room), [all, room])
+  // Custom build (hq-plus-chats-by-project): a chat that works, waits on the owner or is new shows its
+  // rows in every room, as it shows in the list.
+  const alwaysShown = useMemo(() => hqPlusAlwaysShownSessions(chatItems, now), [chatItems, now])
+  const roomItems = useMemo(
+    () =>
+      all.filter(
+        (item) =>
+          !room ||
+          item.room === room ||
+          (item.sessionId !== null && alwaysShown.has(item.sessionId))
+      ),
+    [all, room, alwaysShown]
+  )
   // Why: what HQ+ has on screen is seen; the quiet count on its tab is for what came while away.
   useEffect(() => {
     const unreadIds = new Set(
@@ -341,8 +355,12 @@ export function HqPlusScreen(): React.JSX.Element {
         chatItems,
         dayStart,
         (project) => roomOfProject.get(project) ?? HQ_PLUS_ANY_ROOM
-      ).filter((chat) => (!room || chat.room === room) && (!scope || chat.sessionId === scope)),
-    [chatItems, dayStart, roomOfProject, room, scope]
+      ).filter(
+        (chat) =>
+          (!room || chat.room === room || alwaysShown.has(chat.sessionId)) &&
+          (!scope || chat.sessionId === scope)
+      ),
+    [chatItems, dayStart, roomOfProject, room, scope, alwaysShown]
   )
   const [dismissVersion, setDismissVersion] = useState(0)
   const shown = useMemo(() => {
@@ -411,7 +429,7 @@ export function HqPlusScreen(): React.JSX.Element {
   const sideChats = useMemo(
     () =>
       hqPlusProjectChats(
-        chatItems.filter((item) => !room || (roomOfRepo.get(item.repoId) ?? room) === room),
+        chatItems.filter((item) => hqPlusChatInView(item, room, roomOfRepo, now)),
         keptProjectIds,
         markedChatKeys,
         now
@@ -419,11 +437,8 @@ export function HqPlusScreen(): React.JSX.Element {
     [chatItems, room, roomOfRepo, keptProjectIds, markedChatKeys, now]
   )
   // Custom build (hq-plus-drafts): chats the owner left unsent on purpose, at the top of the column.
-  const roomChats = useMemo(
-    () => chatItems.filter((item) => !room || (roomOfRepo.get(item.repoId) ?? room) === room),
-    [chatItems, room, roomOfRepo]
-  )
-  const draftChats = useHqPlusDraftChats(roomChats)
+  // Why: a draft left on purpose shows in every room — it is the owner's own unsent words.
+  const draftChats = useHqPlusDraftChats(chatItems)
   const waits = useMemo<HqPlusWait[]>(
     () =>
       data.waits
