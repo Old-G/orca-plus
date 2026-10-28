@@ -35,12 +35,13 @@ export type ClaudeHandoffOffers = {
   /**
    * Whether the session wrote its handoff in the turn that stopped at `stoppedAt` — a turn cut off
    * by a usage limit ends without the `done` this module otherwise listens for. Raises the offer
-   * if the user has not had it yet.
+   * if the user has not had it yet; `tabId` is the stopped chat's, so HQ+ places the offer on it.
    */
   checkStoppedSession: (
     worktreeId: string,
     sessionId: string,
-    stoppedAt: number
+    stoppedAt: number,
+    tabId?: string
   ) => Promise<boolean>
 }
 
@@ -155,7 +156,7 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
         publish()
       }
     },
-    checkStoppedSession: async (worktreeId, sessionId, stoppedAt) => {
+    checkStoppedSession: async (worktreeId, sessionId, stoppedAt, tabId) => {
       const file = await read(worktreeId, sessionId)
       if (!file) {
         return false
@@ -169,7 +170,7 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
       if (!(await contextFilled(worktreeId, sessionId))) {
         return false
       }
-      raise(worktreeId, sessionId, file)
+      raise(worktreeId, sessionId, file, tabId)
       return true
     }
   }
