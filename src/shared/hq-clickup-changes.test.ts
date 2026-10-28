@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CLICKUP_CHANGE_QUIET_MS,
+  CLICKUP_NEW_TASK_QUIET_MS,
   diffClickUpTask,
   mergeClickUpChange,
   parseClickUpChangesState,
@@ -96,6 +97,18 @@ describe('settling changes', () => {
     expect(
       splitReadyClickUpChanges(pending, NOW + 60_000 + CLICKUP_CHANGE_QUIET_MS).ready
     ).toHaveLength(1)
+  })
+
+  // 28.10: a new task was done and closed within its half-hour wait and never reached the feed.
+  it('releases a task newly set on the owner after five quiet minutes, not half an hour', () => {
+    const pending = mergeClickUpChange(
+      [],
+      task(),
+      { kinds: ['created'], added: 'Do not mirror -dev comments to Slack', attachmentsAdded: 0 },
+      NOW
+    )
+    expect(splitReadyClickUpChanges(pending, NOW + CLICKUP_NEW_TASK_QUIET_MS - 1).ready).toEqual([])
+    expect(splitReadyClickUpChanges(pending, NOW + CLICKUP_NEW_TASK_QUIET_MS).ready).toHaveLength(1)
   })
 })
 

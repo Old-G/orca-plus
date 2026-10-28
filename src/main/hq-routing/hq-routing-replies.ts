@@ -13,7 +13,9 @@ import {
   hqReplyCardNote,
   hqReplyPrechecks,
   hqReplyVerdictPrompt,
+  hqReplyOwnerTalkPrompt,
   hqReplyVerdictReasons,
+  parseHqReplyOwnerTalk,
   parseHqReplyVerdict,
   type HqReplyAskedPerson,
   type HqReplyCardReason,
@@ -45,6 +47,8 @@ export type HqReplyRoutingDeps = {
     replyTs: string,
     prompt: (waiting: PulseWaiting) => string
   ) => Promise<HqWaitingReplyPassResult>
+  /** Custom build (hq-reply-owner-talk): closes an answer as handled, so it raises no card. */
+  settle: (waitingId: string, replyTs: string) => void
   /** The asking chat's thread, if it has one. */
   address: (sessionId: string) => string | null
   /** The person asked, by their Slack / ClickUp user ids. */
@@ -85,6 +89,8 @@ function pendingAnswer(waiting: PulseWaiting): boolean {
 
 export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
   const unread = new Map<string, { tries: number; at: number }>()
+  /** Custom build (hq-reply-owner-talk): answers already sorted with the rule off, by key. */
+  const sorted = new Map<string, 'owner' | 'chat'>()
   /** Card notes by decision key, from this run and the journal. */
   const notes = new Map<string, string>()
   let activeRule = false
@@ -227,12 +233,55 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
     }
   }
 
+  /**
+   * Custom build (hq-reply-owner-talk): with the rule off, each new answer is asked once whether the
+   * asking chat or the owner acts on it; the owner's own talk is settled quietly — a journal line, no card.
+   */
+  const sortOwnerTalk = async (): Promise<HqReplyRouteAction[]> => {
+    const actions: HqReplyRouteAction[] = []
+    for (const waiting of deps.listWaitings().filter(pendingAnswer)) {
+      const id = key(waiting)
+      if (sorted.has(id)) {
+        continue
+      }
+      const failed = unread.get(id)
+      if (failed && deps.now() - failed.at < UNREAD_RETRY_MS) {
+        continue
+      }
+      const owner = parseHqReplyOwnerTalk(
+        (await deps.judge(hqReplyOwnerTalkPrompt(waiting)).catch(() => null)) ?? ''
+      )
+      if (owner === null) {
+        const tries = (failed?.tries ?? 0) + 1
+        unread.set(id, { tries, at: deps.now() })
+        if (tries >= UNREAD_TRIES) {
+          sorted.set(id, 'chat')
+        }
+        continue
+      }
+      sorted.set(id, owner ? 'owner' : 'chat')
+      if (!owner) {
+        continue
+      }
+      const done = action(waiting, 'wait', { note: 'the owner answers this himself in Slack' })
+      deps.settle(waiting.id, waiting.replyTs ?? '')
+      await record(
+        waiting,
+        done,
+        `${done.author} answered — yours to reply in Slack, no card`,
+        false
+      )
+      actions.push(done)
+    }
+    return actions
+  }
+
   return {
     async route(rule, options) {
       activeRule = rule?.do === 'send_to_asking_session'
-      // Why: with no rule the owner decides every answer, and no model is asked for nothing.
+      // Why: with no rule the owner decides every answer the chat should act on; his own talk is sorted out.
       if (!rule && !options.dryRun) {
-        return []
+        return await sortOwnerTalk()
       }
       const all = deps.listWaitings()
       const rows = decided()
@@ -304,7 +353,8 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
         return { hold: false, why: known }
       }
       const fresh = (waiting.repliedAt ?? 0) > deps.now() - HQ_REPLY_HOLD_MS
-      return { hold: activeRule && fresh, why: null }
+      // Why: with the rule off an answer waits only until it is sorted, so the owner's talk never pops.
+      return { hold: fresh && (activeRule || !sorted.has(key(waiting))), why: null }
     }
   }
 }
