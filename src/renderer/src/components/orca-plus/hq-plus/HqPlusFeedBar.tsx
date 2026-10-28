@@ -1,4 +1,4 @@
-// Custom build (hq-plus-ui-v4): the chips above HQ+'s feed (All · Your move · Chats · Inbox, kept per
+// Custom build (hq-plus-ui-v4): the chips above HQ+'s feed (All · Your move · We wait for · Chats · Inbox, kept per
 // viewer) and the pinned «Your move · N ▸» line that walks through the owner's open cards one by one.
 import { useRef } from 'react'
 import { translate } from '@/i18n/i18n'
@@ -27,12 +27,14 @@ export function saveHqPlusFeedFilter(filter: HqPlusFeedFilter): void {
   }
 }
 
-function filterLabel(filter: HqPlusFeedFilter, moves: number): string {
+function filterLabel(filter: HqPlusFeedFilter, moves: number, waits: number): string {
   switch (filter) {
     case 'all':
       return translate('auto.hqPlus.filter.all', 'All')
     case 'move':
       return translate('auto.hqPlus.filter.move', 'Your move ({{count}})', { count: moves })
+    case 'waits':
+      return translate('auto.hqPlus.filter.waits', 'We wait for ({{count}})', { count: waits })
     case 'chats':
       return translate('auto.hqPlus.filter.chats', 'Chats')
     case 'inbox':
@@ -43,10 +45,12 @@ function filterLabel(filter: HqPlusFeedFilter, moves: number): string {
 export function HqPlusFeedChips({
   filter,
   moves,
+  waits,
   onFilter
 }: {
   filter: HqPlusFeedFilter
   moves: number
+  waits: number
   onFilter: (filter: HqPlusFeedFilter) => void
 }): React.JSX.Element {
   return (
@@ -63,7 +67,7 @@ export function HqPlusFeedChips({
           aria-pressed={filter === name}
           onClick={() => onFilter(name)}
         >
-          {filterLabel(name, moves)}
+          {filterLabel(name, moves, waits)}
         </button>
       ))}
     </div>

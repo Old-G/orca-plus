@@ -104,7 +104,9 @@ describe('ClickUp waiting replies', () => {
           author: 'Петя',
           authorId: 'petya',
           ts: ((ASKED_AT + 120_000) / 1000).toFixed(6),
-          link: 'https://app.clickup.com/t/86abc1234?comment=r1'
+          link: 'https://app.clickup.com/t/86abc1234?comment=r1',
+          // Why: the card shows the owner's comment that asked above the answer.
+          asked: 'вопрос'
         }
       }
     ])
@@ -179,7 +181,8 @@ describe('ClickUp waiting replies', () => {
             author: 'Anna Levi',
             authorId: 'anna',
             ts: ((ASKED_AT + 7_300_000) / 1000).toFixed(6),
-            link: 'https://app.clickup.com/t/86abc1234?comment=179747'
+            link: 'https://app.clickup.com/t/86abc1234?comment=179747',
+            asked: 'One question: first requests only? @Anna Levi'
           }
         }
       ])

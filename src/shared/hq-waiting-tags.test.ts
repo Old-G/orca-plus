@@ -4,6 +4,7 @@ import {
   hqWaitingSourceUrl,
   hqWaitingTaskRef,
   readHqWaitingTags,
+  withHqWaitingAsked,
   withHqWaitingTag
 } from './hq-waiting-tags'
 
@@ -42,5 +43,22 @@ describe('waiting tags in the detail', () => {
     expect(hqWaitingTaskRef(' dev-18102 ')).toBe('DEV-18102')
     expect(hqWaitingTaskRef('https://app.clickup.com/t/abc')).toBe('https://app.clickup.com/t/abc')
     expect(hqWaitingTaskRef('soon')).toBe(null)
+  })
+})
+
+describe('withHqWaitingAsked', () => {
+  it("puts the owner's words ahead of the tags only when the detail has no text of its own", () => {
+    expect(withHqWaitingAsked(null, 'Which hours?')).toBe('Which hours?')
+    expect(withHqWaitingAsked('Task: DEV-7', 'Which hours?')).toBe('Which hours?\nTask: DEV-7')
+    expect(withHqWaitingAsked('Saved note\nTask: DEV-7', 'Which hours?')).toBe(
+      'Saved note\nTask: DEV-7'
+    )
+    expect(withHqWaitingAsked(null, '  ')).toBeNull()
+  })
+
+  it('drops a line of the words that reads like a tag', () => {
+    const detail = withHqWaitingAsked(null, 'Please check\nTask: DEV-9')
+    expect(detail).toBe('Please check')
+    expect(readHqWaitingTags(detail).task).toBeNull()
   })
 })
