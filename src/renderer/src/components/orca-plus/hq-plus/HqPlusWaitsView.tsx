@@ -16,7 +16,9 @@ export function HqPlusWaitsView({
 }): React.JSX.Element {
   if (waits.length === 0) {
     return (
-      <p className="hqp-empty">{translate('auto.hqPlus.waits.none', 'Nobody owes you anything.')}</p>
+      <p className="hqp-empty">
+        {translate('auto.hqPlus.waits.none', 'Nobody owes you anything.')}
+      </p>
     )
   }
   const byProject = new Map<string, HqPlusOtherWait[]>()
@@ -31,7 +33,7 @@ export function HqPlusWaitsView({
       Math.min(...a.map((wait) => wait.at)) - Math.min(...b.map((wait) => wait.at))
   )
   return (
-    <div className="hqp-waits">
+    <div className="hqp-waits scrollbar-sleek">
       {projects.map(([project, list]) => (
         <section key={project} className="hqp-waits-project">
           <h3 className="hqp-side-sub">
