@@ -4,6 +4,7 @@
 // takes the person's plain DM messages and replies in that DM's threads, since people answer there
 // without opening the question's thread. A question asked on a task or in a channel does not: a DM
 // about something else is not its answer.
+import { HQ_GITLAB_AUTHOR_ID } from '../../shared/hq-mr-watch'
 import {
   HQ_WAITING_REPLY_MAX,
   parseSlackThreadRef,
@@ -260,7 +261,12 @@ type TakenRange = {
 
 function takenRanges(deps: HqSlackWaitingDeps): TakenRange[] {
   return (deps.listTaken?.() ?? []).flatMap((waiting) => {
-    if (waiting.direction !== 'on-them' || !waiting.replyTs) {
+    // Why: an answer GitLab gave (hq-mr-watch) took no one's message.
+    if (
+      waiting.direction !== 'on-them' ||
+      !waiting.replyTs ||
+      waiting.replyAuthorId === HQ_GITLAB_AUTHOR_ID
+    ) {
       return []
     }
     const user = waiting.personId ? deps.personSlackId(waiting.personId) : null

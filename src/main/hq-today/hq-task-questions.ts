@@ -48,6 +48,7 @@ export async function generateHqText(
       | 'hq-task-questions'
       | 'hq-clickup-reply'
       | 'hq-voice-rewrite'
+      | 'hq-mr-watch'
       | 'hq-feed-posts'
       | 'hq-clickup-triage'
       | 'hq-slack-intake'
