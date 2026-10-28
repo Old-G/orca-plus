@@ -123,6 +123,30 @@ describe('hqPlusLog', () => {
     expect(hqPlusWaiting(log).map((item) => item.id)).toEqual(['b'])
   })
 
+  it("leaves out what one chat sends another, keeping the owner's own words", () => {
+    const log = hqPlusLog(
+      [
+        row({
+          id: 'c',
+          at: NOW - HOUR,
+          kind: 'chat.message',
+          title: 'From HQ chat: add a line',
+          source: 'chat-send'
+        }),
+        row({
+          id: 'm',
+          at: NOW - 30_000,
+          kind: 'chat.message',
+          title: 'From HQ+: go on',
+          source: 'chat-send'
+        })
+      ],
+      [],
+      DAY_START
+    )
+    expect(log.map((item) => [item.kind, item.id])).toEqual([['me', 'm']])
+  })
+
   it('keeps a decided card in place, closed by the owner reply', () => {
     const log = hqPlusLog(
       [

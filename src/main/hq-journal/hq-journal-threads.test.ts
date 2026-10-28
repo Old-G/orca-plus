@@ -11,6 +11,7 @@ let delivered: { sessionId: string; prompt: string }[]
 let reopened: string[]
 
 const SCOPES: Record<string, HqCallerScope> = {
+  claude_hq: { kind: 'overview', sessionId: 'claude_hq', worktreeId: null },
   claude_api: {
     kind: 'room',
     room: 'acme',
@@ -130,6 +131,17 @@ describe('HQ+ threads', () => {
       ['chat.report', null],
       ['chat.message', web.entry.id]
     ])
+  })
+
+  it("signs an HQ chat's message as the HQ chat, so it never reads as the owner's", async () => {
+    const web = await threads.report({ sessionId: 'claude_web' }, { done: 'Checkout fixed' })
+    const fromChat = await threads.send(
+      { sessionId: 'claude_hq' },
+      { address: web.address, text: 'Add a line.' }
+    )
+    const fromOwner = await threads.send({}, { address: web.address, text: 'Thanks.' })
+    expect(fromChat.entry.title).toBe('From HQ chat: Add a line.')
+    expect(fromOwner.entry.title).toBe('From HQ+: Thanks.')
   })
 
   it("settles the owner's question when the owner answers it, not when another chat does", async () => {
