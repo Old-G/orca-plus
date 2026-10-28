@@ -241,7 +241,8 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
       }
       const from =
         (scope.sessionId ? deps.pulse.getSession(scope.sessionId)?.address : null) ??
-        (scope.kind === 'overview' ? 'HQ+' : 'another chat')
+        // Why: «HQ+» is the owner typing in HQ+; an HQ chat's agent sending is not the owner.
+        (scope.kind === 'overview' ? (scope.sessionId ? 'HQ chat' : 'HQ+') : 'another chat')
       const head = quoted
         ? `Orca+ · a message from thread ${from}, in reply to «${quoted.title}» (${stamp(quoted.at)}):`
         : `Orca+ · a message from thread ${from}:`
