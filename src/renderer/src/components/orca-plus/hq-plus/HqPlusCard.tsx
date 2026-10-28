@@ -180,7 +180,15 @@ type CardAction = { id: string; label: string; hint?: string }
 /** Custom build (hq-plus-links): a person's answer says what each button does with it. */
 function replyActions(card: Card, actions: readonly CardAction[]): CardAction[] {
   const author = readHqWaitingReplyRef(card.inbox?.refId ?? null)?.author ?? ''
-  return actions.map((action) => {
+  // Custom build (hq-plus-cards): HQ+ alone offers «Close waiting», before Skip; the classic bell keeps its set.
+  const skip = actions.findIndex((action) => action.id === HQ_WAITING_REPLY_ACTION.skip)
+  const close = {
+    id: HQ_WAITING_REPLY_ACTION.close,
+    label: translate('auto.hqPlus.reply.close', 'Close waiting')
+  }
+  const withClose =
+    skip < 0 ? [...actions, close] : [...actions.slice(0, skip), close, ...actions.slice(skip)]
+  return withClose.map((action) => {
     switch (action.id) {
       case HQ_WAITING_REPLY_ACTION.deliver:
         return {
@@ -285,7 +293,7 @@ function HqPlusReplyContext({
           {translate('auto.hqPlus.files', '{{count}} file(s) ↗', { count: files })}
         </button>
       ) : null}
-      <p className="hqp-ctx">
+      <p className="hqp-said-ctx">
         <span className="who">
           {asked
             ? translate('auto.hqPlus.convo.youAsked', 'You asked')
