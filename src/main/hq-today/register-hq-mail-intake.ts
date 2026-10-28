@@ -64,7 +64,8 @@ async function gitLabMr(ref: HqMrRef): Promise<HqMrState | null> {
     state,
     title: text(field(mr, 'title')) ?? '',
     // Why: only a link back to the same host becomes the card's «Open in GitLab».
-    url: sameHost(text(field(mr, 'web_url')), ref.host) ??
+    url:
+      sameHost(text(field(mr, 'web_url')), ref.host) ??
       `https://${ref.host}/${ref.projectPath}/-/merge_requests/${ref.iid}`,
     mergedBy: text(field(field(mr, 'merged_by'), 'name')),
     mergedAt: text(field(mr, 'merged_at')),
@@ -84,16 +85,22 @@ function gitLabRepos(hqPath: () => string | null): () => Promise<string[]> {
     }
     const hq = hqPath()
     const config = hq
-      ? await readFile(join(hq, HQ_SLACK_SCOUT_DIR, HQ_SLACK_SCOUT_CONFIG_FILE), 'utf8').catch(() => '')
+      ? await readFile(join(hq, HQ_SLACK_SCOUT_DIR, HQ_SLACK_SCOUT_CONFIG_FILE), 'utf8').catch(
+          () => ''
+        )
       : ''
-    const groups = [...(parseHqScoutConfigValues(config).get('gitlab_groups') ?? '').matchAll(/[\w./-]+/g)]
-      .map((match) => match[0])
+    const groups = [
+      ...(parseHqScoutConfigValues(config).get('gitlab_groups') ?? '').matchAll(/[\w./-]+/g)
+    ].map((match) => match[0])
     const repos: string[] = []
     for (const group of groups) {
       const listed = await glabJson(
         HQ_MR_HOST,
         `groups/${encodeURIComponent(group)}/projects?per_page=100&include_subgroups=true&simple=true`
-      ).catch(() => [])
+      ).catch((error: unknown) => {
+        console.warn(`[hq-mr-watch] could not list the GitLab group ${group}:`, error)
+        return []
+      })
       for (const project of Array.isArray(listed) ? listed : []) {
         const path = text(field(project, 'path_with_namespace'))
         if (path) {
@@ -101,7 +108,8 @@ function gitLabRepos(hqPath: () => string | null): () => Promise<string[]> {
         }
       }
     }
-    cached = { at: Date.now(), repos }
+    // Why: an empty list (glab not on PATH yet at startup, GitLab down) is asked again next pass.
+    cached = repos.length > 0 ? { at: Date.now(), repos } : null
     return repos
   }
 }
@@ -142,6 +150,9 @@ export function registerHqMailIntake(store: Store, runtime: OrcaRuntimeService):
     running = true
     void watch
       .poll()
+      .then((answered) =>
+        console.log(`[hq-mr-watch] ${watch.watched()} waiting(s) name an MR, ${answered} answered`)
+      )
       .catch((error: unknown) => console.warn('[hq-mr-watch] check failed:', error))
       .finally(() => {
         running = false
