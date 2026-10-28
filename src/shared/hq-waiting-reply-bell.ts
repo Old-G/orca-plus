@@ -11,7 +11,9 @@ export const HQ_WAITING_REPLY_KIND = 'hq-waiting-reply'
 export const HQ_WAITING_REPLY_ACTION = {
   deliver: 'reply-deliver',
   open: 'reply-open',
-  skip: 'reply-skip'
+  skip: 'reply-skip',
+  /** Custom build (hq-plus-cards): the answer settles the waiting — closed by the owner, never by itself. */
+  close: 'reply-close'
 } as const
 
 export type HqWaitingReplyRef = {
@@ -92,9 +94,13 @@ export function hqWaitingReplyBellItems(
           ? [
               { id: HQ_WAITING_REPLY_ACTION.deliver, label: 'Pass to chat' },
               { id: HQ_WAITING_REPLY_ACTION.open, label: 'Open chat' },
+              { id: HQ_WAITING_REPLY_ACTION.close, label: 'Close waiting' },
               { id: HQ_WAITING_REPLY_ACTION.skip, label: 'Skip' }
             ]
-          : [{ id: HQ_WAITING_REPLY_ACTION.skip, label: 'Got it' }],
+          : [
+              { id: HQ_WAITING_REPLY_ACTION.close, label: 'Close waiting' },
+              { id: HQ_WAITING_REPLY_ACTION.skip, label: 'Got it' }
+            ],
         dedupeKey: `${HQ_WAITING_REPLY_KIND}:${waiting.id}:${waiting.replyTs}`,
         // Why: a person answers in a burst; each new message grows the same card, not a new one.
         replaces: `${HQ_WAITING_REPLY_KIND}:${waiting.id}:`

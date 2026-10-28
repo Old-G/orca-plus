@@ -45,6 +45,7 @@ describe('hqWaitingReplyBellItems', () => {
     expect((item?.actions ?? []).map((action) => action.id)).toEqual([
       HQ_WAITING_REPLY_ACTION.deliver,
       HQ_WAITING_REPLY_ACTION.open,
+      HQ_WAITING_REPLY_ACTION.close,
       HQ_WAITING_REPLY_ACTION.skip
     ])
     expect(readHqWaitingReplyRef(item?.refId ?? null)).toMatchObject({
@@ -82,7 +83,10 @@ describe('hqWaitingReplyBellItems', () => {
 
   it('only acknowledges an answer when no chat asked', () => {
     const [item] = hqWaitingReplyBellItems([waiting({ agentSessionId: null })], () => null)
-    expect((item?.actions ?? []).map((action) => action.id)).toEqual([HQ_WAITING_REPLY_ACTION.skip])
+    expect((item?.actions ?? []).map((action) => action.id)).toEqual([
+      HQ_WAITING_REPLY_ACTION.close,
+      HQ_WAITING_REPLY_ACTION.skip
+    ])
   })
 
   it('leaves out answers already handled and waitings with none', () => {
