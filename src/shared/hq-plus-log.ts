@@ -159,6 +159,9 @@ const SETTLING_KINDS: ReadonlySet<string> = new Set([
 
 const ASK_TAIL = 400
 
+/** «Approved with edits → DM with Ann: Slack · send message» → the outcome and where it went. */
+const APPROVE_OUTCOME = /^(Approved with edits|Approved|Rejected)(?: \u2192 (.+?))?: /
+
 /** A line that asks: it ends on «?», or on «?» and its options in brackets. */
 export const HQ_PLUS_QUESTION_LINE = /\?\s*(?:\([^()]{1,80}\))?$/
 
@@ -277,6 +280,35 @@ export function hqPlusLog(
       if (!known || known.at < entry.at) {
         answers.set(entry.replyTo, entry)
       }
+    }
+  }
+  // Custom build (hq-plus-cards): the owner's Approve answer to a held message — its row keeps the
+  // same text — so a decided card says where it went and what was chosen, not «decided».
+  const approveResults = new Map<string, HqJournalEntry>()
+  for (const entry of entries) {
+    if (entry.kind === HQ_JOURNAL_KIND.approveResult && entry.body) {
+      approveResults.set(entry.body, entry)
+    }
+  }
+  const approveOutcome = (entry: HqJournalEntry): { done: HqPlusDone; title: string } | null => {
+    const result = entry.body ? approveResults.get(entry.body) : undefined
+    const outcome = result ? APPROVE_OUTCOME.exec(result.title) : null
+    if (!result || !outcome) {
+      return null
+    }
+    const action = outcome[1].startsWith('Rejected')
+      ? 'reject'
+      : outcome[1].includes('edits')
+        ? 'edit'
+        : 'approve'
+    const line =
+      (entry.body ?? '')
+        .split('\n')
+        .find((text) => text.trim())
+        ?.trim() ?? ''
+    return {
+      done: { by: 'action', action, at: result.at },
+      title: outcome[2] ? `To ${outcome[2]}: ${line}` : line || entry.title
     }
   }
   const replyDone = (entry: HqJournalEntry): HqPlusDone | null => {
@@ -431,13 +463,16 @@ export function hqPlusLog(
       // Custom build (hq-plus-side-blocks): an agent's own draft has no bell card; the journal says it waits.
       const agentDraft = !item && entry.refKind === 'draft' && entry.status === 'open'
       const open = ownerOpen && (agentDraft || Boolean(item && !item.doneAt))
+      const decided = open ? null : approveOutcome(entry)
       items.push(
         card(entry, item, {
           type: 'approve',
-          title: entry.title,
+          title: decided?.title ?? entry.title,
           body: entry.body,
           open,
-          done: open ? null : (inboxDone(item) ?? { by: 'status', status: entry.status })
+          done: open
+            ? null
+            : (decided?.done ?? inboxDone(item) ?? { by: 'status', status: entry.status })
         })
       )
       continue
