@@ -38,4 +38,14 @@ describe('hqPlusSaid', () => {
       '**Question:** call or cancel?'
     )
   })
+
+  it('strips the author though a line of the text has a colon, and keeps Slack links short', () => {
+    const said = hqPlusSaid(
+      'Ann: <@U097YTWNSLC>, hi!\n\nExamples:\n\u2022\tCannot find account: #1 \u2013 Acme (https://acme.example/t/1)\nNote: soon',
+      'Ann'
+    )
+    expect(said.text).toBe(
+      'hi!\n\nExamples:\n\u2022 Cannot find account: #1 \u2013 Acme [\u2197](https://acme.example/t/1)\nNote: soon'
+    )
+  })
 })
