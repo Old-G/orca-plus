@@ -112,7 +112,13 @@ import {
   hqPlusLiveChats,
   hqPlusProjectChats
 } from './hq-plus-chats'
+import { setHqPlusLayout, useHqPlusLayout } from './hq-plus-layout'
+import { HqPlusMapLayout } from './HqPlusMapLayout'
+import { HqPlusLayoutSwitch } from './HqPlusLayoutSwitch'
+import { startHqChat } from '../hq/hq-new-chat'
+import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import './hq-plus.css'
+import './hq-plus-map.css'
 
 const TICK_MS = 30_000
 const NO_IDS: string[] = []
@@ -132,6 +138,8 @@ const TAB_LABEL: Record<Tab, [string, string]> = {
 
 export function HqPlusScreen(): React.JSX.Element {
   const data = useHqPlusData()
+  // Custom build (hq-plus-map): the Map layout behind its switch; the current one stays the default.
+  const layout = useHqPlusLayout()
   const spaces = useHqSpaces()
   const pages = useHqProjectPages()
   const now = useNow(TICK_MS)
@@ -283,39 +291,43 @@ export function HqPlusScreen(): React.JSX.Element {
   const shownSessionId = rightChat?.kind === 'chat' ? rightChat.tab.entityId : null
   const all = useMemo(
     () =>
-      (data.feed ? hqPlusFeedLog(data.feed, dayStart, { chatQuestions: 'line' }) : []).map(
-        (item): HqPlusLogItem => {
-          // Why: a bell item knows its project, not its room; HQ's rooms place it.
-          const placed =
-            item.room === HQ_PLUS_ANY_ROOM && item.project && roomOfProject.has(item.project)
-              ? { ...item, room: roomOfProject.get(item.project) ?? item.room }
-              : item
-          if (placed.kind !== 'card' || !placed.open) {
-            return placed
-          }
-          // Custom build (hq-closed-loop): the chat open on the right asks there, not twice.
-          if (placed.type === 'move' && placed.sessionId && placed.sessionId === shownSessionId) {
-            const { id, at, room, project, address, sessionId, title, body, entry } = placed
-            return {
-              kind: 'line',
-              id,
-              at,
-              room,
-              project,
-              address,
-              sessionId,
-              tone: 'agent',
-              title,
-              body,
-              journalKind: entry?.kind ?? null
-            }
-          }
-          return notNow.has(hqPlusNotNowKey(placed))
-            ? { ...placed, open: false, done: { by: 'status' as const, status: 'not-now' } }
-            : placed
+      // Why: the Map layout has no chat cards in its feed; a chat's question is a Your-move card there.
+      (data.feed
+        ? hqPlusFeedLog(data.feed, dayStart, {
+            chatQuestions: layout === 'map' ? 'card' : 'line'
+          })
+        : []
+      ).map((item): HqPlusLogItem => {
+        // Why: a bell item knows its project, not its room; HQ's rooms place it.
+        const placed =
+          item.room === HQ_PLUS_ANY_ROOM && item.project && roomOfProject.has(item.project)
+            ? { ...item, room: roomOfProject.get(item.project) ?? item.room }
+            : item
+        if (placed.kind !== 'card' || !placed.open) {
+          return placed
         }
-      ),
-    [data.feed, dayStart, roomOfProject, notNow, shownSessionId]
+        // Custom build (hq-closed-loop): the chat open on the right asks there, not twice.
+        if (placed.type === 'move' && placed.sessionId && placed.sessionId === shownSessionId) {
+          const { id, at, room, project, address, sessionId, title, body, entry } = placed
+          return {
+            kind: 'line',
+            id,
+            at,
+            room,
+            project,
+            address,
+            sessionId,
+            tone: 'agent',
+            title,
+            body,
+            journalKind: entry?.kind ?? null
+          }
+        }
+        return notNow.has(hqPlusNotNowKey(placed))
+          ? { ...placed, open: false, done: { by: 'status' as const, status: 'not-now' } }
+          : placed
+      }),
+    [data.feed, dayStart, roomOfProject, notNow, shownSessionId, layout]
   )
   // Why: what has no room (HQ's own rows, a bell item of an unknown project) shows in All only.
   const roomItems = useMemo(() => all.filter((item) => !room || item.room === room), [all, room])
@@ -839,6 +851,10 @@ export function HqPlusScreen(): React.JSX.Element {
       requestAnimationFrame(() => searchRef.current?.select())
     },
     escape: () => {
+      // Why: the Map layout's own Esc closes its browser, chat and card.
+      if (layout === 'map') {
+        return false
+      }
       if (search.open) {
         closeSearch()
         return true
@@ -902,6 +918,148 @@ export function HqPlusScreen(): React.JSX.Element {
     }, [])
   })
 
+  const roomsBar = (
+    <HqPlusRooms
+      spaces={spaces.spaces}
+      active={room}
+      allLabel={translate('auto.hqPlus.overview', 'All')}
+      countOf={(slug) => waitingCount(openByRoom, slug)}
+      onPick={(slug) => {
+        spaces.setActive(slug)
+        if (slug !== null) {
+          setScope(null)
+        }
+      }}
+    />
+  )
+  const topTail = (
+    <>
+      <HqPlusLayoutSwitch layout={layout} onLayout={setHqPlusLayout} />
+      <div className="hqp-meter">
+        <PulseBellButton />
+      </div>
+    </>
+  )
+  const side = (
+    <HqPlusSide
+      ticker={
+        <HqPlusTicker
+          items={all}
+          onGo={(item) => {
+            setScope(null)
+            setSelectedId(item.id)
+            goToFeedItem(item.id, item)
+          }}
+        />
+      }
+      waitsOnThem={waitsOnThem}
+      chats={sideChats}
+      drafts={draftChats}
+      colorFor={colorFor}
+      tileOfRepo={(repoId, name) => ({
+        letters: hqPlusTileOf(slugOfRepo.get(repoId) ?? name),
+        color: colorFor(repoId)
+      })}
+      onKeepProject={setHqProjectKept}
+      onMarkDoneRead={acknowledgeHqChats}
+      stats={data.stats}
+      picked={tab === 'session' ? chatKey : null}
+      tileOf={tileOfChat}
+      closerOf={closerOf}
+      queue={queue}
+      onPickChat={(item) => showChat(item.key)}
+      openChats={chatItems}
+    />
+  )
+  const centerOverlay = centerFile ? (
+    <HqPlusCenterFile onClose={() => setCenterFile(false)} />
+  ) : centerBrowser && browserWorktreeId ? (
+    <HqPlusCenterBrowser
+      worktreeId={browserWorktreeId}
+      full={browserFull}
+      onFull={setBrowserFull}
+      onClose={closeBrowser}
+    />
+  ) : null
+  const linkPopover = (
+    <LinkActionPopover
+      request={linkRequest}
+      onClose={(dismissed) =>
+        setLinkRequest((current) => closeLinkActionRequest(current, dismissed))
+      }
+    />
+  )
+  if (layout === 'map') {
+    // Why: a project's workspace — its open chat's, else its main checkout.
+    const worktreeOfProject = (slug: string): string | null => {
+      const repoId = repoOfSlug.get(slug)
+      if (!repoId) {
+        return null
+      }
+      const fromChat = chatItems.find((item) => item.repoId === repoId)?.worktreeId
+      const worktrees = (useAppStore.getState().worktreesByRepo[repoId] ?? []).filter(
+        (worktree) => !worktree.isArchived
+      )
+      return (
+        fromChat ??
+        (worktrees.find((worktree) => worktree.isMainWorktree) ?? worktrees[0])?.id ??
+        null
+      )
+    }
+    return (
+      <>
+        <HqPlusMapLayout
+          rooms={roomsBar}
+          tail={topTail}
+          room={room}
+          roomName={spaces.active?.name ?? translate('auto.hqPlus.overview', 'All')}
+          projects={
+            spaces.active?.projects ??
+            (pages.status === 'ready' ? pages.pages.map((page) => page.slug) : [])
+          }
+          items={roomItems}
+          waits={waitsOnThem}
+          chats={roomChats}
+          slugOfChat={(item) => slugOfRepo.get(item.repoId) ?? item.projectName}
+          ctx={ctx}
+          queue={queue}
+          side={side}
+          chat={chatItem}
+          renderChat={(item) => (
+            <HqPlusChatSession
+              item={item}
+              status={statusOfGroup(item.group)}
+              tile={tileOfChat(item)}
+              color={colorFor(item.repoId)}
+              siblings={chatItems.filter(
+                (other) => other.kind === 'chat' && other.repoId === item.repoId
+              )}
+              onPick={(picked) => showChat(picked.key)}
+            />
+          )}
+          showChat={showChat}
+          closeChat={() => setChatKey(null)}
+          browser={centerOverlay}
+          closeBrowser={() => {
+            setCenterFile(false)
+            closeBrowser()
+          }}
+          composer={<HqCommandBox hqWorktreeId={hqWorktreeId} />}
+          newChat={(slug) => {
+            const worktreeId = worktreeOfProject(slug)
+            return worktreeId ? () => void startHqChat(worktreeId) : null
+          }}
+          openInOrca={(slug) => {
+            const worktreeId = worktreeOfProject(slug)
+            return worktreeId ? () => void activateAndRevealWorktree(worktreeId) : null
+          }}
+          now={now}
+        />
+        {linkPopover}
+      </>
+    )
+  }
+
   return (
     <div className="hq-plus dark">
       <header className="hqp-top">
@@ -911,22 +1069,9 @@ export function HqPlusScreen(): React.JSX.Element {
           </span>
           HQ+
         </span>
-        <HqPlusRooms
-          spaces={spaces.spaces}
-          active={room}
-          allLabel={translate('auto.hqPlus.overview', 'All')}
-          countOf={(slug) => waitingCount(openByRoom, slug)}
-          onPick={(slug) => {
-            spaces.setActive(slug)
-            if (slug !== null) {
-              setScope(null)
-            }
-          }}
-        />
+        {roomsBar}
         <span className="hqp-spacer" />
-        <div className="hqp-meter">
-          <PulseBellButton />
-        </div>
+        {topTail}
       </header>
 
       <div
@@ -935,35 +1080,7 @@ export function HqPlusScreen(): React.JSX.Element {
         data-center-full={centerBrowser && browserFull ? 'true' : undefined}
       >
         <div className="hqp-side-wrap" ref={left.containerRef}>
-          <HqPlusSide
-            ticker={
-              <HqPlusTicker
-                items={all}
-                onGo={(item) => {
-                  setScope(null)
-                  setSelectedId(item.id)
-                  goToFeedItem(item.id, item)
-                }}
-              />
-            }
-            waitsOnThem={waitsOnThem}
-            chats={sideChats}
-            drafts={draftChats}
-            colorFor={colorFor}
-            tileOfRepo={(repoId, name) => ({
-              letters: hqPlusTileOf(slugOfRepo.get(repoId) ?? name),
-              color: colorFor(repoId)
-            })}
-            onKeepProject={setHqProjectKept}
-            onMarkDoneRead={acknowledgeHqChats}
-            stats={data.stats}
-            picked={tab === 'session' ? chatKey : null}
-            tileOf={tileOfChat}
-            closerOf={closerOf}
-            queue={queue}
-            onPickChat={(item) => showChat(item.key)}
-            openChats={chatItems}
-          />
+          {side}
         </div>
         <button
           type="button"
@@ -1069,15 +1186,7 @@ export function HqPlusScreen(): React.JSX.Element {
               <HqCommandBox hqWorktreeId={hqWorktreeId} />
             )}
           </div>
-          {centerFile ? <HqPlusCenterFile onClose={() => setCenterFile(false)} /> : null}
-          {centerBrowser && browserWorktreeId && !centerFile ? (
-            <HqPlusCenterBrowser
-              worktreeId={browserWorktreeId}
-              full={browserFull}
-              onFull={setBrowserFull}
-              onClose={closeBrowser}
-            />
-          ) : null}
+          {centerOverlay}
         </main>
 
         <button
@@ -1254,12 +1363,7 @@ export function HqPlusScreen(): React.JSX.Element {
           ) : null}
         </aside>
       </div>
-      <LinkActionPopover
-        request={linkRequest}
-        onClose={(dismissed) =>
-          setLinkRequest((current) => closeLinkActionRequest(current, dismissed))
-        }
-      />
+      {linkPopover}
     </div>
   )
 }
