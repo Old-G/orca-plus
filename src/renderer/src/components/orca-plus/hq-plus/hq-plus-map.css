@@ -1,43 +1,26 @@
 /* Custom build (hq-plus-map): HQ+'s Map layout — the same ice-blue HUD as the current layout, with the
    map on a dotted field, the feed by tabs and a dock on the right (a sheet over the map, a column in
    the feed). Scoped to .hqm. */
-.hqm .hqm-seg {
+.hq-plus .hqm-seg {
   display: flex;
   border: 1px solid var(--hqp-line);
   border-radius: 9px;
   overflow: hidden;
   background: rgba(4, 12, 18, 0.6);
 }
-.hqm-seg button {
+.hq-plus .hqm-seg button {
   border: 0;
   background: none;
-  padding: 4px 11px;
-  font-size: 12.5px;
+  padding: 4px 13px;
+  font-size: 13px;
   color: var(--hqp-mute);
 }
-.hqm-seg button[aria-selected='true'],
-.hqm-seg button[aria-pressed='true'] {
+.hq-plus .hqm-seg button[aria-pressed='true'] {
   background: var(--hqp-soft-2);
   color: var(--hqp-fg);
 }
-.hq-plus .hqm-layout button {
-  font-size: 11.5px;
-  padding: 3px 9px;
-}
-.hq-plus .hqm-seg.hqm-layout {
-  display: flex;
-  border: 1px solid var(--hqp-line);
-  border-radius: 9px;
-  overflow: hidden;
-}
-.hq-plus .hqm-layout button {
-  border: 0;
-  background: none;
-  color: var(--hqp-faint);
-}
-.hq-plus .hqm-layout button[aria-pressed='true'] {
-  background: var(--hqp-soft-2);
-  color: var(--hqp-fg);
+.hq-plus .hqm-layout {
+  margin-left: 6px;
 }
 .hqm-you {
   border: 1px solid rgba(255, 195, 90, 0.4);
@@ -102,8 +85,6 @@
   inset: 0;
   cursor: grab;
   touch-action: none;
-  background-image: radial-gradient(circle, rgba(143, 233, 255, 0.12) 1px, transparent 1.3px);
-  background-size: 24px 24px;
 }
 .hqm-map:active {
   cursor: grabbing;
@@ -223,55 +204,120 @@
   color: var(--hqp-faint);
 }
 
-/* the dock: a sheet over the map, a column beside the feed */
-.hqm-dock {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  min-width: 0;
-  background: rgba(8, 19, 28, 0.96);
-  border: 1px solid var(--hqp-line);
-  border-radius: 12px;
-}
+/* the panel over the map: docked to the right edge or dragged anywhere; it stretches and folds */
 .hqm-sheet {
   position: absolute;
   top: 10px;
   right: 10px;
   bottom: 10px;
   z-index: 4;
-  width: 380px;
   max-width: calc(100% - 20px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 12px 12px;
+  background: rgba(6, 15, 22, 0.97);
+  border: 1px solid var(--hqp-line);
+  border-radius: 14px;
   box-shadow: -18px 0 50px rgba(0, 0, 0, 0.45);
-  transition: width 0.35s cubic-bezier(0.22, 0.8, 0.2, 1);
 }
-.hqm-sheet[data-wide='true'] {
-  width: 480px;
+.hqm-sheet[data-float='true'] {
+  right: auto;
+  bottom: auto;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
 }
-.hqm-sheet[data-folded='true'] {
-  width: 30px;
-  background: rgba(8, 19, 28, 0.8);
+.hqm-sheet[data-dragging='true'] {
+  user-select: none;
+}
+.hqm-grip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  margin: 0 -12px 4px;
+  cursor: grab;
+  position: relative;
+}
+.hqm-grip:active {
+  cursor: grabbing;
+}
+.hqm-grip-bar {
+  width: 44px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hqp-line-2);
+  opacity: 0.6;
+}
+.hqm-grip:hover .hqm-grip-bar {
+  opacity: 1;
 }
 .hqm-fold {
   position: absolute;
-  top: 8px;
-  left: -1px;
-  transform: translateX(-100%);
+  right: 6px;
+  top: 1px;
   width: 22px;
-  height: 34px;
-  border: 1px solid var(--hqp-line);
-  border-right: 0;
-  border-radius: 8px 0 0 8px;
-  background: rgba(8, 19, 28, 0.96);
-  color: var(--hqp-mute);
-  font-size: 14px;
-}
-.hqm-sheet[data-folded='true'] .hqm-fold {
-  position: static;
-  transform: none;
-  width: 100%;
-  height: 100%;
+  height: 18px;
   border: 0;
+  border-radius: 6px;
   background: none;
+  color: var(--hqp-faint);
+  font-size: 14px;
+  line-height: 1;
+}
+.hqm-fold:hover {
+  color: var(--hqp-fg);
+  background: var(--hqp-soft-2);
+}
+.hqm-edge-w {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: -4px;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 2;
+}
+.hqm-edge-h {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -4px;
+  height: 8px;
+  cursor: ns-resize;
+  z-index: 2;
+}
+.hqm-edge-w:hover,
+.hqm-edge-h:hover {
+  background: rgba(143, 233, 255, 0.18);
+  border-radius: 4px;
+}
+.hqm-unfold {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--hqp-line-2);
+  border-radius: 999px;
+  background: rgba(6, 15, 22, 0.95);
+  color: var(--hqp-fg);
+  font-size: 12.5px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+.hqm-unfold:hover {
+  background: var(--hqp-soft-2);
+}
+/* the current layout's panel inside the sheet: tabs on top, the page below */
+.hq-plus .hqm-ctx {
+  width: auto;
+  flex: 1;
+  min-height: 0;
+  transition: none;
+}
+.hqm-ctx .hqp-pane {
+  min-height: 0;
 }
 .hqm-pane {
   display: flex;
@@ -287,20 +333,6 @@
 }
 .hqm-cardpane {
   padding: 10px;
-}
-.hqm-chatpane {
-  padding: 8px 10px 10px;
-  overflow: hidden;
-  flex: 1;
-}
-.hqm-chatbody {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.hqm-back {
-  align-self: flex-start;
 }
 .hqm-top {
   display: flex;
@@ -403,57 +435,8 @@ p.hqm-sub {
   white-space: nowrap;
 }
 
-/* the feed */
-.hqm-feedview {
-  display: grid;
-  grid-template-columns: 250px minmax(0, 1fr);
-  gap: 24px;
-  min-height: 0;
-}
-.hqm-feedview[data-dock='true'] {
-  grid-template-columns: 250px minmax(0, 1fr) 440px;
-}
-.hqm-side {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-.hqm-side > * {
-  flex: 1;
-  min-height: 0;
-}
-.hqm-column {
-  overflow: hidden;
-}
-.hqm-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.hqm-tabs button {
-  border: 1px solid var(--hqp-line);
-  border-radius: 999px;
-  background: none;
-  padding: 3px 11px;
-  font-size: 12.5px;
-  color: var(--hqp-mute);
-}
-.hqm-tabs button[aria-selected='true'] {
-  background: var(--hqp-soft-2);
-  border-color: var(--hqp-line-2);
-  color: var(--hqp-fg);
-}
-.hqm-tabs button[data-you='true'][aria-selected='true'] {
-  color: var(--hqp-amber);
-  border-color: rgba(255, 195, 90, 0.5);
-}
-.hqm-feed > .hqp-log,
-.hqm-feed > .hqp-waits {
-  flex: 1 1 0;
-}
-
-/* Orca's browser (or a file) over the map or the feed */
-.hqm-browser {
+/* a file or Orca's browser over the map; «← Map» brings the map back */
+.hqm-overlay {
   position: absolute;
   inset: 0;
   z-index: 7;
@@ -461,7 +444,7 @@ p.hqm-sub {
   flex-direction: column;
   background: var(--hqp-bg);
 }
-.hqm-browser > .hqp-center-file {
+.hqm-overlay > .hqp-center-file {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -470,17 +453,10 @@ p.hqm-sub {
 }
 
 @media (max-width: 900px) {
-  .hqm-feedview,
-  .hqm-feedview[data-dock='true'] {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .hqm-side {
-    display: none;
-  }
-  .hqm-column {
-    position: absolute;
-    inset: auto 8px 8px 8px;
-    max-height: 60%;
-    z-index: 6;
+  .hqm-sheet:not([data-float='true']) {
+    top: auto;
+    left: 10px;
+    width: auto !important;
+    height: 60%;
   }
 }

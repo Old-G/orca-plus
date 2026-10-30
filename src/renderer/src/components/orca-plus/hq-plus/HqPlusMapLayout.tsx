@@ -1,43 +1,34 @@
-// Custom build (hq-plus-map): HQ+'s Map layout (owner, 30.10: decisions 1a 2a 3a 4a). Feed | Map on top;
-// the map is the room's hub → sources → projects → people, chats and talks; the feed is one card per
-// conversation in All · Your move · Waiting · FYI · Done with the chat list on the left. What is picked
-// shows in the dock on the right — over the map it slides in and folds — and a chat opens in its place.
-// A crumb line says where the owner is; Esc closes the top layer: browser → chat → card.
+// Custom build (hq-plus-map): HQ+'s Map layout (owner, 30.10: decisions 1a 2a 3a 4a; 31.10: Feed is the
+// current layout). The map is the room's hub → sources → projects → people, chats and talks. The panel over
+// it on the right holds what is picked in its «Card» tab beside the current layout's tabs (Graph, River,
+// Session, Reports, Agents…); a chat opens in Session in its place. The panel moves, stretches and folds.
+// A crumb line says where the owner is; Esc closes the top layer: file or browser → chat → card.
 import { useEffect, useMemo, useState } from 'react'
 import type { HqPlusLogItem } from '../../../../../shared/hq-plus-log'
 import {
   HQ_PLUS_MAP_UNSORTED,
   hqPlusMapFeedPlace,
-  hqPlusMapFeedRows,
   hqPlusMapModel,
   type HqPlusMapChatState,
-  type HqPlusMapFeedTab,
-  type HqPlusMapLeaf,
-  type HqPlusMapProject
+  type HqPlusMapLeaf
 } from '../../../../../shared/hq-plus-map'
 import type { HqChatGroup, HqChatItem } from '../hq/hq-chat-list'
-import { HqPlusLog, type HqPlusLogContext } from './HqPlusLog'
-import { HqPlusWaitsView } from './HqPlusWaitsView'
+import type { HqPlusLogContext } from './HqPlusLog'
 import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
 import { HqPlusMap, type HqPlusMapPick } from './HqPlusMap'
 import { HqPlusMapDock, hqPlusItemTitle, type HqPlusMapDockPick } from './HqPlusMapDock'
+import { HqPlusMapSheet } from './HqPlusMapSheet'
 import { trunc } from './hq-plus-map-geometry'
 import { HqPlusMapCrumbs, type HqPlusMapCrumb } from './HqPlusLayoutSwitch'
-import { readHqPlusMapView, saveHqPlusMapView, type HqPlusMapCamera } from './hq-plus-map-view'
+import { setHqPlusLayout } from './hq-plus-layout'
+import {
+  readHqPlusMapView,
+  saveHqPlusMapView,
+  type HqPlusMapCamera,
+  type HqPlusMapDockPlace
+} from './hq-plus-map-view'
 
 type Pick = HqPlusMapDockPick
-
-function rememberCamera(camera: HqPlusMapCamera): void {
-  saveHqPlusMapView({ camera })
-}
-
-const TAB_LABEL: Record<HqPlusMapFeedTab, string> = {
-  all: 'All',
-  you: 'Your move',
-  wait: 'Waiting',
-  fyi: 'FYI',
-  done: 'Done'
-}
 
 const CHAT_STATE: Record<HqChatGroup, HqPlusMapChatState> = {
   needs: 'asks',
@@ -46,9 +37,26 @@ const CHAT_STATE: Record<HqChatGroup, HqPlusMapChatState> = {
   quiet: 'quiet'
 }
 
+function rememberCamera(camera: HqPlusMapCamera): void {
+  saveHqPlusMapView({ camera })
+}
+
+function hubLetters(name: string): string {
+  const words = name.split(/[\s_-]+/).filter(Boolean)
+  return (words.length > 1 ? words.map((word) => word[0]).join('') : name.slice(0, 2))
+    .slice(0, 3)
+    .toUpperCase()
+}
+
+/** The right panel as HQ+ draws it, with a «Card» tab in front for the Map layout. */
+export type HqPlusMapPanel = (
+  card: { label: string; active: boolean; body: React.ReactNode; onPick: () => void } | null
+) => React.JSX.Element
+
 export type HqPlusMapLayoutProps = {
-  /** The top bar's own parts: the rooms and what sits at its right end. */
+  /** The top bar's parts: the rooms, Feed | Map, and what sits at its right end. */
   rooms: React.ReactNode
+  layoutSwitch: React.ReactNode
   tail: React.ReactNode
   room: string | null
   roomName: string
@@ -62,17 +70,20 @@ export type HqPlusMapLayoutProps = {
   slugOfChat: (item: HqChatItem) => string
   ctx: HqPlusLogContext
   queue: HqPlusQueueActions
-  /** The chat list on the Feed's left. */
-  side: React.ReactNode
-  /** The chat open in the dock and how it is drawn there. */
+  /** The chat on view in the panel's Session tab; null when another tab or the card shows. */
   chat: HqChatItem | null
-  renderChat: (item: HqChatItem) => React.ReactNode
   showChat: (key: string) => void
   closeChat: () => void
-  /** Orca's browser over the map or feed, when open. */
-  browser: React.ReactNode
-  closeBrowser: () => void
-  composer: React.ReactNode
+  /** The panel shows the «Card» tab. */
+  cardShown: boolean
+  showCard: () => void
+  panel: HqPlusMapPanel
+  /** A file or Orca's browser over the map, when open. */
+  overlay: React.ReactNode
+  overlayKind: 'file' | 'browser'
+  closeOverlay: () => void
+  /** «Your move» on top: the feed, filtered to what waits on the owner. */
+  onYourMove: () => void
   /** The project's workspace, for a new chat and «Open in Orca». */
   newChat: (slug: string) => (() => void) | null
   openInOrca: (slug: string) => (() => void) | null
@@ -80,11 +91,10 @@ export type HqPlusMapLayoutProps = {
 }
 
 export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element {
-  const { items, waits, chats, ctx, chat, now } = props
+  const { items, waits, chats, chat, now } = props
   const [saved] = useState(readHqPlusMapView)
-  const [view, setView] = useState(saved.view)
-  const [tab, setTab] = useState(saved.tab)
   const [expandedByRoom, setExpandedByRoom] = useState(saved.expanded)
+  const [dock, setDock] = useState<HqPlusMapDockPlace>(saved.dock)
   const [dockFolded, setDockFolded] = useState(saved.dockFolded)
   const roomKey = props.room ?? ''
   // Why: a pick belongs to its room; another room starts with nothing picked.
@@ -94,8 +104,8 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
     setPicked(next ? { room: roomKey, pick: next } : null)
   const expanded = useMemo(() => new Set(expandedByRoom[roomKey] ?? []), [expandedByRoom, roomKey])
   useEffect(
-    () => saveHqPlusMapView({ view, tab, expanded: expandedByRoom, dockFolded }),
-    [view, tab, expandedByRoom, dockFolded]
+    () => saveHqPlusMapView({ expanded: expandedByRoom, dock, dockFolded }),
+    [expandedByRoom, dock, dockFolded]
   )
 
   const chatByKey = useMemo(() => new Map(chats.map((item) => [item.key, item])), [chats])
@@ -123,32 +133,25 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
     [props.projects, items, waits, chats]
   )
   const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items])
-  const projectOf = (slug: string): HqPlusMapProject | undefined =>
-    model.projects.find((project) => project.slug === slug)
-  const leafOf = (slug: string, key: string): HqPlusMapLeaf | undefined =>
-    projectOf(slug)?.leaves.find((leaf) => leaf.key === key)
-
   const youItems = useMemo(
     () => items.filter((item) => hqPlusMapFeedPlace(item) === 'you').toReversed(),
     [items]
   )
-  const counts: Record<HqPlusMapFeedTab, number> = {
-    all: hqPlusMapFeedRows(items, 'all').length,
-    you: youItems.length,
-    wait: waits.length,
-    fyi: hqPlusMapFeedRows(items, 'fyi').length,
-    done: hqPlusMapFeedRows(items, 'done').length
-  }
-  const rows = useMemo(() => hqPlusMapFeedRows(items, tab), [items, tab])
+  const leafOf = (slug: string, key: string): HqPlusMapLeaf | undefined =>
+    model.projects.find((project) => project.slug === slug)?.leaves.find((leaf) => leaf.key === key)
 
   const setExpanded = (slug: string, open: boolean): void =>
     setExpandedByRoom((current) => {
       const list = (current[roomKey] ?? []).filter((id) => id !== slug)
       return { ...current, [roomKey]: open ? [...list, slug] : list }
     })
-  const pickProject = (slug: string): void => {
-    props.closeChat()
+  // Why: whatever is picked shows in the panel at once, even folded or on another tab.
+  const reveal = (): void => {
     setDockFolded(false)
+    props.showCard()
+  }
+  const pickProject = (slug: string): void => {
+    reveal()
     if (pick?.kind === 'project' && pick.slug === slug && expanded.has(slug)) {
       setExpanded(slug, false)
       setPick(null)
@@ -159,24 +162,22 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
   }
   const pickLeaf = (slug: string, leaf: HqPlusMapLeaf): void => {
     setDockFolded(false)
+    setPick({ kind: 'leaf', slug, key: leaf.key })
     if (leaf.kind === 'chat') {
-      setPick({ kind: 'leaf', slug, key: leaf.key })
       props.showChat(leaf.chatKey)
       return
     }
-    props.closeChat()
-    setPick({ kind: 'leaf', slug, key: leaf.key })
+    props.showCard()
   }
   const pickItem = (id: string): void => {
-    props.closeChat()
-    setDockFolded(false)
+    reveal()
     setPick({ kind: 'item', id })
   }
 
-  // Esc closes the top layer: the browser, the chat, then the card.
-  const layers = { browser: Boolean(props.browser), chat: Boolean(chat), pick: Boolean(pick) }
+  // Esc closes the top layer: the file or browser, the chat (back to the card), then the card.
+  const layers = { overlay: Boolean(props.overlay), chat: Boolean(chat), pick: Boolean(pick) }
   useEffect(() => {
-    if (!layers.browser && !layers.chat && !layers.pick) {
+    if (!layers.overlay && !layers.chat && !layers.pick) {
       return
     }
     const onKey = (event: KeyboardEvent): void => {
@@ -188,10 +189,10 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
         return
       }
       event.preventDefault()
-      if (layers.browser) {
-        props.closeBrowser()
+      if (layers.overlay) {
+        props.closeOverlay()
       } else if (layers.chat) {
-        props.closeChat()
+        props.showCard()
       } else {
         setPick(null)
       }
@@ -199,7 +200,7 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers.browser, layers.chat, layers.pick])
+  }, [layers.overlay, layers.chat, layers.pick])
 
   const mapPick: HqPlusMapPick | null =
     pick?.kind === 'project' || pick?.kind === 'leaf'
@@ -215,26 +216,15 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
           })()
         : null
 
-  // The crumb line: room › view › project › what is picked › chat › browser.
+  const home = (): void => {
+    setPick(null)
+    props.closeOverlay()
+    props.showCard()
+  }
+  // The crumb line: room › Map › project › what is picked › chat › file or browser.
   const crumbs: HqPlusMapCrumb[] = [
-    {
-      id: 'room',
-      label: props.roomName,
-      go: () => {
-        setPick(null)
-        props.closeChat()
-        props.closeBrowser()
-      }
-    },
-    {
-      id: 'view',
-      label: view === 'map' ? 'Map' : 'Feed',
-      go: () => {
-        setPick(null)
-        props.closeChat()
-        props.closeBrowser()
-      }
-    }
+    { id: 'room', label: props.roomName, go: home },
+    { id: 'view', label: 'Map', go: home }
   ]
   if (pick?.kind === 'project' || pick?.kind === 'leaf') {
     const slug = pick.slug
@@ -242,10 +232,10 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
       id: 'project',
       label: slug,
       go:
-        pick.kind === 'leaf'
+        pick.kind === 'leaf' || chat || props.overlay
           ? () => {
-              props.closeChat()
-              props.closeBrowser()
+              props.closeOverlay()
+              props.showCard()
               setPick({ kind: 'project', slug })
             }
           : null
@@ -269,35 +259,34 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
     crumbs.push({
       id: 'chat',
       label: `Chat · ${chat.projectName}`,
-      go: props.browser ? props.closeBrowser : null
+      go: props.overlay ? props.closeOverlay : null
     })
   }
-  if (props.browser) {
-    crumbs.push({ id: 'browser', label: 'Browser', go: null })
+  const overlayName = props.overlayKind === 'file' ? 'File' : 'Browser'
+  if (props.overlay) {
+    crumbs.push({ id: 'overlay', label: overlayName, go: null })
   }
-  const escWhat = props.browser ? 'browser' : chat ? 'chat' : pick ? 'card' : null
+  const escWhat = props.overlay ? overlayName.toLowerCase() : chat ? 'chat' : pick ? 'card' : null
 
-  const dock = (
+  const card = (
     <HqPlusMapDock
-      {...props}
       pick={pick}
       model={model}
       itemById={itemById}
       youItems={youItems}
       chatByKey={chatByKey}
+      ctx={props.ctx}
+      queue={props.queue}
+      waits={waits}
+      newChat={props.newChat}
+      openInOrca={props.openInOrca}
+      now={now}
+      showChat={props.showChat}
       onPickItem={pickItem}
       onPickLeaf={pickLeaf}
-      onBackToCard={pick ? props.closeChat : null}
-      onToFeed={() => {
-        setView('feed')
-        setTab('all')
-        setPick(null)
-      }}
+      onToFeed={() => setHqPlusLayout('current')}
     />
   )
-  // Why: over the map the dock is a sheet that folds to the edge; in the feed it is a column, shown for
-  // a chat or a picked person or project (cards are already whole in the feed).
-  const feedDock = chat || (pick && pick.kind !== 'item')
 
   return (
     <div className="hq-plus dark hqm">
@@ -309,31 +298,9 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
           HQ+
         </span>
         {props.rooms}
-        <div className="hqm-seg" role="tablist" aria-label="View">
-          {(['feed', 'map'] as const).map((name) => (
-            <button
-              key={name}
-              type="button"
-              role="tab"
-              aria-selected={view === name}
-              onClick={() => {
-                setView(name)
-                props.closeBrowser()
-              }}
-            >
-              {name === 'map' ? 'Map' : 'Feed'}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          className="hqm-you"
-          onClick={() => {
-            setView('feed')
-            setTab('you')
-          }}
-        >
-          Your move · {counts.you}
+        {props.layoutSwitch}
+        <button type="button" className="hqm-you" onClick={props.onYourMove}>
+          Your move · {youItems.length}
         </button>
         <span className="hqp-spacer" />
         {props.tail}
@@ -341,91 +308,46 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
 
       <div className="hqm-body">
         <HqPlusMapCrumbs crumbs={crumbs} esc={escWhat} />
-
-        {view === 'map' ? (
-          <div className="hqm-stage">
-            <HqPlusMap
-              hub={{ letters: hubLetters(props.roomName), name: props.roomName }}
-              model={model}
-              expanded={expanded}
-              pick={mapPick}
-              camera={saved.camera}
-              now={now}
-              chats={chatByKey}
-              onCamera={rememberCamera}
-              onPickProject={pickProject}
-              onPickLeaf={pickLeaf}
-              onClear={() => {
-                if (!chat) {
-                  setPick(null)
-                }
-              }}
-            />
-            {model.projects.length === 0 ? (
-              <p className="hqm-empty-map">Nothing in this room yet.</p>
-            ) : null}
-            <aside
-              className="hqm-dock hqm-sheet"
-              data-folded={dockFolded ? 'true' : undefined}
-              data-wide={chat ? 'true' : undefined}
-              aria-label="Card and chat"
-            >
-              <button
-                type="button"
-                className="hqm-fold"
-                aria-label={dockFolded ? 'Show the panel' : 'Fold the panel'}
-                title={dockFolded ? 'Show the panel' : 'Fold the panel'}
-                onClick={() => setDockFolded(!dockFolded)}
-              >
-                {dockFolded ? '‹' : '›'}
-              </button>
-              {dockFolded ? null : dock}
-            </aside>
-            {props.browser ? <div className="hqm-browser">{props.browser}</div> : null}
-          </div>
-        ) : (
-          <div className="hqm-feedview" data-dock={feedDock ? 'true' : undefined}>
-            <div className="hqm-side">{props.side}</div>
-            <main className="hqp-feed hqm-feed" aria-label="Feed">
-              <div className="hqm-tabs" role="tablist">
-                {(['all', 'you', 'wait', 'fyi', 'done'] as const).map((name) => (
-                  <button
-                    key={name}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === name}
-                    data-you={name === 'you' ? 'true' : undefined}
-                    onClick={() => setTab(name)}
-                  >
-                    {TAB_LABEL[name]} · {counts[name]}
-                  </button>
-                ))}
-              </div>
-              {tab === 'wait' ? (
-                <HqPlusWaitsView waits={waits} actions={props.queue} ctx={ctx} />
-              ) : rows.length === 0 ? (
-                <p className="hqp-empty">Nothing here.</p>
-              ) : (
-                <HqPlusLog key={`${roomKey}|${tab}`} items={rows} flashId={null} ctx={ctx} />
-              )}
-              <div className="hqp-composer">{props.composer}</div>
-              {props.browser ? <div className="hqm-browser">{props.browser}</div> : null}
-            </main>
-            {feedDock ? (
-              <aside className="hqm-dock hqm-column" aria-label="Card and chat">
-                {dock}
-              </aside>
-            ) : null}
-          </div>
-        )}
+        <div className="hqm-stage">
+          <HqPlusMap
+            hub={{ letters: hubLetters(props.roomName), name: props.roomName }}
+            model={model}
+            expanded={expanded}
+            pick={mapPick}
+            camera={saved.camera}
+            now={now}
+            chats={chatByKey}
+            onCamera={rememberCamera}
+            onPickProject={pickProject}
+            onPickLeaf={pickLeaf}
+            onClear={() => {
+              if (props.cardShown) {
+                setPick(null)
+              }
+            }}
+          />
+          {model.projects.length === 0 ? (
+            <p className="hqm-empty-map">Nothing in this room yet.</p>
+          ) : null}
+          <HqPlusMapSheet
+            place={dock}
+            folded={dockFolded}
+            foldedLabel={props.cardShown ? 'Card' : chat ? 'Chat' : 'Panel'}
+            onPlace={setDock}
+            onFold={setDockFolded}
+          >
+            <div className="hqp-ctx hqm-ctx">
+              {props.panel({
+                label: 'Card',
+                active: props.cardShown,
+                body: card,
+                onPick: props.showCard
+              })}
+            </div>
+          </HqPlusMapSheet>
+          {props.overlay ? <div className="hqm-overlay">{props.overlay}</div> : null}
+        </div>
       </div>
     </div>
   )
-}
-
-function hubLetters(name: string): string {
-  const words = name.split(/[\s_-]+/).filter(Boolean)
-  return (words.length > 1 ? words.map((word) => word[0]).join('') : name.slice(0, 2))
-    .slice(0, 3)
-    .toUpperCase()
 }

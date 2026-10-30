@@ -7,7 +7,14 @@ import { useAppStore } from '@/store'
 
 const EditorPanel = lazy(() => import('../../editor/EditorPanel'))
 
-export function HqPlusCenterFile({ onClose }: { onClose: () => void }): React.JSX.Element {
+export function HqPlusCenterFile({
+  onClose,
+  backLabel = null
+}: {
+  onClose: () => void
+  /** Custom build (hq-plus-map): where «←» returns to, when not the feed. */
+  backLabel?: string | null
+}): React.JSX.Element {
   const path = useAppStore(
     (state) => state.openFiles.find((file) => file.id === state.activeFileId)?.relativePath ?? null
   )
@@ -18,7 +25,7 @@ export function HqPlusCenterFile({ onClose }: { onClose: () => void }): React.JS
     >
       <div className="hqp-fh">
         <button type="button" className="hqp-pill" onClick={onClose}>
-          ← {translate('auto.hqPlus.centerFile.back', 'Feed')}
+          ← {backLabel ?? translate('auto.hqPlus.centerFile.back', 'Feed')}
         </button>
         {path ? <span className="hqp-mono">{path}</span> : null}
       </div>

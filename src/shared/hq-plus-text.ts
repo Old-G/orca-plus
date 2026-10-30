@@ -8,7 +8,42 @@ export type HqPlusSpan =
   | { kind: 'code'; text: string }
   | { kind: 'link'; text: string; href: string }
 
-export type HqPlusTextLine = { bullet: boolean; spans: HqPlusSpan[] }
+/** Custom build (hq-plus-map): a line that opens with «Done:», «Question:»… is told apart by its label. */
+export type HqPlusLineLabel = 'done' | 'question' | 'next' | 'note'
+
+export type HqPlusTextLine = {
+  bullet: boolean
+  spans: HqPlusSpan[]
+  label?: { kind: HqPlusLineLabel; text: string }
+}
+
+const LABELS: Readonly<Record<string, HqPlusLineLabel>> = {
+  done: 'done',
+  result: 'done',
+  question: 'question',
+  asked: 'question',
+  blocked: 'question',
+  next: 'next',
+  answer: 'note',
+  note: 'note'
+}
+const LABEL = /^(Done|Result|Question|Asked|Blocked|Next|Answer|Note):\s*/i
+
+/** The line's label cut off its first words, when it has one. */
+function labelled(line: HqPlusTextLine): HqPlusTextLine {
+  const first = line.spans[0]
+  const match = first?.kind === 'text' ? LABEL.exec(first.text) : null
+  const kind = match ? LABELS[match[1].toLowerCase()] : undefined
+  if (!match || !kind || first?.kind !== 'text') {
+    return line
+  }
+  const rest = first.text.slice(match[0].length)
+  return {
+    ...line,
+    label: { kind, text: match[1] },
+    spans: rest ? [{ kind: 'text', text: rest }, ...line.spans.slice(1)] : line.spans.slice(1)
+  }
+}
 
 const INLINE =
   /\*\*([^*]+)\*\*|__([^_]+)__|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|(https?:\/\/\S+)/g
@@ -51,12 +86,14 @@ export function hqPlusTextLines(markdown: string, maxLines = Infinity): HqPlusTe
     .split('\n')
     .map((line) => line.replace(HEADING, '').replace(QUOTE, ''))
     .filter((line) => line.trim() !== '' && !/^\s*(?:-{3,}|\*{3,})\s*$/.test(line))
-  const shown = lines.slice(0, maxLines).map((line) => ({
-    bullet: LIST_MARK.test(line),
-    spans: hqPlusSpans(line.replace(LIST_MARK, '').trim())
-  }))
+  const shown = lines.slice(0, maxLines).map((line) =>
+    labelled({
+      bullet: LIST_MARK.test(line),
+      spans: hqPlusSpans(line.replace(LIST_MARK, '').trim())
+    })
+  )
   if (lines.length > shown.length && shown.length > 0) {
-    shown[shown.length - 1].spans.push({ kind: 'text', text: ' \u2026' })
+    shown.at(-1)?.spans.push({ kind: 'text', text: ' \u2026' })
   }
   return shown
 }
