@@ -10,6 +10,8 @@ export type HqLedgerInboxCard = {
   refId: string | null
   title: string
   createdAt: number
+  /** Custom build (hq-ledger-feed): when the owner handled it; a handled card waits on nobody. */
+  doneAt?: number | null
 }
 
 export type HqLedgerLookups = {
@@ -45,6 +47,8 @@ export function hqLedgerSignalOfCard(
     return null
   }
   const at = card.createdAt
+  // Why: a card the owner already sent, skipped or closed must not come back as his move (Codex, 30.10).
+  const open = !card.doneAt
   if (card.kind === 'hq-intake') {
     const channel = str(ref.channel)
     const ts = str(ref.ts)
@@ -61,7 +65,7 @@ export function hqLedgerSignalOfCard(
       text: str(ref.text) ?? '',
       link: str(ref.permalink),
       reader: 'slack-mention',
-      forOwner: true,
+      forOwner: open,
       project: str(ref.project),
       title: str(ref.summary) ?? card.title
     }
@@ -83,7 +87,7 @@ export function hqLedgerSignalOfCard(
       text: str(ref.reply) ?? '',
       link: str(ref.link),
       reader: 'reply',
-      forOwner: true,
+      forOwner: open,
       project: str(ref.project),
       title: str(ref.question) ?? card.title
     }
@@ -109,7 +113,7 @@ export function hqLedgerSignalOfCard(
       text: card.title,
       link: str(ref.link),
       reader: 'scout',
-      forOwner: ref.kind !== 'fyi',
+      forOwner: open && ref.kind !== 'fyi',
       project: null,
       title: card.title
     }
