@@ -9,6 +9,23 @@ import { PulseDb, pulseDbPath } from './pulse-db'
 import { latestEventSeq } from './pulse-events'
 import { PULSE_SCHEMA_VERSION } from './pulse-schema'
 
+// Why: version 10 (hq-request-ledger) came after every lifted version below.
+function undoLedger(raw: { exec: (sql: string) => unknown }): void {
+  raw.exec(
+    'DROP TABLE conversation_messages; DROP TABLE conversations; DROP INDEX waitings_by_conversation'
+  )
+  for (const column of [
+    'conversation_id',
+    'draft_id',
+    'decision_id',
+    'sent_text',
+    'sent_at',
+    'expects'
+  ]) {
+    raw.exec(`ALTER TABLE waitings DROP COLUMN ${column}`)
+  }
+}
+
 const directories: string[] = []
 const open: PulseDb[] = []
 
@@ -101,6 +118,7 @@ describe('PulseDb schema', () => {
     // Why: version 7 (hq-reply-source-link) came after.
     raw.exec('ALTER TABLE waitings DROP COLUMN reply_link')
     raw.exec('ALTER TABLE waitings DROP COLUMN reply_author_id')
+    undoLedger(raw)
     raw.pragma('user_version = 5')
     raw.close()
     const lifted = new PulseDb(path)
@@ -117,6 +135,7 @@ describe('PulseDb schema', () => {
     dropWaitingReplyColumns(raw)
     // Why: files from before the feed (v5) have no feed table.
     raw.exec('DROP TABLE feed')
+    undoLedger(raw)
     raw.pragma('user_version = 2')
     raw.close()
     const lifted = new PulseDb(path)
@@ -138,6 +157,7 @@ describe('PulseDb schema', () => {
     dropWaitingReplyColumns(raw)
     // Why: files from before the feed (v5) have no feed table.
     raw.exec('DROP TABLE feed')
+    undoLedger(raw)
     raw.pragma('user_version = 1')
     raw.close()
 

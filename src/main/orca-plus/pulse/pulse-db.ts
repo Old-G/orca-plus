@@ -15,6 +15,7 @@ import type {
   PulseWaitingStatus
 } from '../../../shared/pulse-types'
 import type { OutgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
+import { liveSessionOf } from './pulse-chat-chain'
 import { PulseCore, type PulseClock } from './pulse-core'
 import {
   decideDraft,
@@ -113,6 +114,10 @@ export class PulseDb {
   markWaitingReplyDelivered(id: string, replyTs?: string) {
     return markWaitingReplyDelivered(this.core, id, replyTs)
   }
+  liveSessionOf(sessionId: string): string {
+    return liveSessionOf(this.core, sessionId)
+  }
+
   moveOpenWaitingsToChat(fromSessionId: string, toSessionId: string) {
     return moveOpenWaitingsToChat(this.core, fromSessionId, toSessionId)
   }
