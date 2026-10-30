@@ -1,7 +1,7 @@
 // Custom build (hq-plus-ui): Сессия — the picked chat's state, its project card (the same card a new chat
 // gets at start), the thread's history, and «give it work», which the dispatcher routes to the live
 // chat, a new one, or the queue.
-import { HqPlusReplyField } from './HqPlusReplyField'
+import { HqPlusComposer } from './HqPlusComposer'
 import { useEffect, useState } from 'react'
 import type { HqLiveSession } from '../../../../../shared/hq-sessions'
 import type { HqJournalEntry } from '../../../../../shared/hq-journal'
@@ -187,43 +187,17 @@ export function HqPlusSession({
         </div>
       ) : null}
       {address ? (
-        <form
-          className="hqp-reply"
-          onSubmit={(event) => {
-            event.preventDefault()
-            dispatch()
-          }}
-        >
-          <label className="hqp-sr" htmlFor="hqp-dispatch">
-            {translate('auto.hqPlus.session.work', 'Work for this thread')}
-          </label>
-          <HqPlusReplyField
-            id="hqp-dispatch"
-            placeholder={translate('auto.hqPlus.session.workHint', 'Give this thread work…')}
-            value={work}
-            disabled={busy}
-            onChange={(event) => setWork(event.target.value)}
-          />
-          <span className="hqp-to">→ {address}</span>
-          <button
-            type="submit"
-            className="hqp-go"
-            disabled={busy || !work.trim()}
-            aria-label={translate('auto.hqPlus.session.dispatch', 'Dispatch')}
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.6"
-              aria-hidden="true"
-            >
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </button>
-        </form>
+        <HqPlusComposer
+          id="hqp-dispatch"
+          label={translate('auto.hqPlus.session.work', 'Work for this thread')}
+          value={work}
+          busy={busy}
+          placeholder={translate('auto.hqPlus.session.workHint', 'Give this thread work…')}
+          to={address}
+          sendLabel={translate('auto.hqPlus.session.dispatch', 'Dispatch')}
+          onChange={setWork}
+          onSubmit={dispatch}
+        />
       ) : null}
       {note ? <p className="hqp-text">{note}</p> : null}
       <div className="hqp-opts">
