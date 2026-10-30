@@ -4,7 +4,11 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ClickUpWatchedTask } from '../../shared/hq-clickup-changes'
 import { readHqSlackScout } from './hq-slack-scout'
-import { runHqClickUpTriage, type HqClickUpTriageDeps } from './hq-clickup-triage'
+import {
+  applyClickUpChanges,
+  runHqClickUpTriage,
+  type HqClickUpTriageDeps
+} from './hq-clickup-triage'
 
 const OWNER = '100'
 const T0 = 1_800_000_000_000
@@ -195,6 +199,29 @@ describe('runHqClickUpTriage', () => {
     const cards = await runHqClickUpTriage(hq, d)
     expect(cards).toEqual([
       expect.objectContaining({ kind: 'fyi', needsReview: true, ask: 'Разобрать: новые шаги' })
+    ])
+  })
+})
+
+describe('applyClickUpChanges', () => {
+  it('raises nothing when only fields changed, since which and to what is not known', () => {
+    const before = { ...lucyTask('Steps', []), fields: '["a"]' }
+    const learned = applyClickUpChanges(
+      { lastCheckAt: T0, snapshots: {}, pending: [] },
+      [before],
+      OWNER,
+      T0
+    )
+    const fieldsOnly = applyClickUpChanges(learned, [{ ...before, fields: '["b"]' }], OWNER, T0 + 1)
+    expect(fieldsOnly.pending).toEqual([])
+    const withText = applyClickUpChanges(
+      fieldsOnly,
+      [{ ...before, fields: '["c"]', description: 'Steps\nNew step' }],
+      OWNER,
+      T0 + 2
+    )
+    expect(withText.pending).toEqual([
+      expect.objectContaining({ kinds: ['description', 'fields'], added: 'New step' })
     ])
   })
 })

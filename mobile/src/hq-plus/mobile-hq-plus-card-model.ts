@@ -73,6 +73,10 @@ export function hqpDoneLabel(done: HqPlusDone): string {
 
 /** The question a turn ends on, else its title — as the desktop card shows it. */
 export function hqpQuestionOf(card: HqPlusCard): string {
+  // Custom build (hq-ledger-feed): a conversation leads with its gist; its lines are the body.
+  if (card.type === 'conversation') {
+    return card.title
+  }
   if (card.report?.ask) {
     return card.report.ask
   }

@@ -19,6 +19,7 @@ export type HqPlusBadgeTone =
   | 'slack'
   | 'clickup'
   | 'gmail'
+  | 'gitlab'
   | 'bg'
   | 'working'
   | 'waits'
@@ -26,7 +27,7 @@ export type HqPlusBadgeTone =
 
 export type HqPlusBadge = { label: string; tone: HqPlusBadgeTone }
 
-export type HqPlusSource = 'slack' | 'clickup' | 'gmail'
+export type HqPlusSource = 'slack' | 'clickup' | 'gmail' | 'gitlab'
 
 export type HqPlusLook = {
   kind: HqPlusLookKind
@@ -39,7 +40,8 @@ export type HqPlusLook = {
 const SOURCE_BADGE: Record<HqPlusSource, HqPlusBadge> = {
   slack: { label: 'SLACK', tone: 'slack' },
   clickup: { label: 'CLICKUP', tone: 'clickup' },
-  gmail: { label: 'GMAIL', tone: 'gmail' }
+  gmail: { label: 'GMAIL', tone: 'gmail' },
+  gitlab: { label: 'GITLAB', tone: 'gitlab' }
 }
 
 const BG_TAG: Readonly<Record<string, string>> = {
@@ -110,6 +112,8 @@ export function hqPlusLook(item: HqPlusLogItem): HqPlusLook {
       return look('move', item.open ? [MOVE] : [{ label: 'CHAT', tone: 'chat' }])
     case 'wait':
       return look('move', item.open ? [MOVE] : [{ label: 'NOTES', tone: 'bg' }])
+    case 'conversation':
+      return conversationLook(item)
     case 'bell':
       break
   }
@@ -127,6 +131,28 @@ export function hqPlusLook(item: HqPlusLogItem): HqPlusLook {
     return look('move', moveIfOpen([{ label: 'HANDOFF', tone: 'chat' }]))
   }
   return look('bg', [bgTag(bellKind)])
+}
+
+/** Custom build (hq-ledger-feed): a conversation by its place — `slack:…`, `clickup:…`, `gitlab:…`. */
+export function hqPlusSourceOfKey(key: string): HqPlusSource {
+  const prefix = key.split(':')[0]
+  return prefix === 'clickup' || prefix === 'gmail' || prefix === 'gitlab' ? prefix : 'slack'
+}
+
+/** Custom build (hq-ledger-feed): the owner's move while a folded card asks him; a «No answer»
+ *  reminder or a note alone only tells. */
+function conversationLook(item: Extract<HqPlusLogItem, { kind: 'card' }>): HqPlusLook {
+  const source = hqPlusSourceOfKey(item.conversation?.key ?? '')
+  const moves = (item.conversation?.parts ?? []).some((part) => {
+    const look = hqPlusLook(part)
+    return look.kind !== 'bg' && !look.fyi
+  })
+  return {
+    kind: 'inbox',
+    badges: moves ? [MOVE, SOURCE_BADGE[source]] : [SOURCE_BADGE[source]],
+    source,
+    fyi: item.open && !moves
+  }
 }
 
 /** «Waiting on you» holds only what needs the owner's click; FYI and reminders live elsewhere. */

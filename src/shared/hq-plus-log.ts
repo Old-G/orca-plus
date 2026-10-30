@@ -17,8 +17,8 @@ import { HQ_WAITING_REPLY_KIND, readHqWaitingReplyRef } from './hq-waiting-reply
 import { HQ_REPORT_BELL_KIND } from './hq-reports'
 import { parseHqPlusReport, type HqPlusReport } from './hq-plus-screen'
 import { HQ_REMIND_KIND } from './hq-remind'
-import { HQ_DEFERRED_KIND } from './hq-morning-briefing'
 import { HQ_CHAT_EFFORT_KIND, HQ_OWNER_DECISION_KIND } from './hq-ladder'
+import type { HqPlusConversation } from './hq-plus-conversations'
 
 /** HQ+ itself, in a room or above them: an item every room's view shows. */
 export const HQ_PLUS_ANY_ROOM = '_all'
@@ -26,8 +26,16 @@ export const HQ_PLUS_ANY_ROOM = '_all'
 /** What the owner answered by hand on a card, kept in the bell's done action. */
 export const HQ_PLUS_REPLY_ACTION = 'reply:'
 
-/** `bell`: any other bell item the feed shows instead of a popup, with the item's own buttons. */
-export type HqPlusCardType = 'move' | 'approve' | 'reply' | 'wait' | 'report' | 'bell'
+/** `bell`: any other bell item the feed shows instead of a popup, with the item's own buttons.
+ *  `conversation`: Custom build (hq-ledger-feed) — one Slack thread, task or MR with its cards folded in. */
+export type HqPlusCardType =
+  | 'move'
+  | 'approve'
+  | 'reply'
+  | 'wait'
+  | 'report'
+  | 'bell'
+  | 'conversation'
 
 const HQ_PLUS_BELL_REPLACED = 'replaced'
 
@@ -86,6 +94,8 @@ export type HqPlusLogItem =
       inbox: PulseInboxItem | null
       /** Custom build (hq-closed-loop): the background job a card is from; its answer goes to the job. */
       job?: string | null
+      /** Custom build (hq-ledger-feed): the conversation a `conversation` card stands for. */
+      conversation?: HqPlusConversation
     })
 
 export type HqPlusCard = Extract<HqPlusLogItem, { kind: 'card' }>
@@ -102,9 +112,9 @@ export const HQ_PLUS_CARD_KINDS: ReadonlySet<string> = new Set([
   PULSE_BELL_KIND.handoff,
   HQ_SLACK_REQUEST_BELL_KIND,
   HQ_INTAKE_KIND,
-  // Custom build (hq-plus-ui-v2): reminders and deferred sessions are background lines with buttons.
-  HQ_REMIND_KIND,
-  HQ_DEFERRED_KIND
+  // Custom build (hq-plus-ui-v2): reminders are background lines with buttons. Custom build
+  // (hq-ledger-feed): «N chats went quiet» left the feed — the chat list shows those chats.
+  HQ_REMIND_KIND
 ])
 
 /** The chat and project a bell item names, so its card sits in its room and can be answered. */
@@ -139,6 +149,10 @@ function refProject(refId: string | null): string | null {
 
 /** What «Not now» is kept under: the bell item when there is one, as a journal row may replace the card. */
 export function hqPlusNotNowKey(card: HqPlusCard): string {
+  // Custom build (hq-ledger-feed): a conversation is put off whole, whichever card leads it.
+  if (card.type === 'conversation') {
+    return card.id
+  }
   return card.inbox ? `inbox:${card.inbox.id}` : card.id
 }
 
