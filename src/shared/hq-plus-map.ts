@@ -1,15 +1,11 @@
-// Custom build (hq-plus-map): what HQ+'s Map layout draws and how its Feed sorts rows into tabs. The map
-// is one room's hub with its sources (Slack, ClickUp, mail, GitLab) feeding the projects, and each
-// project unfolds into the people it waits on, its chats and the talks that wait on the owner. The feed
-// keeps one card per conversation in All · Your move · Waiting · FYI · Done and leaves service rows out.
+// Custom build (hq-plus-map): what HQ+'s Map layout draws — one room's hub with its sources (Slack,
+// ClickUp, mail, GitLab) feeding the projects, each project unfolding into the talks that wait on the
+// owner, the people it waits on and its chats — and which rows wait on the owner there.
 import { hqPlusIsFyi, hqPlusLook, hqPlusNeedsOwner, hqPlusSourceOfKey } from './hq-plus-kinds'
 import type { HqPlusSource } from './hq-plus-kinds'
 import type { HqPlusLogItem } from './hq-plus-log'
 
-export const HQ_PLUS_MAP_FEED_TABS = ['all', 'you', 'wait', 'fyi', 'done'] as const
-export type HqPlusMapFeedTab = (typeof HQ_PLUS_MAP_FEED_TABS)[number]
-
-/** Where a row stands in the new feed; null keeps it off the feed (a chat's turn, a journal row, a
+/** Where a row stands for the map's «Your move»; null keeps it out (a chat's turn, a journal row, a
  *  decided Approve, a reminder alone) — the map and the chat list show those. */
 export function hqPlusMapFeedPlace(item: HqPlusLogItem): 'you' | 'fyi' | 'done' | 'other' | null {
   if (item.kind === 'line') {
@@ -28,17 +24,6 @@ export function hqPlusMapFeedPlace(item: HqPlusLogItem): 'you' | 'fyi' | 'done' 
     return null
   }
   return 'done'
-}
-
-/** The rows of one tab, in feed order; Waiting is the waits list, not rows. */
-export function hqPlusMapFeedRows(
-  items: readonly HqPlusLogItem[],
-  tab: HqPlusMapFeedTab
-): HqPlusLogItem[] {
-  return items.filter((item) => {
-    const place = hqPlusMapFeedPlace(item)
-    return place !== null && (tab === 'all' || place === tab)
-  })
 }
 
 /** The source a row came from, if it came from outside. */
@@ -105,6 +90,8 @@ export type HqPlusMapModel = {
 export const HQ_PLUS_MAP_UNSORTED = 'Unsorted'
 const SOURCE_ORDER: readonly HqPlusSource[] = ['slack', 'clickup', 'gmail', 'gitlab']
 const TALKS_PER_PROJECT = 8
+/** The chats a project unfolds into; its card lists them all. */
+const CHATS_PER_PROJECT = 6
 const CHAT_ORDER: readonly HqPlusMapChatState[] = ['asks', 'working', 'done', 'quiet']
 /** Where HQ's own rows and waits with no project stand. */
 const HQ_OWN = 'HQ'
@@ -220,7 +207,7 @@ export function hqPlusMapModel(input: {
     const projectChats = (chats.get(project) ?? []).toSorted(
       (a, b) => CHAT_ORDER.indexOf(a.state) - CHAT_ORDER.indexOf(b.state)
     )
-    for (const chat of projectChats) {
+    for (const chat of projectChats.slice(0, CHATS_PER_PROJECT)) {
       project.leaves.push({
         kind: 'chat',
         key: `chat:${chat.key}`,
