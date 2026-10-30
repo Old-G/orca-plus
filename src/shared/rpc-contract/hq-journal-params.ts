@@ -134,6 +134,12 @@ export const HqFeedParams = z.object({
   limit: OptionalPositiveInt
 })
 
+// Custom build (hq-ledger-feed): the owner fixes a conversation's project from its card's chip.
+export const HqConversationProjectParams = z.object({
+  key: requiredString('A conversation key is required'),
+  project: requiredString('A project is required')
+})
+
 // Custom build (hq-closed-loop): a background job's report — what it found, what it asks the owner,
 // what it did by itself. Not a chat, so no caller: the job names itself and, when it has one, the project.
 export const HqJobParams = z

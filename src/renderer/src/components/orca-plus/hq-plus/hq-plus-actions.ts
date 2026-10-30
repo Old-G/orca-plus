@@ -9,9 +9,9 @@ import { startHqChatWithPrompt, startHqReportDecisions } from '../hq/hq-ask-chat
 import { hqPlusCall } from './use-hq-plus-data'
 import { hqResultField } from '../../../../../shared/hq-plus-rpc-readers'
 import { readPulseBellPaneRef, type PulseBellPaneRef } from '../../../../../shared/pulse-bell'
-import { parsePaneKey } from '../../../../../shared/stable-pane-id'
-import { sendBracketedPasteToRunningAgent } from '@/lib/agent-paste-draft'
-import { sendPromptWithGuardedPasteAndEnter } from '@/lib/active-agent-note-send-delivery'
+import { parsePaneKey } from '../../../../../shared/workspace-layout/stable-pane-id'
+import { sendBracketedPasteToRunningAgent } from '@/lib/agent-session/messaging/paste/agent-paste-draft'
+import { sendPromptWithGuardedPasteAndEnter } from '@/lib/agent-session/messaging/terminal/active-agent-note-send-delivery'
 import { useAppStore } from '@/store'
 
 export type HqPlusResult = { ok: true } | { ok: false; message: string }
@@ -338,7 +338,12 @@ export function canFinishHqPlusCard(card: HqPlusCard): boolean {
   return card.type !== 'approve' && (card.type === 'wait' || card.inbox !== null)
 }
 
-export function finishHqPlusCard(card: HqPlusCard): Promise<HqPlusResult> {
+export async function finishHqPlusCard(card: HqPlusCard): Promise<HqPlusResult> {
+  // Custom build (hq-ledger-feed): a conversation is done when every card folded into it is.
+  if (card.type === 'conversation') {
+    const results = await Promise.all((card.conversation?.parts ?? []).map(finishHqPlusCard))
+    return results.find((result) => !result.ok) ?? { ok: true }
+  }
   return card.type === 'wait' ? closeHqPlusWait(card, 'resolved') : markHqPlusDone(card, 'done')
 }
 
