@@ -16,7 +16,15 @@ import type {
 } from '../../../shared/pulse-types'
 import type { OutgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
 import { liveSessionOf } from './pulse-chat-chain'
-import { ingestLedgerSignal, listLedgerConversations, setConversationChat } from './pulse-ledger'
+import {
+  ingestLedgerSignal,
+  lastLedgerDirection,
+  ledgerHasSlackMessage,
+  listLedgerConversations,
+  setConversationChat,
+  setLedgerGuess,
+  type HqLedgerGuess
+} from './pulse-ledger'
 import type { HqLedgerSignal } from '../../../shared/hq-ledger'
 import { PulseCore, type PulseClock } from './pulse-core'
 import {
@@ -126,6 +134,18 @@ export class PulseDb {
 
   listLedgerConversations(since?: number) {
     return listLedgerConversations(this.core, since)
+  }
+
+  lastLedgerDirection(key: string) {
+    return lastLedgerDirection(this.core, key)
+  }
+
+  setLedgerGuess(conversationId: string, guess: HqLedgerGuess): void {
+    setLedgerGuess(this.core, conversationId, guess)
+  }
+
+  ledgerHasSlackMessage(channel: string, ts: string): boolean {
+    return ledgerHasSlackMessage(this.core, channel, ts)
   }
 
   /** The raw row, for tests and the replay script. */

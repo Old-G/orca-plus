@@ -63,6 +63,8 @@ export type TextGenerationOperation =
   | 'hq-clickup-triage'
   // Custom build (hq-slack-intake): which project a 👾-marked Slack message belongs to.
   | 'hq-slack-intake'
+  // Custom build (hq-request-ledger): a new conversation's project, whose move and gist.
+  | 'hq-ledger-guess'
   // Custom build (hq-plus-person-replies): whether a person's answer may go to the asking chat by itself.
   | 'hq-reply-routing'
 
