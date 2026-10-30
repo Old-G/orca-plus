@@ -287,3 +287,18 @@ describe('ledger guess and last word', () => {
     })
   })
 })
+
+describe('ledger cards', () => {
+  it('lists Slack conversations on the owner with the people’s last messages, not the ones a chat waits in', () => {
+    const db = openDb()
+    db.ingestLedgerSignal(signal({ text: 'look', ts: '1700000001.000000' }))
+    db.ingestLedgerSignal(signal({ fromOwner: true, ts: '1700000002.000000', forOwner: false }))
+    db.ingestLedgerSignal(signal({ text: 'and this', ts: '1700000003.000000' }))
+    const [card] = db.listLedgerCards(0)
+    expect(card?.messages.map((m) => m.text)).toEqual(['look', 'and this'])
+    const other = 'slack:C0123HUBXY:1700000100.000100'
+    db.addWaiting({ direction: 'on-them', title: 'Asked Ann', source: 'slack', sourceRef: other })
+    db.ingestLedgerSignal(signal({ key: other, ts: '1700000101.000000' }))
+    expect(db.listLedgerCards(0).map((c) => c.key)).toEqual([THREAD])
+  })
+})
