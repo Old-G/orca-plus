@@ -106,6 +106,8 @@ export const LOCAL_STORAGE_MODULE_DISPOSITIONS: Record<string, WslMoveFieldDispo
       'src/renderer/src/components/orca-plus/hq-plus/HqPlusFeedBar.tsx',
       'src/renderer/src/components/orca-plus/hq-plus/hq-plus-dismissed.ts',
       'src/renderer/src/components/orca-plus/hq-plus/hq-plus-flavor.ts',
+      'src/renderer/src/components/orca-plus/hq-plus/hq-plus-layout.ts',
+      'src/renderer/src/components/orca-plus/hq-plus/hq-plus-map-view.ts',
       'src/renderer/src/components/orca-plus/hq-plus/hq-plus-not-now.ts',
       'src/renderer/src/components/orca-plus/hq-plus/hq-plus-panel-widths.ts',
       'src/renderer/src/components/orca-plus/hq-plus/hq-plus-view-state.ts',
