@@ -2,7 +2,7 @@
 // moves that start work from it: an HQ chat on it, the proposals accepted, the Codex fixes run now.
 import { useState } from 'react'
 import { HqPlusText } from './HqPlusText'
-import { HqPlusReplyField } from './HqPlusReplyField'
+import { HqPlusComposer } from './HqPlusComposer'
 import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
 import { summarizeHqPlusReport } from '../../../../../shared/hq-plus-screen'
 import { translate } from '@/i18n/i18n'
@@ -146,51 +146,21 @@ export function HqPlusReportBody({
         </div>
       ) : null}
       {open && report ? (
-        <form
-          className="hqp-reply"
-          onSubmit={(event) => {
-            event.preventDefault()
-            const words = text.trim()
-            if (words) {
-              run(() => sendHqPlusReport(card, words, hqWorktreeId, 'review'))
-            }
-          }}
-        >
-          <label className="hqp-sr" htmlFor={`hqp-rr-${card.id}`}>
-            {translate('auto.hqPlus.report.replyLabel', 'Decisions on this report')}
-          </label>
-          <HqPlusReplyField
-            id={`hqp-rr-${card.id}`}
-            value={text}
-            disabled={busy}
-            placeholder={translate(
-              'auto.hqPlus.report.replyHintChat',
-              'Decide or ask — «1 да, 2 нет» or a question…'
-            )}
-            onChange={(event) => setText(event.target.value)}
-          />
-          <span className="hqp-to">
-            → {translate('auto.hqPlus.report.toNewChat', 'new HQ chat')}
-          </span>
-          <button
-            type="submit"
-            className="hqp-go"
-            disabled={busy || !text.trim() || !hqWorktreeId}
-            aria-label={translate('auto.hqPlus.send', 'Send')}
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.6"
-              aria-hidden="true"
-            >
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </button>
-        </form>
+        <HqPlusComposer
+          id={`hqp-rr-${card.id}`}
+          label={translate('auto.hqPlus.report.replyLabel', 'Decisions on this report')}
+          value={text}
+          busy={busy}
+          canSend={Boolean(hqWorktreeId)}
+          placeholder={translate(
+            'auto.hqPlus.report.replyHintChat',
+            'Decide or ask — «1 да, 2 нет» or a question…'
+          )}
+          to={translate('auto.hqPlus.report.toNewChat', 'new HQ chat')}
+          sendLabel={translate('auto.hqPlus.send', 'Send')}
+          onChange={setText}
+          onSubmit={() => run(() => sendHqPlusReport(card, text.trim(), hqWorktreeId, 'review'))}
+        />
       ) : null}
     </>
   )
