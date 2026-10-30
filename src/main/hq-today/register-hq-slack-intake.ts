@@ -22,6 +22,7 @@ import {
 import { guessHqIntake } from './hq-slack-intake-suggest'
 import { startHqSlackIntake } from './hq-slack-intake'
 import { generateHqText } from './hq-task-questions'
+import { hqIntakeOfConversation } from './hq-ledger-cards'
 
 const RAISED_LOOKBACK_MS = 8 * 24 * 60 * 60_000
 const ERROR_REPEAT_MS = 60 * 60_000
@@ -102,6 +103,13 @@ export function registerHqSlackIntake(
             : { ok: false, error: 'No HQ folder is set.' }
         }
       }),
+    // Custom build (hq-request-ledger): switched on, the ledger's conversations are the cards.
+    ledgerCards: () =>
+      store.getSettings().hqLedger === 'on'
+        ? runtime
+            .pulseListLedgerCards(Date.now() - RAISED_LOOKBACK_MS)
+            .flatMap((row) => hqIntakeOfConversation(row) ?? [])
+        : null,
     sync: (kind, items) => void runtime.pulseSyncInboxKind(kind, items),
     now: Date.now,
     // Why: a failing poll used to leave cards stale with no word anywhere the owner looks (26.10).

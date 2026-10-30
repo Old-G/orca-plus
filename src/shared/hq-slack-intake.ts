@@ -33,6 +33,11 @@ export type HqIntake = {
   more?: string[]
   /** When the last of them was said, ms. */
   lastAt?: number
+  /** Custom build (hq-request-ledger): the ledger's conversation this card stands for — one card per
+   *  conversation, updated in place while open. */
+  conversationId?: string
+  /** Its newest message's ts. */
+  lastTs?: string
   /** Orca+'s guess at the project, and what is being sent, in one line. */
   repoId: string | null
   project: string | null
@@ -50,7 +55,27 @@ export function hqIntakeVenueLabel(intake: Pick<HqIntake, 'venue' | 'author'>): 
   return intake.venue === 'group' ? 'group DM' : 'channel'
 }
 
+/** Custom build (hq-request-ledger): a conversation's card key; its newest message makes it new once
+ *  the owner handled the one before. */
+export function hqConversationCardPrefix(conversationId: string): string {
+  return `${HQ_INTAKE_KIND}:conv:${conversationId}:`
+}
+
 export function hqIntakeBellItem(intake: HqIntake): PulseBellInput {
+  if (intake.conversationId) {
+    const prefix = hqConversationCardPrefix(intake.conversationId)
+    return {
+      kind: HQ_INTAKE_KIND,
+      title: `${intake.author}: ${intake.summary}`,
+      body: intake.text.slice(0, 600),
+      urgency: 'urgent',
+      refKind: 'slack-message',
+      refId: JSON.stringify(intake),
+      actions: [{ id: HQ_INTAKE_OPEN_ACTION, label: 'To work' }],
+      dedupeKey: `${prefix}${intake.lastTs ?? intake.ts}`,
+      replaces: prefix
+    }
+  }
   return {
     kind: HQ_INTAKE_KIND,
     title:
@@ -110,6 +135,8 @@ export function readHqIntake(refId: string | null): HqIntake | null {
     ...(typeof Reflect.get(raw, 'lastAt') === 'number'
       ? { lastAt: Number(Reflect.get(raw, 'lastAt')) }
       : {}),
+    ...(text(raw, 'conversationId') ? { conversationId: text(raw, 'conversationId') ?? '' } : {}),
+    ...(text(raw, 'lastTs') ? { lastTs: text(raw, 'lastTs') ?? '' } : {}),
     repoId: text(raw, 'repoId'),
     project: text(raw, 'project'),
     summary: text(raw, 'summary') ?? ''

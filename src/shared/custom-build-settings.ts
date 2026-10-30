@@ -48,9 +48,10 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqPlusFeedInsteadOfPopups?: boolean
     /** Custom build (hq-plus-journal): HQ+'s journal follows Orca+'s records; off stops it. Default on. */
     hqPlusJournalEnabled?: boolean
-    /** Custom build (hq-request-ledger): the request ledger — off, or in shadow (reads the cards into
-     *  conversations beside them, changes nothing shown). Default shadow. */
-    hqLedger?: 'off' | 'shadow'
+    /** Custom build (hq-request-ledger): the request ledger — off, in shadow (reads the cards into
+     *  conversations beside them, changes nothing shown) or on (one card per Slack conversation in
+     *  place of the mention cards). Default shadow. */
+    hqLedger?: 'off' | 'shadow' | 'on'
     /** Custom build (hq-plus-sessions): the session dispatcher is off, only writes what it would do,
      *  or continues, opens and queues chats itself; default report. */
     hqSessionDispatcher?: 'off' | 'report' | 'on'
