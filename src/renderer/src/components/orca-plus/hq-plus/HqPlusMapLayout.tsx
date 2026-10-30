@@ -6,7 +6,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { HqPlusLogItem } from '../../../../../shared/hq-plus-log'
 import {
-  HQ_PLUS_MAP_UNSORTED,
   hqPlusMapFeedPlace,
   hqPlusMapModel,
   type HqPlusMapChatState,
@@ -16,7 +15,8 @@ import type { HqChatGroup, HqChatItem } from '../hq/hq-chat-list'
 import type { HqPlusLogContext } from './HqPlusLog'
 import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
 import { HqPlusMap, type HqPlusMapPick } from './HqPlusMap'
-import { HqPlusMapDock, hqPlusItemTitle, type HqPlusMapDockPick } from './HqPlusMapDock'
+import { HqPlusMapDock, type HqPlusMapDockPick } from './HqPlusMapDock'
+import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusMapSheet } from './HqPlusMapSheet'
 import { trunc } from './hq-plus-map-geometry'
 import { HqPlusMapCrumbs, type HqPlusMapCrumb } from './HqPlusLayoutSwitch'
@@ -32,6 +32,13 @@ type Pick = HqPlusMapDockPick
 
 const CHAT_STATE: Record<HqChatGroup, HqPlusMapChatState> = {
   needs: 'asks',
+  working: 'working',
+  done: 'done',
+  quiet: 'quiet'
+}
+
+const CHAT_STATE_LABEL: Record<HqPlusMapChatState, string> = {
+  asks: 'asks you',
   working: 'working',
   done: 'done',
   quiet: 'quiet'
@@ -68,6 +75,11 @@ export type HqPlusMapLayoutProps = {
   /** The room's open chats. */
   chats: readonly HqChatItem[]
   slugOfChat: (item: HqChatItem) => string
+  /** × on a chat: closes its tab (History keeps it); null for a row that is not a chat. */
+  closerOf: (item: HqChatItem) => HqPlusChatCloser | null
+  /** The docked panel's width, shared with the Feed's right panel (owner, 31.10). */
+  panelWidth: number
+  onPanelWidth: (width: number) => void
   ctx: HqPlusLogContext
   queue: HqPlusQueueActions
   /** The chat on view in the panel's Session tab; null when another tab or the card shows. */
@@ -169,9 +181,9 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
     }
     props.showCard()
   }
-  const pickItem = (id: string): void => {
+  const pickChats = (): void => {
     reveal()
-    setPick({ kind: 'item', id })
+    setPick({ kind: 'chats' })
   }
 
   // Esc closes the top layer: the file or browser, the chat (back to the card), then the card.
@@ -203,18 +215,7 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
   }, [layers.overlay, layers.chat, layers.pick])
 
   const mapPick: HqPlusMapPick | null =
-    pick?.kind === 'project' || pick?.kind === 'leaf'
-      ? pick
-      : pick?.kind === 'item'
-        ? (() => {
-            const project = model.projects.find((candidate) =>
-              candidate.leaves.some((leaf) => leaf.kind === 'talk' && leaf.itemId === pick.id)
-            )
-            return project
-              ? { kind: 'leaf' as const, slug: project.slug, key: `talk:${pick.id}` }
-              : null
-          })()
-        : null
+    pick?.kind === 'project' || pick?.kind === 'leaf' ? pick : null
 
   const home = (): void => {
     setPick(null)
@@ -248,12 +249,8 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
         go: null
       })
     }
-  } else if (pick?.kind === 'item') {
-    const item = itemById.get(pick.id)
-    if (item) {
-      crumbs.push({ id: 'project', label: item.project ?? HQ_PLUS_MAP_UNSORTED, go: null })
-      crumbs.push({ id: 'item', label: trunc(hqPlusItemTitle(item), 40), go: null })
-    }
+  } else if (pick?.kind === 'chats') {
+    crumbs.push({ id: 'chats', label: 'Open chats', go: null })
   }
   if (chat) {
     crumbs.push({
@@ -274,7 +271,10 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
       model={model}
       itemById={itemById}
       youItems={youItems}
-      chatByKey={chatByKey}
+      chats={chats}
+      slugOfChat={props.slugOfChat}
+      stateOfChat={(item) => CHAT_STATE_LABEL[CHAT_STATE[item.group]]}
+      closerOf={props.closerOf}
       ctx={props.ctx}
       queue={props.queue}
       waits={waits}
@@ -282,7 +282,6 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
       openInOrca={props.openInOrca}
       now={now}
       showChat={props.showChat}
-      onPickItem={pickItem}
       onPickLeaf={pickLeaf}
       onToFeed={() => setHqPlusLayout('current')}
     />
@@ -302,6 +301,15 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
         <button type="button" className="hqm-you" onClick={props.onYourMove}>
           Your move · {youItems.length}
         </button>
+        {/* Custom build (hq-plus-map): how many chats are open, at a glance; a click lists them with × (owner, 31.10). */}
+        <button
+          type="button"
+          className="hqm-chats"
+          aria-pressed={pick?.kind === 'chats'}
+          onClick={pickChats}
+        >
+          Chats · {chats.length}
+        </button>
         <span className="hqp-spacer" />
         {props.tail}
       </header>
@@ -317,6 +325,10 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
             camera={saved.camera}
             now={now}
             chats={chatByKey}
+            closerOfChat={(key) => {
+              const item = chatByKey.get(key)
+              return item ? props.closerOf(item) : null
+            }}
             onCamera={rememberCamera}
             onPickProject={pickProject}
             onPickLeaf={pickLeaf}
@@ -330,10 +342,18 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
             <p className="hqm-empty-map">Nothing in this room yet.</p>
           ) : null}
           <HqPlusMapSheet
-            place={dock}
+            // Why: docked, the panel is the Feed's right panel and keeps its width both ways; dragged
+            // out over the map it is a window of its own size.
+            place={dock.float ? dock : { ...dock, width: props.panelWidth }}
             folded={dockFolded}
             foldedLabel={props.cardShown ? 'Card' : chat ? 'Chat' : 'Panel'}
-            onPlace={setDock}
+            onPlace={(place) => {
+              // Why: docking a dragged-out panel brings back the shared width, not the window's own.
+              if (!place.float && !dock.float) {
+                props.onPanelWidth(place.width)
+              }
+              setDock(place)
+            }}
             onFold={setDockFolded}
           >
             <div className="hqp-ctx hqm-ctx">
