@@ -171,7 +171,7 @@
 }
 .hqp-rooms {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 .hqp-room {
@@ -1368,6 +1368,40 @@
 .hqp-txt-l[data-bullet='true']::before {
   content: '· ';
   color: var(--hqp-faint);
+}
+/* Custom build (hq-plus-map): a labelled line — what was done reads quieter, what is asked stands out */
+.hqp-txt-k {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 0 6px;
+  border-radius: 5px;
+  border: 1px solid var(--hqp-line);
+  font-family: var(--hqp-mono);
+  font-size: 10px;
+  line-height: 16px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+  color: var(--hqp-faint);
+}
+.hqp-txt-l[data-label='done'] {
+  color: var(--hqp-mute);
+  font-size: 0.95em;
+}
+.hqp-txt-l[data-label='question'] {
+  color: var(--hqp-fg);
+  font-weight: 500;
+}
+.hqp-txt-l[data-label='question'] .hqp-txt-k {
+  border-color: rgba(255, 195, 90, 0.45);
+  color: var(--hqp-amber);
+}
+.hqp-txt-l[data-label='next'] .hqp-txt-k {
+  border-color: rgba(143, 233, 255, 0.4);
+  color: var(--hqp-ice);
+}
+.hqp-txt-l[data-label] + .hqp-txt-l[data-label] {
+  margin-top: 4px;
 }
 /* chat: a card with a thin line */
 .hqp-chatc {
@@ -2750,9 +2784,9 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   align-items: center;
 }
 .hqp-room-more {
-  width: 22px;
+  width: 24px;
   height: 26px;
-  margin-left: -6px;
+  margin-left: 2px;
   border: 0;
   border-radius: 8px;
   background: none;
@@ -2976,11 +3010,14 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 .hqp-side-row {
   display: flex;
   align-items: center;
+  /* Custom build (hq-plus-map): a narrow column moves the buttons under the title, never over it. */
+  flex-wrap: wrap;
   gap: 6px;
   min-width: 0;
 }
 .hqp-side-row > .hqp-side-fold {
-  flex: 1 1 auto;
+  flex: 1 0 auto;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -3511,14 +3548,33 @@ button.hqp-chat-name[data-opens='true']:hover {
   background: transparent;
   color: var(--hqp-mute);
 }
+/* Custom build (hq-plus-map): who said it at a glance — the owner in ice, the person in green */
+.hqp-msg {
+  border-left: 3px solid rgba(95, 224, 160, 0.55);
+}
+.hqp-msg[data-out='true'] {
+  border-left-color: rgba(143, 233, 255, 0.45);
+}
 .hqp-msg .who {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.hqp-msg .who b {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hqp-green);
+}
+.hqp-msg[data-out='true'] .who b {
+  color: var(--hqp-ice);
+}
+.hqp-msg .who time {
   font-family: var(--hqp-mono);
   font-size: 10.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--hqp-faint);
 }
-.hqp-proj {
+/* Custom build (hq-plus-map): its own name — «hqp-proj» is the Project panel's, which it squeezed to 220px */
+.hqp-projchip {
   font: inherit;
   font-size: 12px;
   color: var(--hqp-fg);
@@ -3532,7 +3588,7 @@ button.hqp-chat-name[data-opens='true']:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.hqp-proj[data-guess='true'] {
+.hqp-projchip[data-guess='true'] {
   border-style: dashed;
   color: var(--hqp-mute);
 }

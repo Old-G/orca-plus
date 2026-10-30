@@ -3,8 +3,8 @@
 import { clampSidebarResizeWidth } from '@/hooks/useSidebarResize'
 
 export const HQ_PLUS_PANEL = {
-  left: { key: 'orca-plus.hq-plus-left-width', min: 200, max: 420, initial: 260 },
-  right: { key: 'orca-plus.hq-plus-right-width', min: 320, max: 720, initial: 420 }
+  left: { key: 'orca-plus.hq-plus-left-width', min: 200, max: 560, initial: 260 },
+  right: { key: 'orca-plus.hq-plus-right-width', min: 320, max: 1200, initial: 420 }
 } as const
 
 export type HqPlusPanelSide = keyof typeof HQ_PLUS_PANEL
