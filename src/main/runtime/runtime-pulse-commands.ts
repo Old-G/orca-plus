@@ -2,6 +2,7 @@
 // opens on first use, so a user who never touches these features never gets the file.
 import type { HqLedgerResult, HqLedgerSignal } from '../../shared/hq-ledger'
 import type { HqConversationRow, HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
+import type { HqLedgerCardRow } from '../orca-plus/pulse/pulse-ledger-cards'
 import type {
   PulseAddResult,
   PulseDecision,
@@ -212,6 +213,11 @@ export class RuntimePulseCommands {
   /** Custom build (hq-request-ledger): the small model's project, move and gist for a conversation. */
   pulseSetLedgerGuess(conversationId: string, guess: HqLedgerGuess): void {
     this.db().setLedgerGuess(conversationId, guess)
+  }
+
+  /** Custom build (hq-request-ledger): Slack conversations waiting on the owner, for their cards. */
+  pulseListLedgerCards(since: number): HqLedgerCardRow[] {
+    return this.db().listLedgerCards(since)
   }
 
   /** Custom build (hq-request-ledger): whether a Slack message reached the ledger. */
