@@ -94,7 +94,7 @@ describe('Slack ledger reader', () => {
     ])
   })
 
-  it('takes the small model’s project, move and gist for a new conversation', async () => {
+  it('takes the small model’s project and gist, but not «fyi» over a DM to the owner', async () => {
     const { db, deps } = setup([message({ channel: 'D0123HUBXY', threadTs: null, dm: true })], {
       project: 'acme-hub',
       how: 'model',
@@ -104,7 +104,7 @@ describe('Slack ledger reader', () => {
     await runHqSlackLedgerReader(deps, { cursor: 0, delays: [] })
     expect(db.listLedgerConversations()[0]).toMatchObject({
       project: 'acme-hub',
-      state: 'fyi',
+      state: 'you',
       title: 'Спасибо за вчера'
     })
   })

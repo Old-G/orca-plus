@@ -295,7 +295,9 @@ export type HqLedgerGuess = {
 }
 
 /** The small model's read of a new conversation: its project (marked as a guess), whose move, its
- *  gist as the title. A project already known and a state other than you/fyi stay as they are. */
+ *  gist as the title (the sender's own words stay in its messages). A known project stays; the model
+ *  may only raise «for information» to «your move» — never hide what a rule said waits on the owner,
+ *  since the text it reads is written by others. */
 export function setLedgerGuess(
   core: PulseCore,
   conversationId: string,
@@ -307,7 +309,7 @@ export function setLedgerGuess(
          project_how = CASE WHEN project IS NULL AND ? IS NOT NULL THEN ? ELSE project_how END,
          project = COALESCE(project, ?),
          title = COALESCE(?, title),
-         state = CASE WHEN state IN ('you', 'fyi') THEN ? ELSE state END
+         state = CASE WHEN state = 'fyi' AND ? = 'you' THEN 'you' ELSE state END
        WHERE id = ?`
     )
     .run(guess.project, guess.how, guess.project, guess.gist, guess.state, conversationId)
