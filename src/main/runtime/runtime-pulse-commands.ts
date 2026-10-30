@@ -1,5 +1,6 @@
 // Custom build (pulse): the runtime face of orca-plus-pulse.db for the pulse.* RPC. The database
 // opens on first use, so a user who never touches these features never gets the file.
+import type { HqLedgerSignal } from '../../shared/hq-ledger'
 import type {
   PulseAddResult,
   PulseDecision,
@@ -181,6 +182,15 @@ export class RuntimePulseCommands {
 
   pulseMarkInboxDone(id: string, action?: string): PulseInboxItem {
     return this.db().markInboxDone(id, action)
+  }
+
+  /** Custom build (hq-request-ledger): one message into its conversation. */
+  pulseIngestLedger(signal: HqLedgerSignal): void {
+    this.db().ingestLedgerSignal(signal)
+  }
+
+  pulseListLedgerConversations(since?: number): { state: string }[] {
+    return this.db().listLedgerConversations(since)
   }
 
   /** Custom build (hq-plus-journal): main's journal adapters write here; agents read via hq.events. */
