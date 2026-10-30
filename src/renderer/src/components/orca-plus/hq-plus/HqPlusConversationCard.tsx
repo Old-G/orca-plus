@@ -69,8 +69,10 @@ function Message({ message }: { message: HqFeedMessage }): React.JSX.Element {
     : message.text
   return (
     <div className="hqp-msg" data-out={out ? 'true' : undefined}>
+      {/* Custom build (hq-plus-map): the name in its own colour, the time quiet beside it. */}
       <span className="who">
-        {who} · {clock(message.at)}
+        <b>{who}</b>
+        <time>{clock(message.at)}</time>
       </span>
       <HqPlusText text={said} maxLines={out ? 2 : 4} />
     </div>
@@ -90,13 +92,13 @@ function ProjectChip({
   const [error, setError] = useState<string | null>(null)
   const label = card.project ?? translate('auto.hqPlus.conv.noProject', 'No project')
   if (!conversation) {
-    return <span className="hqp-proj">{label}</span>
+    return <span className="hqp-projchip">{label}</span>
   }
   if (slugs) {
     return (
       <span className="hqp-proj-pick">
         <select
-          className="hqp-proj"
+          className="hqp-projchip"
           autoFocus
           defaultValue={card.project ?? ''}
           aria-label={translate('auto.hqPlus.conv.pickProject', 'Project of this conversation')}
@@ -134,7 +136,7 @@ function ProjectChip({
   return (
     <button
       type="button"
-      className="hqp-proj"
+      className="hqp-projchip"
       data-guess={conversation.guessed || !card.project ? 'true' : undefined}
       title={
         conversation.guessed
