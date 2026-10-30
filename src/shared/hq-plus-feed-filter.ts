@@ -16,7 +16,12 @@ export function hqPlusInFeedFilter(item: HqPlusLogItem, filter: HqPlusFeedFilter
     case 'move':
       return hqPlusNeedsOwner(item)
     case 'waits':
-      return item.kind === 'card' && item.type === 'reply'
+      return (
+        item.kind === 'card' &&
+        (item.type === 'reply' ||
+          // Custom build (hq-ledger-feed): a conversation holding a person's answer.
+          (item.conversation?.parts.some((part) => part.type === 'reply') ?? false))
+      )
     case 'chats': {
       const kind = hqPlusLook(item).kind
       return kind === 'chat' || kind === 'me'
@@ -49,7 +54,12 @@ export function hqPlusMatchesSearch(
       ? [item.text]
       : item.kind === 'line'
         ? [item.title, item.body ?? '', ...(item.earlier ?? []).map((turn) => turn.title)]
-        : [item.title, item.body ?? '', item.report?.ask ?? '']
+        : [
+            item.title,
+            item.body ?? '',
+            item.report?.ask ?? '',
+            ...(item.conversation?.messages ?? []).map((message) => message.text)
+          ]
   return [...words, item.project ?? '', item.address ?? '', person ?? ''].some((text) =>
     text.toLocaleLowerCase().includes(needle)
   )

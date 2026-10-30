@@ -390,7 +390,8 @@ export function HqPlusCardView({
   onChanged,
   expanded,
   onExpand,
-  onToWork
+  onToWork,
+  bare = false
 }: {
   card: Card
   look: HqPlusLook
@@ -413,6 +414,8 @@ export function HqPlusCardView({
   onExpand: (open: boolean) => void
   /** Custom build (hq-plus-ui-v5): «To work» opens the project and chat picker on the right. */
   onToWork: ((item: PulseInboxItem) => void) | null
+  /** Custom build (hq-ledger-feed): only the buttons — a card folded into a conversation's card. */
+  bare?: boolean
 }): React.JSX.Element {
   const setExpanded = onExpand
   const [busy, setBusy] = useState(false)
@@ -434,16 +437,18 @@ export function HqPlusCardView({
   const sourceInActions =
     open &&
     (card.type === 'wait' || ((card.type === 'reply' || card.type === 'bell') && !!card.inbox))
-  const sourceButton = sourceLink ? (
-    <button
-      type="button"
-      className="hqp-opt"
-      data-ghost="true"
-      onClick={(event) => onOpenLink(sourceLink.url, event)}
-    >
-      {sourceLink.label} ↗
-    </button>
-  ) : null
+  // Why: a folded card's conversation names its source once, in its own head.
+  const sourceButton =
+    sourceLink && !bare ? (
+      <button
+        type="button"
+        className="hqp-opt"
+        data-ghost="true"
+        onClick={(event) => onOpenLink(sourceLink.url, event)}
+      >
+        {sourceLink.label} ↗
+      </button>
+    ) : null
   const answerOf = card.type === 'reply' ? readHqWaitingReplyRef(card.inbox?.refId ?? null) : null
   // Custom build (hq-plus-cards): the chat's name opens it, so no separate «Open» stands beside it.
   const chatOpens = Boolean(onOpenChat && chat && (chat.item || chat.name))
@@ -516,7 +521,7 @@ export function HqPlusCardView({
   }
 
   // Custom build (hq-plus-ui-v5): a request waits folded — who and one line; a click unfolds it.
-  if (open && look.kind === 'inbox' && !expanded) {
+  if (open && look.kind === 'inbox' && !expanded && !bare) {
     return (
       <div
         className="hqp-card"
@@ -588,7 +593,7 @@ export function HqPlusCardView({
 
   return (
     <div
-      className="hqp-card"
+      className={bare ? 'hqp-part-acts' : 'hqp-card'}
       data-type={card.type}
       data-look={look.kind}
       data-source={look.source ?? undefined}
@@ -596,8 +601,8 @@ export function HqPlusCardView({
       data-flash={flash ? 'true' : undefined}
     >
       <div className="hqp-cb">
-        {head}
-        {card.type === 'report' ? (
+        {bare ? null : head}
+        {bare ? null : card.type === 'report' ? (
           <HqPlusReportBody
             card={card}
             busy={busy}
@@ -938,7 +943,7 @@ export function HqPlusCardView({
           </form>
         ) : null}
         {error ? <p className="hqp-error">{error}</p> : null}
-        {expanded && (!open || look.kind === 'inbox') ? (
+        {expanded && !bare && (!open || look.kind === 'inbox') ? (
           <div className="hqp-row-f">
             <span className="hqp-spacer" />
             <button type="button" className="hqp-pill" onClick={() => setExpanded(false)}>

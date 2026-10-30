@@ -10,6 +10,7 @@ import {
 } from '../../../shared/hq-ledger'
 import type { PulseCore } from './pulse-core'
 import { closeWaiting } from './pulse-waitings'
+import { ledgerRuleOf } from './pulse-ledger-feed'
 
 /** Why: an answer by DM to a question older than two weeks is rarely to that question. */
 export const HQ_LEDGER_PERSON_WINDOW_MS = 14 * 24 * 60 * 60_000
@@ -163,12 +164,15 @@ export function ingestLedgerSignal(core: PulseCore, signal: HqLedgerSignal): HqL
       }
     }
     if (!conversationId) {
+      const replied = atPlace.find((waiting) => waiting.project)?.project ?? null
+      // Custom build (hq-ledger-feed): the channel's rule the owner set in HQ+, after the reader's own.
+      const ruled = signal.project ?? (replied ? null : ledgerRuleOf(core, signal.key))
       conversationId = createConversation(
         core,
         signal.key,
         signal,
-        signal.project ?? atPlace.find((waiting) => waiting.project)?.project ?? null,
-        signal.project ? 'rule' : atPlace.some((w) => w.project) ? 'reply' : null
+        ruled ?? replied,
+        ruled ? 'rule' : replied ? 'reply' : null
       )
     }
     for (const waiting of atPlace) {

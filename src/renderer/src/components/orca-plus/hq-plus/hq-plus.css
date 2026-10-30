@@ -1286,6 +1286,9 @@
 .hqp-badge[data-tone='gmail'] {
   --hqp-b: var(--hqp-src-gmail);
 }
+.hqp-badge[data-tone='gitlab'] {
+  --hqp-b: var(--hqp-amber);
+}
 .hqp-badge[data-tone='waits'] {
   --hqp-b: var(--hqp-rose);
 }
@@ -1440,6 +1443,9 @@
 }
 .hqp-card[data-look='inbox'][data-source='gmail'] {
   --hqp-src: var(--hqp-src-gmail);
+}
+.hqp-card[data-look='inbox'][data-source='gitlab'] {
+  --hqp-src: var(--hqp-amber);
 }
 .hqp-card[data-look='inbox'] .hqp-cb {
   padding: 4px 12px;
@@ -2379,26 +2385,6 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   border-top: 1px solid var(--hqp-line);
 }
 
-/* Custom build (hq-plus-ui-v5): «chats went quiet with unfinished work» — a line that unfolds. */
-.hqp-dfl {
-  display: block;
-  padding: 0;
-  border-radius: 10px;
-}
-.hqp-dfl-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 1px 6px;
-}
-.hqp-dfl[data-open='true'] {
-  background: var(--hqp-card);
-  border: 1px solid var(--hqp-line);
-}
-.hqp-dfl-body {
-  padding: 6px 10px 10px;
-}
 .hqp-dfr-list {
   list-style: none;
   margin: 0;
@@ -3493,4 +3479,79 @@ button.hqp-chat-name[data-opens='true']:hover {
 }
 .hqp-pgrp:has(> .hqp-pgrp-hist) {
   flex-wrap: wrap;
+}
+
+/* Custom build (hq-ledger-feed): one conversation — its gist, the last messages, the folded cards. */
+.hqp-conv .hqp-cb {
+  gap: 8px;
+}
+.hqp-conv-t {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--hqp-fg);
+}
+.hqp-msgs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hqp-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--hqp-line);
+  background: var(--hqp-soft);
+  font-size: 13px;
+  color: var(--hqp-fg);
+}
+.hqp-msg[data-out='true'] {
+  background: transparent;
+  color: var(--hqp-mute);
+}
+.hqp-msg .who {
+  font-family: var(--hqp-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hqp-faint);
+}
+.hqp-proj {
+  font: inherit;
+  font-size: 12px;
+  color: var(--hqp-fg);
+  background: transparent;
+  border: 1px solid var(--hqp-line);
+  border-radius: 6px;
+  padding: 1px 6px;
+  cursor: pointer;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hqp-proj[data-guess='true'] {
+  border-style: dashed;
+  color: var(--hqp-mute);
+}
+.hqp-proj-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hqp-part {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--hqp-line);
+}
+.hqp-part-l {
+  font-size: 12px;
+  color: var(--hqp-mute);
+}
+.hqp-part-acts .hqp-cb {
+  padding: 0;
 }
