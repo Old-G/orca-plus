@@ -1576,6 +1576,43 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Custom build (hq-plus-all-projects): the project under the chat's name. */
+.hqp-ses-h .hqp-ses-proj {
+  display: block;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--hqp-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hqp-pgrp-hist {
+  flex-basis: 100%;
+  padding: 4px 0 6px 14px;
+}
+.hqp-projchats {
+  display: grid;
+  gap: 2px;
+}
+.hqp-projchats-new {
+  justify-self: start;
+  margin-bottom: 4px;
+}
+.hqp-newchat-back {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-weight: 600;
+  padding: 4px 6px 8px;
+  color: var(--hqp-fg);
+}
+button.hqp-allproj {
+  width: 100%;
+  text-align: left;
+}
+.hqp-allproj-q {
+  width: 100%;
+  margin: 4px 0;
+}
 .hqp-pill[aria-pressed='true'] {
   background: var(--hqp-ice);
   color: var(--hqp-ice-ink);
@@ -3453,4 +3490,7 @@ button.hqp-chat-name[data-opens='true']:hover {
   border-radius: 999px;
   padding: 2px 10px;
   cursor: pointer;
+}
+.hqp-pgrp:has(> .hqp-pgrp-hist) {
+  flex-wrap: wrap;
 }
