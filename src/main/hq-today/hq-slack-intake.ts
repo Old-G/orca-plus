@@ -81,21 +81,27 @@ export type HqSlackIntakeDeps = {
   /** Slack answers to waitings, recent. */
   answers?: () => readonly HqIntakeAnswer[]
   guess: (draft: HqIntakeDraft) => Promise<HqIntakeGuess>
+  /** Custom build (hq-request-ledger): with the ledger on, its conversation cards — they take the
+   *  place of the mention cards; null while it is off or in shadow. */
+  ledgerCards?: () => HqIntake[] | null
   sync: (kind: string, items: readonly PulseBellInput[]) => void
   now: () => number
 }
 
 export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number> {
+  const ledger = deps.ledgerCards?.() ?? null
   const read = await deps.read(async (api) => ({
     marked: await api.marked(),
     // Why: a token without search:read still serves the 👾 marks.
-    mentioned: await api.mentioned(deps.now() - HQ_MENTION_FRESH_MS).catch((error: unknown) => {
-      console.warn(
-        '[hq-slack-intake] mentions not read:',
-        error instanceof Error ? error.message : error
-      )
-      return []
-    })
+    mentioned: ledger
+      ? []
+      : await api.mentioned(deps.now() - HQ_MENTION_FRESH_MS).catch((error: unknown) => {
+          console.warn(
+            '[hq-slack-intake] mentions not read:',
+            error instanceof Error ? error.message : error
+          )
+          return []
+        })
   }))
   // Why: no token or a failed read says nothing about which marks are gone.
   if (read === null) {
@@ -111,6 +117,8 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
     const intake = readHqIntake(payload)
     if (
       intake?.via === 'mention' &&
+      !ledger &&
+      !intake.conversationId &&
       deps.now() - intake.at <= HQ_INTAKE_WINDOW_MS &&
       !answersWaiting(intake, answers)
     ) {
@@ -163,7 +171,7 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
   }
   deps.sync(
     HQ_INTAKE_KIND,
-    [...cards.values()].map((intake) => hqIntakeBellItem(intake))
+    [...cards.values(), ...(ledger ?? [])].map((intake) => hqIntakeBellItem(intake))
   )
   return guessed
 }

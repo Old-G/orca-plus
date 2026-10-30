@@ -9,6 +9,7 @@ import { HqChatCleanupSetting } from './HqChatCleanupSetting'
 import { HqFeedPopupsSetting } from './HqFeedPopupsSetting'
 import { HqJournalSetting } from './HqJournalSetting'
 import { HqSessionDispatcherSetting } from './HqSessionDispatcherSetting'
+import { HqLedgerSetting } from './HqLedgerSetting'
 import { HqPathSetting } from './HqPathSetting'
 import { translate } from '@/i18n/i18n'
 import { GlobalWorktreeVisibilitySourcesSetting } from './GlobalWorktreeVisibilitySourcesSetting'
@@ -49,6 +50,7 @@ export function GeneralWorkspaceSettingsSection({
       <HqJournalSetting settings={settings} updateSettings={updateSettings} />
       <HqFeedPopupsSetting settings={settings} updateSettings={updateSettings} />
       <HqSessionDispatcherSetting settings={settings} updateSettings={updateSettings} />
+      <HqLedgerSetting settings={settings} updateSettings={updateSettings} />
 
       <div
         id={GLOBAL_WORKTREE_VISIBILITY_SETTINGS_TARGET_ID}
