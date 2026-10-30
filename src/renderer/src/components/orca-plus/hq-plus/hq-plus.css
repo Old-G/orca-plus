@@ -436,6 +436,9 @@
   border: 0;
   padding: 0;
   margin-left: 6px;
+  /* Custom build (hq-plus-map): a long address wraps from the left in a narrow card, not centred */
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 .hqp-tg {
   font-family: var(--hqp-mono);
@@ -577,12 +580,16 @@
 }
 .hqp-opt {
   min-height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
+  /* Custom build (hq-plus-map): a long answer wraps as a rounded box read from the left, not a centred
+     pill (owner, 31.10: the map's narrow panel). One line looks as before. */
+  padding: 6px 14px;
+  border-radius: 17px;
   border: 0;
   background: var(--hqp-soft-2);
   color: var(--hqp-fg);
   font-size: 13.5px;
+  line-height: 1.35;
+  text-align: left;
   display: inline-flex;
   gap: 8px;
   align-items: center;
