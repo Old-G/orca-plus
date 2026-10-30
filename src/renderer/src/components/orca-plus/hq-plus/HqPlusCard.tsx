@@ -921,7 +921,6 @@ export function HqPlusCardView({
               placeholder={translate('auto.hqPlus.replyHint', 'Answer, or add to a button…')}
               onChange={(event) => setText(event.target.value)}
             />
-            <span className="hqp-to">→ {card.address ?? card.project ?? ''}</span>
             <button
               type="submit"
               className="hqp-go"
