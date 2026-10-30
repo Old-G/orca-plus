@@ -221,4 +221,42 @@ describe('ledger ingest', () => {
     db.ingestLedgerSignal(signal({}))
     expect(db.listEventsSince(0).some((event) => event.entity === 'conversation')).toBe(true)
   })
+
+  it('a DM that links another task asks instead of attaching', () => {
+    const db = openDb()
+    const bob = db.upsertPerson({ name: 'Bob', slackUserId: 'U_BOB' })
+    db.addWaiting({
+      direction: 'on-them',
+      title: 'Is the MCP project yours?',
+      personId: bob.id,
+      source: 'slack',
+      sourceRef: THREAD
+    })
+    const dm = signal({
+      key: 'slack:D0123BOBXY:1700000020.000000',
+      ts: '1700000020.000000',
+      authorId: 'U_BOB',
+      text: 'it is over here: https://app.clickup.com/t/1/DEV-18421'
+    })
+    expect(db.ingestLedgerSignal(dm).step).toBe('which')
+  })
+
+  it('a bare mention of another task does not stop the person step', () => {
+    const db = openDb()
+    const bob = db.upsertPerson({ name: 'Bob', slackUserId: 'U_BOB' })
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'SIP profile (DEV-18164)',
+      personId: bob.id,
+      source: 'slack',
+      sourceRef: THREAD
+    })
+    const dm = signal({
+      key: 'slack:D0123BOBXY:1700000030.000000',
+      ts: '1700000030.000000',
+      authorId: 'U_BOB',
+      text: 'done, see also DEV-18250'
+    })
+    expect(db.ingestLedgerSignal(dm)).toMatchObject({ step: 'person', waitingIds: [asked.id] })
+  })
 })
