@@ -211,7 +211,14 @@ export type PulseInboxInput = {
 }
 
 // Custom build (hq-plus-journal): journal rows follow the same change feed.
-export type PulseEntity = 'person' | 'waiting' | 'draft' | 'decision' | 'inbox' | 'journal'
+export type PulseEntity =
+  | 'person'
+  | 'waiting'
+  | 'draft'
+  | 'decision'
+  | 'inbox'
+  | 'journal'
+  | 'conversation'
 
 export type PulseEvent = {
   /** Strictly increasing; a reader resumes from the last seq it saw. */
