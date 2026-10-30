@@ -2,6 +2,7 @@ import { defineMethod } from '../core'
 import {
   ChatSendParams,
   HqContextParams,
+  HqConversationProjectParams,
   HqDispatchParams,
   HqEventsParams,
   HqFeedParams,
@@ -324,8 +325,20 @@ export const HQ_JOURNAL_METHODS = [
         entries,
         sessions: addresses.flatMap((address) => runtime.pulseListSessionsByAddress(address)),
         inbox: [...open, ...settled],
-        now: Date.now()
+        now: Date.now(),
+        // Custom build (hq-ledger-feed): what folds the feed's cards by conversation.
+        ledger: runtime.pulseListLedgerFeed(params.since ?? Date.now() - HQ_PLUS_FEED_WINDOW_MS)
       }
+    }
+  }),
+  defineMethod({
+    name: 'hq.conversationProject',
+
+    permission: 'workspace',
+    params: HqConversationProjectParams,
+    handler: async (params, { runtime }) => {
+      runtime.pulseSetLedgerProject(params.key, params.project)
+      return { ok: true }
     }
   }),
   // Custom build (hq-plus-ui): the screen's numbers the journal does not hold.

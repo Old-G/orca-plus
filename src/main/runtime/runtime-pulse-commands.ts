@@ -3,6 +3,7 @@
 import type { HqLedgerResult, HqLedgerSignal } from '../../shared/hq-ledger'
 import type { HqConversationRow, HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import type { HqLedgerCardRow } from '../orca-plus/pulse/pulse-ledger-cards'
+import type { HqFeedLedger } from '../../shared/hq-feed-ledger'
 import type {
   PulseAddResult,
   PulseDecision,
@@ -213,6 +214,16 @@ export class RuntimePulseCommands {
   /** Custom build (hq-request-ledger): the small model's project, move and gist for a conversation. */
   pulseSetLedgerGuess(conversationId: string, guess: HqLedgerGuess): void {
     this.db().setLedgerGuess(conversationId, guess)
+  }
+
+  /** Custom build (hq-ledger-feed): the window's conversations and where each waiting lives. */
+  pulseListLedgerFeed(since: number): HqFeedLedger {
+    return this.db().listLedgerFeed(since)
+  }
+
+  /** Custom build (hq-ledger-feed): the owner's project for a conversation (and its channel). */
+  pulseSetLedgerProject(key: string, project: string): void {
+    this.db().setLedgerProject(key, project)
   }
 
   /** Custom build (hq-request-ledger): Slack conversations waiting on the owner, for their cards. */
