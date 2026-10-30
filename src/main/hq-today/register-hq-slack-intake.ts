@@ -1,6 +1,6 @@
 // Custom build (hq-slack-intake): the 👾 watch and the «To work» card's buttons, wired to Orca+.
 import { ipcMain } from 'electron'
-import { HQ_INTAKE_KIND } from '../../shared/hq-slack-intake'
+import { HQ_INTAKE_KIND, readHqIntake } from '../../shared/hq-slack-intake'
 import { HQ_JOURNAL_ALL_ROOMS } from '../../shared/hq-journal'
 import { hqJobRow } from '../hq-journal/hq-journal-jobs'
 import { parseSlackThreadRef } from '../../shared/hq-waiting-replies'
@@ -143,10 +143,25 @@ export function registerHqSlackIntake(
   )
   ipcMain.handle(
     'hqIntake:close',
-    (_event, itemId: unknown, action: unknown, resolution: unknown) =>
-      closeHqIntake(deps, text(itemId), {
+    (_event, itemId: unknown, action: unknown, resolution: unknown, sessionId: unknown) => {
+      // Custom build (hq-request-ledger): the thread taken into a chat stays with that chat.
+      const chat = text(sessionId)
+      if (action === 'sent' && chat) {
+        const item = runtime
+          .pulseListInbox(true, { kind: HQ_INTAKE_KIND })
+          .find((i) => i.id === text(itemId))
+        const intake = item ? readHqIntake(item.refId) : null
+        if (intake) {
+          runtime.pulseSetConversationChat(
+            `slack:${intake.channel}:${intake.threadTs ?? intake.ts}`,
+            chat
+          )
+        }
+      }
+      return closeHqIntake(deps, text(itemId), {
         action: action === 'sent' ? 'sent' : 'skipped',
         resolution: text(resolution) || 'Handled'
       })
+    }
   )
 }

@@ -98,6 +98,7 @@ export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeServi
   const passDeps = {
     listOpen,
     deliver: deliverWaitingReply,
+    liveChat: (sessionId: string) => runtime.pulseLiveSessionOf(sessionId),
     markDelivered: (id: string, replyTs: string | undefined) =>
       void runtime.pulseMarkWaitingReplyDelivered(id, replyTs)
   }

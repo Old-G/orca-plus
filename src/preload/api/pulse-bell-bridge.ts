@@ -14,8 +14,8 @@ export const pulseBellApi = {
     ipcRenderer.invoke('hqIntake:sendToSession', sessionId, prompt),
   keepIntakeInNotes: (itemId, project, note) =>
     ipcRenderer.invoke('hqIntake:later', itemId, project, note),
-  closeIntake: (itemId, action, resolution) =>
-    ipcRenderer.invoke('hqIntake:close', itemId, action, resolution),
+  closeIntake: (itemId, action, resolution, sessionId) =>
+    ipcRenderer.invoke('hqIntake:close', itemId, action, resolution, sessionId ?? null),
   onChanged: (callback) => {
     const listener = (): void => callback()
     ipcRenderer.on('pulseBell:changed', listener)

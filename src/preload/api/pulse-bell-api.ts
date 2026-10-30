@@ -22,5 +22,11 @@ export type PulseBellApi = {
     project: string | null,
     note: string
   ) => Promise<{ ok: true } | { ok: false; error: string }>
-  closeIntake: (itemId: string, action: 'sent' | 'skipped', resolution: string) => Promise<void>
+  closeIntake: (
+    itemId: string,
+    action: 'sent' | 'skipped',
+    resolution: string,
+    /** Custom build (hq-request-ledger): the chat that took it, so its thread stays with that chat. */
+    sessionId?: string | null
+  ) => Promise<void>
 }

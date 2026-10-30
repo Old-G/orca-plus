@@ -92,7 +92,8 @@ function HqIntakeCard({
       await window.api.pulseBell.closeIntake(
         item.id,
         'sent',
-        `Sent to ${target.kind === 'chat' ? `«${target.chat.title}»` : `a new chat «${target.name}»`}`
+        `Sent to ${target.kind === 'chat' ? `«${target.chat.title}»` : `a new chat «${target.name}»`}`,
+        target.kind === 'chat' ? target.chat.sessionId : null
       )
     }
     return sent

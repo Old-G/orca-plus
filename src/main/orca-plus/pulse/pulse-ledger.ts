@@ -246,6 +246,7 @@ export type HqConversationRow = {
   title: string
   lastAt: number
   messages: number
+  sessionId: string | null
 }
 
 export function listLedgerConversations(core: PulseCore, since = 0): HqConversationRow[] {
@@ -263,6 +264,12 @@ export function listLedgerConversations(core: PulseCore, since = 0): HqConversat
       stateWhy: row.state_why == null ? null : String(row.state_why),
       title: String(row.title),
       lastAt: Number(row.last_at),
-      messages: Number(row.n)
+      messages: Number(row.n),
+      sessionId: row.session_id == null ? null : String(row.session_id)
     }))
+}
+
+/** The chat a conversation was taken into; later messages of its thread belong with it. */
+export function setConversationChat(core: PulseCore, key: string, sessionId: string): void {
+  core.db.prepare('UPDATE conversations SET session_id = ? WHERE key = ?').run(sessionId, key)
 }

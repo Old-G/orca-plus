@@ -30,6 +30,26 @@ function setup(deliverResult = true) {
 }
 
 describe('passHqWaitingReply', () => {
+  it('sends the answer to the chat that took over after a handoff, the asker only as a fallback', async () => {
+    const { deps, deliver, answered } = setup()
+    const waiting = answered({ agentSessionId: 'chat-old' })
+    deliver.mockImplementation(async (w: PulseWaiting) => w.agentSessionId === 'chat-new')
+    const result = await passHqWaitingReply({ ...deps, liveChat: () => 'chat-new' }, waiting.id)
+    expect(result).toEqual({ ok: true })
+    expect(deliver.mock.calls.map((call) => call[0].agentSessionId)).toEqual(['chat-new'])
+  })
+
+  it('falls back to the asking chat when the one that took over is closed', async () => {
+    const { deps, deliver, answered } = setup()
+    const waiting = answered({ agentSessionId: 'chat-old' })
+    deliver.mockImplementation(async (w: PulseWaiting) => w.agentSessionId === 'chat-old')
+    await passHqWaitingReply({ ...deps, liveChat: () => 'chat-new' }, waiting.id)
+    expect(deliver.mock.calls.map((call) => call[0].agentSessionId)).toEqual([
+      'chat-new',
+      'chat-old'
+    ])
+  })
+
   it('hands the answer to the chat once, naming the project, and marks it handled', async () => {
     const { db, deps, deliver, answered } = setup()
     const waiting = answered({ agentSessionId: 'chat-1' })

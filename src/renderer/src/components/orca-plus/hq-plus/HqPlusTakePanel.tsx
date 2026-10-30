@@ -235,7 +235,12 @@ export function HqPlusTakePanel({
     }
     const where = target.kind === 'chat' ? `«${target.chat.title}»` : `a new chat «${target.name}»`
     if (intake) {
-      await window.api.pulseBell.closeIntake(item.id, 'sent', `Sent to ${where}`)
+      await window.api.pulseBell.closeIntake(
+        item.id,
+        'sent',
+        `Sent to ${where}`,
+        target.kind === 'chat' ? target.chat.sessionId : null
+      )
     } else if (draft) {
       await window.api.hqProjects.takeSlackDraft({ id: draft.id })
     }
