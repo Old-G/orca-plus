@@ -17,6 +17,25 @@ export const HQ_LEDGER_PERSON_WINDOW_MS = 14 * 24 * 60 * 60_000
 export const HQ_LEDGER_DM_TALK_MS = 24 * 60 * 60_000
 
 const DM_KEY = /^slack:(D[A-Z0-9]+):/
+const TASK_LINK = /app\.clickup\.com\/t\/(?:\d+\/)?([\w-]+)|merge_requests\/(\d+)/g
+
+/** Tasks and MRs a text links to, e.g. `DEV-18421`, `!314`; a bare mention is not a link. */
+function linkedIn(text: string): Set<string> {
+  return new Set(
+    [...text.matchAll(TASK_LINK)].map((match) => (match[1] ? match[1] : `!${match[2]}`))
+  )
+}
+
+/** Why: a DM that names another task (30.10, «it is over here: DEV-18421») links to is about that task, not
+ *  the one open question to its author. */
+function aboutOtherTask(signal: HqLedgerSignal, waiting: OpenWaiting): boolean {
+  const linked = linkedIn(signal.text)
+  if (linked.size === 0) {
+    return false
+  }
+  const own = `${waiting.title} ${waiting.key ?? ''}`
+  return ![...linked].some((ref) => own.includes(ref))
+}
 
 /** A top-level DM line joins the DM's talk of the last day instead of opening a conversation of one. */
 function dmTalkOf(core: PulseCore, signal: HqLedgerSignal): string | null {
@@ -134,10 +153,12 @@ export function ingestLedgerSignal(core: PulseCore, signal: HqLedgerSignal): HqL
               signal.at - waiting.createdAt <= HQ_LEDGER_PERSON_WINDOW_MS
           )
         : []
-      if (candidates.length === 1) {
+      // Why ask: a link to another task was right once and wrong once in the 30.10 check — the
+      // owner tells which, the ledger does not guess.
+      if (candidates.length === 1 && !aboutOtherTask(signal, candidates[0])) {
         step = 'person'
         conversationId = conversationOfWaiting(core, candidates[0], signal)
-      } else if (candidates.length > 1) {
+      } else if (candidates.length > 0) {
         step = 'which'
       }
     }
