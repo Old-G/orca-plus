@@ -60,3 +60,22 @@ export function listLedgerCards(core: PulseCore, since: number): HqLedgerCardRow
     }))
     .filter((row) => row.messages.length > 0)
 }
+
+/** Custom build (hq-request-ledger): a message the owner sent or skipped from its card is handled —
+ *  its conversation is no longer his move, unless someone wrote after it. */
+export function settleLedgerMessage(core: PulseCore, ts: string): void {
+  const rows = core.db
+    .prepare(
+      `SELECT c.id FROM conversations c JOIN conversation_messages m ON m.conversation_id = c.id
+        WHERE c.state = 'you' AND m.ts = ? AND m.direction = 'in'
+          AND NOT EXISTS (SELECT 1 FROM conversation_messages n WHERE n.conversation_id = c.id
+                            AND n.direction = 'in' AND n.at > m.at)`
+    )
+    .all(ts)
+  for (const row of rows) {
+    core.db
+      .prepare(`UPDATE conversations SET state = 'fyi', state_why = NULL WHERE id = ?`)
+      .run(String(row.id))
+    core.emit('conversation.updated', 'conversation', String(row.id), { state: 'fyi' })
+  }
+}
