@@ -25,7 +25,7 @@ import {
   setLedgerGuess,
   type HqLedgerGuess
 } from './pulse-ledger'
-import { listLedgerCards } from './pulse-ledger-cards'
+import { listLedgerCards, settleLedgerMessage } from './pulse-ledger-cards'
 import { listLedgerFeed, setLedgerProject } from './pulse-ledger-feed'
 import type { HqLedgerSignal } from '../../../shared/hq-ledger'
 import { PulseCore, type PulseClock } from './pulse-core'
@@ -144,6 +144,10 @@ export class PulseDb {
 
   setLedgerGuess(conversationId: string, guess: HqLedgerGuess): void {
     setLedgerGuess(this.core, conversationId, guess)
+  }
+
+  settleLedgerMessage(ts: string): void {
+    settleLedgerMessage(this.core, ts)
   }
 
   listLedgerCards(since: number) {
