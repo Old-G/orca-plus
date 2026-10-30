@@ -477,23 +477,14 @@ describe('useAutomationDispatchEvents setup launch', () => {
     )
   })
 
+  // Custom build (automation-run-stays-open): a done ends the run but leaves its terminal open — the
+  // owner may be answering the agent — so ownership is released, never finalized.
   it.each([
-    {
-      workspace: 'a shared workspace',
-      provenanceRunId: undefined,
-      retirement: 'closed',
-      cleared: { terminalSessionId: null, terminalPaneKey: null, terminalPtyId: null }
-    },
-    {
-      // Why: the slept pane still holds the run's session, so only its stopped process is dropped.
-      workspace: 'a workspace made for this run',
-      provenanceRunId: 'run-1',
-      retirement: 'hibernated',
-      cleared: { terminalPtyId: null }
-    }
+    { workspace: 'a shared workspace', provenanceRunId: undefined },
+    { workspace: 'a workspace made for this run', provenanceRunId: 'run-1' }
   ])(
-    'retires the terminal in $workspace only after completed result persistence',
-    async ({ provenanceRunId, retirement, cleared }) => {
+    'keeps the terminal in $workspace open after completed result persistence',
+    async ({ provenanceRunId }) => {
       const order: string[] = []
       let launchArgs: { onAgentStatus?: (payload: { state: string }) => void } = {}
       mockCreateWorktree.mockResolvedValue({
@@ -502,16 +493,10 @@ describe('useAutomationDispatchEvents setup launch', () => {
           : createdWorktree
       })
       mockMarkDispatchResult.mockImplementation(async (result: { status: string }) => {
-        // Retirement reuses completed state while clearing terminal identity; distinguish it for ordering assertions.
-        order.push(
-          result.status === 'completed' && Object.hasOwn(result, 'terminalPtyId')
-            ? 'clear-terminal-identity'
-            : `persist:${result.status}`
-        )
+        order.push(`persist:${result.status}`)
       })
-      mockFinalizeTerminalOwnership.mockImplementationOnce(async () => {
-        order.push('finalize')
-        return retirement
+      mockReleaseTerminalOwnership.mockImplementationOnce(() => {
+        order.push('release')
       })
       mockLaunchAgentBackgroundSession.mockImplementation(async (args) => {
         launchArgs = args
@@ -530,24 +515,13 @@ describe('useAutomationDispatchEvents setup launch', () => {
 
       await registerAndDispatch()
       launchArgs.onAgentStatus?.({ state: 'done' })
-      await vi.waitFor(() => expect(mockFinalizeTerminalOwnership).toHaveBeenCalledOnce())
+      await vi.waitFor(() => expect(mockReleaseTerminalOwnership).toHaveBeenCalledOnce())
 
-      expect(order).toEqual([
-        'persist:dispatched',
-        'persist:completed',
-        'finalize',
-        'clear-terminal-identity'
-      ])
-      expect(mockReleaseTerminalOwnership).not.toHaveBeenCalled()
-      expect(mockFinalizeTerminalOwnership).toHaveBeenCalledWith({
-        preservePane: provenanceRunId !== undefined
-      })
-      // Why: the retired process is gone; "View run" must not dead-end on a pointer to it.
-      expect(mockMarkDispatchResult).toHaveBeenLastCalledWith({
-        runId: expect.any(String),
-        status: 'completed',
-        ...cleared
-      })
+      expect(order).toEqual(['persist:dispatched', 'persist:completed', 'release'])
+      expect(mockFinalizeTerminalOwnership).not.toHaveBeenCalled()
+      expect(mockMarkDispatchResult).toHaveBeenLastCalledWith(
+        expect.objectContaining({ runId: expect.any(String), status: 'completed' })
+      )
     }
   )
 
@@ -574,10 +548,12 @@ describe('useAutomationDispatchEvents setup launch', () => {
     // SessionStart boundary-done precedes prompt submission; treating it as completion closes an empty run.
     launchArgs.onAgentStatus?.({ state: 'done', sessionBoundary: true })
     await Promise.resolve()
-    expect(mockFinalizeTerminalOwnership).not.toHaveBeenCalled()
+    expect(mockReleaseTerminalOwnership).not.toHaveBeenCalled()
 
     launchArgs.onAgentStatus?.({ state: 'done' })
-    await vi.waitFor(() => expect(mockFinalizeTerminalOwnership).toHaveBeenCalledOnce())
+    // Custom build (automation-run-stays-open): the completed run's terminal stays open.
+    await vi.waitFor(() => expect(mockReleaseTerminalOwnership).toHaveBeenCalledOnce())
+    expect(mockFinalizeTerminalOwnership).not.toHaveBeenCalled()
   })
 
   it('skips unchanged status and persists batched working→done→working output', async () => {
@@ -606,7 +582,8 @@ describe('useAutomationDispatchEvents setup launch', () => {
     }
     latestStoreSubscriber()
 
-    await vi.waitFor(() => expect(mockFinalizeTerminalOwnership).toHaveBeenCalledOnce())
+    // Custom build (automation-run-stays-open): the completed run's terminal stays open.
+    await vi.waitFor(() => expect(mockReleaseTerminalOwnership).toHaveBeenCalledOnce())
     expect(mockMarkDispatchResult).toHaveBeenCalledWith(
       expect.objectContaining({
         runId: 'run-1',
@@ -728,14 +705,16 @@ describe('useAutomationDispatchEvents setup launch', () => {
     launchArgs.onAgentStatus?.({ state: 'done' })
     launchArgs.onExit?.('agent-pty', 0)
     launchArgs.onAgentStatus?.({ state: 'done' })
-    await vi.waitFor(() => expect(mockFinalizeTerminalOwnership).toHaveBeenCalledOnce())
+    // Custom build (automation-run-stays-open): the first done completes the run and releases its
+    // terminal; the exit and the second done after it change nothing.
+    await vi.waitFor(() => expect(mockReleaseTerminalOwnership).toHaveBeenCalledOnce())
 
     expect(
       mockMarkDispatchResult.mock.calls.filter(
         ([result]) => result.status === 'completed' && result.terminalPaneKey !== null
       )
     ).toHaveLength(1)
-    expect(mockReleaseTerminalOwnership).not.toHaveBeenCalled()
+    expect(mockFinalizeTerminalOwnership).not.toHaveBeenCalled()
   })
 
   it('releases ownership on nonzero exit without finalizing the tab', async () => {

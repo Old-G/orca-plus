@@ -99,4 +99,16 @@ describe('automation dispatch completion on an unverifiable loss', () => {
     )
     warnSpy.mockRestore()
   })
+
+  it('completes on done but leaves the terminal open for the owner to answer', async () => {
+    const completion = await createCompletion()
+
+    completion.handleAgentDone()
+    await vi.waitFor(() => expect(releaseTerminalOwnership).toHaveBeenCalledOnce())
+
+    expect(markDispatchResult).toHaveBeenCalledWith(
+      expect.objectContaining({ runId: 'run-1', status: 'completed' })
+    )
+    expect(finalizeTerminalOwnership).not.toHaveBeenCalled()
+  })
 })

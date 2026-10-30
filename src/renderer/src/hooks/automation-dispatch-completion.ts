@@ -67,7 +67,10 @@ export function createAutomationDispatchCompletion(args: {
       args.releaseTerminalOwnership()
       throw error
     }
-    await retireRunTerminal()
+    // Custom build (automation-run-stays-open): the agent finished its turn but is still there, and
+    // the owner may be answering it — the run's terminal stays open until he closes it (30.10: the
+    // «Кого ждём 18:00» pane closed while he was typing).
+    args.releaseTerminalOwnership()
   }
   const retireRunTerminal = async (): Promise<void> => {
     const retirement = await args.finalizeTerminalOwnership({
