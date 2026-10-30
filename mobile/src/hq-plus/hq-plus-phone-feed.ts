@@ -5,10 +5,10 @@ import type { HqChatWireItem } from '../../../src/shared/hq-chat-wire'
 import {
   HQ_PLUS_ANY_ROOM,
   hqPlusDayStart,
-  hqPlusLog,
   type HqPlusCard,
   type HqPlusLogItem
 } from '../../../src/shared/hq-plus-log'
+import { hqPlusFeedLog } from '../../../src/shared/hq-plus-conversations'
 import {
   hqPlusFoldChats,
   hqPlusLiftActiveChats,
@@ -102,9 +102,7 @@ export function hqPlusPhoneFeed(input: {
     }
   }
   // Why: a bell item knows its project, not its room; HQ's rooms place it, as on the desktop.
-  const all = (
-    input.feed ? hqPlusLog(input.feed.entries, input.feed.inbox ?? [], dayStart) : []
-  ).map((item) =>
+  const all = (input.feed ? hqPlusFeedLog(input.feed, dayStart) : []).map((item) =>
     item.room === HQ_PLUS_ANY_ROOM && item.project && projectRoom.has(item.project)
       ? { ...item, room: projectRoom.get(item.project) ?? item.room }
       : item
