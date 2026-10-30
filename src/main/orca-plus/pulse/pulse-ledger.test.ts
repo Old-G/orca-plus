@@ -278,7 +278,12 @@ describe('ledger guess and last word', () => {
     db.setLedgerGuess(conversationId, { project: 'acme', how: 'model', state: 'you', gist: 'Суть' })
     const [row] = db.listLedgerConversations()
     expect(row).toMatchObject({ project: 'acme', state: 'you', title: 'Суть' })
+    // Why: the model reads others' text; it may not lower «your move».
     db.setLedgerGuess(conversationId, { project: 'other', how: 'named', state: 'fyi', gist: null })
-    expect(db.listLedgerConversations()[0]).toMatchObject({ project: 'acme', title: 'Суть' })
+    expect(db.listLedgerConversations()[0]).toMatchObject({
+      project: 'acme',
+      state: 'you',
+      title: 'Суть'
+    })
   })
 })
