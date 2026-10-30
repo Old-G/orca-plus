@@ -1,11 +1,19 @@
 // Custom build (pulse): the change feed. Readers page through it by seq, so a phone that was
 // offline catches up with exactly what it missed.
 import type { SqliteRow } from '../../sqlite/sqlite-statement'
-import type { PulseEvent } from '../../../shared/pulse-types'
+import type { PulseEntity, PulseEvent } from '../../../shared/pulse-types'
 import type { PulseCore } from './pulse-core'
 import { integer, oneOf, text } from './pulse-row-fields'
 
-const ENTITIES = ['person', 'waiting', 'draft', 'decision', 'inbox', 'journal'] as const
+const ENTITIES = [
+  'person',
+  'waiting',
+  'draft',
+  'decision',
+  'inbox',
+  'journal',
+  'conversation'
+] as const satisfies readonly PulseEntity[]
 const MAX_PAGE = 500
 
 function toEvent(row: SqliteRow): PulseEvent {
