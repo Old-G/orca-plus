@@ -7,7 +7,9 @@ import {
   HQ_SLACK_DIGEST_KIND,
   HQ_SLACK_QUIET_FILE,
   hqDigestSlot,
+  hqLedgerDigestLists,
   hqSlackDigestItem,
+  type HqLedgerDigestConversation,
   parseHqSlackQuiet
 } from '../../shared/hq-slack-digest'
 import {
@@ -20,6 +22,10 @@ import type { PulseBellInput } from '../../shared/pulse-bell'
 
 const STATE_FILE = 'digest-state.json'
 const CHECK_MS = 60_000
+/** Custom build (hq-request-ledger): the scout's own state, for when it last ran. */
+const SCOUT_STATE_FILE = 'state.json'
+/** Why: the scout runs every 15 minutes; three hours without a run means it was switched off. */
+const SCOUT_ALIVE_MS = 3 * 60 * 60_000
 
 export type HqSlackDigestDeps = {
   hqPath: () => string | null
@@ -27,6 +33,20 @@ export type HqSlackDigestDeps = {
   readScout: (hqPath: string) => Promise<HqSlackScoutResult>
   sync: (kind: string, items: readonly PulseBellInput[]) => void
   now: () => Date
+  /** Custom build (hq-request-ledger): the ledger's recent conversations; once the scout stops
+   *  running, the digest is made of them. */
+  ledger?: () => HqLedgerDigestConversation[]
+}
+
+/** When the scout last ran, from its state file; 0 when unknown. */
+function scoutLastRun(text: string | null): number {
+  try {
+    const raw: unknown = text ? JSON.parse(text) : null
+    const at = raw && typeof raw === 'object' ? Reflect.get(raw, 'lastRunAt') : null
+    return typeof at === 'string' ? Date.parse(at) || 0 : 0
+  } catch {
+    return 0
+  }
 }
 
 type DigestState = { slot: string | null; at: string | null }
@@ -82,13 +102,22 @@ export async function runHqSlackDigest(deps: HqSlackDigestDeps): Promise<boolean
     await save()
     return false
   }
-  const scout = await deps.readScout(hq)
-  if (!scout.ok) {
-    return false
-  }
   const since = Date.parse(state.at ?? '') || 0
-  const quiet = parseHqSlackQuiet(quietText ?? '{}').filter((item) => Date.parse(item.at) > since)
-  const item = hqSlackDigestItem(slot, scout.drafts, quiet)
+  const scoutAt = scoutLastRun(await readText(join(dir, SCOUT_STATE_FILE)))
+  let item: PulseBellInput | null
+  if (deps.ledger && scoutAt < now.getTime() - SCOUT_ALIVE_MS) {
+    const lists = hqLedgerDigestLists(deps.ledger(), since)
+    item = hqSlackDigestItem(slot, lists.waiting, lists.quiet)
+  } else {
+    const scout = await deps.readScout(hq)
+    if (!scout.ok) {
+      return false
+    }
+    const quiet = parseHqSlackQuiet(quietText ?? '{}').filter(
+      (entry) => Date.parse(entry.at) > since
+    )
+    item = hqSlackDigestItem(slot, scout.drafts, quiet)
+  }
   if (item) {
     deps.sync(HQ_SLACK_DIGEST_KIND, [item])
   }

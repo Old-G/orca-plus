@@ -273,3 +273,58 @@ export function listLedgerConversations(core: PulseCore, since = 0): HqConversat
 export function setConversationChat(core: PulseCore, key: string, sessionId: string): void {
   core.db.prepare('UPDATE conversations SET session_id = ? WHERE key = ?').run(sessionId, key)
 }
+
+/** Custom build (hq-request-ledger): who wrote last in a conversation — someone writing after the
+ *  owner in his thread is answering him. Null when the conversation is new. */
+export function lastLedgerDirection(core: PulseCore, key: string): 'in' | 'out' | null {
+  const row = core.db
+    .prepare(
+      `SELECT m.direction FROM conversation_messages m JOIN conversations c ON c.id = m.conversation_id
+        WHERE c.key = ? ORDER BY m.at DESC LIMIT 1`
+    )
+    .get(key)
+  return row ? (row.direction === 'out' ? 'out' : 'in') : null
+}
+
+export type HqLedgerGuess = {
+  project: string | null
+  /** `named` — a link or the slug in the text; `model` — the small model's pick. */
+  how: 'named' | 'model'
+  state: 'you' | 'fyi'
+  gist: string | null
+}
+
+/** The small model's read of a new conversation: its project (marked as a guess), whose move, its
+ *  gist as the title. A project already known and a state other than you/fyi stay as they are. */
+export function setLedgerGuess(
+  core: PulseCore,
+  conversationId: string,
+  guess: HqLedgerGuess
+): void {
+  core.db
+    .prepare(
+      `UPDATE conversations SET
+         project_how = CASE WHEN project IS NULL AND ? IS NOT NULL THEN ? ELSE project_how END,
+         project = COALESCE(project, ?),
+         title = COALESCE(?, title),
+         state = CASE WHEN state IN ('you', 'fyi') THEN ? ELSE state END
+       WHERE id = ?`
+    )
+    .run(guess.project, guess.how, guess.project, guess.gist, guess.state, conversationId)
+  core.emit('conversation.updated', 'conversation', conversationId, { guess: true })
+}
+
+/** Whether a Slack message is in the ledger: as its thread's conversation or as a message of a
+ *  conversation in that channel (a DM line joins the day's talk). */
+export function ledgerHasSlackMessage(core: PulseCore, channel: string, ts: string): boolean {
+  return (
+    core.db
+      .prepare(
+        `SELECT 1 FROM conversations WHERE key = ?
+         UNION ALL
+         SELECT 1 FROM conversation_messages m JOIN conversations c ON c.id = m.conversation_id
+          WHERE c.key LIKE ? AND m.ts = ? LIMIT 1`
+      )
+      .get(`slack:${channel}:${ts}`, `slack:${channel}:%`, ts) !== undefined
+  )
+}
