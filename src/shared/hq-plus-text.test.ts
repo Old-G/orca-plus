@@ -28,4 +28,21 @@ describe('hqPlusTextLines', () => {
     expect(lines[0]?.spans).toEqual([{ kind: 'text', text: 'Title' }])
     expect(lines[1]?.spans.at(-1)).toEqual({ kind: 'text', text: ' …' })
   })
+
+  it('cuts a «Done:» or «Question:» label off the line and names its kind', () => {
+    const [done, question, plain] = hqPlusTextLines(
+      'Done: shipped the fix\nQuestion: **send it** now?\nDone-ish text'
+    )
+    expect(done).toEqual({
+      bullet: false,
+      label: { kind: 'done', text: 'Done' },
+      spans: [{ kind: 'text', text: 'shipped the fix' }]
+    })
+    expect(question?.label).toEqual({ kind: 'question', text: 'Question' })
+    expect(question?.spans).toEqual([
+      { kind: 'bold', text: 'send it' },
+      { kind: 'text', text: ' now?' }
+    ])
+    expect(plain?.label).toBeUndefined()
+  })
 })
