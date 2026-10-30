@@ -2,7 +2,7 @@
 // one search over his DMs and the threads he takes part in.
 import type { HqSlackLedgerMessage, HqSlackLedgerReadApi } from '../hq-today/hq-slack-ledger-reader'
 import { plainSlackText } from '../hq-today/hq-slack-waiting-replies'
-import { asSlackRecord, slackRequest } from './slack-request'
+import { asSlackRecord, isSlackAuthError, SlackApiError, slackRequest } from './slack-request'
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null
@@ -33,7 +33,20 @@ export function createSlackLedgerApi(
       // meeting's summary with his part) is in neither until someone answers in its thread.
       const found = new Map<string, HqSlackLedgerMessage>()
       for (const query of [`with:<@${owner}>`, `<@${owner}>`]) {
-        for (const message of await search(query, since)) {
+        let messages: HqSlackLedgerMessage[] = []
+        try {
+          messages = await search(query, since)
+        } catch (error) {
+          // Why: one query failing must not drop what the other read; a dead token fails both.
+          if (
+            isSlackAuthError(error) ||
+            (error instanceof SlackApiError && error.code === 'missing_scope')
+          ) {
+            throw error
+          }
+          console.warn(`[hq-slack-ledger] search «${query}» failed:`, error)
+        }
+        for (const message of messages) {
           found.set(`${message.channel}:${message.ts}`, message)
         }
       }
