@@ -303,4 +303,15 @@ describe('ledger cards', () => {
     db.ingestLedgerSignal(signal({ key: other, ts: '1700000101.000000' }))
     expect(db.listLedgerCards(0).map((c) => c.key)).toEqual([THREAD])
   })
+
+  it('a message handled from its card settles the conversation unless someone wrote after it', () => {
+    const db = openDb()
+    db.ingestLedgerSignal(signal({ ts: '1700000001.000000', at: tick + 1 }))
+    db.settleLedgerMessage('1700000001.000000')
+    expect(db.listLedgerCards(0)).toEqual([])
+    db.ingestLedgerSignal(signal({ ts: '1700000002.000000', at: tick + 2 }))
+    db.ingestLedgerSignal(signal({ ts: '1700000003.000000', at: tick + 3 }))
+    db.settleLedgerMessage('1700000002.000000')
+    expect(db.listLedgerCards(0).map((c) => c.key)).toEqual([THREAD])
+  })
 })
