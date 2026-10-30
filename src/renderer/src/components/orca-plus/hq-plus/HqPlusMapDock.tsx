@@ -1,6 +1,6 @@
-// Custom build (hq-plus-map): the dock on the right of the Map layout — what is picked on the map or in
-// the feed: a project's card (what waits, whom it waits for, its chats), a person's waits, one talk's
-// card, or the open chat in its place; with nothing picked, what waits on the owner.
+// Custom build (hq-plus-map): the «Card» tab of the panel over the map — what is picked there: a project's
+// card (what waits, whom it waits for, its chats), a person's waits or one talk's card; with nothing
+// picked, what waits on the owner.
 import type { HqPlusLogItem } from '../../../../../shared/hq-plus-log'
 import type { HqPlusMapLeaf, HqPlusMapModel } from '../../../../../shared/hq-plus-map'
 import type { HqChatItem } from '../hq/hq-chat-list'
@@ -8,7 +8,8 @@ import { HqPlusLog } from './HqPlusLog'
 import { HqPlusWaitsView } from './HqPlusWaitsView'
 import { HqPlusMapChatName } from './HqPlusMapLeaf'
 import { HQ_PLUS_SOURCE_COLOR, trunc } from './hq-plus-map-geometry'
-import type { HqPlusMapLayoutProps } from './HqPlusMapLayout'
+import type { HqPlusLogContext } from './HqPlusLog'
+import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
 
 export type HqPlusMapDockPick =
   | { kind: 'project'; slug: string }
@@ -25,13 +26,9 @@ export function HqPlusMapDock({
   itemById,
   youItems,
   chatByKey,
-  chat,
-  renderChat,
-  closeChat,
   showChat,
   onPickItem,
   onPickLeaf,
-  onBackToCard,
   onToFeed,
   ctx,
   queue,
@@ -39,7 +36,14 @@ export function HqPlusMapDock({
   newChat,
   openInOrca,
   now
-}: HqPlusMapLayoutProps & {
+}: {
+  ctx: HqPlusLogContext
+  queue: HqPlusQueueActions
+  waits: readonly HqPlusOtherWait[]
+  newChat: (slug: string) => (() => void) | null
+  openInOrca: (slug: string) => (() => void) | null
+  now: number
+  showChat: (key: string) => void
   pick: HqPlusMapDockPick | null
   model: HqPlusMapModel
   itemById: ReadonlyMap<string, HqPlusLogItem>
@@ -47,25 +51,8 @@ export function HqPlusMapDock({
   chatByKey: ReadonlyMap<string, HqChatItem>
   onPickItem: (id: string) => void
   onPickLeaf: (slug: string, leaf: HqPlusMapLeaf) => void
-  onBackToCard: (() => void) | null
   onToFeed: () => void
 }): React.JSX.Element {
-  if (chat) {
-    return (
-      <div className="hqm-pane hqm-chatpane">
-        {onBackToCard ? (
-          <button type="button" className="hqp-link hqm-back" onClick={onBackToCard}>
-            ← Card
-          </button>
-        ) : (
-          <button type="button" className="hqp-link hqm-back" onClick={closeChat}>
-            × Close chat
-          </button>
-        )}
-        <div className="hqm-chatbody">{renderChat(chat)}</div>
-      </div>
-    )
-  }
   if (!pick) {
     return (
       <div className="hqm-pane">

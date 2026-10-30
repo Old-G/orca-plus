@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hqPlusMapFeedPlace, hqPlusMapFeedRows, hqPlusMapModel } from './hq-plus-map'
+import { hqPlusMapFeedPlace, hqPlusMapModel } from './hq-plus-map'
 import type { HqPlusCard, HqPlusLogItem } from './hq-plus-log'
 import type { PulseInboxItem } from './pulse-types'
 
@@ -77,7 +77,7 @@ const line: HqPlusLogItem = {
 }
 
 describe('hqPlusMapFeedPlace', () => {
-  it('keeps chat turns and decided Approves off the feed, the rest in its tab', () => {
+  it('keeps chat turns and decided Approves out, the rest by where it stands', () => {
     const ask = conversation('c1', 'slack:C1:1', 'acme')
     const closed = conversation('c2', 'slack:C1:2', 'acme', false)
     const approve = card({
@@ -95,12 +95,6 @@ describe('hqPlusMapFeedPlace', () => {
     expect(hqPlusMapFeedPlace(ask)).toBe('you')
     expect(hqPlusMapFeedPlace(closed)).toBe('done')
     expect(hqPlusMapFeedPlace(fyi)).toBe('fyi')
-    expect(
-      hqPlusMapFeedRows([line, ask, closed, approve, fyi], 'all').map((item) => item.id)
-    ).toEqual(['c1', 'c2', 'f1'])
-    expect(hqPlusMapFeedRows([line, ask, closed, fyi], 'done').map((item) => item.id)).toEqual([
-      'c2'
-    ])
   })
 })
 
@@ -158,5 +152,30 @@ describe('hqPlusMapModel', () => {
       ['HQ', false]
     ])
     expect(model.projects[0].leaves.map((leaf) => leaf.key)).toEqual(['talk:a1', 'person:Someone'])
+  })
+
+  it('unfolds a project into its six most pressing chats, counting them all', () => {
+    const states = ['quiet', 'done', 'done', 'quiet', 'working', 'quiet', 'asks', 'done'] as const
+    const model = hqPlusMapModel({
+      projects: ['acme'],
+      items: [],
+      waits: [],
+      chats: states.map((state, index) => ({
+        key: `k${index}`,
+        project: 'acme',
+        state,
+        sessionId: null
+      }))
+    })
+    const [acme] = model.projects
+    expect(acme.chats).toBe(8)
+    expect(acme.leaves.map((leaf) => leaf.key)).toEqual([
+      'chat:k6',
+      'chat:k4',
+      'chat:k1',
+      'chat:k2',
+      'chat:k7',
+      'chat:k0'
+    ])
   })
 })
