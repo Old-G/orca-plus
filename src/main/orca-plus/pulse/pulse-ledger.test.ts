@@ -1,0 +1,180 @@
+import { afterEach, describe, expect, it } from 'vitest'
+import type { HqLedgerSignal } from '../../../shared/hq-ledger'
+import { hqPlaceKey } from '../../../shared/hq-ledger'
+import { PulseDb } from './pulse-db'
+
+const open: PulseDb[] = []
+let tick = 0
+function openDb(): PulseDb {
+  let id = 0
+  tick = 1_000_000
+  const db = new PulseDb(':memory:', { now: () => tick, newId: () => `id-${++id}` })
+  open.push(db)
+  return db
+}
+afterEach(() => {
+  for (const db of open.splice(0)) {
+    db.close()
+  }
+})
+
+const THREAD = 'slack:C0123HUBXY:1700000000.000100'
+function signal(over: Partial<HqLedgerSignal>): HqLedgerSignal {
+  return {
+    key: THREAD,
+    ts: '1700000001.000000',
+    at: tick + 1,
+    author: 'Ann',
+    authorId: 'U_ANN',
+    fromOwner: false,
+    text: 'hi',
+    link: null,
+    reader: 'slack-mention',
+    forOwner: true,
+    project: null,
+    title: 'Thread',
+    ...over
+  }
+}
+
+describe('hqPlaceKey', () => {
+  it('reads Slack refs and permalinks, ClickUp, MRs', () => {
+    expect(hqPlaceKey('slack:C0123HUBXY:1700000000.000100')).toBe(THREAD)
+    expect(
+      hqPlaceKey(
+        'https://acme.slack.com/archives/C0123HUBXY/p1700000009000200?thread_ts=1700000000.000100&cid=C0123HUBXY'
+      )
+    ).toBe(THREAD)
+    expect(hqPlaceKey('clickup:DEV-1:99')).toBe('clickup:DEV-1')
+    expect(hqPlaceKey('https://gitlab.com/acme/hub/-/merge_requests/314')).toBe(
+      'gitlab:acme/hub!314'
+    )
+    expect(hqPlaceKey('agent text')).toBeNull()
+  })
+})
+
+describe('ledger ingest', () => {
+  it('turns one thread read by three readers into one conversation (the 30.10 case)', () => {
+    const db = openDb()
+    const ann = db.upsertPerson({ name: 'Ann', slackUserId: 'U_ANN' })
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'Mark 37 pairs',
+      personId: ann.id,
+      source: 'slack',
+      sourceRef: THREAD,
+      project: 'hub'
+    })
+    // the mention reader and the reply reader see the same message
+    const first = db.ingestLedgerSignal(signal({ ts: '1700000001.000000', text: 'Page not found' }))
+    const again = db.ingestLedgerSignal(signal({ ts: '1700000001.000000', reader: 'slack-reply' }))
+    expect(first).toMatchObject({ step: 'place', added: true, waitingIds: [asked.id] })
+    expect(again.added).toBe(false)
+    // the scout saw a promise of the owner in the same thread
+    const promise = db.addWaiting({
+      direction: 'on-me',
+      title: 'Fix the page',
+      personId: ann.id,
+      source: 'slack-promise',
+      sourceRef:
+        'https://acme.slack.com/archives/C0123HUBXY/p1700000002000000?thread_ts=1700000000.000100'
+    })
+    tick += 10
+    db.ingestLedgerSignal(
+      signal({
+        ts: '1700000003.000000',
+        fromOwner: true,
+        author: 'Owner',
+        authorId: 'U_ME',
+        at: tick
+      })
+    )
+    db.ingestLedgerSignal(signal({ ts: '1700000004.000000', text: 'Opened, thanks', at: tick + 1 }))
+
+    const conversations = db.listLedgerConversations()
+    expect(conversations).toHaveLength(1)
+    expect(conversations[0]).toMatchObject({ project: 'hub', messages: 3, state: 'you' })
+    expect(db.getWaiting(promise.id)?.status).toBe('resolved')
+    expect(db.getWaiting(asked.id)?.status).toBe('open')
+  })
+
+  it('the owner writing in the thread hands the move back to them', () => {
+    const db = openDb()
+    const ann = db.upsertPerson({ name: 'Ann', slackUserId: 'U_ANN' })
+    db.addWaiting({
+      direction: 'on-them',
+      title: 'q',
+      personId: ann.id,
+      source: 'slack',
+      sourceRef: THREAD
+    })
+    db.ingestLedgerSignal(signal({}))
+    db.ingestLedgerSignal(signal({ ts: '1700000005.000000', fromOwner: true, authorId: 'U_ME' }))
+    expect(db.listLedgerConversations()[0]?.state).toBe('wait')
+  })
+
+  it('a DM answer goes to the one open request to its author; two requests ask which', () => {
+    const db = openDb()
+    const bob = db.upsertPerson({ name: 'Bob', slackUserId: 'U_BOB' })
+    const only = db.addWaiting({
+      direction: 'on-them',
+      title: 'access?',
+      personId: bob.id,
+      source: 'slack',
+      sourceRef: THREAD
+    })
+    const dm = signal({
+      key: 'slack:D0123BOBXY:1700000009.000000',
+      ts: '1700000009.000000',
+      authorId: 'U_BOB',
+      author: 'Bob'
+    })
+    expect(db.ingestLedgerSignal(dm)).toMatchObject({ step: 'person', waitingIds: [only.id] })
+
+    const other = db.addWaiting({
+      direction: 'on-them',
+      title: 'keys for the replica',
+      personId: bob.id,
+      source: 'manual',
+      allowDuplicate: true
+    })
+    const next = db.ingestLedgerSignal({
+      ...dm,
+      key: 'slack:D0123BOBXY:1700000010.000000',
+      ts: '1700000010.000000'
+    })
+    expect(next.step).toBe('which')
+    expect(next.waitingIds.sort()).toEqual([only.id, other.id].sort())
+    expect(
+      db.listLedgerConversations().find((c) => c.id === next.conversationId)?.stateWhy
+    ).toContain('which:')
+  })
+
+  it('a merge mail is not taken for a person’s answer', () => {
+    const db = openDb()
+    const ann = db.upsertPerson({ name: 'Ann', slackUserId: 'U_ANN' })
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'Mark pairs',
+      personId: ann.id,
+      source: 'slack',
+      sourceRef: THREAD
+    })
+    const merged = db.ingestLedgerSignal(
+      signal({
+        key: 'gitlab:acme/hub!314',
+        ts: 'mr-314',
+        author: 'GitLab',
+        authorId: 'gitlab',
+        forOwner: false,
+        reader: 'mr-watch'
+      })
+    )
+    expect(merged).toMatchObject({ step: 'new', waitingIds: [] })
+    expect(db.listLedgerConversations().find((c) => c.id === merged.conversationId)?.state).toBe(
+      'fyi'
+    )
+    expect(db.listLedgerConversations()).toHaveLength(1)
+    expect(db.getWaiting(asked.id)?.status).toBe('open')
+  })
+})
