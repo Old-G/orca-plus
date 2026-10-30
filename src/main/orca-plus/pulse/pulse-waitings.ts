@@ -182,6 +182,16 @@ export function closeWaiting(
     core.db
       .prepare('UPDATE waitings SET status = ?, resolution = ?, resolved_at = ? WHERE id = ?')
       .run(closed.status, closed.resolution, closed.resolvedAt, id)
+    // Custom build (hq-ledger-feed): a conversation that waited on the owner only for this answer is
+    // handled once the waiting closes; its next message from the person raises it again (Codex, 30.10).
+    core.db
+      .prepare(
+        `UPDATE conversations SET state = 'done', state_why = 'waiting-closed'
+          WHERE id = (SELECT conversation_id FROM waitings WHERE id = ?) AND state = 'you'
+            AND NOT EXISTS (SELECT 1 FROM waitings w
+                             WHERE w.conversation_id = conversations.id AND w.status = 'open')`
+      )
+      .run(id)
     core.emit(`waiting.${status}`, 'waiting', id, closed)
     return closed
   })
