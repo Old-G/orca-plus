@@ -59,6 +59,9 @@ import { getHqReplyRouting } from '../../hq-routing/hq-routing-replies'
 import { startShipRestartNotice } from '../ship-restart/ship-restart-notice'
 import { registerHqClickUpTriage } from '../../hq-today/register-hq-clickup-triage'
 import { registerHqMailIntake } from '../../hq-today/register-hq-mail-intake'
+import { startHqLedgerShadow } from '../../hq-today/hq-ledger-shadow'
+import { hqJobRow } from '../../hq-journal/hq-journal-jobs'
+import { HQ_JOURNAL_ALL_ROOMS } from '../../../shared/hq-journal'
 import { hqClickUpListProjects } from '../../hq-today/hq-clickup-list-projects'
 
 const BROADCAST_DEBOUNCE_MS = 50
@@ -170,6 +173,31 @@ export function registerPulseBell(
 
   // Custom build (hq-waiting-replies): answers to what the chats wait for, offered back to those chats.
   registerHqWaitingReplies(store, runtime)
+  // Custom build (hq-request-ledger): the request ledger reads the cards in shadow beside them.
+  startHqLedgerShadow({
+    enabled: () => store.getSettings().hqLedger !== 'off',
+    cards: (since) => runtime.pulseListInbox(true, { since }),
+    ingest: (signal) => runtime.pulseIngestLedger(signal),
+    conversations: (since) => runtime.pulseListLedgerConversations(since),
+    waitingRef: (id) => {
+      const waiting = runtime.pulseListWaitings().find((w) => w.id === id)
+      return waiting ? { sourceRef: waiting.sourceRef, personId: waiting.personId } : null
+    },
+    personAuthorId: (id) => {
+      const person = runtime.pulseListPeople().find((p) => p.id === id)
+      return person?.slackUserId ?? person?.clickupUserId ?? null
+    },
+    report: (did) =>
+      void runtime.pulseRecordJournal([
+        hqJobRow(
+          { job: 'ledger', did },
+          { room: HQ_JOURNAL_ALL_ROOMS, project: null, firm: false },
+          Date.now()
+        )
+      ]),
+    now: Date.now,
+    onError: (error) => console.warn('[hq-ledger-shadow] pass failed:', error)
+  })
   // Custom build (ship-restart-notice): the chat that shipped this build is told to check it.
   startShipRestartNotice()
   // Custom build (hq-scout-context): whom the chats wait for and what was sent, for the Slack scout.
