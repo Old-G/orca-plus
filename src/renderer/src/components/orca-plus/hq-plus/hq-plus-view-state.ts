@@ -32,6 +32,8 @@ export type HqPlusViewState = {
   browserUrl: string | null
   expanded: string[]
   showIdle: boolean
+  /** Custom build (hq-plus-all-projects): the «All projects» fold is open. */
+  showAllProjects: boolean
   /** Left-column blocks the owner folded. */
   foldedSides: HqPlusSideBlockId[]
   /** Custom build (hq-plus-round6): blocks that start folded and the owner opened. */
@@ -52,6 +54,7 @@ const INITIAL: HqPlusViewState = {
   browserUrl: null,
   expanded: [],
   showIdle: false,
+  showAllProjects: false,
   foldedSides: [],
   openedSides: [],
   fromBottom: null
@@ -100,6 +103,7 @@ export function parseHqPlusViewState(raw: unknown): HqPlusViewState {
       ? expanded.filter((id): id is string => typeof id === 'string').slice(-MAX_EXPANDED)
       : [],
     showIdle: get('showIdle') === true,
+    showAllProjects: get('showAllProjects') === true,
     foldedSides: Array.isArray(foldedSides)
       ? HQ_PLUS_SIDE_BLOCKS.filter((id) => foldedSides.includes(id))
       : [],

@@ -121,4 +121,34 @@ describe('HQ+ chats', () => {
     expect(idle.some((key) => key.includes('tab-read'))).toBe(true)
     expect(idle.some((key) => key.includes('tab-stale'))).toBe(true)
   })
+
+  it('keeps a row for every project with a chat open, however long it has been quiet', () => {
+    const day = 24 * 60 * 60_000
+    const now = 30 * day
+    const projects = ['a', 'b', 'c', 'd', 'e', 'f'].map((name, index) => ({
+      ...workspace,
+      repoId: `repo-${name}`,
+      worktreeId: `wt-${name}`,
+      repoName: name,
+      at: now - (index + 1) * day
+    }))
+    const items = buildHqChatList(
+      {
+        workspaces: projects,
+        cards: projects.map((p) => ({
+          ...card(`tab-${p.repoName}`, 'done', p.at),
+          repoId: p.repoId,
+          worktreeId: p.worktreeId
+        }))
+      },
+      projects.map((p) => ({ ...chatTab(`tab-${p.repoName}`), worktreeId: p.worktreeId }))
+    )
+
+    const side = hqPlusProjectChats(items, [], [], now)
+
+    expect(side.projects.map((project) => project.repoId).sort()).toEqual(
+      projects.map((p) => p.repoId).sort()
+    )
+    expect(side.quiet).toEqual([])
+  })
 })

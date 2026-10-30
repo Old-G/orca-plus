@@ -1,11 +1,14 @@
 // Custom build (hq-plus-chats-by-project): «+ New chat» in HQ+'s chats — every project of the sidebar in
 // one scrolling list with a search, the active ones first; a click starts a chat there (owner, 25.10).
+// Custom build (hq-plus-all-projects): a click now opens the project — New chat, its open chats and
+// History — so an existing chat opens from here too (owner, 30.10).
 import { useMemo, useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { isImeOwnedKeyboardEvent } from '@/lib/ime-composition-keyboard-event'
-import { startHqChat } from '../hq/hq-new-chat'
+import type { HqChatItem } from '../hq/hq-chat-list'
+import { HqPlusProjectChatList } from './HqPlusProjectChatList'
 import type { HqPlusTile } from './HqPlusSide'
 
 type Pick = { repoId: string; name: string; worktreeId: string }
@@ -15,7 +18,7 @@ function tileStyle(color: string): React.CSSProperties & Record<'--hqp-room', st
 }
 
 /** The workspace a new chat of a project opens in: its main checkout, else its first live one. */
-function useHqPlusNewChatTargets(activeRepoIds: readonly string[]): Pick[] {
+export function useHqPlusNewChatTargets(activeRepoIds: readonly string[]): Pick[] {
   const repos = useAppStore((state) => state.repos)
   const worktreesByRepo = useAppStore((state) => state.worktreesByRepo)
   return useMemo(() => {
@@ -34,24 +37,33 @@ function useHqPlusNewChatTargets(activeRepoIds: readonly string[]): Pick[] {
 
 export function HqPlusNewChat({
   activeRepoIds,
-  tileOf
+  tileOf,
+  openChats,
+  onPickChat
 }: {
   /** The projects listed in the column, which lead the picker in that order. */
   activeRepoIds: readonly string[]
   tileOf: (repoId: string, name: string) => HqPlusTile
+  /** Every chat open as a tab, for a project's «Open» list. */
+  openChats: readonly HqChatItem[]
+  onPickChat: (item: HqChatItem) => void
 }): React.JSX.Element {
   const targets = useHqPlusNewChatTargets(activeRepoIds)
   const activeCount = targets.filter((target) => activeRepoIds.includes(target.repoId)).length
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [chosen, setChosen] = useState<Pick | null>(null)
   const needle = query.trim().toLowerCase()
   const shown = needle
     ? targets.filter((target) => target.name.toLowerCase().includes(needle))
     : targets
   const start = (target: Pick): void => {
+    setChosen(target)
+  }
+  const close = (): void => {
     setOpen(false)
     setQuery('')
-    void startHqChat(target.worktreeId)
+    setChosen(null)
   }
   const row = (target: Pick): React.JSX.Element => {
     const tile = tileOf(target.repoId, target.name)
@@ -74,49 +86,77 @@ export function HqPlusNewChat({
     )
   }
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) {
+          setChosen(null)
+        }
+      }}
+    >
       <PopoverTrigger asChild>
         <button type="button" className="hqp-pill hqp-newchat-btn">
-          {translate('auto.hqPlus.side.newChat', '+ New chat')}
+          {translate('auto.hqPlus.side.chatPicker', '+ Chat')}
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="hq-plus-pop hqp-newchat w-80 p-2">
-        <input
-          className="hqp-roomform-in hqp-newchat-q"
-          aria-label={translate('auto.hqPlus.side.newChatSearch', 'Project')}
-          placeholder={translate('auto.hqPlus.side.newChatPlaceholder', 'Project…')}
-          value={query}
-          autoFocus
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !isImeOwnedKeyboardEvent(event) && shown[0]) {
-              start(shown[0])
-            }
-          }}
-        />
-        <div className="hqp-newchat-list scrollbar-sleek">
-          {needle ? (
-            shown.map(row)
-          ) : (
-            <>
-              {activeCount > 0 ? (
-                <div className="hqp-newchat-h">
-                  {translate('auto.hqPlus.side.newChatActive', 'Active')}
-                </div>
+        {chosen ? (
+          <>
+            <button type="button" className="hqp-newchat-back" onClick={() => setChosen(null)}>
+              {'\u2190 '}
+              {chosen.name}
+            </button>
+            <div className="hqp-newchat-list scrollbar-sleek">
+              <HqPlusProjectChatList
+                target={chosen}
+                open={openChats.filter((item) => item.repoId === chosen.repoId)}
+                color={tileOf(chosen.repoId, chosen.name).color ?? 'var(--hqp-faint)'}
+                onPickOpen={onPickChat}
+                onDone={close}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <input
+              className="hqp-roomform-in hqp-newchat-q"
+              aria-label={translate('auto.hqPlus.side.newChatSearch', 'Project')}
+              placeholder={translate('auto.hqPlus.side.newChatPlaceholder', 'Project…')}
+              value={query}
+              autoFocus
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !isImeOwnedKeyboardEvent(event) && shown[0]) {
+                  start(shown[0])
+                }
+              }}
+            />
+            <div className="hqp-newchat-list scrollbar-sleek">
+              {needle ? (
+                shown.map(row)
+              ) : (
+                <>
+                  {activeCount > 0 ? (
+                    <div className="hqp-newchat-h">
+                      {translate('auto.hqPlus.side.newChatActive', 'Active')}
+                    </div>
+                  ) : null}
+                  {targets.slice(0, activeCount).map(row)}
+                  <div className="hqp-newchat-h">
+                    {translate('auto.hqPlus.side.newChatAll', 'All projects')}
+                  </div>
+                  {targets.slice(activeCount).map(row)}
+                </>
+              )}
+              {shown.length === 0 ? (
+                <p className="hqp-empty hqp-quiet">
+                  {translate('auto.hqPlus.side.newChatNone', 'no such project')}
+                </p>
               ) : null}
-              {targets.slice(0, activeCount).map(row)}
-              <div className="hqp-newchat-h">
-                {translate('auto.hqPlus.side.newChatAll', 'All projects')}
-              </div>
-              {targets.slice(activeCount).map(row)}
-            </>
-          )}
-          {shown.length === 0 ? (
-            <p className="hqp-empty hqp-quiet">
-              {translate('auto.hqPlus.side.newChatNone', 'no such project')}
-            </p>
-          ) : null}
-        </div>
+            </div>
+          </>
+        )}
       </PopoverContent>
     </Popover>
   )
