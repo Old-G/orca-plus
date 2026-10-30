@@ -275,6 +275,8 @@ describe('ledger guess and last word', () => {
     const { conversationId } = db.ingestLedgerSignal(signal({ fromOwner: true }))
     expect(db.lastLedgerDirection(THREAD)).toBe('out')
     expect(db.lastLedgerDirection('slack:C0123HUBXY:1.1')).toBeNull()
+    // Why: a guess raises only a talk whose newest message is someone else's.
+    db.ingestLedgerSignal(signal({ ts: '1700000002.000000', forOwner: false, at: tick + 2 }))
     db.setLedgerGuess(conversationId, { project: 'acme', how: 'model', state: 'you', gist: 'Суть' })
     const [row] = db.listLedgerConversations()
     expect(row).toMatchObject({ project: 'acme', state: 'you', title: 'Суть' })
