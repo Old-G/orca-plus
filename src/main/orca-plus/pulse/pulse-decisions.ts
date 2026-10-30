@@ -12,6 +12,7 @@ import {
   type OutgoingSentContext
 } from '../../../shared/outgoing-approval/outgoing-sent-context'
 import type { PulseCore } from './pulse-core'
+import { recordSentInLedger } from './pulse-outbox'
 import { moveDraft } from './pulse-drafts'
 import { integer, oneOf, optionalOneOf, optionalText, text } from './pulse-row-fields'
 
@@ -98,7 +99,7 @@ export function decideDraft(
   if (outcome === 'edited' && !editedBody?.trim()) {
     throw new Error('pulse: an edited approval needs the edited text')
   }
-  return core.transaction(() => {
+  const decided = core.transaction(() => {
     const draft = moveDraft(
       core,
       draftId,
@@ -123,10 +124,19 @@ export function decideDraft(
     insertDecision(core, decision)
     return { draft, decision }
   })
+  // Custom build (hq-request-ledger): the sent message joins its conversation as the owner's.
+  if (outcome !== 'rejected') {
+    recordSentInLedger(core, decided.decision, sentContext)
+  }
+  return decided
 }
 
 /** Custom build (hq-sent-history): where an older approval went, worked out after it was decided. */
-export function setDecisionContext(core: PulseCore, id: string, context: OutgoingSentContext): void {
+export function setDecisionContext(
+  core: PulseCore,
+  id: string,
+  context: OutgoingSentContext
+): void {
   core.db.prepare('UPDATE decisions SET context = ? WHERE id = ?').run(JSON.stringify(context), id)
 }
 
