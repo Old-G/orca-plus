@@ -1,38 +1,63 @@
-// Custom build (hq-plus-map): where the owner was in the Map layout — Map or Feed, the feed's tab, the
-// unfolded projects and the map's zoom — so leaving HQ+ for Orca and coming back lands on the same view.
-import { HQ_PLUS_MAP_FEED_TABS, type HqPlusMapFeedTab } from '../../../../../shared/hq-plus-map'
-
+// Custom build (hq-plus-map): where the owner left the Map layout — the unfolded projects, the map's zoom
+// and the panel over it (its width, where it was dragged, folded or not) — so leaving HQ+ for Orca and
+// coming back lands on the same view.
 const KEY = 'orca-plus.hq-plus-map-view'
 const MAX_EXPANDED = 100
 
 export type HqPlusMapCamera = { x: number; y: number; k: number }
 
+/** The panel over the map: docked to the right edge (`float` null) or dragged somewhere. */
+export type HqPlusMapDockPlace = {
+  width: number
+  float: { x: number; y: number; height: number } | null
+}
+
 export type HqPlusMapView = {
-  view: 'map' | 'feed'
-  tab: HqPlusMapFeedTab
   /** Unfolded projects per room ('' for All). */
   expanded: Record<string, string[]>
   camera: HqPlusMapCamera | null
-  /** The dock over the map folded to its edge. */
+  dock: HqPlusMapDockPlace
+  /** The panel folded to a small button at the top right. */
   dockFolded: boolean
 }
 
+export const HQ_PLUS_MAP_DOCK_WIDTH = 440
+
 const INITIAL: HqPlusMapView = {
-  view: 'map',
-  tab: 'all',
   expanded: {},
   camera: null,
+  dock: { width: HQ_PLUS_MAP_DOCK_WIDTH, float: null },
   dockFolded: false
 }
+
+const num = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null
 
 function readCamera(value: unknown): HqPlusMapCamera | null {
   if (!value || typeof value !== 'object') {
     return null
   }
-  const [x, y, k] = ['x', 'y', 'k'].map((name) => Reflect.get(value, name))
-  return typeof x === 'number' && typeof y === 'number' && typeof k === 'number' && k > 0
-    ? { x, y, k }
-    : null
+  const [x, y, k] = ['x', 'y', 'k'].map((name) => num(Reflect.get(value, name)))
+  return x !== null && y !== null && k !== null && k > 0 ? { x, y, k } : null
+}
+
+function readDock(value: unknown): HqPlusMapDockPlace {
+  if (!value || typeof value !== 'object') {
+    return { ...INITIAL.dock }
+  }
+  const width = num(Reflect.get(value, 'width'))
+  const float: unknown = Reflect.get(value, 'float')
+  const place =
+    float && typeof float === 'object'
+      ? ['x', 'y', 'height'].map((name) => num(Reflect.get(float, name)))
+      : null
+  return {
+    width: width !== null && width >= 280 ? width : HQ_PLUS_MAP_DOCK_WIDTH,
+    float:
+      place && place.every((part) => part !== null)
+        ? { x: place[0] ?? 0, y: place[1] ?? 0, height: place[2] ?? 0 }
+        : null
+  }
 }
 
 export function parseHqPlusMapView(raw: unknown): HqPlusMapView {
@@ -42,8 +67,6 @@ export function parseHqPlusMapView(raw: unknown): HqPlusMapView {
   const get = (name: string): unknown => Reflect.get(raw, name)
   const expanded = get('expanded')
   return {
-    view: get('view') === 'feed' ? 'feed' : 'map',
-    tab: HQ_PLUS_MAP_FEED_TABS.find((tab) => tab === get('tab')) ?? INITIAL.tab,
     expanded:
       expanded && typeof expanded === 'object'
         ? Object.fromEntries(
@@ -56,6 +79,7 @@ export function parseHqPlusMapView(raw: unknown): HqPlusMapView {
           )
         : {},
     camera: readCamera(get('camera')),
+    dock: readDock(get('dock')),
     dockFolded: get('dockFolded') === true
   }
 }

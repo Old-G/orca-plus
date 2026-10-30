@@ -30,7 +30,14 @@ export function HqPlusText({
   return (
     <span className="hqp-txt">
       {lines.map((line, index) => (
-        <span key={index} className="hqp-txt-l" data-bullet={line.bullet ? 'true' : undefined}>
+        <span
+          key={index}
+          className="hqp-txt-l"
+          data-bullet={line.bullet ? 'true' : undefined}
+          data-label={line.label?.kind}
+        >
+          {/* Custom build (hq-plus-map): «Done», «Question» as a small label, the line in its own tone. */}
+          {line.label ? <span className="hqp-txt-k">{line.label.text}</span> : null}
           {line.spans.map((span, at) => (
             <Span key={at} span={span} />
           ))}
