@@ -128,6 +128,7 @@ export function registerHqRouting(
         {
           listOpen: () => runtime.pulseListWaitings({ status: 'open' }),
           deliver: deliverWaitingReply,
+          liveChat: (sessionId: string) => runtime.pulseLiveSessionOf(sessionId),
           markDelivered: (id, ts) => void runtime.pulseMarkWaitingReplyDelivered(id, ts)
         },
         waitingId,
