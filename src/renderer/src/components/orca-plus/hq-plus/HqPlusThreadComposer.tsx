@@ -80,7 +80,7 @@ export function HqPlusThreadComposer({
           }}
         />
         <HqCommandDictation textareaRef={textareaRef} disabled={busy} />
-        <span className="hqp-to">→ {target.address ?? label}</span>
+        {/* Custom build (hq-plus-map): no «→ chat» here — the card already names it (owner, 31.10). */}
         <button
           type="submit"
           className="hqp-go"
