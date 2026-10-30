@@ -13,6 +13,24 @@ import { closeWaiting } from './pulse-waitings'
 
 /** Why: an answer by DM to a question older than two weeks is rarely to that question. */
 export const HQ_LEDGER_PERSON_WINDOW_MS = 14 * 24 * 60 * 60_000
+/** Why: top-level DM lines have no thread; a day of them is one talk. */
+export const HQ_LEDGER_DM_TALK_MS = 24 * 60 * 60_000
+
+const DM_KEY = /^slack:(D[A-Z0-9]+):/
+
+/** A top-level DM line joins the DM's talk of the last day instead of opening a conversation of one. */
+function dmTalkOf(core: PulseCore, signal: HqLedgerSignal): string | null {
+  const dm = DM_KEY.exec(signal.key)
+  if (!dm) {
+    return null
+  }
+  const row = core.db
+    .prepare(
+      `SELECT id FROM conversations WHERE key LIKE ? AND last_at >= ? ORDER BY last_at DESC LIMIT 1`
+    )
+    .get(`slack:${dm[1]}:%`, signal.at - HQ_LEDGER_DM_TALK_MS)
+  return row ? String(row.id) : null
+}
 
 type OpenWaiting = {
   id: string
@@ -100,11 +118,13 @@ export function ingestLedgerSignal(core: PulseCore, signal: HqLedgerSignal): HqL
     const open = openWaitings(core)
     const atPlace = open.filter((waiting) => waiting.key === signal.key)
     let step: HqLedgerStep = 'new'
-    let conversationId = conversationIdByKey(core, signal.key)
+    let conversationId = conversationIdByKey(core, signal.key) ?? dmTalkOf(core, signal)
     let candidates: OpenWaiting[] = []
     if (conversationId || atPlace.length > 0) {
       step = 'place'
-    } else if (!signal.fromOwner) {
+    } else if (!signal.fromOwner && DM_KEY.test(signal.key)) {
+      // Why only a DM: a message in a new channel thread starts its own talk; an answer by DM
+      // to a question asked elsewhere is the case the person step is for.
       const personId = personOf(core, signal.authorId)
       candidates = personId
         ? open.filter(
