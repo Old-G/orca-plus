@@ -127,13 +127,14 @@ export async function runHqSlackLedgerReader(
     for (const message of [...messages].sort((a, b) => Number(a.ts) - Number(b.ts))) {
       const key = `slack:${message.channel}:${message.threadTs ?? message.ts}`
       const last = deps.lastDirection(key)
-      // Why: a top-level channel line is a talk only once a thread grows under it; the owner's own
-      // posts to channels are not conversations.
+      // Why: a top-level channel line is a talk only once a thread grows under it or it @mentions
+      // the owner; his own posts to channels are not conversations.
       if (
         !message.dm &&
         !message.threadTs &&
         last === null &&
-        !roots.has(`${message.channel}:${message.ts}`)
+        !roots.has(`${message.channel}:${message.ts}`) &&
+        !(message.user !== api.owner && message.rawText.includes(`<@${api.owner}`))
       ) {
         continue
       }
