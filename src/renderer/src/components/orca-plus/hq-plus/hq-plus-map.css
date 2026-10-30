@@ -460,3 +460,76 @@ p.hqm-sub {
     height: 60%;
   }
 }
+
+/* Custom build (hq-plus-map): open chats at a glance in the top bar, × on a chat leaf (owner, 31.10) */
+.hqm-chats {
+  border: 1px solid var(--hqp-line-2);
+  border-radius: 999px;
+  background: none;
+  color: var(--hqp-fg);
+  font-size: 12.5px;
+  padding: 3px 11px;
+}
+.hqm-chats:hover,
+.hqm-chats[aria-pressed='true'] {
+  background: var(--hqp-soft-2);
+}
+.hqm-x {
+  cursor: pointer;
+}
+.hqm-x rect {
+  fill: transparent;
+}
+.hqm-x path {
+  stroke: var(--hqp-faint);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.hqm-x:hover rect {
+  fill: var(--hqp-soft-2);
+}
+.hqm-x:hover path {
+  stroke: var(--hqp-fg);
+}
+.hqm-x[data-asking='true'] rect {
+  fill: #2a1a12;
+  stroke: var(--hqp-amber);
+}
+.hqm-x text {
+  fill: var(--hqp-amber);
+  font-size: 11px;
+}
+/* a chat row in the panel: the row opens the chat, × beside it closes it */
+.hqm-chatrow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.hqm-chatrow > button:first-child {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  align-items: center;
+}
+.hqm-list .hqm-chatrow .hqp-x {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  padding: 0;
+}
+/* cards in the map's panel: the feed's cards without its tiles and day lines, decided in place */
+.hqm-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hqm-cards .hqp-m {
+  grid-template-columns: minmax(0, 1fr);
+}
+.hqm-cards .hqp-tile {
+  display: none;
+}
+.hqm-cards .hqp-card {
+  margin-top: 0;
+}
