@@ -1,5 +1,6 @@
 // Custom build (hq-plus-ui-v3): one chat's card in HQ+'s feed — a click opens its full reply and a reply
 // box below. Custom build (hq-plus-ui-v4): it grows and folds smoothly, and the keys can select it.
+// Custom build (hq-plus-card-shell): drawn in the cards' one shell.
 import { useLayoutEffect, useRef, useState } from 'react'
 import { NativeChatMarkdown } from '../../native-chat/NativeChatMarkdown'
 import { useHqPlusLastReply } from './use-hq-plus-last-reply'
@@ -13,7 +14,7 @@ import { HqPlusThreadComposer } from './HqPlusThreadComposer'
 import { openPane } from '../pulse-bell/pulse-bell-actions'
 import { HqPlusCloseChat } from './HqPlusCloseChat'
 import { HqPlusGrow } from './HqPlusGrow'
-import { HqPlusChatName } from './HqPlusChatName'
+import { HqPlusCardHead, HqPlusCardShell } from './HqPlusCardShell'
 import { hqPlusPinWhileMoving } from './hq-plus-scroll-pin'
 import type { HqPlusLogContext } from './HqPlusLog'
 
@@ -60,8 +61,9 @@ export function ChatCard({
   const openRun = openChat ?? (pane ? (ctx.openPane(pane.paneKey) ?? (() => openPane(pane))) : null)
   return (
     <FeedRow item={item} ctx={ctx} tile={tile}>
-      <div
+      <HqPlusCardShell
         className="hqp-chatc"
+        padded={false}
         data-flash={flash ? 'true' : undefined}
         data-picked={ctx.isOpenChat(item.sessionId) ? 'true' : undefined}
         data-expandable="true"
@@ -74,69 +76,70 @@ export function ChatCard({
             ctx.setExpanded(item.id, !open)
           }
         }}
+        head={
+          <HqPlusCardHead
+            badges={badges}
+            lead={
+              <>
+                <NewMark item={item} ctx={ctx} />
+                <strong>{item.project ?? 'HQ'}</strong>
+              </>
+            }
+            chat={ctx.chatOf(item.sessionId)}
+            when={clock(item.at)}
+            right={
+              <>
+                <HqPlusBadges badges={waitsOn ? [waitsOn, status] : [status]} />
+                {closer ? <HqPlusCloseChat closer={closer} name={item.project ?? 'chat'} /> : null}
+              </>
+            }
+          />
+        }
+        composer={
+          canReply ? (
+            <Collapsible open={open}>
+              <CollapsibleContent animation="height">
+                <div className="hqp-chatc-reply">
+                  <HqPlusThreadComposer
+                    target={{
+                      address: item.address,
+                      sessionId: item.sessionId,
+                      replyTo: null,
+                      about: null,
+                      pane: item.pane ?? null
+                    }}
+                    openQuestion={null}
+                    label={item.address ?? item.project ?? 'chat'}
+                    hqPath={ctx.hqPath}
+                    showTo={false}
+                    onSent={ctx.onChanged}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          ) : null
+        }
+        footer={{
+          left:
+            key && item.address ? (
+              <button type="button" className="hqp-addr" onClick={() => ctx.onScope(key)}>
+                {item.address}
+              </button>
+            ) : null,
+          onCollapse: open ? () => ctx.setExpanded(item.id, false) : null,
+          right: openRun ? (
+            <button type="button" className="hqp-pill" onClick={openRun}>
+              {translate('auto.hqPlus.open', 'Open')}
+            </button>
+          ) : null
+        }}
       >
-        <div className="hqp-row-h">
-          <HqPlusBadges badges={badges} />
-          <NewMark item={item} ctx={ctx} />
-          <strong>{item.project ?? 'HQ'}</strong>
-          <HqPlusChatName chat={ctx.chatOf(item.sessionId)} />
-          <span className="hqp-tm">{clock(item.at)}</span>
-          <span className="hqp-spacer" />
-          <HqPlusBadges badges={waitsOn ? [waitsOn, status] : [status]} />
-          {closer ? <HqPlusCloseChat closer={closer} name={item.project ?? 'chat'} /> : null}
-        </div>
         <HqPlusGrow>
           {/* Custom build (hq-plus-ui-v4): one text, four lines with a fade when folded, all of it open. */}
           <ChatText text={item.body?.trim() || item.title} full={fullReply} open={open} />
         </HqPlusGrow>
         {item.earlier && item.earlier.length > 0 ? <ChatEarlier earlier={item.earlier} /> : null}
-        {canReply ? (
-          <Collapsible open={open}>
-            <CollapsibleContent animation="height">
-              <div className="hqp-chatc-reply">
-                <HqPlusThreadComposer
-                  target={{
-                    address: item.address,
-                    sessionId: item.sessionId,
-                    replyTo: null,
-                    about: null,
-                    pane: item.pane ?? null
-                  }}
-                  openQuestion={null}
-                  label={item.address ?? item.project ?? 'chat'}
-                  hqPath={ctx.hqPath}
-                  showTo={false}
-                  onSent={ctx.onChanged}
-                />
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        ) : null}
-        {item.address || openRun || open ? (
-          <div className="hqp-row-f">
-            {key && item.address ? (
-              <button type="button" className="hqp-addr" onClick={() => ctx.onScope(key)}>
-                {item.address}
-              </button>
-            ) : null}
-            <span className="hqp-spacer" />
-            {open ? (
-              <button
-                type="button"
-                className="hqp-pill"
-                onClick={() => ctx.setExpanded(item.id, false)}
-              >
-                {translate('auto.hqPlus.collapseCard', 'Collapse')}
-              </button>
-            ) : null}
-            {openRun ? (
-              <button type="button" className="hqp-pill" onClick={openRun}>
-                {translate('auto.hqPlus.open', 'Open')}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+      </HqPlusCardShell>
     </FeedRow>
   )
 }

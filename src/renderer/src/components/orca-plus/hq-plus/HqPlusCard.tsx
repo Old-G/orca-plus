@@ -30,13 +30,11 @@ import {
   settleHqPlusAgentDraft,
   replyOnHqPlusCard,
   replyOnHqPlusJob,
-  tellHqPlusDraftingAgent,
-  type HqPlusResult
+  tellHqPlusDraftingAgent
 } from './hq-plus-actions'
-import { HqPlusReportBody } from './HqPlusReportBody'
+import { HqPlusReportCard } from './HqPlusReportBody'
 import type { HqPlusLook } from '../../../../../shared/hq-plus-kinds'
 import { readHqSlackRequestRef } from '../../../../../shared/hq-slack-request-bell'
-import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 import { hqPlusSaid } from '../../../../../shared/hq-plus-said'
 import { HqPlusComposer } from './HqPlusComposer'
@@ -44,7 +42,16 @@ import { HQ_FIX_NOW_DONE_PREFIX } from '../../../../../shared/hq-fix-now'
 import { useHqPlusDraftLink } from './use-hq-plus-draft-link'
 import { hqPlusSourceLabel } from './hq-plus-source-label'
 import type { HqPlusLinkClick } from './hq-plus-link-open'
-import { HqPlusChatName, type HqPlusChatRef } from './HqPlusChatName'
+import type { HqPlusChatRef } from './HqPlusChatName'
+import {
+  HqPlusCardFold,
+  HqPlusCardHead,
+  HqPlusCardShell,
+  HqPlusCardSource,
+  hqPlusSourceButton,
+  useHqPlusRun,
+  type HqPlusCardButton
+} from './HqPlusCardShell'
 import {
   HQ_WAITING_REPLY_ACTION,
   readHqWaitingReplyRef
@@ -418,11 +425,13 @@ export function HqPlusCardView({
   bare?: boolean
 }): React.JSX.Element {
   const setExpanded = onExpand
-  const [busy, setBusy] = useState(false)
-  // Custom build (hq-plus-links): the pressed button, so a slow action (a new session) shows it works.
-  const [pending, setPending] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [text, setText] = useState('')
+  // Custom build (hq-plus-links): the pressed button, so a slow action (a new session) shows it works.
+  const { busy, pending, error, run } = useHqPlusRun(() => {
+    setText('')
+    setExpanded(false)
+    onChanged()
+  })
   const open = card.open
   const reportPath = card.type === 'report' ? (hqPlusReportOf(card)?.path ?? null) : null
   const note = noteOf(card)
@@ -438,143 +447,122 @@ export function HqPlusCardView({
     open &&
     (card.type === 'wait' || ((card.type === 'reply' || card.type === 'bell') && !!card.inbox))
   // Why: a folded card's conversation names its source once, in its own head.
-  const sourceButton =
-    sourceLink && !bare ? (
-      <button
-        type="button"
-        className="hqp-opt"
-        data-ghost="true"
-        onClick={(event) => onOpenLink(sourceLink.url, event)}
-      >
-        {sourceLink.label} ↗
-      </button>
-    ) : null
+  const sourceButton = sourceLink && !bare ? [hqPlusSourceButton(sourceLink.url, onOpenLink)] : []
   const answerOf = card.type === 'reply' ? readHqWaitingReplyRef(card.inbox?.refId ?? null) : null
   // Custom build (hq-plus-cards): the chat's name opens it, so no separate «Open» stands beside it.
   const chatOpens = Boolean(onOpenChat && chat && (chat.item || chat.name))
   const head = (
-    <div className="hqp-row-h">
-      <HqPlusBadges badges={look.badges} />
-      {/* Custom build (hq-plus-cards): one head for every card — who, then where it belongs. */}
-      {answerOf ? (
+    <HqPlusCardHead
+      badges={look.badges}
+      lead={
+        // Custom build (hq-plus-cards): one head for every card — who, then where it belongs.
+        answerOf ? (
+          <>
+            <strong>{answerOf.author}</strong>
+            <span className="hqp-note">
+              {translate('auto.hqPlus.answered', 'answered')} · {card.project ?? 'HQ'}
+            </span>
+          </>
+        ) : (
+          <>
+            {note ? <span className="hqp-note">{note}</span> : null}
+            <strong>{card.job ?? card.project ?? 'HQ'}</strong>
+          </>
+        )
+      }
+      chat={chat}
+      onOpenChat={chatOpens ? onOpenChat : null}
+      when={when}
+      extra={
+        // Custom build (hq-plus-cards): the thread's address only on a card still open and nameless.
+        threadLabel && onThread && open && !(chat?.item || chat?.name) ? (
+          <button type="button" className="hqp-addr" onClick={onThread}>
+            {threadLabel}
+          </button>
+        ) : null
+      }
+      right={
         <>
-          <strong>{answerOf.author}</strong>
-          <span className="hqp-note">
-            {translate('auto.hqPlus.answered', 'answered')} · {card.project ?? 'HQ'}
-          </span>
+          {/* Custom build (hq-plus-side-blocks): where the card came from — beside Done when the card
+              has that row, else top-right on the head's line. */}
+          {sourceLink && !sourceInActions ? (
+            <HqPlusCardSource url={sourceLink.url} onOpen={onOpenLink} />
+          ) : null}
+          {onOpenChat && !rowOpensChat && !chatOpens ? (
+            <button type="button" className="hqp-pill" onClick={onOpenChat}>
+              {translate('auto.hqPlus.open', 'Open')}
+            </button>
+          ) : null}
         </>
-      ) : (
-        <>
-          {note ? <span className="hqp-note">{note}</span> : null}
-          <strong>{card.job ?? card.project ?? 'HQ'}</strong>
-        </>
-      )}
-      <HqPlusChatName chat={chat} onOpen={chatOpens ? onOpenChat : null} />
-      <span className="hqp-tm">{when}</span>
-      {/* Custom build (hq-plus-cards): the thread's address only on a card still open and nameless. */}
-      {threadLabel && onThread && open && !(chat?.item || chat?.name) ? (
-        <button type="button" className="hqp-addr" onClick={onThread}>
-          {threadLabel}
-        </button>
-      ) : null}
-      <span className="hqp-spacer" />
-      {/* Custom build (hq-plus-side-blocks): where the card came from — beside Done when the card has
-          that row, else top-right on the head's line. */}
-      {sourceLink && !sourceInActions ? (
-        <button
-          type="button"
-          className="hqp-link hqp-source"
-          onClick={(event) => onOpenLink(sourceLink.url, event)}
-        >
-          {sourceLink.label} ↗
-        </button>
-      ) : null}
-      {onOpenChat && !rowOpensChat && !chatOpens ? (
-        <button type="button" className="hqp-pill" onClick={onOpenChat}>
-          {translate('auto.hqPlus.open', 'Open')}
-        </button>
-      ) : null}
-    </div>
+      }
+    />
   )
-  const run = (action: () => Promise<HqPlusResult>, key: string | null = null): void => {
-    if (busy) {
-      return
-    }
-    setBusy(true)
-    setPending(key)
-    setError(null)
-    void action()
-      .then((result) => {
-        if (result.ok) {
-          setText('')
-          setExpanded(false)
-          onChanged()
-        } else {
-          setError(result.message)
-        }
-      })
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
-      .finally(() => {
-        setBusy(false)
-        setPending(null)
-      })
+  const kind = {
+    'data-type': card.type,
+    'data-look': look.kind,
+    'data-source': look.source ?? undefined,
+    'data-flash': flash ? 'true' : undefined
   }
 
   // Custom build (hq-plus-ui-v5): a request waits folded — who and one line; a click unfolds it.
   if (open && look.kind === 'inbox' && !expanded && !bare) {
     return (
-      <div
-        className="hqp-card"
-        data-type={card.type}
-        data-look={look.kind}
-        data-source={look.source ?? undefined}
-        data-flash={flash ? 'true' : undefined}
-      >
-        {head}
-        <button
-          type="button"
-          className="hqp-cc"
-          aria-expanded="false"
-          onClick={() => setExpanded(true)}
-        >
-          <span className="l1">
-            <HqPlusText text={questionOf(card)} maxLines={1} />
-          </span>
-        </button>
-      </div>
+      <HqPlusCardShell
+        {...kind}
+        head={head}
+        folded={
+          <HqPlusCardFold line={questionOf(card)} done={null} onOpen={() => setExpanded(true)} />
+        }
+      />
     )
   }
 
   if (!open && !expanded && card.done) {
     return (
-      <div
-        className="hqp-card"
-        data-type={card.type}
-        data-look={look.kind}
-        data-source={look.source ?? undefined}
-        data-flash={flash ? 'true' : undefined}
-      >
-        {head}
-        <button
-          type="button"
-          className="hqp-cc"
-          aria-expanded="false"
-          onClick={() => setExpanded(true)}
-        >
-          <span className="l1">
-            <HqPlusText
-              text={card.type === 'move' || card.type === 'reply' ? questionOf(card) : card.title}
-              maxLines={1}
+      <HqPlusCardShell
+        {...kind}
+        head={head}
+        folded={
+          <>
+            <HqPlusCardFold
+              line={card.type === 'move' || card.type === 'reply' ? questionOf(card) : card.title}
+              done={hqPlusDoneLabel(card.done)}
+              onOpen={() => setExpanded(true)}
             />
-          </span>
-          <span className="l2">✓ {hqPlusDoneLabel(card.done)}</span>
-        </button>
-        {reportPath ? (
-          <button type="button" className="hqp-cc-open" onClick={() => onOpenReport(reportPath)}>
-            {translate('auto.hqPlus.report.openShort', 'open')}
-          </button>
-        ) : null}
-      </div>
+            {reportPath ? (
+              <button
+                type="button"
+                className="hqp-cc-open"
+                onClick={() => onOpenReport(reportPath)}
+              >
+                {translate('auto.hqPlus.report.openShort', 'open')}
+              </button>
+            ) : null}
+          </>
+        }
+      />
+    )
+  }
+
+  const collapse =
+    expanded && !bare && (!open || look.kind === 'inbox') ? () => setExpanded(false) : null
+
+  if (card.type === 'report' && !bare) {
+    return (
+      <HqPlusReportCard
+        card={card}
+        attributes={{ ...kind, 'data-open': open ? 'true' : undefined }}
+        head={head}
+        done={card.done ? hqPlusDoneLabel(card.done) : null}
+        hqPath={hqPath}
+        hqWorktreeId={hqWorktreeId}
+        onOpenReport={onOpenReport}
+        onCollapse={collapse}
+        onDone={() => {
+          setExpanded(false)
+          onChanged()
+        }}
+      />
     )
   }
 
@@ -591,313 +579,282 @@ export function HqPlusCardView({
       (card.inbox && readPulseBellPaneRef(card.inbox.refId))
     )
 
-  return (
-    <div
-      className={bare ? 'hqp-part-acts' : 'hqp-card'}
-      data-type={card.type}
-      data-look={look.kind}
-      data-source={look.source ?? undefined}
-      data-open={open ? 'true' : undefined}
-      data-flash={flash ? 'true' : undefined}
-    >
-      <div className="hqp-cb">
-        {bare ? null : head}
-        {bare ? null : card.type === 'report' ? (
-          <HqPlusReportBody
-            card={card}
-            busy={busy}
-            hqPath={hqPath}
-            hqWorktreeId={hqWorktreeId}
-            run={run}
-            onOpenReport={onOpenReport}
-          />
-        ) : (
-          <>
-            {card.type === 'approve' ? null : card.type === 'reply' ? (
-              <HqPlusSaidText text={questionOf(card)} />
-            ) : (
-              <p className="hqp-q">
-                <HqPlusText text={questionOf(card)} />
-              </p>
-            )}
-            {card.report?.done || card.report?.next || card.report?.found ? (
-              <dl className="hqp-rep">
-                {card.report.found ? (
-                  <>
-                    <dt>{translate('auto.hqPlus.found', 'found')}</dt>
-                    <dd>{card.report.found}</dd>
-                  </>
-                ) : null}
-                {card.report.done ? (
-                  <>
-                    <dt>
-                      {card.job
-                        ? translate('auto.hqPlus.did', 'did')
-                        : translate('auto.hqPlus.done', 'done')}
-                    </dt>
-                    <dd>{card.report.done}</dd>
-                  </>
-                ) : null}
-                {card.report.next ? (
-                  <>
-                    <dt>{translate('auto.hqPlus.next', 'next')}</dt>
-                    <dd>{card.report.next}</dd>
-                  </>
-                ) : null}
-                {card.report.learned && card.report.ask ? (
-                  <>
-                    <dt>{translate('auto.hqPlus.learned', 'learned')}</dt>
-                    <dd>{card.report.learned}</dd>
-                  </>
-                ) : null}
-              </dl>
-            ) : card.type === 'reply' && replyRef ? (
-              <HqPlusReplyContext
-                card={card}
-                answer={replyRef}
-                files={hqPlusSaid(replyRef.reply, replyRef.author).files}
-                onFiles={sourceLink ? () => onOpenLink(sourceLink.url) : null}
-              />
-            ) : card.body && card.type !== 'approve' ? (
-              <p className="hqp-text">
-                <HqPlusText text={card.body} />
-              </p>
-            ) : null}
-            {card.type === 'approve' && open && card.inbox ? (
-              <div className="hqp-approve-host">
-                <OutgoingApprovalDecision item={card.inbox} />
-              </div>
-            ) : null}
-            {card.type === 'approve' && open && !card.inbox ? (
-              <>
-                {card.body ? (
-                  <p className="hqp-text">
-                    <HqPlusText text={card.body} />
-                  </p>
-                ) : null}
-                <div className="hqp-opts">
-                  <button
-                    type="button"
-                    className="hqp-opt"
-                    data-main="true"
-                    disabled={busy || !hqWorktreeId}
-                    title={translate(
-                      'auto.hqPlus.agentDraft.sendHint',
-                      'An HQ chat sends it; the message still waits for your Approve'
-                    )}
-                    onClick={() => run(() => sendHqPlusAgentDraft(card, hqWorktreeId))}
-                  >
-                    {translate('auto.hqPlus.agentDraft.send', 'Send via HQ')}
-                  </button>
-                  <button
-                    type="button"
-                    className="hqp-opt"
-                    disabled={busy}
-                    onClick={() => run(() => settleHqPlusAgentDraft(card, 'rejected'))}
-                  >
-                    {translate('auto.hqPlus.waitDrop', 'Not needed')}
-                  </button>
-                </div>
-              </>
-            ) : null}
-            {card.type === 'approve' && !open && card.body ? (
-              <p className="hqp-text">
-                <HqPlusText text={card.body} />
-              </p>
-            ) : null}
-          </>
+  const buttons = ((): HqPlusCardButton[] => {
+    if (open && card.type === 'move') {
+      const item = card.inbox
+      const openChat =
+        onOpenChat ?? (item ? () => void runPulseBellAction(item, PULSE_BELL_ACTION.open) : null)
+      return [
+        ...choices.map((choice, index) => ({
+          id: choice,
+          label: (
+            <>
+              {choice} <kbd>{index + 1}</kbd>
+            </>
+          ),
+          main: index === 0,
+          disabled: busy || !canReply,
+          onClick: () => reply(choice)
+        })),
+        ...(openChat
+          ? [
+              {
+                id: 'open-chat',
+                label: translate('auto.hqPlus.openChat', 'Open chat'),
+                onClick: openChat
+              }
+            ]
+          : []),
+        ...(item
+          ? [
+              {
+                id: 'got-it',
+                label: translate('auto.hqPlus.gotIt', 'Got it'),
+                ghost: true,
+                disabled: busy,
+                onClick: () => run(() => markHqPlusDone(card, 'seen'))
+              }
+            ]
+          : [])
+      ]
+    }
+    if (!open && !card.done && card.job && card.report?.learned) {
+      return [
+        {
+          id: 'undo',
+          label: translate('auto.hqPlus.job.undo', 'Undo'),
+          hint: translate(
+            'auto.hqPlus.job.undoHint',
+            'The job reads this on its next run and takes the rule back'
+          ),
+          ghost: true,
+          disabled: busy,
+          onClick: () => reply(HQ_JOB_UNDO)
+        }
+      ]
+    }
+    if (open && card.type === 'wait') {
+      return [
+        {
+          id: 'wait-done',
+          label: translate('auto.hqPlus.waitDone', 'Done'),
+          main: true,
+          disabled: busy,
+          onClick: () => run(() => closeHqPlusWait(card, 'resolved'))
+        },
+        {
+          id: 'wait-drop',
+          label: translate('auto.hqPlus.waitDrop', 'Not needed'),
+          disabled: busy,
+          onClick: () => run(() => closeHqPlusWait(card, 'cancelled'))
+        },
+        ...sourceButton
+      ]
+    }
+    if (open && (card.type === 'reply' || card.type === 'bell') && card.inbox) {
+      const item = card.inbox
+      return [
+        ...actions.map((action, index) => ({
+          id: action.id,
+          label:
+            pending === action.id &&
+            (action.id === PULSE_BELL_ACTION.launch || action.id === HANDOFF_KEEP)
+              ? translate('auto.hqPlus.starting', 'Starting…')
+              : action.label,
+          hint: action.hint,
+          main: index === 0,
+          pending: pending === action.id,
+          disabled: busy,
+          onClick: () => {
+            const offerId =
+              action.id === HANDOFF_KEEP ? readHandoffBellOfferId(item.refId ?? null) : null
+            if (onToWork && TO_WORK_ACTIONS.has(action.id)) {
+              onToWork(item)
+            } else if (offerId) {
+              run(async () => {
+                await launchClaudeHandoffOffer(offerId, true)
+                return { ok: true }
+              }, action.id)
+            } else {
+              run(async () => {
+                await runPulseBellAction(item, action.id)
+                return { ok: true }
+              }, action.id)
+            }
+          }
+        })),
+        // Custom build (hq-plus-side-blocks): handled outside HQ+ already — Done closes the request.
+        ...(look.kind === 'inbox'
+          ? [
+              {
+                id: 'queue-done',
+                label: translate('auto.hqPlus.queue.done', 'Done'),
+                disabled: busy,
+                onClick: () => run(() => markHqPlusDone(card, 'done'))
+              }
+            ]
+          : []),
+        ...(look.kind === 'inbox' && onNotNow
+          ? [
+              {
+                id: 'not-now',
+                label: translate('auto.hqPlus.notNow', 'Not now'),
+                ghost: true,
+                onClick: onNotNow
+              }
+            ]
+          : []),
+        ...sourceButton
+      ]
+    }
+    if (open && card.type === 'approve' && !card.inbox) {
+      return [
+        {
+          id: 'agent-send',
+          label: translate('auto.hqPlus.agentDraft.send', 'Send via HQ'),
+          hint: translate(
+            'auto.hqPlus.agentDraft.sendHint',
+            'An HQ chat sends it; the message still waits for your Approve'
+          ),
+          main: true,
+          disabled: busy || !hqWorktreeId,
+          onClick: () => run(() => sendHqPlusAgentDraft(card, hqWorktreeId))
+        },
+        {
+          id: 'agent-drop',
+          label: translate('auto.hqPlus.waitDrop', 'Not needed'),
+          disabled: busy,
+          onClick: () => run(() => settleHqPlusAgentDraft(card, 'rejected'))
+        }
+      ]
+    }
+    return []
+  })()
+
+  const composer =
+    open && card.type === 'approve' && card.inbox ? (
+      <HqPlusComposer
+        id={`hqp-t-${card.id}`}
+        label={translate('auto.hqPlus.tellAgent', 'Tell agent')}
+        value={text}
+        busy={busy}
+        placeholder={translate(
+          'auto.hqPlus.tellAgentHint',
+          'Tell agent: make it shorter, add a deadline…'
         )}
-        {card.done ? <p className="hqp-done">✓ {hqPlusDoneLabel(card.done)}</p> : null}
-        {open && card.type === 'move' ? (
-          <div className="hqp-opts">
-            {choices.map((choice, index) => (
-              <button
-                key={choice}
-                type="button"
-                className="hqp-opt"
-                data-main={index === 0 ? 'true' : undefined}
-                disabled={busy || !canReply}
-                onClick={() => reply(choice)}
-              >
-                {choice} <kbd>{index + 1}</kbd>
-              </button>
-            ))}
-            {onOpenChat ? (
-              <button type="button" className="hqp-opt" onClick={onOpenChat}>
-                {translate('auto.hqPlus.openChat', 'Open chat')}
-              </button>
-            ) : card.inbox ? (
-              <button
-                type="button"
-                className="hqp-opt"
-                onClick={() => {
-                  const item = card.inbox
-                  if (item) {
-                    void runPulseBellAction(item, PULSE_BELL_ACTION.open)
-                  }
-                }}
-              >
-                {translate('auto.hqPlus.openChat', 'Open chat')}
-              </button>
-            ) : null}
-            {card.inbox ? (
-              <button
-                type="button"
-                className="hqp-opt"
-                data-ghost="true"
-                disabled={busy}
-                onClick={() => run(() => markHqPlusDone(card, 'seen'))}
-              >
-                {translate('auto.hqPlus.gotIt', 'Got it')}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-        {!open && !card.done && card.job && card.report?.learned ? (
-          <div className="hqp-opts">
-            <button
-              type="button"
-              className="hqp-opt"
-              data-ghost="true"
-              disabled={busy}
-              title={translate(
-                'auto.hqPlus.job.undoHint',
-                'The job reads this on its next run and takes the rule back'
-              )}
-              onClick={() => reply(HQ_JOB_UNDO)}
-            >
-              {translate('auto.hqPlus.job.undo', 'Undo')}
-            </button>
-          </div>
-        ) : null}
-        {open && card.type === 'wait' ? (
-          <div className="hqp-opts">
-            <button
-              type="button"
-              className="hqp-opt"
-              data-main="true"
-              disabled={busy}
-              onClick={() => run(() => closeHqPlusWait(card, 'resolved'))}
-            >
-              {translate('auto.hqPlus.waitDone', 'Done')}
-            </button>
-            <button
-              type="button"
-              className="hqp-opt"
-              disabled={busy}
-              onClick={() => run(() => closeHqPlusWait(card, 'cancelled'))}
-            >
-              {translate('auto.hqPlus.waitDrop', 'Not needed')}
-            </button>
-            {sourceButton}
-          </div>
-        ) : null}
-        {open && (card.type === 'reply' || card.type === 'bell') && card.inbox ? (
-          <div className="hqp-opts">
-            {actions.map((action, index) => (
-              <button
-                key={action.id}
-                type="button"
-                className="hqp-opt"
-                data-main={index === 0 ? 'true' : undefined}
-                aria-busy={pending === action.id ? 'true' : undefined}
-                disabled={busy}
-                title={action.hint}
-                onClick={() => {
-                  const item = card.inbox
-                  const offerId =
-                    action.id === HANDOFF_KEEP ? readHandoffBellOfferId(item?.refId ?? null) : null
-                  if (item && onToWork && TO_WORK_ACTIONS.has(action.id)) {
-                    onToWork(item)
-                  } else if (offerId) {
-                    run(async () => {
-                      await launchClaudeHandoffOffer(offerId, true)
-                      return { ok: true }
-                    }, action.id)
-                  } else if (item) {
-                    run(async () => {
-                      await runPulseBellAction(item, action.id)
-                      return { ok: true }
-                    }, action.id)
-                  }
-                }}
-              >
-                {pending === action.id &&
-                (action.id === PULSE_BELL_ACTION.launch || action.id === HANDOFF_KEEP)
-                  ? translate('auto.hqPlus.starting', 'Starting…')
-                  : action.label}
-              </button>
-            ))}
-            {/* Custom build (hq-plus-side-blocks): handled outside HQ+ already — Done closes the request. */}
-            {look.kind === 'inbox' ? (
-              <button
-                type="button"
-                className="hqp-opt"
-                disabled={busy}
-                onClick={() => run(() => markHqPlusDone(card, 'done'))}
-              >
-                {translate('auto.hqPlus.queue.done', 'Done')}
-              </button>
-            ) : null}
-            {look.kind === 'inbox' && onNotNow ? (
-              <button type="button" className="hqp-opt" data-ghost="true" onClick={onNotNow}>
-                {translate('auto.hqPlus.notNow', 'Not now')}
-              </button>
-            ) : null}
-            {sourceButton}
-          </div>
-        ) : null}
-        {open && card.type === 'approve' && card.inbox ? (
-          <HqPlusComposer
-            id={`hqp-t-${card.id}`}
-            label={translate('auto.hqPlus.tellAgent', 'Tell agent')}
-            value={text}
-            busy={busy}
-            placeholder={translate(
-              'auto.hqPlus.tellAgentHint',
-              'Tell agent: make it shorter, add a deadline…'
-            )}
-            to={translate('auto.hqPlus.tellAgentTo', 'agent, not sent')}
-            sendLabel={translate('auto.hqPlus.tellAgent', 'Tell agent')}
-            onChange={setText}
-            onSubmit={() => run(() => tellHqPlusDraftingAgent(card, text))}
-          />
-        ) : null}
-        {/* Custom build (hq-closed-loop): an item with its own «Not now» (a handoff) shows it once. */}
-        {open &&
-        onNotNow &&
-        look.kind !== 'inbox' &&
-        !card.inbox?.actions.some((action) => action.id === PULSE_BELL_ACTION.dismiss) &&
-        (card.type === 'approve' || card.type === 'bell') ? (
-          <div className="hqp-opts">
-            <button type="button" className="hqp-opt" data-ghost="true" onClick={onNotNow}>
-              {translate('auto.hqPlus.notNow', 'Not now')}
-            </button>
-          </div>
-        ) : null}
-        {open && canReply ? (
-          <HqPlusComposer
-            id={`hqp-r-${card.id}`}
-            label={translate('auto.hqPlus.replyLabel', 'Answer this chat')}
-            value={text}
-            busy={busy}
-            placeholder={translate('auto.hqPlus.replyHint', 'Answer, or add to a button…')}
-            to={card.address ?? card.project}
-            sendLabel={translate('auto.hqPlus.send', 'Send')}
-            onChange={setText}
-            onSubmit={() => reply(text)}
-          />
-        ) : null}
-        {error ? <p className="hqp-error">{error}</p> : null}
-        {expanded && !bare && (!open || look.kind === 'inbox') ? (
-          <div className="hqp-row-f">
-            <span className="hqp-spacer" />
-            <button type="button" className="hqp-pill" onClick={() => setExpanded(false)}>
-              {translate('auto.hqPlus.collapseCard', 'Collapse')}
-            </button>
-          </div>
-        ) : null}
-      </div>
-    </div>
+        to={translate('auto.hqPlus.tellAgentTo', 'agent, not sent')}
+        sendLabel={translate('auto.hqPlus.tellAgent', 'Tell agent')}
+        onChange={setText}
+        onSubmit={() => run(() => tellHqPlusDraftingAgent(card, text))}
+      />
+    ) : open && canReply ? (
+      <HqPlusComposer
+        id={`hqp-r-${card.id}`}
+        label={translate('auto.hqPlus.replyLabel', 'Answer this chat')}
+        value={text}
+        busy={busy}
+        placeholder={translate('auto.hqPlus.replyHint', 'Answer, or add to a button…')}
+        to={card.address ?? card.project}
+        sendLabel={translate('auto.hqPlus.send', 'Send')}
+        onChange={setText}
+        onSubmit={() => reply(text)}
+      />
+    ) : null
+
+  // Custom build (hq-closed-loop): an item with its own «Not now» (a handoff) shows it once.
+  const trailing: HqPlusCardButton[] =
+    open &&
+    onNotNow &&
+    look.kind !== 'inbox' &&
+    !card.inbox?.actions.some((action) => action.id === PULSE_BELL_ACTION.dismiss) &&
+    (card.type === 'approve' || card.type === 'bell')
+      ? [
+          {
+            id: 'not-now',
+            label: translate('auto.hqPlus.notNow', 'Not now'),
+            ghost: true,
+            onClick: onNotNow
+          }
+        ]
+      : []
+
+  return (
+    <HqPlusCardShell
+      className={bare ? 'hqp-part-acts' : 'hqp-card'}
+      {...kind}
+      data-open={open ? 'true' : undefined}
+      head={bare ? null : head}
+      done={card.done ? hqPlusDoneLabel(card.done) : null}
+      buttons={buttons}
+      composer={composer}
+      trailing={trailing}
+      error={error}
+      footer={{ onCollapse: collapse }}
+    >
+      {bare ? null : (
+        <>
+          {card.type === 'approve' ? null : card.type === 'reply' ? (
+            <HqPlusSaidText text={questionOf(card)} />
+          ) : (
+            <p className="hqp-q">
+              <HqPlusText text={questionOf(card)} />
+            </p>
+          )}
+          {card.report?.done || card.report?.next || card.report?.found ? (
+            <dl className="hqp-rep">
+              {card.report.found ? (
+                <>
+                  <dt>{translate('auto.hqPlus.found', 'found')}</dt>
+                  <dd>{card.report.found}</dd>
+                </>
+              ) : null}
+              {card.report.done ? (
+                <>
+                  <dt>
+                    {card.job
+                      ? translate('auto.hqPlus.did', 'did')
+                      : translate('auto.hqPlus.done', 'done')}
+                  </dt>
+                  <dd>{card.report.done}</dd>
+                </>
+              ) : null}
+              {card.report.next ? (
+                <>
+                  <dt>{translate('auto.hqPlus.next', 'next')}</dt>
+                  <dd>{card.report.next}</dd>
+                </>
+              ) : null}
+              {card.report.learned && card.report.ask ? (
+                <>
+                  <dt>{translate('auto.hqPlus.learned', 'learned')}</dt>
+                  <dd>{card.report.learned}</dd>
+                </>
+              ) : null}
+            </dl>
+          ) : card.type === 'reply' && replyRef ? (
+            <HqPlusReplyContext
+              card={card}
+              answer={replyRef}
+              files={hqPlusSaid(replyRef.reply, replyRef.author).files}
+              onFiles={sourceLink ? () => onOpenLink(sourceLink.url) : null}
+            />
+          ) : card.body && card.type !== 'approve' ? (
+            <p className="hqp-text">
+              <HqPlusText text={card.body} />
+            </p>
+          ) : null}
+          {card.type === 'approve' && open && card.inbox ? (
+            <div className="hqp-approve-host">
+              <OutgoingApprovalDecision item={card.inbox} />
+            </div>
+          ) : null}
+          {card.type === 'approve' && card.body && !(open && card.inbox) ? (
+            <p className="hqp-text">
+              <HqPlusText text={card.body} />
+            </p>
+          ) : null}
+        </>
+      )}
+    </HqPlusCardShell>
   )
 }
