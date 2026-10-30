@@ -39,7 +39,7 @@ import { readHqSlackRequestRef } from '../../../../../shared/hq-slack-request-be
 import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 import { hqPlusSaid } from '../../../../../shared/hq-plus-said'
-import { HqPlusReplyField } from './HqPlusReplyField'
+import { HqPlusComposer } from './HqPlusComposer'
 import { HQ_FIX_NOW_DONE_PREFIX } from '../../../../../shared/hq-fix-now'
 import { useHqPlusDraftLink } from './use-hq-plus-draft-link'
 import { hqPlusSourceLabel } from './hq-plus-source-label'
@@ -848,48 +848,20 @@ export function HqPlusCardView({
           </div>
         ) : null}
         {open && card.type === 'approve' && card.inbox ? (
-          <form
-            className="hqp-reply"
-            onSubmit={(event) => {
-              event.preventDefault()
-              run(() => tellHqPlusDraftingAgent(card, text))
-            }}
-          >
-            <label className="hqp-sr" htmlFor={`hqp-t-${card.id}`}>
-              {translate('auto.hqPlus.tellAgent', 'Tell agent')}
-            </label>
-            <HqPlusReplyField
-              id={`hqp-t-${card.id}`}
-              value={text}
-              disabled={busy}
-              placeholder={translate(
-                'auto.hqPlus.tellAgentHint',
-                'Tell agent: make it shorter, add a deadline…'
-              )}
-              onChange={(event) => setText(event.target.value)}
-            />
-            <span className="hqp-to">
-              → {translate('auto.hqPlus.tellAgentTo', 'agent, not sent')}
-            </span>
-            <button
-              type="submit"
-              className="hqp-go"
-              disabled={busy || !text.trim()}
-              aria-label={translate('auto.hqPlus.tellAgent', 'Tell agent')}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.6"
-                aria-hidden="true"
-              >
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
-            </button>
-          </form>
+          <HqPlusComposer
+            id={`hqp-t-${card.id}`}
+            label={translate('auto.hqPlus.tellAgent', 'Tell agent')}
+            value={text}
+            busy={busy}
+            placeholder={translate(
+              'auto.hqPlus.tellAgentHint',
+              'Tell agent: make it shorter, add a deadline…'
+            )}
+            to={translate('auto.hqPlus.tellAgentTo', 'agent, not sent')}
+            sendLabel={translate('auto.hqPlus.tellAgent', 'Tell agent')}
+            onChange={setText}
+            onSubmit={() => run(() => tellHqPlusDraftingAgent(card, text))}
+          />
         ) : null}
         {/* Custom build (hq-closed-loop): an item with its own «Not now» (a handoff) shows it once. */}
         {open &&
@@ -904,42 +876,17 @@ export function HqPlusCardView({
           </div>
         ) : null}
         {open && canReply ? (
-          <form
-            className="hqp-reply"
-            onSubmit={(event) => {
-              event.preventDefault()
-              reply(text)
-            }}
-          >
-            <label className="hqp-sr" htmlFor={`hqp-r-${card.id}`}>
-              {translate('auto.hqPlus.replyLabel', 'Answer this chat')}
-            </label>
-            <HqPlusReplyField
-              id={`hqp-r-${card.id}`}
-              value={text}
-              disabled={busy}
-              placeholder={translate('auto.hqPlus.replyHint', 'Answer, or add to a button…')}
-              onChange={(event) => setText(event.target.value)}
-            />
-            <button
-              type="submit"
-              className="hqp-go"
-              disabled={busy || !text.trim()}
-              aria-label={translate('auto.hqPlus.send', 'Send')}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.6"
-                aria-hidden="true"
-              >
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
-            </button>
-          </form>
+          <HqPlusComposer
+            id={`hqp-r-${card.id}`}
+            label={translate('auto.hqPlus.replyLabel', 'Answer this chat')}
+            value={text}
+            busy={busy}
+            placeholder={translate('auto.hqPlus.replyHint', 'Answer, or add to a button…')}
+            to={card.address ?? card.project}
+            sendLabel={translate('auto.hqPlus.send', 'Send')}
+            onChange={setText}
+            onSubmit={() => reply(text)}
+          />
         ) : null}
         {error ? <p className="hqp-error">{error}</p> : null}
         {expanded && !bare && (!open || look.kind === 'inbox') ? (
