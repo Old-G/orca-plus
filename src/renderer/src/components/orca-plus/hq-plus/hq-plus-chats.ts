@@ -129,5 +129,22 @@ export function hqPlusProjectChats(
       )
     }))
     .sort((a, b) => rank(a) - rank(b) || latest(b) - latest(a))
-  return { marked, projects, quiet: split.quiet.filter((item) => !markedKeys.includes(item.key)) }
+  // Custom build (hq-plus-all-projects): a project with a chat open never drops out for being quiet
+  // (owner, 30.10) — past the active window it keeps a row with its latest chat; older ones fold.
+  const quiet = split.quiet.filter((item) => !markedKeys.includes(item.key))
+  const promoted = new Set<string>()
+  for (const item of [...quiet].sort((a, b) => b.sortAt - a.sortAt)) {
+    if (byRepo.has(item.repoId)) {
+      continue
+    }
+    projects.push({
+      repoId: item.repoId,
+      projectName: item.projectName,
+      kept: keptRepoIds.includes(item.repoId),
+      items: [item]
+    })
+    byRepo.set(item.repoId, projects.at(-1)!)
+    promoted.add(item.key)
+  }
+  return { marked, projects, quiet: quiet.filter((item) => !promoted.has(item.key)) }
 }
