@@ -93,15 +93,25 @@ export type HqMrState = {
 
 export type HqMrOutcome = { done: true; text: string; at: number } | { done: false; status: string }
 
-/** What GitLab says against what the waiting waits for: done with the answer's text, or a status line. */
+/**
+ * What GitLab says against what the waiting waits for: done with the answer's text, or a status line.
+ * A merge or close from before `askedAt` (the waiting's opening) answers nothing — the MR was already
+ * through when the owner asked, so the question is about something else (owner, 31.10: the owner's own
+ * merge arrived as a colleague's answer to a request sent after that merge).
+ */
 export function hqMrOutcome(
   ref: HqMrRef,
   mr: HqMrState,
   intent: HqMrIntent,
-  now: number
+  now: number,
+  askedAt: number
 ): HqMrOutcome {
   const name = `MR !${ref.iid} (${ref.projectPath})`
   const title = mr.title ? ` — ${mr.title}` : ''
+  const endedAt = Date.parse((mr.state === 'merged' ? mr.mergedAt : mr.closedAt) ?? '')
+  if ((mr.state === 'merged' || mr.state === 'closed') && endedAt < askedAt) {
+    return { done: false, status: `GitLab: !${ref.iid} ${mr.state} before this was asked` }
+  }
   if (mr.state === 'merged') {
     return {
       done: true,

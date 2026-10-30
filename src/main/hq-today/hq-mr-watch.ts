@@ -116,7 +116,7 @@ export function createHqMrWatch(deps: HqMrWatchDeps): HqMrWatch {
           if (!mr) {
             continue
           }
-          const outcome = hqMrOutcome(ref, mr, intent, deps.now())
+          const outcome = hqMrOutcome(ref, mr, intent, deps.now(), waiting.createdAt)
           if (outcome.done) {
             const recorded = deps.recordReply(waiting.id, {
               text: `${HQ_GITLAB_AUTHOR}: ${outcome.text}`,
