@@ -184,6 +184,7 @@ export function registerPulseBell(
     enabled: () => store.getSettings().hqLedger !== 'off',
     cards: (since) => runtime.pulseListInbox(true, { since }),
     ingest: (signal) => runtime.pulseIngestLedger(signal),
+    settle: (ts) => runtime.pulseSettleLedgerMessage(ts),
     conversations: (since) => runtime.pulseListLedgerConversations(since),
     waitingRef: (id) => {
       const waiting = runtime.pulseListWaitings().find((w) => w.id === id)

@@ -4,6 +4,7 @@
 import type { HqLedgerSignal } from '../../shared/hq-ledger'
 import {
   HQ_LEDGER_SHADOW_KINDS,
+  hqLedgerCardHandled,
   hqLedgerSignalOfCard,
   type HqLedgerInboxCard,
   type HqLedgerLookups
@@ -21,6 +22,8 @@ export type HqLedgerShadowDeps = HqLedgerLookups & {
   enabled: () => boolean
   cards: (since: number) => HqLedgerInboxCard[]
   ingest: (signal: HqLedgerSignal) => void
+  /** A message the owner handled from its card is no longer his move. */
+  settle: (ts: string) => void
   conversations: (since: number) => { state: string }[]
   report: (did: string) => void
   /** Custom build (hq-request-ledger): the Slack API reader against the scout, added to the line. */
@@ -29,7 +32,12 @@ export type HqLedgerShadowDeps = HqLedgerLookups & {
   onError: (error: unknown) => void
 }
 
-export type HqLedgerShadowState = { cursor: number; reportedDay: string | null }
+export type HqLedgerShadowState = {
+  cursor: number
+  reportedDay: string | null
+  /** The last card handled that was settled. */
+  handledCursor?: number
+}
 
 /** One pass: new cards into the ledger, and the day's line when it is due. Returns the next state. */
 export function runHqLedgerShadow(
@@ -49,6 +57,23 @@ export function runHqLedgerShadow(
     }
     cursor = Math.max(cursor, card.createdAt)
   }
+  // Why: a card the owner sent or skipped must not come back as a To work conversation once the
+  // ledger is on — also when he handled it after this pass had read it.
+  let handledCursor = state.handledCursor ?? 0
+  for (const card of deps.cards(now - CATCH_UP_MS)) {
+    if (
+      !(HQ_LEDGER_SHADOW_KINDS as readonly string[]).includes(card.kind) ||
+      !hqLedgerCardHandled(card) ||
+      (card.doneAt ?? 0) <= (state.handledCursor ?? 0)
+    ) {
+      continue
+    }
+    const signal = hqLedgerSignalOfCard(card, deps)
+    if (signal) {
+      deps.settle(signal.ts)
+    }
+    handledCursor = Math.max(handledCursor, card.doneAt ?? 0)
+  }
   const date = new Date(now)
   const day = date.toDateString()
   if (date.getHours() >= REPORT_HOUR && state.reportedDay !== day) {
@@ -61,9 +86,9 @@ export function runHqLedgerShadow(
     deps.report(
       `24 h in shadow: ${cards} cards → ${conversations.length} conversations (${you} your move)${parity ? `. ${parity}` : ''}`
     )
-    return { cursor, reportedDay: day }
+    return { cursor, reportedDay: day, handledCursor }
   }
-  return { cursor, reportedDay: state.reportedDay }
+  return { cursor, reportedDay: state.reportedDay, handledCursor }
 }
 
 export function startHqLedgerShadow(deps: HqLedgerShadowDeps): () => void {

@@ -115,6 +115,18 @@ describe('Slack ledger reader', () => {
       title: 'Спасибо за вчера'
     })
   })
+
+  it('keeps «fyi» when the owner answered in the same pass, whatever the model says', async () => {
+    const { db, deps } = setup(
+      [
+        message({ ts: '1700000002.000000', user: OWNER, text: 'ok' }),
+        message({ ts: '1700000001.000000', user: 'U_ANN', text: 'fyi: deployed' })
+      ],
+      { project: null, how: 'model', state: 'you', gist: null }
+    )
+    await runHqSlackLedgerReader(deps, { cursor: 0, delays: [] })
+    expect(db.listLedgerConversations()[0]?.state).toBe('fyi')
+  })
 })
 
 describe('hqLedgerSignalOfSlack', () => {
