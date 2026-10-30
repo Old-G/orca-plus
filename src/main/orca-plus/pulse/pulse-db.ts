@@ -124,6 +124,14 @@ export class PulseDb {
     return listLedgerConversations(this.core, since)
   }
 
+  /** The raw row, for tests and the replay script. */
+  getWaitingRecord(id: string): Record<string, unknown> {
+    return (this.core.db.prepare('SELECT * FROM waitings WHERE id = ?').get(id) ?? {}) as Record<
+      string,
+      unknown
+    >
+  }
+
   liveSessionOf(sessionId: string): string {
     return liveSessionOf(this.core, sessionId)
   }
