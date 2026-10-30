@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { hqDigestSlot } from '../../shared/hq-slack-digest'
+import { hqDigestSlot, type HqLedgerDigestConversation } from '../../shared/hq-slack-digest'
 import type { HqSlackScoutDraft } from '../../shared/hq-slack-scout'
 import type { PulseBellInput } from '../../shared/pulse-bell'
 import { runHqSlackDigest } from './hq-slack-digest'
@@ -34,7 +34,11 @@ function write(file: string, value: unknown): void {
   writeFileSync(join(hq, 'slack-scout', file), JSON.stringify(value))
 }
 
-function run(now: Date, drafts: HqSlackScoutDraft[] = []) {
+function run(
+  now: Date,
+  drafts: HqSlackScoutDraft[] = [],
+  ledger?: () => HqLedgerDigestConversation[]
+) {
   const synced: PulseBellInput[][] = []
   const posted = runHqSlackDigest({
     hqPath: () => hq,
@@ -47,7 +51,8 @@ function run(now: Date, drafts: HqSlackScoutDraft[] = []) {
       drafts
     }),
     sync: (_kind, items) => synced.push([...items]),
-    now: () => now
+    now: () => now,
+    ledger
   })
   return { posted, synced }
 }
@@ -99,5 +104,32 @@ describe('Slack digest', () => {
     const quiet = run(at(14, 2))
     expect(await quiet.posted).toBe(false)
     expect(quiet.synced).toEqual([])
+  })
+
+  it('reads the ledger once the scout has not run for hours, the scout while it runs', async () => {
+    write('digest-state.json', { slot: '2026-10-17 10', at: at(10).toISOString() })
+    const ledger = () => [
+      { id: 'c1', key: 'slack:D1:1.1', state: 'you', title: 'Проверить возвраты', lastAt: +at(11) },
+      { id: 'c2', key: 'slack:C1:2.2', state: 'fyi', title: 'Выкатили фикс', lastAt: +at(12) },
+      { id: 'c3', key: 'slack:C1:3.3', state: 'fyi', title: 'старое', lastAt: +at(9) },
+      { id: 'c4', key: 'clickup:DEV-1', state: 'you', title: 'не Slack', lastAt: +at(12) }
+    ]
+    write('state.json', { lastRunAt: at(9).toISOString(), seen: {} })
+    const off = run(at(14, 2), [draft('a')], ledger)
+    expect(await off.posted).toBe(true)
+    expect(off.synced[0]?.[0]).toMatchObject({
+      title: 'Slack digest 14:00 — 1 for you, 1 quiet',
+      body: [
+        'Wait for you: 1',
+        '• Проверить возвраты',
+        'Went by quietly: 1',
+        '• Выкатили фикс'
+      ].join('\n')
+    })
+    write('digest-state.json', { slot: '2026-10-17 10', at: at(10).toISOString() })
+    write('state.json', { lastRunAt: at(13, 50).toISOString(), seen: {} })
+    const on = run(at(14, 2), [draft('a')], ledger)
+    expect(await on.posted).toBe(true)
+    expect(on.synced[0]?.[0]?.body).toContain('Вера: почини автоответ')
   })
 })

@@ -60,6 +60,7 @@ import { startShipRestartNotice } from '../ship-restart/ship-restart-notice'
 import { registerHqClickUpTriage } from '../../hq-today/register-hq-clickup-triage'
 import { registerHqMailIntake } from '../../hq-today/register-hq-mail-intake'
 import { startHqLedgerShadow } from '../../hq-today/hq-ledger-shadow'
+import { registerHqSlackLedger } from '../../hq-today/register-hq-slack-ledger'
 import { hqJobRow } from '../../hq-journal/hq-journal-jobs'
 import { HQ_JOURNAL_ALL_ROOMS } from '../../../shared/hq-journal'
 import { hqClickUpListProjects } from '../../hq-today/hq-clickup-list-projects'
@@ -146,7 +147,9 @@ export function registerPulseBell(
     enabled: () => store.getSettings().hqChatsView !== false,
     readScout: readHqSlackScout,
     sync,
-    now: () => new Date()
+    now: () => new Date(),
+    // Custom build (hq-request-ledger): once the scout is off, the digest reads the ledger.
+    ledger: () => runtime.pulseListLedgerConversations(Date.now() - 3 * 24 * 60 * 60_000)
   })
   // Custom build (hq-clickup-requests): comments on the owner's ClickUp tasks join those requests.
   startHqClickUpRequests({
@@ -173,8 +176,11 @@ export function registerPulseBell(
 
   // Custom build (hq-waiting-replies): answers to what the chats wait for, offered back to those chats.
   registerHqWaitingReplies(store, runtime)
+  // Custom build (hq-request-ledger): the owner's DMs and threads straight into the ledger.
+  const slackLedger = registerHqSlackLedger(store, runtime)
   // Custom build (hq-request-ledger): the request ledger reads the cards in shadow beside them.
   startHqLedgerShadow({
+    parity: slackLedger.parity,
     enabled: () => store.getSettings().hqLedger !== 'off',
     cards: (since) => runtime.pulseListInbox(true, { since }),
     ingest: (signal) => runtime.pulseIngestLedger(signal),
