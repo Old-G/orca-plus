@@ -132,7 +132,13 @@ export function HqPlusMapSheet({
       data-dragging={live ? 'true' : undefined}
       style={
         float
-          ? { left: float.x, top: float.y, width: shown.width, height: float.height }
+          ? {
+              // Why: a narrower window or a wider panel never pushes it past the map's right edge.
+              left: `max(0px, min(${float.x}px, calc(100% - ${shown.width}px - ${MARGIN}px)))`,
+              top: float.y,
+              width: shown.width,
+              height: float.height
+            }
           : { width: shown.width }
       }
       aria-label="Card, chat and panels"
