@@ -1,6 +1,7 @@
 // Custom build (pulse): the runtime face of orca-plus-pulse.db for the pulse.* RPC. The database
 // opens on first use, so a user who never touches these features never gets the file.
-import type { HqLedgerSignal } from '../../shared/hq-ledger'
+import type { HqLedgerResult, HqLedgerSignal } from '../../shared/hq-ledger'
+import type { HqConversationRow, HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import type {
   PulseAddResult,
   PulseDecision,
@@ -195,12 +196,27 @@ export class RuntimePulseCommands {
   }
 
   /** Custom build (hq-request-ledger): one message into its conversation. */
-  pulseIngestLedger(signal: HqLedgerSignal): void {
-    this.db().ingestLedgerSignal(signal)
+  pulseIngestLedger(signal: HqLedgerSignal): HqLedgerResult {
+    return this.db().ingestLedgerSignal(signal)
   }
 
-  pulseListLedgerConversations(since?: number): { state: string }[] {
+  pulseListLedgerConversations(since?: number): HqConversationRow[] {
     return this.db().listLedgerConversations(since)
+  }
+
+  /** Custom build (hq-request-ledger): who wrote last in the conversation at this place. */
+  pulseLastLedgerDirection(key: string): 'in' | 'out' | null {
+    return this.db().lastLedgerDirection(key)
+  }
+
+  /** Custom build (hq-request-ledger): the small model's project, move and gist for a conversation. */
+  pulseSetLedgerGuess(conversationId: string, guess: HqLedgerGuess): void {
+    this.db().setLedgerGuess(conversationId, guess)
+  }
+
+  /** Custom build (hq-request-ledger): whether a Slack message reached the ledger. */
+  pulseLedgerHasSlackMessage(channel: string, ts: string): boolean {
+    return this.db().ledgerHasSlackMessage(channel, ts)
   }
 
   /** Custom build (hq-plus-journal): main's journal adapters write here; agents read via hq.events. */
