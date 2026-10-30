@@ -233,7 +233,17 @@ ALTER TABLE waitings ADD COLUMN expects TEXT;
 CREATE INDEX waitings_by_conversation ON waitings(conversation_id);
 `
 
-const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10]
+// Custom build (hq-ledger-feed): the owner's project for a channel, picked on one of its threads in
+// HQ+; the channel's new threads take it.
+const V11 = `
+CREATE TABLE ledger_rules (
+  place TEXT PRIMARY KEY,
+  project TEXT NOT NULL,
+  at INTEGER NOT NULL
+);
+`
+
+const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 

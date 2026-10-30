@@ -26,6 +26,7 @@ import {
   type HqLedgerGuess
 } from './pulse-ledger'
 import { listLedgerCards } from './pulse-ledger-cards'
+import { listLedgerFeed, setLedgerProject } from './pulse-ledger-feed'
 import type { HqLedgerSignal } from '../../../shared/hq-ledger'
 import { PulseCore, type PulseClock } from './pulse-core'
 import {
@@ -147,6 +148,14 @@ export class PulseDb {
 
   listLedgerCards(since: number) {
     return listLedgerCards(this.core, since)
+  }
+
+  listLedgerFeed(since: number) {
+    return listLedgerFeed(this.core, since)
+  }
+
+  setLedgerProject(key: string, project: string): void {
+    setLedgerProject(this.core, key, project)
   }
 
   ledgerHasSlackMessage(channel: string, ts: string): boolean {

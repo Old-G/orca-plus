@@ -7,11 +7,11 @@ import { isWebClientLocation } from '@/lib/web-client-location'
 import {
   HQ_PLUS_ANY_ROOM,
   hqPlusDayStart,
-  hqPlusLog,
   hqPlusNotNowKey,
   type HqPlusCard,
   type HqPlusLogItem
 } from '../../../../../shared/hq-plus-log'
+import { hqPlusFeedLog } from '../../../../../shared/hq-plus-conversations'
 import {
   hqPlusFoldChats,
   hqPlusLiftActiveChats,
@@ -283,39 +283,38 @@ export function HqPlusScreen(): React.JSX.Element {
   const shownSessionId = rightChat?.kind === 'chat' ? rightChat.tab.entityId : null
   const all = useMemo(
     () =>
-      (data.feed
-        ? hqPlusLog(data.feed.entries, data.feed.inbox ?? [], dayStart, { chatQuestions: 'line' })
-        : []
-      ).map((item): HqPlusLogItem => {
-        // Why: a bell item knows its project, not its room; HQ's rooms place it.
-        const placed =
-          item.room === HQ_PLUS_ANY_ROOM && item.project && roomOfProject.has(item.project)
-            ? { ...item, room: roomOfProject.get(item.project) ?? item.room }
-            : item
-        if (placed.kind !== 'card' || !placed.open) {
-          return placed
-        }
-        // Custom build (hq-closed-loop): the chat open on the right asks there, not twice.
-        if (placed.type === 'move' && placed.sessionId && placed.sessionId === shownSessionId) {
-          const { id, at, room, project, address, sessionId, title, body, entry } = placed
-          return {
-            kind: 'line',
-            id,
-            at,
-            room,
-            project,
-            address,
-            sessionId,
-            tone: 'agent',
-            title,
-            body,
-            journalKind: entry?.kind ?? null
+      (data.feed ? hqPlusFeedLog(data.feed, dayStart, { chatQuestions: 'line' }) : []).map(
+        (item): HqPlusLogItem => {
+          // Why: a bell item knows its project, not its room; HQ's rooms place it.
+          const placed =
+            item.room === HQ_PLUS_ANY_ROOM && item.project && roomOfProject.has(item.project)
+              ? { ...item, room: roomOfProject.get(item.project) ?? item.room }
+              : item
+          if (placed.kind !== 'card' || !placed.open) {
+            return placed
           }
+          // Custom build (hq-closed-loop): the chat open on the right asks there, not twice.
+          if (placed.type === 'move' && placed.sessionId && placed.sessionId === shownSessionId) {
+            const { id, at, room, project, address, sessionId, title, body, entry } = placed
+            return {
+              kind: 'line',
+              id,
+              at,
+              room,
+              project,
+              address,
+              sessionId,
+              tone: 'agent',
+              title,
+              body,
+              journalKind: entry?.kind ?? null
+            }
+          }
+          return notNow.has(hqPlusNotNowKey(placed))
+            ? { ...placed, open: false, done: { by: 'status' as const, status: 'not-now' } }
+            : placed
         }
-        return notNow.has(hqPlusNotNowKey(placed))
-          ? { ...placed, open: false, done: { by: 'status' as const, status: 'not-now' } }
-          : placed
-      }),
+      ),
     [data.feed, dayStart, roomOfProject, notNow, shownSessionId]
   )
   // Why: what has no room (HQ's own rows, a bell item of an unknown project) shows in All only.
@@ -327,8 +326,12 @@ export function HqPlusScreen(): React.JSX.Element {
     )
     // Why: a short finished turn is a line whose id is its bell item's.
     const unread = roomItems.flatMap((item) => {
-      const id = item.kind === 'card' ? (item.inbox?.id ?? null) : item.id.replace(/^inbox:/, '')
-      return id && unreadIds.has(id) ? [id] : []
+      // Custom build (hq-ledger-feed): a conversation shows every card folded into it.
+      const ids =
+        item.kind === 'card'
+          ? [item.inbox?.id, ...(item.conversation?.parts ?? []).map((part) => part.inbox?.id)]
+          : [item.id.replace(/^inbox:/, '')]
+      return ids.filter((id): id is string => Boolean(id && unreadIds.has(id)))
     })
     if (unread.length > 0 && !isWebClientLocation()) {
       void window.api.pulseBell.markRead(unread)

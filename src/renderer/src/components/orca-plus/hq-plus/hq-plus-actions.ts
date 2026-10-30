@@ -338,7 +338,12 @@ export function canFinishHqPlusCard(card: HqPlusCard): boolean {
   return card.type !== 'approve' && (card.type === 'wait' || card.inbox !== null)
 }
 
-export function finishHqPlusCard(card: HqPlusCard): Promise<HqPlusResult> {
+export async function finishHqPlusCard(card: HqPlusCard): Promise<HqPlusResult> {
+  // Custom build (hq-ledger-feed): a conversation is done when every card folded into it is.
+  if (card.type === 'conversation') {
+    const results = await Promise.all((card.conversation?.parts ?? []).map(finishHqPlusCard))
+    return results.find((result) => !result.ok) ?? { ok: true }
+  }
   return card.type === 'wait' ? closeHqPlusWait(card, 'resolved') : markHqPlusDone(card, 'done')
 }
 

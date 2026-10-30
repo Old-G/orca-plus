@@ -1,5 +1,6 @@
 // Custom build (hq-plus-ui): what the owner's HQ+ screen reads in one call, and the turn report's three
 // fields as `orca hq report` writes them.
+import type { HqFeedLedger } from './hq-feed-ledger'
 import type { HqJournalActivity, HqJournalEntry, HqSession } from './hq-journal'
 import type { PulseInboxItem } from './pulse-types'
 
@@ -12,6 +13,8 @@ export type HqFeedResult = {
   /** The bell's decisions of the window, settled ones too, so a decided card keeps its place. */
   inbox: PulseInboxItem[]
   now: number
+  /** Custom build (hq-ledger-feed): conversations and waiting places; absent from an older desktop. */
+  ledger?: HqFeedLedger
 }
 
 export type HqPlusReport = {

@@ -7,13 +7,12 @@ import { hqPlusLook, type HqPlusBadge } from '../../../../../shared/hq-plus-kind
 import { translate } from '@/i18n/i18n'
 import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
 import { HqPlusCardView } from './HqPlusCard'
+import { HqPlusConversationCard } from './HqPlusConversationCard'
 import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusGrow } from './HqPlusGrow'
-import { HQ_DEFERRED_KIND } from '../../../../../shared/hq-morning-briefing'
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
-import { HqPlusDeferredList, hqPlusDeferredTitle, useHqPlusDeferred } from './HqPlusDeferred'
 import type { HqPlusTile } from './HqPlusSide'
 import { ChatCard, FeedRow, NewMark, hqPlusClock as clock } from './HqPlusChatCard'
 import { observeHqPlusNewRows } from './use-hq-plus-new-marks'
@@ -103,73 +102,6 @@ export function hqPlusTileOf(project: string | null): string {
   return letters.toUpperCase()
 }
 
-/** Custom build (hq-plus-ui-v5): «N chats went quiet with unfinished work» — unfolds into the list. */
-function DeferredLine({
-  item,
-  look,
-  flash,
-  ctx
-}: {
-  item: Extract<HqPlusLogItem, { kind: 'card' }>
-  look: ReturnType<typeof hqPlusLook>
-  flash: boolean
-  ctx: HqPlusLogContext
-}): React.JSX.Element {
-  const { sessions, close } = useHqPlusDeferred()
-  const open = ctx.isExpanded(item.id) && sessions.length > 0
-  const toggle = (): void => ctx.setExpanded(item.id, !open)
-  return (
-    <div
-      className="hqp-bgl hqp-dfl"
-      id={`hqp-${item.id}`}
-      data-open={open ? 'true' : undefined}
-      data-flash={flash ? 'true' : undefined}
-      data-selected={ctx.selectedId === item.id ? 'true' : undefined}
-      data-new={ctx.isNew(item.id) ? 'true' : undefined}
-      onClickCapture={() => ctx.onSelect(item.id)}
-    >
-      <div className="hqp-dfl-row">
-        <span className="hqp-tm">{clock(item.at)}</span>
-        <HqPlusBadges badges={look.badges} />
-        <NewMark item={item} ctx={ctx} />
-        <span className="hqp-bgl-t">{hqPlusDeferredTitle(sessions.length)}</span>
-        {sessions.length > 0 && !open ? (
-          <button type="button" className="hqp-link" aria-expanded={false} onClick={toggle}>
-            {translate('auto.hqPlus.deferred.show', 'Show')}
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className="hqp-link"
-          data-ghost="true"
-          onClick={() => ctx.onNotNow(hqPlusNotNowKey(item))}
-        >
-          {translate('auto.hqPlus.deferred.hideToday', 'Hide today')}
-        </button>
-      </div>
-      <HqPlusGrow>
-        {open ? (
-          <div className="hqp-dfl-body">
-            <HqPlusDeferredList
-              sessions={sessions}
-              close={close}
-              now={ctx.now}
-              tileOf={ctx.tileOfRepo}
-              onOpen={ctx.openPane}
-            />
-            <div className="hqp-row-f">
-              <span className="hqp-spacer" />
-              <button type="button" className="hqp-pill" aria-expanded={true} onClick={toggle}>
-                {translate('auto.hqPlus.collapseCard', 'Collapse')}
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </HqPlusGrow>
-    </div>
-  )
-}
-
 function LogItem({
   item,
   flash,
@@ -195,9 +127,6 @@ function LogItem({
       {hqPlusTileOf(item.project)}
     </span>
   )
-  if (look.kind === 'bg' && item.kind === 'card' && item.inbox?.kind === HQ_DEFERRED_KIND) {
-    return <DeferredLine item={item} look={look} flash={flash} ctx={ctx} />
-  }
   // Custom build (hq-closed-loop): a job's lesson stays a card, so it can be undone.
   if (look.kind === 'bg' && !(item.kind === 'card' && item.job)) {
     const card = item.kind === 'card' ? item : null
@@ -253,6 +182,25 @@ function LogItem({
         openChat={openChat}
         ctx={ctx}
       />
+    )
+  }
+  // Custom build (hq-ledger-feed): one conversation with its cards folded in.
+  if (item.kind === 'card' && item.type === 'conversation') {
+    return (
+      <FeedRow item={item} ctx={ctx} tile={tile}>
+        <div className="b">
+          <NewMark item={item} ctx={ctx} />
+          <HqPlusGrow>
+            <HqPlusConversationCard
+              card={item}
+              look={look}
+              flash={flash}
+              openChat={openChat}
+              ctx={ctx}
+            />
+          </HqPlusGrow>
+        </div>
+      </FeedRow>
     )
   }
   if (item.kind !== 'card') {
