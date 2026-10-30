@@ -16,6 +16,8 @@ import type {
 } from '../../../shared/pulse-types'
 import type { OutgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
 import { liveSessionOf } from './pulse-chat-chain'
+import { ingestLedgerSignal, listLedgerConversations } from './pulse-ledger'
+import type { HqLedgerSignal } from '../../../shared/hq-ledger'
 import { PulseCore, type PulseClock } from './pulse-core'
 import {
   decideDraft,
@@ -114,6 +116,14 @@ export class PulseDb {
   markWaitingReplyDelivered(id: string, replyTs?: string) {
     return markWaitingReplyDelivered(this.core, id, replyTs)
   }
+  ingestLedgerSignal(signal: HqLedgerSignal) {
+    return ingestLedgerSignal(this.core, signal)
+  }
+
+  listLedgerConversations(since?: number) {
+    return listLedgerConversations(this.core, since)
+  }
+
   liveSessionOf(sessionId: string): string {
     return liveSessionOf(this.core, sessionId)
   }
