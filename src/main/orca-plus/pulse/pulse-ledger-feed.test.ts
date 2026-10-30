@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { HqLedgerSignal } from '../../../shared/hq-ledger'
+import { hqLedgerSignalOfCard } from '../../../shared/hq-ledger-from-inbox'
 import { PulseDb } from './pulse-db'
 
 const open: PulseDb[] = []
@@ -89,5 +90,64 @@ describe('ledger feed', () => {
       ['slack:D0ANN:1700000000.1', 'hub', 'owner'],
       ['slack:D0ANN:1800000000.1', null, null]
     ])
+  })
+})
+
+describe('ledger states the feed relies on (Codex, 30.10)', () => {
+  const stateOf = (db: PulseDb, key = THREAD): string | undefined =>
+    db.listLedgerConversations().find((row) => row.key === key)?.state
+
+  it('settles a conversation once its waiting is closed, and a new message raises it again', () => {
+    const db = openDb()
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'Mark 37 pairs',
+      source: 'slack',
+      sourceRef: THREAD
+    })
+    db.ingestLedgerSignal(signal({ text: 'Done' }))
+    expect(stateOf(db)).toBe('you')
+    db.closeWaiting(asked.id, 'resolved', 'Close waiting')
+    expect(stateOf(db)).toBe('done')
+    db.ingestLedgerSignal(signal({ ts: '1700000005.000000', text: 'One more thing', at: tick + 5 }))
+    expect(stateOf(db)).toBe('you')
+  })
+
+  it('does not let a late guess raise a conversation the owner already answered', () => {
+    const db = openDb()
+    const first = db.ingestLedgerSignal(signal({ forOwner: false, text: 'fyi: deploy at 5' }))
+    db.ingestLedgerSignal(
+      signal({ ts: '1700000002.000000', fromOwner: true, author: 'Owner', at: tick + 2 })
+    )
+    db.setLedgerGuess(first.conversationId, {
+      project: 'hub',
+      how: 'model',
+      state: 'you',
+      gist: 'Deploy'
+    })
+    expect(stateOf(db)).toBe('fyi')
+    // The guess still raises a talk whose newest message is the person's.
+    db.ingestLedgerSignal(
+      signal({ ts: '1700000003.000000', forOwner: false, text: 'and?', at: tick + 3 })
+    )
+    db.setLedgerGuess(first.conversationId, {
+      project: null,
+      how: 'model',
+      state: 'you',
+      gist: null
+    })
+    expect(stateOf(db)).toBe('you')
+  })
+
+  it('reads a card the owner already handled as waiting on nobody', () => {
+    const lookups = { waitingRef: () => null, personAuthorId: () => null }
+    const card = {
+      kind: 'hq-intake',
+      title: 'Ann: hi',
+      createdAt: tick,
+      refId: JSON.stringify({ channel: 'C0123HUBXY', ts: '1700000000.000100', author: 'Ann' })
+    }
+    expect(hqLedgerSignalOfCard(card, lookups)?.forOwner).toBe(true)
+    expect(hqLedgerSignalOfCard({ ...card, doneAt: tick }, lookups)?.forOwner).toBe(false)
   })
 })
