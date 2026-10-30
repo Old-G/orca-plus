@@ -259,4 +259,12 @@ describe('ledger ingest', () => {
     })
     expect(db.ingestLedgerSignal(dm)).toMatchObject({ step: 'person', waitingIds: [asked.id] })
   })
+
+  it('remembers the chat a conversation was taken into', () => {
+    const db = openDb()
+    const first = db.ingestLedgerSignal(signal({}))
+    db.setConversationChat(THREAD, 'claude_s9')
+    const row = db.listLedgerConversations().find((c) => c.id === first.conversationId)
+    expect(row?.sessionId).toBe('claude_s9')
+  })
 })
