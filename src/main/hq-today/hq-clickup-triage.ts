@@ -84,7 +84,9 @@ export function applyClickUpChanges(
   const snapshots = { ...state.snapshots }
   for (const task of tasks) {
     const change = diffClickUpTask(snapshots[task.id], task, ownerId, since)
-    if (change.kinds.length > 0) {
+    // Custom build (hq-ledger-feed): fields changed, but which and to what is not kept — a card saying
+    // only that was noise (owner, 30.10). With a change we can show, it still goes along.
+    if (change.kinds.some((kind) => kind !== 'fields')) {
       pending = mergeClickUpChange(pending, task, change, now)
     }
     snapshots[task.id] = snapshotOf(task, snapshots[task.id], now)
