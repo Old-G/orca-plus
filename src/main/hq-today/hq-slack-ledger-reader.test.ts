@@ -83,14 +83,21 @@ describe('Slack ledger reader', () => {
     expect(second.delays).toEqual([100])
   })
 
-  it('leaves a lone top-level channel line alone but keeps DMs', async () => {
+  it('leaves a lone top-level channel line alone but keeps DMs and posts that mention the owner', async () => {
     const { db, deps } = setup([
       message({ ts: '1700000001.000000', threadTs: null, user: OWNER, text: 'news for all' }),
-      message({ channel: 'D0123HUBXY', ts: '1700000002.000000', threadTs: null, dm: true })
+      message({ channel: 'D0123HUBXY', ts: '1700000002.000000', threadTs: null, dm: true }),
+      message({
+        channel: 'C0456HUBXY',
+        ts: '1700000003.000000',
+        threadTs: null,
+        rawText: `Summary: <@${OWNER}> connects the logs`
+      })
     ])
     await runHqSlackLedgerReader(deps, { cursor: 0, delays: [] })
     expect(db.listLedgerConversations().map((c) => [c.key, c.state])).toEqual([
-      ['slack:D0123HUBXY:1700000002.000000', 'you']
+      ['slack:D0123HUBXY:1700000002.000000', 'you'],
+      ['slack:C0456HUBXY:1700000003.000000', 'you']
     ])
   })
 
