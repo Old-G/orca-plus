@@ -26,9 +26,12 @@ export function hqIntakeOfConversation(row: HqLedgerCardRow): HqIntake | null {
   // Why: a DM talk is top-level lines keyed by its first one — answering it in a thread would hide
   // the answer; a real thread (its links carry thread_ts) is answered in place.
   const threaded = !dm || row.messages.some((message) => threadOf(message.link) !== null)
-  const lines = row.messages.map(
-    (message) => `${message.author ?? 'Someone'}: ${message.text.replace(/\s+/g, ' ').trim()}`
-  )
+  const lines = row.messages.map((message) => {
+    const said = message.text.replace(/\s+/g, ' ').trim()
+    const who = message.author ?? 'Someone'
+    // Why: an answer the reply reader took is already written «Name: text».
+    return said.startsWith(`${who}:`) ? said : `${who}: ${said}`
+  })
   return {
     channel,
     ts: root,
