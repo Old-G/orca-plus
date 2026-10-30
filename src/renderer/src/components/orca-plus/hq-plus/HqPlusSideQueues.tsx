@@ -57,6 +57,7 @@ function waitingText(card: HqPlusCard): string {
     case 'report':
     case 'reply':
     case 'bell':
+    case 'conversation':
       return card.title
     case 'move':
     case 'wait':
