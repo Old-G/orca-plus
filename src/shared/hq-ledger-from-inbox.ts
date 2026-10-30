@@ -12,6 +12,14 @@ export type HqLedgerInboxCard = {
   createdAt: number
   /** Custom build (hq-ledger-feed): when the owner handled it; a handled card waits on nobody. */
   doneAt?: number | null
+  doneAction?: string | null
+}
+
+/** Custom build (hq-request-ledger): the owner sent or skipped the card himself. A card that went
+ *  away on its own (`gone`) is not handled — the mention cards go when the conversation cards take
+ *  their place. */
+export function hqLedgerCardHandled(card: HqLedgerInboxCard): boolean {
+  return card.doneAt != null && card.doneAction !== 'gone' && card.doneAction !== 'seen'
 }
 
 export type HqLedgerLookups = {
@@ -50,6 +58,10 @@ export function hqLedgerSignalOfCard(
   // Why: a card the owner already sent, skipped or closed must not come back as his move (Codex, 30.10).
   const open = !card.doneAt
   if (card.kind === 'hq-intake') {
+    // Why: a conversation card is the ledger's own; read back, it would be a message of its own.
+    if (ref.conversationId) {
+      return null
+    }
     const channel = str(ref.channel)
     const ts = str(ref.ts)
     if (!channel || !ts) {

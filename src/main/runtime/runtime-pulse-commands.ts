@@ -226,6 +226,11 @@ export class RuntimePulseCommands {
     this.db().setLedgerProject(key, project)
   }
 
+  /** Custom build (hq-request-ledger): a message the owner handled from its card is not his move. */
+  pulseSettleLedgerMessage(ts: string): void {
+    this.db().settleLedgerMessage(ts)
+  }
+
   /** Custom build (hq-request-ledger): Slack conversations waiting on the owner, for their cards. */
   pulseListLedgerCards(since: number): HqLedgerCardRow[] {
     return this.db().listLedgerCards(since)
