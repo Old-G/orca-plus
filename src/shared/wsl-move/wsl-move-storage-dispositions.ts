@@ -306,7 +306,8 @@ export const SQLITE_TABLE_DISPOSITIONS: Record<string, WslMoveFieldDisposition> 
         'journal',
         'sessions',
         'conversations',
-        'conversation_messages'
+        'conversation_messages',
+        'ledger_rules'
       ],
       notApplicableDisposition(62, "Orca+ pulse: the owner's global inbox, not a project's.")
     ),
