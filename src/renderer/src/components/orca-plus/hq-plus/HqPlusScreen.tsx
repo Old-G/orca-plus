@@ -959,6 +959,7 @@ export function HqPlusScreen(): React.JSX.Element {
             closerOf={closerOf}
             queue={queue}
             onPickChat={(item) => showChat(item.key)}
+            openChats={chatItems}
           />
         </div>
         <button

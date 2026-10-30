@@ -2,7 +2,7 @@
 // in the feed), what we wait for from people, the FYI pile to clear in one go, the live chats (the same
 // list the classic HQ shows, so a chat started a second ago is there), and three plain numbers.
 import { useState } from 'react'
-import { Pin, PinOff, Plus } from 'lucide-react'
+import { History, Pin, PinOff, Plus } from 'lucide-react'
 import { readHqPlusViewState, saveHqPlusViewState } from './hq-plus-view-state'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import type { HqPlusScreenStats } from '../../../../../shared/hq-plus-screen'
@@ -11,7 +11,8 @@ import { formatRelativeTime } from '@/components/activity/activity-thread-presen
 import type { HqChatItem } from '../hq/hq-chat-list'
 import { useHqChatTitle } from '../hq/HqChatAvatar'
 import { hqPlusChatIsIdle, type HqPlusProjectChats } from './hq-plus-chats'
-import { HqPlusNewChat } from './HqPlusNewChat'
+import { HqPlusNewChat, useHqPlusNewChatTargets } from './HqPlusNewChat'
+import { HqPlusProjectChatList, type HqPlusProjectTarget } from './HqPlusProjectChatList'
 import { startHqChat } from '../hq/hq-new-chat'
 import { HqPlusCloseChat, type HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusSideBlock } from './HqPlusSideBlock'
@@ -133,13 +134,22 @@ function ChatRow({
 function ProjectHeader({
   project,
   color,
-  onKeep
+  onKeep,
+  target,
+  onPickChat
 }: {
   project: HqPlusProjectChats
   color: string
   onKeep: (repoId: string, kept: boolean) => void
+  /** Custom build (hq-plus-all-projects): the project's main checkout, for New chat and History. */
+  target: HqPlusProjectTarget | null
+  onPickChat: (item: HqChatItem) => void
 }): React.JSX.Element {
-  const worktreeId = project.items[0]?.worktreeId
+  const worktreeId = project.items[0]?.worktreeId ?? target?.worktreeId
+  const [history, setHistory] = useState(false)
+  const historyLabel = translate('auto.hqPlus.side.projectHistory', 'Past chats of {{project}}', {
+    project: project.projectName
+  })
   const keepLabel = project.kept
     ? translate('auto.hq.chats.unkeepProject', 'Stop keeping in HQ')
     : translate('auto.hq.chats.keepProject', 'Keep in HQ')
@@ -162,6 +172,18 @@ function ProjectHeader({
           <Plus aria-hidden="true" />
         </button>
       ) : null}
+      {target ? (
+        <button
+          type="button"
+          className="hqp-pgrp-btn"
+          aria-label={historyLabel}
+          title={historyLabel}
+          aria-pressed={history}
+          onClick={() => setHistory(!history)}
+        >
+          <History aria-hidden="true" />
+        </button>
+      ) : null}
       <button
         type="button"
         className="hqp-pgrp-btn"
@@ -172,7 +194,104 @@ function ProjectHeader({
       >
         {project.kept ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
       </button>
+      {history && target ? (
+        <div className="hqp-pgrp-hist">
+          <HqPlusProjectChatList
+            target={target}
+            open={[]}
+            color={color}
+            onPickOpen={onPickChat}
+            onDone={() => setHistory(false)}
+          />
+        </div>
+      ) : null}
     </div>
+  )
+}
+
+/**
+ * Custom build (hq-plus-all-projects): every project of the sidebar that has no chat open here, folded —
+ * none drops out of HQ+ for being quiet (owner, 30.10: «IT Hub just vanished»). A click opens its
+ * New chat and past chats in place.
+ */
+function AllProjects({
+  targets,
+  colorFor,
+  onPickChat
+}: {
+  targets: readonly HqPlusProjectTarget[]
+  colorFor: (repoId: string) => string
+  onPickChat: (item: HqChatItem) => void
+}): React.JSX.Element | null {
+  const [show, setShowState] = useState(() => readHqPlusViewState().showAllProjects)
+  const setShow = (next: boolean): void => {
+    setShowState(next)
+    saveHqPlusViewState({ showAllProjects: next })
+  }
+  const [query, setQuery] = useState('')
+  const [openRepo, setOpenRepo] = useState<string | null>(null)
+  if (targets.length === 0) {
+    return null
+  }
+  const needle = query.trim().toLowerCase()
+  const shown = needle ? targets.filter((t) => t.name.toLowerCase().includes(needle)) : targets
+  return (
+    <Collapsible open={show} onOpenChange={setShow}>
+      <button
+        type="button"
+        className="hqp-idle-h"
+        aria-expanded={show}
+        onClick={() => setShow(!show)}
+      >
+        <span className="hqp-caret" data-open={show} aria-hidden="true">
+          {'\u25B8'}
+        </span>
+        {translate('auto.hqPlus.side.allProjects', 'All projects · {{count}}', {
+          count: targets.length
+        })}
+      </button>
+      <CollapsibleContent animation="height">
+        <div className="hqp-side-sec">
+          {targets.length > 6 ? (
+            <input
+              className="hqp-roomform-in hqp-allproj-q"
+              aria-label={translate('auto.hqPlus.side.newChatSearch', 'Project')}
+              placeholder={translate('auto.hqPlus.side.newChatPlaceholder', 'Project…')}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          ) : null}
+          {shown.map((target) => (
+            <div key={target.repoId} className="hqp-pgrp-sec">
+              <button
+                type="button"
+                className="hqp-pgrp hqp-allproj"
+                aria-expanded={openRepo === target.repoId}
+                onClick={() => setOpenRepo(openRepo === target.repoId ? null : target.repoId)}
+              >
+                <span
+                  className="hqp-pgrp-dot"
+                  style={tileStyle(colorFor(target.repoId))}
+                  aria-hidden="true"
+                />
+                <span className="hqp-pgrp-name">{target.name}</span>
+              </button>
+              {openRepo === target.repoId ? (
+                <div className="hqp-pgrp-hist">
+                  <HqPlusProjectChatList
+                    target={target}
+                    open={[]}
+                    color={colorFor(target.repoId)}
+                    onPickOpen={onPickChat}
+                    onDone={() => setOpenRepo(null)}
+                  />
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 
@@ -190,8 +309,11 @@ export function HqPlusSide({
   tileOf,
   closerOf,
   queue,
-  onPickChat
+  onPickChat,
+  openChats
 }: {
+  /** Custom build (hq-plus-all-projects): every chat open as a tab, any room. */
+  openChats: readonly HqChatItem[]
   /** Custom build (hq-plus-ticker): the live strip above the chats. */
   ticker: React.ReactNode
   /** What we wait for from people, oldest first; each chat row says whom it waits on. */
@@ -219,6 +341,8 @@ export function HqPlusSide({
     saveHqPlusViewState({ showIdle: next })
   }
   const now = queue.now
+  const targets = useHqPlusNewChatTargets([])
+  const targetOf = new Map(targets.map((target) => [target.repoId, target]))
   // Custom build (hq-plus-drafts): a chat with unsent words shows once, in Drafts.
   const drafted = new Set(drafts.map((draft) => draft.item.key))
   const chats = {
@@ -257,10 +381,7 @@ export function HqPlusSide({
     />
   )
   return (
-    <aside
-      className="hqp-side"
-      aria-label={translate('auto.hqPlus.side.label', 'Live and chats')}
-    >
+    <aside className="hqp-side" aria-label={translate('auto.hqPlus.side.label', 'Live and chats')}>
       {/* Custom build (hq-plus-ticker): «Waiting on you» and «We wait for» live in the feed's chips now;
           their place is a live strip of what comes in and what the chats do (owner, 28.10). */}
       {ticker}
@@ -277,6 +398,8 @@ export function HqPlusSide({
             <HqPlusNewChat
               activeRepoIds={chats.projects.map((project) => project.repoId)}
               tileOf={tileOfRepo}
+              openChats={openChats}
+              onPickChat={onPickChat}
             />
           </>
         }
@@ -319,6 +442,8 @@ export function HqPlusSide({
               project={project}
               color={colorFor(project.repoId)}
               onKeep={onKeepProject}
+              target={targetOf.get(project.repoId) ?? null}
+              onPickChat={onPickChat}
             />
             {project.items.map(row)}
           </div>
@@ -343,6 +468,15 @@ export function HqPlusSide({
             </CollapsibleContent>
           </Collapsible>
         ) : null}
+        <AllProjects
+          targets={targets.filter(
+            (target) =>
+              !chats.projects.some((project) => project.repoId === target.repoId) &&
+              !chats.quiet.some((item) => item.repoId === target.repoId)
+          )}
+          colorFor={colorFor}
+          onPickChat={onPickChat}
+        />
       </HqPlusSideBlock>
       <div className="hqp-stats">
         <div className="hqp-st">
