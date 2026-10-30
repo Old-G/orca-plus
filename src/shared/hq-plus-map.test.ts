@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hqPlusMapFeedPlace, hqPlusMapModel } from './hq-plus-map'
+import { hqPlusMapFeedPlace, hqPlusMapModel, hqPlusMapProjectOf } from './hq-plus-map'
 import type { HqPlusCard, HqPlusLogItem } from './hq-plus-log'
 import type { PulseInboxItem } from './pulse-types'
 
@@ -177,5 +177,13 @@ describe('hqPlusMapModel', () => {
       'chat:k7',
       'chat:k0'
     ])
+  })
+})
+
+describe('hqPlusMapProjectOf', () => {
+  it('places a row as the map does: its project, HQ for its own, Unsorted for an outside talk', () => {
+    expect(hqPlusMapProjectOf(card({ id: 'a' }))).toBe('acme')
+    expect(hqPlusMapProjectOf(card({ id: 'b', project: null, type: 'approve' }))).toBe('HQ')
+    expect(hqPlusMapProjectOf(conversation('c', 'slack:C1:1.2', null))).toBe('Unsorted')
   })
 })
