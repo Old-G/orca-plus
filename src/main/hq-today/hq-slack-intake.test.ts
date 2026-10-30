@@ -3,6 +3,7 @@ import { hqIntakeBellItem, type HqIntake } from '../../shared/hq-slack-intake'
 import type { HqProjectPage } from '../../shared/hq-project-pages'
 import type { PulseBellInput } from '../../shared/pulse-bell'
 import { pollHqSlackIntake, type HqSlackIntakeDeps } from './hq-slack-intake'
+import { hqIntakeOfConversation } from './hq-ledger-cards'
 import {
   guessHqIntake,
   hqIntakeNamedProject,
@@ -212,5 +213,91 @@ describe('pollHqSlackIntake', () => {
     const { deps, synced } = setup(null)
     await pollHqSlackIntake(deps)
     expect(synced).toEqual([])
+  })
+})
+
+describe('ledger switched on', () => {
+  const row = {
+    id: 'c1',
+    key: 'slack:C0AAAAAAAAA:1792600000.000100',
+    project: 'support-service',
+    title: 'Проверить возвраты',
+    lastAt: NOW - 60_000,
+    messages: [
+      {
+        ts: '1792600000.000100',
+        author: 'Анна',
+        authorId: 'U1',
+        text: 'Глянь возвраты',
+        link: 'https://acme.slack.com/archives/C0AAAAAAAAA/p1792600000000100',
+        at: NOW - 120_000
+      },
+      {
+        ts: '1792600060.000100',
+        author: 'Анна',
+        authorId: 'U1',
+        text: 'срочно',
+        link: null,
+        at: NOW - 60_000
+      }
+    ]
+  }
+
+  it('makes one card per conversation, keyed by its newest message and updated in place', () => {
+    const intake = hqIntakeOfConversation(row)
+    expect(intake).toMatchObject({
+      channel: 'C0AAAAAAAAA',
+      threadTs: '1792600000.000100',
+      text: 'Анна: Глянь возвраты\nАнна: срочно',
+      summary: 'Проверить возвраты',
+      conversationId: 'c1'
+    })
+    const item = hqIntakeBellItem(intake as HqIntake)
+    expect(item).toMatchObject({
+      title: 'Анна: Проверить возвраты',
+      dedupeKey: 'hq-intake:conv:c1:1792600060.000100',
+      replaces: 'hq-intake:conv:c1:'
+    })
+    // Why: a DM talk is answered in the DM, not in a thread under its first line.
+    expect(
+      hqIntakeOfConversation({
+        ...row,
+        key: 'slack:D0AAAAAAAAA:1792600000.000100',
+        messages: row.messages.map((m) => ({ ...m, link: null }))
+      })?.threadTs
+    ).toBeNull()
+  })
+
+  it('shows the conversation cards in place of mention cards, 👾 marks stay', async () => {
+    const synced: PulseBellInput[][] = []
+    const mentioned = vi.fn(async () => [draft('1792630000.000100', { via: 'mention' })])
+    const oldMention: HqIntake = {
+      ...draft('1792620000.000100'),
+      via: 'mention',
+      repoId: null,
+      project: null,
+      summary: 'старое'
+    }
+    const intake = hqIntakeOfConversation(row) as HqIntake
+    await pollHqSlackIntake({
+      read: async (run) =>
+        run({
+          marked: async () => ({ drafts: [draft('1792610000.000100')], complete: true }),
+          mentioned
+        }),
+      raised: () =>
+        new Map([
+          [hqIntakeBellItem(oldMention).dedupeKey, hqIntakeBellItem(oldMention).refId ?? null]
+        ]),
+      guess: async () => ({ repoId: null, project: null, summary: 'метка' }),
+      ledgerCards: () => [intake],
+      sync: (_kind, items) => void synced.push([...items]),
+      now: () => NOW
+    })
+    expect(mentioned).not.toHaveBeenCalled()
+    expect(synced[0]?.map((item) => item.title)).toEqual([
+      'To work: Анна',
+      'Анна: Проверить возвраты'
+    ])
   })
 })

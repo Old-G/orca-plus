@@ -67,6 +67,15 @@ export const getGeneralWorkspaceSearchDescriptors = createLocalizedCatalog(() =>
     ),
     keywords: ['hq', 'hq+', 'sessions', 'chats', 'dispatcher', 'handoff', 'queue']
   }),
+  // Custom build (hq-request-ledger)
+  generalSetting(GENERAL_SETTING_ANCHORS.folder, {
+    title: translate('auto.hq.ledger.settingTitle', 'Conversations'),
+    description: translate(
+      'auto.hq.ledger.settingDescription',
+      'Slack DMs, threads you take part in and mentions are read every half minute into conversations. On: one card per conversation that waits on you, updated in place. Shadow: conversations are kept beside the old cards, nothing shown changes.'
+    ),
+    keywords: ['hq', 'hq+', 'ledger', 'conversations', 'slack', 'cards']
+  }),
   generalSetting(GENERAL_SETTING_ANCHORS.worktrees, {
     title: translate(
       'auto.components.settings.general.search.externalWorktrees',
