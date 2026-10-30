@@ -16,7 +16,7 @@ import type {
 } from '../../../shared/pulse-types'
 import type { OutgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
 import { liveSessionOf } from './pulse-chat-chain'
-import { ingestLedgerSignal, listLedgerConversations } from './pulse-ledger'
+import { ingestLedgerSignal, listLedgerConversations, setConversationChat } from './pulse-ledger'
 import type { HqLedgerSignal } from '../../../shared/hq-ledger'
 import { PulseCore, type PulseClock } from './pulse-core'
 import {
@@ -118,6 +118,10 @@ export class PulseDb {
   }
   ingestLedgerSignal(signal: HqLedgerSignal) {
     return ingestLedgerSignal(this.core, signal)
+  }
+
+  setConversationChat(key: string, sessionId: string): void {
+    setConversationChat(this.core, key, sessionId)
   }
 
   listLedgerConversations(since?: number) {
