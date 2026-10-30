@@ -1,10 +1,16 @@
 // Custom build (hq-plus-map): the «Card» tab of the panel over the map — what is picked there: a project's
 // card (what waits, whom it waits for, its chats), a person's waits or one talk's card; with nothing
-// picked, what waits on the owner.
+// picked, what waits on the owner. Custom build (hq-plus-map, owner 31.10): what waits shows as the cards
+// themselves, decided right here; «Chats» lists the room's open chats, each with its ×.
 import type { HqPlusLogItem } from '../../../../../shared/hq-plus-log'
-import type { HqPlusMapLeaf, HqPlusMapModel } from '../../../../../shared/hq-plus-map'
+import {
+  hqPlusMapProjectOf,
+  type HqPlusMapLeaf,
+  type HqPlusMapModel
+} from '../../../../../shared/hq-plus-map'
 import type { HqChatItem } from '../hq/hq-chat-list'
-import { HqPlusLog } from './HqPlusLog'
+import { HqPlusLogCards } from './HqPlusLog'
+import { HqPlusCloseChat, type HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusWaitsView } from './HqPlusWaitsView'
 import { HqPlusMapChatName } from './HqPlusMapLeaf'
 import { HQ_PLUS_SOURCE_COLOR, trunc } from './hq-plus-map-geometry'
@@ -14,22 +20,20 @@ import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
 export type HqPlusMapDockPick =
   | { kind: 'project'; slug: string }
   | { kind: 'leaf'; slug: string; key: string }
-  | { kind: 'item'; id: string }
-
-export function hqPlusItemTitle(item: HqPlusLogItem): string {
-  return item.kind === 'me' ? item.text : item.title
-}
+  | { kind: 'chats' }
 
 export function HqPlusMapDock({
   pick,
   model,
   itemById,
   youItems,
-  chatByKey,
   showChat,
-  onPickItem,
   onPickLeaf,
   onToFeed,
+  chats,
+  slugOfChat,
+  stateOfChat,
+  closerOf,
   ctx,
   queue,
   waits,
@@ -48,11 +52,59 @@ export function HqPlusMapDock({
   model: HqPlusMapModel
   itemById: ReadonlyMap<string, HqPlusLogItem>
   youItems: readonly HqPlusLogItem[]
-  chatByKey: ReadonlyMap<string, HqChatItem>
-  onPickItem: (id: string) => void
   onPickLeaf: (slug: string, leaf: HqPlusMapLeaf) => void
   onToFeed: () => void
+  /** The room's open chats, their project and state, and × for each. */
+  chats: readonly HqChatItem[]
+  slugOfChat: (item: HqChatItem) => string
+  stateOfChat: (item: HqChatItem) => string
+  closerOf: (item: HqChatItem) => HqPlusChatCloser | null
 }): React.JSX.Element {
+  const chatRow = (item: HqChatItem, max: number, onOpen: () => void): React.JSX.Element => {
+    const state = stateOfChat(item)
+    const closer = closerOf(item)
+    return (
+      <li key={item.key} className="hqm-chatrow">
+        <button type="button" onClick={onOpen}>
+          <span className={`dot ${state === 'asks you' ? 'you' : ''}`} />
+          <span className="t">
+            <HqPlusMapChatName item={item} max={max} />
+          </span>
+          <span className="age">{state}</span>
+        </button>
+        {closer ? <HqPlusCloseChat closer={closer} name={item.projectName} /> : null}
+      </li>
+    )
+  }
+  if (pick?.kind === 'chats') {
+    const bySlug = new Map<string, HqChatItem[]>()
+    for (const item of chats) {
+      const slug = slugOfChat(item)
+      bySlug.set(slug, [...(bySlug.get(slug) ?? []), item])
+    }
+    return (
+      <div className="hqm-pane">
+        <div className="hqm-top">
+          Open chats<span className="hqm-pill">{chats.length}</span>
+        </div>
+        <p className="hqm-sub">
+          {chats.length
+            ? 'A click opens the chat on the right; × closes it, History keeps it.'
+            : 'No chat is open in this room.'}
+        </p>
+        {[...bySlug.entries()].map(([slug, list]) => (
+          <div key={slug}>
+            <div className="hqm-sec">
+              {slug} · {list.length}
+            </div>
+            <ul className="hqm-list">
+              {list.map((item) => chatRow(item, 56, () => showChat(item.key)))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    )
+  }
   if (!pick) {
     return (
       <div className="hqm-pane">
@@ -60,30 +112,12 @@ export function HqPlusMapDock({
           Nothing picked<span className="hqm-pill you">Your move · {youItems.length}</span>
         </div>
         <p className="hqm-sub">
-          Pick a project, a person or a chat on the map, or start from what waits for you:
+          {youItems.length
+            ? 'What waits for you — decide it here, or pick a project, a person or a chat on the map.'
+            : 'Nothing waits for you. Pick a project, a person or a chat on the map.'}
         </p>
-        <ul className="hqm-list">
-          {youItems.map((item) => (
-            <li key={item.id}>
-              <button type="button" onClick={() => onPickItem(item.id)}>
-                <span className="dot you" />
-                <span className="t">{trunc(hqPlusItemTitle(item), 64)}</span>
-                <span className="age">{item.project ?? ''}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <HqPlusLogCards items={youItems} ctx={ctx} />
       </div>
-    )
-  }
-  if (pick.kind === 'item') {
-    const item = itemById.get(pick.id)
-    return item ? (
-      <div className="hqm-pane hqm-cardpane">
-        <HqPlusLog key={item.id} items={[item]} flashId={null} ctx={ctx} />
-      </div>
-    ) : (
-      <p className="hqp-empty">This card is gone.</p>
     )
   }
   const project = model.projects.find((candidate) => candidate.slug === pick.slug)
@@ -96,7 +130,7 @@ export function HqPlusMapDock({
       const item = itemById.get(leaf.itemId)
       return item ? (
         <div className="hqm-pane hqm-cardpane">
-          <HqPlusLog key={item.id} items={[item]} flashId={null} ctx={ctx} />
+          <HqPlusLogCards items={[item]} ctx={ctx} />
         </div>
       ) : (
         <p className="hqp-empty">This card is gone.</p>
@@ -125,8 +159,9 @@ export function HqPlusMapDock({
       )
     }
   }
-  // The project's card.
-  const talks = project.leaves.filter((leaf) => leaf.kind === 'talk')
+  // The project's card: what waits on the owner here as cards, then whom it waits for, then its chats.
+  const yourMove = youItems.filter((item) => hqPlusMapProjectOf(item) === project.slug)
+  const projectChats = chats.filter((item) => slugOfChat(item) === project.slug)
   const persons = project.leaves.filter((leaf) => leaf.kind === 'person')
   const chatLeaves = project.leaves.filter((leaf) => leaf.kind === 'chat')
   const asking = chatLeaves.find((leaf) => leaf.state === 'asks') ?? chatLeaves[0]
@@ -190,19 +225,10 @@ export function HqPlusMapDock({
           </button>
         ) : null}
       </div>
-      {talks.length ? (
+      {yourMove.length ? (
         <>
-          <div className="hqm-sec">Your move</div>
-          <ul className="hqm-list">
-            {talks.map((leaf) => (
-              <li key={leaf.key}>
-                <button type="button" onClick={() => onPickLeaf(project.slug, leaf)}>
-                  <span className="dot you" />
-                  <span className="t">{trunc(leaf.title, 60)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <div className="hqm-sec">Your move · {yourMove.length}</div>
+          <HqPlusLogCards items={yourMove} ctx={ctx} />
         </>
       ) : null}
       {persons.length ? (
@@ -230,23 +256,17 @@ export function HqPlusMapDock({
           </ul>
         </>
       ) : null}
-      {chatLeaves.length ? (
+      {projectChats.length ? (
         <>
-          <div className="hqm-sec">Chats</div>
+          <div className="hqm-sec">Chats · {projectChats.length}</div>
           <ul className="hqm-list">
-            {chatLeaves.map((leaf) => {
-              const item = leaf.kind === 'chat' ? chatByKey.get(leaf.chatKey) : undefined
-              return leaf.kind === 'chat' && item ? (
-                <li key={leaf.key}>
-                  <button type="button" onClick={() => onPickLeaf(project.slug, leaf)}>
-                    <span className={`dot ${leaf.state === 'asks' ? 'you' : ''}`} />
-                    <span className="t">
-                      <HqPlusMapChatName item={item} max={48} />
-                    </span>
-                    <span className="age">{leaf.state === 'asks' ? 'asks you' : leaf.state}</span>
-                  </button>
-                </li>
-              ) : null
+            {projectChats.map((item) => {
+              const leaf = chatLeaves.find(
+                (candidate) => candidate.kind === 'chat' && candidate.chatKey === item.key
+              )
+              return chatRow(item, 48, () =>
+                leaf ? onPickLeaf(project.slug, leaf) : showChat(item.key)
+              )
             })}
           </ul>
         </>

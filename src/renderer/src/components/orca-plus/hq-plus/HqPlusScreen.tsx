@@ -2,7 +2,7 @@
 // stay in place), what waits on the owner and the live chats on the left, Граф / Река / Сессия / a report
 // on the right, rooms above and Orca's composer below. Every button goes through the paths agents use.
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import {
   HQ_PLUS_ANY_ROOM,
@@ -47,7 +47,7 @@ import {
 import { useHqPeople } from '../hq/HqPeopleTab'
 import { HqPlusPeople } from './HqPlusPeople'
 import { rememberedHqChat } from '../hq/hq-chat-open'
-import { useSidebarResize } from '@/hooks/useSidebarResize'
+import { clampSidebarResizeWidth, useSidebarResize } from '@/hooks/useSidebarResize'
 import { useHqChatList, useHqProjectColor } from '../hq/use-hq-chat-list'
 import { onHqTabRequested, takeRequestedHqTab } from '../hq/hq-view'
 import { PulseBellButton } from '../pulse-bell/PulseBellButton'
@@ -925,6 +925,22 @@ export function HqPlusScreen(): React.JSX.Element {
     }, [])
   })
 
+  // Custom build (hq-plus-map): back from the Map the Feed's panels mount anew, and the resize hook only
+  // writes a width when it changes — so the widths the owner dragged are put back here (owner, 31.10).
+  useLayoutEffect(() => {
+    if (layout === 'map') {
+      return
+    }
+    const sides: [HTMLElement | null, number][] = [
+      [left.containerRef.current, leftWidth],
+      [right.containerRef.current, rightWidth]
+    ]
+    for (const [element, width] of sides) {
+      element?.style.setProperty('width', `${width}px`)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout])
+
   /** The right panel's tabs and page; the Map layout adds its own «Card» tab in front (owner, 31.10). */
   const renderPanel = (card: HqPlusPanelCard | null): React.JSX.Element => (
     <>
@@ -1217,6 +1233,17 @@ export function HqPlusScreen(): React.JSX.Element {
           waits={waitsOnThem}
           chats={roomChats}
           slugOfChat={(item) => slugOfRepo.get(item.repoId) ?? item.projectName}
+          closerOf={closerOf}
+          panelWidth={rightWidth}
+          onPanelWidth={(width) => {
+            const next = clampSidebarResizeWidth(
+              width,
+              HQ_PLUS_PANEL.right.min,
+              HQ_PLUS_PANEL.right.max
+            )
+            setRightWidth(next)
+            saveHqPlusPanelWidth('right', next)
+          }}
           ctx={ctx}
           queue={queue}
           chat={tab === 'session' && !panelCard ? chatItem : null}

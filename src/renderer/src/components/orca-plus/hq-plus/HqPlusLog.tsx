@@ -245,6 +245,26 @@ function LogItem({
   )
 }
 
+/**
+ * Custom build (hq-plus-map): cards as the feed draws them, without its days and its live line — the
+ * map's panel, where the owner decides them in place (owner, 31.10).
+ */
+export function HqPlusLogCards({
+  items,
+  ctx
+}: {
+  items: readonly HqPlusLogItem[]
+  ctx: HqPlusLogContext
+}): React.JSX.Element {
+  return (
+    <div className="hqm-cards">
+      {items.map((item) => (
+        <LogItem key={item.id} item={item} flash={false} ctx={ctx} />
+      ))}
+    </div>
+  )
+}
+
 export function HqPlusLog({
   items,
   flashId,
