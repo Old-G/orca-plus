@@ -6,7 +6,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { HqPlusMapLeaf, HqPlusMapModel } from '../../../../../shared/hq-plus-map'
 import type { HqChatItem } from '../hq/hq-chat-list'
 import type { HqPlusMapCamera } from './hq-plus-map-view'
-import { HqPlusMapLeafView, HqPlusMapProjectBody } from './HqPlusMapLeaf'
+import { HqPlusMapChatClose, HqPlusMapLeafView, HqPlusMapProjectBody } from './HqPlusMapLeaf'
+import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import {
   AMBER,
   H_PRJ,
@@ -43,6 +44,7 @@ export function HqPlusMap({
   camera,
   now,
   chats,
+  closerOfChat,
   onCamera,
   onPickProject,
   onPickLeaf,
@@ -56,6 +58,8 @@ export function HqPlusMap({
   now: number
   /** The room's open chats by key, for the chat leaves' names. */
   chats: ReadonlyMap<string, HqChatItem>
+  /** × on a chat leaf; null keeps the leaf without one. */
+  closerOfChat: (chatKey: string) => HqPlusChatCloser | null
   onCamera: (camera: HqPlusMapCamera) => void
   onPickProject: (slug: string) => void
   onPickLeaf: (slug: string, leaf: HqPlusMapLeaf) => void
@@ -361,21 +365,26 @@ export function HqPlusMap({
                   <HqPlusMapProjectBody project={project} open={open} now={now} />
                 </g>
                 {open
-                  ? project.leaves.map((leaf, index) => (
-                      <g
-                        key={leaf.key}
-                        className={`hqm-node ${pick?.kind === 'leaf' && pick.slug === project.slug && pick.key === leaf.key ? 'hqm-sel' : ''} ${dim(project.slug)}`}
-                        transform={`translate(${X_LEAF},${y + index * LEAF_H})`}
-                        onClick={click(() => onPickLeaf(project.slug, leaf))}
-                      >
-                        <rect className="hqm-box" width={W_LEAF} height={LEAF_H - 6} rx={8} />
-                        <HqPlusMapLeafView
-                          leaf={leaf}
-                          now={now}
-                          chat={leaf.kind === 'chat' ? chats.get(leaf.chatKey) : undefined}
-                        />
-                      </g>
-                    ))
+                  ? project.leaves.map((leaf, index) => {
+                      const closer = leaf.kind === 'chat' ? closerOfChat(leaf.chatKey) : null
+                      return (
+                        <g
+                          key={leaf.key}
+                          className={`hqm-node ${pick?.kind === 'leaf' && pick.slug === project.slug && pick.key === leaf.key ? 'hqm-sel' : ''} ${dim(project.slug)}`}
+                          transform={`translate(${X_LEAF},${y + index * LEAF_H})`}
+                          onClick={click(() => onPickLeaf(project.slug, leaf))}
+                        >
+                          <rect className="hqm-box" width={W_LEAF} height={LEAF_H - 6} rx={8} />
+                          <HqPlusMapLeafView
+                            leaf={leaf}
+                            now={now}
+                            chat={leaf.kind === 'chat' ? chats.get(leaf.chatKey) : undefined}
+                            closable={closer !== null}
+                          />
+                          {closer ? <HqPlusMapChatClose closer={closer} /> : null}
+                        </g>
+                      )
+                    })
                   : null}
               </g>
             )

@@ -1,12 +1,15 @@
 // Custom build (hq-plus-map): one unfolded leaf on the map — a person the project waits on, one of its
 // chats, or a talk that waits on the owner; and a project's own node.
+import { useEffect, useState } from 'react'
 import type { HqPlusMapLeaf, HqPlusMapProject } from '../../../../../shared/hq-plus-map'
 import type { HqChatItem } from '../hq/hq-chat-list'
 import { useHqChatTitle } from '../hq/HqChatAvatar'
+import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import {
   AMBER,
   H_PRJ,
   HQ_PLUS_SOURCE_COLOR,
+  LEAF_H,
   W_LEAF,
   W_PRJ,
   age,
@@ -25,16 +28,63 @@ export function HqPlusMapChatName({
   return <>{trunc(useHqChatTitle(item), max)}</>
 }
 
+/**
+ * Custom build (hq-plus-map): × on a chat leaf closes the chat, as × in the chat list does (owner,
+ * 31.10); a chat that still works asks «close?» first and forgets the ask after a few seconds.
+ */
+export function HqPlusMapChatClose({ closer }: { closer: HqPlusChatCloser }): React.JSX.Element {
+  const [asking, setAsking] = useState(false)
+  useEffect(() => {
+    if (!asking) {
+      return
+    }
+    const timer = setTimeout(() => setAsking(false), 4000)
+    return () => clearTimeout(timer)
+  }, [asking])
+  return (
+    <g
+      className="hqm-x"
+      data-asking={asking ? 'true' : undefined}
+      transform={`translate(${W_LEAF - 16},${(LEAF_H - 6) / 2})`}
+      // Why: the map pans on a drag from anywhere; a press on × is a click, never a pan.
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation()
+        if (closer.working && !asking) {
+          setAsking(true)
+          return
+        }
+        closer.close()
+      }}
+    >
+      <title>
+        {asking ? 'The chat is working — click again to close it' : 'Close chat (stays in History)'}
+      </title>
+      <rect x={asking ? -50 : -10} y={-10} width={asking ? 60 : 20} height={20} rx={6} />
+      {asking ? (
+        <text x={-20} y={4} textAnchor="middle">
+          close?
+        </text>
+      ) : (
+        <path d="M-4 -4L4 4M4 -4L-4 4" />
+      )}
+    </g>
+  )
+}
+
 export function HqPlusMapLeafView({
   leaf,
   now,
-  chat
+  chat,
+  closable = false
 }: {
   leaf: HqPlusMapLeaf
   now: number
   chat: HqChatItem | undefined
+  /** A × stands at the right end, so the state moves left of it. */
+  closable?: boolean
 }): React.JSX.Element {
-  const right = W_LEAF - 10
+  const right = W_LEAF - (closable ? 32 : 10)
   if (leaf.kind === 'person') {
     return (
       <>

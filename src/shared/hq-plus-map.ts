@@ -96,6 +96,12 @@ const CHAT_ORDER: readonly HqPlusMapChatState[] = ['asks', 'working', 'done', 'q
 /** Where HQ's own rows and waits with no project stand. */
 const HQ_OWN = 'HQ'
 
+/** The project a row stands under on the map: its own, HQ for HQ's rows, Unsorted for a talk from
+ *  outside that nobody placed. */
+export function hqPlusMapProjectOf(item: HqPlusLogItem): string {
+  return item.project ?? (hqPlusMapSourceOf(item) ? HQ_PLUS_MAP_UNSORTED : HQ_OWN)
+}
+
 function itemTitle(item: HqPlusLogItem): string {
   return item.kind === 'me' ? item.text : item.title
 }
