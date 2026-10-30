@@ -1,6 +1,7 @@
 // Custom build (hq-ledger-feed): one conversation in HQ+'s feed — a Slack thread, ClickUp task or MR —
 // with what the owner asked and what people answered, its project as a chip the owner can fix (the
 // thread keeps it, a channel's new threads take it), and the buttons of every card folded into it.
+// Custom build (hq-plus-card-shell): drawn in the cards' one shell.
 import { useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
@@ -12,11 +13,14 @@ import {
   HQ_WAITING_REPLY_KIND,
   readHqWaitingReplyRef
 } from '../../../../../shared/hq-waiting-reply-bell'
-import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
-import { HqPlusChatName } from './HqPlusChatName'
 import { HqPlusCardView, hqPlusDoneLabel } from './HqPlusCard'
-import { hqPlusSourceLabel } from './hq-plus-source-label'
+import {
+  HqPlusCardFold,
+  HqPlusCardHead,
+  HqPlusCardShell,
+  HqPlusCardSource
+} from './HqPlusCardShell'
 import { hqPlusCall } from './use-hq-plus-data'
 import { hqPlusClock as clock } from './HqPlusChatCard'
 import type { HqPlusLogContext } from './HqPlusLog'
@@ -185,119 +189,98 @@ export function HqPlusConversationCard({
   const link = conversation.link?.startsWith('https://') ? conversation.link : null
   const who = people(messages)
   const head = (
-    <div className="hqp-row-h">
-      <HqPlusBadges badges={look.badges} />
-      {who ? <strong>{who}</strong> : null}
-      <span className="hqp-note">{placeLabel(conversation.key)}</span>
-      <ProjectChip card={card} onChanged={ctx.onChanged} />
-      <HqPlusChatName chat={chat} onOpen={chat && (chat.item || chat.name) ? openChat : null} />
-      <span className="hqp-tm">{clock(card.at)}</span>
-      <span className="hqp-spacer" />
-      {link ? (
-        <button
-          type="button"
-          className="hqp-link hqp-source"
-          onClick={(event) => ctx.openLink(link, event)}
-        >
-          {hqPlusSourceLabel(link)} ↗
-        </button>
-      ) : null}
-    </div>
+    <HqPlusCardHead
+      badges={look.badges}
+      lead={
+        <>
+          {who ? <strong>{who}</strong> : null}
+          <span className="hqp-note">{placeLabel(conversation.key)}</span>
+          <ProjectChip card={card} onChanged={ctx.onChanged} />
+        </>
+      }
+      chat={chat}
+      onOpenChat={chat && (chat.item || chat.name) ? openChat : null}
+      when={clock(card.at)}
+      right={link ? <HqPlusCardSource url={link} onOpen={ctx.openLink} /> : null}
+    />
   )
+  const kind = {
+    className: 'hqp-card hqp-conv',
+    'data-look': look.kind,
+    'data-source': look.source ?? undefined,
+    'data-flash': flash ? 'true' : undefined
+  }
+  const done = card.done ? hqPlusDoneLabel(card.done) : null
   // Why: a settled conversation folds to two lines, as every decided card does; a click opens it.
   if (!card.open && !expanded) {
     return (
-      <div
-        className="hqp-card hqp-conv"
-        data-look={look.kind}
-        data-source={look.source ?? undefined}
-        data-flash={flash ? 'true' : undefined}
-      >
-        {head}
-        <button
-          type="button"
-          className="hqp-cc"
-          aria-expanded="false"
-          onClick={() => ctx.setExpanded(card.id, true)}
-        >
-          <span className="l1">
-            <HqPlusText text={conversation.title} maxLines={1} />
-          </span>
-          {card.done ? <span className="l2">✓ {hqPlusDoneLabel(card.done)}</span> : null}
-        </button>
-      </div>
+      <HqPlusCardShell
+        {...kind}
+        head={head}
+        folded={
+          <HqPlusCardFold
+            line={conversation.title}
+            done={done}
+            onOpen={() => ctx.setExpanded(card.id, true)}
+          />
+        }
+      />
     )
   }
   return (
-    <div
-      className="hqp-card hqp-conv"
-      data-look={look.kind}
-      data-source={look.source ?? undefined}
+    <HqPlusCardShell
+      {...kind}
       data-open={card.open ? 'true' : undefined}
-      data-flash={flash ? 'true' : undefined}
+      head={head}
+      done={done}
+      footer={{ onCollapse: expanded ? () => ctx.setExpanded(card.id, false) : null }}
     >
-      <div className="hqp-cb">
-        {head}
-        <p className="hqp-conv-t">
-          <HqPlusText text={conversation.title} maxLines={2} />
-        </p>
-        {hidden > 0 ? (
-          <button
-            type="button"
-            className="hqp-said-more"
-            onClick={() => ctx.setExpanded(card.id, true)}
-          >
-            {translate('auto.hqPlus.conv.earlier', '{{count}} earlier', { count: hidden })}
-          </button>
-        ) : null}
-        <div className="hqp-msgs">
-          {shown.map((message) => (
-            <Message key={`${message.at}:${message.direction}`} message={message} />
-          ))}
-        </div>
-        {conversation.parts.map((part) => (
-          <div key={part.id} className="hqp-part">
-            {partLabel(part) ? (
-              <span className="hqp-part-l">
-                <HqPlusText text={partLabel(part) ?? ''} maxLines={1} />
-              </span>
-            ) : null}
-            <HqPlusCardView
-              bare
-              card={part}
-              look={hqPlusLook(part)}
-              flash={false}
-              hqPath={ctx.hqPath}
-              hqWorktreeId={ctx.hqWorktreeId}
-              when={clock(part.at)}
-              threadLabel={null}
-              onThread={null}
-              chat={ctx.chatOf(part.sessionId)}
-              onOpenChat={ctx.openChat(part.sessionId)}
-              onOpenLink={ctx.openLink}
-              onOpenReport={ctx.onOpenReport}
-              onNotNow={() => ctx.onNotNow(card.id)}
-              onChanged={ctx.onChanged}
-              expanded={false}
-              onExpand={() => {}}
-              onToWork={ctx.toWork}
-            />
-          </div>
+      <p className="hqp-conv-t">
+        <HqPlusText text={conversation.title} maxLines={2} />
+      </p>
+      {hidden > 0 ? (
+        <button
+          type="button"
+          className="hqp-said-more"
+          onClick={() => ctx.setExpanded(card.id, true)}
+        >
+          {translate('auto.hqPlus.conv.earlier', '{{count}} earlier', { count: hidden })}
+        </button>
+      ) : null}
+      <div className="hqp-msgs">
+        {shown.map((message) => (
+          <Message key={`${message.at}:${message.direction}`} message={message} />
         ))}
-        {card.done ? <p className="hqp-done">✓ {hqPlusDoneLabel(card.done)}</p> : null}
-        {expanded ? (
-          <div className="hqp-row-f">
-            <span className="hqp-spacer" />
-            <button
-              type="button"
-              className="hqp-pill"
-              onClick={() => ctx.setExpanded(card.id, false)}
-            >
-              {translate('auto.hqPlus.collapseCard', 'Collapse')}
-            </button>
-          </div>
-        ) : null}
       </div>
-    </div>
+      {conversation.parts.map((part) => (
+        <div key={part.id} className="hqp-part">
+          {partLabel(part) ? (
+            <span className="hqp-part-l">
+              <HqPlusText text={partLabel(part) ?? ''} maxLines={1} />
+            </span>
+          ) : null}
+          <HqPlusCardView
+            bare
+            card={part}
+            look={hqPlusLook(part)}
+            flash={false}
+            hqPath={ctx.hqPath}
+            hqWorktreeId={ctx.hqWorktreeId}
+            when={clock(part.at)}
+            threadLabel={null}
+            onThread={null}
+            chat={ctx.chatOf(part.sessionId)}
+            onOpenChat={ctx.openChat(part.sessionId)}
+            onOpenLink={ctx.openLink}
+            onOpenReport={ctx.onOpenReport}
+            onNotNow={() => ctx.onNotNow(card.id)}
+            onChanged={ctx.onChanged}
+            expanded={false}
+            onExpand={() => {}}
+            onToWork={ctx.toWork}
+          />
+        </div>
+      ))}
+    </HqPlusCardShell>
   )
 }
