@@ -105,6 +105,7 @@ export function ChatCard({
                   openQuestion={null}
                   label={item.address ?? item.project ?? 'chat'}
                   hqPath={ctx.hqPath}
+                  showTo={false}
                   onSent={ctx.onChanged}
                 />
               </div>

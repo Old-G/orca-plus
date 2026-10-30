@@ -628,12 +628,18 @@
 .hqp-reply input::placeholder {
   color: var(--hqp-faint);
 }
-.hqp-to {
+/* Custom build (hq-plus-map): where a reply goes, on its own line under the box */
+.hqp-composer-box {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.hqp-composer-to {
+  padding: 0 12px;
   font-family: var(--hqp-mono);
   font-size: 10.5px;
   color: var(--hqp-ice);
   white-space: nowrap;
-  max-width: 40%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -2541,9 +2547,6 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 }
 .hqp-reply textarea::placeholder {
   color: var(--hqp-faint);
-}
-.hqp-reply .hqp-to {
-  align-self: center;
 }
 /* every HQ+ send button: ice with a dark arrow; disabled muted with a light arrow */
 .hq-plus .hqp-go:not(:disabled) {
