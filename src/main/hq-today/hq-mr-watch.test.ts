@@ -59,6 +59,19 @@ describe('MR watch', () => {
     expect(await watch.poll()).toBe(0)
   })
 
+  it('takes no merge from before the waiting as its answer — the MR was through when the owner asked', async () => {
+    const before = new Date(NOW - 80_000).toISOString()
+    const { db, watch, ask } = setup({
+      409: { state: 'merged', mergedBy: 'Owner', mergedAt: before }
+    })
+    const pull = ask('Ann: pull MR !409 and put your token back', 'acme-hub')
+    expect(await watch.poll()).toBe(0)
+    expect(db.getWaiting(pull.id)?.reply).toBeNull()
+    expect(readHqWaitingTags(db.getWaiting(pull.id)?.detail ?? null).checked).toMatch(
+      /— GitLab: !409 merged before this was asked$/
+    )
+  })
+
   it('writes what GitLab sees on a waiting still open, once per change', async () => {
     const { db, watch, ask } = setup({ 380: {} })
     const approve = ask('Апрув hub !380: spec edits', 'acme-hub')
