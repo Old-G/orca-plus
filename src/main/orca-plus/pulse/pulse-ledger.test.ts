@@ -141,7 +141,9 @@ describe('ledger ingest', () => {
     const next = db.ingestLedgerSignal({
       ...dm,
       key: 'slack:D0123BOBXY:1700000010.000000',
-      ts: '1700000010.000000'
+      ts: '1700000010.000000',
+      // Why two days on: a DM line of the same day joins that day's talk.
+      at: tick + 2 * 24 * 60 * 60_000
     })
     expect(next.step).toBe('which')
     expect(next.waitingIds.sort()).toEqual([only.id, other.id].sort())
@@ -176,5 +178,47 @@ describe('ledger ingest', () => {
     )
     expect(db.listLedgerConversations()).toHaveLength(1)
     expect(db.getWaiting(asked.id)?.status).toBe('open')
+  })
+
+  it('a mention in a new channel thread is its own talk, not an answer to an older question', () => {
+    const db = openDb()
+    const ann = db.upsertPerson({ name: 'Ann', slackUserId: 'U_ANN' })
+    db.addWaiting({
+      direction: 'on-them',
+      title: 'q1',
+      personId: ann.id,
+      source: 'slack',
+      sourceRef: THREAD
+    })
+    db.addWaiting({
+      direction: 'on-them',
+      title: 'q2',
+      personId: ann.id,
+      source: 'manual',
+      allowDuplicate: true
+    })
+    const fresh = db.ingestLedgerSignal(signal({ key: 'slack:C0123HUBXY:1700000500.000000' }))
+    expect(fresh).toMatchObject({ step: 'new', waitingIds: [] })
+  })
+
+  it('a day of top-level DM lines is one talk', () => {
+    const db = openDb()
+    const first = db.ingestLedgerSignal(
+      signal({ key: 'slack:D0123ANNXY:1700000100.000000', ts: '1700000100.000000' })
+    )
+    const second = db.ingestLedgerSignal(
+      signal({
+        key: 'slack:D0123ANNXY:1700000200.000000',
+        ts: '1700000200.000000',
+        at: tick + 3600_000
+      })
+    )
+    expect(second.conversationId).toBe(first.conversationId)
+  })
+
+  it('keeps the change feed readable after a conversation moved', () => {
+    const db = openDb()
+    db.ingestLedgerSignal(signal({}))
+    expect(db.listEventsSince(0).some((event) => event.entity === 'conversation')).toBe(true)
   })
 })
