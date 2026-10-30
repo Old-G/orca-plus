@@ -61,6 +61,7 @@ describe('repo of a project', () => {
 describe('hqMrOutcome', () => {
   const ref = { host: 'gitlab.com', projectPath: 'acme/acme-hub', iid: 380 }
   const NOW = 1_800_000_000_000
+  const ASKED = Date.parse('2026-10-28T09:00:00Z')
 
   it('answers a merge wait on merge, and an approval wait on the first approval', () => {
     expect(
@@ -68,24 +69,35 @@ describe('hqMrOutcome', () => {
         ref,
         mr({ state: 'merged', mergedBy: 'Ann', mergedAt: '2026-10-28T13:40:00Z' }),
         'merge',
-        NOW
+        NOW,
+        ASKED
       )
     ).toEqual({
       done: true,
       text: 'MR !380 (acme/acme-hub) merged by Ann — Spec edits',
       at: Date.parse('2026-10-28T13:40:00Z')
     })
-    expect(hqMrOutcome(ref, mr({ approvedBy: ['Bob'] }), 'merge', NOW)).toEqual({
+    expect(hqMrOutcome(ref, mr({ approvedBy: ['Bob'] }), 'merge', NOW, ASKED)).toEqual({
       done: false,
       status: 'GitLab: !380 opened, approved by Bob'
     })
-    expect(hqMrOutcome(ref, mr({ approvedBy: ['Bob'] }), 'approve', NOW)).toMatchObject({
+    expect(hqMrOutcome(ref, mr({ approvedBy: ['Bob'] }), 'approve', NOW, ASKED)).toMatchObject({
       done: true,
       text: 'MR !380 (acme/acme-hub) approved by Bob — Spec edits'
     })
-    expect(hqMrOutcome(ref, mr(), 'approve', NOW)).toEqual({
+    expect(hqMrOutcome(ref, mr(), 'approve', NOW, ASKED)).toEqual({
       done: false,
       status: 'GitLab: !380 opened, no approvals'
     })
+  })
+
+  it('answers nothing with a merge or close from before the waiting', () => {
+    const merged = mr({ state: 'merged', mergedBy: 'Owner', mergedAt: '2026-10-28T08:59:00Z' })
+    expect(hqMrOutcome(ref, merged, 'merge', NOW, ASKED)).toEqual({
+      done: false,
+      status: 'GitLab: !380 merged before this was asked'
+    })
+    const closed = mr({ state: 'closed', closedAt: '2026-10-28T08:00:00Z' })
+    expect(hqMrOutcome(ref, closed, 'merge', NOW, ASKED)).toMatchObject({ done: false })
   })
 })
