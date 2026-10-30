@@ -105,8 +105,10 @@ export function HqPlusChatSession({
         <span className="hqp-tile" style={tileStyle(tile.color)} aria-hidden="true">
           {tile.letters}
         </span>
-        <span className="t" title={title}>
+        <span className="t" title={`${title} · ${item.projectName}`}>
           {title}
+          {/* Custom build (hq-plus-all-projects): whose chat this is, not only its tile (owner, 30.10). */}
+          <small className="hqp-ses-proj">{item.projectName}</small>
         </span>
         {status ? <HqPlusBadges badges={[status]} /> : null}
         <button
