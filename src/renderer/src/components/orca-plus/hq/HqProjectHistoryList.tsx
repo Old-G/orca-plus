@@ -2,8 +2,8 @@
 // chats in the «Other chats here» row format; a click reopens one in HQ with its conversation.
 import { useState } from 'react'
 import { translate } from '@/i18n/i18n'
-import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
-import { useAiVaultSessionDisplayTitle } from '../../right-sidebar/use-ai-vault-session-display-title'
+import { structuredAgentSessionTabId } from '../../../../../shared/agent-session/view/structured-agent-session-projection'
+import { useAiVaultSessionDisplayTitle } from '../../right-sidebar/ai-vault/session-list/use-ai-vault-session-display-title'
 import { openHqHistoryEntry } from './hq-history-open'
 import { HqChatAvatar } from './HqChatAvatar'
 import type { HqHistoryChat } from './use-hq-project-history'
@@ -13,11 +13,13 @@ const SHOWN_FIRST = 8
 function HistoryChat({
   chat,
   projectName,
-  color
+  color,
+  onOpened
 }: {
   chat: HqHistoryChat
   projectName: string
   color: string
+  onOpened?: () => void
 }): React.JSX.Element {
   const title = useAiVaultSessionDisplayTitle(chat)
   const { workspaceId, sessionId } = chat.structuredSession
@@ -25,13 +27,14 @@ function HistoryChat({
     <li>
       <button
         type="button"
-        onClick={() =>
+        onClick={() => {
           void openHqHistoryEntry({
             worktreeId: workspaceId,
             tabId: structuredAgentSessionTabId(sessionId),
             sessionId
           })
-        }
+          onOpened?.()
+        }}
         className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-xs hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
       >
         <HqChatAvatar item={{ projectName }} color={color} />
@@ -45,18 +48,27 @@ function HistoryChat({
 export function HqProjectHistoryList({
   chats,
   projectName,
-  color
+  color,
+  onOpened
 }: {
   chats: readonly HqHistoryChat[]
   projectName: string
   color: string
+  /** Custom build (hq-plus-all-projects): after a row opened its chat — a popover closes. */
+  onOpened?: () => void
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false)
   const shown = expanded ? chats : chats.slice(0, SHOWN_FIRST)
   return (
     <ul className="flex flex-col gap-px">
       {shown.map((chat) => (
-        <HistoryChat key={chat.id} chat={chat} projectName={projectName} color={color} />
+        <HistoryChat
+          key={chat.id}
+          chat={chat}
+          projectName={projectName}
+          color={color}
+          onOpened={onOpened}
+        />
       ))}
       {chats.length > shown.length ? (
         <li>
