@@ -75,12 +75,15 @@ export function HqPlusCenterBrowser({
   worktreeId,
   full,
   onFull,
-  onClose
+  onClose,
+  backLabel = null
 }: {
   worktreeId: string
   full: boolean
   onFull: (full: boolean) => void
   onClose: () => void
+  /** Custom build (hq-plus-map): where «←» returns to, when not the feed. */
+  backLabel?: string | null
 }): React.JSX.Element {
   const tab = useAppStore((state) => {
     const id = state.activeBrowserTabIdByWorktree[worktreeId]
@@ -93,7 +96,7 @@ export function HqPlusCenterBrowser({
     >
       <div className="hqp-fh">
         <button type="button" className="hqp-pill" onClick={onClose}>
-          ← {translate('auto.hqPlus.centerFile.back', 'Feed')}
+          ← {backLabel ?? translate('auto.hqPlus.centerFile.back', 'Feed')}
         </button>
         <span className="hqp-spacer" />
         <button

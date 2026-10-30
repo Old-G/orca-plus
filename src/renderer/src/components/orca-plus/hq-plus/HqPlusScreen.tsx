@@ -120,6 +120,9 @@ import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import './hq-plus.css'
 import './hq-plus-map.css'
 
+/** Custom build (hq-plus-map): the Map layout's «Card» tab — what is picked on the map. */
+type HqPlusPanelCard = { label: string; active: boolean; body: React.ReactNode; onPick: () => void }
+
 const TICK_MS = 30_000
 const NO_IDS: string[] = []
 const FLASH_MS = 1800
@@ -193,6 +196,8 @@ export function HqPlusScreen(): React.JSX.Element {
   // Custom build (hq-plus-ui-v3): the open chat folded to a bar under Graph / River, until «Expand».
   const [chatFolded, setChatFolded] = useState(view.chatFolded)
   const [take, setTake] = useState<PulseInboxItem | null>(null)
+  // Custom build (hq-plus-map): the Map layout's panel shows the picked card rather than a tab.
+  const [panelCard, setPanelCard] = useState(true)
   // Custom build (hq-closed-loop): «Open» on the chat already open on the right lights it up briefly.
   const [chatFlash, setChatFlash] = useState(false)
   const chatFlashTimer = useRef<number | null>(null)
@@ -577,6 +582,7 @@ export function HqPlusScreen(): React.JSX.Element {
       ? (data.sessions?.sessions.find((session) => session.sessionId === sessionId) ?? null)
       : null
   const showChat = (key: string): void => {
+    setPanelCard(false)
     setChatKey(key)
     setChatFolded(false)
     setTab('session')
@@ -805,6 +811,7 @@ export function HqPlusScreen(): React.JSX.Element {
       chatItems.some((entry) => entry.key === paneKey) ? () => showChat(paneKey) : null,
     tileOfRepo,
     toWork: (item) => {
+      setPanelCard(false)
       setTake(item)
       setChatFolded(false)
     }
@@ -918,6 +925,191 @@ export function HqPlusScreen(): React.JSX.Element {
     }, [])
   })
 
+  /** The right panel's tabs and page; the Map layout adds its own «Card» tab in front (owner, 31.10). */
+  const renderPanel = (card: HqPlusPanelCard | null): React.JSX.Element => (
+    <>
+      <div className="hqp-tabs">
+        {/* Custom build (hq-closed-loop): only the tabs scroll sideways; «widen» stays in view. */}
+        <div
+          className="hqp-tabs-scroll"
+          role="tablist"
+          onWheel={(event) => {
+            if (event.deltaY !== 0 && event.deltaX === 0) {
+              event.currentTarget.scrollLeft += event.deltaY
+            }
+          }}
+        >
+          {card ? (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!take && card.active}
+              className="hqp-tab"
+              onClick={card.onPick}
+            >
+              {card.label}
+            </button>
+          ) : null}
+          {TABS.map((name) => {
+            const [key, fallback] = TAB_LABEL[name]
+            return (
+              <button
+                key={name}
+                type="button"
+                role="tab"
+                aria-selected={!take && !card?.active && tab === name}
+                className="hqp-tab"
+                onClick={() => {
+                  // Custom build (hq-plus-center-browser): Browser opens Orca's own in the center.
+                  if (name === 'browser') {
+                    showBrowser(null)
+                    return
+                  }
+                  // Why: leaving an open chat folds it to the bar at the foot, one click back.
+                  if (name !== 'session' && tab === 'session' && chatItem) {
+                    setChatFolded(true)
+                  }
+                  setTab(name)
+                  setTake(null)
+                  setPanelCard(false)
+                  if (name === 'session') {
+                    setChatFolded(false)
+                  }
+                }}
+              >
+                {translate(key, fallback)}
+              </button>
+            )
+          })}
+        </div>
+        {card ? null : (
+          <button
+            type="button"
+            className="hqp-tab hqp-exp"
+            aria-label={
+              wide
+                ? translate('auto.hqPlus.narrow', 'Narrow the panel')
+                : translate('auto.hqPlus.widen', 'Widen the panel')
+            }
+            title={
+              wide
+                ? translate('auto.hqPlus.narrow', 'Narrow the panel')
+                : translate('auto.hqPlus.widen', 'Widen the panel')
+            }
+            aria-pressed={wide}
+            onClick={() => setWide(!wide)}
+          >
+            {wide ? `⤡ ${translate('auto.hqPlus.collapse', 'Collapse')}` : '⤢'}
+          </button>
+        )}
+      </div>
+      <div className="hqp-pane" role="tabpanel">
+        <div
+          className={
+            chatFlash && tab === 'session' && !take && !card?.active ? 'hqp-pv hqp-flash' : 'hqp-pv'
+          }
+          key={
+            card?.active && !take
+              ? 'card'
+              : take
+                ? `take:${take.id}`
+                : tab === 'session'
+                  ? `session:${chatItem ? chatItem.key : (pickKey ?? '')}`
+                  : tab
+          }
+        >
+          {card?.active && !take ? (
+            card.body
+          ) : take ? (
+            <HqPlusTakePanel
+              item={take}
+              onCancel={() => setTake(null)}
+              onDone={(sessionId) => {
+                setTake(null)
+                data.reload()
+                openChat(sessionId)?.()
+              }}
+            />
+          ) : tab === 'session' && chatItem ? (
+            <HqPlusChatSession
+              item={chatItem}
+              status={statusOfGroup(chatItem.group)}
+              tile={tileOfChat(chatItem)}
+              color={colorFor(chatItem.repoId)}
+              siblings={chatItems.filter(
+                (item) => item.kind === 'chat' && item.repoId === chatItem.repoId
+              )}
+              onPick={(item) => showChat(item.key)}
+            />
+          ) : tab === 'session' && chatKey ? (
+            <p className="hqp-empty">
+              {translate('auto.hqPlus.chat.starting', 'The chat is starting…')}
+            </p>
+          ) : tab === 'graph' ? (
+            <HqPlusGraph
+              graph={graph}
+              roomColor={roomColor}
+              onPickProject={(project) =>
+                pickProject(
+                  project,
+                  lanes.find((lane) => lane.project === project)?.sessionId ?? null
+                )
+              }
+            />
+          ) : tab === 'people' ? (
+            <HqPlusPeople
+              state={peopleState}
+              picked={personKey}
+              onPick={setPersonKey}
+              hqWorktreeId={hqWorktreeId}
+            />
+          ) : tab === 'agents' ? (
+            <HqPlusAgents
+              items={chatItems}
+              tileOf={tileOfChat}
+              now={now}
+              onOpen={(item) => showChat(item.key)}
+              tileOfRepo={tileOfRepo}
+              openPane={ctx.openPane}
+            />
+          ) : tab === 'river' ? (
+            <HqPlusRiver
+              lanes={lanes}
+              upcoming={data.upcoming}
+              current={pick?.project ?? null}
+              now={now}
+              onPick={(lane: HqPlusLane) => pickProject(lane.project, lane.sessionId)}
+            />
+          ) : tab === 'session' ? (
+            <HqPlusSession
+              pick={pick}
+              live={liveOf(pick?.sessionId ?? null)}
+              hqPath={hqPath}
+              now={now}
+              scoped={Boolean(pickKey && scope === pickKey)}
+              onScope={() => setScope(pickKey && scope !== pickKey ? pickKey : null)}
+              onOpenChat={openChat(pick?.sessionId ?? null)}
+              onDispatched={data.reload}
+              onBack={backFromPick}
+            />
+          ) : tab === 'browser' ? null : (
+            <HqPlusReportView path={reportPath} onPick={setReportPath} />
+          )}
+        </div>
+      </div>
+      {/* Custom build (hq-plus-map): over the map, the card tab keeps the open chat one click away. */}
+      {chatItem && ((chatFolded && tab !== 'session') || (card?.active && !take)) ? (
+        <HqPlusChatBar
+          item={chatItem}
+          onExpand={() => {
+            setChatFolded(false)
+            setTab('session')
+            setPanelCard(false)
+          }}
+        />
+      ) : null}
+    </>
+  )
   const roomsBar = (
     <HqPlusRooms
       spaces={spaces.spaces}
@@ -932,13 +1124,12 @@ export function HqPlusScreen(): React.JSX.Element {
       }}
     />
   )
+  // Custom build (hq-plus-map): Feed is the current layout, Map the new one — one switch (owner, 31.10).
+  const layoutSwitch = <HqPlusLayoutSwitch layout={layout} onLayout={setHqPlusLayout} />
   const topTail = (
-    <>
-      <HqPlusLayoutSwitch layout={layout} onLayout={setHqPlusLayout} />
-      <div className="hqp-meter">
-        <PulseBellButton />
-      </div>
-    </>
+    <div className="hqp-meter">
+      <PulseBellButton />
+    </div>
   )
   const side = (
     <HqPlusSide
@@ -972,13 +1163,17 @@ export function HqPlusScreen(): React.JSX.Element {
     />
   )
   const centerOverlay = centerFile ? (
-    <HqPlusCenterFile onClose={() => setCenterFile(false)} />
+    <HqPlusCenterFile
+      onClose={() => setCenterFile(false)}
+      backLabel={layout === 'map' ? 'Map' : null}
+    />
   ) : centerBrowser && browserWorktreeId ? (
     <HqPlusCenterBrowser
       worktreeId={browserWorktreeId}
       full={browserFull}
       onFull={setBrowserFull}
       onClose={closeBrowser}
+      backLabel={layout === 'map' ? 'Map' : null}
     />
   ) : null
   const linkPopover = (
@@ -1010,6 +1205,7 @@ export function HqPlusScreen(): React.JSX.Element {
       <>
         <HqPlusMapLayout
           rooms={roomsBar}
+          layoutSwitch={layoutSwitch}
           tail={topTail}
           room={room}
           roomName={spaces.active?.name ?? translate('auto.hqPlus.overview', 'All')}
@@ -1023,28 +1219,25 @@ export function HqPlusScreen(): React.JSX.Element {
           slugOfChat={(item) => slugOfRepo.get(item.repoId) ?? item.projectName}
           ctx={ctx}
           queue={queue}
-          side={side}
-          chat={chatItem}
-          renderChat={(item) => (
-            <HqPlusChatSession
-              item={item}
-              status={statusOfGroup(item.group)}
-              tile={tileOfChat(item)}
-              color={colorFor(item.repoId)}
-              siblings={chatItems.filter(
-                (other) => other.kind === 'chat' && other.repoId === item.repoId
-              )}
-              onPick={(picked) => showChat(picked.key)}
-            />
-          )}
+          chat={tab === 'session' && !panelCard ? chatItem : null}
           showChat={showChat}
           closeChat={() => setChatKey(null)}
-          browser={centerOverlay}
-          closeBrowser={() => {
+          cardShown={panelCard}
+          showCard={() => {
+            setPanelCard(true)
+            setTake(null)
+          }}
+          panel={renderPanel}
+          overlay={centerOverlay}
+          overlayKind={centerFile ? 'file' : 'browser'}
+          closeOverlay={() => {
             setCenterFile(false)
             closeBrowser()
           }}
-          composer={<HqCommandBox hqWorktreeId={hqWorktreeId} />}
+          onYourMove={() => {
+            changeFeedFilter('move')
+            setHqPlusLayout('current')
+          }}
           newChat={(slug) => {
             const worktreeId = worktreeOfProject(slug)
             return worktreeId ? () => void startHqChat(worktreeId) : null
@@ -1070,6 +1263,7 @@ export function HqPlusScreen(): React.JSX.Element {
           HQ+
         </span>
         {roomsBar}
+        {layoutSwitch}
         <span className="hqp-spacer" />
         {topTail}
       </header>
@@ -1203,164 +1397,7 @@ export function HqPlusScreen(): React.JSX.Element {
           ref={right.containerRef}
           aria-label={translate('auto.hqPlus.panel', 'Graph, River, Session, Agents')}
         >
-          <div className="hqp-tabs">
-            {/* Custom build (hq-closed-loop): only the tabs scroll sideways; «widen» stays in view. */}
-            <div
-              className="hqp-tabs-scroll"
-              role="tablist"
-              onWheel={(event) => {
-                if (event.deltaY !== 0 && event.deltaX === 0) {
-                  event.currentTarget.scrollLeft += event.deltaY
-                }
-              }}
-            >
-              {TABS.map((name) => {
-                const [key, fallback] = TAB_LABEL[name]
-                return (
-                  <button
-                    key={name}
-                    type="button"
-                    role="tab"
-                    aria-selected={!take && tab === name}
-                    className="hqp-tab"
-                    onClick={() => {
-                      // Custom build (hq-plus-center-browser): Browser opens Orca's own in the center.
-                      if (name === 'browser') {
-                        showBrowser(null)
-                        return
-                      }
-                      // Why: leaving an open chat folds it to the bar at the foot, one click back.
-                      if (name !== 'session' && tab === 'session' && chatItem) {
-                        setChatFolded(true)
-                      }
-                      setTab(name)
-                      setTake(null)
-                      if (name === 'session') {
-                        setChatFolded(false)
-                      }
-                    }}
-                  >
-                    {translate(key, fallback)}
-                  </button>
-                )
-              })}
-            </div>
-            <button
-              type="button"
-              className="hqp-tab hqp-exp"
-              aria-label={
-                wide
-                  ? translate('auto.hqPlus.narrow', 'Narrow the panel')
-                  : translate('auto.hqPlus.widen', 'Widen the panel')
-              }
-              title={
-                wide
-                  ? translate('auto.hqPlus.narrow', 'Narrow the panel')
-                  : translate('auto.hqPlus.widen', 'Widen the panel')
-              }
-              aria-pressed={wide}
-              onClick={() => setWide(!wide)}
-            >
-              {wide ? `⤡ ${translate('auto.hqPlus.collapse', 'Collapse')}` : '⤢'}
-            </button>
-          </div>
-          <div className="hqp-pane" role="tabpanel">
-            <div
-              className={chatFlash && tab === 'session' && !take ? 'hqp-pv hqp-flash' : 'hqp-pv'}
-              key={
-                take
-                  ? `take:${take.id}`
-                  : tab === 'session'
-                    ? `session:${chatItem ? chatItem.key : (pickKey ?? '')}`
-                    : tab
-              }
-            >
-              {take ? (
-                <HqPlusTakePanel
-                  item={take}
-                  onCancel={() => setTake(null)}
-                  onDone={(sessionId) => {
-                    setTake(null)
-                    data.reload()
-                    openChat(sessionId)?.()
-                  }}
-                />
-              ) : tab === 'session' && chatItem ? (
-                <HqPlusChatSession
-                  item={chatItem}
-                  status={statusOfGroup(chatItem.group)}
-                  tile={tileOfChat(chatItem)}
-                  color={colorFor(chatItem.repoId)}
-                  siblings={chatItems.filter(
-                    (item) => item.kind === 'chat' && item.repoId === chatItem.repoId
-                  )}
-                  onPick={(item) => showChat(item.key)}
-                />
-              ) : tab === 'session' && chatKey ? (
-                <p className="hqp-empty">
-                  {translate('auto.hqPlus.chat.starting', 'The chat is starting…')}
-                </p>
-              ) : tab === 'graph' ? (
-                <HqPlusGraph
-                  graph={graph}
-                  roomColor={roomColor}
-                  onPickProject={(project) =>
-                    pickProject(
-                      project,
-                      lanes.find((lane) => lane.project === project)?.sessionId ?? null
-                    )
-                  }
-                />
-              ) : tab === 'people' ? (
-                <HqPlusPeople
-                  state={peopleState}
-                  picked={personKey}
-                  onPick={setPersonKey}
-                  hqWorktreeId={hqWorktreeId}
-                />
-              ) : tab === 'agents' ? (
-                <HqPlusAgents
-                  items={chatItems}
-                  tileOf={tileOfChat}
-                  now={now}
-                  onOpen={(item) => showChat(item.key)}
-                  tileOfRepo={tileOfRepo}
-                  openPane={ctx.openPane}
-                />
-              ) : tab === 'river' ? (
-                <HqPlusRiver
-                  lanes={lanes}
-                  upcoming={data.upcoming}
-                  current={pick?.project ?? null}
-                  now={now}
-                  onPick={(lane: HqPlusLane) => pickProject(lane.project, lane.sessionId)}
-                />
-              ) : tab === 'session' ? (
-                <HqPlusSession
-                  pick={pick}
-                  live={liveOf(pick?.sessionId ?? null)}
-                  hqPath={hqPath}
-                  now={now}
-                  scoped={Boolean(pickKey && scope === pickKey)}
-                  onScope={() => setScope(pickKey && scope !== pickKey ? pickKey : null)}
-                  onOpenChat={openChat(pick?.sessionId ?? null)}
-                  onDispatched={data.reload}
-                  onBack={backFromPick}
-                />
-              ) : tab === 'browser' ? null : (
-                <HqPlusReportView path={reportPath} onPick={setReportPath} />
-              )}
-            </div>
-          </div>
-          {chatFolded && chatItem && tab !== 'session' ? (
-            <HqPlusChatBar
-              item={chatItem}
-              onExpand={() => {
-                setChatFolded(false)
-                setTab('session')
-              }}
-            />
-          ) : null}
+          {renderPanel(null)}
         </aside>
       </div>
       {linkPopover}
