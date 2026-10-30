@@ -27,7 +27,11 @@ export function hqIntakeNamedProject(
   if (byLink) {
     return byLink
   }
-  const words = ` ${norm(draft.text).replace(/[^\p{L}\p{N}-]+/gu, ' ')} `
+  // Why not norm(): it turns the spaces between words into hyphens, and no slug is found in a sentence.
+  const words = ` ${draft.text
+    .toLowerCase()
+    .replace(/_/g, '-')
+    .replace(/[^\p{L}\p{N}-]+/gu, ' ')} `
   return (
     pages.find((page) => page.slug.length > 3 && words.includes(` ${norm(page.slug)} `)) ?? null
   )

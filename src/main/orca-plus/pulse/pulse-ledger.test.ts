@@ -268,3 +268,17 @@ describe('ledger ingest', () => {
     expect(row?.sessionId).toBe('claude_s9')
   })
 })
+
+describe('ledger guess and last word', () => {
+  it('keeps a known project and a waiting state, marks the model’s project', () => {
+    const db = openDb()
+    const { conversationId } = db.ingestLedgerSignal(signal({ fromOwner: true }))
+    expect(db.lastLedgerDirection(THREAD)).toBe('out')
+    expect(db.lastLedgerDirection('slack:C0123HUBXY:1.1')).toBeNull()
+    db.setLedgerGuess(conversationId, { project: 'acme', how: 'model', state: 'you', gist: 'Суть' })
+    const [row] = db.listLedgerConversations()
+    expect(row).toMatchObject({ project: 'acme', state: 'you', title: 'Суть' })
+    db.setLedgerGuess(conversationId, { project: 'other', how: 'named', state: 'fyi', gist: null })
+    expect(db.listLedgerConversations()[0]).toMatchObject({ project: 'acme', title: 'Суть' })
+  })
+})

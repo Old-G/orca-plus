@@ -23,6 +23,8 @@ export type HqLedgerShadowDeps = HqLedgerLookups & {
   ingest: (signal: HqLedgerSignal) => void
   conversations: (since: number) => { state: string }[]
   report: (did: string) => void
+  /** Custom build (hq-request-ledger): the Slack API reader against the scout, added to the line. */
+  parity?: () => string | null
   now: () => number
   onError: (error: unknown) => void
 }
@@ -55,8 +57,9 @@ export function runHqLedgerShadow(
       .filter((card) => (HQ_LEDGER_SHADOW_KINDS as readonly string[]).includes(card.kind)).length
     const conversations = deps.conversations(now - DAY_MS)
     const you = conversations.filter((c) => c.state === 'you').length
+    const parity = deps.parity?.() ?? null
     deps.report(
-      `24 h in shadow: ${cards} cards → ${conversations.length} conversations (${you} your move)`
+      `24 h in shadow: ${cards} cards → ${conversations.length} conversations (${you} your move)${parity ? `. ${parity}` : ''}`
     )
     return { cursor, reportedDay: day }
   }
