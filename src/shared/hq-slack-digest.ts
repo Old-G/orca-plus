@@ -79,7 +79,7 @@ export function hqDigestSlot(now: Date, hours: readonly number[]): string | null
 /** Null when nothing waits and nothing went by — a digest of nothing is noise too. */
 export function hqSlackDigestItem(
   slot: string,
-  waiting: readonly HqSlackScoutDraft[],
+  waiting: readonly Pick<HqSlackScoutDraft, 'author' | 'ask' | 'title'>[],
   quiet: readonly HqSlackQuietItem[]
 ): PulseBellInput | null {
   if (waiting.length === 0 && quiet.length === 0) {
@@ -110,5 +110,39 @@ export function hqSlackDigestItem(
     refId: slot,
     actions: [{ id: HQ_SLACK_DIGEST_OPEN_ACTION, label: 'Open HQ' }],
     dedupeKey: `${HQ_SLACK_DIGEST_KIND}:${slot}`
+  }
+}
+
+/** Custom build (hq-request-ledger): a conversation as the digest reads it. */
+export type HqLedgerDigestConversation = {
+  id: string
+  key: string
+  state: string
+  title: string
+  lastAt: number
+}
+
+/** Custom build (hq-request-ledger): the digest's two lists from the ledger once the scout is off —
+ *  Slack conversations waiting on the owner, and the ones that only went by since the last digest. */
+export function hqLedgerDigestLists(
+  conversations: readonly HqLedgerDigestConversation[],
+  since: number
+): { waiting: Pick<HqSlackScoutDraft, 'author' | 'ask' | 'title'>[]; quiet: HqSlackQuietItem[] } {
+  const slack = conversations.filter((conversation) => conversation.key.startsWith('slack:'))
+  return {
+    waiting: slack
+      .filter((conversation) => conversation.state === 'you')
+      .map((conversation) => ({ author: '', ask: conversation.title, title: conversation.title })),
+    quiet: slack
+      .filter((conversation) => conversation.state === 'fyi' && conversation.lastAt > since)
+      .map((conversation) => ({
+        id: conversation.id,
+        at: new Date(conversation.lastAt).toISOString(),
+        author: null,
+        channelName: null,
+        summary: conversation.title,
+        why: null,
+        permalink: null
+      }))
   }
 }
