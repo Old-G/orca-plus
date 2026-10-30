@@ -236,7 +236,7 @@ describe('ledger switched on', () => {
         ts: '1792600060.000100',
         author: 'Анна',
         authorId: 'U1',
-        text: 'срочно',
+        text: 'Анна: срочно',
         link: null,
         at: NOW - 60_000
       }
