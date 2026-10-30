@@ -192,7 +192,48 @@ CREATE INDEX IF NOT EXISTS sessions_by_workspace ON sessions(workspace, last_act
 // passes to the asking chat by itself only from the person it was asked of.
 const V9 = `ALTER TABLE waitings ADD COLUMN reply_author_id TEXT;`
 
-const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9]
+// Custom build (hq-request-ledger): one conversation (a Slack thread, a ClickUp task, an MR, a mail
+// thread) is one card; every reader appends its messages here, and a waiting knows what was sent,
+// where, and what it waits for.
+const V10 = `
+CREATE TABLE conversations (
+  id TEXT PRIMARY KEY,
+  key TEXT NOT NULL UNIQUE,
+  project TEXT,
+  project_how TEXT,
+  title TEXT NOT NULL,
+  state TEXT NOT NULL DEFAULT 'fyi' CHECK (state IN ('you', 'wait', 'fyi', 'done')),
+  state_why TEXT,
+  session_id TEXT,
+  created_at INTEGER NOT NULL,
+  last_at INTEGER NOT NULL
+);
+CREATE INDEX conversations_by_last ON conversations(last_at);
+CREATE INDEX conversations_by_project ON conversations(project, last_at);
+
+CREATE TABLE conversation_messages (
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  ts TEXT NOT NULL,
+  direction TEXT NOT NULL CHECK (direction IN ('in', 'out')),
+  author TEXT,
+  author_id TEXT,
+  text TEXT NOT NULL,
+  link TEXT,
+  reader TEXT NOT NULL,
+  at INTEGER NOT NULL,
+  PRIMARY KEY (conversation_id, ts)
+);
+
+ALTER TABLE waitings ADD COLUMN conversation_id TEXT;
+ALTER TABLE waitings ADD COLUMN draft_id TEXT;
+ALTER TABLE waitings ADD COLUMN decision_id TEXT;
+ALTER TABLE waitings ADD COLUMN sent_text TEXT;
+ALTER TABLE waitings ADD COLUMN sent_at INTEGER;
+ALTER TABLE waitings ADD COLUMN expects TEXT;
+CREATE INDEX waitings_by_conversation ON waitings(conversation_id);
+`
+
+const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 
