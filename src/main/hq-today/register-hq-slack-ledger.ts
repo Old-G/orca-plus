@@ -20,6 +20,8 @@ import {
   startHqSlackLedgerReader
 } from './hq-slack-ledger-reader'
 import { generateHqText } from './hq-task-questions'
+import { hqJobRow } from '../hq-journal/hq-journal-jobs'
+import { HQ_JOURNAL_ALL_ROOMS } from '../../shared/hq-journal'
 
 // Why: a new conversation's project and move is a small judgement, like routing a 👾 message.
 const GUESS_MODEL = 'haiku'
@@ -27,6 +29,8 @@ const GUESS_MODEL = 'haiku'
 const PARITY_SETTLE_MS = 20 * 60_000
 const DAY_MS = 24 * 60 * 60_000
 const SLACK_CHANNEL = /^[CDG][A-Z0-9]{6,}$/
+const ERROR_REPEAT_MS = 60 * 60_000
+let lastError: { found: string; at: number } | null = null
 
 /** Message ids the scout looked at during the last day, settled for comparison. */
 function scoutIdsOfDay(hqPath: string, now: number): string[] {
@@ -119,7 +123,26 @@ export function registerHqSlackLedger(
       setGuess: (id, guess) => runtime.pulseSetLedgerGuess(id, guess),
       now: Date.now
     },
-    (error) => console.warn('[hq-slack-ledger] pass failed:', error)
+    (error) => {
+      console.warn('[hq-slack-ledger] pass failed:', error)
+      // Why: a reader failing in silence leaves the conversations stale with no word anywhere.
+      const found =
+        `Slack DMs and threads not read: ${error instanceof Error ? error.message : String(error)}`.slice(
+          0,
+          200
+        )
+      if (lastError?.found === found && Date.now() - lastError.at < ERROR_REPEAT_MS) {
+        return
+      }
+      lastError = { found, at: Date.now() }
+      runtime.pulseRecordJournal([
+        hqJobRow(
+          { job: 'ledger', found },
+          { room: HQ_JOURNAL_ALL_ROOMS, project: null, firm: false },
+          Date.now()
+        )
+      ])
+    }
   )
   return {
     parity: () => {
