@@ -184,6 +184,16 @@ export class RuntimePulseCommands {
     return this.db().markInboxDone(id, action)
   }
 
+  /** Custom build (hq-request-ledger): the chat that continues `sessionId` after handoffs. */
+  pulseLiveSessionOf(sessionId: string): string {
+    return this.db().liveSessionOf(sessionId)
+  }
+
+  /** Custom build (hq-request-ledger): the chat a conversation was taken into. */
+  pulseSetConversationChat(key: string, sessionId: string): void {
+    this.db().setConversationChat(key, sessionId)
+  }
+
   /** Custom build (hq-request-ledger): one message into its conversation. */
   pulseIngestLedger(signal: HqLedgerSignal): void {
     this.db().ingestLedgerSignal(signal)
