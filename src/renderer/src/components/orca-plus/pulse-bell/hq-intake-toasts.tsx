@@ -14,7 +14,7 @@ import {
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
-import { formatShortTimeAgo } from '@/lib/short-time-ago'
+import { formatShortTimeAgo } from '@/lib/time-format/short-time-ago'
 import { useAppStore } from '@/store'
 import { HqRouteForm } from './HqRouteForm'
 import { sendHqRoutePrompt, type HqRouteTarget } from './hq-route-send'
@@ -92,7 +92,8 @@ function HqIntakeCard({
       await window.api.pulseBell.closeIntake(
         item.id,
         'sent',
-        `Sent to ${target.kind === 'chat' ? `«${target.chat.title}»` : `a new chat «${target.name}»`}`
+        `Sent to ${target.kind === 'chat' ? `«${target.chat.title}»` : `a new chat «${target.name}»`}`,
+        target.kind === 'chat' ? target.chat.sessionId : null
       )
     }
     return sent
