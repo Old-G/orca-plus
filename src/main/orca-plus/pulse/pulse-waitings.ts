@@ -11,6 +11,7 @@ import type {
 } from '../../../shared/pulse-types'
 import { findDuplicateWaiting } from '../../../shared/pulse-waiting-similarity'
 import type { PulseCore } from './pulse-core'
+import { pairWaitingWithSend } from './pulse-outbox'
 import { integer, oneOf, optionalInteger, optionalText, text } from './pulse-row-fields'
 import { withHqWaitingAsked } from '../../../shared/hq-waiting-tags'
 
@@ -104,6 +105,8 @@ export function addWaiting(core: PulseCore, input: PulseWaitingInput): PulseWait
         waiting.paneKey,
         waiting.worktreeId
       )
+    // Custom build (hq-request-ledger): what was sent, where and what it waits for.
+    pairWaitingWithSend(core, waiting, waiting.createdAt)
     core.emit('waiting.added', 'waiting', waiting.id, waiting)
     return waiting
   })

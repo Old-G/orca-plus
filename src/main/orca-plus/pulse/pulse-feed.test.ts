@@ -37,9 +37,7 @@ describe('pulse feed', () => {
       feed.upsertFeed([item({ id: 'slack:T1' }), item({ id: 'git:pr', source: 'git', at: 500 })])
     ).toBe(2)
     expect(
-      feed.upsertFeed([
-        item({ id: 'slack:T1', at: 3_000, body: 'Вера ждёт', project: 'zenith' })
-      ])
+      feed.upsertFeed([item({ id: 'slack:T1', at: 3_000, body: 'Вера ждёт', project: 'zenith' })])
     ).toBe(0)
     expect(feed.upsertFeed([item({ id: 'slack:T1', at: 2_000, project: null })])).toBe(0)
     stop()
