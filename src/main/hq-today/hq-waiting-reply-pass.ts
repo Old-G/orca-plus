@@ -9,6 +9,8 @@ export type HqWaitingReplyPassDeps = {
   /** True once the native chat took the turn, sent or queued. */
   deliver: (waiting: PulseWaiting, prompt: string) => Promise<boolean>
   markDelivered: (id: string, replyTs: string | undefined) => void
+  /** Custom build (hq-request-ledger): the live end of the chat's handoff chain. */
+  liveChat?: (sessionId: string) => string
 }
 
 /** `replyTs`: the answer the owner was shown; a newer one waits for its own card. */
@@ -45,7 +47,14 @@ export async function passHqWaitingReply(
   }
   passing.add(waitingId)
   try {
-    if (!(await deps.deliver(waiting, prompt(waiting)))) {
+    // Custom build (hq-request-ledger): the chat that asked may have handed its work on — the
+    // answer goes to the chat that continues it, and back to the asker only if that one is closed.
+    const live = deps.liveChat?.(waiting.agentSessionId) ?? waiting.agentSessionId
+    const delivered =
+      (live !== waiting.agentSessionId &&
+        (await deps.deliver({ ...waiting, agentSessionId: live }, prompt(waiting)))) ||
+      (await deps.deliver(waiting, prompt(waiting)))
+    if (!delivered) {
       return { ok: false, reason: 'chat-closed' }
     }
     deps.markDelivered(waiting.id, waiting.replyTs ?? undefined)
