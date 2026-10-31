@@ -11,6 +11,18 @@ const FEED_MESSAGES = 6
 const WAITING_LOOKBACK_MS = 14 * 24 * 60 * 60_000
 /** A channel's rule; a DM spans every project, so it never gets one. */
 const CHANNEL_OF = /^slack:([CG][A-Z0-9]+):/
+/** Custom build (hq-ledger-sources): an MR's repo, whose other MRs take the owner's pick too. */
+const REPO_OF = /^gitlab:(.+)![0-9]+$/
+
+/** Where a conversation's project rule lives: its Slack channel or its GitLab repo; null for a DM. */
+function rulePlaceOf(key: string): string | null {
+  const channel = CHANNEL_OF.exec(key)
+  if (channel) {
+    return `slack:${channel[1]}`
+  }
+  const repo = REPO_OF.exec(key)
+  return repo ? `gitlab:${repo[1]}` : null
+}
 
 function str(value: unknown): string | null {
   return value == null ? null : String(value)
@@ -74,24 +86,56 @@ export function setLedgerProject(core: PulseCore, key: string, project: string):
     core.db
       .prepare(`UPDATE conversations SET project = ?, project_how = 'owner' WHERE key = ?`)
       .run(project, key)
-    const channel = CHANNEL_OF.exec(key)
-    if (channel) {
+    const place = rulePlaceOf(key)
+    if (place) {
       core.db
         .prepare(
           `INSERT INTO ledger_rules (place, project, at) VALUES (?, ?, ?)
            ON CONFLICT(place) DO UPDATE SET project = excluded.project, at = excluded.at`
         )
-        .run(`slack:${channel[1]}`, project, core.clock.now())
+        .run(place, project, core.clock.now())
     }
     core.emit('conversation.updated', 'conversation', key, { project })
   })
 }
 
-/** The owner's rule for the channel a new thread starts in; null when there is none. */
+/** The owner's rule for the channel a new thread starts in (or the repo of a new MR); null when there
+ *  is none. */
 export function ledgerRuleOf(core: PulseCore, key: string): string | null {
-  const channel = CHANNEL_OF.exec(key)
-  const row = channel
-    ? core.db.prepare('SELECT project FROM ledger_rules WHERE place = ?').get(`slack:${channel[1]}`)
+  const place = rulePlaceOf(key)
+  const row = place
+    ? core.db.prepare('SELECT project FROM ledger_rules WHERE place = ?').get(place)
     : undefined
   return row ? String(row.project) : null
+}
+
+/**
+ * Custom build (hq-ledger-sources): the owner is done with a conversation — «Done» on its card, or its
+ * source said so (the GitLab to-do left his list). A conversation that waits on someone else keeps
+ * waiting; the next message opens it again. False when there was nothing to close.
+ */
+export function closeLedgerConversation(core: PulseCore, key: string): boolean {
+  const closed =
+    core.db
+      .prepare(
+        `UPDATE conversations SET state = 'done', state_why = NULL
+          WHERE key = ? AND state IN ('you', 'fyi')`
+      )
+      .run(key).changes > 0
+  if (closed) {
+    core.emit('conversation.updated', 'conversation', key, { state: 'done' })
+  }
+  return closed
+}
+
+/** Custom build (hq-ledger-sources): the places of one reader's conversations that still show — the
+ *  owner's move or for his information — so the reader can close those its source no longer lists. */
+export function listLedgerOpenKeys(core: PulseCore, reader: string): string[] {
+  return core.db
+    .prepare(
+      `SELECT DISTINCT c.key FROM conversations c JOIN conversation_messages m ON m.conversation_id = c.id
+        WHERE m.reader = ? AND c.state IN ('you', 'fyi') ORDER BY c.key`
+    )
+    .all(reader)
+    .map((row) => String(row.key))
 }
