@@ -1,7 +1,7 @@
 // Custom build (hq-mail-intake): Orca+'s only door to Gmail — connect, status, and the read-only calls
 // the mail intake makes. Nothing else in the app knows the Gmail API.
 import type { GmailStatus } from '../../shared/gmail-types'
-import type { HqMail } from '../../shared/hq-mail-events'
+import type { HqLetter, HqMail } from '../../shared/hq-mail-events'
 import {
   clearGmailRefreshToken,
   gmailAccount,
@@ -12,7 +12,7 @@ import {
   saveGmailClient,
   saveGmailRefreshToken
 } from './gmail-credential-store'
-import { gmailMessageToMail } from './gmail-message'
+import { gmailMessageToLetter, gmailMessageToMail } from './gmail-message'
 import { authorizeGmail, refreshGoogleToken } from './gmail-oauth'
 
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me'
@@ -120,15 +120,18 @@ export function disconnectGmail(): void {
   lastError = null
 }
 
-/** Ids of messages matching a Gmail search, newest first, page after page up to `max`. */
-export async function listGmailMessageIds(query: string, max: number): Promise<string[]> {
+/** Custom build (hq-ledger-sources): a message as Gmail's search lists it — its id and its thread. */
+export type GmailMessageRef = { id: string; threadId: string | null }
+
+/** Messages matching a Gmail search, newest first, page after page up to `max`. */
+export async function listGmailMessageRefs(query: string, max: number): Promise<GmailMessageRef[]> {
   try {
-    const ids: string[] = []
+    const refs: GmailMessageRef[] = []
     let pageToken: unknown = null
     do {
       const result = await gmailGet('/messages', {
         q: query,
-        maxResults: String(Math.min(PAGE_MAX, max - ids.length)),
+        maxResults: String(Math.min(PAGE_MAX, max - refs.length)),
         ...(typeof pageToken === 'string' ? { pageToken } : {})
       })
       const messages: unknown =
@@ -136,22 +139,36 @@ export async function listGmailMessageIds(query: string, max: number): Promise<s
       for (const message of Array.isArray(messages) ? messages : []) {
         const id: unknown =
           message && typeof message === 'object' ? Reflect.get(message, 'id') : null
+        const threadId: unknown =
+          message && typeof message === 'object' ? Reflect.get(message, 'threadId') : null
         if (typeof id === 'string') {
-          ids.push(id)
+          refs.push({ id, threadId: typeof threadId === 'string' && threadId ? threadId : null })
         }
       }
       pageToken = result && typeof result === 'object' ? Reflect.get(result, 'nextPageToken') : null
-    } while (typeof pageToken === 'string' && pageToken && ids.length < max)
+    } while (typeof pageToken === 'string' && pageToken && refs.length < max)
     lastError = null
-    return ids
+    return refs
   } catch (error) {
     lastError = errorText(error)
     throw error
   }
 }
 
+/** Ids of messages matching a Gmail search, newest first, page after page up to `max`. */
+export async function listGmailMessageIds(query: string, max: number): Promise<string[]> {
+  return (await listGmailMessageRefs(query, max)).map((ref) => ref.id)
+}
+
 export async function getGmailMail(id: string): Promise<HqMail | null> {
   return gmailMessageToMail(
+    await gmailGet(`/messages/${encodeURIComponent(id)}`, { format: 'full' })
+  )
+}
+
+/** Custom build (hq-ledger-sources): one letter with its thread, To/Cc and bulk headers. */
+export async function getGmailLetter(id: string): Promise<HqLetter | null> {
+  return gmailMessageToLetter(
     await gmailGet(`/messages/${encodeURIComponent(id)}`, { format: 'full' })
   )
 }
