@@ -3,6 +3,7 @@
 import type { HqLedgerResult, HqLedgerSignal } from '../../shared/hq-ledger'
 import type { HqConversationRow, HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import type { HqLedgerCardRow } from '../orca-plus/pulse/pulse-ledger-cards'
+import type { HqOpenConversation } from '../orca-plus/pulse/pulse-ledger-open'
 import type { HqFeedLedger } from '../../shared/hq-feed-ledger'
 import type {
   PulseAddResult,
@@ -200,6 +201,11 @@ export class RuntimePulseCommands {
   /** Custom build (hq-request-ledger): one message into its conversation. */
   pulseIngestLedger(signal: HqLedgerSignal): HqLedgerResult {
     return this.db().ingestLedgerSignal(signal)
+  }
+
+  /** Custom build (hq-request-ledger): the project's open conversations, for its card. */
+  pulseListOpenConversations(project: string): HqOpenConversation[] {
+    return this.db().listOpenLedgerConversations(project)
   }
 
   pulseListLedgerConversations(since?: number): HqConversationRow[] {
