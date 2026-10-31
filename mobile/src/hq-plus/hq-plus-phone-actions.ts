@@ -10,8 +10,10 @@ import {
   hqPlusAskHq,
   hqPlusChatSend,
   hqPlusConversationDone,
+  hqPlusConversationProject,
   hqPlusJobReply,
-  hqPlusMarkDone
+  hqPlusMarkDone,
+  hqPlusPagesRead
 } from './hq-plus-phone-operations'
 
 export type HqPlusPhoneResult = { ok: true } | { ok: false; message: string }
@@ -93,6 +95,32 @@ export function doneHqPlusPhoneConversation(
   }
   return attempt(async () => {
     await runRpcOperation(client, hqPlusConversationDone, { key })
+    return OK
+  })
+}
+
+/** Custom build (hq-project-cards): the HQ projects an Unsorted conversation can go to, sorted. */
+export async function listHqPlusPhoneProjects(client: RpcClient): Promise<string[]> {
+  try {
+    const reply = await runRpcOperation(client, hqPlusPagesRead)
+    return reply.ok ? reply.pages.map((page) => page.slug).sort() : []
+  } catch {
+    return []
+  }
+}
+
+/** Custom build (hq-project-cards): an Unsorted conversation put in a project; its thread keeps it. */
+export function setHqPlusPhoneConversationProject(
+  client: RpcClient,
+  card: HqPlusCard,
+  project: string
+): Promise<HqPlusPhoneResult> {
+  const key = card.conversation?.key
+  if (!key) {
+    return Promise.resolve(OK)
+  }
+  return attempt(async () => {
+    await runRpcOperation(client, hqPlusConversationProject, { key, project })
     return OK
   })
 }
