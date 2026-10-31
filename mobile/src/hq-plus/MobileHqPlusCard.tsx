@@ -41,11 +41,14 @@ import {
 export function MobileHqPlusCard({
   card,
   flash,
-  ctx
+  ctx,
+  bare = false
 }: {
   card: HqPlusCard
   flash: boolean
   ctx: HqpFeedContext
+  /** Custom build (hq-project-cards): under its line in a project's card, without the tile. */
+  bare?: boolean
 }) {
   const look = hqPlusLook(card)
   const [expanded, setExpanded] = useState(false)
@@ -99,6 +102,7 @@ export function MobileHqPlusCard({
       flash={flash}
       project={card.project}
       color={ctx.colorOf(card.project)}
+      bare={bare}
     >
       {children}
     </HqpCardFrame>
