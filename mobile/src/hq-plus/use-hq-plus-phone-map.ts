@@ -1,6 +1,6 @@
 // Custom build (hq-plus-phone-map): what the phone's Map needs beside the feed — the rooms' models
 // (only while the Map shows), × that closes a chat's tab on the Mac, and the project's workspace.
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { HqChatWireItem } from '../../../src/shared/hq-chat-wire'
 import type { HqPlusLogItem } from '../../../src/shared/hq-plus-log'
 import type { HqSpace } from '../../../src/shared/hq-spaces'
@@ -46,10 +46,18 @@ export function useHqPlusPhoneMap(input: {
   onChanged: () => void
 }): HqPlusPhoneMap {
   const { shown, client, hostId, spaces, room, items, waits, push, onNotice, onChanged } = input
-  // Why: a closed chat leaves at once; the next read of the chat list confirms it.
   const [project, setProject] = useState<HqpMapPick | null>(null)
   const [sheet, setSheet] = useState(false)
+  // Why: a chat whose close the Mac confirmed leaves at once; once a read of the chat list no longer
+  // has it, the read decides again, so a chat reopened later shows (Codex, 31.10).
   const [closed, setClosed] = useState<ReadonlySet<string>>(new Set())
+  useEffect(() => {
+    setClosed((previous) => {
+      const listed = new Set(input.chats.map((chat) => chat.key))
+      const kept = [...previous].filter((key) => listed.has(key))
+      return kept.length === previous.size ? previous : new Set(kept)
+    })
+  }, [input.chats])
   const chats = useMemo(
     () => input.chats.filter((chat) => !closed.has(chat.key)),
     [input.chats, closed]
@@ -71,8 +79,14 @@ export function useHqPlusPhoneMap(input: {
         .then((raw) => {
           const reply = sessionTabClose.interpret(raw)
           if (reply.accepted && !reply.value.refused) {
-            setClosed((previous) => new Set([...previous, chat.key]))
-            onNotice(`Closed «${name}». It stays in History.`)
+            // Why: an older or delegating Mac accepts without proving the tab retired; the chat
+            // stays until the next read of the chat list shows it gone.
+            if (reply.value.retirementConfirmed) {
+              setClosed((previous) => new Set([...previous, chat.key]))
+              onNotice(`Closed «${name}». It stays in History.`)
+            } else {
+              onNotice(`Asked the Mac to close «${name}».`)
+            }
             onChanged()
           } else {
             onNotice(`The Mac did not close «${name}».`)
