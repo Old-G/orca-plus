@@ -144,6 +144,13 @@ function nativeChatWorktreeId(sessionId: string): string | null {
   return tabs.find((tab) => tab.sessionId === sessionId)?.workspaceId ?? null
 }
 
+let stoppedNow: () => ClaudeLimitStoppedAgent[] = () => []
+
+/** Custom build (hq-handoff-auto): the agents stopped on a limit or a rejected sign-in now. */
+export function claudeLimitStoppedNow(): ClaudeLimitStoppedAgent[] {
+  return stoppedNow()
+}
+
 export function registerClaudeLimitGuardHandlers(
   store: Store,
   runtime: OrcaRuntimeService,
@@ -206,6 +213,7 @@ export function registerClaudeLimitGuardHandlers(
     log: (message) => console.log('[claude-limit-guard]', message)
   })
 
+  stoppedNow = () => stops.list()
   agentHookServer.subscribeEnrichedStatus((event) => stops.onHookStatus(event))
   setClaudeNativeFrameListener((sessionId, frame) =>
     stops.onNativeFrame(sessionId, nativeChatWorktreeId(sessionId), frame)

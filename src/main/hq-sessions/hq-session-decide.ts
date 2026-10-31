@@ -2,7 +2,6 @@
 // thread's chat, open a new one seeded from it, or queue; and when a handoff starts by itself.
 import {
   HQ_SESSION_CONTINUE_BELOW_PCT,
-  HQ_SESSION_HANDOFF_GRACE_MS,
   HQ_SESSION_OWNER_IN_MS,
   HQ_SESSION_QUIET_MS,
   type HqDispatchDecision,
@@ -80,29 +79,36 @@ export type HqHandoffInput = {
   raisedAt: number
   /** The chat that wrote the handoff; null when the dispatcher does not know it. */
   session: HqLiveSession | null
+  /** Custom build (hq-handoff-auto): that chat stopped on a usage limit or a rejected sign-in. */
+  limitStopped: boolean
+  /** How long the owner gets to take the offer up himself. */
+  graceMs: number
   now: number
 }
 
 /**
  * Whether to start a handoff's successor now. The old chat has stopped, so a new chat beside it
- * touches nothing of the owner's; only a chat he is looking at right now is left for his own click.
- * He gets a few minutes to take it up himself. The successor replaces its predecessor, so no cap.
+ * touches nothing of the owner's; only a chat on his screen right now is left for his own click.
+ * He gets a moment to take it up himself. The successor replaces its predecessor, so no cap.
  */
 export function decideHqHandoff(
   input: HqHandoffInput
 ): { start: true; why: string } | { start: false; why: string } {
-  const lookedAt = input.session?.ownerAt ?? null
-  if (input.session && lookedAt !== null && input.now - lookedAt < HQ_SESSION_HANDOFF_GRACE_MS) {
+  if (input.session?.onScreen) {
     return { start: false, why: `the owner is looking at ${label(input.session)}` }
   }
+  // Why: a new chat would stop on the same limit; the limit guard leaves a handed-off chat alone, and
+  // once the limit lifts its stop is gone and the successor starts.
+  if (input.limitStopped) {
+    return { start: false, why: 'its chat stopped on a limit; the new one waits until it lifts' }
+  }
   const age = input.now - input.raisedAt
-  if (age < HQ_SESSION_HANDOFF_GRACE_MS) {
+  if (age < input.graceMs) {
     return { start: false, why: 'the offer is fresh; the owner may take it up' }
   }
+  const ago = age < 60_000 ? `${Math.round(age / 1000)} s` : `${Math.round(age / 60_000)} min`
   return {
     start: true,
-    why: input.session
-      ? `${label(input.session)} handed off ${Math.round(age / 60_000)} min ago`
-      : `a handoff waited ${Math.round(age / 60_000)} min`
+    why: input.session ? `${label(input.session)} handed off ${ago} ago` : `a handoff waited ${ago}`
   }
 }
