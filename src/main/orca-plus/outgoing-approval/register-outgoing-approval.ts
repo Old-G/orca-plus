@@ -31,6 +31,8 @@ import { OutgoingApprovalGate } from './outgoing-approval-gate'
 import { bindOutgoingGateEndpoint } from './outgoing-gate-endpoint'
 import { createOutgoingGateRequestHandler } from './outgoing-gate-http'
 import { gitRepoOfCwd, recordOutgoingSent } from './outgoing-sent-recorder'
+import { createHqChatProjects } from '../../hq-journal/hq-chat-project'
+import { getHqJournalService } from '../../hq-journal/hq-journal-service'
 import { backfillLegacySentContext } from './outgoing-sent-history'
 import { slackConversationName } from './outgoing-slack-names'
 import { clickUpTaskRef, lastChatTask } from './outgoing-task-sources'
@@ -99,6 +101,10 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
     (db ??= new PulseDb(pulseDbPath(getAppEnvironment().getPath('userData'))))
   const workspaceOf = (agentSessionId: string): string | null =>
     runtime.openedAgentSessionRecordStore()?.getRecord(agentSessionId)?.location.workspaceId ?? null
+  // Custom build (hq-request-ledger): approvals and the recorder name the chat's HQ project.
+  const projects = createHqChatProjects(
+    async () => (await getHqJournalService()?.sources()) ?? null
+  )
   const contexts = new Map<string, OutgoingApprovalContext>()
   const moved = new MovedApprovals()
   const sources: OutgoingContextSources = {
@@ -146,6 +152,8 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
       .then(async () => {
         for (const draft of gate.pending()) {
           if (!contexts.has(draft.id)) {
+            // Why: the owner decides synchronously; the rooms are read while his card appears.
+            await projects.read({ sessionId: draft.call?.agentSessionId ?? null })
             contexts.set(draft.id, await withTimeout(describeOutgoingDraft(draft, sources), {}))
             // Custom build (outgoing-venue): the text the owner moved here was approved already.
             const fulfils = moved.take(draft)
@@ -167,6 +175,7 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
     gate,
     context: (id) => contexts.get(id),
     workspaceOf,
+    projectOf: projects.now,
     moved,
     decisions: (limit) => pulseDb().listDecisions({ kind: 'approval', limit }),
     waitings: () => pulseDb().listWaitings()
@@ -189,7 +198,7 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
   // Custom build (hq-request-ledger): every message a call sent, held or not, into the ledger.
   const recordSent = async (report: Parameters<typeof recordOutgoingSent>[1]): Promise<void> => {
     await recordOutgoingSent(
-      { db: pulseDb, repoOfCwd: gitRepoOfCwd, projectOf: async () => null, now: Date.now },
+      { db: pulseDb, repoOfCwd: gitRepoOfCwd, projectOf: projects.read, now: Date.now },
       report
     )
   }
