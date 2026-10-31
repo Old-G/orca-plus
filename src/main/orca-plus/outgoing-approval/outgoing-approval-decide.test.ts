@@ -58,6 +58,48 @@ function hookOutput(reply: GateReply) {
 }
 
 describe('decideOutgoingCall', () => {
+  it('keeps the HQ project of the sending chat on the decision and on its ledger message', () => {
+    const { db, deps, submit } = setup()
+    const asked: unknown[] = []
+    const id = submit(
+      'mcp__claude_ai_Slack__slack_send_message',
+      { channel_id: 'C0AAAAAAAAA', thread_ts: '1792000000.000100', message: text },
+      't-project'
+    )
+    decideOutgoingCall(
+      {
+        ...deps,
+        projectOf: (chat) => {
+          asked.push(chat)
+          return 'acme-agents-hq'
+        }
+      },
+      id,
+      'approved',
+      undefined,
+      {}
+    )
+    expect(asked).toEqual([{ worktreeId: 'wt-1', sessionId: 'chat-1', cwd: '/p/acme-agents' }])
+    const [decision] = db.listDecisions()
+    expect(decision).toMatchObject({ project: 'acme-agents-hq' })
+    expect(decision.sentContext).toMatchObject({
+      project: 'acme-agents',
+      hqProject: 'acme-agents-hq'
+    })
+    expect(db.listLedgerConversations()[0]).toMatchObject({ project: 'acme-agents-hq' })
+  })
+
+  it('leaves the project empty when HQ knows none for the chat, never the folder’s name', () => {
+    const { db, deps, submit } = setup()
+    const id = submit(
+      'mcp__claude_ai_Slack__slack_send_message',
+      { channel_id: 'C0AAAAAAAAA', thread_ts: '1792000000.000100', message: text },
+      't-none'
+    )
+    decideOutgoingCall({ ...deps, projectOf: () => null }, id, 'approved', undefined, {})
+    expect(db.listDecisions()[0]).toMatchObject({ project: null })
+  })
+
   it('offers the footer and the task, and sends the footer with Approve', async () => {
     const { db, gate, deps, submit } = setup()
     const id = submit(

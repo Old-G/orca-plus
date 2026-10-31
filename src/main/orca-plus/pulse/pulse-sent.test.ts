@@ -168,6 +168,24 @@ describe('recordAgentSend', () => {
   })
 })
 
+describe('the project of a recorded send', () => {
+  it('is the chat’s HQ project, else the one its approval knew', () => {
+    const db = openDb()
+    approve(db, 'Ann, can you share the Q3 file?', context({ hqProject: 'acme-app' }))
+    db.recordAgentSend(send({ project: null }))
+    expect(db.listLedgerConversations()[0]).toMatchObject({ key: DM, project: 'acme-app' })
+    db.recordAgentSend(
+      send({
+        key: 'clickup:DEV-9',
+        ts: 'comment:9',
+        project: null,
+        call: { sessionId: null, toolUseId: null }
+      })
+    )
+    expect(db.listLedgerConversations().find((c) => c.key === 'clickup:DEV-9')?.project).toBeNull()
+  })
+})
+
 describe('pairing a waiting with an ungated send', () => {
   it('gives the chat’s next waiting the exact text and place of its last send', () => {
     const db = openDb()
