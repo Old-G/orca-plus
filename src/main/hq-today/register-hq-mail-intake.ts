@@ -18,10 +18,19 @@ import { registerGmailHandlers } from '../ipc/gmail'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { HQ_MR_HOST, type HqMrRef, type HqMrState } from '../../shared/hq-mr-watch'
-import { HQ_SLACK_SCOUT_CONFIG_FILE, HQ_SLACK_SCOUT_DIR } from '../../shared/hq-slack-scout'
+import {
+  HQ_SLACK_SCOUT_CONFIG_FILE,
+  HQ_SLACK_SCOUT_DIR,
+  parseHqScoutConfigValues
+} from '../../shared/hq-slack-scout'
 import { createHqGitLabRepos } from './hq-gitlab-repos'
 import { createHqMrWatch, HQ_MR_WATCH_EVERY_MS } from './hq-mr-watch'
 import { generateHqText } from './hq-task-questions'
+import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
+import { guessHqLedger, type HqLedgerGuessInput } from './hq-ledger-guess'
+import { hqLedgerErrorReporter } from './hq-ledger-errors'
+import { HQ_GITLAB_TODO_READER, startHqGitLabTodoReader } from './hq-gitlab-todo-reader'
+import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 
 async function glabJson(host: string, path: string): Promise<unknown> {
   const { stdout } = await glabExecFileAsync(['api', '--hostname', host, path])
@@ -73,21 +82,109 @@ async function gitLabMr(ref: HqMrRef): Promise<HqMrState | null> {
   }
 }
 
+// Why: a new conversation's project is a small judgement, as for the Slack reader.
+const GUESS_MODEL = 'haiku'
+
+/** Custom build (hq-ledger-sources): the small model's read of a new conversation from GitLab or mail. */
+function ledgerGuess(
+  store: Store,
+  runtime: OrcaRuntimeService,
+  input: HqLedgerGuessInput
+): Promise<HqLedgerGuess | null> {
+  const hq = store.getSettings().hqPath
+  if (!hq) {
+    return Promise.resolve(null)
+  }
+  return guessHqLedger(input, {
+    pages: () => listHqProjectPages(hq),
+    authorProjects: () => [],
+    generate: (prompt) =>
+      generateHqText(
+        prompt,
+        { emptyResultName: 'ledger guess', operation: 'hq-ledger-guess', model: GUESS_MODEL },
+        {
+          settings: store.getSettings(),
+          cwd: hq,
+          getAgentEnvResolvers: () => runtime.getCommitMessageAgentEnvironmentResolvers()
+        }
+      )
+  })
+}
+
+/** Custom build (hq-ledger-sources): the owner's GitLab To-Do list into the request ledger. */
+function registerGitLabTodos(
+  store: Store,
+  runtime: OrcaRuntimeService,
+  readConfig: () => Promise<string>
+): void {
+  let owner: string | null = null
+  startHqGitLabTodoReader(
+    {
+      enabled: () => store.getSettings().hqLedger !== 'off',
+      listPending: (page) =>
+        glabJson(
+          HQ_MR_HOST,
+          `todos?state=pending&type=MergeRequest&per_page=100&page=${String(page)}`
+        ),
+      owner: async () => {
+        if (!owner) {
+          const user = await glabJson(HQ_MR_HOST, 'user')
+          const username = text(field(user, 'username'))
+          if (!username) {
+            throw new Error('GitLab did not say whose to-dos these are')
+          }
+          owner = username
+        }
+        return owner
+      },
+      // Why a knob: GitLab marks only its own bots; a service account made as a user (31.10: the
+      // hub's MCP account) is named in HQ's config, `gitlab_bots: [acme-mcp]`.
+      bots: async () =>
+        [
+          ...(parseHqScoutConfigValues(await readConfig()).get('gitlab_bots') ?? '').matchAll(
+            /[\w.-]+/g
+          )
+        ].map((match) => match[0]),
+      projects: async () => {
+        const hq = store.getSettings().hqPath
+        return hq ? (await listHqProjectPages(hq)).map((page) => page.slug) : []
+      },
+      ingest: (signal) => runtime.pulseIngestLedger(signal),
+      lastDirection: (key) => runtime.pulseLastLedgerDirection(key),
+      openKeys: () => runtime.pulseListLedgerOpenKeys(HQ_GITLAB_TODO_READER),
+      close: (key) => void runtime.pulseCloseLedgerConversation(key),
+      guess: (todo) =>
+        ledgerGuess(store, runtime, {
+          author: todo.authorName,
+          fromOwner: false,
+          dm: false,
+          where: 'a GitLab merge request',
+          text: [todo.repo, todo.targetTitle, todo.body].filter(Boolean).join('\n'),
+          links: [todo.targetUrl]
+        }),
+      setGuess: (id, guess) => runtime.pulseSetLedgerGuess(id, guess),
+      now: Date.now
+    },
+    hqLedgerErrorReporter('hq-gitlab-todos', 'GitLab To-Do list not read', (rows) =>
+      runtime.pulseRecordJournal(rows)
+    )
+  )
+}
+
 export function registerHqMailIntake(store: Store, runtime: OrcaRuntimeService): void {
   registerGmailHandlers()
   // Custom build (hq-mr-watch): waitings that name an MR, checked against GitLab every few minutes.
   const hqPath = (): string | null => store.getSettings().hqPath ?? null
+  const readConfig = async (): Promise<string> => {
+    const hq = hqPath()
+    return hq
+      ? readFile(join(hq, HQ_SLACK_SCOUT_DIR, HQ_SLACK_SCOUT_CONFIG_FILE), 'utf8').catch(() => '')
+      : ''
+  }
   const watch = createHqMrWatch({
     listOpen: () => runtime.pulseListWaitings({ status: 'open' }),
     listRepos: createHqGitLabRepos({
-      readConfig: async () => {
-        const hq = hqPath()
-        return hq
-          ? readFile(join(hq, HQ_SLACK_SCOUT_DIR, HQ_SLACK_SCOUT_CONFIG_FILE), 'utf8').catch(
-              () => ''
-            )
-          : ''
-      },
+      readConfig,
       glabJson: (path) => glabJson(HQ_MR_HOST, path),
       now: Date.now,
       warn: (message, error) => console.warn(message, error)
@@ -131,6 +228,7 @@ export function registerHqMailIntake(store: Store, runtime: OrcaRuntimeService):
   }
   setTimeout(kickMrWatch, 60_000)
   setInterval(kickMrWatch, HQ_MR_WATCH_EVERY_MS)
+  registerGitLabTodos(store, runtime, readConfig)
   startHqMailIntake({
     hqPath: () => store.getSettings().hqPath ?? null,
     enabled: () => store.getSettings().hqChatsView !== false && gmailAccount() !== null,
