@@ -63,6 +63,15 @@ export const hqPlusMarkDone = defineRpcOperation({
   read: rpcResultVariant('hq-plus-marked-done', z.unknown())
 })
 
+/** Custom build (hq-ledger-sources): «Done» on the card of an MR or a mail thread. */
+export const hqPlusConversationDone = defineRpcOperation({
+  name: 'hq-plus.conversation-done',
+  method: 'hq.conversationDone',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-plus-conversation-done', z.unknown())
+})
+
 export const hqPlusAskHq = defineRpcOperation({
   name: 'hq-plus.ask-hq',
   method: 'hqProjects.askHqOnDesktop',

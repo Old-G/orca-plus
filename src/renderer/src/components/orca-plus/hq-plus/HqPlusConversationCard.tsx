@@ -13,13 +13,17 @@ import {
   HQ_WAITING_REPLY_KIND,
   readHqWaitingReplyRef
 } from '../../../../../shared/hq-waiting-reply-bell'
+import { hqPlusLedgerOnly } from '../../../../../shared/hq-plus-ledger-cards'
 import { HqPlusText } from './HqPlusText'
 import { HqPlusCardView, hqPlusDoneLabel } from './HqPlusCard'
 import {
+  HqPlusCardButtons,
   HqPlusCardFold,
   HqPlusCardHead,
   HqPlusCardShell,
-  HqPlusCardSource
+  HqPlusCardSource,
+  useHqPlusRun,
+  type HqPlusCardButton
 } from './HqPlusCardShell'
 import { hqPlusCall } from './use-hq-plus-data'
 import { hqPlusClock as clock } from './HqPlusChatCard'
@@ -164,6 +168,60 @@ function ProjectChip({
   )
 }
 
+/** Custom build (hq-ledger-sources): an MR or a mail thread no other card stands for — open it where
+ *  it lives, or say it is done (the next message brings it back). */
+function LedgerOnlyButtons({
+  card,
+  link,
+  ctx
+}: {
+  card: HqPlusCard
+  link: string | null
+  ctx: HqPlusLogContext
+}): React.JSX.Element {
+  const { busy, pending, error, run } = useHqPlusRun(ctx.onChanged)
+  const key = card.conversation?.key ?? ''
+  const yours = card.conversation?.ledgerState === 'you'
+  const buttons: HqPlusCardButton[] = [
+    ...(link
+      ? [
+          {
+            id: 'open',
+            label: translate('auto.hqPlus.conv.open', 'Open ↗'),
+            main: yours,
+            ghost: !yours,
+            onClick: (event: React.MouseEvent<HTMLButtonElement>) => ctx.openLink(link, event)
+          }
+        ]
+      : []),
+    {
+      id: 'done',
+      label: translate('auto.hqPlus.conv.done', 'Done'),
+      hint: translate(
+        'auto.hqPlus.conv.doneHint',
+        'Nothing more to do here. A new message brings it back'
+      ),
+      ghost: true,
+      disabled: busy,
+      pending: pending === 'done',
+      onClick: () =>
+        run(
+          () =>
+            hqPlusCall('hq.conversationDone', { key }).then((result) =>
+              result.ok ? { ok: true as const } : result
+            ),
+          'done'
+        )
+    }
+  ]
+  return (
+    <>
+      <HqPlusCardButtons buttons={buttons} />
+      {error ? <p className="hqp-error">{error}</p> : null}
+    </>
+  )
+}
+
 export function HqPlusConversationCard({
   card,
   look,
@@ -252,6 +310,9 @@ export function HqPlusConversationCard({
           <Message key={`${message.at}:${message.direction}`} message={message} />
         ))}
       </div>
+      {card.open && hqPlusLedgerOnly(card) ? (
+        <LedgerOnlyButtons card={card} link={link} ctx={ctx} />
+      ) : null}
       {conversation.parts.map((part) => (
         <div key={part.id} className="hqp-part">
           {partLabel(part) ? (

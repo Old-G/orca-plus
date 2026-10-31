@@ -7,6 +7,9 @@ import type { HqFeedConversation, HqFeedLedger } from '../../../shared/hq-feed-l
 import type { PulseCore } from './pulse-core'
 
 const FEED_MESSAGES = 6
+/** Custom build (hq-ledger-sources): places whose conversation is the card itself, shown however old
+ *  while it is the owner's move. */
+const LEDGER_ONLY_PLACE = /^(?:gitlab|gmail):/
 /** Why: a waiting asked a week before the window may still get its answer inside it. */
 const WAITING_LOOKBACK_MS = 14 * 24 * 60 * 60_000
 /** A channel's rule; a DM spans every project, so it never gets one. */
@@ -56,7 +59,12 @@ export function listLedgerFeed(core: PulseCore, since: number): HqFeedLedger {
   const conversations: HqFeedConversation[] = core.db
     .prepare('SELECT * FROM conversations ORDER BY last_at')
     .all()
-    .filter((row) => Number(row.last_at) >= since || wanted.has(String(row.key)))
+    .filter(
+      (row) =>
+        Number(row.last_at) >= since ||
+        wanted.has(String(row.key)) ||
+        (row.state === 'you' && LEDGER_ONLY_PLACE.test(String(row.key)))
+    )
     .map((row) => ({
       id: String(row.id),
       key: String(row.key),
