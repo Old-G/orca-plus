@@ -9,6 +9,7 @@ import type { RpcClient } from '../transport/rpc-client'
 import {
   hqPlusAskHq,
   hqPlusChatSend,
+  hqPlusConversationDone,
   hqPlusJobReply,
   hqPlusMarkDone
 } from './hq-plus-phone-operations'
@@ -78,6 +79,21 @@ export function replyOnHqPlusPhoneCard(
       `${HQ_PLUS_REPLY_ACTION}${words.slice(0, REPLY_KEEP)}`,
       true
     )
+  })
+}
+
+/** Custom build (hq-ledger-sources): «Done» on an MR or a mail thread no other card stands for. */
+export function doneHqPlusPhoneConversation(
+  client: RpcClient,
+  card: HqPlusCard
+): Promise<HqPlusPhoneResult> {
+  const key = card.conversation?.key
+  if (!key) {
+    return Promise.resolve(OK)
+  }
+  return attempt(async () => {
+    await runRpcOperation(client, hqPlusConversationDone, { key })
+    return OK
   })
 }
 

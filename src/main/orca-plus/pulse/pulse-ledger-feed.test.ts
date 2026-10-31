@@ -108,6 +108,24 @@ describe('ledger feed', () => {
   })
 })
 
+describe('ledger-only places in the feed (hq-ledger-sources)', () => {
+  it('lists an MR or a mail thread waiting on the owner however old, the rest by the window', () => {
+    const db = openDb()
+    const old = tick - 30 * 24 * 60 * 60_000
+    db.ingestLedgerSignal(signal({ key: 'gitlab:acme/app!7', ts: 'todo:1', at: old }))
+    db.ingestLedgerSignal(signal({ key: 'gmail:t1', ts: 'm1', at: old }))
+    db.ingestLedgerSignal(signal({ key: 'gmail:t2', ts: 'm2', at: old, forOwner: false }))
+    db.ingestLedgerSignal(signal({ key: 'slack:C0123HUBXY:1.2', ts: '1.2', at: old }))
+    db.ingestLedgerSignal(signal({ key: 'gitlab:acme/app!8', ts: 'todo:2', at: old }))
+    db.closeLedgerConversation('gitlab:acme/app!8')
+
+    expect(db.listLedgerFeed(tick - 60_000).conversations.map((row) => row.key)).toEqual([
+      'gitlab:acme/app!7',
+      'gmail:t1'
+    ])
+  })
+})
+
 describe('closing a conversation (hq-ledger-sources)', () => {
   const MR = 'gitlab:acme/app!7'
   it('closes the owner’s move or news, never a wait, and lists a reader’s open places', () => {
