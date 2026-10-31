@@ -6,6 +6,7 @@ import type { HqJournalInput, HqSession } from '../../shared/hq-journal'
 import type { HqSpace } from '../../shared/hq-spaces'
 import type { PulsePerson, PulseWaiting } from '../../shared/pulse-types'
 import type { HqRoomSources } from '../hq-journal/hq-journal-rooms'
+import type { HqOpenConversation } from '../orca-plus/pulse/pulse-ledger-open'
 import { createHqContextService } from './hq-context'
 
 const NOW = Date.parse('2026-10-23T12:00:00Z')
@@ -60,7 +61,19 @@ const person = (id: string, name: string): PulsePerson => ({
   updatedAt: 0
 })
 
-function service(sessions: HqSession[] = []) {
+const talk = (extra: Partial<HqOpenConversation>): HqOpenConversation => ({
+  key: 'slack:D0ANN00002:1792000005.000100',
+  state: 'wait',
+  title: 'Q3 file',
+  lastAt: NOW - DAY,
+  withWhom: 'Ann',
+  lastOut: { text: 'Ann, can you share the Q3 file?', at: NOW - DAY },
+  lastIn: null,
+  holder: { sessionId: 'chat-1', address: 'acme-billing/t3' },
+  ...extra
+})
+
+function service(sessions: HqSession[] = [], conversations: HqOpenConversation[] = []) {
   const sources = (): HqRoomSources => ({
     spaces: [space('acme', ['acme-billing'], ['r-bill']), space('kite', ['kite'], ['r-kite'])],
     groupRooms: new Map(),
@@ -95,7 +108,8 @@ function service(sessions: HqSession[] = []) {
         recorded.push(...inputs)
         return { added: inputs.length, settled: 0, moved: 0 }
       },
-      listPeople: () => [person('p-bob', 'Bob'), person('p-ann', 'Ann')]
+      listPeople: () => [person('p-bob', 'Bob'), person('p-ann', 'Ann')],
+      listOpenConversations: (project) => (project === 'acme-billing' ? conversations : [])
     },
     now: () => NOW
   })
@@ -160,6 +174,67 @@ describe('hq context card', () => {
     expect(recorded).toEqual([
       expect.objectContaining({ kind: 'cross-read', project: 'acme-billing' })
     ])
+  })
+
+  it('shows the open conversations right after what we owe, one line each', async () => {
+    const card = await service(
+      [],
+      [
+        talk({}),
+        talk({
+          key: 'gitlab:acme/billing!12',
+          state: 'you',
+          title: 'billing !12',
+          withWhom: 'Bob',
+          lastOut: { text: 'Bob, rebased', at: NOW - 2 * DAY },
+          lastIn: { text: 'Bob: One more nit\nin the tests', at: NOW - 3_600_000 },
+          holder: { sessionId: '0f1e2d3c-4b5a-4000-8000-000000000000', address: null }
+        }),
+        talk({ key: 'clickup:DEV-101', withWhom: null, lastOut: null, holder: null }),
+        talk({ key: 'gmail:18f0000000000001', title: 'Q3 report' }),
+        talk({ key: 'slack:C0ACME0001:1792000000.000100' })
+      ]
+    ).context(inBilling)
+    const text = card.lines.join('\n')
+    expect(text).toContain(
+      [
+        '- Ann: Ответ по тарифу DEV-101 — с 21.10 (2 дн назад)',
+        '## Разговоры · orca hq events',
+        '- ждём · личка Slack · с Ann · мы: «Ann, can you share the Q3 file?» · с 22.10 (1 дн назад) · чат acme-billing/t3',
+        '- ход наш · MR billing!12 · с Bob · мы: «Bob, rebased» · ответ: «One more nit in the tests» · с 23.10 (1 ч назад) · чат 0f1e2d3c-4b5a-',
+        '- ждём · задача DEV-101 · с 22.10 (1 дн назад)',
+        '- ждём · письмо «Q3 report» · с Ann · мы: «Ann, can you share the Q3 file?» · с 22.10 (1 дн назад) · чат acme-billing/t3',
+        '- ждём · тред Slack C0ACME0001 · с Ann · мы: «Ann, can you share the Q3 file?» · с 22.10 (1 дн назад) · чат acme-billing/t3',
+        '## Договорились и отправили · orca pulse decision list · orca hq events'
+      ].join('\n')
+    )
+    expect((await service().context(inBilling)).lines.join('\n')).toContain(
+      '## Разговоры · orca hq events\n- открытых нет'
+    )
+  })
+
+  it('gives the conversations only the room the card has left', async () => {
+    const sessions = Array.from({ length: 40 }, (_, i) => ({
+      sessionId: `s${i}`,
+      address: `acme-billing/t${i}`,
+      agent: 'claude',
+      worktreeId: null,
+      workspace: 'acme',
+      project: 'acme-billing',
+      state: 'working' as const,
+      contextPct: null,
+      openedAt: NOW - 1000,
+      lastActivityAt: NOW - 1000,
+      closedAt: null,
+      parentSessionId: null,
+      taskRef: null
+    }))
+    const talks = Array.from({ length: 20 }, (_, i) => talk({ key: `clickup:DEV-${i}` }))
+    const card = await service(sessions, talks).context(inBilling)
+    expect(card.lines.length).toBeLessThanOrEqual(60)
+    expect(card.lines).toContain('## Где что · страница проекта HQ')
+    expect(card.lines.join('\n')).not.toContain('карточка обрезана')
+    expect(card.lines.join('\n')).toMatch(/- …и ещё 1\d/)
   })
 
   it('stays within 60 lines however much there is', async () => {

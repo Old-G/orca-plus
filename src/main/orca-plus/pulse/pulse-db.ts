@@ -27,6 +27,7 @@ import {
 import { listLedgerCards, settleLedgerMessage } from './pulse-ledger-cards'
 import { recordAgentSend, type HqAgentSend } from './pulse-sent'
 import { setConversationChat } from './pulse-ledger-chat'
+import { listOpenLedgerConversations } from './pulse-ledger-open'
 import {
   closeLedgerConversation,
   listLedgerFeed,
@@ -139,6 +140,11 @@ export class PulseDb {
   /** Custom build (hq-request-ledger): a message an agent sent, read from its call's result. */
   recordAgentSend(send: HqAgentSend) {
     return recordAgentSend(this.core, send)
+  }
+
+  /** Custom build (hq-request-ledger): a project's open conversations, for its card. */
+  listOpenLedgerConversations(project: string) {
+    return listOpenLedgerConversations(this.core, project)
   }
 
   setConversationChat(key: string, sessionId: string): void {
