@@ -17,6 +17,8 @@ import {
  * Custom build (hq-mobile): HQ's page route in a real browser. Custom build (hq-plus-phone): the route
  * is HQ+ now — the feed painted from the Mac's replies by the desktop's rules, the drawer, the link
  * sheet, and the verbs each button sends; an approval shows its text and offers no way to send it.
+ * Custom build (hq-plus-phone-map): Feed | Map — the room's tiles, a project's screen with its cards,
+ * and × on a working chat that asks first.
  * `ORCA_MOBILE_WEB_RENDER_SHOT` saves a screenshot of each state for a visual check.
  */
 
@@ -192,7 +194,8 @@ const REPLIES = {
   'pulse.markInboxDone': { id: 'i-reply' },
   'hqProjects.runBellActionOnDesktop': { ok: true },
   'hqProjects.askHqOnDesktop': { ok: true },
-  'hqProjects.settings': { hqVoicePromptsEnabled: false }
+  'hqProjects.settings': { hqVoicePromptsEnabled: false },
+  'session.tabs.close': { closed: true, retirementConfirmed: true }
 }
 
 const bundles = mobileWebAppDependenciesPresent()
@@ -395,4 +398,45 @@ describeRender('HQ+ on the phone in a real browser', () => {
     ])
     await page.close()
   }, 60_000)
+
+  it('shows the Map: room → tiles → project → its card, × on a working chat asks', async () => {
+    const { page, errors } = await openHq()
+    await page.getByRole('button', { name: 'Map', exact: true }).click()
+    await page.getByRole('button', { name: 'Acme', exact: true }).click()
+    await page.waitForFunction(() => /acme · from outside/i.test(document.body.innerText))
+    const map = page.getByTestId('hq-plus-map')
+    await page.waitForFunction(() => /\d+\s*YOUR MOVE/.test(document.body.innerText))
+    expect(await map.innerText()).toMatch(/acme-\u200b?app/)
+    expect(await page.getByRole('button', { name: 'Open chats' }).innerText()).toContain('1')
+    await shot(page, '-map')
+    await page.getByRole('button', { name: 'Project acme-app' }).click()
+    const project = page.getByTestId('hq-plus-project')
+    await page.waitForTimeout(400)
+    const text = await project.innerText()
+    expect(text).toContain('Which plan goes first?')
+    expect(text).toMatch(/You wait for · 1/i)
+    expect(text).toContain('Bob')
+    expect(text).toContain('Release notes')
+    await shot(page, '-project')
+    await project.getByRole('button', { name: 'Close chat Release notes' }).click()
+    expect(await project.innerText()).toContain('Chat is working — close?')
+    expect(await sent(page, 'session.tabs.close')).toEqual([])
+    await shot(page, '-close')
+    await project.getByRole('button', { name: 'Close', exact: true }).click()
+    await page.waitForFunction(() =>
+      globalThis.__orcaRenderCheckRequests.some((r) => r.method === 'session.tabs.close')
+    )
+    expect(await sent(page, 'session.tabs.close')).toEqual([
+      {
+        method: 'session.tabs.close',
+        params: { worktree: 'id:wt1', tabId: 'structured-agent-session-s-chat', reason: 'user' }
+      }
+    ])
+    await project.getByRole('button', { name: 'Back to the Map' }).click()
+    await page.getByRole('button', { name: 'Open chats' }).click()
+    await page.waitForTimeout(400)
+    await shot(page, '-chats')
+    expect(errors).toEqual([])
+    await page.close()
+  }, 90_000)
 })

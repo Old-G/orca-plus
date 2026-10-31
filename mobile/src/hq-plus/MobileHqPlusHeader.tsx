@@ -1,5 +1,7 @@
 // Custom build (hq-plus-phone): the top of HQ+ on the phone — ☰ with the «your move» count, the rooms
 // as tabs that scroll sideways (All first, «+» last), search and the views; then the feed's chips.
+// Custom build (hq-plus-phone-map): Feed | Map at the left of the chips row; on the Map the chips give
+// way to «Your move · N» (the feed on that chip) and «Chats · N» (the room's open chats).
 import type { ComponentType } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Menu, Search, Waypoints } from 'lucide-react-native'
@@ -42,7 +44,43 @@ function Icon({
   )
 }
 
+export type HqpLayout = 'feed' | 'map'
+
+function LayoutSwitch({
+  layout,
+  onLayout
+}: {
+  layout: HqpLayout
+  onLayout: (layout: HqpLayout) => void
+}) {
+  return (
+    <View style={styles.seg} accessibilityRole="toolbar" accessibilityLabel="Layout">
+      {(['feed', 'map'] as const).map((entry) => {
+        const on = entry === layout
+        return (
+          <Pressable
+            key={entry}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={entry === 'feed' ? 'Feed' : 'Map'}
+            onPress={() => onLayout(entry)}
+            style={[styles.segButton, on && styles.segButtonOn]}
+          >
+            <Text style={[styles.segLabel, on && styles.segLabelOn]}>
+              {entry === 'feed' ? 'Feed' : 'Map'}
+            </Text>
+          </Pressable>
+        )
+      })}
+    </View>
+  )
+}
+
 export function MobileHqPlusHeader({
+  layout,
+  mapChats,
+  onLayout,
+  onMapChats,
   spaces,
   room,
   openByRoom,
@@ -57,6 +95,11 @@ export function MobileHqPlusHeader({
   onViews,
   onFilter
 }: {
+  layout: HqpLayout
+  /** The room's open chats, for «Chats · N» on the Map. */
+  mapChats: number
+  onLayout: (layout: HqpLayout) => void
+  onMapChats: () => void
   spaces: readonly HqSpace[]
   room: string | null
   openByRoom: ReadonlyMap<string, number>
@@ -144,44 +187,78 @@ export function MobileHqPlusHeader({
           />
         </View>
       ) : null}
-      <ScrollView
-        horizontal
-        style={[styles.chips, hqpWeb.noScrollbar]}
-        contentContainerStyle={styles.chipsRow}
-        accessibilityRole="toolbar"
-        accessibilityLabel="Feed filter"
-      >
-        {HQ_PLUS_FEED_FILTERS.map((entry) => {
-          const on = entry === filter
-          const move = entry === 'move'
-          const count = move ? moveCount : entry === 'inbox' ? inboxCount : 0
-          return (
+      <View style={styles.bar}>
+        <LayoutSwitch layout={layout} onLayout={onLayout} />
+        {layout === 'map' ? (
+          <ScrollView
+            horizontal
+            style={[styles.chips, hqpWeb.noScrollbar]}
+            contentContainerStyle={styles.chipsRow}
+            accessibilityRole="toolbar"
+            accessibilityLabel="Map"
+          >
             <Pressable
-              key={entry}
               accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-              accessibilityLabel={`Show ${FILTER_LABEL[entry]}`}
-              onPress={() => onFilter(entry)}
-              style={[
-                styles.chip,
-                move && styles.chipMove,
-                on && (move ? styles.chipMoveOn : styles.chipOn)
-              ]}
+              accessibilityLabel="Your move in the feed"
+              onPress={() => onFilter('move')}
+              style={[styles.chip, styles.chipMove]}
             >
-              <Text
-                style={[
-                  styles.chipLabel,
-                  move && styles.chipLabelMove,
-                  on && (move ? styles.chipLabelMoveOn : styles.chipLabelOn)
-                ]}
-              >
-                {FILTER_LABEL[entry]}
-                {count > 0 ? <Text style={styles.chipCount}> {count}</Text> : null}
+              <Text style={[styles.chipLabel, styles.chipLabelMove]}>
+                Your move <Text style={styles.chipCount}>· {moveCount}</Text>
               </Text>
             </Pressable>
-          )
-        })}
-      </ScrollView>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open chats"
+              onPress={onMapChats}
+              style={styles.chip}
+            >
+              <Text style={styles.chipLabel}>
+                Chats <Text style={styles.chipCount}>· {mapChats}</Text>
+              </Text>
+            </Pressable>
+          </ScrollView>
+        ) : (
+          <ScrollView
+            horizontal
+            style={[styles.chips, hqpWeb.noScrollbar]}
+            contentContainerStyle={styles.chipsRow}
+            accessibilityRole="toolbar"
+            accessibilityLabel="Feed filter"
+          >
+            {HQ_PLUS_FEED_FILTERS.map((entry) => {
+              const on = entry === filter
+              const move = entry === 'move'
+              const count = move ? moveCount : entry === 'inbox' ? inboxCount : 0
+              return (
+                <Pressable
+                  key={entry}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={`Show ${FILTER_LABEL[entry]}`}
+                  onPress={() => onFilter(entry)}
+                  style={[
+                    styles.chip,
+                    move && styles.chipMove,
+                    on && (move ? styles.chipMoveOn : styles.chipOn)
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.chipLabel,
+                      move && styles.chipLabelMove,
+                      on && (move ? styles.chipLabelMoveOn : styles.chipLabelOn)
+                    ]}
+                  >
+                    {FILTER_LABEL[entry]}
+                    {count > 0 ? <Text style={styles.chipCount}> {count}</Text> : null}
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </ScrollView>
+        )}
+      </View>
     </View>
   )
 }
@@ -242,8 +319,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 14.5
   },
-  chips: { flexGrow: 0 },
-  chipsRow: { gap: 6, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10 },
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingLeft: 12,
+    paddingTop: 8,
+    paddingBottom: 10
+  },
+  seg: {
+    flexDirection: 'row',
+    padding: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: hqp.line,
+    backgroundColor: hqp.soft
+  },
+  segButton: { height: 28, paddingHorizontal: 12, borderRadius: 999, justifyContent: 'center' },
+  segButtonOn: { backgroundColor: hqp.ice },
+  segLabel: { color: hqp.mute, fontSize: 12.5, fontWeight: '500' },
+  segLabelOn: { color: hqp.ink, fontWeight: '600' },
+  chips: { flex: 1, flexGrow: 1, minWidth: 0 },
+  chipsRow: { gap: 6, paddingRight: 12 },
   chip: {
     height: 32,
     paddingHorizontal: 13,

@@ -2,6 +2,8 @@
 // feed in the centre, everything else in a drawer on the left (☰ or a swipe from the edge), views on
 // a panel from the right, links in a sheet from the bottom. The same reads and feed rules as the
 // desktop; approvals of outgoing messages show their text and stay on the Mac.
+// Custom build (hq-plus-phone-map): Feed | Map — the Map's tiles in the centre instead of the feed, a
+// project's screen from the right, the room's open chats in a sheet from the bottom.
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, View, type GestureResponderEvent } from 'react-native'
@@ -25,18 +27,25 @@ import type { HqpView } from './mobile-hq-plus-views-model'
 import { MobileHqPlusComposer } from './MobileHqPlusComposer'
 import { MobileHqPlusDrawer, type HqpWeWait } from './MobileHqPlusDrawer'
 import { MobileHqPlusFeed } from './MobileHqPlusFeed'
-import { MobileHqPlusHeader } from './MobileHqPlusHeader'
+import { MobileHqPlusHeader, type HqpLayout } from './MobileHqPlusHeader'
 import { MobileHqPlusLinkSheet } from './MobileHqPlusLinkSheet'
+import { MobileHqPlusMap } from './MobileHqPlusMap'
+import { MobileHqPlusMapLayers } from './MobileHqPlusMapLayers'
 import { MobileHqPlusPanel } from './MobileHqPlusPanel'
 import { useHqPlusPhoneData } from './use-hq-plus-phone-data'
 import { useHqPlusPhoneLinks } from './use-hq-plus-phone-links'
+import { useHqPlusPhoneMap } from './use-hq-plus-phone-map'
 
 const TICK_MS = 30_000
 const EDGE = 24
 const SWIPE = 60
 
 // Why: the room and chip picked stay while the app runs, as the old HQ kept its workspace.
-let remembered: { room: string | null; filter: HqPlusFeedFilter } = { room: null, filter: 'all' }
+let remembered: { room: string | null; filter: HqPlusFeedFilter; layout: HqpLayout } = {
+  room: null,
+  filter: 'all',
+  layout: 'feed'
+}
 
 export function MobileHqPlusScreen() {
   const params = useLocalSearchParams<{ hostId?: string | string[] }>()
@@ -47,6 +56,7 @@ export function MobileHqPlusScreen() {
   const [now, setNow] = useState(() => Date.now())
   const [room, setRoom] = useState(remembered.room)
   const [filter, setFilter] = useState(remembered.filter)
+  const [layout, setLayout] = useState(remembered.layout)
   const [search, setSearch] = useState<string | null>(null)
   const [drawer, setDrawer] = useState(false)
   const [view, setView] = useState<HqpView | null>(null)
@@ -57,15 +67,16 @@ export function MobileHqPlusScreen() {
   const [notice, setNotice] = useState<string | null>(null)
   const [hqPath, setHqPath] = useState<string | null>(null)
   const touch = useRef<{ x: number; y: number } | null>(null)
-  const data = useHqPlusPhoneData(client, drawer || view !== null)
+  // Why: the Map counts the waits on people, so it reads them as the drawer does.
+  const data = useHqPlusPhoneData(client, drawer || view !== null || layout === 'map')
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), TICK_MS)
     return () => clearInterval(timer)
   }, [])
   useEffect(() => {
-    remembered = { room, filter }
-  }, [room, filter])
+    remembered = { room, filter, layout }
+  }, [room, filter, layout])
   useEffect(() => {
     if (!client) {
       return
@@ -173,6 +184,23 @@ export function MobileHqPlusScreen() {
     },
     [hostId, router]
   )
+  const map = useHqPlusPhoneMap({
+    shown: layout === 'map',
+    client,
+    hostId,
+    spaces,
+    room: activeRoom,
+    items: feed.all,
+    waits: weWait,
+    chats: roomChats,
+    push: (href) => router.push(href),
+    onNotice: setNotice,
+    onChanged: data.reload
+  })
+  const toFeed = (next: HqPlusFeedFilter): void => {
+    setFilter(next)
+    setLayout('feed')
+  }
   const pickLink = useHqPlusPhoneLinks({ client, hostId, hqPath, onNotice: setNotice })
   const ctx = useMemo<HqpFeedContext>(
     () => ({
@@ -219,7 +247,9 @@ export function MobileHqPlusScreen() {
     }
     if (view && start.x < EDGE * 2 && dx > SWIPE + 20) {
       setView(null)
-    } else if (!view && !drawer && start.x < EDGE && dx > SWIPE) {
+    } else if (map.project && start.x < EDGE * 2 && dx > SWIPE + 20) {
+      map.setProject(null)
+    } else if (!view && !map.project && !drawer && start.x < EDGE && dx > SWIPE) {
       setDrawer(true)
     } else if (drawer && dx < -SWIPE) {
       setDrawer(false)
@@ -230,6 +260,10 @@ export function MobileHqPlusScreen() {
     <SafeAreaView style={[styles.root, hqpWeb.grid]} edges={['top']} testID="mobile-hq-plus-screen">
       <View style={styles.screen} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <MobileHqPlusHeader
+          layout={layout}
+          mapChats={map.chats.length}
+          onLayout={setLayout}
+          onMapChats={() => map.setSheet(true)}
           spaces={spaces}
           room={activeRoom}
           openByRoom={feed.openByRoom}
@@ -242,10 +276,18 @@ export function MobileHqPlusScreen() {
           onNewRoom={() => setNotice('Make a room on the Mac: HQ+ → «+» beside the rooms.')}
           onSearch={setSearch}
           onViews={() => setView('agents')}
-          onFilter={setFilter}
+          onFilter={toFeed}
         />
         {data.error && !data.feed ? (
           <Text style={styles.error}>{data.error}</Text>
+        ) : layout === 'map' ? (
+          <MobileHqPlusMap
+            rooms={map.rooms}
+            all={activeRoom === null}
+            now={now}
+            colorOf={(slug) => colorByProject.get(slug) ?? null}
+            onProject={(slug, picked) => map.setProject({ room: slug, slug: picked })}
+          />
         ) : (
           <MobileHqPlusFeed
             items={feed.items}
@@ -317,6 +359,14 @@ export function MobileHqPlusScreen() {
           onReport={setReport}
           onClose={() => setView(null)}
           onBrowser={(how) => (browserUrl ? pickLink(browserUrl, how) : undefined)}
+        />
+        <MobileHqPlusMapLayers
+          map={map}
+          now={now}
+          ctx={ctx}
+          bottom={insets.bottom}
+          onNotice={setNotice}
+          onSort={() => toFeed('move')}
         />
         <MobileHqPlusLinkSheet
           url={link}
