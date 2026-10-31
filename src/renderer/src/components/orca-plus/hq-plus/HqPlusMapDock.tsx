@@ -1,19 +1,18 @@
 // Custom build (hq-plus-map): the «Card» tab of the panel over the map — what is picked there: a project's
 // card (what waits, whom it waits for, its chats), a person's waits or one talk's card; with nothing
 // picked, what waits on the owner. Custom build (hq-plus-map, owner 31.10): what waits shows as the cards
-// themselves, decided right here; «Chats» lists the room's open chats, each with its ×.
+// themselves, decided right here; «Chats» lists the room's open chats, each with its ×. Custom build
+// (hq-project-cards): a picked project shows the feed's own project card.
 import type { HqPlusLogItem } from '../../../../../shared/hq-plus-log'
-import {
-  hqPlusMapProjectOf,
-  type HqPlusMapLeaf,
-  type HqPlusMapModel
-} from '../../../../../shared/hq-plus-map'
+import type { HqPlusMapModel } from '../../../../../shared/hq-plus-map'
+import type { HqPlusProjectCard as ProjectCard } from '../../../../../shared/hq-plus-project-cards'
 import type { HqChatItem } from '../hq/hq-chat-list'
 import { HqPlusLogCards } from './HqPlusLog'
 import { HqPlusCloseChat, type HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusWaitsView } from './HqPlusWaitsView'
 import { HqPlusMapChatName } from './HqPlusMapLeaf'
-import { HQ_PLUS_SOURCE_COLOR, trunc } from './hq-plus-map-geometry'
+import { HqPlusProjectCard } from './HqPlusProjectCard'
+import type { HqPlusProjectCardContext } from './HqPlusProjectParts'
 import type { HqPlusLogContext } from './HqPlusLog'
 import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
 
@@ -28,8 +27,6 @@ export function HqPlusMapDock({
   itemById,
   youItems,
   showChat,
-  onPickLeaf,
-  onToFeed,
   chats,
   slugOfChat,
   stateOfChat,
@@ -37,23 +34,19 @@ export function HqPlusMapDock({
   ctx,
   queue,
   waits,
-  newChat,
-  openInOrca,
-  now
+  projectCard,
+  projectCtx
 }: {
   ctx: HqPlusLogContext
   queue: HqPlusQueueActions
   waits: readonly HqPlusOtherWait[]
-  newChat: (slug: string) => (() => void) | null
-  openInOrca: (slug: string) => (() => void) | null
-  now: number
+  projectCard: (slug: string) => ProjectCard
+  projectCtx: HqPlusProjectCardContext
   showChat: (key: string) => void
   pick: HqPlusMapDockPick | null
   model: HqPlusMapModel
   itemById: ReadonlyMap<string, HqPlusLogItem>
   youItems: readonly HqPlusLogItem[]
-  onPickLeaf: (slug: string, leaf: HqPlusMapLeaf) => void
-  onToFeed: () => void
   /** The room's open chats, their project and state, and × for each. */
   chats: readonly HqChatItem[]
   slugOfChat: (item: HqChatItem) => string
@@ -159,118 +152,10 @@ export function HqPlusMapDock({
       )
     }
   }
-  // The project's card: what waits on the owner here as cards, then whom it waits for, then its chats.
-  const yourMove = youItems.filter((item) => hqPlusMapProjectOf(item) === project.slug)
-  const projectChats = chats.filter((item) => slugOfChat(item) === project.slug)
-  const persons = project.leaves.filter((leaf) => leaf.kind === 'person')
-  const chatLeaves = project.leaves.filter((leaf) => leaf.kind === 'chat')
-  const asking = chatLeaves.find((leaf) => leaf.state === 'asks') ?? chatLeaves[0]
-  const startChat = project.unsorted ? null : newChat(project.slug)
-  const leave = project.unsorted ? null : openInOrca(project.slug)
+  // The project's card: the same card the feed shows for it.
   return (
     <div className="hqm-pane">
-      <div className="hqm-top">
-        {Object.entries(project.sources).map(([source]) => (
-          <span
-            key={source}
-            className="dot"
-            style={{
-              background: HQ_PLUS_SOURCE_COLOR[source as keyof typeof HQ_PLUS_SOURCE_COLOR]
-            }}
-          />
-        ))}
-        {project.unsorted ? 'conversations with no project' : 'project'}
-        {project.you ? <span className="hqm-pill you">Your move · {project.you}</span> : null}
-      </div>
-      <h4 className="hqm-h">{project.slug}</h4>
-      <p className="hqm-sub">
-        {[
-          project.waits ? `${project.waits} waits` : null,
-          project.chats ? `${project.chats} chats` : null,
-          project.oldestWaitAt !== null
-            ? `oldest wait ${Math.max(0, Math.floor((now - project.oldestWaitAt) / 86_400_000))} d`
-            : null
-        ]
-          .filter(Boolean)
-          .join(' · ') || 'Nothing waits here.'}
-      </p>
-      <div className="hqm-acts">
-        {asking?.kind === 'chat' ? (
-          <button
-            type="button"
-            className="hqp-pill hqm-pri"
-            onClick={() => showChat(asking.chatKey)}
-          >
-            Chat
-          </button>
-        ) : null}
-        {startChat ? (
-          <button type="button" className="hqp-pill" onClick={startChat}>
-            + New chat
-          </button>
-        ) : null}
-        {leave ? (
-          <button
-            type="button"
-            className="hqp-pill"
-            onClick={leave}
-            title="Leaves HQ+ for this project in Orca"
-          >
-            Open in Orca ⇥
-          </button>
-        ) : null}
-        {project.unsorted ? (
-          <button type="button" className="hqp-pill" onClick={onToFeed}>
-            Sort in the Feed
-          </button>
-        ) : null}
-      </div>
-      {yourMove.length ? (
-        <>
-          <div className="hqm-sec">Your move · {yourMove.length}</div>
-          <HqPlusLogCards items={yourMove} ctx={ctx} />
-        </>
-      ) : null}
-      {persons.length ? (
-        <>
-          <div className="hqm-sec">You wait for</div>
-          <ul className="hqm-list">
-            {persons.map((leaf) =>
-              leaf.kind === 'person' ? (
-                <li key={leaf.key}>
-                  <button type="button" onClick={() => onPickLeaf(project.slug, leaf)}>
-                    <span
-                      className="dot"
-                      style={{ background: leaf.answered ? '#5fe0a0' : '#5d7d8a' }}
-                    />
-                    <span className="t">
-                      {leaf.name} · {trunc(leaf.waits[0]?.title ?? '', 44)}
-                    </span>
-                    <span className="age">
-                      {leaf.answered ? `${leaf.answered} replied` : `${leaf.waits.length}`}
-                    </span>
-                  </button>
-                </li>
-              ) : null
-            )}
-          </ul>
-        </>
-      ) : null}
-      {projectChats.length ? (
-        <>
-          <div className="hqm-sec">Chats · {projectChats.length}</div>
-          <ul className="hqm-list">
-            {projectChats.map((item) => {
-              const leaf = chatLeaves.find(
-                (candidate) => candidate.kind === 'chat' && candidate.chatKey === item.key
-              )
-              return chatRow(item, 48, () =>
-                leaf ? onPickLeaf(project.slug, leaf) : showChat(item.key)
-              )
-            })}
-          </ul>
-        </>
-      ) : null}
+      <HqPlusProjectCard key={project.slug} card={projectCard(project.slug)} ctx={projectCtx} />
     </div>
   )
 }
