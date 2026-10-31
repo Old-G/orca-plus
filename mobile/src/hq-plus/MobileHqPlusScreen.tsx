@@ -75,8 +75,8 @@ export function MobileHqPlusScreen() {
   const [notice, setNotice] = useState<string | null>(null)
   const [hqPath, setHqPath] = useState<string | null>(null)
   const touch = useRef<{ x: number; y: number } | null>(null)
-  // Why: the Map counts the waits on people, so it reads them as the drawer does.
-  const data = useHqPlusPhoneData(client, drawer || view !== null || layout === 'map')
+  // Why: the project cards show whom we wait for, so the waits on people are read with the feed.
+  const data = useHqPlusPhoneData(client)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), TICK_MS)
