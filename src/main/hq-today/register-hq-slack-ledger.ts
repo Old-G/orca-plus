@@ -16,8 +16,8 @@ import {
 import { guessHqLedger } from './hq-ledger-guess'
 import {
   hqSlackParityLine,
-  normalizeScoutId,
-  startHqSlackLedgerReader
+  startHqSlackLedgerReader,
+  type HqScoutTopic
 } from './hq-slack-ledger-reader'
 import { generateHqText } from './hq-task-questions'
 import { hqJobRow } from '../hq-journal/hq-journal-jobs'
@@ -25,39 +25,51 @@ import { HQ_JOURNAL_ALL_ROOMS } from '../../shared/hq-journal'
 
 // Why: a new conversation's project and move is a small judgement, like routing a 👾 message.
 const GUESS_MODEL = 'haiku'
-/** Why: the scout may look at a message up to 15 minutes after it came; younger ones are not compared. */
+/** Why: the scout may raise a topic up to 15 minutes after it moved; younger ones are not compared. */
 const PARITY_SETTLE_MS = 20 * 60_000
 const DAY_MS = 24 * 60 * 60_000
 const SLACK_CHANNEL = /^[CDG][A-Z0-9]{6,}$/
 const ERROR_REPEAT_MS = 60 * 60_000
 let lastError: { found: string; at: number } | null = null
 
-/** Message ids the scout looked at during the last day, settled for comparison. */
-function scoutIdsOfDay(hqPath: string, now: number): string[] {
-  let seen: unknown
+/**
+ * The topics the scout raised that moved during the last day, settled for comparison. Custom build
+ * (hq-ledger-sources, 31.10): topics, not `state.json`'s every message looked at — that also holds
+ * what the scout skipped as not for the owner.
+ */
+function scoutTopicsOfDay(hqPath: string, now: number): HqScoutTopic[] {
+  let topics: unknown
   try {
-    const state: unknown = JSON.parse(
-      readFileSync(join(hqPath, HQ_SLACK_SCOUT_DIR, 'state.json'), 'utf8')
+    const file: unknown = JSON.parse(
+      readFileSync(join(hqPath, HQ_SLACK_SCOUT_DIR, 'topics.json'), 'utf8')
     )
-    seen = state && typeof state === 'object' ? Reflect.get(state, 'seen') : null
+    topics = file && typeof file === 'object' ? (Reflect.get(file, 'topics') ?? file) : null
   } catch {
     return []
   }
-  const ids = new Set<string>()
-  for (const raw of seen && typeof seen === 'object' ? Object.keys(seen) : []) {
-    const id = normalizeScoutId(raw)
-    const [channel, ts] = id.split(':')
-    const at = Number(ts) * 1000
-    if (
-      channel &&
-      SLACK_CHANNEL.test(channel) &&
+  if (!topics || typeof topics !== 'object') {
+    return []
+  }
+  return Object.values(topics).flatMap((topic: unknown) => {
+    if (!topic || typeof topic !== 'object') {
+      return []
+    }
+    const id = Reflect.get(topic, 'id')
+    const messages = Reflect.get(topic, 'messages')
+    const at = Date.parse(String(Reflect.get(topic, 'lastAt') ?? ''))
+    const slack = Array.isArray(messages)
+      ? messages.filter(
+          (message): message is string =>
+            typeof message === 'string' && SLACK_CHANNEL.test(message.split(':')[0] ?? '')
+        )
+      : []
+    return typeof id === 'string' &&
+      slack.length > 0 &&
       at > now - DAY_MS &&
       at < now - PARITY_SETTLE_MS
-    ) {
-      ids.add(`${channel}:${ts}`)
-    }
-  }
-  return [...ids]
+      ? [{ id, messages: slack }]
+      : []
+  })
 }
 
 /** Starts the reader; returns the day's parity line for the ledger's report. */
@@ -148,11 +160,15 @@ export function registerHqSlackLedger(
     parity: () => {
       const hqPath = store.getSettings().hqPath
       return hqPath
-        ? hqSlackParityLine(
-            scoutIdsOfDay(hqPath, Date.now()),
-            (channel, ts) => runtime.pulseLedgerHasSlackMessage(channel, ts),
-            reader.delays()
-          )
+        ? (() => {
+            const { delays, gaps } = reader.delays()
+            return hqSlackParityLine(
+              scoutTopicsOfDay(hqPath, Date.now()),
+              (channel, ts) => runtime.pulseLedgerHasSlackMessage(channel, ts),
+              delays,
+              gaps
+            )
+          })()
         : null
     }
   }
