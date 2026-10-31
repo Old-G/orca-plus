@@ -118,7 +118,8 @@ const ROUTE_VERB: Readonly<Record<HqRouteActionKind, string>> = {
   open: 'open a fixing chat',
   continue: "hand to today's chat",
   suggest: 'ask the owner (autonomy 0)',
-  wait: 'wait'
+  wait: 'wait',
+  rethink: 'ask the owner to rethink the approach'
 }
 
 export function formatHqRoute(result: HqRouteResult): string {
