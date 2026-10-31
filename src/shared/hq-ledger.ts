@@ -30,6 +30,11 @@ export type HqLedgerSignal = {
   /** A project the reader already knows (a rule, a named slug); null leaves it to the guess. */
   project: string | null
   title: string
+  /** Custom build (hq-request-ledger): the chat that sent an outgoing message; it holds the
+   *  conversation from then on. Same id form as a waiting's `agentSessionId`. */
+  sessionId?: string | null
+  /** The approval it went out under, when it was held. */
+  decisionId?: string | null
 }
 
 export type HqLedgerResult = {
