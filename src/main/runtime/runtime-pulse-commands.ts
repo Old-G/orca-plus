@@ -236,6 +236,16 @@ export class RuntimePulseCommands {
     return this.db().listLedgerCards(since)
   }
 
+  /** Custom build (hq-ledger-sources): one reader's conversations that still show, by place. */
+  pulseListLedgerOpenKeys(reader: string): string[] {
+    return this.db().listLedgerOpenKeys(reader)
+  }
+
+  /** Custom build (hq-ledger-sources): the owner is done with a conversation (its card, or its source). */
+  pulseCloseLedgerConversation(key: string): boolean {
+    return this.db().closeLedgerConversation(key)
+  }
+
   /** Custom build (hq-request-ledger): whether a Slack message reached the ledger. */
   pulseLedgerHasSlackMessage(channel: string, ts: string): boolean {
     return this.db().ledgerHasSlackMessage(channel, ts)
