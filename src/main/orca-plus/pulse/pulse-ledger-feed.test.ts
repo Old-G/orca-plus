@@ -113,6 +113,37 @@ describe('ledger states the feed relies on (Codex, 30.10)', () => {
     expect(stateOf(db)).toBe('you')
   })
 
+  it('keeps a newer request when the waiting it followed is closed (Codex, 31.10)', () => {
+    const db = openDb()
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'Mark 37 pairs',
+      source: 'slack',
+      sourceRef: THREAD
+    })
+    db.ingestLedgerSignal(signal({ text: 'Done' }))
+    db.ingestLedgerSignal(
+      signal({ ts: '1700000003.000000', text: 'Also, can you check 12 more?', at: tick + 3 })
+    )
+    db.closeWaiting(asked.id, 'resolved', 'Close waiting')
+    expect(stateOf(db)).toBe('you')
+  })
+
+  it('settles the conversation when the recorded answer is the newest message', () => {
+    const db = openDb()
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'Mark 37 pairs',
+      source: 'slack',
+      sourceRef: THREAD
+    })
+    db.ingestLedgerSignal(signal({ text: 'Working on it' }))
+    db.ingestLedgerSignal(signal({ ts: '1700000003.000000', text: 'Done', at: tick + 3 }))
+    db.recordWaitingReply(asked.id, { ts: '1700000003.000000', text: 'Done', author: 'Ann' })
+    db.closeWaiting(asked.id, 'resolved', 'Close waiting')
+    expect(stateOf(db)).toBe('done')
+  })
+
   it('does not let a late guess raise a conversation the owner already answered', () => {
     const db = openDb()
     const first = db.ingestLedgerSignal(signal({ forOwner: false, text: 'fyi: deploy at 5' }))
