@@ -26,7 +26,12 @@ import {
   type HqLedgerGuess
 } from './pulse-ledger'
 import { listLedgerCards, settleLedgerMessage } from './pulse-ledger-cards'
-import { listLedgerFeed, setLedgerProject } from './pulse-ledger-feed'
+import {
+  closeLedgerConversation,
+  listLedgerFeed,
+  listLedgerOpenKeys,
+  setLedgerProject
+} from './pulse-ledger-feed'
 import type { HqLedgerSignal } from '../../../shared/hq-ledger'
 import { PulseCore, type PulseClock } from './pulse-core'
 import {
@@ -164,6 +169,14 @@ export class PulseDb {
 
   ledgerHasSlackMessage(channel: string, ts: string): boolean {
     return ledgerHasSlackMessage(this.core, channel, ts)
+  }
+
+  listLedgerOpenKeys(reader: string): string[] {
+    return listLedgerOpenKeys(this.core, reader)
+  }
+
+  closeLedgerConversation(key: string): boolean {
+    return closeLedgerConversation(this.core, key)
   }
 
   /** The raw row, for tests and the replay script. */
