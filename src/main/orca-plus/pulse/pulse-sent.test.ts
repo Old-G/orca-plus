@@ -186,6 +186,82 @@ describe('the project of a recorded send', () => {
   })
 })
 
+describe('review fixes (31.10)', () => {
+  it('a waiting that names its thread pairs with the send there, not with the chat’s later send elsewhere', () => {
+    const db = openDb()
+    const b = 'slack:C0ACME0001:1791999500.000100'
+    db.recordAgentSend(send({ key: b, ts: '1792000001.000100', text: 'Bob, in B' }))
+    db.recordAgentSend(send({ key: THREAD, ts: '1792000002.000100', text: 'Ann, in A' }))
+    const inB = db.addWaiting({
+      direction: 'on-them',
+      title: 'Bob: B',
+      source: 'slack',
+      sourceRef: b,
+      agentSessionId: CHAT
+    })
+    expect(db.getWaitingRecord(inB.id)).toMatchObject({ sent_text: 'Bob, in B', source_ref: b })
+    const elsewhere = db.addWaiting({
+      direction: 'on-them',
+      title: 'Bob: C',
+      source: 'slack',
+      sourceRef: 'slack:C0ACME0001:1791999900.000100',
+      agentSessionId: CHAT,
+      allowDuplicate: true
+    })
+    expect(db.getWaitingRecord(elsewhere.id).sent_text).toBeNull()
+  })
+
+  it('a ClickUp comment gives its waiting the comment ref the ClickUp reply poller reads', () => {
+    const db = openDb()
+    db.recordAgentSend(send({ key: 'clickup:DEV-1', ts: 'comment:9000000000000001', link: null }))
+    const waiting = db.addWaiting({
+      direction: 'on-them',
+      title: 'Ann: totals',
+      source: 'clickup',
+      agentSessionId: CHAT
+    })
+    expect(db.getWaitingRecord(waiting.id).source_ref).toBe('clickup:DEV-1:9000000000000001')
+  })
+
+  it('a send a reader stored first still gets its chat and its project, but keeps a known project', () => {
+    const db = openDb()
+    const reader = {
+      key: DM,
+      ts: '1792000005.000100',
+      at: tick,
+      author: 'Owner',
+      authorId: 'U0OWNER001',
+      fromOwner: true,
+      text: 'Ann, can you share the Q3 file?',
+      link: null,
+      reader: 'slack-api',
+      forOwner: false,
+      project: null,
+      title: 'x'
+    }
+    db.ingestLedgerSignal(reader)
+    db.recordAgentSend(send({}))
+    expect(db.listLedgerConversations()[0]).toMatchObject({ project: 'app', sessionId: CHAT })
+    db.recordAgentSend(send({ ts: '1792000006.000100', project: 'other' }))
+    expect(db.listLedgerConversations()[0].project).toBe('app')
+  })
+
+  it('a late report of an older send does not take the conversation from the chat that wrote after', () => {
+    const db = openDb()
+    db.recordAgentSend(
+      send({ ts: '1792000009.000100', at: 1_792_000_009_000, sessionId: 'chat-b' })
+    )
+    db.recordAgentSend(
+      send({ ts: '1792000005.000100', at: 1_792_000_005_000, sessionId: 'chat-a' })
+    )
+    expect(db.listLedgerConversations()[0].sessionId).toBe('chat-b')
+    db.recordAgentSend(
+      send({ ts: '1792000012.000100', at: 1_792_000_012_000, sessionId: 'chat-a' })
+    )
+    expect(db.listLedgerConversations()[0].sessionId).toBe('chat-a')
+  })
+})
+
 describe('pairing a waiting with an ungated send', () => {
   it('gives the chat’s next waiting the exact text and place of its last send', () => {
     const db = openDb()
