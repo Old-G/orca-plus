@@ -4,13 +4,19 @@
 // desktop; approvals of outgoing messages show their text and stay on the Mac.
 // Custom build (hq-plus-phone-map): Feed | Map — the Map's tiles in the centre instead of the feed, a
 // project's screen from the right, the room's open chats in a sheet from the bottom.
+// Custom build (hq-project-cards): the feed is one card per project, the desktop's own cards.
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, View, type GestureResponderEvent } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { HqChatWireItem } from '../../../src/shared/hq-chat-wire'
-import type { HqPlusFeedFilter } from '../../../src/shared/hq-plus-feed-filter'
-import type { HqPlusCard } from '../../../src/shared/hq-plus-log'
+import { hqPlusMatchesSearch } from '../../../src/shared/hq-plus-feed-filter'
+import { hqPlusDayStart, type HqPlusCard } from '../../../src/shared/hq-plus-log'
+import {
+  hqPlusProjectCardOf,
+  hqPlusProjectFeed,
+  type HqPlusProjectFilter
+} from '../../../src/shared/hq-plus-project-cards'
 import { HQ_DEFERRED_KIND } from '../../../src/shared/hq-morning-briefing'
 import { hqChatSessionHref } from '../hq/MobileHqChatList'
 import { MobileVoicePromptSheet } from '../hq/MobileVoicePromptSheet'
@@ -26,7 +32,9 @@ import type { HqpFeedContext } from './mobile-hq-plus-feed-context'
 import type { HqpView } from './mobile-hq-plus-views-model'
 import { MobileHqPlusComposer } from './MobileHqPlusComposer'
 import { MobileHqPlusDrawer, type HqpWeWait } from './MobileHqPlusDrawer'
-import { MobileHqPlusFeed } from './MobileHqPlusFeed'
+import { MobileHqPlusProjectFeed } from './MobileHqPlusProjectFeed'
+import type { HqpProjectContext } from './MobileHqPlusProjectParts'
+import { hqPlusPhoneProjectInput } from './hq-plus-phone-projects'
 import { MobileHqPlusHeader, type HqpLayout } from './MobileHqPlusHeader'
 import { MobileHqPlusLinkSheet } from './MobileHqPlusLinkSheet'
 import { MobileHqPlusMap } from './MobileHqPlusMap'
@@ -41,7 +49,7 @@ const EDGE = 24
 const SWIPE = 60
 
 // Why: the room and chip picked stay while the app runs, as the old HQ kept its workspace.
-let remembered: { room: string | null; filter: HqPlusFeedFilter; layout: HqpLayout } = {
+let remembered: { room: string | null; filter: HqPlusProjectFilter; layout: HqpLayout } = {
   room: null,
   filter: 'all',
   layout: 'feed'
@@ -115,12 +123,13 @@ export function MobileHqPlusScreen() {
         spaces,
         chats: data.chats,
         room: activeRoom,
-        filter,
-        query: search ?? '',
+        // Why: the project cards take the chip; the rows come unfiltered.
+        filter: 'all',
+        query: '',
         personName: (id) => names.get(id) ?? null,
         now
       }),
-    [data.feed, spaces, data.chats, activeRoom, filter, search, names, now]
+    [data.feed, spaces, data.chats, activeRoom, names, now]
   )
   const roomOfProject = useCallback(
     (project: string | null) => (project ? hqPlusPhoneRoomOf(spaces, { project }) : null),
@@ -150,6 +159,34 @@ export function MobileHqPlusScreen() {
           who: wait.personId ? (names.get(wait.personId) ?? null) : null
         })),
     [data.pulse, activeRoom, roomOfProject, names]
+  )
+  // Custom build (hq-project-cards): the desktop's project cards from the phone's reads.
+  const projectInput = useMemo(
+    () =>
+      hqPlusPhoneProjectInput({
+        feed: data.feed,
+        spaces,
+        room: activeRoom,
+        shown: feed.shown,
+        waits: weWait,
+        chats: roomChats,
+        since: hqPlusDayStart(now)
+      }),
+    [data.feed, spaces, activeRoom, feed.shown, weWait, roomChats, now]
+  )
+  const projects = useMemo(
+    () =>
+      hqPlusProjectFeed({
+        ...projectInput,
+        filter,
+        search: search?.trim()
+          ? {
+              query: search,
+              matches: (item) => hqPlusMatchesSearch(item, search, (id) => names.get(id) ?? null)
+            }
+          : null
+      }),
+    [projectInput, filter, search, names]
   )
   const deferred = useMemo(
     () =>
@@ -197,7 +234,7 @@ export function MobileHqPlusScreen() {
     onNotice: setNotice,
     onChanged: data.reload
   })
-  const toFeed = (next: HqPlusFeedFilter): void => {
+  const toFeed = (next: HqPlusProjectFilter): void => {
     setFilter(next)
     setLayout('feed')
   }
@@ -218,6 +255,18 @@ export function MobileHqPlusScreen() {
     }),
     [client, hqPath, data.chats, data.reload, colorByProject, openChat]
   )
+  const projectCtx: HqpProjectContext = {
+    feed: ctx,
+    now,
+    roomName: (slug) => {
+      const slugRoom = hqPlusPhoneRoomOf(spaces, { project: slug })
+      return spaces.find((space) => space.slug === slugRoom)?.name ?? null
+    },
+    personName: (id) => names.get(id) ?? null,
+    chatOf: (key) => data.chats.find((chat) => chat.key === key) ?? null,
+    closeChat: map.closeChat,
+    workspace: map.workspaceOf
+  }
   const pickCard = (id: string): void => {
     setDrawer(false)
     setFilter('all')
@@ -267,9 +316,9 @@ export function MobileHqPlusScreen() {
           spaces={spaces}
           room={activeRoom}
           openByRoom={feed.openByRoom}
-          moveCount={feed.waiting.length}
+          moveCount={projects.counts.move}
           filter={filter}
-          inboxCount={feed.inboxOpen}
+          counts={projects.counts}
           search={search}
           onMenu={() => setDrawer(true)}
           onRoom={setRoom}
@@ -289,11 +338,12 @@ export function MobileHqPlusScreen() {
             onProject={(slug, picked) => map.setProject({ room: slug, slug: picked })}
           />
         ) : (
-          <MobileHqPlusFeed
-            items={feed.items}
-            now={now}
-            ctx={ctx}
+          <MobileHqPlusProjectFeed
+            feed={projects}
+            filter={filter}
+            ctx={projectCtx}
             flash={flash}
+            onFilter={setFilter}
             empty={
               data.loading
                 ? 'Loading HQ+…'
@@ -362,11 +412,10 @@ export function MobileHqPlusScreen() {
         />
         <MobileHqPlusMapLayers
           map={map}
-          now={now}
           ctx={ctx}
+          projectCard={(slug) => hqPlusProjectCardOf(projectInput, slug)}
+          projectCtx={projectCtx}
           bottom={insets.bottom}
-          onNotice={setNotice}
-          onSort={() => toFeed('move')}
         />
         <MobileHqPlusLinkSheet
           url={link}

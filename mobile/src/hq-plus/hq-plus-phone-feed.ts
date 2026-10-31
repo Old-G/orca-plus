@@ -74,6 +74,8 @@ export function hqPlusPhoneLiveChats(
 export type HqPlusPhoneFeed = {
   /** Every room's rows, for the counts on the room tabs. */
   all: HqPlusLogItem[]
+  /** Custom build (hq-project-cards): this room's rows before the chip and search, for the cards. */
+  shown: HqPlusLogItem[]
   /** What the feed shows: this room, chip and search. */
   items: HqPlusLogItem[]
   /** «Waiting on you», oldest first. */
@@ -125,6 +127,7 @@ export function hqPlusPhoneFeed(input: {
   }
   return {
     all,
+    shown,
     items,
     waiting: roomItems.filter((item): item is HqPlusCard => hqPlusNeedsOwner(item)),
     openByRoom,
