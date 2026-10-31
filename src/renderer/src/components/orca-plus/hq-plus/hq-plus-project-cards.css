@@ -250,14 +250,46 @@
   flex: none;
   max-width: 40%;
 }
-/* the card a line opens to: the conversation, its buttons and the reply box */
+/* the card a line opens to: the conversation, its buttons and the reply box. Owner, 01.11: the row and
+   what it opens are one panel — no second frame, no glow, no indent, the row is the panel's head. */
+.hqpc-ln[data-open='true'] {
+  margin: 4px 0 6px;
+  border: 1px solid var(--hqp-line);
+  border-radius: 10px;
+  background: var(--hqp-soft);
+}
+.hqpc-ln[data-open='true'][data-picked='true'] {
+  border-color: rgba(143, 233, 255, 0.45);
+}
+.hqpc-ln[data-open='true'] > .hqpc-rowwrap > .hqpc-row,
+.hqpc-ln[data-open='true'] > .hqpc-row {
+  background: transparent;
+  border-radius: 10px 10px 0 0;
+}
 .hqpc-open {
-  margin: 2px 2px 8px 22px;
+  margin: 0;
+  padding: 0 10px 10px;
   min-width: 0;
 }
-.hqpc-open .hqp-card,
-.hqpc-open .hqp-chatc {
-  margin-top: 0;
+.hqpc .hqpc-ln .hqpc-open > .hqp-card,
+.hqpc .hqpc-ln .hqpc-open > .hqp-chatc {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--hqp-line);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.hqpc .hqpc-ln .hqpc-open > .hqp-chatc {
+  padding: 10px 0 0;
+}
+.hqpc .hqpc-ln .hqpc-open > .hqp-card > .hqp-cb {
+  padding-left: 0;
+  padding-right: 0;
+}
+.hqpc-chat[data-picked='true'] .hqpc-t {
+  font-weight: 600;
+  color: var(--hqp-fg);
 }
 .hqpc-waits {
   display: grid;

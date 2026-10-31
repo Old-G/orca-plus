@@ -212,8 +212,17 @@ export function ChatRow({
   const item = ctx.chatItem(chat.key)
   const closer = item ? ctx.closerOf(item) : null
   const line = hqPlusProjectChatLine(chat)
+  // Why: the chat open on the right shows on its row, as the feed's card shows it on its frame.
+  const picked = line ? ctx.log.isOpenChat(line.sessionId) : false
   return (
-    <li className="hqpc-ln hqpc-chat" data-open={open ? 'true' : undefined}>
+    <li
+      className="hqpc-ln hqpc-chat"
+      id={line ? `hqp-${line.id}` : undefined}
+      data-open={open ? 'true' : undefined}
+      data-picked={picked ? 'true' : undefined}
+      data-selected={line && ctx.log.selectedId === line.id ? 'true' : undefined}
+      data-flash={line && ctx.flashId === line.id ? 'true' : undefined}
+    >
       <div className="hqpc-rowwrap">
         <button
           type="button"
@@ -242,6 +251,7 @@ export function ChatRow({
             openChat={() => ctx.showChat(chat.key)}
             ctx={ctx.log}
             bare
+            onClose={onToggle}
           />
         </div>
       ) : null}
