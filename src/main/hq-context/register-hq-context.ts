@@ -1,6 +1,6 @@
 // Custom build (hq-plus-context): starts the project cards and room context for `orca hq context`,
 // the SessionStart hook, `orca hq step`, `orca hq where` and `orca hq workspace add`.
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import type { HqJournalService } from '../hq-journal/hq-journal-service'
 import { createHqContextService, provideHqContext } from './hq-context'
@@ -21,7 +21,8 @@ export function registerHqContext(
         listSessionsByProject: (project) => runtime.pulseListSessionsByProject(project),
         list: (query) => runtime.pulseListJournal(query),
         record: (inputs) => runtime.pulseRecordJournal(inputs),
-        listPeople: () => runtime.pulseListPeople()
+        listPeople: () => runtime.pulseListPeople(),
+        listOpenConversations: (project) => runtime.pulseListOpenConversations(project)
       },
       now: Date.now
     })
