@@ -11,6 +11,7 @@ import {
 import type { PulseCore } from './pulse-core'
 import { closeWaiting } from './pulse-waitings'
 import { ledgerRuleOf } from './pulse-ledger-feed'
+import { noteSendingChat } from './pulse-ledger-chat'
 
 /** Why: an answer by DM to a question older than two weeks is rarely to that question. */
 export const HQ_LEDGER_PERSON_WINDOW_MS = 14 * 24 * 60 * 60_000
@@ -200,6 +201,9 @@ export function ingestLedgerSignal(core: PulseCore, signal: HqLedgerSignal): HqL
           signal.reader,
           signal.at
         ).changes > 0
+    if (signal.sessionId) {
+      noteSendingChat(core, conversationId, signal)
+    }
     const linked = core.db
       .prepare(
         `SELECT id, direction, created_at FROM waitings WHERE status = 'open' AND conversation_id = ?`
@@ -271,11 +275,6 @@ export function listLedgerConversations(core: PulseCore, since = 0): HqConversat
       messages: Number(row.n),
       sessionId: row.session_id == null ? null : String(row.session_id)
     }))
-}
-
-/** The chat a conversation was taken into; later messages of its thread belong with it. */
-export function setConversationChat(core: PulseCore, key: string, sessionId: string): void {
-  core.db.prepare('UPDATE conversations SET session_id = ? WHERE key = ?').run(sessionId, key)
 }
 
 /** Custom build (hq-request-ledger): who wrote last in a conversation — someone writing after the
