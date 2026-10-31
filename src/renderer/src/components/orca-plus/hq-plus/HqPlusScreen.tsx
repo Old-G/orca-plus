@@ -27,7 +27,10 @@ import {
   type HqPlusProjectFilter,
   type HqPlusProjectInput
 } from '../../../../../shared/hq-plus-project-cards'
-import type { HqPlusProjectChatInput } from '../../../../../shared/hq-plus-project-lines'
+import {
+  hqPlusProjectChatLine,
+  type HqPlusProjectChatInput
+} from '../../../../../shared/hq-plus-project-lines'
 import type { HqPlusMapChatState } from '../../../../../shared/hq-plus-map'
 import { hqPlusNeedsOwner, type HqPlusBadge } from '../../../../../shared/hq-plus-kinds'
 import {
@@ -596,9 +599,21 @@ export function HqPlusScreen(): React.JSX.Element {
     () => projectFeed.cards.flatMap((card) => card.you.map((line) => line.id)),
     [projectFeed]
   )
+  // Why: ⌘F also walks the chats whose reply has the words, by their row's line id.
   const matchIds = useMemo(
-    () => (search.query.trim() ? feedItems.map((item) => item.id) : []),
-    [feedItems, search.query]
+    () =>
+      search.query.trim()
+        ? projectFeed.cards.flatMap((card) => [
+            ...[...(card.shown.you ? card.you : []), ...(card.shown.fyi ? card.fyi : [])].map(
+              (line) => line.id
+            ),
+            ...card.chats.flatMap((chat) => {
+              const line = card.chatHits.includes(chat.key) ? hqPlusProjectChatLine(chat) : null
+              return line ? [line.id] : []
+            })
+          ])
+        : [],
+    [projectFeed, search.query]
   )
   // Why: one project looks the same everywhere — left list, feed and the session header.
   const projectColor = (slug: string | null): string | null => {
@@ -758,9 +773,24 @@ export function HqPlusScreen(): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKey)
   }, [wide, canGoBack])
   // Why: a line hidden by the chips brings the whole feed back before the scroll.
-  const goToFeedItem = (id: string, item: HqPlusLogItem | undefined): void => {
-    if (item && !feedItems.some((shownItem) => shownItem.id === id)) {
+  const goToFeedItem = (goId: string, item: HqPlusLogItem | undefined): void => {
+    // Why: a chat's turn is its chat's row in the project card (the row opens on the flash), and an FYI
+    // line shows only under the FYI chip.
+    const chatLine = projectFeed.cards
+      .flatMap((card) => card.chats)
+      .map((chat) => hqPlusProjectChatLine(chat))
+      .find(
+        (line) =>
+          line !== null &&
+          (line.id === goId ||
+            (item?.kind === 'line' && item.sessionId !== null && line.sessionId === item.sessionId))
+      )
+    const id = chatLine?.id ?? goId
+    if (chatLine && feedFilter !== 'all') {
       changeFeedFilter('all')
+    } else if (!chatLine && item && !feedItems.some((shownItem) => shownItem.id === id)) {
+      const fyi = projectFeed.cards.some((card) => card.fyi.some((line) => line.id === id))
+      changeFeedFilter(fyi ? 'fyi' : 'all')
     }
     setTimeout(() => {
       const target = document.getElementById(`hqp-${id}`)

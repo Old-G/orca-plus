@@ -18,6 +18,10 @@ import { HQP_CHAT_STATE_LABEL } from './hq-plus-phone-map'
 import { HQP_CHAT_STATE_COLOR } from './MobileHqPlusMapChats'
 import type { HqpFeedContext } from './mobile-hq-plus-feed-context'
 import { HqpBadge } from './mobile-hq-plus-parts'
+import {
+  listHqPlusPhoneProjects,
+  setHqPlusPhoneConversationProject
+} from './hq-plus-phone-actions'
 import { MobileHqPlusCard } from './MobileHqPlusCard'
 import { MobileHqPlusChatLine } from './MobileHqPlusLine'
 import { hqpProjectStyles as styles } from './mobile-hq-plus-project-styles'
@@ -77,12 +81,15 @@ export function Line({
   line,
   open,
   flash,
+  unsorted = false,
   onToggle,
   ctx
 }: {
   line: HqPlusProjectLine
   open: boolean
   flash: boolean
+  /** Custom build (hq-project-cards): an Unsorted line offers its projects, as the desktop's chip. */
+  unsorted?: boolean
   onToggle: () => void
   ctx: HqpProjectContext
 }) {
@@ -118,11 +125,59 @@ export function Line({
           {line.replied ? `replied · ${age}` : age}
         </Text>
       </Pressable>
+      {unsorted && line.card.conversation ? <ProjectPick line={line} ctx={ctx} /> : null}
       {open ? (
         <View style={styles.open}>
           <MobileHqPlusCard card={line.card} flash={false} ctx={ctx.feed} bare />
         </View>
       ) : null}
+    </View>
+  )
+}
+
+/** «No project ▾» under an Unsorted line; a tap lists HQ's projects, a pick moves the conversation. */
+function ProjectPick({ line, ctx }: { line: HqPlusProjectLine; ctx: HqpProjectContext }) {
+  const [slugs, setSlugs] = useState<string[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const client = ctx.feed.client
+  if (!client) {
+    return null
+  }
+  const pick = (project: string): void => {
+    void setHqPlusPhoneConversationProject(client, line.card, project).then((result) => {
+      if (result.ok) {
+        setSlugs(null)
+        ctx.feed.onChanged()
+      } else {
+        setError(result.message)
+      }
+    })
+  }
+  return (
+    <View style={styles.pickWrap}>
+      {slugs ? (
+        slugs.map((slug) => (
+          <Pressable
+            key={slug}
+            accessibilityRole="button"
+            accessibilityLabel={`Move to ${slug}`}
+            onPress={() => pick(slug)}
+            style={({ pressed }) => [styles.pickPill, pressed && hqpStyles.pressed]}
+          >
+            <Text style={styles.pickText}>{slug}</Text>
+          </Pressable>
+        ))
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Pick a project for this conversation"
+          onPress={() => void listHqPlusPhoneProjects(client).then(setSlugs)}
+          style={({ pressed }) => [styles.pickPill, pressed && hqpStyles.pressed]}
+        >
+          <Text style={styles.pickText}>{line.card.project ?? 'No project'} ▾</Text>
+        </Pressable>
+      )}
+      {error ? <Text style={styles.pickError}>{error}</Text> : null}
     </View>
   )
 }

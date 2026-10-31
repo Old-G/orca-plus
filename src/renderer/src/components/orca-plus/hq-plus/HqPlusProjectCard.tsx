@@ -47,6 +47,16 @@ export function HqPlusProjectCard({
     }
   }, [hits])
   const [chatKey, setChatKey] = useState<string | null>(null)
+  // Why: a jump to a chat (the Live feed, ⌘F) opens its row, which carries the chat's line id.
+  const flashedChat = card.chats.find(
+    (chat) => ctx.flashId !== null && hqPlusProjectChatLine(chat)?.id === ctx.flashId
+  )?.key
+  useEffect(() => {
+    if (flashedChat) {
+      setChatsOpen(true)
+      setChatKey(flashedChat)
+    }
+  }, [flashedChat])
   const [compactOpen, setCompactOpen] = useState(false)
   const now = ctx.now
   const color = card.unsorted ? null : ctx.log.projectColor(card.slug)

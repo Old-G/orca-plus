@@ -52,6 +52,25 @@ export const hqpProjectStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,195,90,.08)',
     color: hqp.amber
   },
+  pickWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingLeft: 12,
+    paddingRight: 12,
+    paddingBottom: 6
+  },
+  pickPill: {
+    minHeight: 30,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: hqp.line,
+    justifyContent: 'center'
+  },
+  pickText: { color: hqp.mute, fontFamily: hqp.mono, fontSize: 11.5 },
+  pickError: { color: hqp.red, fontSize: 12, width: '100%' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, padding: 12, paddingBottom: 8 },
   action: {
     minHeight: 36,
