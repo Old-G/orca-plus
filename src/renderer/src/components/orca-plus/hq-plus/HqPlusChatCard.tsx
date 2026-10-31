@@ -37,7 +37,8 @@ export function ChatCard({
   flash,
   openChat,
   ctx,
-  bare = false
+  bare = false,
+  onClose
 }: {
   item: Extract<HqPlusLogItem, { kind: 'line' }>
   badges: readonly HqPlusBadge[]
@@ -47,8 +48,12 @@ export function ChatCard({
   ctx: HqPlusLogContext
   /** Custom build (hq-project-cards): the card alone, opened from a project card's chat list. */
   bare?: boolean
+  /** Custom build (hq-project-cards): opened under its chat row — no head of its own (the row is it),
+   *  always open, and «Collapse» folds the row. */
+  onClose?: () => void
 }): React.JSX.Element {
-  const open = ctx.isExpanded(item.id)
+  const inRow = Boolean(onClose)
+  const open = inRow || ctx.isExpanded(item.id)
   // Custom build (hq-plus-ui-v5): opened, the card reads the whole latest reply from the chat itself.
   const fullReply = useHqPlusLastReply(item.sessionId, open, item.at)
   const status = ctx.chatStatus(item.sessionId) ?? DONE
@@ -68,17 +73,21 @@ export function ChatCard({
       padded={false}
       data-flash={flash ? 'true' : undefined}
       data-picked={ctx.isOpenChat(item.sessionId) ? 'true' : undefined}
-      data-expandable="true"
-      aria-expanded={open}
+      data-expandable={inRow ? undefined : 'true'}
+      aria-expanded={inRow ? undefined : open}
       // Why: the card itself folds open; its buttons, links and the reply box keep their own clicks.
       onClick={(event) => {
         const target = event.target
+        if (inRow) {
+          return
+        }
         if (!(target instanceof Element) || !target.closest(CARD_OWN_CLICKS)) {
           hqPlusPinWhileMoving(event.currentTarget, 8)
           ctx.setExpanded(item.id, !open)
         }
       }}
       head={
+        inRow ? null : (
         <HqPlusCardHead
           badges={badges}
           lead={
@@ -96,6 +105,7 @@ export function ChatCard({
             </>
           }
         />
+        )
       }
       composer={
         canReply ? (
@@ -128,7 +138,7 @@ export function ChatCard({
               {item.address}
             </button>
           ) : null,
-        onCollapse: open ? () => ctx.setExpanded(item.id, false) : null,
+        onCollapse: onClose ?? (open ? () => ctx.setExpanded(item.id, false) : null),
         right: openRun ? (
           <button type="button" className="hqp-pill" onClick={openRun}>
             {translate('auto.hqPlus.open', 'Open')}
