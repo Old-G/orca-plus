@@ -1,7 +1,7 @@
 // Custom build (hq-plus-context): a project's card (`orca hq context`), what a new chat is told on
 // start (the SessionStart hook), plan steps ticked by agents (`orca hq step`), the knowledge map
 // (`orca hq where`) and new rooms (`orca hq workspace add`). A chat reads and ticks only its own room.
-import { readFile, stat, writeFile } from 'node:fs/promises'
+import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { HQ_AUTONOMY_FILE, hqAutonomyFor, parseHqAutonomy } from '../../shared/hq-autonomy'
 import {
@@ -28,8 +28,6 @@ import {
   type HqSession
 } from '../../shared/hq-journal'
 import { HQ_SPACES_DIR } from '../../shared/hq-spaces'
-import { hqPeopleOfProject, hqPersonChannelLine } from '../../shared/hq-people'
-import { buildHqPeopleRows, readHqPeopleFiles } from '../hq-today/hq-people'
 import { hqRoomMcpHidden } from '../../shared/hq-room-mcp'
 import type { PulseDecision, PulsePerson, PulseWaiting } from '../../shared/pulse-types'
 import { readHqProjectPageFields } from '../hq-project-pages/hq-project-pages'
@@ -40,6 +38,8 @@ import {
   type HqRoomSources
 } from '../hq-journal/hq-journal-rooms'
 import { findHqPlanFile } from './hq-project-plan-file'
+import { changedAt, hqContextPeople, readText } from './hq-context-sources'
+import type { HqOpenConversation } from '../orca-plus/pulse/pulse-ledger-open'
 import { buildHqContextCard, hqAgreements, hqSessionStartText } from './hq-context-card'
 import { matchHqWhere } from './hq-knowledge-map'
 import { addHqRoom, hqRoomAddedEntry, type HqRoomAddInput } from './hq-room-add'
@@ -58,6 +58,8 @@ export type HqContextDeps = {
     list: (query: HqJournalQuery) => HqJournalEntry[]
     record: (inputs: readonly HqJournalInput[]) => HqJournalRecordResult
     listPeople: () => PulsePerson[]
+    /** Custom build (hq-request-ledger): open ledger conversations, newest first. */
+    listOpenConversations?: (project: string) => HqOpenConversation[]
   }
   now: () => number
 }
@@ -71,22 +73,6 @@ export type HqContextService = {
   ) => Promise<HqStepResult>
   where: (question: string) => Promise<HqWhereResult>
   addRoom: (input: HqRoomAddInput) => Promise<HqRoomAddResult>
-}
-
-async function readText(path: string): Promise<string | null> {
-  try {
-    return await readFile(path, 'utf8')
-  } catch {
-    return null
-  }
-}
-
-async function changedAt(path: string): Promise<number | null> {
-  try {
-    return (await stat(path)).mtimeMs
-  } catch {
-    return null
-  }
 }
 
 function same(a: string | null | undefined, b: string): boolean {
@@ -192,18 +178,7 @@ export function createHqContextService(deps: HqContextDeps): HqContextService {
     ]
     const pulsePeople = deps.pulse.listPeople()
     const names = new Map(pulsePeople.map((person) => [person.id, person.name]))
-    // Custom build (hq-closed-loop): the project's people, from the dossiers that name it.
-    const peopleFiles = await readHqPeopleFiles(root).catch(() => null)
-    const people = peopleFiles
-      ? hqPeopleOfProject(
-          buildHqPeopleRows({ files: peopleFiles, people: pulsePeople, waitings: [] }),
-          project
-        ).map(({ row, role }) => ({
-          name: row.name,
-          role,
-          write: hqPersonChannelLine(row.channel)
-        }))
-      : []
+    const people = await hqContextPeople(root, project, pulsePeople)
     return buildHqContextCard({
       project,
       // Why: synced pages head with «<slug> — what it is»; the card already starts with the slug.
@@ -227,6 +202,7 @@ export function createHqContextService(deps: HqContextDeps): HqContextService {
       agreements: agreements(project),
       sessions: deps.pulse.listSessionsByProject(project),
       reports: deps.pulse.list({ kind: HQ_JOURNAL_KIND.chatReport, project, limit: 3 }),
+      conversations: deps.pulse.listOpenConversations?.(project) ?? [],
       personName: (id) => (id ? (names.get(id) ?? null) : null),
       people,
       where,
