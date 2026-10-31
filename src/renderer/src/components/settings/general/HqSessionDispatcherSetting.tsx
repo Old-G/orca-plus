@@ -30,7 +30,7 @@ export function HqSessionDispatcherSetting({
   const title = translate('auto.hq.sessionDispatcher.settingTitle', 'Session dispatcher')
   const description = translate(
     'auto.hq.sessionDispatcher.settingDescription',
-    'Work handed to a thread goes to its chat while it has room and was active in the last 12 hours, else to a new chat that starts from the last report; handoffs nobody took up start in the background. A chat you are in is left alone; a project gets at most two live chats. Report only writes what it would do to the HQ+ journal.'
+    'Work handed to a thread goes to its chat while it has room and was active in the last 12 hours, else to a new chat that starts from the last report. A chat you are in is left alone; a project gets at most two live chats. Report only writes what it would do to the HQ+ journal. Handoffs have their own switch below.'
   )
   return (
     <SearchableSetting
