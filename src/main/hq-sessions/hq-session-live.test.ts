@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { HqSession } from '../../shared/hq-journal'
-import { hqChatSessionOf, hqLiveSessions } from './hq-session-live'
+import type { HqLiveSession } from '../../shared/hq-sessions'
+import { hqAddressOpenChats, hqChatSessionOf, hqLiveSessions } from './hq-session-live'
 
 const NOW = new Date(2026, 9, 24, 15, 0).getTime()
 
@@ -76,5 +77,65 @@ describe('HQ+ session dispatcher: what each chat is doing now', () => {
     // A shown tab in a window behind another app is not in front of the owner.
     expect(read(false).find((session) => session.sessionId === 'idle')?.onScreen).toBe(false)
     expect(by.get('fresh')).toMatchObject({ project: 'kite', workspace: 'hobby', address: null })
+  })
+})
+
+function open(sessionId: string, over: Partial<HqLiveSession> = {}): HqLiveSession {
+  return {
+    sessionId,
+    address: null,
+    project: 'kite',
+    workspace: 'hobby',
+    worktreeId: 'r-kite::/w/kite',
+    name: 'Палитра: перенос',
+    state: 'working',
+    midTurn: true,
+    lastActivityAt: NOW - 60_000,
+    contextPct: null,
+    ownerAt: null,
+    onScreen: false,
+    tabOpen: true,
+    ...over
+  }
+}
+
+describe('HQ+ session dispatcher: a chat gets its address at first sight', () => {
+  it('names an open chat in its first turn, keeps a stored address, leaves the rest alone', () => {
+    const stored = new Map([
+      ['old', known('old', { address: 'kite/earlier', lastActivityAt: NOW - 9_000 })],
+      ['quiet', known('quiet', { address: null, state: 'waiting', lastActivityAt: NOW - 7_000 })]
+    ])
+    const { live, notes } = hqAddressOpenChats(
+      [
+        open('claude_ab12cd34first'),
+        open('old'),
+        open('quiet', { name: 'Refunds' }),
+        open('nameless', { name: null }),
+        open('shut', { tabOpen: false }),
+        open('named', { address: 'kite/named' })
+      ],
+      (sessionId) => stored.get(sessionId) ?? null,
+      NOW
+    )
+    expect(live.map((chat) => chat.address)).toEqual([
+      'kite/palitra-perenos',
+      'kite/earlier',
+      'kite/refunds',
+      null,
+      null,
+      'kite/named'
+    ])
+    expect(notes).toMatchObject([
+      {
+        sessionId: 'claude_ab12cd34first',
+        address: 'kite/palitra-perenos',
+        workspace: 'hobby',
+        project: 'kite',
+        state: 'working',
+        at: NOW - 60_000
+      },
+      // Why: only the address is filled; the stored state and activity stay as they were.
+      { sessionId: 'quiet', address: 'kite/refunds', state: 'waiting', at: NOW - 7_000 }
+    ])
   })
 })
