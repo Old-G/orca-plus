@@ -372,6 +372,7 @@ import {
 import {
   ChatSendParams,
   HqContextParams,
+  HqConversationDoneParams,
   HqConversationProjectParams,
   HqDispatchParams,
   HqEventsParams,
@@ -1232,6 +1233,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
   'hq.context': HqContextParams,
+  'hq.conversationDone': HqConversationDoneParams,
   'hq.conversationProject': HqConversationProjectParams,
   'hq.dispatch': HqDispatchParams,
   'hq.events': HqEventsParams,

@@ -140,13 +140,16 @@ export function hqPlusSourceOfKey(key: string): HqPlusSource {
 }
 
 /** Custom build (hq-ledger-feed): the owner's move while a folded card asks him; a «No answer»
- *  reminder or a note alone only tells. */
+ *  reminder or a note alone only tells. Custom build (hq-ledger-sources): a card that stands for the
+ *  ledger's conversation alone is his move when the ledger says so. */
 function conversationLook(item: Extract<HqPlusLogItem, { kind: 'card' }>): HqPlusLook {
   const source = hqPlusSourceOfKey(item.conversation?.key ?? '')
-  const moves = (item.conversation?.parts ?? []).some((part) => {
-    const look = hqPlusLook(part)
-    return look.kind !== 'bg' && !look.fyi
-  })
+  const moves =
+    item.conversation?.ledgerState === 'you' ||
+    (item.conversation?.parts ?? []).some((part) => {
+      const look = hqPlusLook(part)
+      return look.kind !== 'bg' && !look.fyi
+    })
   return {
     kind: 'inbox',
     badges: moves ? [MOVE, SOURCE_BADGE[source]] : [SOURCE_BADGE[source]],
