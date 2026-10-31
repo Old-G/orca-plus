@@ -2,11 +2,9 @@
 // the day's log, the waits on people, the open chats — one model per room (All lists every room), so
 // the phone's tiles and project screen count by the desktop's own rules.
 import type { HqChatWireGroup, HqChatWireItem } from '../../../src/shared/hq-chat-wire'
-import type { HqPlusCard, HqPlusLogItem } from '../../../src/shared/hq-plus-log'
+import type { HqPlusLogItem } from '../../../src/shared/hq-plus-log'
 import {
-  hqPlusMapFeedPlace,
   hqPlusMapModel,
-  hqPlusMapProjectOf,
   type HqPlusMapChatState,
   type HqPlusMapModel
 } from '../../../src/shared/hq-plus-map'
@@ -127,36 +125,6 @@ export function hqPlusPhoneMapRooms(input: {
     })
     return { slug: space.slug, name: space.name, color: space.color, model, chats, items }
   })
-}
-
-/** The cards waiting on the owner in one project, newest first — the desktop dock's «Your move». */
-export function hqPlusPhoneProjectCards(
-  items: readonly HqPlusLogItem[],
-  slug: string
-): HqPlusCard[] {
-  return items
-    .filter(
-      (item): item is HqPlusCard =>
-        item.kind === 'card' &&
-        hqPlusMapFeedPlace(item) === 'you' &&
-        hqPlusMapProjectOf(item) === slug
-    )
-    .toReversed()
-}
-
-/** A project's open chats, the one asking first. */
-export function hqPlusPhoneProjectChats(
-  chats: readonly HqChatWireItem[],
-  slug: string
-): HqChatWireItem[] {
-  const order: HqPlusMapChatState[] = ['asks', 'working', 'done', 'quiet']
-  return chats
-    .filter((chat) => chat.projectName === slug)
-    .toSorted(
-      (a, b) =>
-        order.indexOf(hqPlusPhoneChatState(a) ?? 'quiet') -
-        order.indexOf(hqPlusPhoneChatState(b) ?? 'quiet')
-    )
 }
 
 /** Whole days since a moment, for «oldest wait 3 d». */

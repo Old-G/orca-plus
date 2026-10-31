@@ -105,11 +105,14 @@ export function hqPlusTileOf(project: string | null): string {
 function LogItem({
   item,
   flash,
-  ctx
+  ctx,
+  bare = false
 }: {
   item: HqPlusLogItem
   flash: boolean
   ctx: HqPlusLogContext
+  /** Custom build (hq-project-cards): the card alone, under its line in a project's card. */
+  bare?: boolean
 }): React.JSX.Element {
   if (item.kind === 'me') {
     return (
@@ -181,67 +184,70 @@ function LogItem({
         flash={flash}
         openChat={openChat}
         ctx={ctx}
+        bare={bare}
       />
     )
   }
+  const row = (children: React.ReactNode): React.JSX.Element =>
+    bare ? (
+      <div className="hqp-bare">{children}</div>
+    ) : (
+      <FeedRow item={item} ctx={ctx} tile={tile}>
+        {children}
+      </FeedRow>
+    )
   // Custom build (hq-ledger-feed): one conversation with its cards folded in.
   if (item.kind === 'card' && item.type === 'conversation') {
-    return (
-      <FeedRow item={item} ctx={ctx} tile={tile}>
-        <div className="b">
-          <NewMark item={item} ctx={ctx} />
-          <HqPlusGrow>
-            <HqPlusConversationCard
-              card={item}
-              look={look}
-              flash={flash}
-              openChat={openChat}
-              ctx={ctx}
-            />
-          </HqPlusGrow>
-        </div>
-      </FeedRow>
-    )
-  }
-  if (item.kind !== 'card') {
-    return (
-      <FeedRow item={item} ctx={ctx} tile={tile}>
-        <div className="b">
-          <HqPlusBadges badges={look.badges} />
-          <NewMark item={item} ctx={ctx} />
-          <strong>{item.project ?? 'HQ'}:</strong> <HqPlusText text={item.title} />
-          <span className="hqp-tm">{clock(item.at)}</span>
-        </div>
-      </FeedRow>
-    )
-  }
-  return (
-    <FeedRow item={item} ctx={ctx} tile={tile}>
+    return row(
       <div className="b">
         <NewMark item={item} ctx={ctx} />
         <HqPlusGrow>
-          <HqPlusCardView
+          <HqPlusConversationCard
             card={item}
             look={look}
             flash={flash}
-            hqPath={ctx.hqPath}
-            hqWorktreeId={ctx.hqWorktreeId}
-            when={clock(item.at)}
-            threadLabel={key && item.address ? item.address : null}
-            onThread={key ? () => ctx.onScope(key) : null}
-            chat={ctx.chatOf(item.sessionId)}
-            onOpenChat={openChat}
-            onOpenLink={ctx.openLink}
-            onOpenReport={ctx.onOpenReport}
-            onNotNow={item.open ? () => ctx.onNotNow(hqPlusNotNowKey(item)) : null}
-            onChanged={ctx.onChanged}
-            expanded={ctx.isExpanded(item.id)}
-            onExpand={(next) => ctx.setExpanded(item.id, next)}
-            onToWork={ctx.toWork}
+            openChat={openChat}
+            ctx={ctx}
           />
         </HqPlusGrow>
       </div>
-    </FeedRow>
+    )
+  }
+  if (item.kind !== 'card') {
+    return row(
+      <div className="b">
+        <HqPlusBadges badges={look.badges} />
+        <NewMark item={item} ctx={ctx} />
+        <strong>{item.project ?? 'HQ'}:</strong> <HqPlusText text={item.title} />
+        <span className="hqp-tm">{clock(item.at)}</span>
+      </div>
+    )
+  }
+  return row(
+    <div className="b">
+      <NewMark item={item} ctx={ctx} />
+      <HqPlusGrow>
+        <HqPlusCardView
+          card={item}
+          look={look}
+          flash={flash}
+          hqPath={ctx.hqPath}
+          hqWorktreeId={ctx.hqWorktreeId}
+          when={clock(item.at)}
+          threadLabel={key && item.address ? item.address : null}
+          onThread={key ? () => ctx.onScope(key) : null}
+          chat={ctx.chatOf(item.sessionId)}
+          onOpenChat={openChat}
+          onOpenLink={ctx.openLink}
+          onOpenReport={ctx.onOpenReport}
+          onNotNow={item.open ? () => ctx.onNotNow(hqPlusNotNowKey(item)) : null}
+          onChanged={ctx.onChanged}
+          expanded={ctx.isExpanded(item.id)}
+          onExpand={(next) => ctx.setExpanded(item.id, next)}
+          onToWork={ctx.toWork}
+        />
+      </HqPlusGrow>
+    </div>
   )
 }
 
@@ -251,15 +257,18 @@ function LogItem({
  */
 export function HqPlusLogCards({
   items,
-  ctx
+  ctx,
+  bare = false
 }: {
   items: readonly HqPlusLogItem[]
   ctx: HqPlusLogContext
+  /** Custom build (hq-project-cards): without the project tile, inside a project's card. */
+  bare?: boolean
 }): React.JSX.Element {
   return (
     <div className="hqm-cards">
       {items.map((item) => (
-        <LogItem key={item.id} item={item} flash={false} ctx={ctx} />
+        <LogItem key={item.id} item={item} flash={false} ctx={ctx} bare={bare} />
       ))}
     </div>
   )

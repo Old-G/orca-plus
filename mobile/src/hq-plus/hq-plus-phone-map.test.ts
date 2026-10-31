@@ -7,8 +7,6 @@ import {
   hqPlusPhoneChatTabId,
   hqPlusPhoneDays,
   hqPlusPhoneMapRooms,
-  hqPlusPhoneProjectCards,
-  hqPlusPhoneProjectChats,
   type HqpMapWait
 } from './hq-plus-phone-map'
 
@@ -134,18 +132,6 @@ describe('hqPlusPhoneMapRooms', () => {
 })
 
 describe('the project screen', () => {
-  it('shows the cards on the owner newest first and the asking chat first', () => {
-    const items = [
-      card({ id: 'a', at: 1 }),
-      card({ id: 'b', at: 2 }),
-      card({ id: 'c', project: 'other' }),
-      card({ id: 'd', open: false, done: { by: 'status', status: 'closed' } })
-    ]
-    expect(hqPlusPhoneProjectCards(items, 'acme-app').map((item) => item.id)).toEqual(['b', 'a'])
-    const chats = [chat({ key: 'w' }), chat({ key: 'n', group: 'needs' })]
-    expect(hqPlusPhoneProjectChats(chats, 'acme-app').map((item) => item.key)).toEqual(['n', 'w'])
-  })
-
   it('names a chat tab, breaks long names and counts days', () => {
     expect(hqPlusPhoneChatTabId(chat({ key: 'k', sessionId: 's1' }))).toBe(
       'structured-agent-session-s1'

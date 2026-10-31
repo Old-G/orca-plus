@@ -1,0 +1,368 @@
+/* Custom build (hq-project-cards): one card per project in HQ+'s feed and the Map's panel — the mock of
+   31.10 in HQ+'s own tokens: a quiet card, an amber edge while it is the owner's move, mono labels. */
+.hqpc-feed {
+  gap: 12px;
+}
+.hqpc-group {
+  font-family: var(--hqp-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hqp-faint);
+  padding: 4px 2px 0;
+}
+.hqpc {
+  --hqpc-c: #cfe9f2;
+  flex: none;
+  display: grid;
+  min-width: 0;
+  border-radius: 14px;
+  border: 1px solid var(--hqp-line);
+  background: var(--hqp-card);
+}
+.hqpc[data-you='true'] {
+  border-color: transparent;
+  background:
+    linear-gradient(180deg, #132232, #0c1924) padding-box,
+    var(--hqp-edge-move) border-box;
+}
+.hqpc-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px 8px;
+  min-width: 0;
+}
+.hqpc-head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--hqp-fg);
+  overflow-wrap: anywhere;
+}
+.hqpc-pdot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--hqpc-c);
+  flex: none;
+}
+.hqpc-room {
+  font-family: var(--hqp-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hqp-faint);
+}
+.hqpc-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--hqp-line);
+  font-family: var(--hqp-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--hqp-mute);
+  white-space: nowrap;
+}
+.hqpc-pill[data-you='true'] {
+  border-color: rgba(255, 195, 90, 0.5);
+  color: var(--hqp-amber);
+  background: rgba(255, 195, 90, 0.08);
+}
+.hqpc-tm {
+  margin-left: auto;
+  font-family: var(--hqp-mono);
+  font-size: 11px;
+  color: var(--hqp-faint);
+}
+/* a project where we only wait: one line, a click opens it */
+.hqpc-compact {
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: 14px;
+}
+.hqpc-compact:hover {
+  background: var(--hqp-soft);
+}
+.hqpc-compact h3 {
+  font-size: 14.5px;
+}
+.hqpc-compact .hqpc-sum {
+  padding: 0;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.hqpc-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 10px;
+}
+.hqpc-acts .hqp-pill[data-main='true'] {
+  background: var(--hqp-ice);
+  color: var(--hqp-ice-ink);
+  font-weight: 600;
+}
+.hqpc-sec {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 4px;
+  border-top: 1px solid var(--hqp-line);
+}
+.hqpc-lab {
+  font-family: var(--hqp-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hqp-faint);
+}
+.hqpc-lab[data-amber='true'] {
+  color: var(--hqp-amber);
+}
+.hqpc-fold {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  color: var(--hqp-ice);
+  font-size: 12.5px;
+}
+.hqpc-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0 6px 6px;
+  display: grid;
+  gap: 1px;
+}
+.hqpc-rowwrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.hqpc-row {
+  flex: 1 1 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  color: var(--hqp-fg);
+}
+.hqpc-row:hover {
+  background: var(--hqp-soft);
+}
+.hqpc-ln[data-open='true'] > .hqpc-rowwrap > .hqpc-row,
+.hqpc-ln[data-open='true'] > .hqpc-row {
+  background: var(--hqp-soft-2);
+}
+.hqpc-ln[data-selected='true'] > .hqpc-rowwrap > .hqpc-row {
+  box-shadow: inset 0 0 0 1px var(--hqp-line-2);
+}
+.hqpc-ln[data-flash='true'] > .hqpc-rowwrap > .hqpc-row {
+  box-shadow: 0 0 0 3px rgba(143, 233, 255, 0.35);
+}
+.hqpc-t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+}
+.hqpc-t b {
+  font-weight: 600;
+}
+.hqpc-t > span:not(.hqp-new) {
+  color: var(--hqp-mute);
+}
+.hqpc-t .hqp-new {
+  margin-right: 6px;
+}
+.hqpc-holder {
+  max-width: 180px;
+  overflow: hidden;
+  font-family: var(--hqp-mono);
+  font-size: 10.5px;
+  color: var(--hqp-ice);
+}
+.hqpc-holder .hqp-chat-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hqpc-age {
+  font-family: var(--hqp-mono);
+  font-size: 11px;
+  color: var(--hqp-faint);
+  white-space: nowrap;
+}
+.hqpc-age[data-got='true'],
+.hqpc-age[data-state='done'] {
+  color: var(--hqp-green);
+}
+.hqpc-age[data-state='asks'] {
+  color: var(--hqp-amber);
+}
+.hqpc-age[data-state='working'] {
+  color: #f2e15c;
+}
+.hqpc-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hqp-rel);
+}
+.hqpc-dot[data-state='asks'] {
+  background: var(--hqp-amber);
+}
+.hqpc-dot[data-state='working'] {
+  background: #f2e15c;
+}
+.hqpc-dot[data-state='done'] {
+  background: var(--hqp-green);
+}
+.hqpc-chat .hqpc-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+.hqpc-rowwrap > .hqp-x,
+.hqpc-rowwrap > .hqp-confirm {
+  flex: none;
+}
+.hqpc-rowwrap > .hqp-projchip,
+.hqpc-rowwrap > .hqp-proj-pick {
+  flex: none;
+  max-width: 40%;
+}
+/* the card a line opens to: the conversation, its buttons and the reply box */
+.hqpc-open {
+  margin: 2px 2px 8px 22px;
+  min-width: 0;
+}
+.hqpc-open .hqp-card,
+.hqpc-open .hqp-chatc {
+  margin-top: 0;
+}
+.hqpc-waits {
+  display: grid;
+  gap: 6px;
+}
+.hqp-bare .b {
+  min-width: 0;
+  font-size: 14px;
+  color: var(--hqp-mute);
+  overflow-wrap: anywhere;
+}
+.hqpc-sum {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 2px 14px 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--hqp-mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+button.hqpc-sum:hover {
+  color: var(--hqp-fg);
+}
+.hqpc-sum b {
+  color: var(--hqp-fg);
+  font-weight: 500;
+}
+.hqpc-today {
+  list-style: none;
+  margin: 0;
+  padding: 0 14px 10px;
+  display: grid;
+  gap: 8px;
+}
+.hqpc-today li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--hqp-mute);
+}
+.hqpc-today b {
+  color: var(--hqp-fg);
+  font-weight: 500;
+}
+.hqpc-tt {
+  font-family: var(--hqp-mono);
+  font-size: 11px;
+  line-height: 19px;
+  color: var(--hqp-faint);
+}
+.hqpc-to {
+  color: var(--hqp-ice);
+}
+.hqpc-said {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.hqpc-by {
+  display: block;
+  font-family: var(--hqp-mono);
+  font-size: 11px;
+  color: var(--hqp-faint);
+}
+.hqpc-fyi {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  border: 1px dashed var(--hqp-line);
+  border-radius: 12px;
+  background: none;
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--hqp-mute);
+}
+.hqpc-fyi:hover {
+  border-color: var(--hqp-line-2);
+}
+.hqpc-fyi b {
+  color: var(--hqp-fg);
+  font-weight: 500;
+}
+.hqpc-n {
+  font-family: var(--hqp-mono);
+  font-size: 11px;
+}
+.hqp-chip-btn[data-move='true'] {
+  border-color: rgba(255, 195, 90, 0.5);
+  color: var(--hqp-amber);
+}
+.hqp-chip-btn[data-move='true'][aria-pressed='true'] {
+  background: var(--hqp-amber);
+  border-color: var(--hqp-amber);
+  color: #1d1300;
+}
+/* the Map's panel: the card fills it, no second frame */
+.hqm-pane > .hqpc {
+  flex: none;
+}

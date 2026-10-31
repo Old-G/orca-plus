@@ -6,7 +6,7 @@ import type { HqChatWireItem } from '../../../src/shared/hq-chat-wire'
 import type { HqPlusBadge } from '../../../src/shared/hq-plus-kinds'
 import { hqPlusLook } from '../../../src/shared/hq-plus-kinds'
 import type { HqPlusLogItem } from '../../../src/shared/hq-plus-log'
-import { MobileMarkdown } from '../components/MobileMarkdown'
+import { MobileMarkdown } from '../components/markdown/MobileMarkdown'
 import { hqp, hqpStyles } from './hq-plus-phone-theme'
 import type { HqpFeedContext } from './mobile-hq-plus-feed-context'
 import { HqpBadge, HqpCardFrame, HqpHead, clock, hqpCardStyles as s } from './mobile-hq-plus-parts'
@@ -31,13 +31,16 @@ function statusOf(chat: HqChatWireItem | null): HqPlusBadge | null {
 export function MobileHqPlusChatLine({
   item,
   flash,
-  ctx
+  ctx,
+  bare = false
 }: {
   item: Line
   flash: boolean
   ctx: HqpFeedContext
+  /** Custom build (hq-project-cards): opened from a project card's chats, without the tile. */
+  bare?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(bare)
   const chat = ctx.chatOf(item.sessionId)
   const status = statusOf(chat)
   const text = item.body ?? item.title
@@ -48,6 +51,7 @@ export function MobileHqPlusChatLine({
       flash={flash}
       project={item.project}
       color={ctx.colorOf(item.project)}
+      bare={bare}
     >
       <HqpHead>
         <HqpBadge badge={{ label: 'CHAT', tone: 'chat' }} />
