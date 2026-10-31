@@ -18,10 +18,17 @@ import {
   hqPlusWithLiveChats
 } from '../../../../../shared/hq-plus-fold'
 import {
-  hqPlusInFeedFilter,
   hqPlusMatchesSearch,
   type HqPlusFeedFilter
 } from '../../../../../shared/hq-plus-feed-filter'
+import {
+  hqPlusProjectCardOf,
+  hqPlusProjectFeed,
+  type HqPlusProjectFilter,
+  type HqPlusProjectInput
+} from '../../../../../shared/hq-plus-project-cards'
+import type { HqPlusProjectChatInput } from '../../../../../shared/hq-plus-project-lines'
+import type { HqPlusMapChatState } from '../../../../../shared/hq-plus-map'
 import { hqPlusNeedsOwner, type HqPlusBadge } from '../../../../../shared/hq-plus-kinds'
 import {
   hqPlusGraph,
@@ -52,12 +59,13 @@ import { useHqChatList, useHqProjectColor } from '../hq/use-hq-chat-list'
 import { onHqTabRequested, takeRequestedHqTab } from '../hq/hq-view'
 import { PulseBellButton } from '../pulse-bell/PulseBellButton'
 import { openHqRouteChat } from '../pulse-bell/hq-route-send'
-import { HqPlusLog, hqPlusThreadKey, hqPlusTileOf, type HqPlusLogContext } from './HqPlusLog'
+import { hqPlusThreadKey, hqPlusTileOf, type HqPlusLogContext } from './HqPlusLog'
+import { HqPlusProjectChips, HqPlusProjectFeed } from './HqPlusProjectFeed'
+import type { HqPlusProjectCardContext } from './HqPlusProjectParts'
 import { useHqPlusDraftChats } from './use-hq-plus-drafts'
 import { HqPlusSide, type HqPlusTile } from './HqPlusSide'
 import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
 import { HqPlusTicker } from './HqPlusTicker'
-import { HqPlusWaitsView } from './HqPlusWaitsView'
 import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusChatBar, HqPlusChatSession } from './HqPlusChatSession'
 import { canFinishHqPlusCard, finishHqPlusCard } from './hq-plus-actions'
@@ -98,13 +106,7 @@ import { HqPlusThreadComposer } from './HqPlusThreadComposer'
 import { HqPlusFeedSearch } from './HqPlusFeedSearch'
 import { useHqPlusNewMarks } from './use-hq-plus-new-marks'
 import { useHqPlusFeedKeys } from './use-hq-plus-feed-keys'
-import {
-  HqPlusFeedChips,
-  HqPlusSinceLine,
-  HqPlusYourMoveLine,
-  readHqPlusFeedFilter,
-  saveHqPlusFeedFilter
-} from './HqPlusFeedBar'
+import { readHqPlusProjectFilter, saveHqPlusProjectFilter } from './HqPlusFeedBar'
 import {
   closeHqPlusChat,
   hqPlusChatIsIdle,
@@ -124,6 +126,21 @@ import './hq-plus-map.css'
 type HqPlusPanelCard = { label: string; active: boolean; body: React.ReactNode; onPick: () => void }
 
 const TICK_MS = 30_000
+/** Custom build (hq-project-cards): the chat list's groups as a project card's chat states. */
+const CHAT_STATE: Record<string, HqPlusMapChatState> = {
+  needs: 'asks',
+  working: 'working',
+  done: 'done',
+  quiet: 'quiet'
+}
+/** The keys' chips (All, Your move, Chats, Inbox) as the project feed's. */
+const KEY_FILTER: Record<HqPlusFeedFilter, HqPlusProjectFilter> = {
+  all: 'all',
+  move: 'move',
+  waits: 'wait',
+  chats: 'all',
+  inbox: 'fyi'
+}
 const NO_IDS: string[] = []
 const FLASH_MS = 1800
 const TABS = HQ_PLUS_VIEW_TABS
@@ -153,11 +170,11 @@ export function HqPlusScreen(): React.JSX.Element {
   // Custom build (hq-plus-ui-v5): the screen comes back as the owner left it.
   const [view] = useState(readHqPlusViewState)
   const [scope, setScope] = useState<string | null>(view.scope)
-  // Custom build (hq-plus-ui-v4): which rows the feed shows, remembered per viewer.
-  const [feedFilter, setFeedFilter] = useState<HqPlusFeedFilter>(readHqPlusFeedFilter)
-  const changeFeedFilter = (filter: HqPlusFeedFilter): void => {
+  // Custom build (hq-project-cards): which sections the project cards show, remembered per viewer.
+  const [feedFilter, setFeedFilter] = useState<HqPlusProjectFilter>(readHqPlusProjectFilter)
+  const changeFeedFilter = (filter: HqPlusProjectFilter): void => {
     setFeedFilter(filter)
-    saveHqPlusFeedFilter(filter)
+    saveHqPlusProjectFilter(filter)
   }
   // Custom build (hq-plus-ui-v4): unfolded cards and the card the keys act on live here, so keys and
   // clicks fold the same cards; ⌘F's words and where it stands.
@@ -296,43 +313,40 @@ export function HqPlusScreen(): React.JSX.Element {
   const shownSessionId = rightChat?.kind === 'chat' ? rightChat.tab.entityId : null
   const all = useMemo(
     () =>
-      // Why: the Map layout has no chat cards in its feed; a chat's question is a Your-move card there.
-      (data.feed
-        ? hqPlusFeedLog(data.feed, dayStart, {
-            chatQuestions: layout === 'map' ? 'card' : 'line'
-          })
-        : []
-      ).map((item): HqPlusLogItem => {
-        // Why: a bell item knows its project, not its room; HQ's rooms place it.
-        const placed =
-          item.room === HQ_PLUS_ANY_ROOM && item.project && roomOfProject.has(item.project)
-            ? { ...item, room: roomOfProject.get(item.project) ?? item.room }
-            : item
-        if (placed.kind !== 'card' || !placed.open) {
-          return placed
-        }
-        // Custom build (hq-closed-loop): the chat open on the right asks there, not twice.
-        if (placed.type === 'move' && placed.sessionId && placed.sessionId === shownSessionId) {
-          const { id, at, room, project, address, sessionId, title, body, entry } = placed
-          return {
-            kind: 'line',
-            id,
-            at,
-            room,
-            project,
-            address,
-            sessionId,
-            tone: 'agent',
-            title,
-            body,
-            journalKind: entry?.kind ?? null
+      // Why: a chat's question is a line under its project's «Your move», as on the Map and the phone.
+      (data.feed ? hqPlusFeedLog(data.feed, dayStart, { chatQuestions: 'card' }) : []).map(
+        (item): HqPlusLogItem => {
+          // Why: a bell item knows its project, not its room; HQ's rooms place it.
+          const placed =
+            item.room === HQ_PLUS_ANY_ROOM && item.project && roomOfProject.has(item.project)
+              ? { ...item, room: roomOfProject.get(item.project) ?? item.room }
+              : item
+          if (placed.kind !== 'card' || !placed.open) {
+            return placed
           }
+          // Custom build (hq-closed-loop): the chat open on the right asks there, not twice.
+          if (placed.type === 'move' && placed.sessionId && placed.sessionId === shownSessionId) {
+            const { id, at, room, project, address, sessionId, title, body, entry } = placed
+            return {
+              kind: 'line',
+              id,
+              at,
+              room,
+              project,
+              address,
+              sessionId,
+              tone: 'agent',
+              title,
+              body,
+              journalKind: entry?.kind ?? null
+            }
+          }
+          return notNow.has(hqPlusNotNowKey(placed))
+            ? { ...placed, open: false, done: { by: 'status' as const, status: 'not-now' } }
+            : placed
         }
-        return notNow.has(hqPlusNotNowKey(placed))
-          ? { ...placed, open: false, done: { by: 'status' as const, status: 'not-now' } }
-          : placed
-      }),
-    [data.feed, dayStart, roomOfProject, notNow, shownSessionId, layout]
+      ),
+    [data.feed, dayStart, roomOfProject, notNow, shownSessionId]
   )
   // Why: what has no room (HQ's own rows, a bell item of an unknown project) shows in All only.
   const roomItems = useMemo(() => all.filter((item) => !room || item.room === room), [all, room])
@@ -388,23 +402,6 @@ export function HqPlusScreen(): React.JSX.Element {
     [data.people]
   )
   const newMarks = useHqPlusNewMarks(all, Boolean(data.feed))
-  const feedItems = useMemo(
-    () => shown.filter((item) => hqPlusInFeedFilter(item, feedFilter)),
-    [shown, feedFilter]
-  )
-  const matchIds = useMemo(
-    () =>
-      search.query.trim()
-        ? feedItems.flatMap((item) =>
-            hqPlusMatchesSearch(item, search.query, (id) => names.get(id) ?? null) ? [item.id] : []
-          )
-        : [],
-    [feedItems, search.query, names]
-  )
-  const moveIds = useMemo(
-    () => shown.flatMap((item) => (hqPlusNeedsOwner(item) ? [item.id] : [])),
-    [shown]
-  )
   const openByRoom = useMemo(() => {
     const counts = new Map<string, number>()
     for (const card of all.filter((item): item is HqPlusCard => hqPlusNeedsOwner(item))) {
@@ -510,6 +507,98 @@ export function HqPlusScreen(): React.JSX.Element {
     () =>
       new Map(pages.status === 'ready' ? pages.pages.map((page) => [page.slug, page.repoId]) : []),
     [pages]
+  )
+  // Custom build (hq-project-cards): what the project cards are built from — the room's rows as the feed
+  // shows them, its waits on people, its open chats and today's journal rows; one model for the feed
+  // and the Map's panel (and the phone's, from the same src/shared).
+  const projectInput = useMemo<HqPlusProjectInput>(() => {
+    // Why: a thread picked from a card narrows every part of the cards to that thread.
+    const inScope = (ref: { address?: string | null; sessionId: string | null }): boolean =>
+      !scope || ref.address === scope || ref.sessionId === scope
+    // Why: a thread picked by its address keeps the chats whose turns the scoped rows hold.
+    const scopedSessions = new Set(
+      shown.flatMap((item) => (item.sessionId ? [item.sessionId] : []))
+    )
+    return {
+      items: shown,
+      waits: waitsOnThem.filter(inScope).map((wait) => ({
+        id: wait.id,
+        personName: wait.who,
+        project: wait.project,
+        title: wait.title,
+        at: wait.at,
+        answerId: wait.answer?.id ?? null
+      })),
+      chats: roomChats.flatMap((item): HqPlusProjectChatInput[] => {
+        const sessionId = item.kind === 'chat' ? item.tab.entityId : null
+        return inScope({ sessionId }) || (sessionId !== null && scopedSessions.has(sessionId))
+          ? [
+              {
+                key: item.key,
+                project: slugOfRepo.get(item.repoId) ?? item.projectName,
+                state: CHAT_STATE[item.group] ?? 'quiet',
+                sessionId,
+                title:
+                  (item.kind === 'chat' ? item.tab.label : item.worktreeName) || item.projectName,
+                at: item.sortAt
+              }
+            ]
+          : []
+      }),
+      entries: (data.feed?.entries ?? []).filter((entry) => {
+        const placed = spaceSlugs.has(entry.workspace)
+          ? entry.workspace
+          : entry.project
+            ? (roomOfProject.get(entry.project) ?? null)
+            : null
+        return (!room || placed === room) && inScope(entry)
+      }),
+      since: dayStart
+    }
+  }, [
+    shown,
+    scope,
+    waitsOnThem,
+    roomChats,
+    slugOfRepo,
+    data.feed,
+    spaceSlugs,
+    roomOfProject,
+    room,
+    dayStart
+  ])
+  const projectFeed = useMemo(
+    () =>
+      hqPlusProjectFeed({
+        ...projectInput,
+        filter: feedFilter,
+        search: search.query.trim()
+          ? {
+              query: search.query,
+              matches: (item) =>
+                hqPlusMatchesSearch(item, search.query, (id) => names.get(id) ?? null)
+            }
+          : null
+      }),
+    [projectInput, feedFilter, search.query, names]
+  )
+  // Why: the keys, ⌘F and «Done» walk the lines on view, in the order the cards show them.
+  const feedItems = useMemo(
+    () =>
+      projectFeed.cards.flatMap((card) =>
+        [...(card.shown.you ? card.you : []), ...(card.shown.fyi ? card.fyi : [])].map(
+          (line) => line.card
+        )
+      ),
+    [projectFeed]
+  )
+  const moveIds = useMemo(
+    () => projectFeed.cards.flatMap((card) => card.you.map((line) => line.id)),
+    [projectFeed]
+  )
+  const matchIds = useMemo(
+    () => (search.query.trim() ? feedItems.map((item) => item.id) : []),
+    [feedItems, search.query]
   )
   // Why: one project looks the same everywhere — left list, feed and the session header.
   const projectColor = (slug: string | null): string | null => {
@@ -668,19 +757,21 @@ export function HqPlusScreen(): React.JSX.Element {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [wide, canGoBack])
-  // Why: a card hidden by the chips brings the whole feed back before the scroll.
+  // Why: a line hidden by the chips brings the whole feed back before the scroll.
   const goToFeedItem = (id: string, item: HqPlusLogItem | undefined): void => {
-    if (item && !hqPlusInFeedFilter(item, feedFilter)) {
+    if (item && !feedItems.some((shownItem) => shownItem.id === id)) {
       changeFeedFilter('all')
     }
     setTimeout(() => {
       const target = document.getElementById(`hqp-${id}`)
       const log = target?.closest('.hqp-log')
-      if (target && log) {
+      // Why: a project card's line centres on its header, not on the card open under it.
+      const head = target?.querySelector(':scope > .hqpc-rowwrap') ?? target
+      if (target && head && log) {
         // Why: scrollIntoView would also scroll the screen's own clipped frame.
-        const offset = target.getBoundingClientRect().top - log.getBoundingClientRect().top
+        const offset = head.getBoundingClientRect().top - log.getBoundingClientRect().top
         log.scrollTo({
-          top: log.scrollTop + offset - log.clientHeight / 2 + target.clientHeight / 2,
+          top: log.scrollTop + offset - log.clientHeight / 2 + head.clientHeight / 2,
           behavior: 'smooth'
         })
       }
@@ -816,7 +907,47 @@ export function HqPlusScreen(): React.JSX.Element {
       setChatFolded(false)
     }
   }
-  const sinceIds = shown.flatMap((item) => (newMarks.newIds.has(item.id) ? [item.id] : []))
+  // Custom build (hq-project-cards): what a project card reaches for, in the feed and the Map's panel.
+  const worktreeOfProject = (slug: string): string | null => {
+    const repoId = repoOfSlug.get(slug)
+    if (!repoId) {
+      return null
+    }
+    // Why: a project's workspace — its open chat's, else its main checkout.
+    const fromChat = chatItems.find((item) => item.repoId === repoId)?.worktreeId
+    const worktrees = (useAppStore.getState().worktreesByRepo[repoId] ?? []).filter(
+      (worktree) => !worktree.isArchived
+    )
+    return (
+      fromChat ??
+      (worktrees.find((worktree) => worktree.isMainWorktree) ?? worktrees[0])?.id ??
+      null
+    )
+  }
+  const waitById = new Map(waitsOnThem.map((wait) => [wait.id, wait]))
+  const projectCtx: HqPlusProjectCardContext = {
+    log: ctx,
+    queue,
+    now,
+    flashId,
+    roomName: (slug) => {
+      const slugRoom = roomOfProject.get(slug)
+      return slugRoom ? (spaceBySlug.get(slugRoom)?.name ?? null) : null
+    },
+    chatItem: (key) => chatItems.find((item) => item.key === key) ?? null,
+    closerOf,
+    showChat,
+    newChat: (slug) => {
+      const worktreeId = worktreeOfProject(slug)
+      return worktreeId ? () => void startHqChat(worktreeId) : null
+    },
+    openInOrca: (slug) => {
+      const worktreeId = worktreeOfProject(slug)
+      return worktreeId ? () => void activateAndRevealWorktree(worktreeId) : null
+    },
+    personName: (id) => names.get(id) ?? null,
+    waitsOf: (ids) => ids.flatMap((id) => waitById.get(id) ?? [])
+  }
   const stepSearch = (direction: 1 | -1): void => {
     if (matchIds.length === 0) {
       return
@@ -833,7 +964,8 @@ export function HqPlusScreen(): React.JSX.Element {
   useHqPlusFeedKeys({
     items: feedItems,
     moveIds,
-    filter: feedFilter,
+    // Why: on «All» J/K walk the owner's lines first; on a chip, every line it shows.
+    filter: feedFilter === 'all' ? 'all' : 'move',
     selectedId,
     select: setSelectedId,
     isExpanded: (id) => expandedIds.has(id),
@@ -852,7 +984,7 @@ export function HqPlusScreen(): React.JSX.Element {
         void finishHqPlusCard(item).then(data.reload)
       }
     },
-    setFilter: changeFeedFilter,
+    setFilter: (filter) => changeFeedFilter(KEY_FILTER[filter]),
     openSearch: () => {
       setSearch((current) => ({ ...current, open: true }))
       requestAnimationFrame(() => searchRef.current?.select())
@@ -1201,22 +1333,6 @@ export function HqPlusScreen(): React.JSX.Element {
     />
   )
   if (layout === 'map') {
-    // Why: a project's workspace — its open chat's, else its main checkout.
-    const worktreeOfProject = (slug: string): string | null => {
-      const repoId = repoOfSlug.get(slug)
-      if (!repoId) {
-        return null
-      }
-      const fromChat = chatItems.find((item) => item.repoId === repoId)?.worktreeId
-      const worktrees = (useAppStore.getState().worktreesByRepo[repoId] ?? []).filter(
-        (worktree) => !worktree.isArchived
-      )
-      return (
-        fromChat ??
-        (worktrees.find((worktree) => worktree.isMainWorktree) ?? worktrees[0])?.id ??
-        null
-      )
-    }
     return (
       <>
         <HqPlusMapLayout
@@ -1265,14 +1381,8 @@ export function HqPlusScreen(): React.JSX.Element {
             changeFeedFilter('move')
             setHqPlusLayout('current')
           }}
-          newChat={(slug) => {
-            const worktreeId = worktreeOfProject(slug)
-            return worktreeId ? () => void startHqChat(worktreeId) : null
-          }}
-          openInOrca={(slug) => {
-            const worktreeId = worktreeOfProject(slug)
-            return worktreeId ? () => void activateAndRevealWorktree(worktreeId) : null
-          }}
+          projectCard={(slug) => hqPlusProjectCardOf(projectInput, slug)}
+          projectCtx={projectCtx}
           now={now}
         />
         {linkPopover}
@@ -1321,7 +1431,7 @@ export function HqPlusScreen(): React.JSX.Element {
             <span className="hqp-hl">
               {scope
                 ? translate('auto.hqPlus.feed.thread', 'thread · {{key}}', { key: scopeLabel })
-                : translate('auto.hqPlus.feed.today', 'conversation with HQ · today')}
+                : translate('auto.hqPlus.feed.projects', 'projects · today')}
             </span>
             {scope ? (
               <button type="button" className="hqp-chip-btn" onClick={() => setScope(null)}>
@@ -1329,10 +1439,9 @@ export function HqPlusScreen(): React.JSX.Element {
               </button>
             ) : null}
             <span className="hqp-spacer" />
-            <HqPlusFeedChips
+            <HqPlusProjectChips
               filter={feedFilter}
-              moves={moveIds.length}
-              waits={waitsOnThem.length}
+              counts={projectFeed.counts}
               onFilter={changeFeedFilter}
             />
           </div>
@@ -1347,39 +1456,13 @@ export function HqPlusScreen(): React.JSX.Element {
               onClose={closeSearch}
             />
           ) : null}
-          <div className="hqp-pins">
-            <HqPlusYourMoveLine
-              ids={moveIds}
-              onGo={(id) => {
-                setSelectedId(id)
-                goToFeedItem(
-                  id,
-                  shown.find((item) => item.id === id)
-                )
-              }}
-            />
-            <HqPlusSinceLine
-              ids={sinceIds}
-              onGo={(id) => {
-                setSelectedId(id)
-                goToFeedItem(
-                  id,
-                  shown.find((item) => item.id === id)
-                )
-              }}
-            />
-          </div>
           {data.error && !data.feed ? <p className="hqp-error">{data.error}</p> : null}
-          {feedFilter === 'waits' && !scope ? (
-            <HqPlusWaitsView waits={waitsOnThem} actions={queue} ctx={ctx} />
-          ) : (
-            <HqPlusLog
-              key={`${room ?? ''}|${scope ?? ''}|${feedFilter}`}
-              items={feedItems}
-              flashId={flashId}
-              ctx={ctx}
-            />
-          )}
+          <HqPlusProjectFeed
+            feed={projectFeed}
+            filter={feedFilter}
+            onFilter={changeFeedFilter}
+            ctx={projectCtx}
+          />
           <div className="hqp-composer">
             {scope ? (
               <HqPlusThreadComposer

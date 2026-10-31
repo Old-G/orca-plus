@@ -12,6 +12,8 @@ import {
   type HqPlusMapLeaf
 } from '../../../../../shared/hq-plus-map'
 import type { HqChatGroup, HqChatItem } from '../hq/hq-chat-list'
+import type { HqPlusProjectCard } from '../../../../../shared/hq-plus-project-cards'
+import type { HqPlusProjectCardContext } from './HqPlusProjectParts'
 import type { HqPlusLogContext } from './HqPlusLog'
 import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
 import { HqPlusMap, type HqPlusMapPick } from './HqPlusMap'
@@ -20,7 +22,6 @@ import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusMapSheet } from './HqPlusMapSheet'
 import { trunc } from './hq-plus-map-geometry'
 import { HqPlusMapCrumbs, type HqPlusMapCrumb } from './HqPlusLayoutSwitch'
-import { setHqPlusLayout } from './hq-plus-layout'
 import {
   readHqPlusMapView,
   saveHqPlusMapView,
@@ -96,9 +97,9 @@ export type HqPlusMapLayoutProps = {
   closeOverlay: () => void
   /** «Your move» on top: the feed, filtered to what waits on the owner. */
   onYourMove: () => void
-  /** The project's workspace, for a new chat and «Open in Orca». */
-  newChat: (slug: string) => (() => void) | null
-  openInOrca: (slug: string) => (() => void) | null
+  /** Custom build (hq-project-cards): a picked project's card, the feed's own. */
+  projectCard: (slug: string) => HqPlusProjectCard
+  projectCtx: HqPlusProjectCardContext
   now: number
 }
 
@@ -278,12 +279,9 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
       ctx={props.ctx}
       queue={props.queue}
       waits={waits}
-      newChat={props.newChat}
-      openInOrca={props.openInOrca}
-      now={now}
+      projectCard={props.projectCard}
+      projectCtx={props.projectCtx}
       showChat={props.showChat}
-      onPickLeaf={pickLeaf}
-      onToFeed={() => setHqPlusLayout('current')}
     />
   )
 

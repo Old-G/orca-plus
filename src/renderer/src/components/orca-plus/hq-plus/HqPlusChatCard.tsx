@@ -36,7 +36,8 @@ export function ChatCard({
   tile,
   flash,
   openChat,
-  ctx
+  ctx,
+  bare = false
 }: {
   item: Extract<HqPlusLogItem, { kind: 'line' }>
   badges: readonly HqPlusBadge[]
@@ -44,6 +45,8 @@ export function ChatCard({
   flash: boolean
   openChat: (() => void) | null
   ctx: HqPlusLogContext
+  /** Custom build (hq-project-cards): the card alone, opened from a project card's chat list. */
+  bare?: boolean
 }): React.JSX.Element {
   const open = ctx.isExpanded(item.id)
   // Custom build (hq-plus-ui-v5): opened, the card reads the whole latest reply from the chat itself.
@@ -59,87 +62,92 @@ export function ChatCard({
   const pane = item.pane ?? null
   // Why: a terminal HQ+ lists opens on the right like a chat, where it can be typed into (26.10).
   const openRun = openChat ?? (pane ? (ctx.openPane(pane.paneKey) ?? (() => openPane(pane))) : null)
-  return (
-    <FeedRow item={item} ctx={ctx} tile={tile}>
-      <HqPlusCardShell
-        className="hqp-chatc"
-        padded={false}
-        data-flash={flash ? 'true' : undefined}
-        data-picked={ctx.isOpenChat(item.sessionId) ? 'true' : undefined}
-        data-expandable="true"
-        aria-expanded={open}
-        // Why: the card itself folds open; its buttons, links and the reply box keep their own clicks.
-        onClick={(event) => {
-          const target = event.target
-          if (!(target instanceof Element) || !target.closest(CARD_OWN_CLICKS)) {
-            hqPlusPinWhileMoving(event.currentTarget, 8)
-            ctx.setExpanded(item.id, !open)
+  const shell = (
+    <HqPlusCardShell
+      className="hqp-chatc"
+      padded={false}
+      data-flash={flash ? 'true' : undefined}
+      data-picked={ctx.isOpenChat(item.sessionId) ? 'true' : undefined}
+      data-expandable="true"
+      aria-expanded={open}
+      // Why: the card itself folds open; its buttons, links and the reply box keep their own clicks.
+      onClick={(event) => {
+        const target = event.target
+        if (!(target instanceof Element) || !target.closest(CARD_OWN_CLICKS)) {
+          hqPlusPinWhileMoving(event.currentTarget, 8)
+          ctx.setExpanded(item.id, !open)
+        }
+      }}
+      head={
+        <HqPlusCardHead
+          badges={badges}
+          lead={
+            <>
+              <NewMark item={item} ctx={ctx} />
+              <strong>{item.project ?? 'HQ'}</strong>
+            </>
           }
-        }}
-        head={
-          <HqPlusCardHead
-            badges={badges}
-            lead={
-              <>
-                <NewMark item={item} ctx={ctx} />
-                <strong>{item.project ?? 'HQ'}</strong>
-              </>
-            }
-            chat={ctx.chatOf(item.sessionId)}
-            when={clock(item.at)}
-            right={
-              <>
-                <HqPlusBadges badges={waitsOn ? [waitsOn, status] : [status]} />
-                {closer ? <HqPlusCloseChat closer={closer} name={item.project ?? 'chat'} /> : null}
-              </>
-            }
-          />
-        }
-        composer={
-          canReply ? (
-            <Collapsible open={open}>
-              <CollapsibleContent animation="height">
-                <div className="hqp-chatc-reply">
-                  <HqPlusThreadComposer
-                    target={{
-                      address: item.address,
-                      sessionId: item.sessionId,
-                      replyTo: null,
-                      about: null,
-                      pane: item.pane ?? null
-                    }}
-                    openQuestion={null}
-                    label={item.address ?? item.project ?? 'chat'}
-                    hqPath={ctx.hqPath}
-                    showTo={false}
-                    onSent={ctx.onChanged}
-                  />
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          ) : null
-        }
-        footer={{
-          left:
-            key && item.address ? (
-              <button type="button" className="hqp-addr" onClick={() => ctx.onScope(key)}>
-                {item.address}
-              </button>
-            ) : null,
-          onCollapse: open ? () => ctx.setExpanded(item.id, false) : null,
-          right: openRun ? (
-            <button type="button" className="hqp-pill" onClick={openRun}>
-              {translate('auto.hqPlus.open', 'Open')}
+          chat={ctx.chatOf(item.sessionId)}
+          when={clock(item.at)}
+          right={
+            <>
+              <HqPlusBadges badges={waitsOn ? [waitsOn, status] : [status]} />
+              {closer ? <HqPlusCloseChat closer={closer} name={item.project ?? 'chat'} /> : null}
+            </>
+          }
+        />
+      }
+      composer={
+        canReply ? (
+          <Collapsible open={open}>
+            <CollapsibleContent animation="height">
+              <div className="hqp-chatc-reply">
+                <HqPlusThreadComposer
+                  target={{
+                    address: item.address,
+                    sessionId: item.sessionId,
+                    replyTo: null,
+                    about: null,
+                    pane: item.pane ?? null
+                  }}
+                  openQuestion={null}
+                  label={item.address ?? item.project ?? 'chat'}
+                  hqPath={ctx.hqPath}
+                  showTo={false}
+                  onSent={ctx.onChanged}
+                />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        ) : null
+      }
+      footer={{
+        left:
+          key && item.address ? (
+            <button type="button" className="hqp-addr" onClick={() => ctx.onScope(key)}>
+              {item.address}
             </button>
-          ) : null
-        }}
-      >
-        <HqPlusGrow>
-          {/* Custom build (hq-plus-ui-v4): one text, four lines with a fade when folded, all of it open. */}
-          <ChatText text={item.body?.trim() || item.title} full={fullReply} open={open} />
-        </HqPlusGrow>
-        {item.earlier && item.earlier.length > 0 ? <ChatEarlier earlier={item.earlier} /> : null}
-      </HqPlusCardShell>
+          ) : null,
+        onCollapse: open ? () => ctx.setExpanded(item.id, false) : null,
+        right: openRun ? (
+          <button type="button" className="hqp-pill" onClick={openRun}>
+            {translate('auto.hqPlus.open', 'Open')}
+          </button>
+        ) : null
+      }}
+    >
+      <HqPlusGrow>
+        {/* Custom build (hq-plus-ui-v4): one text, four lines with a fade when folded, all of it open. */}
+        <ChatText text={item.body?.trim() || item.title} full={fullReply} open={open} />
+      </HqPlusGrow>
+      {item.earlier && item.earlier.length > 0 ? <ChatEarlier earlier={item.earlier} /> : null}
+    </HqPlusCardShell>
+  )
+  return bare ? (
+    shell
+  ) : (
+    <FeedRow item={item} ctx={ctx} tile={tile}>
+      {shell}
     </FeedRow>
   )
 }

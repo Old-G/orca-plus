@@ -88,7 +88,7 @@ function Message({ message }: { message: HqFeedMessage }): React.JSX.Element {
 }
 
 /** The project chip: dashed while the small model's guess stands; a click picks another. */
-function ProjectChip({
+export function HqPlusProjectChip({
   card,
   onChanged
 }: {
@@ -253,7 +253,7 @@ export function HqPlusConversationCard({
         <>
           {who ? <strong>{who}</strong> : null}
           <span className="hqp-note">{placeLabel(conversation.key)}</span>
-          <ProjectChip card={card} onChanged={ctx.onChanged} />
+          <HqPlusProjectChip card={card} onChanged={ctx.onChanged} />
         </>
       }
       chat={chat}

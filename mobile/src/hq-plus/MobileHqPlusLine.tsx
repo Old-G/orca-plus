@@ -31,13 +31,16 @@ function statusOf(chat: HqChatWireItem | null): HqPlusBadge | null {
 export function MobileHqPlusChatLine({
   item,
   flash,
-  ctx
+  ctx,
+  bare = false
 }: {
   item: Line
   flash: boolean
   ctx: HqpFeedContext
+  /** Custom build (hq-project-cards): opened from a project card's chats, without the tile. */
+  bare?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(bare)
   const chat = ctx.chatOf(item.sessionId)
   const status = statusOf(chat)
   const text = item.body ?? item.title
@@ -48,6 +51,7 @@ export function MobileHqPlusChatLine({
       flash={flash}
       project={item.project}
       color={ctx.colorOf(item.project)}
+      bare={bare}
     >
       <HqpHead>
         <HqpBadge badge={{ label: 'CHAT', tone: 'chat' }} />
