@@ -98,6 +98,7 @@ export function MobileHqPlusProjectCard({
         line={line}
         open={openLine === line.id}
         flash={flashId === line.id}
+        unsorted={card.unsorted}
         onToggle={() => setOpened(openLine === line.id ? null : line.id)}
         ctx={ctx}
       />
