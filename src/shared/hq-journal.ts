@@ -292,6 +292,20 @@ export function hqThreadAddress(project: string | null, task: string): string | 
   return tail ? `${head}/${tail}` : null
 }
 
+/** Custom build (chat-send-anywhere): the address a chat gets before it names one — by its name, else its session id's tail. */
+export function hqChatAddress(
+  project: string | null,
+  name: string | null,
+  sessionId: string
+): string {
+  const tail = sessionId.slice(-8).toLowerCase()
+  return (
+    (name ? hqThreadAddress(project, name) : null) ??
+    hqThreadAddress(project, tail) ??
+    `${hqSlug(project ?? 'chat') || 'chat'}/${tail}`
+  )
+}
+
 const ADDRESS = /^[a-z0-9][a-z0-9_.-]{0,80}\/[a-z0-9][a-z0-9_.-]{0,80}$/
 
 export function isHqThreadAddress(value: string): boolean {
