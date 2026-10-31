@@ -190,15 +190,44 @@ describe('HQ+ threads', () => {
     )
   })
 
-  it("never reaches another room's thread", async () => {
+  it("writes to another room's chat, signed with its room, but reads only its own room", async () => {
     const kite = await threads.report({ sessionId: 'claude_kite' }, { done: 'Palette moved' })
-    await expect(
-      threads.send({ sessionId: 'claude_api' }, { address: kite.address, text: 'hi' })
-    ).rejects.toThrow(/No chat works on/)
+    const api = await threads.report({ sessionId: 'claude_api' }, { done: 'API ready' })
+    const sent = await threads.send(
+      { sessionId: 'claude_api' },
+      { address: kite.address, text: 'hi', replyTo: kite.entry.id }
+    )
+    expect(sent.sessionId).toBe('claude_kite')
+    expect(sent.entry).toMatchObject({ workspace: 'hobby', address: kite.address })
+    expect(delivered[0]?.prompt).toContain(`from thread ${api.address} (room acme), in reply to`)
     await expect(threads.thread({ sessionId: 'claude_api' }, kite.address)).rejects.toThrow(
       /No thread/
     )
-    expect(delivered).toEqual([])
+  })
+
+  it('reaches a chat with no address yet by its session id, and the chat keeps that address', async () => {
+    // Why: a chat in one long first turn has not reported, so the journal knows no thread for it.
+    const sent = await threads.send(
+      { sessionId: 'claude_kite' },
+      { address: 'claude_api', text: 'Take the refunds brief.' }
+    )
+    expect(sent.sessionId).toBe('claude_api')
+    expect(sent.entry).toMatchObject({
+      workspace: 'acme',
+      project: 'acme-api',
+      address: 'acme-api/refund-limits'
+    })
+    expect(delivered.map((one) => one.sessionId)).toEqual(['claude_api'])
+    expect(db.getSession('claude_api')).toMatchObject({ address: 'acme-api/refund-limits' })
+    const first = await threads.report({ sessionId: 'claude_api' }, { done: 'Brief read' })
+    expect(first.address).toBe('acme-api/refund-limits')
+
+    await expect(
+      threads.send({ sessionId: 'claude_kite' }, { address: 'claude_nowhere', text: 'hi' })
+    ).rejects.toThrow(/No open chat claude_nowhere/)
+    await expect(
+      threads.send({ sessionId: 'claude_kite' }, { address: 'acme/none', text: 'hi' })
+    ).rejects.toThrow(/orca hq sessions --json/)
   })
 
   it('keeps the address when a handoff hands the chat on, and settles its open question', async () => {
