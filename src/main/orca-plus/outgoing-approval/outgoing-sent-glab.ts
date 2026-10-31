@@ -2,7 +2,7 @@
 // the note's URL, `…/merge_requests/12#note_345`) or a POST to `projects/<repo>/merge_requests/<iid>/
 // notes` (or `/discussions`) through `glab api`, which prints the note. The repo is the URL's, else
 // -R/--repo, else the folder's git remote (glab's own `:fullpath` placeholders mean that one too).
-import { tokenizeCommandLine } from '../../../shared/agent-command-line-entrypoint'
+import { tokenizeCommandLine } from '../../../shared/agent-status/process/agent-command-line-entrypoint'
 import { hqPlaceKey } from '../../../shared/hq-ledger'
 import {
   field,
@@ -18,7 +18,22 @@ import {
 type GlabCall = { command: string | null; response: unknown; cwd: string | null }
 
 const SEPARATORS = new Set(['&&', '||', ';', '|'])
-const NOTE_URL = /(https?:\/\/\S+?\/-\/merge_requests\/(\d+))#note_(\d+)/
+const NOTE_URL = /(https?:\/\/\S+?\/-\/merge_requests\/(\d+))#note_(\d+)/g
+// Why: `glab mr note` flags that take a value; what is left is the MR (an iid or a branch).
+const NOTE_VALUE_FLAGS = new Set([
+  '-m',
+  '--message',
+  '-R',
+  '--repo',
+  '--reply',
+  '--file',
+  '--line',
+  '--old-line',
+  '--attach'
+])
+
+/** A note URL glab printed, claimed by at most one invocation. */
+type PrintedNote = { url: string; iid: string; id: string; taken: boolean }
 const API_NOTES =
   /^\/?projects\/([^/]+)\/merge_requests\/(\d+)\/(?:notes|discussions(?:\/[^/]+\/notes)?)\/?(?:\?.*)?$/
 const FIELD_FLAGS = new Set(['-f', '--raw-field', '-F', '--field'])
@@ -93,21 +108,39 @@ async function repoOf(args: readonly string[], cwd: string | null, repoOfCwd: Re
 
 async function mrNote(
   args: string[],
-  stdout: string,
+  printed: PrintedNote[],
+  alone: boolean,
   cwd: string | null,
   repoOfCwd: RepoOfCwd
 ): Promise<OutgoingSentMessage | null> {
   const rest = args[0] === 'create' ? args.slice(1) : args
-  const posted = NOTE_URL.exec(stdout)
-  if (NOT_A_NEW_NOTE.has(rest[0] ?? '') || !posted) {
-    // Why: no URL printed means glab posted nothing (a failure, or `--unique` found the same note).
+  if (NOT_A_NEW_NOTE.has(rest[0] ?? '')) {
     return null
   }
-  const [, url, iid, id] = posted
-  const repo = hqPlaceKey(url) ? null : await repoOf(rest, cwd, repoOfCwd)
-  const key = hqPlaceKey(url) ?? (repo ? `gitlab:${repo}!${iid}` : null)
+  const target = rest.find(
+    (arg, index) => !arg.startsWith('-') && !NOTE_VALUE_FLAGS.has(rest[index - 1] ?? '')
+  )
+  const iid = target && /^\d+$/.test(target) ? target : null
+  const named = flagValue(rest, ['-R', '--repo'])
+  const namedRepo = named ? (repoOfGitRemote(named) ?? named) : null
+  // Why: each invocation takes the URL of its own MR; one that printed none posted nothing (a
+  // failure, or `--unique` found the same note), whatever the others printed.
+  const note = printed.find(
+    (candidate) =>
+      !candidate.taken &&
+      (iid ? candidate.iid === iid : alone) &&
+      (!namedRepo || candidate.url.includes(`/${namedRepo}/-/merge_requests/`))
+  )
+  if (!note) {
+    return null
+  }
+  note.taken = true
+  const repo = hqPlaceKey(note.url) ? null : await repoOf(rest, cwd, repoOfCwd)
+  const key = hqPlaceKey(note.url) ?? (repo ? `gitlab:${repo}!${note.iid}` : null)
   const text = unwrapped(flagValue(rest, ['-m', '--message'])) ?? 'MR note'
-  return key ? sentMessage(key, `note:${id}`, text, { link: `${url}#note_${id}` }) : null
+  return key
+    ? sentMessage(key, `note:${note.id}`, text, { link: `${note.url}#note_${note.id}` })
+    : null
 }
 
 async function apiNote(
@@ -151,31 +184,40 @@ async function apiNote(
   return sentMessage(`gitlab:${repo}!${path[2]}`, `note:${id}`, unwrapped(body))
 }
 
-/** The MR note a Bash call posted through glab; null when it posted none. */
-export async function glabNoteMessage(
+/** The MR notes a Bash call posted through glab, each matched to the output of its own invocation. */
+export async function glabNoteMessages(
   call: GlabCall,
   repoOfCwd: RepoOfCwd
-): Promise<OutgoingSentMessage | null> {
+): Promise<OutgoingSentMessage[]> {
   if (
     !call.command ||
     !/\bglab\b/.test(call.command) ||
     field(call.response, 'interrupted') === true
   ) {
-    return null
+    return []
   }
   const stdout = responseText(call.response)
-  for (const args of glabCalls(call.command)) {
-    const found =
+  const printed = [...stdout.matchAll(NOTE_URL)].map(([, url, iid, id]) => ({
+    url,
+    iid,
+    id,
+    taken: false
+  }))
+  const calls = glabCalls(call.command)
+  const notes = calls.filter((args) => args[0] === 'mr' && args[1] === 'note').length
+  const found: OutgoingSentMessage[] = []
+  for (const args of calls) {
+    const message =
       args[0] === 'mr' && args[1] === 'note'
-        ? await mrNote(args.slice(2), stdout, call.cwd, repoOfCwd)
+        ? await mrNote(args.slice(2), printed, notes === 1, call.cwd, repoOfCwd)
         : args[0] === 'api'
           ? await apiNote(args.slice(1), stdout, call.cwd, repoOfCwd)
           : null
-    if (found) {
-      return found
+    if (message) {
+      found.push(message)
     }
   }
-  return null
+  return found
 }
 
 /** `group/name` from a git remote: `git@host:group/name.git`, `https://host/group/name.git`. */
