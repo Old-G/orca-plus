@@ -1,0 +1,5 @@
+{
+  "source": "PostToolUse payloads in the shape Claude Code 2.1.3xx pipes to hooks: session_id, transcript_path, cwd, hook_event_name, tool_name, tool_input, tool_use_id, tool_response.",
+  "recorded_at": "2026-10-31",
+  "note": "Slack slack_send_message and ClickUp create_comment / create_task_comment results are the shapes seen in real transcripts (a text block holding {message_link, message_context} for Slack; a JSON string {success, comment_id} for ClickUp; a hook error string when the gate handed the call back). Bash results are {stdout, stderr, interrupted, isImage}; glab mr note prints `<MR url>#note_<id>` (the format string in glab 1.123). The GitLab MCP note and Gmail send/reply results are not in any transcript yet: their shapes follow the GitLab notes API (id, body, noteable_iid) and the Gmail API message (id, threadId). Scrubbed: ids, workspace, channels, people and paths are placeholders (Ann, Bob, acme)."
+}
