@@ -72,6 +72,15 @@ export const hqPlusConversationDone = defineRpcOperation({
   read: rpcResultVariant('hq-plus-conversation-done', z.unknown())
 })
 
+/** Custom build (hq-project-cards): an Unsorted conversation put in a project, as the desktop's chip does. */
+export const hqPlusConversationProject = defineRpcOperation({
+  name: 'hq-plus.conversation-project',
+  method: 'hq.conversationProject',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-plus-conversation-project', z.unknown())
+})
+
 export const hqPlusAskHq = defineRpcOperation({
   name: 'hq-plus.ask-hq',
   method: 'hqProjects.askHqOnDesktop',
