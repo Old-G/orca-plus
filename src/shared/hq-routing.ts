@@ -40,8 +40,11 @@ export type HqRouting = {
 
 export const HQ_ROUTING_DEFAULT_MIN_FREE = 20
 
-/** open a fixing chat · hand more to today's chat · ask the owner (level 0) · wait (limit, retry) */
-export type HqRouteActionKind = 'open' | 'continue' | 'suggest' | 'wait'
+/**
+ * open a fixing chat · hand more to today's chat · ask the owner (level 0) · wait (limit, retry) ·
+ * rethink: back after HQ_CODEX_FIX_MAX_ROUNDS fixes, the owner rethinks the approach (hq-review-ship)
+ */
+export type HqRouteActionKind = 'open' | 'continue' | 'suggest' | 'wait' | 'rethink'
 
 export type HqRouteAction = {
   kind: HqRouteActionKind
