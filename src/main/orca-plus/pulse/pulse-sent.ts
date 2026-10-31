@@ -27,18 +27,23 @@ export type HqAgentSend = {
 }
 
 /** The approval this exact call went out under; the gate keys a held call by session and tool call. */
-export function approvalOfCall(core: PulseCore, call: HqAgentSend['call']): string | null {
+export function approvalOfCall(
+  core: PulseCore,
+  call: HqAgentSend['call']
+): { id: string; project: string | null } | null {
   if (!call.sessionId || !call.toolUseId) {
     return null
   }
   const row = core.db
     .prepare(
-      `SELECT d.id FROM decisions d JOIN drafts r ON r.id = d.draft_id
+      `SELECT d.id, d.project FROM decisions d JOIN drafts r ON r.id = d.draft_id
         WHERE r.fingerprint = ? AND d.kind = 'approval' AND d.outcome IN ('approved', 'edited')
         ORDER BY d.decided_at DESC LIMIT 1`
     )
     .get(`gate:${call.sessionId}:${call.toolUseId}`)
-  return row ? String(row.id) : null
+  return row
+    ? { id: String(row.id), project: row.project == null ? null : String(row.project) }
+    : null
 }
 
 /** Takes the approval's own row out, and the conversation that row alone made at another place. */
@@ -71,9 +76,9 @@ function dropApprovalRow(core: PulseCore, decisionId: string, key: string): void
 
 /** One message an agent sent, at its real place; idempotent per message. */
 export function recordAgentSend(core: PulseCore, send: HqAgentSend): HqLedgerResult {
-  const decisionId = approvalOfCall(core, send.call)
-  if (decisionId) {
-    dropApprovalRow(core, decisionId, send.key)
+  const approval = approvalOfCall(core, send.call)
+  if (approval) {
+    dropApprovalRow(core, approval.id, send.key)
   }
   return ingestLedgerSignal(core, {
     key: send.key,
@@ -86,9 +91,9 @@ export function recordAgentSend(core: PulseCore, send: HqAgentSend): HqLedgerRes
     link: send.link,
     reader: HQ_SENT_READER,
     forOwner: false,
-    project: send.project,
+    project: send.project ?? approval?.project ?? null,
     title: send.title,
     sessionId: send.sessionId,
-    decisionId
+    decisionId: approval?.id ?? null
   })
 }
