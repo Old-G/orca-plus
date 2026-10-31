@@ -21,7 +21,8 @@ export function registerHqContext(
         listSessionsByProject: (project) => runtime.pulseListSessionsByProject(project),
         list: (query) => runtime.pulseListJournal(query),
         record: (inputs) => runtime.pulseRecordJournal(inputs),
-        listPeople: () => runtime.pulseListPeople()
+        listPeople: () => runtime.pulseListPeople(),
+        listOpenConversations: (project) => runtime.pulseListOpenConversations(project)
       },
       now: Date.now
     })
