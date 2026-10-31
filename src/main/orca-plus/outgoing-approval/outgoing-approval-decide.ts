@@ -29,6 +29,12 @@ export type OutgoingDecideDeps = {
   gate: OutgoingApprovalGate
   context: (draftId: string) => OutgoingApprovalContext | undefined
   workspaceOf: (agentSessionId: string) => string | null
+  /** Custom build (hq-request-ledger): the HQ project of the chat that made the call. */
+  projectOf?: (chat: {
+    worktreeId: string | null
+    sessionId: string | null
+    cwd: string | null
+  }) => string | null
   moved: MovedApprovals
   decisions: (limit: number) => PulseDecision[]
   waitings: () => PulseWaiting[]
@@ -92,13 +98,17 @@ export function decideOutgoingCall(
     id,
     recorded,
     recorded === 'edited' ? editedText : undefined,
-    (held) =>
-      outgoingSentContext(held, context, {
-        worktreeId: held.call?.agentSessionId ? deps.workspaceOf(held.call.agentSessionId) : null,
+    (held) => {
+      const sessionId = held.call?.agentSessionId ?? null
+      const worktreeId = sessionId ? deps.workspaceOf(sessionId) : null
+      return outgoingSentContext(held, context, {
+        worktreeId,
         footer,
         threadTs,
-        movedTo: move?.to ?? null
-      }),
+        movedTo: move?.to ?? null,
+        hqProject: deps.projectOf?.({ worktreeId, sessionId, cwd: held.call?.cwd ?? null }) ?? null
+      })
+    },
     {
       footer,
       threadTs,
