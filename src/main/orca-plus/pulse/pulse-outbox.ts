@@ -1,6 +1,7 @@
 // Custom build (hq-request-ledger): what went out through Approve and where. An approved message is
 // the owner's message in its conversation; the waiting its chat records next takes the exact text,
-// the draft, the decision and the place from it, so nobody retypes «what we asked».
+// the draft, the decision and the place from it, so nobody retypes «what we asked» — also from a
+// message no card held, which the call's own result put in the ledger (pulse-sent.ts).
 import { hqPlaceKey } from '../../../shared/hq-ledger'
 import type { OutgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
 import type { PulseCore } from './pulse-core'
@@ -74,14 +75,102 @@ export function recordSentInLedger(
     reader: 'approve',
     forOwner: false,
     project: decision.project,
-    title: (context?.taskName ?? decision.body).slice(0, 120)
+    title: (context?.taskName ?? decision.body).slice(0, 120),
+    // Custom build (hq-request-ledger): the sending chat holds it; the call's result replaces this row.
+    sessionId: context?.agentSessionId ?? null,
+    decisionId: decision.id
   })
+}
+
+type HqOutboxSend = {
+  at: number
+  decisionId: string | null
+  draftId: string | null
+  text: string | null
+  place: string | null
+  /** What the waiting may keep as its `source_ref`: a place it can be opened by. */
+  ref: string | null
+}
+
+function str(value: unknown): string | null {
+  return value == null ? null : String(value)
+}
+
+/** Custom build (hq-request-ledger): the chat's latest message in the ledger that no waiting took —
+ *  one the call's result recorded (ungated sends too), or an approved one. */
+function latestLedgerSend(core: PulseCore, sessionId: string, since: number): HqOutboxSend | null {
+  const row = core.db
+    .prepare(
+      `SELECT m.text, m.at, m.link, m.decision_id, c.key, d.draft_id
+         FROM conversation_messages m JOIN conversations c ON c.id = m.conversation_id
+         LEFT JOIN decisions d ON d.id = m.decision_id
+        WHERE m.session_id = ? AND m.direction = 'out' AND m.at >= ?
+          AND NOT EXISTS (SELECT 1 FROM waitings w
+                           WHERE w.conversation_id = m.conversation_id AND w.sent_at = m.at)
+          AND (m.decision_id IS NULL
+               OR NOT EXISTS (SELECT 1 FROM waitings w WHERE w.decision_id = m.decision_id))
+        ORDER BY m.at DESC LIMIT 1`
+    )
+    .get(sessionId, since)
+  if (!row) {
+    return null
+  }
+  const place = String(row.key)
+  const link = str(row.link)
+  return {
+    at: Number(row.at),
+    decisionId: str(row.decision_id),
+    draftId: str(row.draft_id),
+    text: str(row.text),
+    place,
+    ref: place.startsWith('slack:') ? place : link && hqPlaceKey(link) === place ? link : null
+  }
+}
+
+/** The chat's latest approval that is not in the ledger as a message of its own. */
+function latestApproval(core: PulseCore, sessionId: string, since: number): HqOutboxSend | null {
+  const rows = core.db
+    .prepare(
+      `SELECT d.id, d.draft_id, d.body, d.decided_at, d.context FROM decisions d
+        WHERE d.kind = 'approval' AND d.outcome IN ('approved', 'edited') AND d.decided_at >= ?
+          AND NOT EXISTS (SELECT 1 FROM waitings w WHERE w.decision_id = d.id)
+          AND NOT EXISTS (SELECT 1 FROM conversation_messages m WHERE m.decision_id = d.id)
+        ORDER BY d.decided_at DESC`
+    )
+    .all(since)
+  for (const row of rows) {
+    let context: OutgoingSentContext | null = null
+    try {
+      context = row.context ? (JSON.parse(String(row.context)) as OutgoingSentContext) : null
+    } catch {
+      context = null
+    }
+    if (context?.agentSessionId !== sessionId) {
+      continue
+    }
+    const place = hqSentPlaceKey(context)
+    return {
+      at: Number(row.decided_at),
+      decisionId: String(row.id),
+      draftId: str(row.draft_id),
+      text: str(row.body),
+      place,
+      ref: place && place.startsWith('slack:') ? place : null
+    }
+  }
+  return null
 }
 
 /** Call inside the transaction that inserted the waiting: pairs it with its chat's latest send. */
 export function pairWaitingWithSend(
   core: PulseCore,
-  waiting: { id: string; title: string; agentSessionId: string | null; sourceRef: string | null },
+  waiting: {
+    id: string
+    title: string
+    direction?: 'on-me' | 'on-them'
+    agentSessionId: string | null
+    sourceRef: string | null
+  },
   now: number
 ): void {
   core.db
@@ -90,38 +179,34 @@ export function pairWaitingWithSend(
   if (!waiting.agentSessionId) {
     return
   }
-  const rows = core.db
-    .prepare(
-      `SELECT d.id, d.draft_id, d.body, d.decided_at, d.context FROM decisions d
-        WHERE d.kind = 'approval' AND d.outcome IN ('approved', 'edited') AND d.decided_at >= ?
-          AND NOT EXISTS (SELECT 1 FROM waitings w WHERE w.decision_id = d.id)
-        ORDER BY d.decided_at DESC`
-    )
-    .all(now - HQ_OUTBOX_PAIR_MS)
-  for (const row of rows) {
-    let context: OutgoingSentContext | null = null
-    try {
-      context = row.context ? (JSON.parse(String(row.context)) as OutgoingSentContext) : null
-    } catch {
-      context = null
-    }
-    if (context?.agentSessionId !== waiting.agentSessionId) {
-      continue
-    }
-    const place = hqSentPlaceKey(context)
-    core.db
-      .prepare(
-        `UPDATE waitings SET decision_id = ?, draft_id = ?, sent_text = ?, sent_at = ?,
-           source_ref = COALESCE(source_ref, ?) WHERE id = ?`
-      )
-      .run(
-        String(row.id),
-        row.draft_id == null ? null : String(row.draft_id),
-        row.body == null ? null : String(row.body),
-        Number(row.decided_at),
-        place && place.startsWith('slack:') ? place : null,
-        waiting.id
-      )
+  const since = now - HQ_OUTBOX_PAIR_MS
+  const recorded = latestLedgerSend(core, waiting.agentSessionId, since)
+  const approved = latestApproval(core, waiting.agentSessionId, since)
+  const send = recorded && (!approved || recorded.at >= approved.at) ? recorded : approved
+  if (!send) {
     return
+  }
+  const conversation = send.place
+    ? core.db.prepare('SELECT id FROM conversations WHERE key = ?').get(send.place)
+    : undefined
+  const conversationId = conversation ? String(conversation.id) : null
+  core.db
+    .prepare(
+      `UPDATE waitings SET decision_id = ?, draft_id = ?, sent_text = ?, sent_at = ?,
+         source_ref = COALESCE(source_ref, ?), conversation_id = COALESCE(conversation_id, ?)
+       WHERE id = ?`
+    )
+    .run(send.decisionId, send.draftId, send.text, send.at, send.ref, conversationId, waiting.id)
+  // Custom build (hq-request-ledger): asked there and waiting — the conversation is on them now.
+  if (conversationId && waiting.direction !== 'on-me') {
+    const moved = core.db
+      .prepare(
+        `UPDATE conversations SET state = 'wait', state_why = NULL
+          WHERE id = ? AND state IN ('fyi', 'done')`
+      )
+      .run(conversationId).changes
+    if (moved > 0) {
+      core.emit('conversation.updated', 'conversation', conversationId, { state: 'wait' })
+    }
   }
 }
