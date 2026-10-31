@@ -18,13 +18,16 @@ const DAY_MS = 24 * 60 * 60_000
 /** The daily line goes out after this hour, local time. */
 const REPORT_HOUR = 18
 
+/** Custom build (hq-ledger-sources): places only the GitLab and mail readers write. */
+const LEDGER_ONLY_PLACE = /^(?:gitlab|gmail):/
+
 export type HqLedgerShadowDeps = HqLedgerLookups & {
   enabled: () => boolean
   cards: (since: number) => HqLedgerInboxCard[]
   ingest: (signal: HqLedgerSignal) => void
   /** A message the owner handled from its card is no longer his move. */
   settle: (ts: string) => void
-  conversations: (since: number) => { state: string }[]
+  conversations: (since: number) => { state: string; key?: string }[]
   report: (did: string) => void
   /** Custom build (hq-request-ledger): the Slack API reader against the scout, added to the line. */
   parity?: () => string | null
@@ -80,11 +83,19 @@ export function runHqLedgerShadow(
     const cards = deps
       .cards(now - DAY_MS)
       .filter((card) => (HQ_LEDGER_SHADOW_KINDS as readonly string[]).includes(card.kind)).length
-    const conversations = deps.conversations(now - DAY_MS)
+    // Custom build (hq-ledger-sources): the MRs and letters the GitLab and mail readers bring have no
+    // cards; counted with the cards' conversations they would read as cards doubled.
+    const all = deps.conversations(now - DAY_MS)
+    const sourced = all.filter((c) => LEDGER_ONLY_PLACE.test(c.key ?? ''))
+    const conversations = all.filter((c) => !LEDGER_ONLY_PLACE.test(c.key ?? ''))
     const you = conversations.filter((c) => c.state === 'you').length
     const parity = deps.parity?.() ?? null
+    const others =
+      sourced.length > 0
+        ? `; GitLab and mail: ${sourced.length} conversations (${sourced.filter((c) => c.state === 'you').length} your move)`
+        : ''
     deps.report(
-      `24 h in shadow: ${cards} cards → ${conversations.length} conversations (${you} your move)${parity ? `. ${parity}` : ''}`
+      `24 h in shadow: ${cards} cards → ${conversations.length} conversations (${you} your move)${others}${parity ? `. ${parity}` : ''}`
     )
     return { cursor, reportedDay: day, handledCursor }
   }
