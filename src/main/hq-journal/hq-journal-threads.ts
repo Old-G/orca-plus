@@ -3,12 +3,11 @@
 // thread`), and hands a message to another chat's thread (`orca chat send`), with the quote of
 // what it answers. A handoff keeps the address, so the next chat continues the same thread.
 import {
-  HQ_JOURNAL_ALL_ROOMS,
   HQ_JOURNAL_KIND,
   HQ_JOURNAL_MAX_LIMIT,
   HQ_JOURNAL_REPORT_SOURCE,
+  hqChatAddress,
   hqJournalTitle,
-  hqThreadAddress,
   isHqThreadAddress,
   type HqChatSendResult,
   type HqJournalEntry,
@@ -23,11 +22,7 @@ import type { PulsePerson, PulsePersonInput } from '../../shared/pulse-types'
 import { hqJournalLink, journalEntryAsInput } from './hq-journal-adapters'
 import type { HqJournalPulse } from './hq-journal-collect'
 import type { HqCaller, HqCallerScope } from './hq-journal-rooms'
-
-const SEND_SOURCE = 'chat-send'
-// Why: a reopened chat takes a moment to attach its session before it can take a turn.
-const REOPEN_TRIES = 15
-const REOPEN_STEP_MS = 1_000
+import { createHqSend, HQ_JOURNAL_OFF as JOURNAL_OFF, hqRoomOf as roomOf } from './hq-journal-send'
 
 export type HqThreadsDeps = {
   enabled: () => boolean
@@ -52,6 +47,7 @@ export type HqThreadsDeps = {
 export type HqThreads = {
   report: (caller: HqCaller, input: HqReportInput) => Promise<HqReportResult>
   thread: (caller: HqCaller, address?: string) => Promise<HqThreadResult>
+  /** `address` is a thread's `<project>/<task>` or a chat's session id. */
   send: (
     caller: HqCaller,
     message: { address: string; text: string; replyTo?: string }
@@ -71,18 +67,6 @@ export type HqSettleInput = {
 
 const SETTLE_SOURCE = 'chat-settle'
 const COMMIT = /^[0-9a-f]{7,40}$/
-
-const JOURNAL_OFF = 'The HQ+ journal is off (Settings → Workspace → HQ+ journal).'
-
-function stamp(at: number): string {
-  const date = new Date(at)
-  const pad = (value: number): string => String(value).padStart(2, '0')
-  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
-function roomOf(scope: HqCallerScope): string {
-  return scope.kind === 'room' ? scope.room : HQ_JOURNAL_ALL_ROOMS
-}
 
 /** A room's chat sees its room only; HQ+ sees every room. */
 const HQ_JOB_THREAD_PREFIX = 'job/'
@@ -115,11 +99,7 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
     const session = deps.pulse.getSession(sessionId)
     const known = session?.address
     const project = scope.kind === 'room' ? (scope.project ?? session?.project ?? null) : 'hq'
-    return (
-      known ??
-      hqThreadAddress(project, deps.sessionName(sessionId) ?? sessionId.slice(-8)) ??
-      `${project ?? 'chat'}/${sessionId.slice(-8).toLowerCase()}`
-    )
+    return known ?? hqChatAddress(project, deps.sessionName(sessionId), sessionId)
   }
 
   return {
@@ -222,81 +202,7 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
       return { address, entries, sessions }
     },
 
-    async send(caller, message) {
-      if (!deps.enabled()) {
-        throw new Error(JOURNAL_OFF)
-      }
-      const scope = await deps.scope(caller)
-      const target = deps.pulse
-        .listSessionsByAddress(message.address)
-        .find((session) => visible(scope, session.workspace))
-      if (!target) {
-        throw new Error(
-          `No chat works on ${message.address} in this chat's room; \`orca hq events\` lists the threads.`
-        )
-      }
-      const quoted = message.replyTo ? deps.pulse.getEntry(message.replyTo) : null
-      if (message.replyTo && (!quoted || !visible(scope, quoted.workspace))) {
-        throw new Error(`No journal entry ${message.replyTo} in this chat's room.`)
-      }
-      const from =
-        (scope.sessionId ? deps.pulse.getSession(scope.sessionId)?.address : null) ??
-        // Why: «HQ+» is the owner typing in HQ+; an HQ chat's agent sending is not the owner.
-        (scope.kind === 'overview' ? (scope.sessionId ? 'HQ chat' : 'HQ+') : 'another chat')
-      const head = quoted
-        ? `Orca+ · a message from thread ${from}, in reply to «${quoted.title}» (${stamp(quoted.at)}):`
-        : `Orca+ · a message from thread ${from}:`
-      const prompt = [head, '"""', message.text, '"""'].join('\n')
-      let reopened = false
-      let taken = await deps.deliver(target.sessionId, prompt)
-      const worktreeId = target.worktreeId ?? deps.sessionWorkspace(target.sessionId)
-      if (!taken && worktreeId && deps.reopen(target.sessionId, worktreeId)) {
-        reopened = true
-        for (let tries = 0; tries < REOPEN_TRIES && !taken; tries += 1) {
-          await deps.wait(REOPEN_STEP_MS)
-          taken = await deps.deliver(target.sessionId, prompt)
-        }
-      }
-      if (!taken) {
-        throw new Error(
-          `The chat on ${message.address} is closed and Orca+ could not bring it back; open it from History and send again.`
-        )
-      }
-      // Why: the owner's answer is the owner's move; left open, the question still counts as waiting.
-      const ownerAnswers =
-        quoted !== null &&
-        scope.kind === 'overview' &&
-        !scope.sessionId &&
-        quoted.status === 'open' &&
-        quoted.needs.startsWith('owner:') &&
-        quoted.dedupeKey !== null
-      deps.pulse.record([
-        {
-          workspace: target.workspace,
-          kind: HQ_JOURNAL_KIND.chatMessage,
-          at: deps.now(),
-          project: target.project,
-          address: message.address,
-          sessionId: target.sessionId,
-          personId: null,
-          title: hqJournalTitle(`From ${from}: ${message.text}`),
-          body: quoted ? `> ${quoted.title}\n\n${message.text}` : message.text,
-          needs: `agent:${message.address}`,
-          status: 'done',
-          replyTo: quoted?.id ?? null,
-          refKind: 'session',
-          refId: target.sessionId,
-          source: SEND_SOURCE,
-          dedupeKey: null
-        },
-        ...(ownerAnswers ? [journalEntryAsInput(quoted, { status: 'done' })] : [])
-      ])
-      const entry = latest({ address: message.address, source: SEND_SOURCE })
-      if (!entry) {
-        throw new Error('The message was delivered but not recorded.')
-      }
-      return { entry, sessionId: target.sessionId, reopened }
-    },
+    send: createHqSend(deps, addressFor),
 
     async settle(caller, input) {
       if (!deps.enabled()) {
