@@ -8,11 +8,11 @@ import {
   hqJournalTitle,
   isHqThreadAddress
 } from '../../shared/hq-journal'
-import {
-  type HqDispatchDecision,
-  type HqDispatchResult,
-  type HqMayCloseResult,
-  type HqSessionsResult
+import type {
+  HqDispatchDecision,
+  HqDispatchResult,
+  HqMayCloseResult,
+  HqSessionsResult
 } from '../../shared/hq-sessions'
 import type { HqCaller } from '../hq-journal/hq-journal-rooms'
 import { carryOutHqDispatch } from './hq-session-act'
@@ -53,13 +53,8 @@ export function createHqSessions(deps: HqSessionsDeps): HqSessionsService {
       if (!request.prompt.trim()) {
         throw new Error('Say what the work is: --prompt <text>.')
       }
+      // Custom build (chat-send-anywhere): a chat of any room hands work to any room's thread.
       const project = address.split('/')[0] ?? ''
-      const scope = await deps.scope(caller)
-      if (scope.kind === 'room' && (await deps.roomOf(project)) !== scope.room) {
-        throw new Error(
-          `${project} is not in this chat's room; only HQ+ dispatches to other rooms.`
-        )
-      }
       const mode = deps.mode()
       const dryRun = request.dryRun === true
       const decision = decideHqDispatch({

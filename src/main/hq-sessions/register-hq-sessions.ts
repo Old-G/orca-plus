@@ -3,7 +3,7 @@
 // asks before it closes a chat.
 // Custom build (hq-handoff-auto): a new handoff also sweeps once its grace is over.
 import { BrowserWindow, ipcMain } from 'electron'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import type { HqJournalService } from '../hq-journal/hq-journal-service'
 import { getHqThreads } from '../hq-journal/hq-journal-threads'
@@ -27,6 +27,7 @@ import { createHqSessions, provideHqSessions } from './hq-sessions'
 import {
   hqChatSessionOf,
   hqLiveSessions,
+  hqAddressOpenChats,
   type HqAgentSighting,
   type HqChatTab
 } from './hq-session-live'
@@ -117,7 +118,6 @@ export function registerHqSessions(
     mode: () => store.getSettings().hqSessionDispatcher ?? HQ_SESSION_DISPATCH_DEFAULT_MODE,
     enabled: () => store.getSettings().hqPlusJournalEnabled !== false,
     autoHandoff,
-    scope: (caller) => journal.scope(caller),
     roomOf: async (project) => hqPlaceOf(await journal.sources(), { project }).room,
     dispatcherCaller: () => ({ cwd: hqPath() }),
     pulse: {
@@ -153,7 +153,7 @@ export function registerHqSessions(
           contextPct.set(session.sessionId, pct)
         }
       }
-      return hqLiveSessions({
+      const seen = hqLiveSessions({
         sessions,
         agents: await agents(),
         tabs: chatTabs(store),
@@ -169,6 +169,15 @@ export function registerHqSessions(
         ),
         now
       })
+      const { live, notes } = hqAddressOpenChats(
+        seen,
+        (sessionId) => runtime.pulseGetSession(sessionId),
+        now
+      )
+      if (notes.length > 0) {
+        runtime.pulseNoteSessions(notes)
+      }
+      return live
     },
     send: async (caller, message) => {
       const threads = getHqThreads()
