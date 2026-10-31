@@ -21,7 +21,7 @@ import {
   type HqSessionDispatchMode
 } from '../../shared/hq-sessions'
 import type { HqBackgroundChatLaunch } from '../hq-today/hq-background-chat'
-import type { HqCaller, HqCallerScope } from '../hq-journal/hq-journal-rooms'
+import type { HqCaller } from '../hq-journal/hq-journal-rooms'
 
 export type HqHandoffOfferRef = {
   id: string
@@ -38,7 +38,6 @@ export type HqSessionsDeps = {
   enabled: () => boolean
   /** Custom build (hq-handoff-auto): handoffs start their successor whatever the mode and the journal switch. */
   autoHandoff: () => boolean
-  scope: (caller: HqCaller) => Promise<HqCallerScope>
   /** The room a project belongs to. */
   roomOf: (project: string) => Promise<string>
   /** How the dispatcher itself calls the thread tools: as HQ+, which may reach every room. */
