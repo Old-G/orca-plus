@@ -1,5 +1,5 @@
 // Custom build (hq-mail-intake): a Gmail API message (`format=full`) as the plain mail HQ parses.
-import type { HqMail } from '../../shared/hq-mail-events'
+import type { HqLetter, HqMail } from '../../shared/hq-mail-events'
 
 type Part = { mimeType: string; data: string | null; parts: Part[]; headers: Map<string, string> }
 
@@ -98,5 +98,37 @@ export function gmailMessageToMail(message: unknown): HqMail | null {
     // Why: ClickUp's plain part drops the links; its HTML is read whenever there is one.
     body: plain && html?.data ? `${body}\n${gmailHtmlToText(decode(html.data))}` : body,
     receivedAt: Number(internalDate) || 0
+  }
+}
+
+/**
+ * Custom build (hq-ledger-sources): a Gmail API message (`format=full`) as a letter from a person — its
+ * thread, To and Cc, and the bulk headers. The body is the plain part alone when there is one: a
+ * person's letter carries the same words twice, and its HTML adds nothing.
+ */
+export function gmailMessageToLetter(message: unknown): HqLetter | null {
+  const record = message && typeof message === 'object' ? message : null
+  const id: unknown = record ? Reflect.get(record, 'id') : null
+  const threadId: unknown = record ? Reflect.get(record, 'threadId') : null
+  const internalDate: unknown = record ? Reflect.get(record, 'internalDate') : null
+  if (!record || typeof id !== 'string' || typeof threadId !== 'string' || !threadId) {
+    return null
+  }
+  const payload = readPart(Reflect.get(record, 'payload'))
+  const plain = findPart(payload, 'text/plain')
+  const html = plain ? null : findPart(payload, 'text/html')
+  const header = (name: string): string | null => payload.headers.get(name) ?? null
+  return {
+    id,
+    threadId,
+    from: header('from') ?? '',
+    to: header('to') ?? '',
+    cc: header('cc') ?? '',
+    subject: header('subject') ?? '',
+    body: plain?.data ? decode(plain.data) : html?.data ? gmailHtmlToText(decode(html.data)) : '',
+    receivedAt: Number(internalDate) || 0,
+    listUnsubscribe: payload.headers.has('list-unsubscribe'),
+    precedence: header('precedence'),
+    autoSubmitted: header('auto-submitted')
   }
 }
