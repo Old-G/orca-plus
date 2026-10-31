@@ -164,7 +164,8 @@ review_before_build() {
   step "Codex review of the unreviewed commits (up to 15 minutes)"
   out=$(env $(env | sed -nE 's/^((ORCA|CLAUDE)[A-Z0-9_]*)=.*/-u \1/p') python3 -I "$reviewer" "${args[@]}" 2>&1) || rc=$?
   printf '%s\n' "$out" | sed 's/^/  /'
-  review_said=$(printf '%s\n' "$out" | grep -E '^review' | tail -1 | cut -c1-160)
+  # Why `|| true`: a stop or a crash prints no «review» line, and under pipefail grep's 1 would end the ship.
+  review_said=$(printf '%s\n' "$out" | grep -E '^review' | tail -1 | cut -c1-160 || true)
   [ "$rc" = 3 ] || { [ "$rc" = 0 ] || review_said="review skipped: the reviewer failed (exit $rc)"; return 0; }
   local report stopped
   report=$(printf '%s\n' "$out" | sed -n 's/^report: //p' | tail -1)
