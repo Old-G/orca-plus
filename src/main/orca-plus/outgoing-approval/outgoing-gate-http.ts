@@ -40,17 +40,29 @@ function header(headers: IncomingHttpHeaders, name: string): string | null {
 /** Custom build (hq-request-ledger): a finished call the sent-message hook reported. */
 export type OutgoingSentReport = { hook: unknown; agentSessionId: string | null }
 
+/** How long the sent-message hook waits for its message to reach the ledger; its curl allows 5 s. */
+export const OUTGOING_SENT_WAIT_MS = 3_000
+
 export function createOutgoingGateRequestHandler(
   gate: () => OutgoingApprovalGate,
-  sent?: (report: OutgoingSentReport) => Promise<void>
+  sent?: (report: OutgoingSentReport) => Promise<void>,
+  sentWaitMs = OUTGOING_SENT_WAIT_MS
 ): OutgoingGateRequestHandler {
   return async (pathname, body, headers) => {
     const route = pathname.slice(OUTGOING_GATE_PATH_PREFIX.length)
     if (route === 'sent' && sent) {
-      // Why: the hook does not wait for the ledger; a failure here must not reach the agent.
-      void sent({ hook: body, agentSessionId: header(headers, 'x-orca-agent-session-id') }).catch(
-        (error: unknown) => console.warn('[outgoing-approval] sent message not recorded:', error)
+      // Why: the agent's next step is often `orca pulse wait add`, which pairs with this send — so
+      // the hook answers once it is in the ledger, but never later than SENT_WAIT_MS and never fails.
+      const recording = sent({
+        hook: body,
+        agentSessionId: header(headers, 'x-orca-agent-session-id')
+      }).catch((error: unknown) =>
+        console.warn('[outgoing-approval] sent message not recorded:', error)
       )
+      await Promise.race([
+        recording,
+        new Promise<void>((resolve) => setTimeout(resolve, sentWaitMs).unref?.())
+      ])
       return 'ok\n'
     }
     if (route !== 'submit' && route !== 'wait') {
