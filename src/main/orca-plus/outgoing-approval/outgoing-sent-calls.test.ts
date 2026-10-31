@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { outgoingSentMessage, readOutgoingSentHook } from './outgoing-sent-calls'
+import {
+  outgoingSentMessage,
+  outgoingSentMessages,
+  readOutgoingSentHook
+} from './outgoing-sent-calls'
 import { repoOfGitRemote } from './outgoing-sent-glab'
 
 type SentCase = {
@@ -65,6 +69,53 @@ describe('outgoingSentMessage', () => {
       tool_response: { stdout: 'https://gitlab.example/acme/app/-/merge_requests/3#note_77\n' }
     }
     expect(await sent(payload)).toMatchObject({ key: 'gitlab:acme/app!3', ts: 'note:77' })
+  })
+})
+
+describe('several glab notes in one command', () => {
+  const bash = (command: string, stdout: string) => ({
+    hook_event_name: 'PostToolUse',
+    cwd: '/Users/me/acme/app',
+    tool_name: 'Bash',
+    tool_input: { command },
+    tool_response: { stdout, stderr: '', interrupted: false, isImage: false }
+  })
+
+  it('gives each invocation the URL of its own MR and drops one that printed none', async () => {
+    const hook = readOutgoingSentHook(
+      bash(
+        'glab mr note 12 -R acme/app -m "LGTM" --unique && glab mr note 14 -R acme/app -m "Bob, see !14"',
+        'https://gitlab.com/acme/app/-/merge_requests/14#note_501\n'
+      )
+    )!
+    expect(await outgoingSentMessages(hook, repoOfCwd)).toEqual([
+      expect.objectContaining({ key: 'gitlab:acme/app!14', ts: 'note:501', text: 'Bob, see !14' })
+    ])
+  })
+
+  it('records both when both posted, each with its own text', async () => {
+    const hook = readOutgoingSentHook(
+      bash(
+        'glab mr note 12 -m "Ann, one" ; glab mr note 14 -m "Bob, two"',
+        'https://gitlab.com/acme/app/-/merge_requests/12#note_500\nhttps://gitlab.com/acme/app/-/merge_requests/14#note_501\n'
+      )
+    )!
+    expect((await outgoingSentMessages(hook, repoOfCwd)).map((m) => [m.key, m.ts, m.text])).toEqual(
+      [
+        ['gitlab:acme/app!12', 'note:500', 'Ann, one'],
+        ['gitlab:acme/app!14', 'note:501', 'Bob, two']
+      ]
+    )
+  })
+
+  it('does not take a URL of another repo or MR', async () => {
+    const hook = readOutgoingSentHook(
+      bash(
+        'glab mr note 12 -R acme/app -m "x"',
+        'https://gitlab.com/acme/other/-/merge_requests/12#note_9\n'
+      )
+    )!
+    expect(await outgoingSentMessages(hook, repoOfCwd)).toEqual([])
   })
 })
 
