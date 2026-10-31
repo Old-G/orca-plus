@@ -68,7 +68,8 @@ describe('createClaudeHandoffOffers', () => {
         created: '2026-09-27T11:50:00+03:00',
         branch: 'custom',
         head: 'abc1234',
-        pushed: 'no'
+        pushed: 'no',
+        raisedAt: NOW
       }
     ])
     expect(onOffersChanged).toHaveBeenCalledTimes(1)
