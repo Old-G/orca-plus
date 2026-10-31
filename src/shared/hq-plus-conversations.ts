@@ -19,6 +19,7 @@ import {
   type HqPlusLogItem
 } from './hq-plus-log'
 import type { HqFeedResult } from './hq-plus-screen'
+import { hqPlusLedgerOnlyCards } from './hq-plus-ledger-cards'
 import {
   hqPlusTranscript,
   readHqFeedLedger,
@@ -37,6 +38,9 @@ export type HqPlusConversation = {
   parts: HqPlusCard[]
   /** Where the conversation is: its newest message's link, else a folded card's. */
   link: string | null
+  /** Custom build (hq-ledger-sources): set on a GitLab MR or a mail thread no card stands for — the
+   *  ledger's own word on it, the owner's move or news; its card opens the place or says Done. */
+  ledgerState?: 'you' | 'fyi'
 }
 
 /** Journal rows that only tell what a conversation's cards already show. */
@@ -201,12 +205,15 @@ function doneAt(done: HqPlusDone): number {
 
 /**
  * Folds the log by conversation. A place with a ledger conversation, or with two or more rows, becomes
- * one card at its newest moment; a single row with no conversation stays as it was.
+ * one card at its newest moment; a single row with no conversation stays as it was. Custom build
+ * (hq-ledger-sources): an MR or a mail thread with no rows is a card of its own while it is the owner's
+ * move (however old) or news since `since`.
  */
 export function hqPlusFoldConversations(
   items: readonly HqPlusLogItem[],
   entries: readonly HqJournalEntry[],
-  ledger: HqFeedLedger
+  ledger: HqFeedLedger,
+  since = 0
 ): HqPlusLogItem[] {
   const byKey = new Map(
     ledger.conversations.map((conversation) => [conversation.key, conversation])
@@ -248,6 +255,7 @@ export function hqPlusFoldConversations(
       out.push(card)
     }
   }
+  out.push(...hqPlusLedgerOnlyCards(ledger, groups, since))
   return out.sort((a, b) => a.at - b.at)
 }
 
@@ -315,5 +323,5 @@ export function hqPlusFeedLog(
 ): HqPlusLogItem[] {
   const items = hqPlusLog(feed.entries, feed.inbox ?? [], since, options)
   const ledger = readHqFeedLedger(feed.ledger)
-  return ledger ? hqPlusFoldConversations(items, feed.entries, ledger) : items
+  return ledger ? hqPlusFoldConversations(items, feed.entries, ledger, since) : items
 }
