@@ -4,6 +4,10 @@
 #   scripts/orca-plus-ship.sh --dry-run   print the steps, touch nothing
 #   scripts/orca-plus-ship.sh             back up → build → stage → quit Orca+ → swap app → launch → verify
 #   scripts/orca-plus-ship.sh --no-build  ship the existing dist/mac-*/Orca Plus.app
+#   scripts/orca-plus-ship.sh --accept-findings  ship although Codex found P0/P1 (the owner said so)
+#
+# Before anything else Codex reviews the commits nobody reviewed yet (hq-commit-review's review.py,
+# rules in REVIEW.md); a new P0/P1 on changed lines stops the ship, a review that cannot run does not.
 #
 # Runs itself under nohup once it quits Orca+, so it survives being started from an Orca+
 # terminal. Log: $TMPDIR/orca-plus-ship.log (previous run: .log.1). Backup: ~/orca-plus-backup-<date>-<time>
@@ -13,11 +17,13 @@ set -euo pipefail
 dry=0
 build=1
 detached=0
+accept_findings=0
 for arg in "$@"; do
   case "$arg" in
     --dry-run) dry=1 ;;
     --no-build) build=0 ;;
     --detached) detached=1 ;;
+    --accept-findings) accept_findings=1 ;;
     *) echo "orca-plus-ship: unknown option $arg" >&2; exit 2 ;;
   esac
 done
@@ -28,6 +34,9 @@ bundle_id=com.oldg.orca-plus
 profile="$HOME/Library/Application Support/orca-plus"
 backup="$HOME/orca-plus-backup-$(date +%Y%m%d-%H%M%S)"
 log="${TMPDIR:-/tmp}/orca-plus-ship.log"
+# Why optional: the reviewer lives outside this repo; without it a ship goes as it always did.
+reviewer="${ORCA_PLUS_SHIP_REVIEWER:-$HOME/.claude/skills/hq-commit-review/review.py}"
+review_said=""
 # Why: after the restart Orca+ tells the chat that ran this ship to check it (ship-restart-notice).
 restart_marker="$profile/orca-plus-ship-restart.json"
 # Why: these must survive a reinstall byte for byte; orca-devices.json changes legitimately (lastSeenAt).
@@ -136,6 +145,36 @@ prune_backups() {
 }
 # Why: a ship that stops before the swap changed nothing, so its backup only takes space.
 drop_unused_backup() { [ -e "$backup/Orca Plus.app.old" ] || rm -rf "${backup:?}"; }
+# Why: a P0/P1 the evening review found came after the build was already in use (31.10, twice). Exit 3
+# from the reviewer stops the ship; any other failure (no Codex, limit, timeout) lets it go.
+review_before_build() {
+  local out rc=0 args=(ship --repo "$repo")
+  [ "$accept_findings" = 1 ] && args+=(--accept-findings)
+  # Why: --no-build installs an app built earlier, from a commit HEAD may have left behind.
+  if [ "$build" = 0 ]; then
+    review_said="review skipped: --no-build ships an app built earlier; the evening review takes the commits"
+    step "$review_said"
+    return 0
+  fi
+  if [ ! -f "$reviewer" ]; then
+    review_said="review skipped: no reviewer at $reviewer"
+    step "$review_said"
+    return 0
+  fi
+  step "Codex review of the unreviewed commits (up to 15 minutes)"
+  out=$(env $(env | sed -nE 's/^((ORCA|CLAUDE)[A-Z0-9_]*)=.*/-u \1/p') python3 -I "$reviewer" "${args[@]}" 2>&1) || rc=$?
+  printf '%s\n' "$out" | sed 's/^/  /'
+  review_said=$(printf '%s\n' "$out" | grep -E '^review' | tail -1 | cut -c1-160)
+  [ "$rc" = 3 ] || { [ "$rc" = 0 ] || review_said="review skipped: the reviewer failed (exit $rc)"; return 0; }
+  local report stopped
+  report=$(printf '%s\n' "$out" | sed -n 's/^report: //p' | tail -1)
+  stopped=$(printf '%s\n' "$out" | grep -c '^ship stopped: \[P' || true)
+  step "STOPPED — Codex found P0/P1 in the commits to ship; nothing changed. Fix and ship again, or --accept-findings on the owner's word"
+  orca_plus_cli hq job --job ship \
+    --found "ship stopped before the build ($(git -C "$repo" rev-parse --short HEAD)): Codex found ${stopped:-?} P0/P1 on changed lines — fix and ship again, or ship with --accept-findings on the owner's word" \
+    ${report:+--link "$report"} >/dev/null || true
+  return 1
+}
 
 # Why: quitting Orca+ kills the terminal that started us; re-exec detached before that point.
 # The flag is an argument, not an env var: `open` hands our env to the relaunched Orca+, so an
@@ -149,6 +188,12 @@ if [ "$dry" = 0 ] && [ "$detached" = 0 ]; then
     "$0" "$@" --detached </dev/null >"$log" 2>&1 &
   echo "orca-plus-ship: running detached (pid $!), log $log"
   exit 0
+fi
+
+if [ "$dry" = 1 ]; then
+  echo "  would run: Codex review of the unreviewed commits ($reviewer ship)"
+else
+  review_before_build || exit 1
 fi
 
 # Why: a ship cut off mid-copy (before staging, 24.10) left an app without Info.plist that cannot
@@ -268,7 +313,7 @@ if [ "$dry" = 0 ]; then
   # Why: HQ+ shows the ship in thread job/ship, so nobody has to ask whether it landed (24.10).
   if [ "$ok" = 1 ]; then
     step "OK — Orca+ $version installed, profile intact. Backup: $backup"
-    orca_plus_cli hq job --job ship --did "Orca+ $version installed ($commit), profile intact" >/dev/null || true
+    orca_plus_cli hq job --job ship --did "Orca+ $version installed ($commit), profile intact${review_said:+; $review_said}" >/dev/null || true
     step "prune backups, keeping only this one"
     prune_backups 1
   else

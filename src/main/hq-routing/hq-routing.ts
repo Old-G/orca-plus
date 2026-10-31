@@ -20,8 +20,10 @@ import { journalEntryAsInput } from '../hq-journal/hq-journal-adapters'
 import type { HqJournalPulse } from '../hq-journal/hq-journal-collect'
 import type { HqBackgroundChatLaunch } from '../hq-today/hq-background-chat'
 import {
+  HQ_CODEX_FIX_MAX_ROUNDS,
   hqCodexFixFollowUp,
   hqCodexFixPrompt,
+  hqFixRounds,
   hqLocalDay,
   hqReviewedCommits,
   hqStartOfDay,
@@ -149,6 +151,19 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
       return action
     }
     if (action.kind === 'wait') {
+      return action
+    }
+    if (action.kind === 'rethink') {
+      deps.pulse.record(
+        findings.map((finding) =>
+          actionRow(
+            { ...action, findings: [finding.id] },
+            `Codex: rethink the approach — back after ${HQ_CODEX_FIX_MAX_ROUNDS} fixes in ${action.project}: ${finding.title}`,
+            'owner:decide',
+            `routing:codex-rethink:${finding.id}`
+          )
+        )
+      )
       return action
     }
     const commits = await commitsOf(hqPath, findings)
@@ -344,7 +359,10 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
       today: todaysChats(now),
       freePercent: deps.freePercent(),
       manual: options.manual === true,
-      since: options.since
+      since: options.since,
+      rounds: hqFixRounds(
+        deps.pulse.list({ kind: HQ_JOURNAL_KIND.reviewFinding, limit: HQ_JOURNAL_MAX_LIMIT })
+      )
     })
     if (dryRun) {
       return { dryRun, actions, problems: routing.problems }
