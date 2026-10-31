@@ -1,7 +1,7 @@
 // Custom build (hq-request-ledger): the PostToolUse hook that tells Orca+ what a finished call sent, so
 // every message an agent writes to a person reaches the request ledger — held or not, in a terminal or
 // a native chat. POSIX sh; a quick local prefilter lets other calls through in a few ms, and it never
-// holds or fails the agent: one short POST, whatever the answer.
+// fails the agent: one POST, answered once the message is in the ledger (at most a few seconds).
 
 export const OUTGOING_SENT_SCRIPT_FILE = 'outgoing-sent.sh'
 
