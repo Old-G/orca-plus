@@ -83,6 +83,19 @@ describe('Slack ledger reader', () => {
     expect(second.delays).toEqual([100])
   })
 
+  it('counts a pass after a long gap as a catch-up, not as delays', async () => {
+    const { deps } = setup([message({})])
+    // Why: the last good pass was 10 minutes before this one (no network, the Mac asleep).
+    const state = await runHqSlackLedgerReader(deps, {
+      cursor: 1,
+      delays: [],
+      passAt: 1_700_000_200_000 - 600_000
+    })
+    expect(state.delays).toEqual([])
+    expect(state.gaps).toEqual([600])
+    expect(state.passAt).toBe(1_700_000_200_000)
+  })
+
   it('leaves a lone top-level channel line alone but keeps DMs and posts that mention the owner', async () => {
     const { db, deps } = setup([
       message({ ts: '1700000001.000000', threadTs: null, user: OWNER, text: 'news for all' }),
@@ -147,15 +160,29 @@ describe('hqLedgerSignalOfSlack', () => {
 })
 
 describe('parity with the scout', () => {
-  it('names what the scout saw and the ledger did not, and the delay', () => {
+  it('compares the topics the scout raised, not the messages it skipped, and the delay', () => {
     const line = hqSlackParityLine(
-      ['C1:1.1', 'C1:2.2', 'D1:3.3'],
-      (channel, ts) => channel === 'C1' && ts === '1.1',
+      [
+        { id: 'C1:1.1', messages: ['C1:1.1', 'C1:1.5'] },
+        // Why: one message of a topic in the ledger is enough — the scout groups threads across channels.
+        { id: 'C2:2.2', messages: ['C2:2.2', 'C1:1.5'] },
+        { id: 'D1:3.3', messages: ['D1:3.3'] }
+      ],
+      (channel, ts) => channel === 'C1' && ts === '1.5',
       [10, 40, 70]
     )
     expect(line).toBe(
-      'Slack API vs scout: 1 of 3 in conversations, missing C1:2.2, D1:3.3; delay median 40 s, max 70 s over 3'
+      'Slack API vs scout: 2 of 3 topics in conversations, missing D1:3.3; delay median 40 s, max 70 s over 3'
     )
+  })
+
+  it('names a catch-up after a gap apart from the delay', () => {
+    expect(hqSlackParityLine([], () => true, [], [600, 19_300])).toBe(
+      'Slack API vs scout: 0 of 0 topics in conversations; no new messages read; 2 catch-ups after up to 322 min without Slack'
+    )
+  })
+
+  it('reads a scout id written without the dot', () => {
     expect(normalizeScoutId('C05Q0V2JBKK:1793359387819889')).toBe('C05Q0V2JBKK:1793359387.819889')
     expect(normalizeScoutId('C05Q0V2JBKK:1793359387.819889')).toBe('C05Q0V2JBKK:1793359387.819889')
   })
