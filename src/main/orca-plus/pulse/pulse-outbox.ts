@@ -96,12 +96,30 @@ function str(value: unknown): string | null {
   return value == null ? null : String(value)
 }
 
+/** The ref a waiting keeps for a place: a Slack thread, a ClickUp comment (the form the ClickUp
+ *  reply poller reads), or a link that names the same place. */
+function placeRef(place: string, ts: string, link: string | null): string | null {
+  if (place.startsWith('slack:')) {
+    return place
+  }
+  const comment = /^comment:([0-9A-Za-z]+)$/.exec(ts)
+  if (place.startsWith('clickup:') && comment) {
+    return `${place}:${comment[1]}`
+  }
+  return link && hqPlaceKey(link) === place ? link : null
+}
+
 /** Custom build (hq-request-ledger): the chat's latest message in the ledger that no waiting took —
- *  one the call's result recorded (ungated sends too), or an approved one. */
-function latestLedgerSend(core: PulseCore, sessionId: string, since: number): HqOutboxSend | null {
-  const row = core.db
+ *  one the call's result recorded (ungated sends too), or an approved one — at a place `fits`. */
+function latestLedgerSend(
+  core: PulseCore,
+  sessionId: string,
+  since: number,
+  fits: (place: string | null) => boolean
+): HqOutboxSend | null {
+  const rows = core.db
     .prepare(
-      `SELECT m.text, m.at, m.link, m.decision_id, c.key, d.draft_id
+      `SELECT m.text, m.at, m.ts, m.link, m.decision_id, c.key, d.draft_id
          FROM conversation_messages m JOIN conversations c ON c.id = m.conversation_id
          LEFT JOIN decisions d ON d.id = m.decision_id
         WHERE m.session_id = ? AND m.direction = 'out' AND m.at >= ?
@@ -109,26 +127,31 @@ function latestLedgerSend(core: PulseCore, sessionId: string, since: number): Hq
                            WHERE w.conversation_id = m.conversation_id AND w.sent_at = m.at)
           AND (m.decision_id IS NULL
                OR NOT EXISTS (SELECT 1 FROM waitings w WHERE w.decision_id = m.decision_id))
-        ORDER BY m.at DESC LIMIT 1`
+        ORDER BY m.at DESC`
     )
-    .get(sessionId, since)
+    .all(sessionId, since)
+  const row = rows.find((candidate) => fits(String(candidate.key)))
   if (!row) {
     return null
   }
   const place = String(row.key)
-  const link = str(row.link)
   return {
     at: Number(row.at),
     decisionId: str(row.decision_id),
     draftId: str(row.draft_id),
     text: str(row.text),
     place,
-    ref: place.startsWith('slack:') ? place : link && hqPlaceKey(link) === place ? link : null
+    ref: placeRef(place, String(row.ts), str(row.link))
   }
 }
 
 /** The chat's latest approval that is not in the ledger as a message of its own. */
-function latestApproval(core: PulseCore, sessionId: string, since: number): HqOutboxSend | null {
+function latestApproval(
+  core: PulseCore,
+  sessionId: string,
+  since: number,
+  fits: (place: string | null) => boolean
+): HqOutboxSend | null {
   const rows = core.db
     .prepare(
       `SELECT d.id, d.draft_id, d.body, d.decided_at, d.context FROM decisions d
@@ -149,6 +172,9 @@ function latestApproval(core: PulseCore, sessionId: string, since: number): HqOu
       continue
     }
     const place = hqSentPlaceKey(context)
+    if (!fits(place)) {
+      continue
+    }
     return {
       at: Number(row.decided_at),
       decisionId: String(row.id),
@@ -180,8 +206,11 @@ export function pairWaitingWithSend(
     return
   }
   const since = now - HQ_OUTBOX_PAIR_MS
-  const recorded = latestLedgerSend(core, waiting.agentSessionId, since)
-  const approved = latestApproval(core, waiting.agentSessionId, since)
+  // Why: a waiting that names its own place (thread B) is not about the chat's send elsewhere (A).
+  const own = hqPlaceKey(waiting.sourceRef)
+  const fits = (place: string | null): boolean => !own || !place || place === own
+  const recorded = latestLedgerSend(core, waiting.agentSessionId, since, fits)
+  const approved = latestApproval(core, waiting.agentSessionId, since, fits)
   const send = recorded && (!approved || recorded.at >= approved.at) ? recorded : approved
   if (!send) {
     return

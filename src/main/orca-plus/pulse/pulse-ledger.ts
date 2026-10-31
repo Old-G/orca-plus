@@ -201,7 +201,8 @@ export function ingestLedgerSignal(core: PulseCore, signal: HqLedgerSignal): HqL
           signal.reader,
           signal.at
         ).changes > 0
-    if (signal.sessionId) {
+    // Custom build (hq-request-ledger): a send Orca+ saw go out carries its chat (null or not).
+    if (signal.sessionId !== undefined || signal.decisionId !== undefined) {
       noteSendingChat(core, conversationId, signal)
     }
     const linked = core.db
