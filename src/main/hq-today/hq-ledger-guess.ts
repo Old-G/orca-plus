@@ -13,6 +13,8 @@ export type HqLedgerGuessInput = {
   dm: boolean
   text: string
   links: string[]
+  /** Custom build (hq-ledger-sources): where the talk started when it is not Slack, e.g. «an email». */
+  where?: string
 }
 
 /** Any run of quotes made one, so no `"""` survives in what others wrote. */
@@ -23,7 +25,8 @@ export function hqLedgerGuessPrompt(
   pages: readonly HqProjectPage[],
   authorProjects: readonly string[]
 ): string {
-  const where = input.dm ? 'a direct message' : 'a Slack thread the user takes part in'
+  const where =
+    input.where ?? (input.dm ? 'a direct message' : 'a Slack thread the user takes part in')
   const who = input.fromOwner ? 'the user himself' : (input.author ?? 'someone')
   return [
     `A new conversation started in ${where}; its first message is from ${who}.`,
