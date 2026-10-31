@@ -26,6 +26,7 @@ import { HQ_JOURNAL_METHODS } from './hq-journal'
 import { HQ_PLUS_PHONE_METHODS } from './hq-plus-phone'
 import { HQ_JOB_METHODS } from './hq-jobs'
 import { HQ_PEOPLE_METHODS } from './hq-people'
+import { HQ_LEDGER_METHODS } from './hq-ledger'
 
 export { DEFAULT_LAZY_RPC_METHOD_GROUPS }
 
@@ -56,7 +57,8 @@ export const EAGER_SERVICE_RPC_METHODS = [
   ...HQ_JOURNAL_METHODS,
   ...HQ_PLUS_PHONE_METHODS,
   ...HQ_JOB_METHODS,
-  ...HQ_PEOPLE_METHODS
+  ...HQ_PEOPLE_METHODS,
+  ...HQ_LEDGER_METHODS
 ] as const
 
 export const EAGER_RPC_METHODS = [...EAGER_CORE_RPC_METHODS, ...EAGER_SERVICE_RPC_METHODS] as const
