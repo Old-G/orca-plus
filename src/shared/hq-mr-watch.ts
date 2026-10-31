@@ -60,6 +60,12 @@ export function hqMrRepoByName(project: string, repos: readonly string[]): strin
   )
 }
 
+/** Custom build (hq-ledger-sources): the HQ project a repo holds by the same rule, read the other way —
+ *  `acme/app` is `app`, `acme/lh-billing` is `billing`. */
+export function hqMrProjectOfRepo(repo: string, projects: readonly string[]): string | null {
+  return projects.find((project) => hqMrRepoByName(project, [repo]) === repo) ?? null
+}
+
 /** Asks which repo of the group holds an HQ project's code; the answer is a path from the list or NONE. */
 export function hqMrRepoPrompt(project: string, sample: string, repos: readonly string[]): string {
   return [
