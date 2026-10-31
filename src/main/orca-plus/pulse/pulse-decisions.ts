@@ -112,7 +112,8 @@ export function decideDraft(
       title: draft.title ?? `${draft.kind} → ${draft.target ?? 'no target'}`,
       body: draft.body,
       outcome,
-      project: draft.project,
+      // Custom build (hq-request-ledger): a held call's draft has no project; its chat's workspace does.
+      project: draft.project ?? sentContext?.hqProject ?? null,
       personId: draft.personId,
       draftId: draft.id,
       source: 'owner',
