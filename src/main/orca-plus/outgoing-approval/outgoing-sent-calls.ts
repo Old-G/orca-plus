@@ -8,7 +8,7 @@ import {
   mcpToolTokens,
   parseMcpToolName
 } from '../../../shared/outgoing-approval/outgoing-mcp-rules'
-import { glabNoteMessage } from './outgoing-sent-glab'
+import { glabNoteMessages } from './outgoing-sent-glab'
 import {
   field,
   inputText,
@@ -196,17 +196,7 @@ function gmailLetter(hook: OutgoingSentHook, verbs: string[]): OutgoingSentMessa
   )
 }
 
-/** Where a finished call put a message to a person, from its result; null when it sent none. */
-export async function outgoingSentMessage(
-  hook: OutgoingSentHook,
-  repoOfCwd: RepoOfCwd
-): Promise<OutgoingSentMessage | null> {
-  if (hook.toolName === 'Bash') {
-    return glabNoteMessage(
-      { command: inputText(hook.toolInput, 'command'), response: hook.toolResponse, cwd: hook.cwd },
-      repoOfCwd
-    )
-  }
+function mcpMessage(hook: OutgoingSentHook): OutgoingSentMessage | null {
   const mcp = parseMcpToolName(hook.toolName)
   if (!mcp) {
     return null
@@ -222,4 +212,28 @@ export async function outgoingSentMessage(
     return gitLabMcpNote(hook, verbs)
   }
   return /gmail/i.test(mcp.server) ? gmailLetter(hook, verbs) : null
+}
+
+/** The messages a finished call put in front of people, from its result; none when it sent none.
+ *  A Bash call may post several MR notes. */
+export async function outgoingSentMessages(
+  hook: OutgoingSentHook,
+  repoOfCwd: RepoOfCwd
+): Promise<OutgoingSentMessage[]> {
+  if (hook.toolName === 'Bash') {
+    return glabNoteMessages(
+      { command: inputText(hook.toolInput, 'command'), response: hook.toolResponse, cwd: hook.cwd },
+      repoOfCwd
+    )
+  }
+  const message = mcpMessage(hook)
+  return message ? [message] : []
+}
+
+/** The first of them; null when the call sent none. */
+export async function outgoingSentMessage(
+  hook: OutgoingSentHook,
+  repoOfCwd: RepoOfCwd
+): Promise<OutgoingSentMessage | null> {
+  return (await outgoingSentMessages(hook, repoOfCwd))[0] ?? null
 }
