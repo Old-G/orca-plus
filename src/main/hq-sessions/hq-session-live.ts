@@ -39,6 +39,8 @@ export type HqLiveInputs = {
   name: (sessionId: string) => string | null
   /** For a chat the journal has not seen yet: its project and room, by workspace. */
   placeOfWorktree: (worktreeId: string) => { project: string | null; workspace: string }
+  /** Orca's window has focus; a shown tab in a window behind another app is not in front of him. */
+  windowFocused: boolean
   now: number
 }
 
@@ -75,6 +77,7 @@ export function hqLiveSessions(inputs: HqLiveInputs): HqLiveSession[] {
       lastActivityAt: Math.max(session?.lastActivityAt ?? 0, agent?.updatedAt ?? 0),
       contextPct: inputs.contextPct.get(sessionId) ?? session?.contextPct ?? null,
       ownerAt: tab ? (tab.focused ? inputs.now : tab.lastFocusedAt) : null,
+      onScreen: tab?.focused === true && inputs.windowFocused,
       tabOpen: tab !== null
     })
   }
