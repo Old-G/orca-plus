@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { HQ_JOURNAL_KIND } from '../../shared/hq-journal'
 import { PulseDb } from '../orca-plus/pulse/pulse-db'
 import { codexReviewJournal } from '../hq-journal/hq-journal-codex-review'
+import { journalEntryAsInput, type HqJournalPlacer } from '../hq-journal/hq-journal-adapters'
 import { parseHqAutonomy } from '../../shared/hq-autonomy'
-import { hqReviewedCommits, planHqCodexFix } from './hq-routing-codex-fix'
+import { hqFindingKey, hqReviewedCommits, planHqCodexFix } from './hq-routing-codex-fix'
 import { parseHqRouting } from './hq-routing-rules'
 import { createHqRouting, type HqRoutingService } from './hq-routing'
 
@@ -33,6 +34,22 @@ const ROUTING = `review.finding:
     do: collect
 `
 const AUTONOMY = 'default: 1\nprojects:\n  kite: 0\n'
+// The report shape since hq-review-ship: labelled sections, the bug class first in the body.
+const roundReport = (round: number): string => `# Codex за день — Acme API — 2${round}.10
+
+## Acme API · коммитов: 1
+
+### Important — чинить
+
+- **[P1] Refund cap bypassed, round ${round}** — \`src/refund.ts:${40 + round}-${44 + round}\`
+  Class: refund-cap-bypass. A second partial refund passes the cap.
+
+### Pre-existing — было до этих коммитов, не блокирует, больше не повторится
+
+- [P1] Rounding drops a cent — \`src/round.ts:3\` · rounding
+
+Коммиты: \`5555555eee\`
+`
 const at = (hours: number, minutes = 0): number => new Date(2026, 9, 24, hours, minutes).getTime()
 
 let db: PulseDb
@@ -254,6 +271,49 @@ describe('HQ+ routing: Codex findings to a fixing chat', () => {
     expect(prompt).toContain('Log line repeats the amount')
     expect(prompt).toContain('orca hq merge-slot take acme-api')
     expect(prompt).toContain('orca hq merge-slot release acme-api')
+  })
+
+  it('a finding back after three fixing chats goes to the owner to rethink, not to a fourth chat', async () => {
+    const place: HqJournalPlacer = ({ project }) => ({
+      room: 'acme',
+      project: project === 'Acme API' ? 'acme-api' : null,
+      hq: false,
+      firm: true
+    })
+    for (const round of [1, 2, 3]) {
+      const rows = codexReviewJournal(
+        `codex-review-2026-10-2${round}T18-50.md`,
+        roundReport(round),
+        place
+      )
+      db.recordJournal(rows)
+      const taken = findings().find((row) => row.title.endsWith(`round ${round}`))
+      if (taken) {
+        db.recordJournal([journalEntryAsInput(taken, { address: `acme-api/codex-fix-2${round}` })])
+      }
+    }
+    db.recordJournal(codexReviewJournal('codex-review-2026-10-24T18-52.md', roundReport(4), place))
+    const fourth = findings().find((row) => row.title.endsWith('round 4'))
+    expect(fourth && hqFindingKey(fourth)).toBe('acme-api|src/refund.ts|refund-cap-bypass')
+    expect(findings().some((row) => row.title.includes('Rounding'))).toBe(false)
+
+    clock = at(21, 40)
+    const result = await routing.run()
+    expect(result.actions.find((action) => action.kind === 'rethink')).toMatchObject({
+      project: 'acme-api',
+      findings: [fourth?.id]
+    })
+    expect(launched).toHaveLength(1)
+    expect(delivered[0].prompt).not.toContain('round 4')
+    await routing.run()
+    expect(
+      db.listJournal({ needs: 'owner:decide' }).filter((row) => row.title.includes('rethink'))
+    ).toMatchObject([
+      {
+        title:
+          'Codex: rethink the approach — back after 3 fixes in acme-api: [P1] Refund cap bypassed, round 4'
+      }
+    ])
   })
 
   it('finds the commits the evening read for a finding, in both report shapes', () => {
