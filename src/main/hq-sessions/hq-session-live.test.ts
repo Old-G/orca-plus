@@ -31,26 +31,29 @@ describe('HQ+ session dispatcher: what each chat is doing now', () => {
   })
 
   it('takes the state from the live agent, the open question and the tab, in that order', () => {
-    const live = hqLiveSessions({
-      sessions: [known('busy'), known('asks'), known('gone'), known('idle')],
-      agents: [{ sessionId: 'busy', state: 'working', updatedAt: NOW - 1_000 }],
-      tabs: [
-        { sessionId: 'busy', worktreeId: 'r-api::/w/api', lastFocusedAt: null, focused: false },
-        {
-          sessionId: 'asks',
-          worktreeId: 'r-api::/w/api',
-          lastFocusedAt: NOW - 600_000,
-          focused: false
-        },
-        { sessionId: 'idle', worktreeId: 'r-api::/w/api', lastFocusedAt: null, focused: true },
-        { sessionId: 'fresh', worktreeId: 'r-kite::/w/kite', lastFocusedAt: null, focused: false }
-      ],
-      asking: new Set(['asks']),
-      contextPct: new Map([['idle', 41]]),
-      name: () => null,
-      placeOfWorktree: () => ({ project: 'kite', workspace: 'hobby' }),
-      now: NOW
-    })
+    const read = (windowFocused: boolean) =>
+      hqLiveSessions({
+        sessions: [known('busy'), known('asks'), known('gone'), known('idle')],
+        agents: [{ sessionId: 'busy', state: 'working', updatedAt: NOW - 1_000 }],
+        tabs: [
+          { sessionId: 'busy', worktreeId: 'r-api::/w/api', lastFocusedAt: null, focused: false },
+          {
+            sessionId: 'asks',
+            worktreeId: 'r-api::/w/api',
+            lastFocusedAt: NOW - 600_000,
+            focused: false
+          },
+          { sessionId: 'idle', worktreeId: 'r-api::/w/api', lastFocusedAt: null, focused: true },
+          { sessionId: 'fresh', worktreeId: 'r-kite::/w/kite', lastFocusedAt: null, focused: false }
+        ],
+        asking: new Set(['asks']),
+        contextPct: new Map([['idle', 41]]),
+        name: () => null,
+        placeOfWorktree: () => ({ project: 'kite', workspace: 'hobby' }),
+        windowFocused,
+        now: NOW
+      })
+    const live = read(true)
     const by = new Map(live.map((session) => [session.sessionId, session]))
     expect(by.get('busy')).toMatchObject({
       state: 'working',
@@ -63,7 +66,15 @@ describe('HQ+ session dispatcher: what each chat is doing now', () => {
       ownerAt: NOW - 600_000
     })
     expect(by.get('gone')).toMatchObject({ state: 'closed', tabOpen: false, ownerAt: null })
-    expect(by.get('idle')).toMatchObject({ state: 'done', ownerAt: NOW, contextPct: 41 })
+    expect(by.get('idle')).toMatchObject({
+      state: 'done',
+      ownerAt: NOW,
+      contextPct: 41,
+      onScreen: true
+    })
+    expect(by.get('asks')?.onScreen).toBe(false)
+    // A shown tab in a window behind another app is not in front of the owner.
+    expect(read(false).find((session) => session.sessionId === 'idle')?.onScreen).toBe(false)
     expect(by.get('fresh')).toMatchObject({ project: 'kite', workspace: 'hobby', address: null })
   })
 })
