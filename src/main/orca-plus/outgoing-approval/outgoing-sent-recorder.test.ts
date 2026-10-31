@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { runProcess } from '@orca/process-host'
-import { AgentHookServer } from '../../agent-hooks/server'
+import { AgentHookServer } from '../../agent-hooks/server/agent-hook-server'
 import { PulseDb } from '../pulse/pulse-db'
 import { OutgoingApprovalGate } from './outgoing-approval-gate'
 import { createOutgoingGateRequestHandler, type OutgoingSentReport } from './outgoing-gate-http'
@@ -67,6 +67,59 @@ describe('recordOutgoingSent', () => {
       ).toBe(false)
     }
     expect(db.listLedgerConversations()).toEqual([])
+  })
+})
+
+describe('the /outgoing-gate/sent answer', () => {
+  async function startWith(sent: (report: OutgoingSentReport) => Promise<void>, waitMs?: number) {
+    // Why: the clock stands just after the fixture's Slack ts, inside the pairing window.
+    const db = new PulseDb(':memory:', { now: () => 1_792_614_900_000 })
+    cleanups.push(() => db.close())
+    const gate = new OutgoingApprovalGate({ db: () => db })
+    const server = new AgentHookServer()
+    server.setOutgoingGateHandler(createOutgoingGateRequestHandler(() => gate, sent, waitMs))
+    await server.start({ env: 'production' })
+    cleanups.push(() => server.stop())
+    const env = server.buildPtyEnv()
+    const post = (body: unknown) =>
+      fetch(`http://127.0.0.1:${env.ORCA_AGENT_HOOK_PORT}/outgoing-gate/sent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Orca-Agent-Hook-Token': env.ORCA_AGENT_HOOK_TOKEN,
+          'X-Orca-Agent-Session-Id': 'orca-session-ann'
+        },
+        body: JSON.stringify(body)
+      }).then((response) => response.text())
+    return { db, post }
+  }
+
+  it('comes once the send is in the ledger, so the waiting added next pairs with it', async () => {
+    let db: PulseDb | null = null
+    const started = await startWith(async (report) => {
+      // Why: the project lookup is the slow part; the answer must wait for it.
+      await new Promise((resolve) => setTimeout(resolve, 80))
+      await recordOutgoingSent(deps(db!), report)
+    })
+    db = started.db
+    expect(await started.post(payload('slack-dm-by-user-id'))).toBe('ok\n')
+    const waiting = db.addWaiting({
+      direction: 'on-them',
+      title: 'Ann: Q3 file',
+      source: 'slack',
+      agentSessionId: 'orca-session-ann'
+    })
+    expect(db.getWaitingRecord(waiting.id)).toMatchObject({
+      sent_text: 'Ann, can you share the Q3 file?',
+      source_ref: 'slack:D0ANN00002:1792614868.867139'
+    })
+  })
+
+  it('never holds the agent past its short wait, nor fails it', async () => {
+    const hung = await startWith(() => new Promise<void>(() => {}), 50)
+    expect(await hung.post(payload('slack-dm-by-user-id'))).toBe('ok\n')
+    const failing = await startWith(() => Promise.reject(new Error('db locked')))
+    expect(await failing.post(payload('slack-dm-by-user-id'))).toBe('ok\n')
   })
 })
 
