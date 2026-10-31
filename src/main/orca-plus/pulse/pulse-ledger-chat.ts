@@ -8,8 +8,10 @@ export function setConversationChat(core: PulseCore, key: string, sessionId: str
   core.db.prepare('UPDATE conversations SET session_id = ? WHERE key = ?').run(sessionId, key)
 }
 
-/** Call inside the ingest: the chat that sent the message holds the conversation, and the message
- *  keeps its chat and approval — also when a reader had put the same message in first. */
+/** Call inside the ingest, for a message an agent sent: the message keeps its chat and approval and
+ *  an empty conversation project takes the sender's — also when a reader had put the same message
+ *  in first. The chat holds the conversation only when this is its newest owner message, so a late
+ *  report of an older send does not take it from the chat that wrote after. */
 export function noteSendingChat(
   core: PulseCore,
   conversationId: string,
@@ -21,7 +23,23 @@ export function noteSendingChat(
          decision_id = COALESCE(decision_id, ?) WHERE conversation_id = ? AND ts = ?`
     )
     .run(signal.sessionId ?? null, signal.decisionId ?? null, conversationId, signal.ts)
+  if (signal.project) {
+    core.db
+      .prepare('UPDATE conversations SET project = COALESCE(project, ?) WHERE id = ?')
+      .run(signal.project, conversationId)
+  }
+  if (!signal.sessionId) {
+    return
+  }
+  const own = core.db
+    .prepare('SELECT at FROM conversation_messages WHERE conversation_id = ? AND ts = ?')
+    .get(conversationId, signal.ts)
+  const at = own ? Number(own.at) : signal.at
   core.db
-    .prepare('UPDATE conversations SET session_id = ? WHERE id = ?')
-    .run(signal.sessionId ?? null, conversationId)
+    .prepare(
+      `UPDATE conversations SET session_id = ? WHERE id = ? AND NOT EXISTS (
+         SELECT 1 FROM conversation_messages m WHERE m.conversation_id = ? AND m.direction = 'out'
+            AND (m.at > ? OR (m.at = ? AND m.ts > ?)))`
+    )
+    .run(signal.sessionId, conversationId, conversationId, at, at, signal.ts)
 }
