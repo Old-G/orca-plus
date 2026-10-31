@@ -121,6 +121,7 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
       branch: file.branch,
       head: file.head,
       pushed: file.pushed,
+      raisedAt: now(),
       ...(tabId ? { tabId } : {}),
       ...(tabWorktreeId && tabWorktreeId !== worktreeId ? { tabWorktreeId } : {})
     })

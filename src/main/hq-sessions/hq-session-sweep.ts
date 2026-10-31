@@ -1,5 +1,6 @@
 // Custom build (hq-plus-sessions): the dispatcher's sweep — handoffs nobody took up, queued work
 // that can go now, and threads with open work but no chat — listed, and on a run carried out.
+// Custom build (hq-handoff-auto): a handoff's successor starts by its own switch, whatever the mode.
 import {
   HQ_JOURNAL_ALL_ROOMS,
   HQ_JOURNAL_KIND,
@@ -7,7 +8,12 @@ import {
   hqJournalTitle,
   isHqThreadAddress
 } from '../../shared/hq-journal'
-import type { HqSessionsResult, HqSweepAction } from '../../shared/hq-sessions'
+import {
+  HQ_SESSION_HANDOFF_AUTO_GRACE_MS,
+  HQ_SESSION_HANDOFF_GRACE_MS,
+  type HqSessionsResult,
+  type HqSweepAction
+} from '../../shared/hq-sessions'
 import { journalEntryAsInput } from '../hq-journal/hq-journal-adapters'
 import { carryOutHqDispatch } from './hq-session-act'
 import { decideHqDispatch, decideHqHandoff } from './hq-session-decide'
@@ -35,12 +41,19 @@ export async function sweepHqSessions(
   })
   const live = await deps.live(queued.flatMap((entry) => (entry.address ? [entry.address] : [])))
   const open = journal.unreviewed()
+  const auto = deps.autoHandoff()
   const actions: HqSweepAction[] = []
   for (const offer of deps.offers()) {
     const session = offer.sessionId
       ? (live.find((candidate) => candidate.sessionId === offer.sessionId) ?? null)
       : null
-    const verdict = decideHqHandoff({ raisedAt: offer.raisedAt, session, now })
+    const verdict = decideHqHandoff({
+      raisedAt: offer.raisedAt,
+      session,
+      limitStopped: offer.limitStopped,
+      graceMs: auto ? HQ_SESSION_HANDOFF_AUTO_GRACE_MS : HQ_SESSION_HANDOFF_GRACE_MS,
+      now
+    })
     if (verdict.start && offer.sessionId) {
       actions.push({
         kind: 'successor',
@@ -102,14 +115,18 @@ export async function sweepHqSessions(
     unreviewed: open,
     actions
   }
-  if (!run || mode === 'off' || !deps.enabled()) {
+  const dispatching = mode !== 'off' && deps.enabled()
+  if (!run || (!dispatching && !auto)) {
     return result
   }
   for (const action of actions) {
     try {
       if (action.kind === 'successor') {
         const project = live.find((session) => session.sessionId === action.sessionId)?.project
-        if (mode === 'report') {
+        if (!auto && !dispatching) {
+          continue
+        }
+        if (!auto && mode === 'report') {
           await journal.plan(
             `start the handoff of ${action.address ?? action.sessionId}: ${action.why}`,
             project ?? null,
@@ -121,6 +138,9 @@ export async function sweepHqSessions(
         const started = await deps.startHandoff(action.offerId)
         if (!started.ok) {
           deps.log(`sweep: the handoff ${action.offerId} did not start: ${started.error}`)
+          continue
+        }
+        if (!deps.enabled()) {
           continue
         }
         // Why: the started chat opens with the same «Continue from …» line a hand start has;
@@ -143,6 +163,9 @@ export async function sweepHqSessions(
           })
         ])
       } else if (action.kind === 'drain') {
+        if (!dispatching) {
+          continue
+        }
         const entry = queued.find((candidate) => candidate.id === action.entryId)
         if (!entry) {
           continue

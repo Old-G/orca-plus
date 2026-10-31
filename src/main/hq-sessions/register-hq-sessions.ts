@@ -1,7 +1,8 @@
 // Custom build (hq-plus-sessions): starts HQ+'s session dispatcher — `orca hq dispatch` and
 // `orca hq sessions`, a sweep every two minutes (queue, handoffs), and the close check chat cleanup
 // asks before it closes a chat.
-import { ipcMain } from 'electron'
+// Custom build (hq-handoff-auto): a new handoff also sweeps once its grace is over.
+import { BrowserWindow, ipcMain } from 'electron'
 import type { Store } from '../persistence'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import type { HqJournalService } from '../hq-journal/hq-journal-service'
@@ -11,10 +12,12 @@ import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
 import { launchHqBackgroundChat, limitHqChatToAuto } from '../hq-today/hq-background-chat'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
-import { getClaudeHandoffLauncher } from '../ipc/claude-handoff'
+import { getClaudeHandoffLauncher, onClaudeHandoffOffersChanged } from '../ipc/claude-handoff'
+import { claudeLimitStoppedNow } from '../ipc/claude-limit-guard'
 import { HQ_JOURNAL_KIND, HQ_JOURNAL_MAX_LIMIT } from '../../shared/hq-journal'
 import {
   HQ_SESSION_DISPATCH_DEFAULT_MODE,
+  HQ_SESSION_HANDOFF_AUTO_GRACE_MS,
   HQ_SESSION_QUIET_MS,
   type HqMayCloseResult
 } from '../../shared/hq-sessions'
@@ -34,6 +37,8 @@ const SENDER = 'hq-sessions'
 const SESSIONS_BACK_MS = 7 * 24 * 60 * 60_000
 const CONTEXT_READ_MS = 3_000
 const WORKTREE_PS_LIMIT = 500
+// Why: the sweep after a new handoff runs just past its grace, not on the edge of it.
+const HANDOFF_SWEEP_SLACK_MS = 2_000
 
 /** The chat's context share, as its own journal last measured it; null when unknown or slow. */
 async function readContextPct(sessionId: string): Promise<number | null> {
@@ -107,9 +112,11 @@ export function registerHqSessions(
       })
     )
   }
+  const autoHandoff = (): boolean => store.getSettings().hqHandoffAutoStart !== false
   const service = createHqSessions({
     mode: () => store.getSettings().hqSessionDispatcher ?? HQ_SESSION_DISPATCH_DEFAULT_MODE,
     enabled: () => store.getSettings().hqPlusJournalEnabled !== false,
+    autoHandoff,
     scope: (caller) => journal.scope(caller),
     roomOf: async (project) => hqPlaceOf(await journal.sources(), { project }).room,
     dispatcherCaller: () => ({ cwd: hqPath() }),
@@ -157,6 +164,9 @@ export function registerHqSessions(
           const place = hqPlaceOf(sources, { worktreeId })
           return { project: place.project, workspace: place.room }
         },
+        windowFocused: BrowserWindow.getAllWindows().some(
+          (window) => !window.isDestroyed() && window.isFocused()
+        ),
         now
       })
     },
@@ -189,12 +199,22 @@ export function registerHqSessions(
         .catch(() => null)
     },
     deliver: (sessionId, prompt) => deliverToNativeChat(sessionId, prompt, SENDER),
-    offers: () =>
-      (getClaudeHandoffLauncher()?.list() ?? []).map((offer) => ({
-        id: offer.id,
-        sessionId: offer.tabId ? hqChatSessionOf(offer.tabId) : null,
-        raisedAt: Date.parse(offer.created) || Date.now()
-      })),
+    offers: () => {
+      const stopped = new Set(
+        claudeLimitStoppedNow().flatMap((stop) =>
+          [stop.key, stop.sessionId].filter((id): id is string => Boolean(id))
+        )
+      )
+      return (getClaudeHandoffLauncher()?.list() ?? []).map((offer) => {
+        const sessionId = offer.tabId ? hqChatSessionOf(offer.tabId) : null
+        return {
+          id: offer.id,
+          sessionId,
+          raisedAt: offer.raisedAt ?? (Date.parse(offer.created) || Date.now()),
+          limitStopped: stopped.has(offer.id) || (sessionId !== null && stopped.has(sessionId))
+        }
+      })
+    },
     startHandoff: async (offerId) => {
       const launcher = getClaudeHandoffLauncher()
       if (!launcher) {
@@ -220,13 +240,26 @@ export function registerHqSessions(
         : { ok: false, why: 'no chat named' }
     }
   )
-  const timer = setInterval(() => {
-    if (store.getSettings().hqSessionDispatcher === 'off') {
-      return
-    }
+  const sweep = (): void => {
     void service
       .sweep({ run: true })
       .catch((error: unknown) => console.warn('[hq-sessions] sweep failed:', error))
+  }
+  const timer = setInterval(() => {
+    if (store.getSettings().hqSessionDispatcher === 'off' && !autoHandoff()) {
+      return
+    }
+    sweep()
   }, SWEEP_MS)
   timer.unref?.()
+  // Why: the two-minute timer alone would leave the owner a dead chat for up to two minutes.
+  let listed = new Set<string>()
+  onClaudeHandoffOffersChanged((offers) => {
+    const keys = new Set(offers.map((offer) => `${offer.id}\n${offer.created}`))
+    const fresh = [...keys].some((key) => !listed.has(key))
+    listed = keys
+    if (fresh && autoHandoff()) {
+      setTimeout(sweep, HQ_SESSION_HANDOFF_AUTO_GRACE_MS + HANDOFF_SWEEP_SLACK_MS).unref?.()
+    }
+  })
 }
