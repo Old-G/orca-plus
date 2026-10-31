@@ -108,6 +108,7 @@ export function HqpCardFrame({
   flash,
   project,
   color,
+  bare = false,
   children
 }: {
   look: HqPlusLookKind
@@ -115,12 +116,14 @@ export function HqpCardFrame({
   flash: boolean
   project: string | null
   color: string | null
+  /** Custom build (hq-project-cards): no tile, inside a project's card. */
+  bare?: boolean
   children: ReactNode
 }) {
   const edge = approve ? hqpWeb.edgeApprove : look === 'move' ? hqpWeb.edgeMove : hqpWeb.edge
   return (
     <View style={styles.row}>
-      <HqpTile name={project} color={color} />
+      {bare ? null : <HqpTile name={project} color={color} />}
       <View style={[styles.card, look === 'chat' ? styles.cardChat : edge, flash && styles.flash]}>
         {children}
       </View>

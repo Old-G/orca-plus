@@ -62,10 +62,12 @@ function onHqPlus(target: EventTarget | null): boolean {
 function showRow(id: string): void {
   const row = document.getElementById(`hqp-${id}`)
   const log = row?.closest('.hqp-log')
-  if (row && log) {
-    const offset = row.getBoundingClientRect().top - log.getBoundingClientRect().top
+  // Custom build (hq-project-cards): a project card's line centres on its header, not its open card.
+  const head = row?.querySelector(':scope > .hqpc-rowwrap') ?? row
+  if (row && head && log) {
+    const offset = head.getBoundingClientRect().top - log.getBoundingClientRect().top
     log.scrollTo({
-      top: log.scrollTop + offset - log.clientHeight / 2 + row.clientHeight / 2,
+      top: log.scrollTop + offset - log.clientHeight / 2 + head.clientHeight / 2,
       behavior: 'smooth'
     })
   }
