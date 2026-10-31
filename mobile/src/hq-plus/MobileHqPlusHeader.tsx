@@ -2,22 +2,23 @@
 // as tabs that scroll sideways (All first, «+» last), search and the views; then the feed's chips.
 // Custom build (hq-plus-phone-map): Feed | Map at the left of the chips row; on the Map the chips give
 // way to «Your move · N» (the feed on that chip) and «Chats · N» (the room's open chats).
+// Custom build (hq-project-cards): the chips of the project cards — All · Your move · We wait · FYI.
 import type { ComponentType } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Menu, Search, Waypoints } from 'lucide-react-native'
 import {
-  HQ_PLUS_FEED_FILTERS,
-  type HqPlusFeedFilter
-} from '../../../src/shared/hq-plus-feed-filter'
+  HQ_PLUS_PROJECT_FILTERS,
+  type HqPlusProjectFeed,
+  type HqPlusProjectFilter
+} from '../../../src/shared/hq-plus-project-cards'
 import type { HqSpace } from '../../../src/shared/hq-spaces'
 import { HQP_TOUCH, hqp, hqpWeb } from './hq-plus-phone-theme'
 
-const FILTER_LABEL: Record<HqPlusFeedFilter, string> = {
+const FILTER_LABEL: Record<HqPlusProjectFilter, string> = {
   all: 'All',
   move: 'Your move',
-  waits: 'We wait for',
-  chats: 'Chats',
-  inbox: 'Inbox'
+  wait: 'We wait',
+  fyi: 'FYI'
 }
 
 function Icon({
@@ -86,7 +87,7 @@ export function MobileHqPlusHeader({
   openByRoom,
   moveCount,
   filter,
-  inboxCount,
+  counts,
   search,
   onMenu,
   onRoom,
@@ -104,8 +105,8 @@ export function MobileHqPlusHeader({
   room: string | null
   openByRoom: ReadonlyMap<string, number>
   moveCount: number
-  filter: HqPlusFeedFilter
-  inboxCount: number
+  filter: HqPlusProjectFilter
+  counts: HqPlusProjectFeed['counts']
   /** The search field's words, or null while it is closed. */
   search: string | null
   onMenu: () => void
@@ -113,7 +114,7 @@ export function MobileHqPlusHeader({
   onNewRoom: () => void
   onSearch: (query: string | null) => void
   onViews: () => void
-  onFilter: (filter: HqPlusFeedFilter) => void
+  onFilter: (filter: HqPlusProjectFilter) => void
 }) {
   const all = [...openByRoom.values()].reduce((sum, n) => sum + n, 0)
   const tabs = [
@@ -226,10 +227,10 @@ export function MobileHqPlusHeader({
             accessibilityRole="toolbar"
             accessibilityLabel="Feed filter"
           >
-            {HQ_PLUS_FEED_FILTERS.map((entry) => {
+            {HQ_PLUS_PROJECT_FILTERS.map((entry) => {
               const on = entry === filter
               const move = entry === 'move'
-              const count = move ? moveCount : entry === 'inbox' ? inboxCount : 0
+              const count = entry === 'all' ? 0 : counts[entry]
               return (
                 <Pressable
                   key={entry}
