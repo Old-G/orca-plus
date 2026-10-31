@@ -37,11 +37,22 @@ function header(headers: IncomingHttpHeaders, name: string): string | null {
   return first?.trim() ? first.trim() : null
 }
 
+/** Custom build (hq-request-ledger): a finished call the sent-message hook reported. */
+export type OutgoingSentReport = { hook: unknown; agentSessionId: string | null }
+
 export function createOutgoingGateRequestHandler(
-  gate: () => OutgoingApprovalGate
+  gate: () => OutgoingApprovalGate,
+  sent?: (report: OutgoingSentReport) => Promise<void>
 ): OutgoingGateRequestHandler {
   return async (pathname, body, headers) => {
     const route = pathname.slice(OUTGOING_GATE_PATH_PREFIX.length)
+    if (route === 'sent' && sent) {
+      // Why: the hook does not wait for the ledger; a failure here must not reach the agent.
+      void sent({ hook: body, agentSessionId: header(headers, 'x-orca-agent-session-id') }).catch(
+        (error: unknown) => console.warn('[outgoing-approval] sent message not recorded:', error)
+      )
+      return 'ok\n'
+    }
     if (route !== 'submit' && route !== 'wait') {
       return null
     }

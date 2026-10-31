@@ -30,6 +30,7 @@ import { describeOutgoingDraft, type OutgoingContextSources } from './outgoing-a
 import { OutgoingApprovalGate } from './outgoing-approval-gate'
 import { bindOutgoingGateEndpoint } from './outgoing-gate-endpoint'
 import { createOutgoingGateRequestHandler } from './outgoing-gate-http'
+import { gitRepoOfCwd, recordOutgoingSent } from './outgoing-sent-recorder'
 import { backfillLegacySentContext } from './outgoing-sent-history'
 import { slackConversationName } from './outgoing-slack-names'
 import { clickUpTaskRef, lastChatTask } from './outgoing-task-sources'
@@ -185,7 +186,14 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
       }
     }
   }
-  agentHookServer.setOutgoingGateHandler(createOutgoingGateRequestHandler(() => gate))
+  // Custom build (hq-request-ledger): every message a call sent, held or not, into the ledger.
+  const recordSent = async (report: Parameters<typeof recordOutgoingSent>[1]): Promise<void> => {
+    await recordOutgoingSent(
+      { db: pulseDb, repoOfCwd: gitRepoOfCwd, projectOf: async () => null, now: Date.now },
+      report
+    )
+  }
+  agentHookServer.setOutgoingGateHandler(createOutgoingGateRequestHandler(() => gate, recordSent))
   bindOutgoingGateEndpoint(() => agentHookServer.endpointFilePath)
   const sweep = setInterval(() => {
     try {
