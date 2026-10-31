@@ -53,6 +53,20 @@ describe('ledger shadow', () => {
     expect(d.said).toHaveLength(1)
   })
 
+  it('names the GitLab and mail conversations apart from the cards’ (hq-ledger-sources)', () => {
+    const d = deps({
+      conversations: () => [
+        { state: 'you', key: 'slack:C0123HUBXY:1700000000.000100' },
+        { state: 'you', key: 'gitlab:acme/app!7' },
+        { state: 'fyi', key: 'gmail:t1' }
+      ]
+    })
+    runHqLedgerShadow(d, { cursor: 0, reportedDay: null })
+    expect(d.said).toEqual([
+      '24 h in shadow: 1 cards → 1 conversations (1 your move); GitLab and mail: 2 conversations (1 your move)'
+    ])
+  })
+
   it('settles what the owner sent or skipped from a card, also when he did it after it was read', () => {
     const card = (ts: string, doneAt: number | null, doneAction: string | null) => ({
       kind: 'hq-intake',
