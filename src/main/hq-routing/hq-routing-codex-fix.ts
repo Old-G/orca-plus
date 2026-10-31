@@ -8,10 +8,40 @@ import type { HqRouteAction, HqRouteHandled, HqRouting } from '../../shared/hq-r
 import { hqFindingRuleFor } from './hq-routing-rules'
 
 const LEVEL = /^\[P(\d)\]/
+const WHERE_FILE = /^`([^`]+?)(?::\d+(?:-\d+)?)?`/
+const BUG_CLASS = /\bClass: ([A-Za-z0-9][\w-]*)\./
+
+/** Custom build (hq-review-ship): a finding back after this many fixing chats goes to the owner instead. */
+export const HQ_CODEX_FIX_MAX_ROUNDS = 3
 
 export function hqFindingLevel(entry: Pick<HqJournalEntry, 'title'>): number | null {
   const match = LEVEL.exec(entry.title)
   return match ? Number(match[1]) : null
+}
+
+/**
+ * Custom build (hq-review-ship): the finding's project, file and bug class, as the review writes its body
+ * (`` `file:lines` ``, then «Class: <slug>.»); null for a report that names no class.
+ */
+export function hqFindingKey(entry: Pick<HqJournalEntry, 'project' | 'body'>): string | null {
+  const body = entry.body ?? ''
+  const file = WHERE_FILE.exec(body)?.[1]
+  const bugClass = BUG_CLASS.exec(body)?.[1]
+  return entry.project && file && bugClass
+    ? `${entry.project}|${file}|${bugClass.toLowerCase()}`
+    : null
+}
+
+/** Custom build (hq-review-ship): how many fixing chats (threads) took a finding of each key already. */
+export function hqFixRounds(rows: readonly HqJournalEntry[]): Map<string, number> {
+  const chats = new Map<string, Set<string>>()
+  for (const row of rows) {
+    const key = row.address === null ? null : hqFindingKey(row)
+    if (key && row.address) {
+      chats.set(key, (chats.get(key) ?? new Set()).add(row.address))
+    }
+  }
+  return new Map([...chats].map(([key, threads]) => [key, threads.size]))
 }
 
 /** The owner's day, `YYYY-MM-DD` in local time. */
@@ -45,11 +75,14 @@ export type HqCodexFixPlanInput = {
   manual: boolean
   /** Replaces the rules' `since`, for a dry run over the past. */
   since?: number
+  /** Custom build (hq-review-ship): fixing chats each finding key already went to (hqFixRounds). */
+  rounds?: ReadonlyMap<string, number>
 }
 
 export function planHqCodexFix(input: HqCodexFixPlanInput): HqRouteAction[] {
   const dayStart = hqStartOfDay(input.now)
   const byProject = new Map<string, { workspace: string; ids: string[] }>()
+  const rethink = new Map<string, { workspace: string; ids: string[] }>()
   for (const finding of input.findings) {
     const level = hqFindingLevel(finding)
     const rule = level === null ? null : hqFindingRuleFor(input.routing, level)
@@ -70,16 +103,30 @@ export function planHqCodexFix(input: HqCodexFixPlanInput): HqRouteAction[] {
     ) {
       continue
     }
-    const group = byProject.get(finding.project) ?? { workspace: finding.workspace, ids: [] }
+    // Why: the same mistake back after three fixes means the approach is wrong; a fourth chat would loop.
+    const key = hqFindingKey(finding)
+    const target =
+      key && (input.rounds?.get(key) ?? 0) >= HQ_CODEX_FIX_MAX_ROUNDS ? rethink : byProject
+    const group = target.get(finding.project) ?? { workspace: finding.workspace, ids: [] }
     group.ids.push(finding.id)
-    byProject.set(finding.project, group)
+    target.set(finding.project, group)
   }
+  const rethinkActions = [...rethink].map(([project, { workspace, ids }]): HqRouteAction => ({
+    kind: 'rethink',
+    project,
+    workspace,
+    findings: ids,
+    level: hqAutonomyFor(input.autonomy, project),
+    address: null,
+    sessionId: null,
+    note: `back after ${HQ_CODEX_FIX_MAX_ROUNDS} fixes — rethink the approach`
+  }))
   const limitOk =
     input.manual ||
     (input.freePercent !== null && input.freePercent >= input.routing.minFreePercent)
   // Why: an unread limit must not hold the evening forever; it lets one fixing chat through, no more.
   let unreadAllowance = input.freePercent === null && input.today.size === 0 ? 1 : 0
-  return [...byProject].map(([project, { workspace, ids }]): HqRouteAction => {
+  const fixActions = [...byProject].map(([project, { workspace, ids }]): HqRouteAction => {
     const level = hqAutonomyFor(input.autonomy, project)
     const today = input.today.get(project)
     const base = { project, workspace, findings: ids, level }
@@ -119,6 +166,7 @@ export function planHqCodexFix(input: HqCodexFixPlanInput): HqRouteAction[] {
       note: null
     }
   })
+  return [...fixActions, ...rethinkActions]
 }
 
 /**
