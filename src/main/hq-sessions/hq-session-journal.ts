@@ -28,12 +28,16 @@ export type HqHandoffOfferRef = {
   /** The chat that wrote the handoff; null when the offer does not say. */
   sessionId: string | null
   raisedAt: number
+  /** Custom build (hq-handoff-auto): that chat is stopped on a limit now. */
+  limitStopped: boolean
 }
 
 export type HqSessionsDeps = {
   mode: () => HqSessionDispatchMode
   /** The HQ+ journal switch; off, nothing is recorded or acted on. */
   enabled: () => boolean
+  /** Custom build (hq-handoff-auto): handoffs start their successor whatever the mode and the journal switch. */
+  autoHandoff: () => boolean
   scope: (caller: HqCaller) => Promise<HqCallerScope>
   /** The room a project belongs to. */
   roomOf: (project: string) => Promise<string>

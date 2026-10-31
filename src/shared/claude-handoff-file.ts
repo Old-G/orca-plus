@@ -24,6 +24,11 @@ export type ClaudeHandoffOffer = {
   tabId?: string
   /** Custom build (claude-handoff-launch): the workspace that tab is in, when the handoff sits in another. */
   tabWorktreeId?: string
+  /**
+   * Custom build (hq-handoff-auto): when Orca+ saw the handoff (ms). `created` is the agent's guess,
+   * at times an hour off; the successor's wait counts from this.
+   */
+  raisedAt?: number
 }
 
 export type ClaudeHandoffLaunchResult =

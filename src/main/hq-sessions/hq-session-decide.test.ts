@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { HqLiveSession } from '../../shared/hq-sessions'
+import {
+  HQ_SESSION_HANDOFF_AUTO_GRACE_MS,
+  HQ_SESSION_HANDOFF_GRACE_MS,
+  type HqLiveSession
+} from '../../shared/hq-sessions'
 import { decideHqDispatch, decideHqHandoff } from './hq-session-decide'
 
 const NOW = new Date(2026, 9, 24, 15, 0).getTime()
@@ -19,6 +23,7 @@ function chat(over: Partial<HqLiveSession> = {}): HqLiveSession {
     lastActivityAt: NOW - 2 * HOUR,
     contextPct: 30,
     ownerAt: NOW - 3 * HOUR,
+    onScreen: false,
     tabOpen: true,
     ...over
   }
@@ -91,17 +96,42 @@ describe('HQ+ session dispatcher: continue, new or queue', () => {
 })
 
 describe('HQ+ session dispatcher: handoffs', () => {
-  it('starts a handoff the owner left for a few minutes, never one he is looking at', () => {
-    const old = chat({ ownerAt: NOW - 20 * MIN })
-    expect(decideHqHandoff({ raisedAt: NOW - MIN, session: old, now: NOW })).toMatchObject({
-      start: false
+  const handoff = (over: Partial<Parameters<typeof decideHqHandoff>[0]> = {}) =>
+    decideHqHandoff({
+      raisedAt: NOW - 5 * MIN,
+      session: chat({ ownerAt: NOW - 20 * MIN }),
+      limitStopped: false,
+      graceMs: HQ_SESSION_HANDOFF_GRACE_MS,
+      now: NOW,
+      ...over
     })
-    expect(decideHqHandoff({ raisedAt: NOW - 5 * MIN, session: old, now: NOW })).toEqual({
+
+  it('starts a handoff the owner left for its grace, never one on his screen', () => {
+    expect(handoff({ raisedAt: NOW - MIN })).toMatchObject({ start: false })
+    expect(handoff()).toEqual({ start: true, why: '«refunds» handed off 5 min ago' })
+    expect(handoff({ session: chat({ ownerAt: NOW, onScreen: true }) })).toEqual({
+      start: false,
+      why: 'the owner is looking at «refunds»'
+    })
+    // Shown in a window behind another app, or looked at a minute ago: not in front of him now.
+    expect(handoff({ session: chat({ ownerAt: NOW, onScreen: false }) })).toMatchObject({
+      start: true
+    })
+  })
+
+  it('with the auto start, goes after seconds, not minutes', () => {
+    const auto = { graceMs: HQ_SESSION_HANDOFF_AUTO_GRACE_MS }
+    expect(handoff({ ...auto, raisedAt: NOW - 5_000 })).toMatchObject({ start: false })
+    expect(handoff({ ...auto, raisedAt: NOW - 30_000 })).toEqual({
       start: true,
-      why: '«refunds» handed off 5 min ago'
+      why: '«refunds» handed off 30 s ago'
     })
-    expect(
-      decideHqHandoff({ raisedAt: NOW - 5 * MIN, session: chat({ ownerAt: NOW }), now: NOW })
-    ).toEqual({ start: false, why: 'the owner is looking at «refunds»' })
+  })
+
+  it('waits while the chat that handed off is stopped on a limit', () => {
+    expect(handoff({ limitStopped: true })).toEqual({
+      start: false,
+      why: 'its chat stopped on a limit; the new one waits until it lifts'
+    })
   })
 })

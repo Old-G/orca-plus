@@ -11,6 +11,7 @@ import { HqChatCleanupSetting } from './HqChatCleanupSetting'
 import { HqFeedPopupsSetting } from './HqFeedPopupsSetting'
 import { HqJournalSetting } from './HqJournalSetting'
 import { HqSessionDispatcherSetting } from './HqSessionDispatcherSetting'
+import { HqHandoffAutoStartSetting } from './HqHandoffAutoStartSetting'
 import { HqLedgerSetting } from './HqLedgerSetting'
 import { HqPathSetting } from './HqPathSetting'
 import { useTranslate } from '@/i18n/use-translate'
@@ -50,6 +51,7 @@ export function GeneralWorkspaceSettingsSection({
           <HqSessionDispatcherSetting settings={settings} updateSettings={updateSettings} />
           <HqFeedPopupsSetting settings={settings} updateSettings={updateSettings} />
           <HqLedgerSetting settings={settings} updateSettings={updateSettings} />
+          <HqHandoffAutoStartSetting settings={settings} updateSettings={updateSettings} />
           <SearchableSetting
             id={GENERAL_SETTING_ANCHORS.nesting}
             title={t('settings.general.folder.perProject', 'Folder per project')}

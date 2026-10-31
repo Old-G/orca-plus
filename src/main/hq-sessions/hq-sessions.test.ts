@@ -11,6 +11,8 @@ const T0 = new Date(2026, 9, 24, 15, 0).getTime()
 let db: PulseDb
 let clock: number
 let mode: HqSessionDispatchMode
+let auto: boolean
+let journalOn: boolean
 let live: HqLiveSession[]
 let offers: HqHandoffOfferRef[]
 let sent: { address: string; text: string }[]
@@ -33,6 +35,7 @@ function chat(over: Partial<HqLiveSession> = {}): HqLiveSession {
     lastActivityAt: clock - 2 * HOUR,
     contextPct: 20,
     ownerAt: null,
+    onScreen: false,
     tabOpen: true,
     ...over
   }
@@ -81,6 +84,8 @@ beforeEach(() => {
   db = new PulseDb(':memory:')
   clock = T0
   mode = 'on'
+  auto = false
+  journalOn = true
   live = []
   offers = []
   sent = []
@@ -90,7 +95,8 @@ beforeEach(() => {
   handoffs = []
   service = createHqSessions({
     mode: () => mode,
-    enabled: () => true,
+    enabled: () => journalOn,
+    autoHandoff: () => auto,
     scope: async (caller) =>
       caller.cwd === '/hq'
         ? { kind: 'overview', sessionId: null, worktreeId: null }
@@ -236,7 +242,7 @@ describe('HQ+ session dispatcher', () => {
   })
 
   it('starts a handoff nobody took up; report mode notes it once', async () => {
-    offers = [{ id: 'h1', sessionId: 'claude_old', raisedAt: clock - MIN }]
+    offers = [{ id: 'h1', sessionId: 'claude_old', raisedAt: clock - MIN, limitStopped: false }]
     live = [chat()]
     expect((await service.sweep({ run: true })).actions).toEqual([])
     clock += 5 * MIN
@@ -252,6 +258,95 @@ describe('HQ+ session dispatcher', () => {
     expect(rows(HQ_JOURNAL_KIND.sessionOpen).map((row) => row.dedupeKey)).toEqual([
       'session.open:handoff:h1'
     ])
+  })
+
+  describe('the new chat after a handoff, by its own switch (18.13)', () => {
+    const offer = (over: Partial<HqHandoffOfferRef> = {}): HqHandoffOfferRef => ({
+      id: 'h1',
+      sessionId: 'claude_old',
+      raisedAt: clock - 30_000,
+      limitStopped: false,
+      ...over
+    })
+    // The launcher drops an offer it started, so a later sweep no longer sees it.
+    const takeUp = (): void => {
+      offers = offers.filter((candidate) => !handoffs.includes(candidate.id))
+    }
+
+    beforeEach(() => {
+      auto = true
+      mode = 'report'
+      live = [chat()]
+    })
+
+    it('starts one new chat per handoff, in report mode and with the dispatcher off', async () => {
+      offers = [offer()]
+      await service.sweep({ run: true })
+      takeUp()
+      await service.sweep({ run: true })
+      expect(handoffs).toEqual(['h1'])
+      expect(rows(HQ_JOURNAL_KIND.sessionPlan)).toEqual([])
+      expect(rows(HQ_JOURNAL_KIND.sessionOpen).map((row) => row.dedupeKey)).toEqual([
+        'session.open:handoff:h1'
+      ])
+
+      mode = 'off'
+      offers = [offer({ id: 'h2', sessionId: 'claude_two' })]
+      await service.sweep({ run: true })
+      expect(handoffs).toEqual(['h1', 'h2'])
+    })
+
+    it('two sweeps at once start it once', async () => {
+      offers = [offer()]
+      await Promise.all([service.sweep({ run: true }), service.sweep({ run: true })])
+      expect(handoffs).toEqual(['h1'])
+    })
+
+    it('leaves the chat on the owner’s screen to him, and goes once he looks away', async () => {
+      offers = [offer()]
+      live = [chat({ onScreen: true, ownerAt: clock })]
+      await service.sweep({ run: true })
+      expect(handoffs).toEqual([])
+      live = [chat({ ownerAt: clock - 10_000 })]
+      await service.sweep({ run: true })
+      expect(handoffs).toEqual(['h1'])
+    })
+
+    it('does not start one the owner already took up with the button', async () => {
+      offers = [offer()]
+      // The button started it a moment ago: the launcher no longer lists the offer.
+      offers = []
+      await service.sweep({ run: true })
+      expect(handoffs).toEqual([])
+      expect(rows(HQ_JOURNAL_KIND.sessionOpen)).toEqual([])
+    })
+
+    it('waits out its few seconds, and a chat stopped on a limit until the limit lifts', async () => {
+      offers = [offer({ raisedAt: clock - 5_000 })]
+      await service.sweep({ run: true })
+      offers = [offer({ limitStopped: true })]
+      await service.sweep({ run: true })
+      expect(handoffs).toEqual([])
+      offers = [offer()]
+      await service.sweep({ run: true })
+      expect(handoffs).toEqual(['h1'])
+    })
+
+    it('switched off, leaves the handoff to the dispatcher’s mode', async () => {
+      auto = false
+      offers = [offer({ raisedAt: clock - 5 * MIN })]
+      await service.sweep({ run: true })
+      expect(handoffs).toEqual([])
+      expect(rows(HQ_JOURNAL_KIND.sessionPlan)).toHaveLength(1)
+    })
+
+    it('with the journal off, starts it and writes nothing', async () => {
+      journalOn = false
+      offers = [offer()]
+      await service.sweep({ run: true })
+      expect(handoffs).toEqual(['h1'])
+      expect(rows(HQ_JOURNAL_KIND.sessionOpen)).toEqual([])
+    })
   })
 
   it('reports work waiting on a thread no chat is on', async () => {
