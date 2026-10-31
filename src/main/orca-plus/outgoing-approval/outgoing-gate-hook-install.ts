@@ -11,8 +11,16 @@ import {
   type HooksConfig
 } from '../../agent-hooks/installer-utils'
 import { buildOutgoingGateScript, OUTGOING_GATE_SCRIPT_FILE } from './outgoing-gate-hook-script'
+import {
+  buildOutgoingSentScript,
+  OUTGOING_SENT_MATCHER,
+  OUTGOING_SENT_SCRIPT_FILE
+} from './outgoing-sent-hook-script'
 
 const PRE_TOOL_USE = 'PreToolUse'
+// Custom build (hq-request-ledger): the sent-message recorder rides beside the gate.
+const POST_TOOL_USE = 'PostToolUse'
+const OUTGOING_SENT_TIMEOUT_SECONDS = 10
 export const OUTGOING_GATE_MATCHER = 'Bash|mcp__.*'
 // Why: the agent waits until the owner presses a button; a week bounds a call nobody will ever answer.
 export const OUTGOING_GATE_TIMEOUT_SECONDS = 7 * 24 * 60 * 60
@@ -21,8 +29,11 @@ export function outgoingGateHookCommand(scriptPath: string): string {
   return `/bin/sh "${scriptPath}"`
 }
 
-function withoutGateEntries(definitions: readonly HookDefinition[]): HookDefinition[] {
-  const isGate = createManagedCommandMatcher(OUTGOING_GATE_SCRIPT_FILE)
+function withoutGateEntries(
+  definitions: readonly HookDefinition[],
+  scriptFile = OUTGOING_GATE_SCRIPT_FILE
+): HookDefinition[] {
+  const isGate = createManagedCommandMatcher(scriptFile)
   return definitions
     .map((definition) => ({
       ...definition,
@@ -49,9 +60,26 @@ export function withOutgoingGateHook(config: HooksConfig, scriptPath: string): H
   return { ...config, hooks: { ...config.hooks, [PRE_TOOL_USE]: [...others, gate] } }
 }
 
+/** Custom build (hq-request-ledger): the config with one sent-recorder entry in PostToolUse. */
+export function withOutgoingSentHook(config: HooksConfig, scriptPath: string): HooksConfig {
+  const others = withoutGateEntries(config.hooks?.[POST_TOOL_USE] ?? [], OUTGOING_SENT_SCRIPT_FILE)
+  const sent: HookDefinition = {
+    matcher: OUTGOING_SENT_MATCHER,
+    hooks: [
+      {
+        type: 'command',
+        command: outgoingGateHookCommand(scriptPath),
+        timeout: OUTGOING_SENT_TIMEOUT_SECONDS
+      }
+    ]
+  }
+  return { ...config, hooks: { ...config.hooks, [POST_TOOL_USE]: [...others, sent] } }
+}
+
 export function installOutgoingGateHook(
   configPath = getConfigPath(),
-  scriptPath = getSharedManagedScriptPath(OUTGOING_GATE_SCRIPT_FILE)
+  scriptPath = getSharedManagedScriptPath(OUTGOING_GATE_SCRIPT_FILE),
+  sentScriptPath = getSharedManagedScriptPath(OUTGOING_SENT_SCRIPT_FILE)
 ): boolean {
   // Why: the gate is a POSIX sh script; Windows needs its own launcher before it can be held there.
   if (process.platform === 'win32') {
@@ -64,25 +92,33 @@ export function installOutgoingGateHook(
     return false
   }
   writeManagedScript(scriptPath, buildOutgoingGateScript())
-  const next = withOutgoingGateHook(config, scriptPath)
+  writeManagedScript(sentScriptPath, buildOutgoingSentScript())
+  const next = withOutgoingSentHook(withOutgoingGateHook(config, scriptPath), sentScriptPath)
   if (JSON.stringify(next) !== JSON.stringify(config)) {
     writeHooksJson(configPath, next)
   }
   return true
 }
 
-/** Removes the gate entry; the script stays, inert, since no entry runs it. */
+/** Removes the gate and recorder entries; the scripts stay, inert, since no entry runs them. */
 export function removeOutgoingGateHook(configPath = getConfigPath()): void {
   const config = readHooksJson(configPath)
-  const existing = config?.hooks?.[PRE_TOOL_USE]
-  if (!config || !existing) {
+  if (!config?.hooks) {
     return
   }
-  const remaining = withoutGateEntries(existing)
-  if (
-    remaining.length !== existing.length ||
-    JSON.stringify(remaining) !== JSON.stringify(existing)
-  ) {
-    writeHooksJson(configPath, { ...config, hooks: { ...config.hooks, [PRE_TOOL_USE]: remaining } })
+  const hooks = { ...config.hooks }
+  for (const [event, file] of [
+    [PRE_TOOL_USE, OUTGOING_GATE_SCRIPT_FILE],
+    [POST_TOOL_USE, OUTGOING_SENT_SCRIPT_FILE]
+  ] as const) {
+    const remaining = withoutGateEntries(hooks[event] ?? [], file)
+    if (remaining.length > 0) {
+      hooks[event] = remaining
+    } else {
+      delete hooks[event]
+    }
+  }
+  if (JSON.stringify(hooks) !== JSON.stringify(config.hooks)) {
+    writeHooksJson(configPath, { ...config, hooks })
   }
 }

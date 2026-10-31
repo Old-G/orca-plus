@@ -21,11 +21,12 @@ import {
   lastLedgerDirection,
   ledgerHasSlackMessage,
   listLedgerConversations,
-  setConversationChat,
   setLedgerGuess,
   type HqLedgerGuess
 } from './pulse-ledger'
 import { listLedgerCards, settleLedgerMessage } from './pulse-ledger-cards'
+import { recordAgentSend, type HqAgentSend } from './pulse-sent'
+import { setConversationChat } from './pulse-ledger-chat'
 import {
   closeLedgerConversation,
   listLedgerFeed,
@@ -133,6 +134,11 @@ export class PulseDb {
   }
   ingestLedgerSignal(signal: HqLedgerSignal) {
     return ingestLedgerSignal(this.core, signal)
+  }
+
+  /** Custom build (hq-request-ledger): a message an agent sent, read from its call's result. */
+  recordAgentSend(send: HqAgentSend) {
+    return recordAgentSend(this.core, send)
   }
 
   setConversationChat(key: string, sessionId: string): void {
