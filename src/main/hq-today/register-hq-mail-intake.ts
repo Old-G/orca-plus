@@ -2,7 +2,12 @@
 // and the pulse waitings — bound once at startup, with Settings' Gmail IPC.
 import type { Store } from '../persistence'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import { getGmailMail, listGmailMessageIds } from '../gmail/gmail-api'
+import {
+  getGmailLetter,
+  getGmailMail,
+  listGmailMessageIds,
+  listGmailMessageRefs
+} from '../gmail/gmail-api'
 import { gmailAccount } from '../gmail/gmail-credential-store'
 import {
   getClickUpTask,
@@ -30,6 +35,7 @@ import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
 import { guessHqLedger, type HqLedgerGuessInput } from './hq-ledger-guess'
 import { hqLedgerErrorReporter } from './hq-ledger-errors'
 import { HQ_GITLAB_TODO_READER, startHqGitLabTodoReader } from './hq-gitlab-todo-reader'
+import { startHqMailLedgerReader } from './hq-mail-ledger-reader'
 import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 
 async function glabJson(host: string, path: string): Promise<unknown> {
@@ -171,6 +177,34 @@ function registerGitLabTodos(
   )
 }
 
+/** Custom build (hq-ledger-sources): letters from people (the intake reads only notices) into the ledger. */
+function registerMailLetters(store: Store, runtime: OrcaRuntimeService): void {
+  startHqMailLedgerReader(
+    {
+      enabled: () => store.getSettings().hqLedger !== 'off' && gmailAccount() !== null,
+      owner: gmailAccount,
+      listRefs: listGmailMessageRefs,
+      getLetter: getGmailLetter,
+      ingest: (signal) => runtime.pulseIngestLedger(signal),
+      lastDirection: (key) => runtime.pulseLastLedgerDirection(key),
+      guess: (letter, signal) =>
+        ledgerGuess(store, runtime, {
+          author: signal.author,
+          fromOwner: false,
+          dm: signal.forOwner,
+          where: signal.forOwner ? 'an email to the user' : 'an email the user is copied on',
+          text: `Subject: ${letter.subject}\n\n${signal.text}`,
+          links: []
+        }),
+      setGuess: (id, guess) => runtime.pulseSetLedgerGuess(id, guess),
+      now: Date.now
+    },
+    hqLedgerErrorReporter('hq-mail-ledger', 'Letters from people not read', (rows) =>
+      runtime.pulseRecordJournal(rows)
+    )
+  )
+}
+
 export function registerHqMailIntake(store: Store, runtime: OrcaRuntimeService): void {
   registerGmailHandlers()
   // Custom build (hq-mr-watch): waitings that name an MR, checked against GitLab every few minutes.
@@ -249,4 +283,5 @@ export function registerHqMailIntake(store: Store, runtime: OrcaRuntimeService):
       }),
     onAdded: notifyHqSlackScoutChanged
   })
+  registerMailLetters(store, runtime)
 }
