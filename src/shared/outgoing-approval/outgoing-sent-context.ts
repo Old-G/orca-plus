@@ -33,6 +33,9 @@ export type OutgoingSentContext = {
   footer: string | null
   /** Custom build (outgoing-venue): the owner sent it to the task or to Slack instead. */
   movedTo: 'clickup' | 'slack' | null
+  /** Custom build (hq-request-ledger): the HQ project of the sending chat's workspace; null when HQ
+   *  knows none (`project` above is only the folder's name). */
+  hqProject?: string | null
 }
 
 export type OutgoingSentExtras = {
@@ -42,6 +45,7 @@ export type OutgoingSentExtras = {
   movedTo?: 'clickup' | 'slack' | null
   /** The thread the owner put it in, over the one the call named. */
   threadTs?: string | null
+  hqProject?: string | null
 }
 
 export function outgoingSentContext(
@@ -67,7 +71,8 @@ export function outgoingSentContext(
     taskName: named.task?.name ?? null,
     ref: outgoingRef(draft.id),
     footer: extras.footer ?? null,
-    movedTo: extras.movedTo ?? null
+    movedTo: extras.movedTo ?? null,
+    hqProject: extras.hqProject ?? null
   }
 }
 
@@ -112,6 +117,7 @@ export function readOutgoingSentContext(value: unknown): OutgoingSentContext | n
     ref: field('ref'),
     footer: field('footer'),
     movedTo:
-      field('movedTo') === 'clickup' ? 'clickup' : field('movedTo') === 'slack' ? 'slack' : null
+      field('movedTo') === 'clickup' ? 'clickup' : field('movedTo') === 'slack' ? 'slack' : null,
+    hqProject: field('hqProject')
   }
 }
