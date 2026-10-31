@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { hqMailEvent } from '../../shared/hq-mail-events'
-import { gmailMessageToMail } from './gmail-message'
+import { gmailMessageToLetter, gmailMessageToMail } from './gmail-message'
 
 const b64 = (text: string): string => Buffer.from(text, 'utf-8').toString('base64url')
 
@@ -62,5 +62,45 @@ describe('gmailMessageToMail', () => {
       iid: 7,
       projectPath: 'acme/svc'
     })
+  })
+})
+
+describe('gmailMessageToLetter (hq-ledger-sources)', () => {
+  it('reads a person’s letter with its thread, To, Cc and bulk headers, the plain part alone', () => {
+    const letter = gmailMessageToLetter({
+      id: 'm3',
+      threadId: 't3',
+      internalDate: '1790000000000',
+      payload: {
+        mimeType: 'multipart/alternative',
+        headers: [
+          { name: 'From', value: 'Ann Lee <ann@acme.example>' },
+          { name: 'To', value: 'owner@acme.example' },
+          { name: 'Cc', value: 'bob@acme.example' },
+          { name: 'Subject', value: 'Contract' },
+          { name: 'List-Unsubscribe', value: '<mailto:u@acme.example>' },
+          { name: 'Precedence', value: 'bulk' },
+          { name: 'Auto-Submitted', value: 'auto-generated' }
+        ],
+        parts: [
+          { mimeType: 'text/plain', body: { data: b64('Please sign.') } },
+          { mimeType: 'text/html', body: { data: b64('<p>Please sign.</p>') } }
+        ]
+      }
+    })
+    expect(letter).toEqual({
+      id: 'm3',
+      threadId: 't3',
+      from: 'Ann Lee <ann@acme.example>',
+      to: 'owner@acme.example',
+      cc: 'bob@acme.example',
+      subject: 'Contract',
+      body: 'Please sign.',
+      receivedAt: 1790000000000,
+      listUnsubscribe: true,
+      precedence: 'bulk',
+      autoSubmitted: 'auto-generated'
+    })
+    expect(gmailMessageToLetter({ id: 'm4', payload: {} })).toBeNull()
   })
 })

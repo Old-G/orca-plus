@@ -17,6 +17,25 @@ export type HqMail = {
   receivedAt: number
 }
 
+/** Custom build (hq-ledger-sources): a letter in the owner's mailbox as the ledger reads it — its thread,
+ *  whom it is to, and the headers that mark mail sent in bulk or by a machine. */
+export type HqLetter = {
+  id: string
+  threadId: string
+  from: string
+  /** The raw To and Cc headers. */
+  to: string
+  cc: string
+  subject: string
+  /** text/plain part, or the HTML as text when the letter has none. */
+  body: string
+  receivedAt: number
+  /** A List-Unsubscribe header was there. */
+  listUnsubscribe: boolean
+  precedence: string | null
+  autoSubmitted: string | null
+}
+
 export type HqMailEvent =
   | { kind: 'mr-merged'; mrUrl: string; host: string; projectPath: string; iid: number }
   | { kind: 'clickup-comment'; taskRef: string; commentId: string }
