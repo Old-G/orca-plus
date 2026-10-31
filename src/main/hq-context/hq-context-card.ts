@@ -7,6 +7,7 @@ import {
 } from '../../shared/hq-context'
 import type { HqJournalEntry, HqSession } from '../../shared/hq-journal'
 import type { PulseDecision, PulseWaiting } from '../../shared/pulse-types'
+import type { HqOpenConversation } from '../orca-plus/pulse/pulse-ledger-open'
 
 const HOUR_MS = 3_600_000
 const DAY_MS = 24 * HOUR_MS
@@ -33,6 +34,8 @@ export type HqContextCardInput = {
   /** Custom build (hq-closed-loop): who works on it, by the dossiers in HQ's `people/`. */
   people?: readonly { name: string; role: string | null; write: string | null }[]
   where: readonly { label: string; value: string }[]
+  /** Custom build (hq-request-ledger): the project's open ledger conversations, newest first. */
+  conversations?: readonly HqOpenConversation[]
   now: number
 }
 
@@ -57,8 +60,14 @@ function oneLine(text: string, max = 110): string {
   return line.length > max ? `${line.slice(0, max - 1)}…` : line
 }
 
-function block(title: string, source: string, rows: string[], empty: string): string[] {
-  const shown = rows.slice(0, PER_BLOCK)
+function block(
+  title: string,
+  source: string,
+  rows: string[],
+  empty: string,
+  limit = PER_BLOCK
+): string[] {
+  const shown = rows.slice(0, limit)
   const more = rows.length - shown.length
   return [
     `## ${title} · ${source}`,
@@ -102,6 +111,58 @@ function waitingRow(waiting: PulseWaiting, input: HqContextCardInput): string {
   return `- ${who}${oneLine(waiting.title, 80)}${ref} — с ${day(waiting.createdAt)} (${hqAge(waiting.createdAt, input.now)})${answered}`
 }
 
+/** Custom build (hq-request-ledger): where a conversation lives, from its ledger key. */
+function placeOf(conversation: HqOpenConversation): string {
+  const [source, ...rest] = conversation.key.split(':')
+  const place = rest.join(':')
+  switch (source) {
+    case 'slack':
+      return place.startsWith('D') ? 'личка Slack' : `тред Slack ${place.split(':')[0]}`
+    case 'clickup':
+      return `задача ${place}`
+    case 'gitlab':
+      return `MR ${place.split('/').at(-1) ?? place}`
+    case 'gmail':
+      return `письмо «${oneLine(conversation.title, 40)}»`
+    default:
+      return oneLine(conversation.title, 40)
+  }
+}
+
+function conversationRow(conversation: HqOpenConversation, now: number): string {
+  const { lastOut, lastIn, holder } = conversation
+  const answered = lastIn && (!lastOut || lastIn.at > lastOut.at) ? lastIn : null
+  const since = (conversation.state === 'wait' ? lastOut?.at : answered?.at) ?? conversation.lastAt
+  const holderName = holder ? (holder.address ?? holder.sessionId.slice(0, 14)) : null
+  // Why: some readers keep a reply as «Name: text»; the name is already in the row.
+  const said = conversation.withWhom ? `${conversation.withWhom}: ` : null
+  const reply =
+    answered && said && answered.text.startsWith(said)
+      ? answered.text.slice(said.length)
+      : answered?.text
+  return [
+    `- ${conversation.state === 'you' ? 'ход наш' : 'ждём'} · ${placeOf(conversation)}`,
+    conversation.withWhom ? `с ${conversation.withWhom}` : null,
+    lastOut ? `мы: «${oneLine(lastOut.text, 60)}»` : null,
+    reply ? `ответ: «${oneLine(reply, 50)}»` : null,
+    `с ${day(since)} (${hqAge(since, now)})`,
+    holderName ? `чат ${holderName}` : null
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+/** The open conversations in what room the card has left, so the blocks after it keep theirs. */
+function conversationsBlock(input: HqContextCardInput, room: number): string[] {
+  return block(
+    'Разговоры',
+    'orca hq events',
+    (input.conversations ?? []).map((conversation) => conversationRow(conversation, input.now)),
+    'открытых нет',
+    Math.min(PER_BLOCK, Math.max(1, room - 2))
+  )
+}
+
 function sessionRow(session: HqSession, now: number): string {
   const name = session.address ?? session.sessionId.slice(0, 14)
   const context = session.contextPct !== null ? ` · контекст ${session.contextPct}%` : ''
@@ -121,7 +182,7 @@ export function buildHqContextCard(input: HqContextCardInput): string[] {
       ? `страница: ${input.page.path}, синхронизирована ${hqAge(input.page.syncedAt, now)}${stale(input.page.syncedAt, HQ_PAGE_STALE_MS, now)}`
       : 'страницы проекта в HQ нет'
   ]
-  const lines = [
+  const before = [
     ...head,
     ...planBlock(input),
     ...block(
@@ -144,7 +205,9 @@ export function buildHqContextCard(input: HqContextCardInput): string[] {
       'orca pulse wait',
       open.filter((w) => w.direction === 'on-me').map((w) => waitingRow(w, input)),
       'ничего'
-    ),
+    )
+  ]
+  const after = [
     ...block(
       'Договорились и отправили',
       'orca pulse decision list · orca hq events',
@@ -174,6 +237,11 @@ export function buildHqContextCard(input: HqContextCardInput): string[] {
       input.where.map((item) => `- ${item.label}: ${item.value}`),
       'не указано'
     )
+  ]
+  const lines = [
+    ...before,
+    ...conversationsBlock(input, HQ_CONTEXT_MAX_LINES - before.length - after.length),
+    ...after
   ]
   return lines.length > HQ_CONTEXT_MAX_LINES
     ? [...lines.slice(0, HQ_CONTEXT_MAX_LINES - 1), '…карточка обрезана до 60 строк']
