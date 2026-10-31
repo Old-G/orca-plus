@@ -1,6 +1,6 @@
 // Custom build (hq-plus-sessions): what each chat is doing now, put together from the journal's
 // sessions, the agents' live status, the open tabs and what the owner last looked at.
-import type { HqSession } from '../../shared/hq-journal'
+import { hqChatAddress, type HqSession, type HqSessionInput } from '../../shared/hq-journal'
 import type { HqLiveSession } from '../../shared/hq-sessions'
 
 const NATIVE_CHAT_TAB = 'structured-agent-session-'
@@ -82,4 +82,46 @@ export function hqLiveSessions(inputs: HqLiveInputs): HqLiveSession[] {
     })
   }
   return live.sort((a, b) => b.lastActivityAt - a.lastActivityAt)
+}
+
+/**
+ * Custom build (chat-send-anywhere): an open, named chat with no thread gets its address at first
+ * sight, not at its first report — a chat in one long first turn can be found and written to.
+ * A stored address wins; a nameless chat waits for its name (its session id still reaches it).
+ */
+export function hqAddressOpenChats(
+  live: readonly HqLiveSession[],
+  stored: (sessionId: string) => HqSession | null,
+  now: number
+): { live: HqLiveSession[]; notes: HqSessionInput[] } {
+  const notes: HqSessionInput[] = []
+  const addressed = live.map((chat) => {
+    if (chat.address || !chat.tabOpen || chat.state === 'closed' || !chat.name) {
+      return chat
+    }
+    const known = stored(chat.sessionId)
+    if (known?.address) {
+      return { ...chat, address: known.address }
+    }
+    const address = hqChatAddress(chat.project, chat.name, chat.sessionId)
+    notes.push(
+      known
+        ? { ...known, address, at: known.lastActivityAt }
+        : {
+            sessionId: chat.sessionId,
+            address,
+            agent: null,
+            worktreeId: chat.worktreeId,
+            workspace: chat.workspace,
+            project: chat.project,
+            state: chat.state,
+            contextPct: null,
+            parentSessionId: null,
+            taskRef: null,
+            at: chat.lastActivityAt || now
+          }
+    )
+    return { ...chat, address }
+  })
+  return { live: addressed, notes }
 }
