@@ -113,12 +113,16 @@ function waitingRow(waiting: PulseWaiting, input: HqContextCardInput): string {
 
 /** Custom build (hq-request-ledger): text other people wrote, made inert for an agent's context —
  *  no control or format characters (bidi overrides, zero-width), no line breaks to fake a heading,
- *  no backticks or tags, no leading markup, and short. */
+ *  no backticks or tags, no quote marks to close the card's «…», no leading markup, and short. */
 export function hqInertText(text: string, max: number): string {
   const line = text
     .replace(/[\p{Cc}\p{Cf}\u2028\u2029]/gu, ' ')
     .replace(/<[^>]*>/g, ' ')
     .replace(/[`<>]/g, '')
+    // Why: «» delimit quotes on the card; a quote mark in people's text could close one and go on
+    // as if the card said it. Apostrophes become ʼ, which nothing delimits.
+    .replace(/[«»"“”„‹›]/g, ' ')
+    .replace(/['‘’]/g, 'ʼ')
     .replace(/\s+/g, ' ')
     .replace(/^[\s#>*\-=|]+/, '')
     .trim()
