@@ -9,6 +9,7 @@ import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { getGeneralProjectRuntimeSearchEntries } from './project-runtime/general-project-runtime-search'
 import { getGeneralSupportSearchEntries } from './general-support-search'
 import { getUpdateDelayDescription, getUpdateDelayTitle } from '../updates/update-delay-copy'
+import { getGeneralWorkspaceHqSearchDescriptors } from './general-workspace-hq-search'
 
 export const getGeneralWorkspaceSearchDescriptors = createLocalizedCatalog(() => [
   generalSetting(GENERAL_SETTING_ANCHORS.folder, {
@@ -37,45 +38,7 @@ export const getGeneralWorkspaceSearchDescriptors = createLocalizedCatalog(() =>
       ...translateSearchKeyword('auto.hq.setting.keyword.strata', 'strata')
     ]
   }),
-  // Custom build (chat-cleanup): found by search too, not only by scrolling to it.
-  generalSetting(GENERAL_SETTING_ANCHORS.folder, {
-    title: translate('auto.hq.chatCleanup.settingTitle', 'Close quiet chats'),
-    description: translate(
-      'auto.hq.chatCleanup.settingDescription',
-      'A chat read after it finished closes after 12 hours, any chat after a quiet day — like its ×, so History reopens it. Chats that work, wait for you or for an answer, pinned or marked ones stay. Report only lists them in HQ Reports.'
-    ),
-    keywords: ['hq', 'chats', 'close', 'cleanup', 'tabs', 'sessions']
-  }),
-  // Custom build (hq-plus-ui)
-  generalSetting(GENERAL_SETTING_ANCHORS.folder, {
-    title: translate(
-      'auto.hqPlus.popups.settingTitle',
-      'Show HQ events in the HQ+ feed instead of popups'
-    ),
-    description: translate(
-      'auto.hqPlus.popups.settingDescription',
-      "Finished chats, Approve, Slack requests, people's answers, limits and handoffs become cards in HQ+ with an unread count on HQ+, instead of toasts on the right. Off brings the toasts back. Desktop and phone notifications are not changed."
-    ),
-    keywords: ['hq', 'hq+', 'toasts', 'popups', 'feed', 'notifications']
-  }),
-  // Custom build (hq-plus-sessions)
-  generalSetting(GENERAL_SETTING_ANCHORS.folder, {
-    title: translate('auto.hq.sessionDispatcher.settingTitle', 'Session dispatcher'),
-    description: translate(
-      'auto.hq.sessionDispatcher.settingDescription',
-      'Work handed to a thread goes to its chat while it has room and was active in the last 12 hours, else to a new chat that starts from the last report; handoffs nobody took up start in the background. A chat you are in is left alone; a project gets at most two live chats. Report only writes what it would do to the HQ+ journal.'
-    ),
-    keywords: ['hq', 'hq+', 'sessions', 'chats', 'dispatcher', 'handoff', 'queue']
-  }),
-  // Custom build (hq-request-ledger)
-  generalSetting(GENERAL_SETTING_ANCHORS.folder, {
-    title: translate('auto.hq.ledger.settingTitle', 'Conversations'),
-    description: translate(
-      'auto.hq.ledger.settingDescription',
-      'Slack DMs, threads you take part in and mentions are read every half minute into conversations. On: one card per conversation that waits on you, updated in place. Shadow: conversations are kept beside the old cards, nothing shown changes.'
-    ),
-    keywords: ['hq', 'hq+', 'ledger', 'conversations', 'slack', 'cards']
-  }),
+  ...getGeneralWorkspaceHqSearchDescriptors(),
   generalSetting(GENERAL_SETTING_ANCHORS.worktrees, {
     title: translate(
       'auto.components.settings.general.search.externalWorktrees',
