@@ -97,16 +97,6 @@ beforeEach(() => {
     mode: () => mode,
     enabled: () => journalOn,
     autoHandoff: () => auto,
-    scope: async (caller) =>
-      caller.cwd === '/hq'
-        ? { kind: 'overview', sessionId: null, worktreeId: null }
-        : {
-            kind: 'room',
-            room: caller.cwd === '/w/kite' ? 'hobby' : 'acme',
-            project: null,
-            sessionId: caller.sessionId ?? null,
-            worktreeId: null
-          },
     roomOf: async (project) => (project === 'kite' ? 'hobby' : 'acme'),
     dispatcherCaller: () => ({ cwd: '/hq' }),
     pulse: {
@@ -235,10 +225,13 @@ describe('HQ+ session dispatcher', () => {
     expect(rows(HQ_JOURNAL_KIND.sessionQueued)[0]?.status).toBe('done')
   })
 
-  it('keeps a dispatch inside the caller’s room', async () => {
-    await expect(
-      service.dispatch({ cwd: '/w/kite' }, { address: 'acme-api/refunds', prompt: 'x' })
-    ).rejects.toThrow("acme-api is not in this chat's room")
+  it('lets a chat of another room hand work to a thread', async () => {
+    live = [chat()]
+    const sent = await service.dispatch(
+      { cwd: '/w/kite' },
+      { address: 'acme-api/refunds', prompt: 'x', dryRun: true }
+    )
+    expect(sent.decision).toMatchObject({ kind: 'continue', address: 'acme-api/refunds' })
   })
 
   it('starts a handoff nobody took up; report mode notes it once', async () => {
