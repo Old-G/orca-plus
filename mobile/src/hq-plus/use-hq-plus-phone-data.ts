@@ -1,7 +1,8 @@
 // Custom build (hq-plus-phone): what HQ+ on the phone reads from the Mac, polled while the screen is
 // open (the phone has no bell stream) — the feed, the rooms, the chats, the waits and the people.
 // Lighter than the desktop's reads: the feed from the start of the day (what the log shows; open
-// decisions come however old), and the waits only while the drawer or a view needs them.
+// decisions come however old). Custom build (hq-project-cards): the waits are read with the feed, as
+// its project cards say whom we wait for.
 import { useCallback } from 'react'
 import { readHqChatWireList, type HqChatWireItem } from '../../../src/shared/hq-chat-wire'
 import { hqPlusDayStart } from '../../../src/shared/hq-plus-log'
@@ -11,8 +12,8 @@ import type { HqSpace } from '../../../src/shared/hq-spaces'
 import { hqPulseRead } from '../hq/hq-operations'
 import { hqChatListRead, hqSpacesRead } from '../hq/hq-messenger-operations'
 import { errorText, useMobileHqPoll } from '../hq/use-mobile-hq-poll'
-import { runRpcOperation } from '../transport/rpc-operation'
-import type { RpcClient } from '../transport/rpc-client'
+import { runRpcOperation } from '../transport/rpc/rpc-operation'
+import type { RpcClient } from '../transport/rpc/rpc-client-contract'
 import { hqPlusFeedRead, isHqPlusMacTooOld } from './hq-plus-phone-operations'
 
 /** Shown instead of an error when the Mac predates HQ+ on the phone. */
@@ -52,15 +53,12 @@ export type HqPlusPhoneData = {
   reload: () => void
 }
 
-export function useHqPlusPhoneData(
-  client: RpcClient | null,
-  /** The drawer or a view is open: the waits and people are read too. */
-  wantsPulse: boolean
-): HqPlusPhoneData {
+export function useHqPlusPhoneData(client: RpcClient | null): HqPlusPhoneData {
   const feed = useMobileHqPoll(client, readFeed)
   const spaces = useMobileHqPoll(client, readSpaces)
   const chats = useMobileHqPoll(client, readChats)
-  const pulse = useMobileHqPoll(wantsPulse ? client : null, readPulse)
+  // Custom build (hq-project-cards): the feed's cards count the waits, so they are always read.
+  const pulse = useMobileHqPoll(client, readPulse)
   const { refresh: refreshFeed } = feed
   const { refresh: refreshChats } = chats
   const { refresh: refreshPulse } = pulse
