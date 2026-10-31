@@ -243,7 +243,15 @@ CREATE TABLE ledger_rules (
 );
 `
 
-const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11]
+// Custom build (hq-request-ledger): which chat sent an outgoing message, and the approval it went out
+// under — so the chat's next waiting finds its own send, and one message is recorded once.
+const V12 = `
+ALTER TABLE conversation_messages ADD COLUMN session_id TEXT;
+ALTER TABLE conversation_messages ADD COLUMN decision_id TEXT;
+CREATE INDEX conversation_messages_by_session ON conversation_messages(session_id, at);
+`
+
+const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 
