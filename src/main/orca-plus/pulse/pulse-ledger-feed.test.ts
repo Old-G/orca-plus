@@ -91,6 +91,46 @@ describe('ledger feed', () => {
       ['slack:D0ANN:1800000000.1', null, null]
     ])
   })
+
+  it('gives an MR’s repo the owner’s project, so its new MRs take it (hq-ledger-sources)', () => {
+    const db = openDb()
+    db.ingestLedgerSignal(signal({ key: 'gitlab:acme/app!1', ts: 'todo:1' }))
+    db.setLedgerProject('gitlab:acme/app!1', 'hub')
+    db.ingestLedgerSignal(signal({ key: 'gitlab:acme/app!2', ts: 'todo:2' }))
+    db.ingestLedgerSignal(signal({ key: 'gitlab:acme/other!2', ts: 'todo:3' }))
+
+    const rows = db.listLedgerFeed(0).conversations
+    expect(rows.map((row) => [row.key, row.project, row.projectHow])).toEqual([
+      ['gitlab:acme/app!1', 'hub', 'owner'],
+      ['gitlab:acme/app!2', 'hub', 'rule'],
+      ['gitlab:acme/other!2', null, null]
+    ])
+  })
+})
+
+describe('closing a conversation (hq-ledger-sources)', () => {
+  const MR = 'gitlab:acme/app!7'
+  it('closes the owner’s move or news, never a wait, and lists a reader’s open places', () => {
+    const db = openDb()
+    db.ingestLedgerSignal(signal({ key: MR, ts: 'todo:1', reader: 'gitlab-todos' }))
+    db.ingestLedgerSignal(
+      signal({ key: 'gmail:t1', ts: 'm1', reader: 'gmail-letters', forOwner: false })
+    )
+    expect(db.listLedgerOpenKeys('gitlab-todos')).toEqual([MR])
+    expect(db.listLedgerOpenKeys('gmail-letters')).toEqual(['gmail:t1'])
+
+    expect(db.closeLedgerConversation(MR)).toBe(true)
+    expect(db.closeLedgerConversation(MR)).toBe(false)
+    expect(db.listLedgerOpenKeys('gitlab-todos')).toEqual([])
+    expect(db.listLedgerConversations().map((row) => [row.key, row.state])).toEqual([
+      [MR, 'done'],
+      ['gmail:t1', 'fyi']
+    ])
+
+    db.addWaiting({ direction: 'on-them', title: 'Review !7', source: 'gitlab', sourceRef: MR })
+    db.ingestLedgerSignal(signal({ key: MR, ts: 'out:1', fromOwner: true, at: tick + 5 }))
+    expect(db.closeLedgerConversation(MR)).toBe(false)
+  })
 })
 
 describe('ledger states the feed relies on (Codex, 30.10)', () => {
