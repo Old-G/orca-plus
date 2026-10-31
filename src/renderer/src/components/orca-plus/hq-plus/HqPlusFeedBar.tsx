@@ -7,8 +7,14 @@ import {
   isHqPlusFeedFilter,
   type HqPlusFeedFilter
 } from '../../../../../shared/hq-plus-feed-filter'
+import {
+  isHqPlusProjectFilter,
+  type HqPlusProjectFilter
+} from '../../../../../shared/hq-plus-project-cards'
 
 const FILTER_KEY = 'orca-plus.hq-plus-feed-filter'
+/** Custom build (hq-project-cards): the project feed's chip, kept apart from the old feed's. */
+const PROJECT_FILTER_KEY = 'orca-plus.hq-plus-project-filter'
 
 export function readHqPlusFeedFilter(): HqPlusFeedFilter {
   try {
@@ -16,6 +22,23 @@ export function readHqPlusFeedFilter(): HqPlusFeedFilter {
     return isHqPlusFeedFilter(stored) ? stored : 'all'
   } catch {
     return 'all'
+  }
+}
+
+export function readHqPlusProjectFilter(): HqPlusProjectFilter {
+  try {
+    const stored = localStorage.getItem(PROJECT_FILTER_KEY)
+    return isHqPlusProjectFilter(stored) ? stored : 'all'
+  } catch {
+    return 'all'
+  }
+}
+
+export function saveHqPlusProjectFilter(filter: HqPlusProjectFilter): void {
+  try {
+    localStorage.setItem(PROJECT_FILTER_KEY, filter)
+  } catch {
+    // Why: a window without storage keeps the choice until it closes.
   }
 }
 
