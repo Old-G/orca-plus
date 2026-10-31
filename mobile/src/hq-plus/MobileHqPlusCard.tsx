@@ -6,9 +6,12 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { HqPlusCard } from '../../../src/shared/hq-plus-log'
 import { HQ_JOB_UNDO } from '../../../src/shared/hq-journal'
 import { hqPlusLook } from '../../../src/shared/hq-plus-kinds'
+import { hqPlusLedgerOnly } from '../../../src/shared/hq-plus-ledger-cards'
+import { MobileHqPlusLedgerButtons } from './MobileHqPlusLedgerButtons'
 import type { HqPlusPhoneResult } from './hq-plus-phone-actions'
 import {
   closeHqPlusPhoneWait,
+  doneHqPlusPhoneConversation,
   markHqPlusPhoneDone,
   replyOnHqPlusPhoneCard,
   runHqPlusPhoneBellAction
@@ -235,6 +238,22 @@ function Buttons({
     (action: (rpc: NonNullable<typeof client>) => Promise<HqPlusPhoneResult>) =>
     (): Promise<HqPlusPhoneResult> =>
       client ? action(client) : Promise.resolve(NO_MAC)
+  // Custom build (hq-ledger-sources): an MR or a mail thread no other card stands for.
+  if (hqPlusLedgerOnly(card)) {
+    return (
+      <MobileHqPlusLedgerButtons
+        card={card}
+        busy={busy}
+        openLink={ctx.openLink}
+        onDone={() =>
+          run(
+            'done',
+            withClient((rpc) => doneHqPlusPhoneConversation(rpc, card))
+          )
+        }
+      />
+    )
+  }
   if (card.type === 'move') {
     return (
       <HqpButtons>
