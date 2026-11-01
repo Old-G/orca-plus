@@ -39,29 +39,36 @@ export type HqPlusProjectCardContext = {
   waitsOf: (ids: readonly string[]) => HqPlusOtherWait[]
 }
 
+// Custom build (hq-card-v2): the words the chat list on the left uses; a finished chat that was read is
+// «done» in grey there, never «quiet» (owner, 01.11).
 const STATE_LABEL: Record<HqPlusMapChatState, string> = {
   asks: 'asks you',
   working: 'working',
   done: 'done',
-  quiet: 'quiet'
+  quiet: 'done'
 }
 
 export function Fold({
   label,
   open,
   onToggle,
-  amber
+  tone,
+  extra
 }: {
   label: string
   open: boolean | null
   onToggle?: () => void
-  amber?: boolean
+  /** Custom build (hq-card-v2): Approve red, the owner's move amber. */
+  tone?: 'ap' | 'you'
+  /** Buttons at the head's right end (+ New chat, Open in Orca). */
+  extra?: React.ReactNode
 }): React.JSX.Element {
   return (
     <div className="hqpc-sec">
-      <span className="hqpc-lab" data-amber={amber ? 'true' : undefined}>
+      <span className="hqpc-lab" data-tone={tone}>
         {label}
       </span>
+      {extra ? <span className="hqpc-sec-extra">{extra}</span> : null}
       {open !== null && onToggle ? (
         <button type="button" className="hqpc-fold" aria-expanded={open} onClick={onToggle}>
           {open ? 'Hide' : 'Show'}
@@ -214,10 +221,13 @@ export function ChatRow({
   const line = hqPlusProjectChatLine(chat)
   // Why: the chat open on the right shows on its row, as the feed's card shows it on its frame.
   const picked = line ? ctx.log.isOpenChat(line.sessionId) : false
+  const said = chat.line?.body?.trim() || chat.line?.title || null
+  const asks = chat.question !== null || chat.state === 'asks'
   return (
     <li
       className="hqpc-ln hqpc-chat"
       id={line ? `hqp-${line.id}` : undefined}
+      data-state={asks ? 'asks' : chat.state}
       data-open={open ? 'true' : undefined}
       data-picked={picked ? 'true' : undefined}
       data-selected={line && ctx.log.selectedId === line.id ? 'true' : undefined}
@@ -226,21 +236,34 @@ export function ChatRow({
       <div className="hqpc-rowwrap">
         <button
           type="button"
-          className="hqpc-row"
+          className="hqpc-row hqpc-chatrow"
           aria-expanded={open}
           // Why: a terminal has no chat card; its row opens it on the right at once.
           onClick={line ? onToggle : () => ctx.showChat(chat.key)}
         >
-          <span className="hqpc-dot" data-state={chat.state} />
-          <span className="hqpc-t">
-            {item ? <HqPlusChatName chat={{ item, name: null }} /> : chat.title}
+          <span className="hqpc-st" data-state={asks ? 'asks' : chat.state}>
+            <i />
+            {asks ? STATE_LABEL.asks : STATE_LABEL[chat.state]}
           </span>
-          <span className="hqpc-age" data-state={chat.state}>
-            {STATE_LABEL[chat.state]}
+          <span className="hqpc-cn">
+            <b>{item ? <HqPlusChatName chat={{ item, name: null }} /> : chat.title}</b>
+            {/* Why: a read chat is one grey line (owner, 01.11: 3A); an open one shows its reply below. */}
+            {said && chat.state !== 'quiet' && !open ? (
+              <span className="hqpc-said2">{said.replace(/\*\*|`/g, '')}</span>
+            ) : null}
+          </span>
+          <span className="hqpc-age">{hqPlusProjectAge(chat.line?.at ?? chat.at, ctx.now)}</span>
+          <span className="hqpc-caret" aria-hidden="true">
+            {open ? '▴' : '▾'}
           </span>
         </button>
         {closer ? <HqPlusCloseChat closer={closer} name={chat.title} /> : null}
       </div>
+      {chat.question ? (
+        <div className="hqpc-ask" id={`hqp-${chat.question.id}`}>
+          <HqPlusLogCards items={[chat.question.card]} ctx={ctx.log} bare />
+        </div>
+      ) : null}
       {open && line ? (
         <div className="hqpc-open">
           <ChatCard

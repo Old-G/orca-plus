@@ -72,6 +72,43 @@ export const hqpProjectStyles = StyleSheet.create({
   },
   pickText: { color: hqp.mute, fontFamily: hqp.mono, fontSize: 11.5 },
   pickError: { color: hqp.red, fontSize: 12, width: '100%' },
+  chatRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 3, borderRadius: 10 },
+  chatHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  stateText: { fontFamily: hqp.mono, fontSize: 10.5, letterSpacing: 0.8, flex: 1 },
+  chatSaid: { color: hqp.mute, fontSize: 12.5, lineHeight: 18 },
+  cardAp: { borderColor: 'rgba(255,107,98,.75)', backgroundColor: '#15151c' },
+  pillAp: {
+    borderColor: 'rgba(255,107,98,.6)',
+    backgroundColor: 'rgba(255,107,98,.1)',
+    color: hqp.red
+  },
+  apWrap: { paddingHorizontal: 10, paddingBottom: 8 },
+  apBar: {
+    position: 'absolute',
+    left: 10,
+    right: 10,
+    bottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+    paddingLeft: 12,
+    paddingRight: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,98,.75)',
+    backgroundColor: '#22121a'
+  },
+  apBarLabel: { color: hqp.red, fontFamily: hqp.mono, fontSize: 11, letterSpacing: 1.2 },
+  apBarText: { flex: 1, color: hqp.fg, fontSize: 13 },
+  apBarBtn: {
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 9,
+    backgroundColor: hqp.red,
+    justifyContent: 'center'
+  },
+  apBarBtnText: { color: '#2a0705', fontSize: 13, fontWeight: '600' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, padding: 12, paddingBottom: 8 },
   action: {
     minHeight: 36,
