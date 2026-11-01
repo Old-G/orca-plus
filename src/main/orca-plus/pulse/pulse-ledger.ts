@@ -12,6 +12,7 @@ import type { PulseCore } from './pulse-core'
 import { closeWaiting } from './pulse-waitings'
 import { ledgerRuleOf } from './pulse-ledger-feed'
 import { noteSendingChat } from './pulse-ledger-chat'
+import { linkedIn, namedIn, namesOtherTask } from './pulse-ledger-refs'
 
 /** Why: an answer by DM to a question older than two weeks is rarely to that question. */
 export const HQ_LEDGER_PERSON_WINDOW_MS = 14 * 24 * 60 * 60_000
@@ -20,27 +21,12 @@ export const HQ_LEDGER_PERSON_WINDOW_MS = 14 * 24 * 60 * 60_000
 export const HQ_LEDGER_DM_TALK_MS = 30 * 60_000
 
 const DM_KEY = /^slack:(D[A-Z0-9]+):/
-const TASK_LINK = /app\.clickup\.com\/t\/(?:\d+\/)?([\w-]+)|merge_requests\/(\d+)/g
-
-/** Tasks and MRs a text links to, e.g. `DEV-18421`, `!314`; a bare mention is not a link. */
-function linkedIn(text: string): Set<string> {
-  return new Set(
-    [...text.matchAll(TASK_LINK)].map((match) => (match[1] ? match[1] : `!${match[2]}`))
-  )
-}
 
 /** Why: a DM that names another task (30.10, «it is over here: DEV-18421») links to is about that task, not
  *  the one open question to its author. */
 function aboutOtherTask(signal: HqLedgerSignal, waiting: OpenWaiting): boolean {
-  const linked = linkedIn(signal.text)
-  if (linked.size === 0) {
-    return false
-  }
-  const own = `${waiting.title} ${waiting.key ?? ''}`
-  return ![...linked].some((ref) => own.includes(ref))
+  return namesOtherTask(linkedIn(signal.text), `${waiting.title} ${waiting.key ?? ''}`)
 }
-
-const TASK_ID = /\b[A-Z][A-Z0-9]+-\d+\b/g
 
 /** A top-level DM line joins the DM's talk of the last half hour instead of opening a conversation of
  *  one — unless it names a task the talk is not about: that is a new talk, with its own project. */
@@ -58,9 +44,7 @@ function dmTalkOf(core: PulseCore, signal: HqLedgerSignal): string | null {
   if (!row) {
     return null
   }
-  const title = String(row.title)
-  const named = new Set([...linkedIn(signal.text), ...(signal.text.match(TASK_ID) ?? [])])
-  if (named.size > 0 && ![...named].some((ref) => title.includes(ref))) {
+  if (namesOtherTask(namedIn(signal.text), String(row.title))) {
     return null
   }
   return String(row.id)
