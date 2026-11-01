@@ -252,7 +252,7 @@ describe('MobileHqPlusProjectFeed', () => {
     renderer = null
   })
 
-  it('puts the owner’s move first, folds a wait-only project to one line, and opens FYI from its row', () => {
+  it('puts the newest project last, folds a wait-only project to one line, and opens FYI from its row', () => {
     const feed = hqPlusProjectFeed({
       ...input,
       items: [
@@ -286,10 +286,9 @@ describe('MobileHqPlusProjectFeed', () => {
         typeof node.props.testID === 'string' && node.props.testID.startsWith('hq-plus-project-')
     )
     expect([...new Set(cards.map((node) => node.props.testID))]).toEqual([
-      'hq-plus-project-acme-api',
-      'hq-plus-project-acme-web'
+      'hq-plus-project-acme-web',
+      'hq-plus-project-acme-api'
     ])
-    expect(texts(root)).toContain('YOUR MOVE')
     expect(texts(root)).toContain('Ann 1 — oldest 1 d')
     press(root, 'Show FYI')
     expect(onFilter).toHaveBeenCalledWith('fyi')

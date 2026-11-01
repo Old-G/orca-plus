@@ -10,6 +10,7 @@ export const hqpProjectStyles = StyleSheet.create({
     backgroundColor: hqp.card,
     paddingBottom: 6
   },
+  cardMove: { backgroundColor: '#10202d' },
   compact: {
     flexDirection: 'row',
     flexWrap: 'wrap',

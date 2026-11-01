@@ -209,7 +209,7 @@ describe('hqPlusProjectFeed — one card per project', () => {
     expect(feed.counts.move).toBe(4)
   })
 
-  it('reads top down: your move longest waiting first, then work and chats newest first, then where we only wait, longest first', () => {
+  it('reads as a chat: the project something last came to is at the bottom, quiet waits on top', () => {
     const feed = hqPlusProjectFeed({
       ...input({
         items: [
@@ -227,18 +227,18 @@ describe('hqPlusProjectFeed — one card per project', () => {
       filter: 'all'
     })
     expect(feed.cards.map((entry) => entry.slug)).toEqual([
-      'acme-api',
-      'acme-web',
-      'acme-ops',
-      'acme-docs',
+      'acme-db',
       'acme-mail',
-      'acme-db'
+      'acme-api',
+      'acme-docs',
+      'acme-web',
+      'acme-ops'
     ])
     expect(feed.cards.find((entry) => entry.slug === 'acme-db')?.compact).toBe(true)
     expect(feed.cards.find((entry) => entry.slug === 'acme-ops')?.compact).toBe(false)
   })
 
-  it('a new message keeps the line in place and lifts the card into «Your move»', () => {
+  it('a new message keeps the line in place and moves its card to the bottom', () => {
     const before = hqPlusProjectFeed({
       ...input({
         items: [thread('a', 'acme-api', { since: NOW - 2 * HOUR })],
@@ -246,7 +246,7 @@ describe('hqPlusProjectFeed — one card per project', () => {
       }),
       filter: 'all'
     })
-    expect(before.cards.map((entry) => entry.slug)).toEqual(['acme-api', 'acme-web'])
+    expect(before.cards.map((entry) => entry.slug)).toEqual(['acme-web', 'acme-api'])
     const after = hqPlusProjectFeed({
       ...input({
         items: [
@@ -309,8 +309,8 @@ describe('hqPlusProjectFeed — the chips', () => {
 
   it('All: FYI folds into one row; a project with only FYI is no card', () => {
     const feed = hqPlusProjectFeed({ ...input({ items, waits, chats, entries }), filter: 'all' })
-    expect(feed.cards.map((entry) => entry.slug)).toEqual(['acme-api', 'acme-db'])
-    expect(feed.cards[0].shown).toEqual({
+    expect(feed.cards.map((entry) => entry.slug)).toEqual(['acme-db', 'acme-api'])
+    expect(feed.cards[1].shown).toEqual({
       you: true,
       fyi: false,
       wait: true,
@@ -341,9 +341,9 @@ describe('hqPlusProjectFeed — the chips', () => {
     expect(feed.cards[0].shown).toMatchObject({ you: false, wait: true })
   })
 
-  it('FYI shows the FYI lines, newest project first', () => {
+  it('FYI shows the FYI lines, newest project last', () => {
     const feed = hqPlusProjectFeed({ ...input({ items, waits, chats, entries }), filter: 'fyi' })
-    expect(feed.cards.map((entry) => entry.slug)).toEqual(['acme-web', 'acme-api'])
+    expect(feed.cards.map((entry) => entry.slug)).toEqual(['acme-api', 'acme-web'])
     expect(feed.cards[0].shown).toMatchObject({ you: false, fyi: true })
   })
 
