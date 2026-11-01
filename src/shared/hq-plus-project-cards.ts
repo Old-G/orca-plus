@@ -203,16 +203,10 @@ function shownBy(filter: HqPlusProjectFilter): HqPlusProjectCard['shown'] {
   }
 }
 
-/** The order the owner reads in: his move, longest waiting first; then work and chats, newest first;
- *  then projects where we only wait, longest first; Unsorted last. */
-function rank(card: HqPlusProjectCard): [number, number] {
-  if (card.unsorted) {
-    return [3, -card.lastAt]
-  }
-  if (card.you.length > 0) {
-    return [0, Math.min(...card.you.map((line) => line.since))]
-  }
-  return card.compact ? [2, card.oldestWaitAt ?? 0] : [1, -card.lastAt]
+/** Custom build (hq-project-cards): the order the owner reads in, as a chat (owner, 01.11): the project
+ *  something last came to stands at the bottom, where the feed opens; quiet ones rise to the top. */
+function rank(card: HqPlusProjectCard): number {
+  return card.lastAt
 }
 
 /**
@@ -274,13 +268,11 @@ export function hqPlusProjectFeed(
       return keep ? [next] : []
     })
     .sort((a, b) => {
-      // Why: FYI is news; the newest goes first.
+      // Why: FYI is news; the newest goes last, as on «All».
       if (input.filter === 'fyi') {
-        return (b.fyi[0]?.at ?? 0) - (a.fyi[0]?.at ?? 0)
+        return (a.fyi[0]?.at ?? 0) - (b.fyi[0]?.at ?? 0) || a.slug.localeCompare(b.slug)
       }
-      const [groupA, keyA] = rank(a)
-      const [groupB, keyB] = rank(b)
-      return groupA - groupB || keyA - keyB || a.slug.localeCompare(b.slug)
+      return rank(a) - rank(b) || a.slug.localeCompare(b.slug)
     })
   return { cards, counts, fyi }
 }

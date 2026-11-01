@@ -1,8 +1,9 @@
 // Custom build (hq-project-cards): HQ+'s feed on the phone as one card per project, in the desktop's order
-// — the owner's move first, then work and chats, then where we only wait, Unsorted last — and one dashed
-// FYI row at the bottom that opens the FYI chip. A line picked in the menu opens in its card, which
+// — read as a chat, the project something last came to at the bottom, where the feed opens and follows
+// new arrivals while the owner is there — and one dashed FYI row on top that opens the FYI chip. A line picked in the menu opens in its card, which
 // scrolls into view.
 import { useEffect, useRef } from 'react'
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import type {
   HqPlusProjectFeed,
@@ -42,36 +43,33 @@ export function MobileHqPlusProjectFeed({
     }
   }, [flash, flashSlug])
 
-  const yours = feed.cards.filter((card) => card.you.length > 0 && !card.unsorted)
-  const marks = filter === 'all' && yours.length > 0 && yours.length < feed.cards.length
+  // Why: what came last is the bottom card and its newest moment; the feed follows it from the bottom.
+  const atBottom = useRef(true)
+  const last = feed.cards.at(-1)
+  const arrival = last ? `${last.slug}:${last.lastAt}` : ''
+  useEffect(() => {
+    if (atBottom.current && !flash) {
+      scroll.current?.scrollToEnd({ animated: false })
+    }
+  }, [arrival, flash])
+  const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>): void => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
+    atBottom.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40
+  }
   return (
     <ScrollView
       ref={scroll}
       style={[styles.scroll, hqpWeb.noScrollbar]}
       contentContainerStyle={styles.content}
+      onScroll={onScroll}
+      scrollEventThrottle={100}
+      onContentSizeChange={() => {
+        if (atBottom.current && !flash) {
+          scroll.current?.scrollToEnd({ animated: false })
+        }
+      }}
       testID="hq-plus-feed"
     >
-      {feed.cards.length === 0 && (filter !== 'all' || feed.fyi.length === 0) ? (
-        <Text style={[hqpStyles.hint, styles.empty]}>{empty}</Text>
-      ) : null}
-      {feed.cards.map((card, index) => (
-        <View
-          key={card.slug}
-          style={styles.item}
-          onLayout={(event) => offsets.current.set(card.slug, event.nativeEvent.layout.y)}
-        >
-          {marks && index === 0 ? <Text style={styles.group}>YOUR MOVE</Text> : null}
-          {marks && index === yours.length ? (
-            <Text style={styles.group}>WE WAIT · DONE TODAY</Text>
-          ) : null}
-          <MobileHqPlusProjectCard
-            card={card}
-            ctx={ctx}
-            flashId={flashSlug === card.slug ? (flash?.id ?? null) : null}
-            openId={flashSlug === card.slug ? (flash?.id ?? null) : null}
-          />
-        </View>
-      ))}
       {filter === 'all' && feed.fyi.length > 0 ? (
         <Pressable
           accessibilityRole="button"
@@ -87,6 +85,23 @@ export function MobileHqPlusProjectFeed({
           </Text>
         </Pressable>
       ) : null}
+      {feed.cards.length === 0 && (filter !== 'all' || feed.fyi.length === 0) ? (
+        <Text style={[hqpStyles.hint, styles.empty]}>{empty}</Text>
+      ) : null}
+      {feed.cards.map((card) => (
+        <View
+          key={card.slug}
+          style={styles.item}
+          onLayout={(event) => offsets.current.set(card.slug, event.nativeEvent.layout.y)}
+        >
+          <MobileHqPlusProjectCard
+            card={card}
+            ctx={ctx}
+            flashId={flashSlug === card.slug ? (flash?.id ?? null) : null}
+            openId={flashSlug === card.slug ? (flash?.id ?? null) : null}
+          />
+        </View>
+      ))}
     </ScrollView>
   )
 }
@@ -96,13 +111,6 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 16, gap: 12 },
   item: { gap: 8 },
   empty: { textAlign: 'center', paddingVertical: 40 },
-  group: {
-    fontFamily: hqp.mono,
-    fontSize: 10.5,
-    letterSpacing: 1.6,
-    color: hqp.faint,
-    paddingHorizontal: 2
-  },
   fyi: {
     borderWidth: 1,
     borderStyle: 'dashed',
