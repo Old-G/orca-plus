@@ -1,7 +1,8 @@
 // Custom build (hq-project-cards): HQ+'s feed on the phone as one card per project, in the desktop's order
 // — read as a chat, the project something last came to at the bottom, where the feed opens and follows
-// new arrivals while the owner is there — and one dashed FYI row on top that opens the FYI chip. A line picked in the menu opens in its card, which
-// scrolls into view.
+// new arrivals while the owner is there — and one dashed FYI row on top that opens the FYI chip. A line
+// picked in the menu opens in its card, which scrolls into view; a bar at the bottom names what waits for
+// Approve.
 import { useEffect, useRef } from 'react'
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
@@ -12,6 +13,7 @@ import type {
 import { hqp, hqpStyles, hqpWeb } from './hq-plus-phone-theme'
 import { MobileHqPlusProjectCard } from './MobileHqPlusProjectCard'
 import type { HqpProjectContext } from './MobileHqPlusProjectParts'
+import { hqpProjectStyles } from './mobile-hq-plus-project-styles'
 
 export function MobileHqPlusProjectFeed({
   feed,
@@ -32,8 +34,9 @@ export function MobileHqPlusProjectFeed({
   const scroll = useRef<ScrollView>(null)
   const offsets = useRef(new Map<string, number>())
   const flashSlug = flash
-    ? (feed.cards.find((card) => [...card.you, ...card.fyi].some((line) => line.id === flash.id))
-        ?.slug ?? null)
+    ? (feed.cards.find((card) =>
+        [...card.approve, ...card.you, ...card.fyi].some((line) => line.id === flash.id)
+      )?.slug ?? null)
     : null
 
   useEffect(() => {
@@ -56,59 +59,88 @@ export function MobileHqPlusProjectFeed({
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
     atBottom.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 40
   }
+  // Custom build (hq-card-v2): the actions waiting for Approve stay on a bar at the bottom until decided.
+  const approvals = feed.cards
+    .flatMap((card) => card.approve.map((line) => ({ ...line, slug: card.slug })))
+    .sort((a, b) => a.since - b.since)
+  const goToApprove = (slug: string): void => {
+    const y = offsets.current.get(slug)
+    if (y !== undefined) {
+      atBottom.current = false
+      scroll.current?.scrollTo({ y: Math.max(0, y - 12), animated: true })
+    }
+  }
   return (
-    <ScrollView
-      ref={scroll}
-      style={[styles.scroll, hqpWeb.noScrollbar]}
-      contentContainerStyle={styles.content}
-      onScroll={onScroll}
-      scrollEventThrottle={100}
-      onContentSizeChange={() => {
-        if (atBottom.current && !flash) {
-          scroll.current?.scrollToEnd({ animated: false })
-        }
-      }}
-      testID="hq-plus-feed"
-    >
-      {filter === 'all' && feed.fyi.length > 0 ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Show FYI"
-          onPress={() => onFilter('fyi')}
-          style={({ pressed }) => [styles.fyi, pressed && hqpStyles.pressed]}
-        >
-          <Text style={styles.fyiText}>
-            <Text style={styles.fyiLabel}>FYI · {feed.counts.fyi} </Text>
-            {feed.fyi
-              .map((row) => `${row.slug} · ${row.count > 1 ? row.count : row.what}`)
-              .join('   ')}
+    <View style={styles.scroll}>
+      <ScrollView
+        ref={scroll}
+        style={[styles.scroll, hqpWeb.noScrollbar]}
+        contentContainerStyle={styles.content}
+        onScroll={onScroll}
+        scrollEventThrottle={100}
+        onContentSizeChange={() => {
+          if (atBottom.current && !flash) {
+            scroll.current?.scrollToEnd({ animated: false })
+          }
+        }}
+        testID="hq-plus-feed"
+      >
+        {filter === 'all' && feed.fyi.length > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Show FYI"
+            onPress={() => onFilter('fyi')}
+            style={({ pressed }) => [styles.fyi, pressed && hqpStyles.pressed]}
+          >
+            <Text style={styles.fyiText}>
+              <Text style={styles.fyiLabel}>FYI · {feed.counts.fyi} </Text>
+              {feed.fyi
+                .map((row) => `${row.slug} · ${row.count > 1 ? row.count : row.what}`)
+                .join('   ')}
+            </Text>
+          </Pressable>
+        ) : null}
+        {feed.cards.length === 0 && (filter !== 'all' || feed.fyi.length === 0) ? (
+          <Text style={[hqpStyles.hint, styles.empty]}>{empty}</Text>
+        ) : null}
+        {feed.cards.map((card) => (
+          <View
+            key={card.slug}
+            style={styles.item}
+            onLayout={(event) => offsets.current.set(card.slug, event.nativeEvent.layout.y)}
+          >
+            <MobileHqPlusProjectCard
+              card={card}
+              ctx={ctx}
+              flashId={flashSlug === card.slug ? (flash?.id ?? null) : null}
+              openId={flashSlug === card.slug ? (flash?.id ?? null) : null}
+            />
+          </View>
+        ))}
+      </ScrollView>
+      {approvals.length > 0 ? (
+        <View style={hqpProjectStyles.apBar} testID="hq-plus-approve-bar">
+          <Text style={hqpProjectStyles.apBarLabel}>APPROVE · {approvals.length}</Text>
+          <Text style={hqpProjectStyles.apBarText} numberOfLines={1}>
+            {approvals.map((line) => `${line.slug} · ${line.what}`).join('   ')}
           </Text>
-        </Pressable>
-      ) : null}
-      {feed.cards.length === 0 && (filter !== 'all' || feed.fyi.length === 0) ? (
-        <Text style={[hqpStyles.hint, styles.empty]}>{empty}</Text>
-      ) : null}
-      {feed.cards.map((card) => (
-        <View
-          key={card.slug}
-          style={styles.item}
-          onLayout={(event) => offsets.current.set(card.slug, event.nativeEvent.layout.y)}
-        >
-          <MobileHqPlusProjectCard
-            card={card}
-            ctx={ctx}
-            flashId={flashSlug === card.slug ? (flash?.id ?? null) : null}
-            openId={flashSlug === card.slug ? (flash?.id ?? null) : null}
-          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Show the action waiting for Approve"
+            onPress={() => goToApprove(approvals[0].slug)}
+            style={({ pressed }) => [hqpProjectStyles.apBarBtn, pressed && hqpStyles.pressed]}
+          >
+            <Text style={hqpProjectStyles.apBarBtnText}>Show</Text>
+          </Pressable>
         </View>
-      ))}
-    </ScrollView>
+      ) : null}
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  content: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 16, gap: 12 },
+  content: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 72, gap: 12 },
   item: { gap: 8 },
   empty: { textAlign: 'center', paddingVertical: 40 },
   fyi: {

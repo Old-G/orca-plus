@@ -20,7 +20,8 @@ import {
   type HqPlusMapWait
 } from './hq-plus-map'
 
-export const HQ_PLUS_PROJECT_FILTERS = ['all', 'move', 'wait', 'fyi'] as const
+// Custom build (hq-card-v2): Approve and Chats chips beside the people's ones (owner, 01.11).
+export const HQ_PLUS_PROJECT_FILTERS = ['all', 'approve', 'chats', 'move', 'wait', 'fyi'] as const
 export type HqPlusProjectFilter = (typeof HQ_PLUS_PROJECT_FILTERS)[number]
 
 export function isHqPlusProjectFilter(value: unknown): value is HqPlusProjectFilter {
@@ -38,7 +39,9 @@ export type HqPlusProjectCard = {
   slug: string
   /** Conversations from outside nobody placed; each line has a project picker. */
   unsorted: boolean
-  /** Longest waiting first. */
+  /** Custom build (hq-card-v2): outgoing actions waiting for the owner's Approve, oldest first. */
+  approve: HqPlusProjectLine[]
+  /** People's conversations on the owner, longest waiting first; a chat's question is on its chat. */
   you: HqPlusProjectLine[]
   /** Newest first. */
   fyi: HqPlusProjectLine[]
@@ -56,13 +59,20 @@ export type HqPlusProjectCard = {
   /** The chats ⌘F found words in; their section opens. */
   chatHits: string[]
   /** The sections the filter shows. */
-  shown: { you: boolean; fyi: boolean; wait: boolean; today: boolean; chats: boolean }
+  shown: {
+    approve: boolean
+    you: boolean
+    fyi: boolean
+    wait: boolean
+    today: boolean
+    chats: boolean
+  }
 }
 
 export type HqPlusProjectFeed = {
   cards: HqPlusProjectCard[]
   /** For the chips: lines on the owner, waits on people, FYI lines. */
-  counts: { move: number; wait: number; fyi: number }
+  counts: { approve: number; asks: number; move: number; wait: number; fyi: number }
   /** «All» folds FYI into one row at the bottom: the projects and their newest line. */
   fyi: { slug: string; count: number; what: string }[]
 }
@@ -82,10 +92,19 @@ export type HqPlusProjectInput = {
 /** Where HQ's own rows (reports, a chat's question with no project) stand. */
 const HQ_OWN = 'HQ'
 const CHAT_ORDER: readonly HqPlusMapChatState[] = ['asks', 'working', 'done', 'quiet']
+const SHOWN_ALL: HqPlusProjectCard['shown'] = {
+  approve: true,
+  you: true,
+  fyi: false,
+  wait: true,
+  today: true,
+  chats: true
+}
 function emptyCard(slug: string): HqPlusProjectCard {
   return {
     slug,
     unsorted: slug === HQ_PLUS_MAP_UNSORTED,
+    approve: [],
     you: [],
     fyi: [],
     persons: [],
@@ -96,7 +115,7 @@ function emptyCard(slug: string): HqPlusProjectCard {
     lastAt: 0,
     compact: false,
     chatHits: [],
-    shown: { you: true, fyi: false, wait: true, today: true, chats: true }
+    shown: SHOWN_ALL
   }
 }
 
@@ -126,7 +145,8 @@ export function hqPlusProjectCards(input: HqPlusProjectInput): HqPlusProjectCard
       continue
     }
     if (hqPlusNeedsOwner(item)) {
-      cardOf(hqPlusMapProjectOf(item)).you.push(hqPlusProjectLine(item))
+      const card = cardOf(hqPlusMapProjectOf(item))
+      ;(item.type === 'approve' ? card.approve : card.you).push(hqPlusProjectLine(item))
     } else if (hqPlusIsFyi(item)) {
       cardOf(hqPlusMapProjectOf(item)).fyi.push(hqPlusProjectLine(item))
     }
@@ -152,10 +172,24 @@ export function hqPlusProjectCards(input: HqPlusProjectInput): HqPlusProjectCard
   for (const chat of input.chats) {
     cardOf(chat.project ?? HQ_OWN).chats.push({
       ...chat,
-      line: chat.sessionId ? (chatLines.get(chat.sessionId) ?? null) : null
+      line: chat.sessionId ? (chatLines.get(chat.sessionId) ?? null) : null,
+      question: null
     })
   }
   for (const card of bySlug.values()) {
+    // Why: a chat's question stands on its chat's row, not a second time among the people's lines.
+    card.you = card.you.filter((line) => {
+      const chat =
+        line.badge.tone === 'chat' && line.sessionId
+          ? card.chats.find((candidate) => candidate.sessionId === line.sessionId)
+          : undefined
+      if (chat && !chat.question) {
+        chat.question = line
+        return false
+      }
+      return true
+    })
+    card.approve.sort((a, b) => a.since - b.since)
     card.you.sort((a, b) => a.since - b.since)
     card.fyi.sort((a, b) => b.at - a.at)
     card.persons = [...(people.get(card) ?? new Map<string, HqPlusMapWait[]>()).entries()]
@@ -173,33 +207,42 @@ export function hqPlusProjectCards(input: HqPlusProjectInput): HqPlusProjectCard
     const busy = card.chats.filter((chat) => chat.state !== 'quiet')
     card.lastAt = Math.max(
       0,
+      ...card.approve.map((line) => line.at),
       ...card.you.map((line) => line.at),
+      ...card.chats.flatMap((chat) => (chat.question ? [chat.question.at] : [])),
       ...card.today.map((row) => row.at),
       ...busy.map((chat) => Math.max(chat.at, chat.line?.at ?? 0))
     )
     card.compact =
-      card.waits > 0 && card.you.length === 0 && card.today.length === 0 && busy.length === 0
+      card.waits > 0 &&
+      card.approve.length === 0 &&
+      card.you.length === 0 &&
+      card.today.length === 0 &&
+      card.chats.length === 0
   }
   return [...bySlug.values()]
 }
 
-/** What the card is in the feed for: a line on the owner, a wait, today's work or a busy chat. */
+/** What the card is in the feed for: an Approve, a line on the owner, a wait, today's work or an open
+ *  chat — the chats are the owner's work, a finished one too (owner, 01.11). */
 function inAll(card: HqPlusProjectCard): boolean {
   return (
+    card.approve.length > 0 ||
     card.you.length > 0 ||
     card.waits > 0 ||
     card.today.length > 0 ||
-    card.chats.some((chat) => chat.state !== 'quiet')
+    card.chats.length > 0
   )
 }
 
 function shownBy(filter: HqPlusProjectFilter): HqPlusProjectCard['shown'] {
   return {
+    approve: filter === 'all' || filter === 'approve',
     you: filter === 'all' || filter === 'move',
     fyi: filter === 'fyi',
     wait: filter === 'all' || filter === 'wait',
     today: filter === 'all',
-    chats: filter === 'all'
+    chats: filter === 'all' || filter === 'chats'
   }
 }
 
@@ -222,6 +265,8 @@ export function hqPlusProjectFeed(
 ): HqPlusProjectFeed {
   const all = hqPlusProjectCards(input)
   const counts = {
+    approve: all.reduce((sum, card) => sum + card.approve.length, 0),
+    asks: all.reduce((sum, card) => sum + card.chats.filter((chat) => chat.question).length, 0),
     move: all.reduce((sum, card) => sum + card.you.length, 0),
     wait: all.reduce((sum, card) => sum + card.waits, 0),
     fyi: all.reduce((sum, card) => sum + card.fyi.length, 0)
@@ -241,6 +286,7 @@ export function hqPlusProjectFeed(
           : null
       const next: HqPlusProjectCard = {
         ...card,
+        approve: found ? found(card.approve) : card.approve,
         you: found ? found(card.you) : card.you,
         fyi: found ? found(card.fyi) : card.fyi,
         // Why: on «We wait» and FYI every card opens to what the chip shows.
@@ -254,17 +300,25 @@ export function hqPlusProjectFeed(
             chat.line && input.search?.matches(chat.line) ? [chat.key] : []
           )
         : []
-      if (found && next.you.length + next.fyi.length === 0 && next.chatHits.length === 0) {
+      if (
+        found &&
+        next.approve.length + next.you.length + next.fyi.length === 0 &&
+        next.chatHits.length === 0
+      ) {
         return []
       }
       const keep =
         input.filter === 'all'
           ? inAll(next)
-          : input.filter === 'move'
-            ? next.you.length > 0
-            : input.filter === 'wait'
-              ? next.waits > 0
-              : next.fyi.length > 0
+          : input.filter === 'approve'
+            ? next.approve.length > 0
+            : input.filter === 'chats'
+              ? next.chats.length > 0
+              : input.filter === 'move'
+                ? next.you.length > 0
+                : input.filter === 'wait'
+                  ? next.waits > 0
+                  : next.fyi.length > 0
       return keep ? [next] : []
     })
     .sort((a, b) => {
@@ -283,7 +337,7 @@ export function hqPlusProjectCardOf(input: HqPlusProjectInput, slug: string): Hq
   return {
     ...(card ?? emptyCard(slug)),
     compact: false,
-    shown: { you: true, fyi: true, wait: true, today: true, chats: true }
+    shown: { ...SHOWN_ALL, fyi: true }
   }
 }
 
