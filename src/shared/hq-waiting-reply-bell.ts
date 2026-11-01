@@ -36,7 +36,10 @@ export type HqWaitingReplyRef = {
 
 export type HqWaitingReplyPassResult =
   | { ok: true }
-  | { ok: false; reason: 'gone' | 'no-chat' | 'chat-closed' }
+  | { ok: false; reason: 'gone' | 'no-chat' }
+  /** Custom build (hq-request-ledger, 19.7): the chain's live end is closed — the owner picks
+   *  between reopening it and a new chat that gets `prompt`. */
+  | { ok: false; reason: 'chat-closed'; liveSessionId?: string; prompt?: string }
 
 /** Custom build (hq-plus-person-replies): the routing rule's word on an answer — held while it is
  *  still being judged, else why it was left for the owner. */

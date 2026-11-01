@@ -3,8 +3,12 @@
 import { toast } from 'sonner'
 import {
   HQ_WAITING_REPLY_ACTION,
+  type HqWaitingReplyPassResult,
   type HqWaitingReplyRef
 } from '../../../../../shared/hq-waiting-reply-bell'
+import { structuredAgentSessionTabId } from '../../../../../shared/agent-session/view/structured-agent-session-projection'
+import { useAppStore } from '@/store'
+import { startHqChatWithPrompt } from '../hq/hq-ask-chat'
 import { translate } from '@/i18n/i18n'
 import { openHqRouteChat, sendWithReopen } from './hq-route-send'
 
@@ -21,11 +25,59 @@ export async function openHqWaitingReplyChat(ref: HqWaitingReplyRef): Promise<vo
   }
 }
 
-/** True once the chat took the answer. */
-export async function passHqWaitingReply(ref: HqWaitingReplyRef): Promise<boolean> {
-  const result = await sendWithReopen(chatRef(ref), () =>
-    window.api.pulseBell.passWaitingReply(ref.waitingId, ref.replyTs)
+/** The worktree a chat's tab is in, when the store knows it. */
+function worktreeOfSession(sessionId: string): string | null {
+  const tabId = structuredAgentSessionTabId(sessionId)
+  const tabs = useAppStore.getState().unifiedTabsByWorktree
+  return Object.keys(tabs).find((id) => tabs[id]?.some((tab) => tab.id === tabId)) ?? null
+}
+
+/** Custom build (hq-request-ledger, 19.7): the chain's live end is closed — the owner picks between
+ *  reopening it and a new chat of the project that gets the answer with its question. */
+function offerClosedChat(ref: HqWaitingReplyRef, liveSessionId: string, prompt: string): void {
+  const worktreeId = worktreeOfSession(liveSessionId) ?? ref.worktreeId
+  if (!worktreeId) {
+    return
+  }
+  toast(
+    translate('auto.hqWaitingReply.closed', 'The chat that waits for {{name}} is closed', {
+      name: ref.author
+    }),
+    {
+      description: translate(
+        'auto.hqWaitingReply.closedHint',
+        'Reopen it with the answer, or start a new chat of the project with it'
+      ),
+      duration: 30_000,
+      action: {
+        label: translate('auto.hqWaitingReply.reopen', 'Reopen'),
+        onClick: () =>
+          void sendWithReopen({ worktreeId, sessionId: liveSessionId }, () =>
+            window.api.pulseBell.passWaitingReply(ref.waitingId, ref.replyTs)
+          ).then((result) => reportPassed(ref, result))
+      },
+      cancel: {
+        label: translate('auto.hqWaitingReply.newChat', 'New chat'),
+        onClick: () =>
+          void startHqChatWithPrompt(worktreeId, prompt, `${ref.author}: answer`).then(
+            async (started) => {
+              if (!started.ok) {
+                toast.error(started.message)
+                return
+              }
+              // Why: the new chat has the answer; the card is handled, as after a pass.
+              await window.api.pulseBell.skipWaitingReply(ref.waitingId, ref.replyTs)
+              toast.success(
+                translate('auto.hqWaitingReply.newChatStarted', 'A new chat took the answer')
+              )
+            }
+          )
+      }
+    }
   )
+}
+
+function reportPassed(ref: HqWaitingReplyRef, result: HqWaitingReplyPassResult): boolean {
   if (result.ok) {
     toast.success(
       translate('auto.hqWaitingReply.passed', '{{name}}’s answer went to the chat', {
@@ -44,6 +96,23 @@ export async function passHqWaitingReply(ref: HqWaitingReplyRef): Promise<boolea
         )
   )
   return false
+}
+
+/** True once the chat took the answer. */
+export async function passHqWaitingReply(ref: HqWaitingReplyRef): Promise<boolean> {
+  const first = await window.api.pulseBell.passWaitingReply(ref.waitingId, ref.replyTs)
+  if (!first.ok && first.reason === 'chat-closed' && first.liveSessionId && first.prompt) {
+    offerClosedChat(ref, first.liveSessionId, first.prompt)
+    return false
+  }
+  // Why: a closed chat the Mac names no live end of is brought back as before.
+  const result =
+    !first.ok && first.reason === 'chat-closed'
+      ? await sendWithReopen(chatRef(ref), () =>
+          window.api.pulseBell.passWaitingReply(ref.waitingId, ref.replyTs)
+        )
+      : first
+  return reportPassed(ref, result)
 }
 
 export async function runHqWaitingReplyAction(
