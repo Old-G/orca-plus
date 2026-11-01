@@ -27,30 +27,36 @@ export type HqClickUpWaitingDeps = {
   /** The ClickUp user id of the person a waiting is on, when known. */
   clickUpUserId: (personId: string) => string | null
   recordReply: (id: string, reply: PulseWaitingReply) => PulseWaiting | null
+  /** Custom build (hq-ledger-answers): the comments that answer a waiting since it was asked, for
+   *  the ledger's answers in shadow. */
+  observe?: (waitingId: string, answers: readonly ClickUpComment[], taskId: string) => void
 }
 
-function newestAnswer(
+/** The comments after `after` that answer the owner, oldest first. */
+function answerComments(
   comments: readonly ClickUpComment[],
   after: number,
   viewer: { id: string; username: string },
   askedIn: string | null
-): ClickUpComment | null {
-  let newest: ClickUpComment | null = null
-  for (const comment of comments) {
-    const at = comment.createdAt ?? 0
-    // Why: the owner's own comments and the question itself are not answers.
-    if (at <= after || comment.id === askedIn || comment.author?.id === viewer.id) {
-      continue
-    }
-    // Custom build (hq-reply-addressee): a comment to someone else is their conversation.
-    if (!clickUpCommentForOwner(comment.body, viewer.username)) {
-      continue
-    }
-    if (!newest || at > (newest.createdAt ?? 0)) {
-      newest = comment
-    }
-  }
-  return newest
+): ClickUpComment[] {
+  const seen = new Set<string>()
+  return comments
+    .filter((comment) => {
+      // Why: the owner's own comments and the question itself are not answers; a reply may be
+      // listed both under its comment and on the task.
+      if (
+        (comment.createdAt ?? 0) <= after ||
+        comment.id === askedIn ||
+        comment.author?.id === viewer.id ||
+        seen.has(comment.id)
+      ) {
+        return false
+      }
+      seen.add(comment.id)
+      // Custom build (hq-reply-addressee): a comment to someone else is their conversation.
+      return clickUpCommentForOwner(comment.body, viewer.username)
+    })
+    .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0))
 }
 
 /** Why: on a busy task only what is addressed to the owner answers him — anyone's text reaches the chat. */
@@ -122,12 +128,13 @@ export async function pollHqClickUpWaitingReplies(
       const candidates = thread
         ? [...replies, ...comments].filter(counts)
         : [...replies, ...comments.filter(counts)]
-      const answer = newestAnswer(candidates, since, viewer, ref.commentId)
+      const answering = answerComments(candidates, waiting.createdAt, viewer, ref.commentId)
+      deps.observe?.(waiting.id, answering, taskId)
+      const answer = answering.findLast((comment) => (comment.createdAt ?? 0) > since)
       // Custom build (hq-plus-cards): the owner's comment that asked, shown on the answer's card.
       const asked = ref.commentId
-        ? [...comments, ...replies]
-            .find((comment) => comment.id === ref.commentId)
-            ?.body.trim() || null
+        ? [...comments, ...replies].find((comment) => comment.id === ref.commentId)?.body.trim() ||
+          null
         : null
       if (answer?.body.trim()) {
         deps.recordReply(waiting.id, {

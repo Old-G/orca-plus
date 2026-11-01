@@ -76,3 +76,19 @@ export function hqPlaceKey(ref: string | null | undefined): string | null {
   const gmail = /^gmail:(.+)$/.exec(ref.trim())
   return gmail ? `gmail:${gmail[1]}` : null
 }
+
+/** Custom build (hq-ledger-answers): how the ledger paired a person's messages with a waiting —
+ *  in the question's own place, by DM with one question open, by the model's pick among several;
+ *  `which` when the model could not tell, `none` when the messages did not answer it. */
+export type HqLedgerAnswerHow = 'place' | 'dm' | 'pick' | 'which' | 'none'
+
+/** One judgement of the ledger on a waiting: the messages it looked at and the one it took. */
+export type HqLedgerAnswer = {
+  waitingId: string
+  /** The newest message taken as the answer; null when none was. */
+  ts: string | null
+  /** Every message judged for this waiting, taken or not — none of them is judged again. */
+  messages: string[]
+  how: HqLedgerAnswerHow
+  at: number
+}
