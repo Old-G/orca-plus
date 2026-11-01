@@ -16,6 +16,7 @@ import type {
 } from '../../../shared/pulse-types'
 import type { OutgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
 import { liveSessionOf } from './pulse-chat-chain'
+import { linkWaitingAnswer } from './pulse-ledger-answer'
 import {
   ingestLedgerSignal,
   lastLedgerDirection,
@@ -128,7 +129,12 @@ export class PulseDb {
     return listWaitings(this.core, filter)
   }
   recordWaitingReply(id: string, reply: PulseWaitingReply) {
-    return recordWaitingReply(this.core, id, reply)
+    const replied = recordWaitingReply(this.core, id, reply)
+    // Custom build (hq-ledger-answer-dedup): the answer's conversation takes the waiting's project.
+    if (replied) {
+      linkWaitingAnswer(this.core, id, reply.ts)
+    }
+    return replied
   }
   markWaitingReplyDelivered(id: string, replyTs?: string) {
     return markWaitingReplyDelivered(this.core, id, replyTs)
