@@ -81,6 +81,15 @@ export const hqPlusConversationProject = defineRpcOperation({
   read: rpcResultVariant('hq-plus-conversation-project', z.unknown())
 })
 
+/** Custom build (hq-project-cards): «Skip» on a chat's question the owner no longer needs to answer. */
+export const hqPlusSkipOwner = defineRpcOperation({
+  name: 'hq-plus.skip-owner',
+  method: 'hq.skipOwner',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-plus-skipped', z.unknown())
+})
+
 export const hqPlusAskHq = defineRpcOperation({
   name: 'hq-plus.ask-hq',
   method: 'hqProjects.askHqOnDesktop',

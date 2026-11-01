@@ -13,7 +13,8 @@ import {
   hqPlusConversationProject,
   hqPlusJobReply,
   hqPlusMarkDone,
-  hqPlusPagesRead
+  hqPlusPagesRead,
+  hqPlusSkipOwner
 } from './hq-plus-phone-operations'
 
 export type HqPlusPhoneResult = { ok: true } | { ok: false; message: string }
@@ -121,6 +122,21 @@ export function setHqPlusPhoneConversationProject(
   }
   return attempt(async () => {
     await runRpcOperation(client, hqPlusConversationProject, { key, project })
+    return OK
+  })
+}
+
+/** Custom build (hq-project-cards): «Skip» on a chat's question no bell item stands for. */
+export function skipHqPlusPhoneOwner(
+  client: RpcClient,
+  card: HqPlusCard
+): Promise<HqPlusPhoneResult> {
+  const id = card.entry?.id
+  if (!id) {
+    return Promise.resolve(OK)
+  }
+  return attempt(async () => {
+    await runRpcOperation(client, hqPlusSkipOwner, { id })
     return OK
   })
 }

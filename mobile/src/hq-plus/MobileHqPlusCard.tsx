@@ -13,6 +13,7 @@ import {
   closeHqPlusPhoneWait,
   doneHqPlusPhoneConversation,
   markHqPlusPhoneDone,
+  skipHqPlusPhoneOwner,
   replyOnHqPlusPhoneCard,
   runHqPlusPhoneBellAction
 } from './hq-plus-phone-actions'
@@ -280,6 +281,18 @@ function Buttons({
               run(
                 'seen',
                 withClient((rpc) => markHqPlusPhoneDone(rpc, card, 'seen'))
+              )
+            }
+          />
+        ) : card.entry?.status === 'open' ? (
+          <HqpButton
+            label="Skip"
+            ghost
+            disabled={busy !== null}
+            onPress={() =>
+              run(
+                'skip',
+                withClient((rpc) => skipHqPlusPhoneOwner(rpc, card))
               )
             }
           />
