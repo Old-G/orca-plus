@@ -9,4 +9,6 @@ export type ClaudeHandoffApi = {
   launch: (id: string, keepOld?: boolean) => Promise<ClaudeHandoffLaunchResult>
   dismiss: (id: string) => Promise<void>
   onOffersChanged: (callback: (offers: ClaudeHandoffOffer[]) => void) => () => void
+  /** Custom build (claude-handoff-launch): main asks the window to close a handed-off chat's tab. */
+  onCloseChat: (callback: (tabId: string) => void) => () => void
 }
