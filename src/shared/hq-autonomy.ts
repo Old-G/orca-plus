@@ -52,3 +52,57 @@ export function parseHqAutonomy(text: string | null): HqAutonomyConfig {
 export function hqAutonomyFor(config: HqAutonomyConfig, slug: string): HqAutonomyLevel {
   return config.projects[slug] ?? config.defaultLevel
 }
+
+/** Custom build (remote-own-work, plan 15.17): the agent's own deploys and cleanups on a server that
+ *  need no Approve card — HQ autonomy.yaml's `remote_no_approve` block. Empty lists pass nothing. */
+export type HqRemoteNoApprove = {
+  /** ssh hosts; a command that reaches any other host keeps its card. */
+  hosts: string[]
+  /** Containers `docker rm -f` may remove; `*` stands for any part of a name. */
+  containers: string[]
+  /** Paths `rm -r`/`rm -f` may remove, on the server or inside a container; a trailing `*` is a prefix. */
+  rmPaths: string[]
+  /** `rm` of a variable the same command set from `mktemp` passes. */
+  mktemp: boolean
+}
+
+const REMOTE_LIST_KEYS = { hosts: 'hosts', containers: 'containers', rm_paths: 'rmPaths' } as const
+
+/** `key: a, b` or `key: [a, b]` → its items, quotes stripped. */
+function readList(value: string): string[] {
+  return value
+    .replace(/^\[|\]$/g, '')
+    .split(',')
+    .map((item) => item.trim().replace(/^(["'])(.*)\1$/, '$2'))
+    .filter(Boolean)
+}
+
+/**
+ * The `remote_no_approve:` block: `hosts`, `containers` and `rm_paths` as comma-separated lists
+ * (plain YAML strings, so `*-check` stays valid YAML) and `mktemp: yes`. Unknown keys are ignored.
+ */
+export function parseHqRemoteNoApprove(text: string | null): HqRemoteNoApprove {
+  const config: HqRemoteNoApprove = { hosts: [], containers: [], rmPaths: [], mktemp: false }
+  let inBlock = false
+  for (const raw of (text ?? '').split(/\r?\n/)) {
+    const line = raw.replace(/\s+#.*$/, '').replace(/^\s*#.*$/, '')
+    if (!line.trim()) {
+      continue
+    }
+    const top = /^([A-Za-z_][\w-]*):\s*(.*)$/.exec(line)
+    if (top) {
+      inBlock = top[1] === 'remote_no_approve' && top[2] === ''
+      continue
+    }
+    const entry = inBlock ? /^\s+([a-z_]+):\s*(.*?)\s*$/.exec(line) : null
+    if (!entry) {
+      continue
+    }
+    if (entry[1] === 'mktemp') {
+      config.mktemp = /^(?:yes|true|on)$/i.test(entry[2])
+    } else if (entry[1] in REMOTE_LIST_KEYS) {
+      config[REMOTE_LIST_KEYS[entry[1] as keyof typeof REMOTE_LIST_KEYS]] = readList(entry[2])
+    }
+  }
+  return config
+}
