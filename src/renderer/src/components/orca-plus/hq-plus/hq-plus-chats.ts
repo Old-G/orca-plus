@@ -76,9 +76,38 @@ export function hqPlusLiveChats(
 
 /** Closes a chat's tab the way the classic HQ's cleanup does; it stays in History to reopen. */
 export function closeHqPlusChat(item: HqChatItem): void {
+  const state = useAppStore.getState()
   if (item.kind === 'chat') {
-    useAppStore.getState().closeUnifiedTab(item.tab.id, { preserveWorktreeSelection: true })
+    state.closeUnifiedTab(item.tab.id, { preserveWorktreeSelection: true })
+    return
   }
+  // Custom build (hq-plus-close-terminal): a terminal agent's × closes its terminal tab (owner, 01.11).
+  // Why both ids: a dashboard card names the tab by its unified id or by the terminal's entity id.
+  const { tabId, worktreeId } = item.card
+  const tabs = state.unifiedTabsByWorktree[worktreeId] ?? []
+  const tab =
+    tabs.find((entry) => entry.id === tabId) ??
+    tabs.find((entry) => entry.contentType === 'terminal' && entry.entityId === tabId)
+  if (tab) {
+    state.closeUnifiedTab(tab.id, { preserveWorktreeSelection: true })
+  } else {
+    state.closeTab(tabId)
+  }
+}
+
+/** Custom build (hq-plus-close-terminal): the other agents a terminal's × would close with it —
+ *  split panes of one terminal tab share it. */
+export function hqPlusTerminalTabMates(items: readonly HqChatItem[], item: HqChatItem): number {
+  if (item.kind !== 'terminal') {
+    return 0
+  }
+  return items.filter(
+    (other) =>
+      other.kind === 'terminal' &&
+      other.key !== item.key &&
+      other.card.worktreeId === item.card.worktreeId &&
+      other.card.tabId === item.card.tabId
+  ).length
 }
 
 export type HqPlusProjectChats = {
