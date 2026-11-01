@@ -3,7 +3,15 @@
 import { useState } from 'react'
 import { translate } from '@/i18n/i18n'
 
-export type HqPlusChatCloser = { working: boolean; close: () => void; dismiss?: boolean }
+export type HqPlusChatCloser = {
+  working: boolean
+  close: () => void
+  dismiss?: boolean
+  /** Custom build (hq-plus-close-terminal): a terminal agent — its × closes the terminal tab. */
+  terminal?: boolean
+  /** Other agents in the same terminal tab that close with it; asks first when there are any. */
+  mates?: number
+}
 
 export function HqPlusCloseChat({
   closer,
@@ -16,7 +24,17 @@ export function HqPlusCloseChat({
   if (asking) {
     return (
       <span className="hqp-confirm" role="group" aria-label={name}>
-        <span>{translate('auto.hqPlus.closeWorking', 'Chat is working — close?')}</span>
+        <span>
+          {closer.mates
+            ? translate(
+                'auto.hqPlus.closeTerminalMates',
+                'Closes the terminal tab with {{count}} more agents — close?',
+                { count: closer.mates }
+              )
+            : closer.terminal
+              ? translate('auto.hqPlus.closeTerminalWorking', 'Agent is working — close terminal?')
+              : translate('auto.hqPlus.closeWorking', 'Chat is working — close?')}
+        </span>
         <button type="button" className="hqp-link" onClick={closer.close}>
           {translate('auto.hqPlus.closeChat.confirm', 'Close')}
         </button>
@@ -38,7 +56,9 @@ export function HqPlusCloseChat({
       aria-label={
         closer.dismiss
           ? translate('auto.hqPlus.dismissCard', 'Dismiss card')
-          : translate('auto.hqPlus.closeChat.label', 'Close chat {{name}}', { name })
+          : closer.terminal
+            ? translate('auto.hqPlus.closeTerminal.label', 'Close terminal {{name}}', { name })
+            : translate('auto.hqPlus.closeChat.label', 'Close chat {{name}}', { name })
       }
       title={
         closer.dismiss
@@ -46,9 +66,11 @@ export function HqPlusCloseChat({
               'auto.hqPlus.dismissCard.title',
               'Hide this card (the chat is already closed)'
             )
-          : translate('auto.hqPlus.closeChat.title', 'Close chat (stays in History)')
+          : closer.terminal
+            ? translate('auto.hqPlus.closeTerminal.title', 'Close terminal session')
+            : translate('auto.hqPlus.closeChat.title', 'Close chat (stays in History)')
       }
-      onClick={() => (closer.working ? setAsking(true) : closer.close())}
+      onClick={() => (closer.working || closer.mates ? setAsking(true) : closer.close())}
     >
       <svg
         width="12"
