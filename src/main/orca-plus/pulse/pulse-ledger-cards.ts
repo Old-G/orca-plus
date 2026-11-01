@@ -24,7 +24,9 @@ export type HqLedgerCardRow = {
 const CARD_MESSAGES = 5
 
 /** Custom build (hq-request-ledger): Slack conversations waiting on the owner, for their cards — not
- *  the ones where a chat waits for an answer: that answer has its own card with Send to chat. */
+ *  the ones where a chat waits for an answer: that answer has its own card with Send to chat. Only the
+ *  first message after the question is that answer; anything the person wrote after it is new and
+ *  gets the conversation's card (01.11: a wait left open hid every later DM). */
 export function listLedgerCards(core: PulseCore, since: number): HqLedgerCardRow[] {
   const messages = core.db.prepare(
     `SELECT ts, author, author_id, text, link, at FROM conversation_messages
@@ -36,7 +38,10 @@ export function listLedgerCards(core: PulseCore, since: number): HqLedgerCardRow
       `SELECT id, key, project, title, last_at FROM conversations c
         WHERE state = 'you' AND key LIKE 'slack:%' AND last_at >= ?
           AND NOT EXISTS (SELECT 1 FROM waitings w WHERE w.conversation_id = c.id
-                            AND w.status = 'open' AND w.direction = 'on-them')
+                            AND w.status = 'open' AND w.direction = 'on-them'
+                            AND (SELECT COUNT(*) FROM conversation_messages m
+                                  WHERE m.conversation_id = c.id AND m.direction = 'in'
+                                    AND m.ts NOT LIKE 'req:%' AND m.at > w.created_at) <= 1)
         ORDER BY last_at`
     )
     .all(since)
