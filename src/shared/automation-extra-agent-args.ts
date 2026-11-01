@@ -15,13 +15,18 @@ export const EXTRA_AGENT_ARGS_HOST_UPDATE_REQUIRED =
 export const EXTRA_AGENT_ARGS_REQUIRE_FRESH_SESSION =
   'Extra arguments require a fresh session for every run.'
 
-type ExtraAgentArgKind = 'model' | 'effort' | 'repeatable'
+type ExtraAgentArgKind = 'model' | 'effort' | 'repeatable' | 'flag'
 
 type ExtraAgentArgOption = {
   kind: ExtraAgentArgKind
   aliases: readonly string[]
   /** Accepts only values with this prefix, e.g. Codex's `-c model_reasoning_effort=`. */
   valuePrefix?: string
+  /** Custom build (automation-narrow-tools): the value rides after "=" only, because a variadic
+   *  option given its value as the next token would also swallow the prompt that follows. */
+  equalsOnly?: true
+  /** Custom build (automation-narrow-tools): left out of the field's placeholder. */
+  hidden?: true
 }
 
 const MODEL_OPTION = { kind: 'model', aliases: ['--model'] } as const
@@ -32,7 +37,17 @@ const EXTRA_AGENT_ARG_OPTIONS: Partial<Record<TuiAgent, readonly ExtraAgentArgOp
   claude: [
     MODEL_OPTION,
     { kind: 'effort', aliases: ['--effort'] },
-    { kind: 'repeatable', aliases: ['--add-dir'] }
+    { kind: 'repeatable', aliases: ['--add-dir'] },
+    // Custom build (automation-narrow-tools): options that only take tools away (no Chrome, no MCP
+    // servers, named tools off), so a scheduled job can start lean; none can add a server or a right.
+    { kind: 'flag', aliases: ['--no-chrome'], hidden: true },
+    { kind: 'flag', aliases: ['--strict-mcp-config'], hidden: true },
+    {
+      kind: 'repeatable',
+      aliases: ['--disallowedTools', '--disallowed-tools'],
+      equalsOnly: true,
+      hidden: true
+    }
   ],
   codex: [
     MODEL_OR_M_OPTION,
@@ -51,6 +66,7 @@ export function supportsExtraAgentArgs(agent: TuiAgent): boolean {
 
 export function getExtraAgentArgsPlaceholder(agent: TuiAgent): string {
   return (EXTRA_AGENT_ARG_OPTIONS[agent] ?? [])
+    .filter((option) => !option.hidden)
     .map((option) => {
       const value =
         option.kind === 'model'
@@ -131,7 +147,11 @@ function allowedOptionList(options: readonly ExtraAgentArgOption[]): string {
   return [
     ...new Set(
       options.map((option) =>
-        option.valuePrefix ? `${option.aliases[0]} ${option.valuePrefix}…` : option.aliases.at(-1)
+        option.valuePrefix
+          ? `${option.aliases[0]} ${option.valuePrefix}…`
+          : option.equalsOnly
+            ? `${option.aliases[0]}=…`
+            : option.aliases.at(-1)
       )
     )
   ].join(', ')
@@ -142,7 +162,14 @@ function matchOption(
   options: readonly ExtraAgentArgOption[]
 ): { option: ExtraAgentArgOption; value?: string; consumed: number } | null {
   for (const option of options) {
-    const occurrence = findOptionOccurrence(tokens, option.aliases, false)
+    const occurrence = findOptionOccurrence(
+      tokens,
+      option.aliases,
+      false,
+      [],
+      0,
+      option.kind !== 'flag' && !option.equalsOnly
+    )
     if (occurrence?.index === 0) {
       return { option, value: occurrence.value, consumed: occurrence.consumed }
     }
@@ -204,6 +231,13 @@ export function parseExtraAgentArgs(args: {
     }
     const name = optionName(token)
     const { value } = match
+    if (match.option.kind === 'flag') {
+      if (value !== undefined) {
+        return extraAgentArgsFailure('optionNotAllowed', { option: token, agent: label, allowed })
+      }
+      index += match.consumed - 1
+      continue
+    }
     if (!value) {
       return extraAgentArgsFailure('missingValue', { option: name })
     }

@@ -195,6 +195,26 @@ describe('parseExtraAgentArgs rejections', () => {
   it('accepts repeatable options', () => {
     expect(rejection('claude', '--add-dir a --add-dir=b --model opus --effort high')).toBeNull()
   })
+
+  // Custom build (automation-narrow-tools): options that only take tools away.
+  it('accepts options that narrow Claude tools', () => {
+    expect(
+      rejection(
+        'claude',
+        '--model sonnet --no-chrome --strict-mcp-config --disallowedTools=mcp__a,mcp__b --disallowed-tools=Bash'
+      )
+    ).toBeNull()
+  })
+
+  it.each([
+    ['--no-chrome=yes', '"--no-chrome=yes"'],
+    ['--strict-mcp-config x', '"x" isn\'t an option'],
+    ['--disallowedTools mcp__a', 'needs a value'],
+    ['--strict-mcp-config --mcp-config=x.json', '"--mcp-config"'],
+    ['--allowedTools=Bash', '"--allowedTools"']
+  ] as const)('claude rejects narrowing misuse %j', (extras, message) => {
+    expect(rejection('claude', extras)).toContain(message)
+  })
 })
 
 // Saved text uses one grammar; each execution shell must preserve the resulting argv.
