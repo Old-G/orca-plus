@@ -4,8 +4,8 @@
 import { HQ_PLUS_REPLY_ACTION, type HqPlusCard } from '../../../src/shared/hq-plus-log'
 import { hqBellActionOnDesktop, hqWaitingClose } from '../hq/hq-operations'
 import { errorText } from '../hq/use-mobile-hq-poll'
-import { runRpcOperation } from '../transport/rpc-operation'
-import type { RpcClient } from '../transport/rpc-client'
+import { runRpcOperation } from '../transport/rpc/rpc-operation'
+import type { RpcClient } from '../transport/rpc/rpc-client-contract'
 import {
   hqPlusAskHq,
   hqPlusChatSend,
@@ -13,7 +13,8 @@ import {
   hqPlusConversationProject,
   hqPlusJobReply,
   hqPlusMarkDone,
-  hqPlusPagesRead
+  hqPlusPagesRead,
+  hqPlusSkipOwner
 } from './hq-plus-phone-operations'
 
 export type HqPlusPhoneResult = { ok: true } | { ok: false; message: string }
@@ -121,6 +122,21 @@ export function setHqPlusPhoneConversationProject(
   }
   return attempt(async () => {
     await runRpcOperation(client, hqPlusConversationProject, { key, project })
+    return OK
+  })
+}
+
+/** Custom build (hq-project-cards): «Skip» on a chat's question no bell item stands for. */
+export function skipHqPlusPhoneOwner(
+  client: RpcClient,
+  card: HqPlusCard
+): Promise<HqPlusPhoneResult> {
+  const id = card.entry?.id
+  if (!id) {
+    return Promise.resolve(OK)
+  }
+  return attempt(async () => {
+    await runRpcOperation(client, hqPlusSkipOwner, { id })
     return OK
   })
 }
