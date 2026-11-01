@@ -47,7 +47,8 @@ AUTOMATED = re.compile(
     re.I,
 )
 # Why: sandboxes and agent scratch worktrees, not the owner's chats (home dir, /private/tmp, *-scratchpad-*).
-SANDBOX_PROJECT = re.compile(r"^-Users-[^-]+$|^-private-tmp|-scratchpad-")
+# Why the dev scratch: an Orca+ DEV build's test chats live there; they are not the owner's work.
+SANDBOX_PROJECT = re.compile(r"^-Users-[^-]+$|^-private-tmp|-scratchpad-|-orca-dev-scratch-")
 
 
 # A bare "go on" — what limit-guard sends (CLAUDE_LIMIT_CONTINUE_PROMPT) and what the owner types after a stop.
