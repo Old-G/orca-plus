@@ -5,6 +5,7 @@
 import { MAX_OUTGOING_BODY_LENGTH, type OutgoingAction } from './outgoing-action'
 import { curlRewritesClickUpTaskText } from './outgoing-clickup-text-rules'
 import { isOwnerTelegramPreview } from './outgoing-owner-telegram-rules'
+import { isOwnRemoteWork, REMOTE_DESTRUCTION } from './outgoing-remote-own-rules'
 
 type ShellRule = {
   service: string
@@ -38,10 +39,6 @@ const MESSAGE_PATH = [
   { host: /^desk\.zoho\.[a-z.]+$/i, path: /\/sendReply\b/i },
   { host: /^api\.clickup\.com$/i, path: /\/chat\// }
 ]
-
-// Why: run on another machine or database, these cannot be taken back.
-const REMOTE_DESTRUCTION =
-  /\brm\s+-[a-z]*[rf]|\b(?:DROP\s+(?:TABLE|DATABASE|SCHEMA)|TRUNCATE|DELETE\s+FROM)\b|\bdocker\s+(?:volume\s+rm|system\s+prune|rm\s+-f)\b|\bdropDatabase\s*\(/i
 
 const SHELL_RULES: ShellRule[] = [
   {
@@ -159,27 +156,6 @@ const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
 // Why: a target the shell would expand or unquote cannot be judged from its text.
 const SHELL_EXPANSION = /[$`\\'"{}~]/
 
-/** `rm` whose every target sits under /tmp: scratch the agent made, gone on a reboot anyway. */
-function isTempCleanup(rm: string): boolean {
-  const targets = words(rm)
-    .slice(1)
-    .filter((token) => !token.startsWith('-'))
-  return (
-    targets.length > 0 &&
-    targets.every(
-      (target) =>
-        /^(?:\/private)?\/(?:var\/)?tmp\/[^\s*?/][^\s*?]*$/.test(target) &&
-        !target.includes('..') &&
-        !SHELL_EXPANSION.test(target)
-    )
-  )
-}
-
-/** Custom build (gate-narrow): what is left of a command once its /tmp cleanups are taken out. */
-function withoutTempCleanup(command: string): string {
-  return command.replace(/\brm\s+[^\n;|&'"]+/g, (rm) => (isTempCleanup(rm) ? ' ' : rm))
-}
-
 /** The command names exactly one host, a loopback one, and nothing else that could pick a server. */
 function onlyLoopbackDb(segment: string): boolean {
   const hosts = [...segment.matchAll(DB_HOST)].map((match) => match[1] ?? '')
@@ -197,7 +173,8 @@ function holdsRemoteDestruction(segment: string, command: string): boolean {
   if (DB_CLIENT.test(call) && onlyLoopbackDb(call) && !/(?:^|[\s/;&|("'])ssh\s/.test(command)) {
     return false
   }
-  return REMOTE_DESTRUCTION.test(withoutTempCleanup(command))
+  // Custom build (gate-narrow, remote-own-work): /tmp cleanups and the owner's listed deploys pass.
+  return REMOTE_DESTRUCTION.test(command) && !isOwnRemoteWork(command)
 }
 
 const DESTRUCTIVE_PUSH_FLAG =
