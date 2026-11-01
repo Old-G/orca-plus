@@ -45,6 +45,16 @@ export async function markHqPlusDone(
   return OK
 }
 
+/** Custom build (hq-project-cards): «Skip» on a chat's question no bell item stands for — its journal
+ *  row on the owner is done, so it leaves «Your move» (owner, 01.11). */
+export async function skipHqPlusOwner(card: HqPlusCard): Promise<HqPlusResult> {
+  if (!card.entry) {
+    return OK
+  }
+  const result = await hqPlusCall('hq.skipOwner', { id: card.entry.id })
+  return result.ok ? OK : { ok: false, message: result.message }
+}
+
 /** Where the owner's words go: a thread by its address, else a chat by its session. */
 export type HqPlusChatTarget = {
   address: string | null

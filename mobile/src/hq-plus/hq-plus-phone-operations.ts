@@ -1,14 +1,14 @@
 // Custom build (hq-plus-phone): the Mac calls behind HQ+ on the phone — the same reads the desktop's
 // HQ+ makes (its feed, the week's work), a reply into a thread, a card marked done, a question for the
 // Ask HQ chat and a page opened in the Orca browser. Approvals are not among them: they stay on the Mac.
-import { z } from 'zod'
+import * as z from 'zod'
 import type { HqFeedResult, HqPlusScreenStats } from '../../../src/shared/hq-plus-screen'
 import { isHqFeed, isHqScreenStats } from '../../../src/shared/hq-plus-rpc-readers'
 import { HqWriteReplySchema } from '../../../src/shared/hq-requests-reply'
 import { HqPeopleRowSchema, HqPersonCardSchema } from '../../../src/shared/hq-people'
-import { defineRpcOperation } from '../transport/rpc-operation'
-import type { RpcCompatibleReader } from '../transport/rpc-operation-contract'
-import { rpcResultVariant } from '../transport/rpc-operation-result-reader'
+import { defineRpcOperation } from '../transport/rpc/rpc-operation'
+import type { RpcCompatibleReader } from '../transport/rpc/rpc-operation-contract'
+import { rpcResultVariant } from '../transport/rpc/rpc-operation-result-reader'
 
 function guarded<Variant extends string, Value>(
   variant: Variant,
@@ -79,6 +79,15 @@ export const hqPlusConversationProject = defineRpcOperation({
   acceptance: 'require-result-or-throw',
   barrier: 'on-settle',
   read: rpcResultVariant('hq-plus-conversation-project', z.unknown())
+})
+
+/** Custom build (hq-project-cards): «Skip» on a chat's question the owner no longer needs to answer. */
+export const hqPlusSkipOwner = defineRpcOperation({
+  name: 'hq-plus.skip-owner',
+  method: 'hq.skipOwner',
+  acceptance: 'require-result-or-throw',
+  barrier: 'on-settle',
+  read: rpcResultVariant('hq-plus-skipped', z.unknown())
 })
 
 export const hqPlusAskHq = defineRpcOperation({

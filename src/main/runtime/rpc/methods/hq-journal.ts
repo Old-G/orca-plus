@@ -1,8 +1,10 @@
+import { journalEntryAsInput } from '../../../hq-journal/hq-journal-adapters'
 import { defineMethod } from '../core'
 import {
   ChatSendParams,
   HqContextParams,
   HqConversationProjectParams,
+  HqSkipOwnerParams,
   HqDispatchParams,
   HqEventsParams,
   HqFeedParams,
@@ -339,6 +341,22 @@ export const HQ_JOURNAL_METHODS = [
     handler: async (params, { runtime }) => {
       runtime.pulseSetLedgerProject(params.key, params.project)
       return { ok: true }
+    }
+  }),
+  // Custom build (hq-project-cards): the owner's «Skip» on a chat's question — its open row on the
+  // owner is done, so it leaves «Your move»; the chat itself is not told (owner, 01.11).
+  defineMethod({
+    name: 'hq.skipOwner',
+
+    permission: 'workspace',
+    params: HqSkipOwnerParams,
+    handler: async (params, { runtime }) => {
+      const entry = runtime.pulseGetJournalEntry(params.id)
+      if (!entry || entry.status !== 'open' || !entry.needs.startsWith('owner:')) {
+        return { ok: true, skipped: false }
+      }
+      runtime.pulseRecordJournal([journalEntryAsInput(entry, { status: 'done' })])
+      return { ok: true, skipped: true }
     }
   }),
   // Custom build (hq-plus-ui): the screen's numbers the journal does not hold.
