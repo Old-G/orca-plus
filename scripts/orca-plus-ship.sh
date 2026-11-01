@@ -255,6 +255,15 @@ step "stage the new app beside the backup"
 run ditto "$new" "$staged"
 [ "$dry" = 0 ] && codesign --verify --deep --strict "$staged"
 
+# Why: a relaunch nobody is at the Mac for misses the Keychain prompt, and Slack, ClickUp and Gmail stay
+# unreadable until the next restart (01.11, ship at 05:20). The swap waits until the screen is unlocked.
+screen_locked() { ioreg -n Root -d1 | grep -q '"CGSSessionScreenIsLocked"=Yes'; }
+if [ "$dry" = 0 ] && screen_locked; then
+  step "screen locked — waiting for the owner before the restart"
+  while screen_locked; do sleep 30; done
+  step "screen unlocked — going on"
+fi
+
 step "restart marker for chat ${ORCA_AGENT_SESSION_ID:-<none>}"
 run write_restart_marker
 
