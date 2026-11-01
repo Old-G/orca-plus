@@ -31,6 +31,9 @@ export type HqLedgerShadowDeps = HqLedgerLookups & {
   report: (did: string) => void
   /** Custom build (hq-request-ledger): the Slack API reader against the scout, added to the line. */
   parity?: () => string | null
+  /** Custom build (hq-ledger-answers): the ledger's answers to waitings against the reply reader's,
+   *  a line of its own. */
+  answers?: () => string | null
   now: () => number
   onError: (error: unknown) => void
 }
@@ -97,6 +100,10 @@ export function runHqLedgerShadow(
     deps.report(
       `24 h in shadow: ${cards} cards → ${conversations.length} conversations (${you} your move)${others}${parity ? `. ${parity}` : ''}`
     )
+    const answers = deps.answers?.() ?? null
+    if (answers) {
+      deps.report(answers)
+    }
     return { cursor, reportedDay: day, handledCursor }
   }
   return { cursor, reportedDay: state.reportedDay, handledCursor }
