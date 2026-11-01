@@ -21,6 +21,13 @@ import {
 } from './hq-slack-ledger-reader'
 import { generateHqText } from './hq-task-questions'
 import { hqLedgerErrorReporter } from './hq-ledger-errors'
+import {
+  createHqLedgerAnswers,
+  hqLedgerAnswersLine,
+  hqLedgerClickUpMessage
+} from './hq-ledger-answers'
+import { hqReplyJudges } from './register-hq-waiting-replies'
+import type { ClickUpComment } from '../../shared/clickup-types'
 
 // Why: a new conversation's project and move is a small judgement, like routing a 👾 message.
 const GUESS_MODEL = 'haiku'
@@ -73,9 +80,25 @@ function scoutTopicsOfDay(hqPath: string, now: number): HqScoutTopic[] {
 export function registerHqSlackLedger(
   store: Store,
   runtime: OrcaRuntimeService
-): { parity: () => string | null } {
+): {
+  parity: () => string | null
+  /** The day's line comparing the ledger's answers to waitings with the reply reader's. */
+  answers: () => string
+  /** ClickUp comments that answer a waiting, from the reply reader's ClickUp read. */
+  seenClickUp: (waitingId: string, comments: readonly ClickUpComment[], taskId: string) => void
+} {
   const cache = createSlackReaderCache()
   const people = () => runtime.pulseListPeople()
+  // Custom build (hq-ledger-answers, plan 19.13 part 1): in shadow — it writes only its own events.
+  const answers = createHqLedgerAnswers({
+    listOpen: () => runtime.pulseListWaitings({ status: 'open' }),
+    personSlackId: (id) => people().find((person) => person.id === id)?.slackUserId ?? null,
+    name: (userId) => people().find((person) => person.slackUserId === userId)?.name ?? null,
+    judged: (since) => runtime.pulseListLedgerAnswers(since),
+    record: (answer) => runtime.pulseRecordLedgerAnswer(answer),
+    ...hqReplyJudges(store, runtime),
+    now: Date.now
+  })
   const reader = startHqSlackLedgerReader(
     {
       enabled: () => store.getSettings().hqLedger !== 'off',
@@ -130,7 +153,8 @@ export function registerHqSlackLedger(
         )
       },
       setGuess: (id, guess) => runtime.pulseSetLedgerGuess(id, guess),
-      now: Date.now
+      now: Date.now,
+      answers
     },
     // Why: a reader failing in silence leaves the conversations stale with no word anywhere.
     hqLedgerErrorReporter('hq-slack-ledger', 'Slack DMs and threads not read', (rows) =>
@@ -138,6 +162,19 @@ export function registerHqSlackLedger(
     )
   )
   return {
+    answers: () => {
+      const since = Date.now() - 2 * DAY_MS
+      return hqLedgerAnswersLine(
+        runtime.pulseListLedgerAnswers(since),
+        runtime.pulseListReaderAnswers(since),
+        Date.now()
+      )
+    },
+    seenClickUp: (waitingId, comments, taskId) =>
+      answers.seenClickUp(
+        waitingId,
+        comments.map((comment) => hqLedgerClickUpMessage(comment, taskId))
+      ),
     parity: () => {
       const hqPath = store.getSettings().hqPath
       return hqPath

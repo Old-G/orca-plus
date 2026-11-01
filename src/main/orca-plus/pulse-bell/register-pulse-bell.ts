@@ -181,6 +181,7 @@ export function registerPulseBell(
   // Custom build (hq-request-ledger): the request ledger reads the cards in shadow beside them.
   startHqLedgerShadow({
     parity: slackLedger.parity,
+    answers: slackLedger.answers,
     enabled: () => store.getSettings().hqLedger !== 'off',
     cards: (since) => runtime.pulseListInbox(true, { since }),
     ingest: (signal) => runtime.pulseIngestLedger(signal),
@@ -316,7 +317,8 @@ export function registerPulseBell(
     viewer: getClickUpViewer,
     clickUpUserId: (personId) =>
       runtime.pulseListPeople().find((person) => person.id === personId)?.clickupUserId ?? null,
-    recordReply: (id, reply) => runtime.pulseRecordWaitingReply(id, reply)
+    recordReply: (id, reply) => runtime.pulseRecordWaitingReply(id, reply),
+    observe: slackLedger.seenClickUp
   })
 
   let timer: ReturnType<typeof setTimeout> | null = null
