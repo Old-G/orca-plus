@@ -140,6 +140,11 @@ export const HqConversationProjectParams = z.object({
   project: requiredString('A project is required')
 })
 
+// Custom build (hq-project-cards): «Skip» on a chat's question the owner no longer needs to answer.
+export const HqSkipOwnerParams = z.object({
+  id: requiredString('A journal row id is required')
+})
+
 // Custom build (hq-ledger-sources): «Done» on the card of an MR or a mail thread.
 export const HqConversationDoneParams = z.object({
   key: requiredString('A conversation key is required')
