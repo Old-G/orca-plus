@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hqAutonomyFor, parseHqAutonomy } from './hq-autonomy'
+import { hqAutonomyFor, parseHqAutonomy, parseHqRemoteNoApprove } from './hq-autonomy'
 
 describe('HQ autonomy levels', () => {
   it('reads the default and per-project levels, ignoring comments', () => {
@@ -26,5 +26,35 @@ describe('HQ autonomy levels', () => {
 
   it('reads project entries only under projects:', () => {
     expect(parseHqAutonomy('other:\n  acme-api: 3\ndefault: 0').projects).toEqual({})
+  })
+})
+
+describe('HQ remote_no_approve', () => {
+  it('reads hosts, containers, rm paths and mktemp from comma lists', () => {
+    const text = [
+      'default: 1',
+      'projects:',
+      '  acme-api: 3',
+      'remote_no_approve:',
+      '  hosts: myserver   # the deploy box',
+      '  containers: [api-check, "*-shadow"]',
+      '  rm_paths: ~/shadow_*, /tmp/*',
+      '  mktemp: yes',
+      'other: 1'
+    ].join('\n')
+    expect(parseHqRemoteNoApprove(text)).toEqual({
+      hosts: ['myserver'],
+      containers: ['api-check', '*-shadow'],
+      rmPaths: ['~/shadow_*', '/tmp/*'],
+      mktemp: true
+    })
+    expect(parseHqAutonomy(text).projects).toEqual({ 'acme-api': 3 })
+  })
+
+  it('passes nothing without the block or when it is commented out', () => {
+    const none = { hosts: [], containers: [], rmPaths: [], mktemp: false }
+    expect(parseHqRemoteNoApprove(null)).toEqual(none)
+    expect(parseHqRemoteNoApprove('remote_no_approve:\n  # hosts: myserver')).toEqual(none)
+    expect(parseHqRemoteNoApprove('projects:\n  hosts: myserver')).toEqual(none)
   })
 })
