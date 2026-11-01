@@ -53,6 +53,15 @@ describe('ledger shadow', () => {
     expect(d.said).toHaveLength(1)
   })
 
+  it('adds the day’s answers comparison as a line of its own (hq-ledger-answers)', () => {
+    const d = deps({ answers: () => 'Answers, ledger vs reply reader (24 h): 2 matched' })
+    runHqLedgerShadow(d, { cursor: 0, reportedDay: null })
+    expect(d.said).toEqual([
+      '24 h in shadow: 1 cards → 1 conversations (1 your move)',
+      'Answers, ledger vs reply reader (24 h): 2 matched'
+    ])
+  })
+
   it('names the GitLab and mail conversations apart from the cards’ (hq-ledger-sources)', () => {
     const d = deps({
       conversations: () => [

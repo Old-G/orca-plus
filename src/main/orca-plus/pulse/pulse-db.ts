@@ -17,10 +17,10 @@ import type {
 import type { OutgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
 import { liveSessionOf } from './pulse-chat-chain'
 import { linkWaitingAnswer } from './pulse-ledger-answer'
+import { pulseLedgerShadow } from './pulse-ledger-answer-shadow'
 import {
   ingestLedgerSignal,
   lastLedgerDirection,
-  ledgerHasSlackMessage,
   listLedgerConversations,
   setLedgerGuess,
   type HqLedgerGuess
@@ -95,6 +95,8 @@ export function pulseDbPath(userDataPath: string): string {
 
 export class PulseDb {
   private readonly core: PulseCore
+  /** Custom build (hq-ledger-answers): what the ledger keeps in shadow, to compare with the readers. */
+  readonly ledgerShadow = pulseLedgerShadow(() => this.core)
 
   constructor(path: (string & {}) | ':memory:', clock: Partial<PulseClock> = {}) {
     this.core = new PulseCore(path, clock)
@@ -183,10 +185,6 @@ export class PulseDb {
 
   setLedgerProject(key: string, project: string): void {
     setLedgerProject(this.core, key, project)
-  }
-
-  ledgerHasSlackMessage(channel: string, ts: string): boolean {
-    return ledgerHasSlackMessage(this.core, channel, ts)
   }
 
   listLedgerOpenKeys(reader: string): string[] {
