@@ -15,8 +15,9 @@ import { noteSendingChat } from './pulse-ledger-chat'
 
 /** Why: an answer by DM to a question older than two weeks is rarely to that question. */
 export const HQ_LEDGER_PERSON_WINDOW_MS = 14 * 24 * 60 * 60_000
-/** Why: top-level DM lines have no thread; a day of them is one talk. */
-export const HQ_LEDGER_DM_TALK_MS = 24 * 60 * 60_000
+/** Why: top-level DM lines have no thread; a run of them is one talk. A day was too long (01.11: a
+ *  person who writes daily had every DM since 29.10 in one conversation under an old task and project). */
+export const HQ_LEDGER_DM_TALK_MS = 30 * 60_000
 
 const DM_KEY = /^slack:(D[A-Z0-9]+):/
 const TASK_LINK = /app\.clickup\.com\/t\/(?:\d+\/)?([\w-]+)|merge_requests\/(\d+)/g
@@ -39,7 +40,10 @@ function aboutOtherTask(signal: HqLedgerSignal, waiting: OpenWaiting): boolean {
   return ![...linked].some((ref) => own.includes(ref))
 }
 
-/** A top-level DM line joins the DM's talk of the last day instead of opening a conversation of one. */
+const TASK_ID = /\b[A-Z][A-Z0-9]+-\d+\b/g
+
+/** A top-level DM line joins the DM's talk of the last half hour instead of opening a conversation of
+ *  one — unless it names a task the talk is not about: that is a new talk, with its own project. */
 function dmTalkOf(core: PulseCore, signal: HqLedgerSignal): string | null {
   const dm = DM_KEY.exec(signal.key)
   if (!dm) {
@@ -47,10 +51,19 @@ function dmTalkOf(core: PulseCore, signal: HqLedgerSignal): string | null {
   }
   const row = core.db
     .prepare(
-      `SELECT id FROM conversations WHERE key LIKE ? AND last_at >= ? ORDER BY last_at DESC LIMIT 1`
+      `SELECT id, title FROM conversations WHERE key LIKE ? AND last_at >= ?
+        ORDER BY last_at DESC LIMIT 1`
     )
     .get(`slack:${dm[1]}:%`, signal.at - HQ_LEDGER_DM_TALK_MS)
-  return row ? String(row.id) : null
+  if (!row) {
+    return null
+  }
+  const title = String(row.title)
+  const named = new Set([...linkedIn(signal.text), ...(signal.text.match(TASK_ID) ?? [])])
+  if (named.size > 0 && ![...named].some((ref) => title.includes(ref))) {
+    return null
+  }
+  return String(row.id)
 }
 
 type OpenWaiting = {
