@@ -4,7 +4,7 @@
 import { ipcMain } from 'electron'
 import type { HqWaitingReplyPassResult } from '../../shared/hq-waiting-reply-bell'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import { onPulseChanged } from '../orca-plus/pulse/pulse-change-events'
 import { deliverWaitingReply } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { createSlackReadApi, createSlackReaderCache } from '../slack/slack-reader-api'
@@ -21,32 +21,16 @@ import { startHqWaitingReplyRelay } from './hq-waiting-reply-relay'
 import { passHqWaitingReply, skipHqWaitingReply } from './hq-waiting-reply-pass'
 import { registerHqSlackIntake } from './register-hq-slack-intake'
 
-export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeService): void {
-  const listOpen = () => runtime.pulseListWaitings({ status: 'open' })
-  const people = () => runtime.pulseListPeople()
-  const recordReply = runtime.pulseRecordWaitingReply.bind(runtime)
-  const readsSlackItself = (): boolean => {
-    const reader = getSlackReaderStatus()
-    return reader.connected && !reader.error
-  }
-
-  startHqWaitingReplyRelay({
-    hqPath: () => store.getSettings().hqPath ?? null,
-    listOpen,
-    personName: (id) => people().find((person) => person.id === id)?.name ?? null,
-    recordReply,
-    readsSlackItself,
-    onChanged: onPulseChanged
-  })
-
-  const cache = createSlackReaderCache()
-  startHqSlackWaitingReplies({
-    listOpen,
-    personSlackId: (id) => people().find((person) => person.id === id)?.slackUserId ?? null,
-    knownName: (slackUserId) =>
-      people().find((person) => person.slackUserId === slackUserId)?.name ?? null,
-    read: (run) => withSlackReader((token, owner) => run(createSlackReadApi(token, owner, cache))),
-    recordReply,
+/** The small model's two checks on a person's messages: whether they answer a question, and which of
+ *  several open questions they answer. Shared by the reply reader and the ledger's answers. */
+export function hqReplyJudges(
+  store: Store,
+  runtime: OrcaRuntimeService
+): {
+  isAnswer: (question: string, said: string) => Promise<boolean>
+  pickAnswer: (questions: readonly string[], said: string) => Promise<number | null>
+} {
+  return {
     isAnswer: async (question, said) => {
       const hqPath = store.getSettings().hqPath
       if (!hqPath) {
@@ -78,7 +62,37 @@ export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeServi
         }
       )
       return result.ok ? parseHqReplyPick(result.text, questions.length) : null
-    },
+    }
+  }
+}
+
+export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeService): void {
+  const listOpen = () => runtime.pulseListWaitings({ status: 'open' })
+  const people = () => runtime.pulseListPeople()
+  const recordReply = runtime.pulseRecordWaitingReply.bind(runtime)
+  const readsSlackItself = (): boolean => {
+    const reader = getSlackReaderStatus()
+    return reader.connected && !reader.error
+  }
+
+  startHqWaitingReplyRelay({
+    hqPath: () => store.getSettings().hqPath ?? null,
+    listOpen,
+    personName: (id) => people().find((person) => person.id === id)?.name ?? null,
+    recordReply,
+    readsSlackItself,
+    onChanged: onPulseChanged
+  })
+
+  const cache = createSlackReaderCache()
+  startHqSlackWaitingReplies({
+    listOpen,
+    personSlackId: (id) => people().find((person) => person.id === id)?.slackUserId ?? null,
+    knownName: (slackUserId) =>
+      people().find((person) => person.slackUserId === slackUserId)?.name ?? null,
+    read: (run) => withSlackReader((token, owner) => run(createSlackReadApi(token, owner, cache))),
+    recordReply,
+    ...hqReplyJudges(store, runtime),
     // Why three days: a closed question keeps the answer it took while that answer is fresh.
     // Custom build (hq-plus-cards): an open one that already took an answer keeps it too (28.10: the
     // same message reached a second, older question after the owner had handled the first card).
