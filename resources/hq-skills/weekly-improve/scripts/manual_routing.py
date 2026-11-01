@@ -31,6 +31,8 @@ REPLY_BUTTON = re.compile(r"^orca\+ · (an answer the user passed|the user passe
 INTAKE_BUTTON = re.compile(r"^orca\+ · the user sent you a slack message", re.I)
 BY_RULE = re.compile(r"^orca\+ · (an answer to your question.{0,80}routing rule|codex: починить|ты ведёшь нить|ещё находки codex)", re.I)
 HANDOFF_PICKUP = re.compile(r"^continue from \S*handoff", re.I)
+# The handoff file a «Continue from …» line or an `orca agent launch` command names.
+HANDOFF_PATH = re.compile(r"/[^\s'\"]*?\.claude/handoff/[^\s:'\"]+\.md")
 
 NOTE = re.compile(r"\bзапиш|в заметк|в ноутс|\bв notes\b|сохрани (это )?в замет|добавь (это )?в замет", re.I)
 RELAY = re.compile(
@@ -92,6 +94,17 @@ def _at(stamp):
         return 0
 
 
+def _launched_handoffs(entry):
+    """Handoff files a chat started its successor from by itself (`orca agent launch … Continue from`)."""
+    paths = []
+    for part in entry.get("message", {}).get("content", []) or []:
+        if isinstance(part, dict) and part.get("type") == "tool_use" and part.get("name") == "Bash":
+            command = str((part.get("input") or {}).get("command", ""))
+            if "agent launch" in command:
+                paths.extend(HANDOFF_PATH.findall(command))
+    return paths
+
+
 def _assistant_text(entry):
     return " ".join(
         part.get("text", "") for part in entry.get("message", {}).get("content", []) or []
@@ -103,6 +116,16 @@ def owner_counts(cut, end):
     """Manual routing in the owner's chats between cut and end (epoch s), by kind and by day."""
     by_kind, by_day, rule_prompts = collections.Counter(), collections.Counter(), 0
     samples = collections.defaultdict(list)
+    # Why (01.11): a chat that starts its successor itself is not the owner's hand; its handoff counts
+    # once every transcript is read, since the successor's may come first.
+    pickups, launched_by_agent = collections.defaultdict(list), collections.Counter()
+
+    def count(kind, at, sample):
+        by_kind[kind] += 1
+        by_day[datetime.fromtimestamp(at).strftime("%Y-%m-%d")] += 1
+        if len(samples[kind]) < SAMPLES:
+            samples[kind].append(sample)
+
     for path in glob.glob(os.path.join(collect.HOME, ".claude", "projects", "*", "*.jsonl")):
         if os.path.getmtime(path) < cut:
             continue
@@ -122,6 +145,7 @@ def owner_counts(cut, end):
                 except ValueError:
                     continue
                 if entry.get("type") == "assistant":
+                    launched_by_agent.update(_launched_handoffs(entry))
                     if entry.get("isApiErrorMessage"):
                         prev = ("stop:" + collect.stop_kind(entry), "")
                     else:
@@ -141,15 +165,26 @@ def owner_counts(cut, end):
                 first, prev = False, ("user", text)
                 if kind is None or not (cut <= at < end):
                     continue
-                by_kind[kind] += 1
-                by_day[datetime.fromtimestamp(at).strftime("%Y-%m-%d")] += 1
-                if len(samples[kind]) < SAMPLES:
-                    samples[kind].append({"project": project, "at": datetime.fromtimestamp(at).strftime("%d.%m %H:%M"), "text": text[:120]})
+                sample = {"project": project, "at": datetime.fromtimestamp(at).strftime("%d.%m %H:%M"), "text": text[:120]}
+                if kind == "handoff_pickup":
+                    path = HANDOFF_PATH.search(text)
+                    pickups[path.group(0) if path else None].append((at, sample))
+                    continue
+                count(kind, at, sample)
+    # Why per file: one handoff may be started by Orca+ and by its own chat (01.11: 01:27 and 01:28);
+    # only the agent's starts leave, Orca+'s are taken off by the dispatcher's count below.
+    by_agent = 0
+    for path, starts in pickups.items():
+        agent = min(launched_by_agent[path], len(starts)) if path else 0
+        by_agent += agent
+        for at, sample in sorted(starts, key=lambda start: start[0])[: len(starts) - agent]:
+            count("handoff_pickup", at, sample)
     return {
         "by_kind": {kind: by_kind.get(kind, 0) for kind in OWNER_KINDS},
         "by_day": dict(sorted(by_day.items())),
         "rule_prompts": rule_prompts,
         "samples": dict(samples),
+        "handoffs_by_agent": by_agent,
     }
 
 
@@ -218,6 +253,8 @@ def manual_routing(cut, end):
     auto = automated_counts(cut, end)
     kinds = owner["by_kind"]
     handoffs_auto = auto.get("dispatcher", {}).get("handoffs_started", 0)
+    if isinstance(auto.get("dispatcher"), dict):
+        auto["dispatcher"]["handoffs_by_agent"] = owner["handoffs_by_agent"]
     # Why: the dispatcher's own handoff start opens the next chat with the same «Continue from …» line.
     kinds["handoff_pickup"] = max(kinds["handoff_pickup"] - handoffs_auto, 0)
     return {

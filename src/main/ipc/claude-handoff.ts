@@ -28,6 +28,10 @@ import { splitWorktreeId } from '../../shared/worktree/id'
 import { parsePaneKey } from '../../shared/stable-pane-id'
 import { getHqThreads } from '../hq-journal/hq-journal-threads'
 import { getHqSessions } from '../hq-sessions/hq-sessions'
+import {
+  claudeHandoffSuccessorWorktreeId,
+  closeClaudeHandedOffChat
+} from '../claude-handoff/claude-handoff-successor'
 
 /** The tab the launch opened, so HQ can show the new chat in place; absent from older hosts. */
 function readLaunchedTabId(result: unknown): string | undefined {
@@ -78,19 +82,26 @@ async function closeHandedOffChat(
   if (!offer.tabId?.startsWith(NATIVE_CHAT_TAB) || offer.tabId === launchedTabId) {
     return
   }
-  try {
-    // Custom build (hq-plus-sessions): the close is a step of the thread's life in the journal.
-    await getHqSessions()
-      ?.mayClose(offer.tabId.slice(NATIVE_CHAT_TAB.length), 'handoff')
-      .catch(() => null)
-    await runtime.closeMobileSessionTab(
-      `id:${offer.tabWorktreeId ?? offer.worktreeId}`,
-      offer.tabId,
-      { reason: 'user' }
-    )
-  } catch (error) {
-    console.warn('[claude-handoff] closing the handed-off chat failed:', error)
-  }
+  // Custom build (hq-plus-sessions): the close is a step of the thread's life in the journal.
+  await getHqSessions()
+    ?.mayClose(offer.tabId.slice(NATIVE_CHAT_TAB.length), 'handoff')
+    .catch(() => null)
+  await closeClaudeHandedOffChat(
+    {
+      closeInRuntime: (worktreeSelector, tabId) =>
+        runtime.closeMobileSessionTab(worktreeSelector, tabId, { reason: 'user' }),
+      closeInWindow: (tabId) => {
+        const windows = BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed())
+        for (const window of windows) {
+          window.webContents.send('claudeHandoff:closeChat', tabId)
+        }
+        return windows.length > 0
+      },
+      log: (message) => console.warn('[claude-handoff]', message)
+    },
+    offer,
+    launchedTabId
+  )
 }
 
 type OffersListener = (offers: ClaudeHandoffOffer[]) => void
@@ -206,13 +217,14 @@ export function registerClaudeHandoffHandlers(
       if (!resolved) {
         return { ok: false, error: 'The handoff file is gone or no longer valid.' }
       }
+      const worktreeId = claudeHandoffSuccessorWorktreeId(resolved.offer)
       const response = await dispatcher.dispatch({
         id: randomUUID(),
         authToken: '',
         method: 'agent.launch',
         params: {
           agent: 'claude',
-          target: { kind: 'existing', worktree: `id:${resolved.offer.worktreeId}` },
+          target: { kind: 'existing', worktree: `id:${worktreeId}` },
           prompt: { text: resolved.file.prompt, delivery: 'submit' },
           // Custom build (hq-plus-sessions): a successor the dispatcher starts opens beside the owner's work.
           ...(presentation ? { presentation, nativeChatDefault: true } : {})
@@ -234,7 +246,7 @@ export function registerClaudeHandoffHandlers(
           tabId.slice(NATIVE_CHAT_TAB.length)
         )
       }
-      return { ok: true, worktreeId: resolved.offer.worktreeId, ...(tabId ? { tabId } : {}) }
+      return { ok: true, worktreeId, ...(tabId ? { tabId } : {}) }
     } finally {
       launching.delete(id)
     }
