@@ -40,9 +40,9 @@ const RM_IN_CONTAINER =
   /\bdocker\s+(?:compose\s+)?exec\s+(?:(?:-[uwe]|--(?:user|workdir|env|env-file))\s+\S+\s+|-\S+\s+)*[\w.-]+\s+$/
 const PATH_CHARS = /^[\w.\-+@:,=*?/~]+$/
 // Why: each can feed rm or docker words, rebind a variable, move `~` or point a listed path elsewhere
-// (a link or a mount) in a way the text does not show.
+// (a link or a mount), move other data into it (`mv`) or swap rm itself, in a way the text does not show.
 const UNSURE =
-  /\b(?:ln|mount)\s|--bind\b|\bdocker\s+run\b[^\n;|&]*\s(?:-v|--volume|--mount)\b|\b(?:eval|source|xargs|parallel)\b|(?:^|[;&|(\n])\s*\.\s|-exec(?:dir)?\b|\b(?:HOME|IFS)=|\bmktemp\s*\(\s*\)|\bfunction\s+mktemp\b/
+  /\b(?:ln|mount)\s|--bind\b|\bdocker\s+run\b[^\n;|&]*\s(?:-v|--volume|--mount)\b|\b(?:eval|source|xargs|parallel)\b|(?:^|[;&|(\n])\s*\.\s|-exec(?:dir)?\b|\b(?:HOME|IFS|PATH)=|\b(?:mv|alias|enable|builtin)\s|\b(?:rm|docker|mktemp)\s*\(\s*\)|\bfunction\s+(?:rm|docker|mktemp)\b/
 // Why: these point docker at another engine than the one on the listed host.
 const OTHER_DOCKER = /\bDOCKER_(?:HOST|CONTEXT)=|\bdocker\s+(?:-H|--host|--context|-c)\b/
 const QUIET_TARGET = /^\/dev\/(?:null|stdout|stderr)$/
