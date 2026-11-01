@@ -15,6 +15,8 @@ import { agentHookServer } from '../../agent-hooks/server'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import { readHqSlackScoutIndex } from '../../hq-today/hq-slack-scout-index'
 import { HQ_SLACK_SCOUT_CONFIG_FILE, HQ_SLACK_SCOUT_DIR } from '../../../shared/hq-slack-scout'
+import { HQ_AUTONOMY_FILE, parseHqRemoteNoApprove } from '../../../shared/hq-autonomy'
+import { setRemoteNoApprove } from '../../../shared/outgoing-approval/outgoing-remote-own-rules'
 import {
   parseOwnerPreviewProjects,
   setOwnerPreviewProjects
@@ -58,7 +60,7 @@ const decidedListeners = new Set<DecidedListener>()
 let hqPath: () => string | null = () => null
 
 /** Custom build (outgoing-approval-target): where the Slack scout's files are, for naming DMs. */
-const OWNER_PREVIEW_REFRESH_MS = 60_000
+const HQ_CONFIG_REFRESH_MS = 60_000
 
 function refreshOwnerPreviewProjects(): void {
   const root = hqPath()
@@ -73,10 +75,26 @@ function refreshOwnerPreviewProjects(): void {
   setOwnerPreviewProjects(parseOwnerPreviewProjects(config))
 }
 
+/** Custom build (remote-own-work, plan 15.17): the owner's own server work that needs no card. */
+function refreshRemoteNoApprove(): void {
+  const root = hqPath()
+  let text: string | null = null
+  try {
+    text = root ? readFileSync(join(root, HQ_AUTONOMY_FILE), 'utf8') : null
+  } catch {
+    // No autonomy.yaml: every server delete keeps its card.
+  }
+  setRemoteNoApprove(parseHqRemoteNoApprove(text))
+}
+
 export function bindOutgoingApprovalHqPath(read: () => string | null): void {
   hqPath = read
-  refreshOwnerPreviewProjects()
-  setInterval(refreshOwnerPreviewProjects, OWNER_PREVIEW_REFRESH_MS).unref?.()
+  const refresh = (): void => {
+    refreshOwnerPreviewProjects()
+    refreshRemoteNoApprove()
+  }
+  refresh()
+  setInterval(refresh, HQ_CONFIG_REFRESH_MS).unref?.()
 }
 
 function withTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
