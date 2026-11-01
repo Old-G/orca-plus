@@ -11,7 +11,7 @@ import {
 } from '../../../src/shared/hq-plus-project-cards'
 import type { HqPlusProjectLine } from '../../../src/shared/hq-plus-project-lines'
 import { HQ_PLUS_PROJECT_TODAY_LABEL } from '../../../src/shared/hq-plus-project-today'
-import { hqp, hqpWeb } from './hq-plus-phone-theme'
+import { hqp } from './hq-plus-phone-theme'
 import { hqPlusPhoneBreakName } from './hq-plus-phone-map'
 import { clock } from './mobile-hq-plus-parts'
 import {
@@ -29,6 +29,11 @@ function when(at: number, now: number): string {
   return new Date(at).toDateString() === new Date(now).toDateString()
     ? clock(at)
     : new Date(at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
+/** A #rrggbb colour with this alpha; any other colour as it is. */
+function edgeOf(color: string, alpha: string): string {
+  return /^#[0-9a-f]{6}$/i.test(color) ? `${color}${alpha}` : color
 }
 
 export function MobileHqPlusProjectCard({
@@ -66,6 +71,8 @@ export function MobileHqPlusProjectCard({
   const now = ctx.now
   const color = card.unsorted ? hqp.faint : (ctx.feed.colorOf(card.slug) ?? '#cfe9f2')
   const title = card.unsorted ? 'Unsorted' : hqPlusPhoneBreakName(card.slug)
+  // Why: the edge is the project's own colour, as its dot (owner, 01.11); the owner's move brightens it.
+  const edge = { borderColor: edgeOf(color, card.you.length > 0 ? 'c0' : '61') }
   const shown = card.shown
   const openLine = opened
   if (card.compact && !compactOpen) {
@@ -74,7 +81,7 @@ export function MobileHqPlusProjectCard({
         accessibilityRole="button"
         accessibilityLabel={`${card.slug}: we wait for ${card.waits}`}
         onPress={() => setCompactOpen(true)}
-        style={({ pressed }) => [styles.card, styles.compact, pressed && styles.rowOpen]}
+        style={({ pressed }) => [styles.card, edge, styles.compact, pressed && styles.rowOpen]}
         testID={`hq-plus-project-${card.slug}`}
       >
         <View style={[styles.pdot, { backgroundColor: color }]} />
@@ -106,7 +113,7 @@ export function MobileHqPlusProjectCard({
   const first = card.today[0]
   return (
     <View
-      style={[styles.card, card.you.length > 0 && hqpWeb.edgeMove]}
+      style={[styles.card, edge, card.you.length > 0 && styles.cardMove]}
       testID={`hq-plus-project-${card.slug}`}
     >
       <View style={styles.head}>

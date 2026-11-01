@@ -3,15 +3,6 @@
 .hqpc-feed {
   gap: 12px;
 }
-.hqpc-group {
-  font-family: var(--hqp-mono);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--hqp-faint);
-  padding: 4px 2px 0;
-}
 .hqpc {
   --hqpc-c: #cfe9f2;
   flex: none;
@@ -21,11 +12,13 @@
   border: 1px solid var(--hqp-line);
   background: var(--hqp-card);
 }
+/* Owner, 01.11: the edge is the project's own colour, as its dot; the owner's move only brightens it. */
+.hqpc {
+  border-color: color-mix(in srgb, var(--hqpc-c) 38%, transparent);
+}
 .hqpc[data-you='true'] {
-  border-color: transparent;
-  background:
-    linear-gradient(180deg, #132232, #0c1924) padding-box,
-    var(--hqp-edge-move) border-box;
+  border-color: color-mix(in srgb, var(--hqpc-c) 75%, transparent);
+  background: linear-gradient(180deg, #132232, #0c1924);
 }
 .hqpc-head {
   display: flex;
