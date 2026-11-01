@@ -12,6 +12,7 @@ import type { PulseCore } from './pulse-core'
 import { closeWaiting } from './pulse-waitings'
 import { ledgerRuleOf } from './pulse-ledger-feed'
 import { noteSendingChat } from './pulse-ledger-chat'
+import { linkWaitingAnswer, waitingsAnsweredBy } from './pulse-ledger-answer'
 import { linkedIn, namedIn, namesOtherTask } from './pulse-ledger-refs'
 
 /** Why: an answer by DM to a question older than two weeks is rarely to that question. */
@@ -198,6 +199,12 @@ export function ingestLedgerSignal(core: PulseCore, signal: HqLedgerSignal): HqL
           signal.reader,
           signal.at
         ).changes > 0
+    // Custom build (hq-ledger-answer-dedup): the reply reader may have paired this message first.
+    if (added && !signal.fromOwner) {
+      for (const waitingId of waitingsAnsweredBy(core, signal.ts)) {
+        linkWaitingAnswer(core, waitingId, signal.ts)
+      }
+    }
     // Custom build (hq-request-ledger): a send Orca+ saw go out carries its chat (null or not).
     if (signal.sessionId !== undefined || signal.decisionId !== undefined) {
       noteSendingChat(core, conversationId, signal)
