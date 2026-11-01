@@ -197,7 +197,7 @@ describe('MobileHqPlusProjectCard', () => {
     expect(opened[0].props.bare).toBe(true)
   })
 
-  it('folds We wait, Today and Chats to one line each, and opens them', () => {
+  it('folds We wait and Today to one line each and opens them; the chats are always on view', () => {
     const card = hqPlusProjectCardOf(input, 'acme-api')
     act(() => {
       renderer = create(createElement(MobileHqPlusProjectCard, { card, ctx: context() }))
@@ -205,10 +205,10 @@ describe('MobileHqPlusProjectCard', () => {
     const root = renderer!.root
     expect(texts(root)).toContain('Bob 1 — oldest 2 d')
     expect(texts(root)).toContain('Approved → DM Ann: Ann, the table is in main.')
-    expect(texts(root)).toContain('1 asks you · 1 working')
+    expect(texts(root)).toContain('ASKS YOU')
+    expect(texts(root)).toContain('WORKING')
     press(root, 'Show We wait · 1')
     expect(texts(root)).toContain('Review the MR')
-    press(root, 'Show Chats · 2')
     press(root, 'Chat Fix')
     const chat = root.find((node) => String(node.type) === 'MobileHqPlusChatLine')
     expect(chat.props.item.id).toBe('line-s1')
@@ -221,7 +221,6 @@ describe('MobileHqPlusProjectCard', () => {
       renderer = create(createElement(MobileHqPlusProjectCard, { card, ctx }))
     })
     const root = renderer!.root
-    press(root, 'Show Chats · 2')
     press(root, 'Close chat Fix')
     expect(ctx.closeChat).not.toHaveBeenCalled()
     expect(texts(root)).toContain('Chat is working — close?')
@@ -234,14 +233,13 @@ describe('MobileHqPlusProjectCard', () => {
     expect(ctx.closeChat).toHaveBeenCalledWith(expect.objectContaining({ key: 's1' }))
   })
 
-  it('opens the asking chat from Chat in the head', () => {
-    const ctx = context()
+  it('names in the head what asks the owner and what works (hq-card-v2)', () => {
     const card = hqPlusProjectCardOf(input, 'acme-api')
     act(() => {
-      renderer = create(createElement(MobileHqPlusProjectCard, { card, ctx }))
+      renderer = create(createElement(MobileHqPlusProjectCard, { card, ctx: context() }))
     })
-    press(renderer!.root, 'Chat')
-    expect(ctx.feed.openChat).toHaveBeenCalledWith(expect.objectContaining({ key: 's2' }))
+    expect(texts(renderer!.root)).toContain('Asks you · 1')
+    expect(texts(renderer!.root)).toContain('Working · 1')
   })
 })
 
