@@ -42,7 +42,7 @@ const PATH_CHARS = /^[\w.\-+@:,=*?/~]+$/
 // Why: each can feed rm or docker words, rebind a variable, move `~` or point a listed path elsewhere
 // (a link or a mount), move other data into it (`mv`) or swap rm itself, in a way the text does not show.
 const UNSURE =
-  /\b(?:ln|mount)\s|--bind\b|\bdocker\s+run\b[^\n;|&]*\s(?:-v|--volume|--mount)\b|\b(?:eval|source|xargs|parallel)\b|(?:^|[;&|(\n])\s*\.\s|-exec(?:dir)?\b|\b(?:HOME|IFS|PATH)=|\b(?:mv|alias|enable|builtin)\s|\b(?:rm|docker|mktemp)\s*\(\s*\)|\bfunction\s+(?:rm|docker|mktemp)\b/
+  /\b(?:ln|mount)\s|--bind\b|\bdocker\s+run\b[^\n;|&]*\s(?:-v|--volume|--mount)\b|\b(?:eval|source|xargs|parallel)\b|(?:^|[;&|(\n])\s*\.\s|-exec(?:dir)?\b|\b(?:HOME|IFS|PATH)\+?=|\b(?:mv|alias|enable|builtin|hash)\s|--remove-source-files\b|\b(?:rm|docker|mktemp)\s*\(\s*\)|\bfunction\s+(?:rm|docker|mktemp)\b/
 // Why: these point docker at another engine than the one on the listed host.
 const OTHER_DOCKER = /\bDOCKER_(?:HOST|CONTEXT)=|\bdocker\s+(?:-H|--host|--context|-c)\b/
 const QUIET_TARGET = /^\/dev\/(?:null|stdout|stderr)$/
@@ -249,7 +249,8 @@ function listFor(command: string): HqRemoteNoApprove {
 
 /** Every destructive step is a /tmp cleanup or, on listed hosts, on the owner's list. */
 export function isOwnRemoteWork(command: string): boolean {
-  if (UNSURE.test(command)) {
+  // Why: `'m'v` and `m\v` are `mv` to the shell.
+  if (UNSURE.test(command.replace(/['"\\]/g, ''))) {
     return false
   }
   const own = listFor(command)
