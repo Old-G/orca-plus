@@ -217,6 +217,25 @@ describe('ledger ingest', () => {
     expect(later.conversationId).not.toBe(other.conversationId)
   })
 
+  it('a DM line that names its talk’s task and another one starts a new talk', () => {
+    const db = openDb()
+    const dm = (ts: string, at: number, text: string): HqLedgerSignal =>
+      signal({ key: `slack:D0123ANNXY:${ts}`, ts, at, text, title: text })
+    const first = db.ingestLedgerSignal(dm('1700000100.000000', tick + 1, 'DEV-1 copy'))
+    const both = db.ingestLedgerSignal(
+      dm('1700000200.000000', tick + 60_000, 'DEV-1 done, DEV-2 next')
+    )
+    expect(both.conversationId).not.toBe(first.conversationId)
+    const withMr = db.ingestLedgerSignal(
+      dm(
+        '1700000300.000000',
+        tick + 2 * 60_000,
+        'DEV-2 is in https://gitlab.com/acme/hub/-/merge_requests/314'
+      )
+    )
+    expect(withMr.conversationId).toBe(both.conversationId)
+  })
+
   it('keeps the change feed readable after a conversation moved', () => {
     const db = openDb()
     db.ingestLedgerSignal(signal({}))
@@ -238,6 +257,25 @@ describe('ledger ingest', () => {
       ts: '1700000020.000000',
       authorId: 'U_BOB',
       text: 'it is over here: https://app.clickup.com/t/1/DEV-18421'
+    })
+    expect(db.ingestLedgerSignal(dm).step).toBe('which')
+  })
+
+  it('a DM that links its own task and another one asks too', () => {
+    const db = openDb()
+    const bob = db.upsertPerson({ name: 'Bob', slackUserId: 'U_BOB' })
+    db.addWaiting({
+      direction: 'on-them',
+      title: 'SIP profile (DEV-18164)',
+      personId: bob.id,
+      source: 'slack',
+      sourceRef: THREAD
+    })
+    const dm = signal({
+      key: 'slack:D0123BOBXY:1700000025.000000',
+      ts: '1700000025.000000',
+      authorId: 'U_BOB',
+      text: 'https://app.clickup.com/t/1/DEV-18164 is done, the rest is https://app.clickup.com/t/1/DEV-18421'
     })
     expect(db.ingestLedgerSignal(dm).step).toBe('which')
   })
