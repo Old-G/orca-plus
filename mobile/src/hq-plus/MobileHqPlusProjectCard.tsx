@@ -1,11 +1,10 @@
-// Custom build (hq-project-cards): one project's card on the phone, the desktop's own — the head with its
-// counts, Chat and Workspace ⇥; «Your move» as one line per conversation that opens to its card;
-// «We wait» folded to one line, then to the people and what we asked; «Today» folded to its first
-// row; the project's chats, each opening to its chat card with Open chat and ×.
+// Custom build (hq-project-cards): one project's card on the phone, the desktop's own. Custom build
+// (hq-card-v2, owner 01.11): the actions waiting for Approve first (read here; Approve stays on the
+// Mac), then the project's chats always on view with their states, last words and questions, then
+// «Your move» (people), «We wait» and «Today» folded to a line.
 import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import {
-  hqPlusProjectChatSummary,
   hqPlusProjectWaitSummary,
   type HqPlusProjectCard
 } from '../../../src/shared/hq-plus-project-cards'
@@ -14,6 +13,7 @@ import { HQ_PLUS_PROJECT_TODAY_LABEL } from '../../../src/shared/hq-plus-project
 import { hqp } from './hq-plus-phone-theme'
 import { hqPlusPhoneBreakName } from './hq-plus-phone-map'
 import { clock } from './mobile-hq-plus-parts'
+import { MobileHqPlusCard } from './MobileHqPlusCard'
 import {
   Action,
   ChatRow,
@@ -24,6 +24,9 @@ import {
   type HqpProjectContext
 } from './MobileHqPlusProjectParts'
 import { hqpProjectStyles as styles } from './mobile-hq-plus-project-styles'
+
+/** Custom build (hq-card-v2): more chats than this fold under «+N more». */
+const CHATS_SHOWN = 5
 
 function when(at: number, now: number): string {
   return new Date(at).toDateString() === new Date(now).toDateString()
@@ -58,12 +61,12 @@ export function MobileHqPlusProjectCard({
   const [waitOpen, setWaitOpen] = useState(!card.shown.you)
   useEffect(() => setWaitOpen(!card.shown.you), [card.shown.you])
   const [todayOpen, setTodayOpen] = useState(false)
-  const [chatsOpen, setChatsOpen] = useState(false)
-  // Why: words ⌘F found in a chat's reply open the chats.
+  const [allChats, setAllChats] = useState(false)
+  // Why: words found in a chat's reply show every chat.
   const hits = card.chatHits.join('\n')
   useEffect(() => {
     if (hits) {
-      setChatsOpen(true)
+      setAllChats(true)
     }
   }, [hits])
   const [chatKey, setChatKey] = useState<string | null>(null)
@@ -71,8 +74,11 @@ export function MobileHqPlusProjectCard({
   const now = ctx.now
   const color = card.unsorted ? hqp.faint : (ctx.feed.colorOf(card.slug) ?? '#cfe9f2')
   const title = card.unsorted ? 'Unsorted' : hqPlusPhoneBreakName(card.slug)
-  // Why: the edge is the project's own colour, as its dot (owner, 01.11); the owner's move brightens it.
-  const edge = { borderColor: edgeOf(color, card.you.length > 0 ? 'c0' : '61') }
+  const asks = card.chats.filter((chat) => chat.question || chat.state === 'asks').length
+  const working = card.chats.filter((chat) => chat.state === 'working').length
+  // Why: the edge is the project's own colour, as its dot (owner, 01.11); a chat asking brightens it,
+  // an Approve turns it red.
+  const edge = { borderColor: edgeOf(color, asks > 0 ? 'c0' : '61') }
   const shown = card.shown
   const openLine = opened
   if (card.compact && !compactOpen) {
@@ -93,8 +99,6 @@ export function MobileHqPlusProjectCard({
       </Pressable>
     )
   }
-  const asking = card.chats.find((chat) => chat.state === 'asks') ?? card.chats[0] ?? null
-  const askingItem = asking ? ctx.chatOf(asking.key) : null
   const workspace = card.unsorted ? null : ctx.workspace(card.slug)
   const room = card.unsorted ? null : ctx.roomName(card.slug)
   const openWaits = waitOpen || compactOpen
@@ -113,7 +117,12 @@ export function MobileHqPlusProjectCard({
   const first = card.today[0]
   return (
     <View
-      style={[styles.card, edge, card.you.length > 0 && styles.cardMove]}
+      style={[
+        styles.card,
+        edge,
+        asks > 0 && styles.cardMove,
+        card.approve.length > 0 && styles.cardAp
+      ]}
       testID={`hq-plus-project-${card.slug}`}
     >
       <View style={styles.head}>
@@ -122,24 +131,52 @@ export function MobileHqPlusProjectCard({
         {room ? <Text style={styles.room}>{room.toUpperCase()}</Text> : null}
         {card.lastAt > 0 ? <Text style={styles.tm}>{when(card.lastAt, now)}</Text> : null}
       </View>
-      {card.you.length > 0 || card.waits > 0 ? (
+      {card.approve.length + asks + working + card.you.length + card.waits > 0 ? (
         <View style={styles.pills}>
+          {card.approve.length > 0 ? (
+            <Text style={[styles.pill, styles.pillAp]}>Approve · {card.approve.length}</Text>
+          ) : null}
+          {asks > 0 ? <Text style={[styles.pill, styles.pillYou]}>Asks you · {asks}</Text> : null}
+          {working > 0 ? <Text style={styles.pill}>Working · {working}</Text> : null}
           {card.you.length > 0 ? (
-            <Text style={[styles.pill, styles.pillYou]}>Your move · {card.you.length}</Text>
+            <Text style={styles.pill}>Your move · {card.you.length}</Text>
           ) : null}
           {card.waits > 0 ? <Text style={styles.pill}>We wait · {card.waits}</Text> : null}
         </View>
       ) : null}
-      {askingItem || workspace ? (
-        <View style={styles.actions}>
-          {askingItem ? (
-            <Action
-              label="Chat"
-              main={asking?.state === 'asks'}
-              onPress={() => ctx.feed.openChat(askingItem)}
+      {shown.approve && card.approve.length > 0 ? (
+        <>
+          <Section label={`Approve · ${card.approve.length}`} open={null} red />
+          {card.approve.map((line) => (
+            <View key={line.id} style={styles.apWrap}>
+              <MobileHqPlusCard card={line.card} flash={flashId === line.id} ctx={ctx.feed} />
+            </View>
+          ))}
+        </>
+      ) : null}
+      {shown.chats && card.chats.length > 0 ? (
+        <>
+          <Section label={`Chats · ${card.chats.length}`} open={null} />
+          {(allChats ? card.chats : card.chats.slice(0, CHATS_SHOWN)).map((chat) => (
+            <ChatRow
+              key={chat.key}
+              chat={chat}
+              open={chatKey === chat.key}
+              onToggle={() => setChatKey(chatKey === chat.key ? null : chat.key)}
+              ctx={ctx}
+            />
+          ))}
+          {!allChats && card.chats.length > CHATS_SHOWN ? (
+            <Summary
+              text={`+${card.chats.length - CHATS_SHOWN} more`}
+              onPress={() => setAllChats(true)}
             />
           ) : null}
-          {workspace ? <Action label="Workspace ⇥" onPress={workspace} /> : null}
+        </>
+      ) : null}
+      {workspace ? (
+        <View style={styles.actions}>
+          <Action label="Workspace ⇥" onPress={workspace} />
         </View>
       ) : null}
       {shown.you && card.you.length > 0 ? (
@@ -205,31 +242,6 @@ export function MobileHqPlusProjectCard({
             <Summary
               text={`${HQ_PLUS_PROJECT_TODAY_LABEL[first.kind]}${first.to ? ` → ${first.to}` : ''}: ${first.text}${card.today.length > 1 ? ` · and ${card.today.length - 1} more` : ''}`}
               onPress={() => setTodayOpen(true)}
-            />
-          )}
-        </>
-      ) : null}
-      {shown.chats && card.chats.length > 0 ? (
-        <>
-          <Section
-            label={`Chats · ${card.chats.length}`}
-            open={chatsOpen}
-            onToggle={() => setChatsOpen(!chatsOpen)}
-          />
-          {chatsOpen ? (
-            card.chats.map((chat) => (
-              <ChatRow
-                key={chat.key}
-                chat={chat}
-                open={chatKey === chat.key}
-                onToggle={() => setChatKey(chatKey === chat.key ? null : chat.key)}
-                ctx={ctx}
-              />
-            ))
-          ) : (
-            <Summary
-              text={hqPlusProjectChatSummary(card.chats)}
-              onPress={() => setChatsOpen(true)}
             />
           )}
         </>
