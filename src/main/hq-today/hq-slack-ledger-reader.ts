@@ -57,6 +57,11 @@ export type HqSlackLedgerDeps = {
   ) => Promise<HqLedgerGuess | null>
   setGuess: (conversationId: string, guess: HqLedgerGuess) => void
   now: () => number
+  /** Custom build (hq-ledger-answers): the ledger's own answers to waitings, in shadow. */
+  answers?: {
+    seenSlack: (message: HqSlackLedgerMessage, owner: string) => void
+    judge: () => Promise<number>
+  }
 }
 
 export type HqSlackLedgerState = {
@@ -131,6 +136,7 @@ export async function runHqSlackLedgerReader(
     )
     // Why oldest first: the ledger's ladder needs the owner's line before the answer to it.
     for (const message of [...messages].sort((a, b) => Number(a.ts) - Number(b.ts))) {
+      deps.answers?.seenSlack(message, api.owner)
       const key = `slack:${message.channel}:${message.threadTs ?? message.ts}`
       const last = deps.lastDirection(key)
       // Why: a top-level channel line is a talk only once a thread grows under it or it @mentions
@@ -251,6 +257,11 @@ export function startHqSlackLedgerReader(
     async () => {
       if (deps.enabled()) {
         state = await runHqSlackLedgerReader(deps, state)
+        // Why after the pass: a burst is judged on what this pass read. A failure is the shadow's own,
+        // not «Slack not read», and keeps the reader going.
+        await deps.answers
+          ?.judge()
+          .catch((error: unknown) => console.warn('[hq-ledger-answers] judge failed:', error))
       }
     },
     onError,

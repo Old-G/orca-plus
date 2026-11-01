@@ -74,6 +74,29 @@ describe('Slack ledger reader', () => {
     expect(state.delays).toEqual([])
   })
 
+  it('shows the ledger’s answers every message it read, the ones already in the ledger too', async () => {
+    const { deps } = setup([
+      message({ ts: '1700000050.000100', user: 'U_ANN', text: 'reply', rawText: 'reply' }),
+      message({ ts: '1700000000.000100', threadTs: null, user: OWNER, text: 'question' })
+    ])
+    const seen: string[] = []
+    const withAnswers = {
+      ...deps,
+      answers: {
+        seenSlack: (m: HqSlackLedgerMessage, owner: string) => seen.push(`${owner}:${m.ts}`),
+        judge: async () => 0
+      }
+    }
+    const state = await runHqSlackLedgerReader(withAnswers, { cursor: 0, delays: [] })
+    await runHqSlackLedgerReader(withAnswers, state)
+    expect(seen).toEqual([
+      `${OWNER}:1700000000.000100`,
+      `${OWNER}:1700000050.000100`,
+      `${OWNER}:1700000000.000100`,
+      `${OWNER}:1700000050.000100`
+    ])
+  })
+
   it('reads the same messages twice into nothing new, and measures the delay after the first pass', async () => {
     const { db, deps } = setup([message({})])
     const first = await runHqSlackLedgerReader(deps, { cursor: 1, delays: [] })
@@ -204,8 +227,8 @@ describe('parity with the scout', () => {
       project: null,
       title: 'hi'
     })
-    expect(db.ledgerHasSlackMessage('D0123HUBXY', '1700000000.000100')).toBe(true)
-    expect(db.ledgerHasSlackMessage('D0123HUBXY', '1700000500.000100')).toBe(true)
-    expect(db.ledgerHasSlackMessage('D0123HUBXY', '1700000900.000100')).toBe(false)
+    expect(db.ledgerShadow.hasSlackMessage('D0123HUBXY', '1700000000.000100')).toBe(true)
+    expect(db.ledgerShadow.hasSlackMessage('D0123HUBXY', '1700000500.000100')).toBe(true)
+    expect(db.ledgerShadow.hasSlackMessage('D0123HUBXY', '1700000900.000100')).toBe(false)
   })
 })
