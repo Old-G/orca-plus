@@ -353,6 +353,48 @@ describe('ledger cards', () => {
     expect(db.listLedgerCards(0).map((c) => c.key)).toEqual([THREAD])
   })
 
+  it('a person’s message taken as a waiting’s answer is that answer’s card, not a second one in Unsorted', () => {
+    const db = openDb()
+    const dm = 'slack:D0123ANNXY:1700000500.000000'
+    const waiting = db.addWaiting({
+      direction: 'on-them',
+      title: 'Facts for the agent',
+      source: 'manual',
+      project: 'acme'
+    })
+    // The owner nudges in an old DM thread nobody tracked, Ann answers there.
+    db.ingestLedgerSignal(
+      signal({ key: dm, ts: '1700000501.000000', fromOwner: true, forOwner: false, at: tick + 10 })
+    )
+    db.ingestLedgerSignal(signal({ key: dm, ts: '1700000502.000000', at: tick + 20 }))
+    expect(db.listLedgerCards(0).map((c) => c.key)).toEqual([dm])
+    db.recordWaitingReply(waiting.id, { text: 'hi', author: 'Ann', ts: '1700000502.000000' })
+    expect(db.listLedgerCards(0)).toEqual([])
+    expect(db.listLedgerConversations().find((c) => c.key === dm)).toMatchObject({
+      project: 'acme'
+    })
+    // Something new from Ann after it is news again.
+    db.ingestLedgerSignal(signal({ key: dm, ts: '1700000503.000000', at: tick + 30 }))
+    expect(db.listLedgerCards(0).map((c) => c.key)).toEqual([dm])
+  })
+
+  it('the reply reader may pair the message before the ledger reads it', () => {
+    const db = openDb()
+    const dm = 'slack:D0123ANNXY:1700000600.000000'
+    const waiting = db.addWaiting({
+      direction: 'on-them',
+      title: 'Facts for the agent',
+      source: 'manual',
+      project: 'acme'
+    })
+    db.recordWaitingReply(waiting.id, { text: 'hi', author: 'Ann', ts: '1700000601.000000' })
+    db.ingestLedgerSignal(signal({ key: dm, ts: '1700000601.000000', at: tick + 10 }))
+    expect(db.listLedgerCards(0)).toEqual([])
+    expect(db.listLedgerConversations().find((c) => c.key === dm)).toMatchObject({
+      project: 'acme'
+    })
+  })
+
   it('a message handled from its card settles the conversation unless someone wrote after it', () => {
     const db = openDb()
     db.ingestLedgerSignal(signal({ ts: '1700000001.000000', at: tick + 1 }))
