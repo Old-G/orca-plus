@@ -3,7 +3,12 @@ import type { DashboardCard, DashboardWorkspace } from '../../../../../shared/da
 import type { Tab } from '../../../../../shared/tab-types'
 import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
 import { buildHqChatList } from '../hq/hq-chat-list'
-import { hqPlusChatIsIdle, hqPlusChatOfSession, hqPlusProjectChats } from './hq-plus-chats'
+import {
+  hqPlusChatIsIdle,
+  hqPlusChatOfSession,
+  hqPlusProjectChats,
+  hqPlusTerminalTabMates
+} from './hq-plus-chats'
 
 const workspace: DashboardWorkspace = {
   repoId: 'repo-1',
@@ -150,5 +155,28 @@ describe('HQ+ chats', () => {
       projects.map((p) => p.repoId).sort()
     )
     expect(side.quiet).toEqual([])
+  })
+
+  // Custom build (hq-plus-close-terminal): × on a terminal agent names who closes with it.
+  it('counts the other agents sharing a terminal tab, none for a native chat', () => {
+    const split = { ...card('term-1', 'working', 5), paneKey: 'term-1:leaf-2', leafId: 'leaf-2' }
+    const items = buildHqChatList(
+      {
+        cards: [
+          card('term-1', 'done', 4),
+          split,
+          card('term-2', 'done', 3),
+          card('tab-chat', 'done', 2)
+        ],
+        workspaces: [workspace]
+      },
+      [chatTab('tab-chat')]
+    )
+    const terminal = items.find((item) => item.key === 'term-1:leaf')
+    const alone = items.find((item) => item.key === 'term-2:leaf')
+    const chat = items.find((item) => item.kind === 'chat')
+    expect(terminal && hqPlusTerminalTabMates(items, terminal)).toBe(1)
+    expect(alone && hqPlusTerminalTabMates(items, alone)).toBe(0)
+    expect(chat && hqPlusTerminalTabMates(items, chat)).toBe(0)
   })
 })

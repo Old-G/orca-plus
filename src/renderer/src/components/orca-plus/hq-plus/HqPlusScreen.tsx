@@ -115,7 +115,8 @@ import {
   hqPlusChatIsIdle,
   hqPlusChatOfSession,
   hqPlusLiveChats,
-  hqPlusProjectChats
+  hqPlusProjectChats,
+  hqPlusTerminalTabMates
 } from './hq-plus-chats'
 import { setHqPlusLayout, useHqPlusLayout } from './hq-plus-layout'
 import { HqPlusMapLayout } from './HqPlusMapLayout'
@@ -842,7 +843,7 @@ export function HqPlusScreen(): React.JSX.Element {
     setTab('report')
   }
   // Custom build (hq-plus-ui-v3): × on a chat closes its tab; one open on the right gives way.
-  const closerOf = (item: (typeof chatItems)[number]): HqPlusChatCloser | null =>
+  const closerOf = (item: (typeof chatItems)[number]): HqPlusChatCloser =>
     item.kind === 'chat'
       ? {
           working: item.group === 'working',
@@ -857,7 +858,18 @@ export function HqPlusScreen(): React.JSX.Element {
             setDismissVersion((version) => version + 1)
           }
         }
-      : null
+      : {
+          // Custom build (hq-plus-close-terminal): a terminal agent closes too (owner, 01.11).
+          working: item.group === 'working',
+          terminal: true,
+          mates: hqPlusTerminalTabMates(chatItems, item),
+          close: () => {
+            closeHqPlusChat(item)
+            if (chatKey === item.key) {
+              setChatKey(null)
+            }
+          }
+        }
   const putOff = (id: string): void => {
     putOffHqPlusCard(id, Date.now())
     setNotNowVersion((version) => version + 1)
