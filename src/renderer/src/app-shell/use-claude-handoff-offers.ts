@@ -3,9 +3,10 @@ import { toast } from 'sonner'
 import { useHqPopupsGoToFeed } from '@/components/orca-plus/hq-plus/hq-plus-popups'
 import type { ClaudeHandoffOffer } from '../../../shared/claude-handoff-file'
 import { translate } from '@/i18n/i18n'
-import { isWebClientLocation } from '@/lib/web-client-location'
+import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import { activateAndRevealWorktree } from '@/lib/workspace/activation/worktree-activation'
 import { openChatInShownHq } from '@/components/orca-plus/hq/hq-chat-open'
+import { useAppStore } from '@/store'
 
 const toastId = (offer: ClaudeHandoffOffer): string => `claude-handoff-${offer.id}`
 
@@ -100,4 +101,14 @@ export function useClaudeHandoffOffers(): void {
       }
     }
   }, [toFeed])
+  useEffect(() => {
+    if (isWebClientLocation()) {
+      return
+    }
+    // Why: the runtime knows only the tabs this window has published since it started; for the others
+    // main asks the window, which holds every tab, to close the handed-off chat as its × would.
+    return window.api.claudeHandoff.onCloseChat((tabId) => {
+      useAppStore.getState().closeUnifiedTab(tabId, { preserveWorktreeSelection: true })
+    })
+  }, [])
 }

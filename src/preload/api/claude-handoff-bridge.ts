@@ -11,5 +11,14 @@ export const claudeHandoffApi = {
       callback(offers)
     ipcRenderer.on('claudeHandoff:offersChanged', listener)
     return () => ipcRenderer.removeListener('claudeHandoff:offersChanged', listener)
+  },
+  onCloseChat: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, tabId: unknown): void => {
+      if (typeof tabId === 'string') {
+        callback(tabId)
+      }
+    }
+    ipcRenderer.on('claudeHandoff:closeChat', listener)
+    return () => ipcRenderer.removeListener('claudeHandoff:closeChat', listener)
   }
 } satisfies PreloadApi['claudeHandoff']
