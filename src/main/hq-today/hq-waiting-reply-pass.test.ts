@@ -92,9 +92,11 @@ describe('passHqWaitingReply', () => {
   it('reports a closed chat and keeps the answer for another try', async () => {
     const { db, deps, answered } = setup(false)
     const waiting = answered({ agentSessionId: 'chat-closed' })
-    expect(await passHqWaitingReply(deps, waiting.id)).toEqual({
+    expect(await passHqWaitingReply(deps, waiting.id)).toMatchObject({
       ok: false,
-      reason: 'chat-closed'
+      reason: 'chat-closed',
+      liveSessionId: 'chat-closed',
+      prompt: expect.any(String)
     })
     expect(db.getWaiting(waiting.id)?.replyDeliveredAt).toBeNull()
   })
