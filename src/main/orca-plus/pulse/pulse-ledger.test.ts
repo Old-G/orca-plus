@@ -201,19 +201,20 @@ describe('ledger ingest', () => {
     expect(fresh).toMatchObject({ step: 'new', waitingIds: [] })
   })
 
-  it('a day of top-level DM lines is one talk', () => {
+  it('a run of top-level DM lines is one talk; an hour later, or about another task, a new one', () => {
     const db = openDb()
-    const first = db.ingestLedgerSignal(
-      signal({ key: 'slack:D0123ANNXY:1700000100.000000', ts: '1700000100.000000' })
-    )
-    const second = db.ingestLedgerSignal(
-      signal({
-        key: 'slack:D0123ANNXY:1700000200.000000',
-        ts: '1700000200.000000',
-        at: tick + 3600_000
-      })
-    )
+    const dm = (ts: string, at: number, text = 'hi'): HqLedgerSignal =>
+      signal({ key: `slack:D0123ANNXY:${ts}`, ts, at, text, title: 'DEV-1 copy' })
+    const first = db.ingestLedgerSignal(dm('1700000100.000000', tick + 1))
+    const second = db.ingestLedgerSignal(dm('1700000200.000000', tick + 10 * 60_000))
     expect(second.conversationId).toBe(first.conversationId)
+    const same = db.ingestLedgerSignal(dm('1700000250.000000', tick + 11 * 60_000, 'DEV-1 done'))
+    expect(same.conversationId).toBe(first.conversationId)
+    const other = db.ingestLedgerSignal(dm('1700000300.000000', tick + 12 * 60_000, 'DEV-2 now'))
+    expect(other.conversationId).not.toBe(first.conversationId)
+    const later = db.ingestLedgerSignal(dm('1700000400.000000', tick + 3 * 3600_000))
+    expect(later.conversationId).not.toBe(first.conversationId)
+    expect(later.conversationId).not.toBe(other.conversationId)
   })
 
   it('keeps the change feed readable after a conversation moved', () => {
@@ -301,6 +302,16 @@ describe('ledger cards', () => {
     const other = 'slack:C0123HUBXY:1700000100.000100'
     db.addWaiting({ direction: 'on-them', title: 'Asked Ann', source: 'slack', sourceRef: other })
     db.ingestLedgerSignal(signal({ key: other, ts: '1700000101.000000' }))
+    expect(db.listLedgerCards(0).map((c) => c.key)).toEqual([THREAD])
+  })
+
+  it('a conversation a chat waits in gets its card once the person wrote more than the answer', () => {
+    const db = openDb()
+    db.addWaiting({ direction: 'on-them', title: 'Asked Ann', source: 'slack', sourceRef: THREAD })
+    tick += 10
+    db.ingestLedgerSignal(signal({ ts: '1700000001.000000', at: tick + 1, text: 'the answer' }))
+    expect(db.listLedgerCards(0)).toEqual([])
+    db.ingestLedgerSignal(signal({ ts: '1700000002.000000', at: tick + 2, text: 'something new' }))
     expect(db.listLedgerCards(0).map((c) => c.key)).toEqual([THREAD])
   })
 
