@@ -16,6 +16,8 @@ import { HQP_TOUCH, hqp, hqpWeb } from './hq-plus-phone-theme'
 
 const FILTER_LABEL: Record<HqPlusProjectFilter, string> = {
   all: 'All',
+  approve: 'Approve',
+  chats: 'Chats',
   move: 'Your move',
   wait: 'We wait',
   fyi: 'FYI'
@@ -230,7 +232,7 @@ export function MobileHqPlusHeader({
             {HQ_PLUS_PROJECT_FILTERS.map((entry) => {
               const on = entry === filter
               const move = entry === 'move'
-              const count = entry === 'all' ? 0 : counts[entry]
+              const count = entry === 'all' ? 0 : entry === 'chats' ? counts.asks : counts[entry]
               return (
                 <Pressable
                   key={entry}

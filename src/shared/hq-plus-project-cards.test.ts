@@ -311,6 +311,7 @@ describe('hqPlusProjectFeed — the chips', () => {
     const feed = hqPlusProjectFeed({ ...input({ items, waits, chats, entries }), filter: 'all' })
     expect(feed.cards.map((entry) => entry.slug)).toEqual(['acme-db', 'acme-api'])
     expect(feed.cards[1].shown).toEqual({
+      approve: true,
       you: true,
       fyi: false,
       wait: true,
@@ -321,7 +322,7 @@ describe('hqPlusProjectFeed — the chips', () => {
       ['acme-web', 1],
       ['acme-api', 1]
     ])
-    expect(feed.counts).toEqual({ move: 1, wait: 1, fyi: 2 })
+    expect(feed.counts).toEqual({ approve: 0, asks: 0, move: 1, wait: 1, fyi: 2 })
   })
 
   it('Your move shows only the lines on the owner', () => {
@@ -478,16 +479,66 @@ describe('hqPlusProjectFeed — chats', () => {
     expect(hqPlusProjectChatSummary(only.chats)).toBe('1 asks you · 1 done · 1 quiet')
   })
 
-  it('quiet chats alone are no reason for a card in the feed; the Map still shows them', () => {
+  it('a read chat keeps its project in the feed, as the chat list keeps it (owner, 01.11: 3A)', () => {
     const quiet = input({ chats: [chat({ key: 'k1', state: 'quiet' })] })
-    expect(hqPlusProjectFeed({ ...quiet, filter: 'all' }).cards).toEqual([])
+    expect(hqPlusProjectFeed({ ...quiet, filter: 'all' }).cards.map((c) => c.slug)).toEqual([
+      'acme-api'
+    ])
     expect(hqPlusProjectCardOf(quiet, 'acme-api')).toMatchObject({
       slug: 'acme-api',
       compact: false,
-      shown: { you: true, fyi: true, wait: true, today: true, chats: true }
+      shown: { approve: true, you: true, fyi: true, wait: true, today: true, chats: true }
     })
     expect(hqPlusProjectCardOf(quiet, 'acme-api').chats.map((entry) => entry.key)).toEqual(['k1'])
     expect(hqPlusProjectCardOf(quiet, 'acme-none').you).toEqual([])
+  })
+})
+
+describe('hqPlusProjectFeed — Approve and chats first (hq-card-v2)', () => {
+  const approve = card({
+    id: 'ap1',
+    type: 'approve',
+    title: 'Approve: Slack · send message',
+    at: NOW - 5 * MIN
+  })
+  const question = card({
+    id: 'q1',
+    type: 'move',
+    sessionId: 's1',
+    title: 'Ship it now or tonight?',
+    at: NOW - 20 * MIN
+  })
+  const both = input({
+    items: [approve, question, thread('t1', 'acme-api')],
+    chats: [chat({ key: 'k1', sessionId: 's1', state: 'done' })]
+  })
+
+  it('an action waiting for Approve is its own section, not a «Your move» line', () => {
+    const [only] = hqPlusProjectFeed({ ...both, filter: 'all' }).cards
+    expect(only.approve.map((line) => line.id)).toEqual(['ap1'])
+    expect(only.you.map((line) => line.id)).toEqual(['t1'])
+  })
+
+  it('a chat’s question stands on its chat, not among the people’s lines', () => {
+    const [only] = hqPlusProjectFeed({ ...both, filter: 'all' }).cards
+    expect(only.chats[0]?.question?.id).toBe('q1')
+    // Why: a question whose chat is not open stays a line, so it is never lost.
+    const orphan = hqPlusProjectFeed({ ...input({ items: [question] }), filter: 'all' }).cards
+    expect(orphan[0]?.you.map((line) => line.id)).toEqual(['q1'])
+  })
+
+  it('the Approve and Chats chips keep the cards that have them; the counts say how many', () => {
+    const feed = hqPlusProjectFeed({ ...both, filter: 'approve' })
+    expect(feed.counts).toMatchObject({ approve: 1, asks: 1, move: 1 })
+    expect(feed.cards[0]?.shown).toMatchObject({ approve: true, chats: false, you: false })
+    const chats = hqPlusProjectFeed({
+      ...input({ chats: [chat({ key: 'k9', project: 'acme-web' })] }),
+      filter: 'chats'
+    })
+    expect(chats.cards.map((c) => [c.slug, c.shown.chats, c.shown.approve])).toEqual([
+      ['acme-web', true, false]
+    ])
+    expect(hqPlusProjectFeed({ ...input({}), filter: 'approve' }).cards).toEqual([])
   })
 })
 

@@ -141,7 +141,7 @@ const KEY_FILTER: Record<HqPlusFeedFilter, HqPlusProjectFilter> = {
   all: 'all',
   move: 'move',
   waits: 'wait',
-  chats: 'all',
+  chats: 'chats',
   inbox: 'fyi'
 }
 const NO_IDS: string[] = []
@@ -539,7 +539,11 @@ export function HqPlusScreen(): React.JSX.Element {
               {
                 key: item.key,
                 project: slugOfRepo.get(item.repoId) ?? item.projectName,
-                state: CHAT_STATE[item.group] ?? 'quiet',
+                // Why: a chat opened a moment ago has no turn yet; it is starting, not done (hq-card-v2).
+                state:
+                  item.group === 'quiet' && !hqPlusChatIsIdle(item, now)
+                    ? 'working'
+                    : (CHAT_STATE[item.group] ?? 'quiet'),
                 sessionId,
                 title:
                   (item.kind === 'chat' ? item.tab.label : item.worktreeName) || item.projectName,
@@ -568,7 +572,8 @@ export function HqPlusScreen(): React.JSX.Element {
     spaceSlugs,
     roomOfProject,
     room,
-    dayStart
+    dayStart,
+    now
   ])
   const projectFeed = useMemo(
     () =>

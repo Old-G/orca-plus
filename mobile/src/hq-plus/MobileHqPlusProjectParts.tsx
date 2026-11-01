@@ -18,10 +18,7 @@ import { HQP_CHAT_STATE_LABEL } from './hq-plus-phone-map'
 import { HQP_CHAT_STATE_COLOR } from './MobileHqPlusMapChats'
 import type { HqpFeedContext } from './mobile-hq-plus-feed-context'
 import { HqpBadge } from './mobile-hq-plus-parts'
-import {
-  listHqPlusPhoneProjects,
-  setHqPlusPhoneConversationProject
-} from './hq-plus-phone-actions'
+import { listHqPlusPhoneProjects, setHqPlusPhoneConversationProject } from './hq-plus-phone-actions'
 import { MobileHqPlusCard } from './MobileHqPlusCard'
 import { MobileHqPlusChatLine } from './MobileHqPlusLine'
 import { hqpProjectStyles as styles } from './mobile-hq-plus-project-styles'
@@ -42,16 +39,28 @@ export function Section({
   label,
   open,
   onToggle,
-  amber
+  amber,
+  red
 }: {
   label: string
   open: boolean | null
   onToggle?: () => void
   amber?: boolean
+  /** Custom build (hq-card-v2): Approve's head. */
+  red?: boolean
 }) {
   return (
     <View style={styles.sec}>
-      <Text style={[hqpStyles.label, styles.secLabel, amber && { color: hqp.amber }]}>{label}</Text>
+      <Text
+        style={[
+          hqpStyles.label,
+          styles.secLabel,
+          amber && { color: hqp.amber },
+          red && { color: hqp.red }
+        ]}
+      >
+        {label}
+      </Text>
       {open !== null && onToggle ? (
         <Pressable
           accessibilityRole="button"
@@ -232,7 +241,11 @@ export function ChatRow({
   const item = ctx.chatOf(chat.key)
   const line = hqPlusProjectChatLine(chat)
   const close = ctx.closeChat
-  const state: HqPlusMapChatState = chat.state
+  // Custom build (hq-card-v2): the chat list's words — a read finished chat is «done» in grey, and a
+  // chat with a question asks you; its last words under its name, its question below the row.
+  const state: HqPlusMapChatState = chat.question ? 'asks' : chat.state
+  const said = chat.line?.body?.trim() || chat.line?.title || null
+  const color = state === 'quiet' ? hqp.faint : HQP_CHAT_STATE_COLOR[state]
   return (
     <View>
       <View style={styles.chatLine}>
@@ -242,15 +255,30 @@ export function ChatRow({
           accessibilityLabel={`Chat ${chat.title}`}
           // Why: a chat with no card (a terminal) opens at once.
           onPress={line ? onToggle : () => (item ? ctx.feed.openChat(item) : undefined)}
-          style={({ pressed }) => [styles.row, styles.grow, (open || pressed) && styles.rowOpen]}
+          style={({ pressed }) => [
+            styles.chatRow,
+            styles.grow,
+            (open || pressed) && styles.rowOpen
+          ]}
         >
-          <View style={[styles.dot, { backgroundColor: HQP_CHAT_STATE_COLOR[state] }]} />
-          <Text style={[styles.rowTitle, styles.grow]} numberOfLines={1}>
+          <View style={styles.chatHead}>
+            <View style={[styles.dot, { backgroundColor: color }]} />
+            <Text style={[styles.stateText, { color }]}>
+              {state === 'quiet' ? 'DONE' : HQP_CHAT_STATE_LABEL[state].toUpperCase()}
+            </Text>
+            <Text style={styles.age}>{hqPlusProjectAge(chat.line?.at ?? chat.at, ctx.now)}</Text>
+          </View>
+          <Text
+            style={[styles.rowTitle, state === 'quiet' && { color: hqp.mute, fontWeight: '500' }]}
+            numberOfLines={1}
+          >
             {chat.title}
           </Text>
-          <Text style={[styles.age, { color: HQP_CHAT_STATE_COLOR[state] }]}>
-            {HQP_CHAT_STATE_LABEL[state]}
-          </Text>
+          {said && state !== 'quiet' && !open ? (
+            <Text style={styles.chatSaid} numberOfLines={2}>
+              {said.replace(/\*\*|`/g, '')}
+            </Text>
+          ) : null}
         </Pressable>
         {item && close ? (
           <Pressable
@@ -276,6 +304,11 @@ export function ChatRow({
           >
             <Text style={styles.foldText}>Cancel</Text>
           </Pressable>
+        </View>
+      ) : null}
+      {chat.question ? (
+        <View style={styles.open}>
+          <MobileHqPlusCard card={chat.question.card} flash={false} ctx={ctx.feed} bare />
         </View>
       ) : null}
       {open && line ? (
