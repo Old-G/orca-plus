@@ -55,7 +55,7 @@ export async function passHqWaitingReply(
         (await deps.deliver({ ...waiting, agentSessionId: live }, prompt(waiting)))) ||
       (await deps.deliver(waiting, prompt(waiting)))
     if (!delivered) {
-      return { ok: false, reason: 'chat-closed' }
+      return { ok: false, reason: 'chat-closed', liveSessionId: live, prompt: prompt(waiting) }
     }
     deps.markDelivered(waiting.id, waiting.replyTs ?? undefined)
     return { ok: true }
