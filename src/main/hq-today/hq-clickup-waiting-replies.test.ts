@@ -112,6 +112,25 @@ describe('ClickUp waiting replies', () => {
     ])
   })
 
+  it('hands the ledger every answering comment since the question, recorded or not', async () => {
+    const { deps: d } = deps(
+      [waiting('clickup:DEV-18114:900', { replyTs: ((ASKED_AT + 60_000) / 1000).toFixed(6) })],
+      [
+        comment('900', ASKED_AT, 'me', 'вопрос'),
+        comment('901', ASKED_AT + 60_000, 'p', '@Alex Owner да')
+      ],
+      { '900': [comment('r1', ASKED_AT + 120_000, 'petya', 'готово')] }
+    )
+    const seen: [string, string[], string][] = []
+    expect(
+      await pollHqClickUpWaitingReplies({
+        ...d,
+        observe: (id, answers, taskId) => seen.push([id, answers.map((c) => c.id), taskId])
+      })
+    ).toBe(1)
+    expect(seen).toEqual([['w1', ['901', 'r1'], '86abc1234']])
+  })
+
   it('takes a task comment only when it @mentions the owner', async () => {
     const { deps: d, recorded } = deps(
       [waiting('clickup:DEV-18114:900')],

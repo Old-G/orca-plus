@@ -1,6 +1,6 @@
 // Custom build (pulse): the runtime face of orca-plus-pulse.db for the pulse.* RPC. The database
 // opens on first use, so a user who never touches these features never gets the file.
-import type { HqLedgerResult, HqLedgerSignal } from '../../shared/hq-ledger'
+import type { HqLedgerAnswer, HqLedgerResult, HqLedgerSignal } from '../../shared/hq-ledger'
 import type { HqConversationRow, HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import type { HqLedgerCardRow } from '../orca-plus/pulse/pulse-ledger-cards'
 import type { HqOpenConversation } from '../orca-plus/pulse/pulse-ledger-open'
@@ -222,6 +222,22 @@ export class RuntimePulseCommands {
     this.db().setLedgerGuess(conversationId, guess)
   }
 
+  /** Custom build (hq-ledger-answers): the ledger's answers to waitings, kept in shadow. */
+  pulseRecordLedgerAnswer(answer: HqLedgerAnswer): void {
+    this.db().ledgerShadow.record(answer)
+  }
+
+  pulseListLedgerAnswers(since: number): HqLedgerAnswer[] {
+    return this.db().ledgerShadow.list(since)
+  }
+
+  /** Custom build (hq-ledger-answers): the reply reader's answers, for the shadow's comparison. */
+  pulseListReaderAnswers(
+    since: number
+  ): { waitingId: string; ts: string; authorId: string | null }[] {
+    return this.db().ledgerShadow.reader(since)
+  }
+
   /** Custom build (hq-ledger-feed): the window's conversations and where each waiting lives. */
   pulseListLedgerFeed(since: number): HqFeedLedger {
     return this.db().listLedgerFeed(since)
@@ -254,7 +270,7 @@ export class RuntimePulseCommands {
 
   /** Custom build (hq-request-ledger): whether a Slack message reached the ledger. */
   pulseLedgerHasSlackMessage(channel: string, ts: string): boolean {
-    return this.db().ledgerHasSlackMessage(channel, ts)
+    return this.db().ledgerShadow.hasSlackMessage(channel, ts)
   }
 
   /** Custom build (hq-plus-journal): main's journal adapters write here; agents read via hq.events. */
