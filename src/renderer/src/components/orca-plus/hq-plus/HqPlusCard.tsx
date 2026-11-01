@@ -28,6 +28,7 @@ import {
   markHqPlusDone,
   sendHqPlusAgentDraft,
   settleHqPlusAgentDraft,
+  skipHqPlusOwner,
   replyOnHqPlusCard,
   replyOnHqPlusJob,
   tellHqPlusDraftingAgent
@@ -615,7 +616,17 @@ export function HqPlusCardView({
                 onClick: () => run(() => markHqPlusDone(card, 'seen'))
               }
             ]
-          : [])
+          : card.entry?.status === 'open'
+            ? [
+                {
+                  id: 'skip',
+                  label: translate('auto.hqPlus.skip', 'Skip'),
+                  ghost: true,
+                  disabled: busy,
+                  onClick: () => run(() => skipHqPlusOwner(card))
+                }
+              ]
+            : [])
       ]
     }
     if (!open && !card.done && card.job && card.report?.learned) {
