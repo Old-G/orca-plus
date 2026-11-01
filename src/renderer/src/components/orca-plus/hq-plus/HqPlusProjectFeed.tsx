@@ -16,6 +16,8 @@ const BOTTOM_SLACK_PX = 40
 
 const EMPTY: Record<HqPlusProjectFilter, string> = {
   all: 'Nothing goes on in this room today.',
+  approve: 'Nothing waits for your Approve.',
+  chats: 'No open chats here.',
   move: 'Nothing waits on you.',
   wait: 'Nobody owes you anything.',
   fyi: 'Nothing went by.'
@@ -57,6 +59,23 @@ export function HqPlusProjectFeed({
       setUnseen(last.unsorted ? 'Unsorted' : last.slug)
     }
   }, [arrival, last])
+  // Custom build (hq-card-v2): every action waiting for Approve, oldest first, on a bar at the bottom
+  // until it is decided (owner, 01.11: 2A).
+  const approvals = feed.cards
+    .flatMap((card) => card.approve.map((line) => ({ ...line, slug: card.slug })))
+    .sort((a, b) => a.since - b.since)
+  const goToApprove = (slug: string): void => {
+    const element = scroller.current
+    const target = document.getElementById(`hqpc-${slug}`)
+    if (!element || !target) {
+      return
+    }
+    const offset = target.getBoundingClientRect().top - element.getBoundingClientRect().top
+    element.scrollTo({ top: element.scrollTop + offset - 12, behavior: 'smooth' })
+    target.removeAttribute('data-flash')
+    void target.offsetWidth
+    target.setAttribute('data-flash', 'true')
+  }
   const toBottom = (): void => {
     const element = scroller.current
     if (element) {
@@ -96,8 +115,25 @@ export function HqPlusProjectFeed({
         {feed.cards.map((card) => (
           <HqPlusProjectCard key={card.slug} card={card} ctx={ctx} />
         ))}
+        {/* Why: sticky at the scroller's bottom, so it never covers the Ask HQ box below the feed. */}
+        {approvals.length > 0 ? (
+          <div className="hqpc-apbar" role="status">
+            <span className="hqpc-lab">Approve · {approvals.length}</span>
+            <span className="hqpc-apbar-list">
+              {approvals.map((line, index) => (
+                <span key={line.id}>
+                  {index > 0 ? '  ·  ' : ''}
+                  <b>{line.slug}</b> · {line.what}
+                </span>
+              ))}
+            </span>
+            <button type="button" onClick={() => goToApprove(approvals[0].slug)}>
+              Show
+            </button>
+          </div>
+        ) : null}
       </div>
-      {unseen ? (
+      {unseen && approvals.length === 0 ? (
         <button type="button" className="hqp-jump" onClick={toBottom}>
           ↓ new in {unseen}
         </button>
@@ -108,12 +144,14 @@ export function HqPlusProjectFeed({
 
 const CHIP_LABEL: Record<HqPlusProjectFilter, string> = {
   all: 'All',
+  approve: 'Approve',
+  chats: 'Chats',
   move: 'Your move',
   wait: 'We wait',
   fyi: 'FYI'
 }
 
-/** All · Your move · We wait · FYI, with their counts. */
+/** All · Approve · Chats · Your move · We wait · FYI, with their counts (Chats counts the asking ones). */
 export function HqPlusProjectChips({
   filter,
   counts,
@@ -125,6 +163,8 @@ export function HqPlusProjectChips({
 }): React.JSX.Element {
   const count: Record<HqPlusProjectFilter, number | null> = {
     all: null,
+    approve: counts.approve,
+    chats: counts.asks,
     move: counts.move,
     wait: counts.wait,
     fyi: counts.fyi
@@ -137,6 +177,7 @@ export function HqPlusProjectChips({
           type="button"
           className="hqp-chip-btn"
           data-move={name === 'move' ? 'true' : undefined}
+          data-ap={name === 'approve' && counts.approve > 0 ? 'true' : undefined}
           aria-pressed={filter === name}
           onClick={() => onFilter(name)}
         >

@@ -41,6 +41,8 @@ export type HqPlusProjectChatInput = {
 export type HqPlusProjectChat = HqPlusProjectChatInput & {
   /** The chat's newest turn in the feed, for its card; null before the journal has one. */
   line: HqPlusProjectChatLine | null
+  /** Custom build (hq-card-v2): the chat's open question to the owner, shown on its row (owner, 01.11). */
+  question: HqPlusProjectLine | null
 }
 
 const CHAT_BADGE: HqPlusBadge = { label: 'CHAT', tone: 'chat' }
@@ -67,7 +69,10 @@ function whatOf(card: HqPlusCard): string {
     return answer.question
   }
   if (card.type === 'approve') {
-    return card.title.replace(/^Approve:\s*/, '')
+    // Why: the bell's title is «Approve an outgoing action» for every one; its body's first line says
+    // what and where — «Slack · send message → #it-hub · in a thread» (hq-card-v2).
+    const target = card.body?.split('\n')[0]?.split(' · from ')[0]?.trim()
+    return target || card.title.replace(/^Approve:\s*/, '')
   }
   // Why: «No answer from Ann: …», «Ann waits on the owner: …» — the part after the colon.
   const said = /^[^:]{1,60}:\s+(.+)$/s.exec(card.title)
