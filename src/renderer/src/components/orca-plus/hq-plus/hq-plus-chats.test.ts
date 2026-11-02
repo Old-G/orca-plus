@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { DashboardCard, DashboardWorkspace } from '../../../../../shared/dashboard-snapshot'
 import type { Tab } from '../../../../../shared/tab-types'
-import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
+import { structuredAgentSessionTabId } from '../../../../../shared/agent-session/view/structured-agent-session-projection'
 import { buildHqChatList } from '../hq/hq-chat-list'
 import {
   hqPlusChatIsIdle,
   hqPlusChatOfSession,
   hqPlusChatWaitingFor,
+  hqPlusChatWaitingLabel,
   hqPlusProjectChats,
   hqPlusTerminalTabMates
 } from './hq-plus-chats'
@@ -217,5 +218,27 @@ describe('a chat that asks to stay open', () => {
     expect(hqPlusChatWaitingFor('Готово.\nЧат можно закрывать.')).toBeNull()
     expect(hqPlusChatWaitingFor('Не закрывай: жду Ann\na\nb\nc\nd')).toBeNull()
     expect(hqPlusChatWaitingFor(null)).toBeNull()
+  })
+
+  // Custom build (hq-plus-waiting-after-read, owner 02.11).
+  it('stays «done» while unread and says «waiting» once the owner has read it', () => {
+    const items = buildHqChatList(
+      {
+        workspaces: [workspace],
+        cards: [
+          { ...card('tab-unread', 'done', 40), unseen: true },
+          card('tab-read', 'done', 30),
+          card('tab-busy', 'working', 20)
+        ]
+      },
+      [chatTab('tab-unread'), chatTab('tab-read'), chatTab('tab-busy')]
+    )
+    const of = (tab: string) => items.find((item) => item.key.includes(tab))!
+    const said = 'Готово.\nНе закрывай: жду ответа от Ann'
+
+    expect(of('tab-unread').group).toBe('done')
+    expect(hqPlusChatWaitingLabel(of('tab-unread'), said)).toBeNull()
+    expect(hqPlusChatWaitingLabel(of('tab-read'), said)).toBe('жду ответа от Ann')
+    expect(hqPlusChatWaitingLabel(of('tab-busy'), said)).toBeNull()
   })
 })
