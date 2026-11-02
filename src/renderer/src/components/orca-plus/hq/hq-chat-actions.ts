@@ -110,7 +110,7 @@ export function openHqChangeDiff(
 let hqListWrites: Promise<void> = Promise.resolve()
 
 function updateHqList(
-  key: 'hqKeptProjectIds' | 'hqMarkedChatKeys',
+  key: 'hqKeptProjectIds' | 'hqMarkedChatKeys' | 'hqHiddenProjectIds',
   change: (current: string[]) => string[]
 ): void {
   hqListWrites = hqListWrites.then(async () => {
@@ -123,6 +123,13 @@ function updateHqList(
 export function setHqProjectKept(repoId: string, kept: boolean): void {
   updateHqList('hqKeptProjectIds', (current) =>
     kept ? [...new Set([...current, repoId])] : current.filter((id) => id !== repoId)
+  )
+}
+
+/** Custom build (hq-plus-hide-project): hides a project and its chats from HQ+'s left column, or shows it. */
+export function setHqProjectHidden(repoId: string, hidden: boolean): void {
+  updateHqList('hqHiddenProjectIds', (current) =>
+    hidden ? [...new Set([...current, repoId])] : current.filter((id) => id !== repoId)
   )
 }
 

@@ -75,7 +75,7 @@ describe('HQ+ chats', () => {
       [chatTab(fresh), chatTab('tab-old'), asking]
     )
 
-    const side = hqPlusProjectChats(items, [], [], 60)
+    const side = hqPlusProjectChats(items, [], [])
 
     expect(side.projects.map((project) => project.repoId)).toEqual(['repo-2', 'repo-1'])
     expect(side.projects[1]?.items[0]?.key).toContain(fresh)
@@ -93,7 +93,7 @@ describe('HQ+ chats', () => {
     )
     const marked = items.find((item) => item.key.includes('tab-b'))?.key ?? ''
 
-    const side = hqPlusProjectChats(items, [], [marked], 60)
+    const side = hqPlusProjectChats(items, [], [marked])
 
     expect(side.marked.map((item) => item.key)).toEqual([marked])
     expect(side.projects[0]?.items.map((item) => item.key)).not.toContain(marked)
@@ -149,11 +149,30 @@ describe('HQ+ chats', () => {
       projects.map((p) => ({ ...chatTab(`tab-${p.repoName}`), worktreeId: p.worktreeId }))
     )
 
-    const side = hqPlusProjectChats(items, [], [], now)
+    const side = hqPlusProjectChats(items, [], [])
 
     expect(side.projects.map((project) => project.repoId).sort()).toEqual(
       projects.map((p) => p.repoId).sort()
     )
+    expect(side.quiet).toEqual([])
+  })
+
+  // Custom build (hq-plus-all-open-chats, owner 02.11): no cap, no time window, no Quiet fold.
+  it('lists every open chat under its project, however many and however old', () => {
+    const day = 24 * 60 * 60_000
+    const tabs = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((name) => `tab-${name}`)
+    const items = buildHqChatList(
+      {
+        workspaces: [workspace],
+        cards: tabs.map((tab, index) => card(tab, 'done', index * day))
+      },
+      tabs.map(chatTab)
+    )
+
+    const side = hqPlusProjectChats(items, [], [])
+
+    expect(side.projects).toHaveLength(1)
+    expect(side.projects[0]?.items).toHaveLength(tabs.length)
     expect(side.quiet).toEqual([])
   })
 

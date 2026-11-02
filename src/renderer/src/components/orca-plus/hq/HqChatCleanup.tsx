@@ -82,7 +82,9 @@ function Cleanup(): null {
   const lastReport = useRef('')
 
   useEffect(() => {
-    if (mode === 'off' || !hqPath) {
+    // Custom build (hq-plus-all-open-chats, owner 02.11): HQ+ closes no chat by itself — every open chat
+    // stays under its project until the owner closes it; the classic HQ keeps its cleanup.
+    if (mode === 'off' || !hqPath || hqFlavor() === 'plus') {
       return
     }
     const sweep = async (): Promise<void> => {
