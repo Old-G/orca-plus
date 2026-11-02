@@ -1,6 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
-
-vi.mock('@/store', () => ({ useAppStore: { getState: () => ({ agentStatusByPaneKey: {} }) } }))
+import { describe, expect, it } from 'vitest'
 
 import { hqPlusReadTerminalInputBox } from './hq-plus-terminal-drafts'
 
