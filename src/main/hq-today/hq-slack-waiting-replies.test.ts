@@ -363,6 +363,39 @@ describe('plainSlackText', () => {
     expect(pick).toHaveBeenCalledTimes(1)
   })
 
+  // Custom build (hq-slack-own-thread, owner 02.11).
+  it('gives a reply in a question’s own DM thread to that question, never contested by an older one', async () => {
+    const { db, anna, dm, api, deps, at } = setup()
+    const ask = (title: string, threadTs: string) =>
+      db.addWaiting({
+        direction: 'on-them',
+        title,
+        personId: anna.id,
+        source: 'slack',
+        sourceRef: `slack:DANNA01:${threadTs}`
+      })
+    const older = '1792184100.000100'
+    const newer = '1792184190.000100'
+    at(ASKED_AT - 3_000)
+    const first = ask('Which copy for the dry run', older)
+    at(ASKED_AT - 1_000)
+    const second = ask('Odoo flag and closed subscriptions', newer)
+    const reply = msg(ASKED_AT + 60_000, ANNA, 'Closed ones already come', { threadTs: newer })
+    dm.push(
+      msg(Number(newer) * 1000, OWNER, 'Question', { threadTs: newer, latestReply: reply.ts })
+    )
+    api.replies = vi.fn(async (_channel: string, threadTs: string, oldest: string) =>
+      threadTs === newer && Number(reply.ts) > Number(oldest) ? [reply] : []
+    )
+    const pick = vi.fn(async () => null)
+    deps.pickAnswer = pick
+    at(ASKED_AT + 160_000)
+    expect(await pollHqSlackWaitingReplies(deps)).toBe(1)
+    expect(db.getWaiting(second.id)?.reply).toContain('Closed ones already come')
+    expect(db.getWaiting(first.id)?.reply ?? null).toBeNull()
+    expect(pick).not.toHaveBeenCalled()
+  })
+
   it('does not hand a message a question took to another one after the first is closed', async () => {
     const { db, anna, dm, deps, at } = setup()
     const ask = (title: string) =>
