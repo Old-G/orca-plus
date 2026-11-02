@@ -192,25 +192,33 @@ export type HqAttributionTake = {
  *  went unchanged. */
 export function noteAttributionTake(core: PulseCore, take: HqAttributionTake): void {
   core.transaction(() => {
-    if (!openRow(core, take.key, 'project')) {
-      noteAttributionGuess(core, {
-        key: take.key,
-        field: 'project',
-        value: take.proposedProject,
-        how: 'card'
-      })
-    }
-    noteAttributionFinal(core, take.key, 'project', take.project)
-    if (!openRow(core, take.key, 'chat')) {
-      noteAttributionGuess(core, {
-        key: take.key,
-        field: 'chat',
-        value: take.proposedChat,
-        how: 'card'
-      })
-    }
-    noteAttributionFinal(core, take.key, 'chat', take.chat)
+    judgeTaken(core, take.key, 'project', take.proposedProject, take.project)
+    judgeTaken(core, take.key, 'chat', take.proposedChat, take.chat)
   })
+}
+
+/** One field of a take. Why (Codex 03.11): a field he already chose on the card (the project chip)
+ *  was judged then; judging it again here would count one decision twice. */
+function judgeTaken(
+  core: PulseCore,
+  key: string,
+  field: HqAttributionField,
+  proposed: string | null,
+  chosen: string | null
+): void {
+  if (!openRow(core, key, field)) {
+    const decided = core.db
+      .prepare(
+        `SELECT 1 FROM attribution_log WHERE conversation_key = ? AND field = ?
+            AND final_at IS NOT NULL AND final_how != 'skip' LIMIT 1`
+      )
+      .get(key, field)
+    if (decided) {
+      return
+    }
+    noteAttributionGuess(core, { key, field, value: proposed, how: 'card' })
+  }
+  noteAttributionFinal(core, key, field, chosen)
 }
 
 /** What PulseDb exposes: the owner's take and skip, the counts, and the raw rows for tests. */
