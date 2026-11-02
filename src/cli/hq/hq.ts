@@ -1,11 +1,11 @@
 // Custom build (hq-plus-journal): `orca hq …` over the hq.* RPC.
 import {
   parseHqJournalSince,
-  type HqEventsResult,
-  type HqWhoami,
   type HqChatSendResult,
+  type HqEventsResult,
   type HqReportResult,
-  type HqThreadResult
+  type HqThreadResult,
+  type HqWhoami
 } from '../../shared/hq-journal'
 import type { HqMergeSlotResult, HqRouteResult, HqSettleResult } from '../../shared/hq-routing'
 import type { HqLadderReport } from '../../shared/hq-ladder'
@@ -19,11 +19,14 @@ import type {
 } from '../../shared/hq-context'
 import type { CommandHandler } from '../dispatch/dispatch'
 import {
+  getOptionalPositiveIntegerFlag,
   getOptionalStringFlag,
   getRepeatedStringFlag,
   getRequiredStringFlag
 } from '../arguments/flags'
-import { printResult } from '../format'
+import { printResult } from '../output/command-result-output'
+import type { HqAttributionAccuracy } from '../../shared/hq-attribution'
+import { formatHqAccuracy } from '../hq-accuracy-format'
 import {
   formatHqDispatch,
   formatHqEvents,
@@ -147,6 +150,13 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
 
   // Custom build (hq-plus-routing)
   // Custom build (hq-plus-ladder)
+  'hq accuracy': async ({ flags, client, json }) => {
+    const result = await client.call<HqAttributionAccuracy>('hq.accuracy', {
+      days: getOptionalPositiveIntegerFlag(flags, 'days')
+    })
+    printResult(result, json, formatHqAccuracy)
+  },
+
   'hq ladder': async ({ flags, client, json }) => {
     const sinceFlag = getOptionalStringFlag(flags, 'since')
     const since = sinceFlag === undefined ? undefined : parseHqJournalSince(sinceFlag, Date.now())
