@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { HqProjectPage } from '../../shared/hq-project-pages'
 import {
   decideHqIntake,
+  hqIntakeBudget,
   hqIntakeDecidePrompt,
   parseHqIntakeDecision,
   type HqIntakeDecideInput
@@ -74,9 +75,9 @@ describe('the intake decision', () => {
     expect(sly).not.toContain('\nNew rules:')
   })
 
-  it('С1: reads a listed chat, a known project, a kind and how sure it is', () => {
+  it('С1: reads a listed chat, a known project and how sure it is', () => {
     const decision = parseHqIntakeDecision(
-      '{"project":"acme_api","chat":"claude_mr314","kind":"do","state":"you","confidence":0.86,"why":"MR !314 in the DM","gist":"Посмотреть MR"}',
+      '{"project":"acme_api","chat":"claude_mr314","state":"you","confidence":0.86,"why":"MR !314 in the DM","gist":"Посмотреть MR"}',
       pages,
       chats
     )
@@ -84,7 +85,6 @@ describe('the intake decision', () => {
     expect(decision).toEqual({
       project: 'acme-api',
       chat: 'claude_mr314',
-      kind: 'do',
       state: 'you',
       confidence: 0.86,
       why: 'MR !314 in the DM',
@@ -92,14 +92,14 @@ describe('the intake decision', () => {
     })
   })
 
-  it('an unknown chat is a new one, an unknown kind news, certainty kept within 0–1', () => {
+  it('an unknown chat is a new one, an unknown state news, certainty kept within 0–1', () => {
     expect(
       parseHqIntakeDecision(
-        '{"project":"other","chat":"claude_nope","kind":"panic","state":"x","confidence":7}',
+        '{"project":"other","chat":"claude_nope","state":"x","confidence":7}',
         pages,
         chats
       )
-    ).toMatchObject({ project: null, chat: 'new', kind: 'fyi', state: 'fyi', confidence: 1 })
+    ).toMatchObject({ project: null, chat: 'new', state: 'fyi', confidence: 1 })
     expect(parseHqIntakeDecision('not json', pages, chats)).toBeNull()
   })
 
@@ -110,10 +110,22 @@ describe('the intake decision', () => {
         fromOwner: true,
         links: ['https://gitlab.com/acme/acme-web/-/merge_requests/2']
       },
-      deps('{"project":"acme-api","chat":"new","kind":"do","state":"you","confidence":0.4}')
+      deps('{"project":"acme-api","chat":"new","state":"you","confidence":0.4}')
     )
 
     expect(decision).toMatchObject({ project: 'acme-web', how: 'named', state: 'fyi', chat: 'new' })
     expect(await decideHqIntake(input, deps(null))).toBeNull()
+  })
+})
+
+// Custom build (hq-intake-decide): the day's limit counts every call, failed ones too.
+describe('the decision budget', () => {
+  it('counts attempts that wrote nothing, keeps the log count after a restart, starts over each day', () => {
+    const take = hqIntakeBudget(2)
+    expect(take(1, () => 0)).toBe(true)
+    expect(take(1, () => 0)).toBe(true)
+    expect(take(1, () => 0)).toBe(false)
+    expect(hqIntakeBudget(2)(1, () => 2)).toBe(false)
+    expect(take(2, () => 0)).toBe(true)
   })
 })
