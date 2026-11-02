@@ -41,13 +41,18 @@ export function setLedgerDecision(
   })
 }
 
-/** Custom build (hq-intake-decide): how many conversations the model decided since `since`. */
-export function ledgerDecisionsSince(core: PulseCore, since: number): number {
+/** Custom build (hq-intake-decide): one call to the larger model, written before it is made. */
+export const LEDGER_DECISION_ATTEMPT = 'ledger.decide.attempt'
+
+export function noteLedgerDecisionAttempt(core: PulseCore): void {
+  core.transaction(() => core.emit(LEDGER_DECISION_ATTEMPT, 'conversation', 'budget', {}))
+}
+
+/** Calls to the larger model since `since`, failed or unusable ones too — they were paid for. Why in
+ *  the database (Codex 03.11): a restart must not give the day a fresh budget. */
+export function ledgerDecisionAttemptsSince(core: PulseCore, since: number): number {
   const row = core.db
-    .prepare(
-      `SELECT COUNT(DISTINCT conversation_key) n FROM attribution_log
-        WHERE field = 'chat' AND guess_how = 'model' AND guessed_at >= ?`
-    )
-    .get(since)
+    .prepare('SELECT COUNT(*) n FROM events WHERE kind = ? AND at >= ?')
+    .get(LEDGER_DECISION_ATTEMPT, since)
   return Number(row?.n ?? 0)
 }
