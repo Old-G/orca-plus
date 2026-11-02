@@ -26,10 +26,9 @@ export type HqFeedConversation = {
   guess?: HqFeedGuess | null
 }
 
-/** Custom build (hq-intake-decide): the chat (`new` for a new one) and card kind the model proposed. */
+/** Custom build (hq-intake-decide): the chat (`new` for a new one) the model proposed. */
 export type HqFeedGuess = {
   chat: string | null
-  kind: string | null
   confidence: number | null
   why: string | null
 }
