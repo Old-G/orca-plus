@@ -5,7 +5,11 @@
 import { hqPlaceKey } from '../../../shared/hq-ledger'
 import type { HqFeedConversation, HqFeedLedger } from '../../../shared/hq-feed-ledger'
 import type { PulseCore } from './pulse-core'
-import { noteAttributionFinal, noteAttributionSkip } from './pulse-attribution'
+import {
+  noteAttributionFinal,
+  noteAttributionSkip,
+  openAttributionGuesses
+} from './pulse-attribution'
 
 const FEED_MESSAGES = 6
 /** Custom build (hq-ledger-sources): places whose conversation is the card itself, shown however old
@@ -84,7 +88,8 @@ export function listLedgerFeed(core: PulseCore, since: number): HqFeedLedger {
           link: str(m.link),
           at: Number(m.at)
         }))
-        .toReversed()
+        .toReversed(),
+      guess: openAttributionGuesses(core, String(row.key))
     }))
   return { conversations, waitingPlaces }
 }

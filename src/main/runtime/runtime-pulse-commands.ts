@@ -7,6 +7,7 @@ import type { HqOpenConversation } from '../orca-plus/pulse/pulse-ledger-open'
 import type { HqFeedLedger } from '../../shared/hq-feed-ledger'
 import type { HqAttributionAccuracy } from '../../shared/hq-attribution'
 import type { HqAttributionTake } from '../orca-plus/pulse/pulse-attribution'
+import type { HqLedgerDecision } from '../orca-plus/pulse/pulse-ledger-decision'
 import type {
   PulseAddResult,
   PulseDecision,
@@ -270,6 +271,11 @@ export class RuntimePulseCommands {
     return this.db().closeLedgerConversation(key)
   }
 
+  /** Custom build (hq-intake-decide): the model's whole decision on a new conversation. */
+  pulseSetLedgerDecision(conversationId: string, decision: HqLedgerDecision): void {
+    this.db().attribution.decide(conversationId, decision)
+  }
+
   /** Custom build (hq-attribution-log): the owner sent a conversation to work from its card. */
   pulseNoteAttributionTake(take: HqAttributionTake): void {
     this.db().attribution.take(take)
@@ -278,6 +284,11 @@ export class RuntimePulseCommands {
   /** Custom build (hq-attribution-log): the owner dropped a conversation's card. */
   pulseNoteAttributionSkip(key: string): void {
     this.db().attribution.skip(key)
+  }
+
+  /** Custom build (hq-intake-decide): the owner's latest changes to guesses in one place. */
+  pulseAttributionHints(keyPrefix: string): string[] {
+    return this.db().attribution.hints(keyPrefix)
   }
 
   /** Custom build (hq-attribution-log): kept and changed guesses since a moment. */
