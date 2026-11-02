@@ -186,3 +186,15 @@ export function hqPlusChatWaitingFor(text: string | null | undefined): string | 
     .trim()
   return what || 'waiting'
 }
+
+/**
+ * Custom build (hq-plus-waiting-after-read, owner 02.11): a finished chat the owner has not opened yet
+ * says «done» even when its last words wait on someone; it turns «waiting» once he has read it — opened
+ * in HQ+, or on screen in a focused Orca window, which is what marks a chat read.
+ */
+export function hqPlusChatWaitingLabel(
+  item: HqChatItem,
+  text: string | null | undefined
+): string | null {
+  return item.group === 'quiet' ? hqPlusChatWaitingFor(text) : null
+}
