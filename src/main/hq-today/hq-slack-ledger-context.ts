@@ -15,54 +15,87 @@ const CONTEXT_LINES = 30
  *  understand the message. */
 export type HqSlackLedgerContextLine = { author: string | null; fromOwner: boolean; text: string }
 
+/** Threads read whole the reader remembers, and threads it still owes a read. */
+const THREADS_REMEMBERED = 2_000
+const THREADS_PENDING = 200
+/** A thread that failed this many reads is left as its found messages. */
+const THREAD_TRIES = 5
+
+/** A thread still to be read whole. */
+export type HqSlackPendingThread = { channel: string; threadTs: string; dm: boolean; tries: number }
+/** Custom build (hq-ledger-context): which threads were read whole, which are still owed. */
+export type HqSlackThreadQueue = { read: string[]; pending: HqSlackPendingThread[] }
+
 /**
- * Custom build (hq-ledger-context, owner 03.11): a message in a thread the ledger does not hold yet
- * brings the whole thread, root first — a mention halfway down a channel thread is about the thread.
- * One read failing leaves the message as it was found.
+ * Custom build (hq-ledger-context, owner 03.11): a message in a thread not read whole yet brings the
+ * whole thread, root first — a mention halfway down a channel thread is about the thread. Why a queue
+ * (Codex 03.11): a thread over the pass's limit, or one whose read failed, is read on a later pass even
+ * though its found messages are already in the ledger.
  */
 export async function withWholeThreads(
   api: HqSlackLedgerReadApi,
   found: readonly HqSlackLedgerMessage[],
-  lastDirection: (key: string) => 'in' | 'out' | null
+  queue: HqSlackThreadQueue
 ): Promise<{
   messages: HqSlackLedgerMessage[]
   threads: Map<string, HqSlackLedgerMessage[]>
   fetched: Set<string>
+  queue: HqSlackThreadQueue
 }> {
   const byId = new Map(found.map((message) => [`${message.channel}:${message.ts}`, message]))
   const threads = new Map<string, HqSlackLedgerMessage[]>()
   const fetched = new Set<string>()
-  const wanted = new Map<string, HqSlackLedgerMessage>()
+  if (!api.thread) {
+    return { messages: [...byId.values()], threads, fetched, queue }
+  }
+  const read = new Set(queue.read)
+  const pending = new Map(
+    queue.pending.map((thread) => [`${thread.channel}:${thread.threadTs}`, thread])
+  )
   for (const message of found) {
     const place = `${message.channel}:${message.threadTs}`
-    if (
-      message.threadTs &&
-      !wanted.has(place) &&
-      wanted.size < THREADS_PER_PASS &&
-      lastDirection(`slack:${place}`) === null
-    ) {
-      wanted.set(place, message)
+    if (message.threadTs && !read.has(place) && !pending.has(place)) {
+      pending.set(place, {
+        channel: message.channel,
+        threadTs: message.threadTs,
+        dm: message.dm,
+        tries: 0
+      })
     }
   }
-  if (api.thread) {
-    for (const [place, message] of wanted) {
-      const whole = await api
-        .thread(message.channel, message.threadTs ?? message.ts, message.dm)
-        .catch((error: unknown) => {
-          console.warn(`[hq-slack-ledger] thread ${place} not read:`, error)
-          return []
-        })
-      threads.set(place, whole)
-      for (const line of whole) {
-        const id = `${line.channel}:${line.ts}`
-        if (!byId.has(id)) {
-          byId.set(id, line)
-          fetched.add(id)
-        }
+  for (const [place, thread] of [...pending].slice(0, THREADS_PER_PASS)) {
+    let whole: HqSlackLedgerMessage[]
+    try {
+      whole = await api.thread(thread.channel, thread.threadTs, thread.dm)
+    } catch (error) {
+      console.warn(`[hq-slack-ledger] thread ${place} not read:`, error)
+      if (thread.tries + 1 >= THREAD_TRIES) {
+        pending.delete(place)
+      } else {
+        pending.set(place, { ...thread, tries: thread.tries + 1 })
+      }
+      continue
+    }
+    pending.delete(place)
+    read.add(place)
+    threads.set(place, whole)
+    for (const line of whole) {
+      const id = `${line.channel}:${line.ts}`
+      if (!byId.has(id)) {
+        byId.set(id, line)
+        fetched.add(id)
       }
     }
   }
-  return { messages: [...byId.values()], threads, fetched }
+  return {
+    messages: [...byId.values()],
+    threads,
+    fetched,
+    queue: {
+      read: [...read].slice(-THREADS_REMEMBERED),
+      pending: [...pending.values()].slice(-THREADS_PENDING)
+    }
+  }
 }
 
 /** The lines around a new talk's first message: the rest of its thread, else the DM before it. */
