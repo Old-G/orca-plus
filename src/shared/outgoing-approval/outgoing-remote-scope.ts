@@ -41,9 +41,14 @@ const SAFE_PIPE =
 // Why: an ssh behind a pipe passes only with one single-quoted script of its own made of these steps,
 // none of which runs what it reads (fifth round: `awk -f /dev/stdin`, a second quoted argument).
 const SSH_DATA = /^\s*ssh\s+[\w.@-]+\s+'([^']*)'\s*(?:$|[;&|\n)])/
-const TAR_X = /^tar\s+-?x[vzjpf]*(?:\s+-)?(?:\s+-C\s+\S+)?$/
-const DATA_STEP =
-  /^(?:[A-Za-z_]\w*=\$\(mktemp(?:\s+-d)?\)|docker\s+cp\s+\S+\s+\S+|(?:rm|mkdir|cd|ls|echo|true)(?:\s+\S+)*)$/
+// Why a plain argument: no redirection (`echo x > /srv/db`), background, pipe or substitution in it.
+const ARG = String.raw`[^\s&<>|;(){}\x60]+`
+// Why `-C $D`: what comes through the pipe lands only in a mktemp dir — a bare `$D` passes the
+// expansion check only as a mktemp variable; `docker cp -` would read the pipe into the container.
+const TAR_X = /^tar\s+-?x[vzjpf]*(?:\s+-)?\s+-C\s+\$[A-Za-z_]\w*$/
+const DATA_STEP = new RegExp(
+  String.raw`^(?:[A-Za-z_]\w*=\$\(mktemp(?:\s+-d)?\)|docker\s+cp\s+(?!-\s)${ARG}\s+${ARG}|(?:rm|mkdir|cd|ls|echo|true)(?:\s+${ARG})*)$`
+)
 
 function pipeIsSafe(command: string, at: number): boolean {
   const rest = command.slice(at)
@@ -51,7 +56,7 @@ function pipeIsSafe(command: string, at: number): boolean {
   if (ssh) {
     return ssh[1]
       .replace(/['"\\]/g, '')
-      .split(/&&|\|\||[;|\n]/)
+      .split(/&&|\|\||[;&|\n]/)
       .map((step) => step.trim())
       .every((step) => step === '' || TAR_X.test(step) || DATA_STEP.test(step))
   }
