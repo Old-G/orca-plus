@@ -33,11 +33,16 @@ function colorStyle(color: string | null): React.CSSProperties | undefined {
 
 export function HqPlusProjectCard({
   card,
-  ctx
+  ctx,
+  folded = false
 }: {
   card: Card
   ctx: HqPlusProjectCardContext
+  /** Custom build (hq-plus-inbox, owner 02.11): in the Projects tab a card is its head line until
+   *  opened; opened, it is the whole card with every button. */
+  folded?: boolean
 }): React.JSX.Element {
+  const [unfolded, setUnfolded] = useState(false)
   // Why: «We wait» opens the people on view; Hide still folds them.
   const [waitOpen, setWaitOpen] = useState(!card.shown.you)
   useEffect(() => setWaitOpen(!card.shown.you), [card.shown.you])
@@ -67,7 +72,7 @@ export function HqPlusProjectCard({
   const youShown = shown.you ? card.you : []
   const fyiShown = shown.fyi ? card.fyi : []
   // Why: a project where we only wait is one line, not half a card (mock 31.10).
-  if (card.compact && !compactOpen) {
+  if (card.compact && !compactOpen && !folded) {
     return (
       <article className="hqpc" data-compact="true" style={colorStyle(color)}>
         <button
@@ -91,6 +96,43 @@ export function HqPlusProjectCard({
   const asks = card.chats.filter((chat) => chat.question || chat.state === 'asks').length
   const working = card.chats.filter((chat) => chat.state === 'working').length
   const chats = allChats ? card.chats : card.chats.slice(0, CHATS_SHOWN)
+  const headInner = (
+    <>
+      <i className="hqpc-pdot" />
+      <h3>{title}</h3>
+      {room ? <span className="hqpc-room">{room}</span> : null}
+      {card.approve.length > 0 ? (
+        <span className="hqpc-pill" data-tone="ap">
+          Approve · {card.approve.length}
+        </span>
+      ) : null}
+      {asks > 0 ? (
+        <span className="hqpc-pill" data-tone="ask">
+          Asks you · {asks}
+        </span>
+      ) : null}
+      {working > 0 ? <span className="hqpc-pill">Working · {working}</span> : null}
+      {card.you.length > 0 ? (
+        <span className="hqpc-pill">Your move · {card.you.length}</span>
+      ) : null}
+      {card.waits > 0 ? <span className="hqpc-pill">We wait · {card.waits}</span> : null}
+      {card.lastAt > 0 ? <span className="hqpc-tm">{when(card.lastAt, now)}</span> : null}
+    </>
+  )
+  if (folded && !unfolded) {
+    return (
+      <article className="hqpc" id={`hqpc-${card.slug}`} style={colorStyle(color)}>
+        <button
+          type="button"
+          className="hqpc-head hqpc-headbtn"
+          aria-expanded={false}
+          onClick={() => setUnfolded(true)}
+        >
+          {headInner}
+        </button>
+      </article>
+    )
+  }
   return (
     <article
       className="hqpc"
@@ -99,27 +141,18 @@ export function HqPlusProjectCard({
       data-you={card.approve.length === 0 && asks > 0 ? 'true' : undefined}
       style={colorStyle(color)}
     >
-      <div className="hqpc-head">
-        <i className="hqpc-pdot" />
-        <h3>{title}</h3>
-        {room ? <span className="hqpc-room">{room}</span> : null}
-        {card.approve.length > 0 ? (
-          <span className="hqpc-pill" data-tone="ap">
-            Approve · {card.approve.length}
-          </span>
-        ) : null}
-        {asks > 0 ? (
-          <span className="hqpc-pill" data-tone="ask">
-            Asks you · {asks}
-          </span>
-        ) : null}
-        {working > 0 ? <span className="hqpc-pill">Working · {working}</span> : null}
-        {card.you.length > 0 ? (
-          <span className="hqpc-pill">Your move · {card.you.length}</span>
-        ) : null}
-        {card.waits > 0 ? <span className="hqpc-pill">We wait · {card.waits}</span> : null}
-        {card.lastAt > 0 ? <span className="hqpc-tm">{when(card.lastAt, now)}</span> : null}
-      </div>
+      {folded ? (
+        <button
+          type="button"
+          className="hqpc-head hqpc-headbtn"
+          aria-expanded={true}
+          onClick={() => setUnfolded(false)}
+        >
+          {headInner}
+        </button>
+      ) : (
+        <div className="hqpc-head">{headInner}</div>
+      )}
       {approveShown.length > 0 ? (
         <>
           <Fold label={`Approve · ${approveShown.length}`} open={null} tone="ap" />
