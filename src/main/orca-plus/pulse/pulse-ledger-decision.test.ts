@@ -33,7 +33,7 @@ function setup() {
 
 // Custom build (hq-intake-decide, owner 03.11): plan stage 20.3.
 describe('the model decision in the ledger', () => {
-  it('writes project, chat and kind as guesses with certainty, and the feed carries them', () => {
+  it('writes project and chat as guesses with certainty, and the feed carries them', () => {
     const { db, conversationId } = setup()
     db.attribution.decide(conversationId, {
       project: 'acme-api',
@@ -48,13 +48,12 @@ describe('the model decision in the ledger', () => {
 
     expect(db.attribution.records()).toEqual([
       { field: 'project', guess: 'acme-api', guess_how: 'model', final: null, final_how: null },
-      { field: 'chat', guess: 'claude_mr314', guess_how: 'model', final: null, final_how: null },
-      { field: 'kind', guess: 'do', guess_how: 'model', final: null, final_how: null }
+      { field: 'chat', guess: 'claude_mr314', guess_how: 'model', final: null, final_how: null }
     ])
+    expect(db.attribution.decisionsSince(0)).toBe(1)
     const [conversation] = db.listLedgerFeed(0).conversations
     expect(conversation?.guess).toEqual({
       chat: 'claude_mr314',
-      kind: 'do',
       confidence: 0.86,
       why: 'MR !314 in the DM'
     })
