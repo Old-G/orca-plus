@@ -38,16 +38,22 @@ const GLOB = /[*?[]|\{[^\s{}]*(?:,|\.\.)[^\s{}]*\}/g
 // only these whole commands pass (security review, 02.11, fourth round).
 const SAFE_PIPE =
   /^(?:(?:tail|head)(?:\s+(?:-n\s*)?-?\d+)?|grep(?:\s+-[a-zA-Z]+)*(?:\s+[^\s-]\S*)?|wc(?:\s+-[lcwm]+)?|tar\s+-?x[vzjpf]*(?:\s+-)?(?:\s+-C\s+\S+)?)\s*$/
-// Why: an ssh that gets a script of its own reads the pipe only as data, unless that script starts a
-// shell or an interpreter.
-const SSH_DATA = /^\s*ssh\s+[\w.@-]+\s+'([^']*)'/
-const READS_CODE = /\b(?:(?:ba|z|da|k)?sh|python\d*|perl|ruby|node|php|source|eval)\b/
+// Why: an ssh behind a pipe passes only with one single-quoted script of its own made of these steps,
+// none of which runs what it reads (fifth round: `awk -f /dev/stdin`, a second quoted argument).
+const SSH_DATA = /^\s*ssh\s+[\w.@-]+\s+'([^']*)'\s*(?:$|[;&|\n)])/
+const TAR_X = /^tar\s+-?x[vzjpf]*(?:\s+-)?(?:\s+-C\s+\S+)?$/
+const DATA_STEP =
+  /^(?:[A-Za-z_]\w*=\$\(mktemp(?:\s+-d)?\)|docker\s+cp\s+\S+\s+\S+|(?:rm|mkdir|cd|ls|echo|true)(?:\s+\S+)*)$/
 
 function pipeIsSafe(command: string, at: number): boolean {
   const rest = command.slice(at)
   const ssh = SSH_DATA.exec(rest)
   if (ssh) {
-    return !READS_CODE.test(ssh[1].replace(/['"\\]/g, ''))
+    return ssh[1]
+      .replace(/['"\\]/g, '')
+      .split(/&&|\|\||[;|\n]/)
+      .map((step) => step.trim())
+      .every((step) => step === '' || TAR_X.test(step) || DATA_STEP.test(step))
   }
   const target = /^[^;&|\n)]*/.exec(rest.replace(/['"\\]/g, ''))?.[0] ?? ''
   return SAFE_PIPE.test(target.trim())
