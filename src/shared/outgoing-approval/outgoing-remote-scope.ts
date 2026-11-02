@@ -34,8 +34,24 @@ export function remoteSpans(command: string, keys: string[]): [number, number][]
 
 // Why: the shell turns these into names the text does not show — `/bin/m?`, `{mv,x}`, `cont*xt`.
 const GLOB = /[*?[]|\{[^\s{}]*(?:,|\.\.)[^\s{}]*\}/g
-// Why: anything else after a pipe may run what came through it (`ssh h cat x | sh`).
-const SAFE_PIPE = /^(?:\S*\/)?(?:tail|head|grep|wc|sort|uniq|cat|cut|jq|tar|ssh)$/
+// Why: what reads a pipe may run what came through it (`… | sh`, `| ssh h sh -s`, `tar --to-command`);
+// only these whole commands pass (security review, 02.11, fourth round).
+const SAFE_PIPE =
+  /^(?:(?:tail|head)(?:\s+(?:-n\s*)?-?\d+)?|grep(?:\s+-[a-zA-Z]+)*(?:\s+[^\s-]\S*)?|wc(?:\s+-[lcwm]+)?|tar\s+-?x[vzjpf]*(?:\s+-)?(?:\s+-C\s+\S+)?)\s*$/
+// Why: an ssh that gets a script of its own reads the pipe only as data, unless that script starts a
+// shell or an interpreter.
+const SSH_DATA = /^\s*ssh\s+[\w.@-]+\s+'([^']*)'/
+const READS_CODE = /\b(?:(?:ba|z|da|k)?sh|python\d*|perl|ruby|node|php|source|eval)\b/
+
+function pipeIsSafe(command: string, at: number): boolean {
+  const rest = command.slice(at)
+  const ssh = SSH_DATA.exec(rest)
+  if (ssh) {
+    return !READS_CODE.test(ssh[1].replace(/['"\\]/g, ''))
+  }
+  const target = /^[^;&|\n)]*/.exec(rest.replace(/['"\\]/g, ''))?.[0] ?? ''
+  return SAFE_PIPE.test(target.trim())
+}
 
 /**
  * Words the shell may read differently from the text: a glob or brace expansion anywhere but in rm's own
@@ -50,8 +66,9 @@ export function hasUnreadableWords(command: string, rmWords: readonly Word[]): b
   if ([...command.matchAll(GLOB)].some((match) => !inRm(match.index ?? 0))) {
     return true
   }
-  return [...command.replace(/['"\\]/g, '').matchAll(/(?<!\|)\|(?![|&])\s*(\S*)/g)].some(
-    (pipe) => !SAFE_PIPE.test(pipe[1] ?? '')
+  // Why `|&` too: it pipes stderr as well; only `||` is not a pipe.
+  return [...command.matchAll(/(?<!\|)\|&?(?!\|)/g)].some(
+    (pipe) => !pipeIsSafe(command, (pipe.index ?? 0) + pipe[0].length)
   )
 }
 
