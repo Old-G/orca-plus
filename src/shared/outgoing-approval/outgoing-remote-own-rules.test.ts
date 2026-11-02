@@ -32,7 +32,10 @@ describe('own server work from HQ autonomy.yaml (plan 15.17)', () => {
     `ssh -o ControlPath=~/.ssh/cm me@myserver "rm -f /tmp/x.py" 2>&1 | tail -2`,
     `ssh myserver 'rm -f /tmp/check.log  # cleanup'`,
     `ssh myserver 'cd ~/api && umask 077 && F=$(mktemp) && cat > $F; grep -c x $F; rm -f $F'`,
-    "S=/private/tmp/x/scratchpad; python3 - <<EOF\ns = open('$S/a.py').read() + '''\nEOF\nrm -f $S/a.py; ssh myserver 'rm -f /tmp/a.py'"
+    "S=/private/tmp/x/scratchpad; python3 - <<EOF\ns = open('$S/a.py').read() + '''\nEOF\nrm -f $S/a.py; ssh myserver 'rm -f /tmp/a.py'",
+    "ssh myserver bash <<'EOF'\ncd ~/api\nrm -rf ~/tmp/deploy-2510\nEOF",
+    `ssh myserver true; rm -rf /tmp/x.log`,
+    `ssh myserver 'docker rm -f api-mcp-check' 2>&1 | tail -2`
   ])('passes %s', (command) => {
     expect(held(command)).toBe(false)
   })
@@ -109,7 +112,18 @@ describe('own server work from HQ autonomy.yaml (plan 15.17)', () => {
     `ssh myserver 'mktemp(){ echo /srv; }; D=$(mktemp); rm -rf $D'`,
     `ssh myserver 'rm -v -rf /srv'`,
     `ssh myserver 'rm --recursive --force /srv'`,
-    `ssh myserver 'docker rm --force prod-db'`
+    `ssh myserver 'docker rm --force prod-db'`,
+    // Security review, 02.11: a listed deletion outside the listed host's command, a command name
+    // built from a variable, and docker pointed at another engine first.
+    `ssh myserver true; rm -rf ~/shadow_old`,
+    `ssh myserver true && docker rm -f api-mcp-check`,
+    `ssh myserver 'ls' | rm -rf ~/tmp/x`,
+    `ssh myserver 'X=; m\${X}v /srv/data ~/tmp/x; rm -rf ~/tmp/x'`,
+    `ssh myserver 'X=mv; $X /srv/data ~/tmp/x; rm -rf ~/tmp/x'`,
+    `ssh myserver '$X /srv/data ~/tmp/x; rm -rf ~/tmp/x'`,
+    `ssh myserver 'docker context use prod && docker rm -f api-mcp-check'`,
+    `ssh myserver 'docker --config ~/other rm -f api-mcp-check'`,
+    `ssh myserver 'DOCKER_CONFIG=~/other docker rm -f api-mcp-check'`
   ])('holds %s', (command) => {
     expect(held(command)).toBe(true)
   })
