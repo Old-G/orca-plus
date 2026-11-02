@@ -1,5 +1,5 @@
 // Custom build (hq-intake-decide, owner 03.11, plan stage 20.3): how the Slack ledger asks for a new
-// conversation's place — the larger model's whole decision (project, chat, card kind, certainty, why)
+// conversation's place — the larger model's whole decision (project, chat, whose move, certainty, why)
 // with the open chats, the author's open questions and the owner's past corrections in view; the small
 // model's guess when the day's decisions are spent or the larger one gave nothing usable.
 import type { Store } from '../persistence'
@@ -9,7 +9,7 @@ import { slackTextLinks } from '../slack/slack-reader-api'
 import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import type { HqLedgerDecision } from '../orca-plus/pulse/pulse-ledger-decision'
 import { guessHqLedger } from './hq-ledger-guess'
-import { decideHqIntake, type HqIntakeChatOption } from './hq-intake-decide'
+import { decideHqIntake, hqIntakeBudget, type HqIntakeChatOption } from './hq-intake-decide'
 import type { HqSlackLedgerDeps } from './hq-slack-ledger-reader'
 import { generateHqText } from './hq-task-questions'
 
@@ -26,6 +26,7 @@ export function hqIntakeDecider(
   store: Store,
   runtime: OrcaRuntimeService
 ): Pick<HqSlackLedgerDeps, 'guess' | 'setGuess'> {
+  const budget = hqIntakeBudget(DECISIONS_PER_DAY)
   const liveChats = (): HqIntakeChatOption[] => {
     const since = Date.now() - CHATS_WINDOW_MS
     const reports = new Map<string, string>()
@@ -77,9 +78,8 @@ export function hqIntakeDecider(
           }
         )
       const pages = () => listHqProjectPages(hqPath)
-      // Why from the log (Codex 03.11): a restart must not give the day another 150.
       const dayStart = new Date().setHours(0, 0, 0, 0)
-      if (runtime.pulseLedgerDecisionsSince(dayStart) < DECISIONS_PER_DAY) {
+      if (budget(dayStart, (since) => runtime.pulseLedgerDecisionsSince(since))) {
         const decision = await decideHqIntake(
           {
             ...input,
