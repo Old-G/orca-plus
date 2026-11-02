@@ -5,6 +5,8 @@ import type { HqConversationRow, HqLedgerGuess } from '../orca-plus/pulse/pulse-
 import type { HqLedgerCardRow } from '../orca-plus/pulse/pulse-ledger-cards'
 import type { HqOpenConversation } from '../orca-plus/pulse/pulse-ledger-open'
 import type { HqFeedLedger } from '../../shared/hq-feed-ledger'
+import type { HqAttributionAccuracy } from '../../shared/hq-attribution'
+import type { HqAttributionTake } from '../orca-plus/pulse/pulse-attribution'
 import type {
   PulseAddResult,
   PulseDecision,
@@ -266,6 +268,21 @@ export class RuntimePulseCommands {
   /** Custom build (hq-ledger-sources): the owner is done with a conversation (its card, or its source). */
   pulseCloseLedgerConversation(key: string): boolean {
     return this.db().closeLedgerConversation(key)
+  }
+
+  /** Custom build (hq-attribution-log): the owner sent a conversation to work from its card. */
+  pulseNoteAttributionTake(take: HqAttributionTake): void {
+    this.db().attribution.take(take)
+  }
+
+  /** Custom build (hq-attribution-log): the owner dropped a conversation's card. */
+  pulseNoteAttributionSkip(key: string): void {
+    this.db().attribution.skip(key)
+  }
+
+  /** Custom build (hq-attribution-log): kept and changed guesses since a moment. */
+  pulseAttributionAccuracy(since: number): HqAttributionAccuracy {
+    return this.db().attribution.accuracy(since)
   }
 
   /** Custom build (hq-request-ledger): whether a Slack message reached the ledger. */
