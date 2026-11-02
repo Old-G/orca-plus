@@ -222,11 +222,21 @@ run mkdir -p "$backup"
 # Custom build (orca-plus-ship): Chromium's caches and Claude's rotating .claude.json copies churn the same
 # way (31.10: three passes in a row failed on Cache_Data) and are rebuilt by themselves. A file gone between
 # listing and open (23) is as live as one gone mid-copy (24): 02.11, two ships died on Local Storage's leveldb.
+# Why (Codex 03.11): 23 also means a file that could not be read or written; only the vanished kind
+# is live churn, so any other error line fails the pass and the backup is not called whole.
 copy_profile() {
+  local errors="$backup/rsync-errors.log"
   rsync -a --exclude '/claude-profiles/*/home/sessions/' --exclude '/claude-profiles/*/home/backups/' \
     --exclude '/Cache/' --exclude '/Code Cache/' --exclude '/GPUCache/' \
     --exclude '/DawnGraphiteCache/' --exclude '/DawnWebGPUCache/' \
-    "$profile/" "$backup/profile/" || { code=$?; [ "$code" = 24 ] || [ "$code" = 23 ]; }
+    "$profile/" "$backup/profile/" 2>"$errors" && return 0
+  local code=$?
+  [ "$code" = 24 ] && return 0
+  if [ "$code" = 23 ] && ! grep -v -E 'No such file or directory|vanished|some files/attrs were not transferred|^[[:space:]]*$' "$errors" | grep -q .; then
+    return 0
+  fi
+  cat "$errors" >&2
+  return "$code"
 }
 # Why: macOS openrsync fails the whole pass on one vanished file, so one retry was not always enough.
 backup_profile() { copy_profile || copy_profile || copy_profile; }
