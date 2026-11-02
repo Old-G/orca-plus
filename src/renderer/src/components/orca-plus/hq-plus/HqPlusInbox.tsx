@@ -3,7 +3,10 @@
 // conversations on him, oldest first — each row naming its project and opening to the same card the
 // project cards show. «We wait», «Working» and «Done today» are one line above, opened on a click.
 import { useState } from 'react'
-import type { HqPlusProjectFeed as Feed } from '../../../../../shared/hq-plus-project-cards'
+import type {
+  HqPlusProjectFeed as Feed,
+  HqPlusProjectFilter
+} from '../../../../../shared/hq-plus-project-cards'
 import { HQ_PLUS_PROJECT_TODAY_LABEL } from '../../../../../shared/hq-plus-project-today'
 import { hqPlusProjectChatLine } from '../../../../../shared/hq-plus-project-lines'
 import { HqPlusLogCards } from './HqPlusLog'
@@ -16,10 +19,18 @@ type Drawer = 'wait' | 'working' | 'today' | null
 
 export function HqPlusInbox({
   feed,
-  ctx
+  filter,
+  emptyText,
+  ctx,
+  ref
 }: {
   feed: Feed
+  /** The chip above the feed; «We wait» lists the people in the queue itself. */
+  filter: HqPlusProjectFilter
+  emptyText: string
   ctx: HqPlusProjectCardContext
+  /** The scroller, for the feed to mark the rows the owner has seen. */
+  ref?: React.Ref<HTMLDivElement>
 }): React.JSX.Element {
   const [drawer, setDrawer] = useState<Drawer>(null)
   const [chatKey, setChatKey] = useState<string | null>(null)
@@ -37,9 +48,31 @@ export function HqPlusInbox({
       ctx.log.setExpanded(lineId, true)
     }
   }
-  const empty = queue.approve.length === 0 && queue.asks.length === 0 && queue.moves.length === 0
+  const waitsInQueue = filter === 'wait'
+  const empty =
+    queue.approve.length + queue.asks.length + queue.moves.length + queue.fyi.length === 0 &&
+    !(waitsInQueue && queue.persons.length > 0)
+  const persons = queue.persons.map(({ slug, unsorted, person }) => (
+    <ul key={`${slug}:${person.name}`} className="hqpc-lines">
+      <Person person={person} ctx={ctx} project={project(slug, unsorted)} />
+    </ul>
+  ))
+  const chatRow = ({
+    slug,
+    unsorted,
+    chat
+  }: ReturnType<typeof hqPlusInboxQueue>['asks'][number]): React.JSX.Element => (
+    <ChatRow
+      key={chat.key}
+      chat={chat}
+      open={chatKey === chat.key}
+      onToggle={() => openChat(chat.key, hqPlusProjectChatLine(chat)?.id ?? null)}
+      ctx={ctx}
+      project={project(slug, unsorted)}
+    />
+  )
   return (
-    <div className="hqp-log hqpi scrollbar-sleek">
+    <div className="hqp-log hqpi scrollbar-sleek" ref={ref}>
       <div className="hqpi-strip" role="group" aria-label="Around the queue">
         <button type="button" aria-expanded={drawer === 'wait'} onClick={() => toggle('wait')}>
           We wait <b>{queue.waits}</b>
@@ -55,13 +88,9 @@ export function HqPlusInbox({
           Done today <b>{queue.today.length}</b>
         </button>
       </div>
-      {drawer === 'wait' ? (
+      {drawer === 'wait' && !waitsInQueue ? (
         <section className="hqpi-drawer">
-          {queue.persons.map(({ slug, person }) => (
-            <ul key={`${slug}:${person.name}`} className="hqpc-lines">
-              <Person person={person} ctx={ctx} />
-            </ul>
-          ))}
+          {persons}
           {queue.persons.length === 0 ? (
             <p className="hqp-empty">Nobody owes you anything.</p>
           ) : null}
@@ -69,17 +98,7 @@ export function HqPlusInbox({
       ) : null}
       {drawer === 'working' ? (
         <section className="hqpi-drawer">
-          <ul className="hqpc-lines hqpc-chats">
-            {queue.working.map(({ chat }) => (
-              <ChatRow
-                key={chat.key}
-                chat={chat}
-                open={chatKey === chat.key}
-                onToggle={() => openChat(chat.key, hqPlusProjectChatLine(chat)?.id ?? null)}
-                ctx={ctx}
-              />
-            ))}
-          </ul>
+          <ul className="hqpc-lines hqpc-chats">{queue.working.map(chatRow)}</ul>
           {queue.working.length === 0 ? <p className="hqp-empty">No chat works now.</p> : null}
         </section>
       ) : null}
@@ -119,17 +138,7 @@ export function HqPlusInbox({
           <h4 className="hqpi-h" data-tone="you">
             Chats ask you · {queue.asks.length}
           </h4>
-          <ul className="hqpc-lines hqpc-chats">
-            {queue.asks.map(({ chat }) => (
-              <ChatRow
-                key={chat.key}
-                chat={chat}
-                open={chatKey === chat.key}
-                onToggle={() => openChat(chat.key, hqPlusProjectChatLine(chat)?.id ?? null)}
-                ctx={ctx}
-              />
-            ))}
-          </ul>
+          <ul className="hqpc-lines hqpc-chats">{queue.asks.map(chatRow)}</ul>
         </section>
       ) : null}
       {queue.moves.length > 0 ? (
@@ -150,7 +159,33 @@ export function HqPlusInbox({
           </ul>
         </section>
       ) : null}
-      {empty ? <p className="hqp-empty">Nothing waits on you.</p> : null}
+      {queue.fyi.length > 0 ? (
+        <section className="hqpi-group">
+          <h4 className="hqpi-h">
+            FYI · {queue.fyi.length} <span>oldest first</span>
+          </h4>
+          <ul className="hqpc-lines">
+            {queue.fyi.map(({ slug, unsorted, line }) => (
+              <Line
+                key={line.id}
+                line={line}
+                unsorted={unsorted}
+                ctx={ctx}
+                project={project(slug, unsorted)}
+              />
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {waitsInQueue && queue.persons.length > 0 ? (
+        <section className="hqpi-group">
+          <h4 className="hqpi-h">
+            We wait · {queue.waits} <span>oldest first</span>
+          </h4>
+          {persons}
+        </section>
+      ) : null}
+      {empty ? <p className="hqp-empty">{emptyText}</p> : null}
     </div>
   )
 }

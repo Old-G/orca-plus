@@ -78,6 +78,21 @@ export function Fold({
   )
 }
 
+function ProjectTag({
+  project
+}: {
+  project: { name: string; color: string | null } | null
+}): React.JSX.Element | null {
+  return project ? (
+    <span
+      className="hqpc-proj"
+      style={project.color ? ({ '--hqpc-c': project.color } as React.CSSProperties) : undefined}
+    >
+      {project.name}
+    </span>
+  ) : null
+}
+
 export function Line({
   line,
   unsorted,
@@ -135,16 +150,7 @@ export function Line({
               <HqPlusChatName chat={chat} />
             </span>
           ) : null}
-          {project ? (
-            <span
-              className="hqpc-proj"
-              style={
-                project.color ? ({ '--hqpc-c': project.color } as React.CSSProperties) : undefined
-              }
-            >
-              {project.name}
-            </span>
-          ) : null}
+          <ProjectTag project={project} />
           <span className="hqpc-age" data-got={line.replied ? 'true' : undefined}>
             {line.replied ? `replied · ${age}` : age}
           </span>
@@ -182,10 +188,13 @@ export function Lines({
 
 export function Person({
   person,
-  ctx
+  ctx,
+  project = null
 }: {
   person: HqPlusProjectPerson
   ctx: HqPlusProjectCardContext
+  /** Custom build (hq-plus-inbox): the project of a row in Inbox's one list, named on it. */
+  project?: { name: string; color: string | null } | null
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const count = person.waits.length
@@ -205,6 +214,7 @@ export function Person({
             {count === 1 ? (person.waits[0]?.title ?? '1 question') : `${count} questions`}
           </span>
         </span>
+        <ProjectTag project={project} />
         <span className="hqpc-age">{hqPlusProjectAge(person.oldestAt, ctx.now)}</span>
       </button>
       {open ? (
@@ -222,12 +232,15 @@ export function ChatRow({
   chat,
   open,
   onToggle,
-  ctx
+  ctx,
+  project = null
 }: {
   chat: HqPlusProjectChat
   open: boolean
   onToggle: () => void
   ctx: HqPlusProjectCardContext
+  /** Custom build (hq-plus-inbox): the project of a row in Inbox's one list, named on it. */
+  project?: { name: string; color: string | null } | null
 }): React.JSX.Element {
   const item = ctx.chatItem(chat.key)
   const closer = item ? ctx.closerOf(item) : null
@@ -265,6 +278,7 @@ export function ChatRow({
               <span className="hqpc-said2">{said.replace(/\*\*|`/g, '')}</span>
             ) : null}
           </span>
+          <ProjectTag project={project} />
           <span className="hqpc-age">{hqPlusProjectAge(chat.line?.at ?? chat.at, ctx.now)}</span>
           <span className="hqpc-caret" aria-hidden="true">
             {open ? '▴' : '▾'}
