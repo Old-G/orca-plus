@@ -28,6 +28,26 @@ export type AutomationChatLaunchRequest = {
   runs: readonly AutomationRun[]
 }
 
+/** Custom build (automations-chat-model, owner 02.11): a chat takes the automation's `--model` and
+ *  `--effort` as its own options, so a run moved from the terminal keeps its model (sonnet stays sonnet). */
+export function chatSessionOptions(
+  args: string | undefined
+): { sessionOptions: { model?: string; effort?: string } } | Record<string, never> {
+  const options: { model?: string; effort?: string } = {}
+  const words = (args ?? '').trim().split(/\s+/).filter(Boolean)
+  for (let index = 0; index < words.length; index += 1) {
+    const [flag, inline] = (words[index] ?? '').split('=', 2)
+    const value = inline ?? words[index + 1]
+    if ((flag === '--model' || flag === '--effort') && value && !value.startsWith('-')) {
+      options[flag === '--model' ? 'model' : 'effort'] = value
+      if (inline === undefined) {
+        index += 1
+      }
+    }
+  }
+  return options.model || options.effort ? { sessionOptions: options } : {}
+}
+
 export async function launchAutomationChatAgent(
   runtime: OrcaRuntimeService,
   request: AutomationChatLaunchRequest
@@ -65,6 +85,7 @@ async function launchChat(
         operationId,
         surface: 'chat',
         presentation: 'background',
+        ...chatSessionOptions(automation.extraAgentArgs),
         prompt: { text: automation.prompt, delivery: 'submit' },
         target:
           automation.workspaceMode === 'existing'

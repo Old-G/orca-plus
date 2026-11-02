@@ -84,6 +84,7 @@ export const AUTOMATION_COMMAND_SPECS: CommandSpec[] = [
       'prompt',
       'provider',
       'extra-agent-args',
+      'surface',
       ...AUTOMATION_PRECHECK_FLAGS,
       ...AUTOMATION_TARGET_FLAGS,
       ...AUTOMATION_SCHEDULE_FLAGS,
@@ -93,7 +94,8 @@ export const AUTOMATION_COMMAND_SPECS: CommandSpec[] = [
     examples: [
       'orca automations edit 2f9e... --disabled',
       'orca automations edit --id 2f9e... --trigger "30 * * * *" --json',
-      'orca automations edit 2f9e... --extra-agent-args='
+      'orca automations edit 2f9e... --extra-agent-args=',
+      'orca automations edit 2f9e... --surface chat'
     ]
   },
   {
