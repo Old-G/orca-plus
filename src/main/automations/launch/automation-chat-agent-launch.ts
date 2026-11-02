@@ -5,7 +5,7 @@ import type { AutomationRun } from '../../../shared/automations/history/automati
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import { launchAgentOnHost } from '../../runtime/rpc/methods/agent-launch/agent-launch'
 import { reuseAutomationChat } from './automation-chat-session-reuse'
-import { nameAutomationRunChat } from './automation-run-chat-name'
+import { nameAutomationRunChat } from '../automation-run-chat-name'
 import { buildHeadlessAutomationWorkspaceName } from './automation-workspace-create'
 import type { AutomationRunTargetResult } from '../ownership/run-target-resolution'
 import { AutomationRunLaunchError, type AutomationLaunch } from './automation-launch'
@@ -77,7 +77,7 @@ async function launchChat(
   const { automation, run, target } = request
   // Why (Codex 03.11): a record saved before the check, or edited around it, must not run in a chat
   // with the tools its terminal run excluded.
-  if (narrowsAutomationTools(automation.extraAgentArgs)) {
+  if (narrowsAutomationTools(automation)) {
     throw new AutomationRunLaunchError(AUTOMATION_NARROWED_TOOLS_STAY_IN_TERMINAL)
   }
   let published: AutomationChatAgentLaunch | undefined
