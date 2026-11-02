@@ -1,6 +1,6 @@
 // Custom build (remote-own-work, security review 02.11): where a step of a command runs — on the listed
 // host or on this machine — and whether the shell would expand something the text does not show.
-import type { Binding } from './outgoing-shell-words'
+import type { Binding, Word } from './outgoing-shell-words'
 
 export const SSH_CALL = new RegExp(String.raw`(?:^|[\s;&|(\x60{"'/]|\$\()ssh\s+`, 'g')
 
@@ -10,8 +10,13 @@ export const SSH_CALL = new RegExp(String.raw`(?:^|[\s;&|(\x60{"'/]|\$\()ssh\s+`
  * `ssh myserver true; rm -rf ~/shadow_old` the rm runs on this machine, not on the listed host.
  */
 export function remoteSpans(command: string, keys: string[]): [number, number][] {
-  return [...command.matchAll(SSH_CALL)].map((call) => {
+  return [...command.matchAll(SSH_CALL)].flatMap((call): [number, number][] => {
     const at = (call.index ?? 0) + call[0].search(/ssh\s+$/)
+    // Why: an ssh inside a quote, subshell or substitution may be fed to another shell; only a
+    // top-level one has a remote command the text shows (security review, 02.11).
+    if (keys[at]) {
+      return []
+    }
     let end = at
     while (
       end < command.length &&
@@ -23,8 +28,31 @@ export function remoteSpans(command: string, keys: string[]): [number, number][]
     ) {
       end++
     }
-    return [at, end]
+    return [[at, end]]
   })
+}
+
+// Why: the shell turns these into names the text does not show — `/bin/m?`, `{mv,x}`, `cont*xt`.
+const GLOB = /[*?[]|\{[^\s{}]*(?:,|\.\.)[^\s{}]*\}/g
+// Why: anything else after a pipe may run what came through it (`ssh h cat x | sh`).
+const SAFE_PIPE = /^(?:\S*\/)?(?:tail|head|grep|wc|sort|uniq|cat|cut|jq|tar|ssh)$/
+
+/**
+ * Words the shell may read differently from the text: a glob or brace expansion anywhere but in rm's own
+ * targets (which the path list judges), or a pipe into anything but a plain filter. Security review,
+ * 02.11, third round.
+ */
+export function hasUnreadableWords(command: string, rmWords: readonly Word[]): boolean {
+  const inRm = (index: number): boolean =>
+    rmWords.some(
+      (word) => index >= word.at && index < word.at + word.text.length + (word.quote ? 2 : 0)
+    )
+  if ([...command.matchAll(GLOB)].some((match) => !inRm(match.index ?? 0))) {
+    return true
+  }
+  return [...command.replace(/['"\\]/g, '').matchAll(/(?<!\|)\|(?![|&])\s*(\S*)/g)].some(
+    (pipe) => !SAFE_PIPE.test(pipe[1] ?? '')
+  )
 }
 
 /** Runs on the listed host: in the ssh call's words, or under a quote or heredoc opened there — but not
