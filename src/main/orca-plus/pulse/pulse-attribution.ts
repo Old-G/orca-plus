@@ -41,6 +41,15 @@ export function noteAttributionGuess(core: PulseCore, guess: HqAttributionGuess)
   const open = openRow(core, guess.key, guess.field)
   if (open) {
     if (open.guess === guess.value) {
+      // Why: the model agreeing with a rule keeps the rule as the source, and adds how sure it is.
+      if (guess.confidence != null || guess.why) {
+        core.db
+          .prepare(
+            `UPDATE attribution_log SET confidence = COALESCE(?, confidence), why = COALESCE(?, why)
+              WHERE id = ?`
+          )
+          .run(guess.confidence ?? null, guess.why ?? null, open.id)
+      }
       return
     }
     core.db
@@ -221,17 +230,49 @@ function judgeTaken(
   noteAttributionFinal(core, key, field, chosen)
 }
 
-/** What PulseDb exposes: the owner's take and skip, the counts, and the raw rows for tests. */
-export function pulseAttribution(core: () => PulseCore) {
-  return {
-    take: (take: HqAttributionTake) => noteAttributionTake(core(), take),
-    skip: (key: string) => core().transaction(() => noteAttributionSkip(core(), key)),
-    accuracy: (since: number) => attributionAccuracy(core(), since),
-    records: () =>
-      core()
-        .db.prepare(
-          'SELECT field, guess, guess_how, final, final_how FROM attribution_log ORDER BY id'
-        )
-        .all() as Record<string, unknown>[]
+/** Custom build (hq-intake-decide): the open guesses of a conversation's chat and card kind, with how
+ *  sure the model was and why — what its card proposes. */
+export function openAttributionGuesses(
+  core: PulseCore,
+  key: string
+): {
+  chat: string | null
+  kind: string | null
+  confidence: number | null
+  why: string | null
+} | null {
+  const rows = core.db
+    .prepare(
+      `SELECT field, guess, confidence, why FROM attribution_log
+        WHERE conversation_key = ? AND final_at IS NULL AND field IN ('chat', 'kind', 'project')
+          AND guess_how = 'model'`
+    )
+    .all(key)
+  if (rows.length === 0) {
+    return null
   }
+  const of = (field: string) => rows.find((row) => row.field === field)
+  const any = rows.find((row) => row.confidence != null) ?? rows[0]
+  return {
+    chat: of('chat')?.guess == null ? null : String(of('chat')?.guess),
+    kind: of('kind')?.guess == null ? null : String(of('kind')?.guess),
+    confidence: any?.confidence == null ? null : Number(any.confidence),
+    why: any?.why == null ? null : String(any.why)
+  }
+}
+
+/** Custom build (hq-intake-decide): the owner's latest changes to guesses in one place (a channel, a
+ *  DM, a repo), one line each, for the model to learn from on the next message there. */
+export function attributionHints(core: PulseCore, keyPrefix: string, limit = 8): string[] {
+  return core.db
+    .prepare(
+      `SELECT field, guess, final FROM attribution_log
+        WHERE conversation_key LIKE ? AND final_how = 'edit' AND guess_how != 'unrecorded'
+        ORDER BY final_at DESC LIMIT ?`
+    )
+    .all(`${keyPrefix.replace(/[%_]/g, '')}%`, limit)
+    .map(
+      (row) =>
+        `${String(row.field)}: guessed ${row.guess == null ? 'none' : String(row.guess)}, the user chose ${row.final == null ? 'none' : String(row.final)}`
+    )
 }
