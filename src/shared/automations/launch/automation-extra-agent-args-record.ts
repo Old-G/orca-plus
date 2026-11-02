@@ -20,14 +20,32 @@ export function storedExtraAgentArgs(value: unknown): string | undefined {
 
 /** Custom build (automation-narrow-tools): options that take tools away, which only a terminal run
  *  honours — a chat session takes no CLI flags. */
-const NARROWS_TOOLS = /(?:^|\s)(?:--no-chrome|--strict-mcp-config|--disallowed-?tools)(?:[=\s]|$)/i
+const NARROWS_TOOLS: ReadonlySet<string> = new Set([
+  '--no-chrome',
+  '--strict-mcp-config',
+  '--disallowedtools',
+  '--disallowed-tools'
+])
 
 export const AUTOMATION_NARROWED_TOOLS_STAY_IN_TERMINAL =
   'This automation narrows its tools (--no-chrome, --strict-mcp-config or --disallowed-tools), which only a terminal run keeps. Remove them before opening it in a chat.'
 
-/** Whether the extras take tools away from the run. */
-export function narrowsAutomationTools(value: string | null | undefined): boolean {
-  return NARROWS_TOOLS.test(value ?? '')
+/** Whether the extras take tools away from the run. Why the parsed tokens (Codex 03.11): the parser
+ *  accepts a quoted `'--no-chrome'`, which the raw text would not show. */
+export function narrowsAutomationTools(
+  automation: Pick<Automation, 'agentId' | 'extraAgentArgs'>
+): boolean {
+  if (!hasExtraAgentArgs(automation.extraAgentArgs)) {
+    return false
+  }
+  const parsed = parseExtraAgentArgs({
+    agent: automation.agentId,
+    extraAgentArgs: automation.extraAgentArgs
+  })
+  const tokens = parsed.ok
+    ? parsed.tokens
+    : automation.extraAgentArgs.split(/\s+/).map((token) => token.replace(/^['"]+|['"]+$/g, ''))
+  return tokens.some((token) => NARROWS_TOOLS.has((token.split('=')[0] ?? '').toLowerCase()))
 }
 
 /** Validates a whole record, so a patch that only enables Reuse still sees stored extras. */
@@ -44,7 +62,7 @@ export function assertAutomationExtraAgentArgs(
   >
 ): void {
   // Why (Codex 03.11): a chat would drop the narrowing and run with the tools the job excluded.
-  if (automation.surface === 'chat' && narrowsAutomationTools(automation.extraAgentArgs)) {
+  if (automation.surface === 'chat' && narrowsAutomationTools(automation)) {
     throw new Error(AUTOMATION_NARROWED_TOOLS_STAY_IN_TERMINAL)
   }
   const setup = automationCanonicalLaunchSetup(automation)
