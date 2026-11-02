@@ -2,7 +2,6 @@
 // what the owner typed into a terminal agent's own input box (Claude Code, Codex) and has not sent yet.
 // The terminal only sees keystrokes, so a moment after typing stops the box is read off the screen.
 import type { Terminal } from '@xterm/xterm'
-import { useAppStore } from '@/store'
 
 export type HqPlusTerminalDraft = { paneKey: string; text: string; savedAt: number }
 
@@ -94,9 +93,6 @@ function readScreen(paneKey: string, terminal: Terminal): void {
 
 /** Called on the owner's own keystrokes in a terminal pane; reads its agent's input box once typing pauses. */
 export function noteHqPlusTerminalTyping(paneKey: string, terminal: Terminal): void {
-  if (!useAppStore.getState().agentStatusByPaneKey[paneKey] && !drafts.has(paneKey)) {
-    return
-  }
   clearTimeout(timers.get(paneKey))
   timers.set(
     paneKey,
