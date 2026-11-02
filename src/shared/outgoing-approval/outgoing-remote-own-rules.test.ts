@@ -154,7 +154,13 @@ describe('own server work from HQ autonomy.yaml (plan 15.17)', () => {
     // Fifth round, 02.11.
     `ssh myserver 'cat /tmp/run' | ssh myserver 'awk -f /dev/stdin'; ssh myserver 'rm -rf ~/tmp/x'`,
     `ssh myserver 'cat /tmp/run' | ssh myserver 'cat >/tmp/run' '; sh /tmp/run'; ssh myserver 'rm -rf ~/tmp/x'`,
-    `git archive HEAD | ssh myserver 'D=$(mktemp -d) && tar -x --to-command=sh -C "$D" && rm -rf "$D"'`
+    `git archive HEAD | ssh myserver 'D=$(mktemp -d) && tar -x --to-command=sh -C "$D" && rm -rf "$D"'`,
+    // Sixth round, 02.11.
+    `ssh myserver 'cat /tmp/run' | ssh myserver 'echo & sh'; ssh myserver 'rm -rf ~/tmp/x'`,
+    `git archive HEAD | ssh myserver 'echo x > /srv/db; rm -rf ~/tmp/x'`,
+    `git archive HEAD | ssh myserver 'docker cp - api-mcp-check:/app; rm -rf ~/tmp/x'`,
+    `git archive HEAD | ssh myserver 'tar -x -C /srv/app; rm -rf ~/tmp/x'`,
+    `git archive HEAD | ssh myserver 'cd /srv && tar -x; rm -rf ~/tmp/x'`
   ])('holds %s', (command) => {
     expect(held(command)).toBe(true)
   })
