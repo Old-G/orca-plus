@@ -1,6 +1,6 @@
 // Custom build (hq-plus-ui): HQ+'s chats are the same live list the classic HQ shows — every open
 // agent chat and terminal, so one started a second ago is there — not only the ones the journal knows.
-import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
+import { structuredAgentSessionTabId } from '../../../../../shared/agent-session/view/structured-agent-session-projection'
 import { useAppStore } from '@/store'
 import type { HqPlusLiveChat } from '../../../../../shared/hq-plus-fold'
 import { groupHqChats, type HqChatItem } from '../hq/hq-chat-list'
@@ -185,4 +185,16 @@ export function hqPlusChatWaitingFor(text: string | null | undefined): string | 
     .replace(/[.!]\s*$/, '')
     .trim()
   return what || 'waiting'
+}
+
+/**
+ * Custom build (hq-plus-waiting-after-read, owner 02.11): a finished chat the owner has not opened yet
+ * says «done» even when its last words wait on someone; it turns «waiting» once he has read it — opened
+ * in HQ+, or on screen in a focused Orca window, which is what marks a chat read.
+ */
+export function hqPlusChatWaitingLabel(
+  item: HqChatItem,
+  text: string | null | undefined
+): string | null {
+  return item.group === 'quiet' ? hqPlusChatWaitingFor(text) : null
 }
