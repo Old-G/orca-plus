@@ -286,9 +286,13 @@ export class RuntimePulseCommands {
     this.db().attribution.skip(key)
   }
 
-  /** Custom build (hq-intake-decide): conversations the model decided since a moment. */
-  pulseLedgerDecisionsSince(since: number): number {
-    return this.db().attribution.decisionsSince(since)
+  /** Custom build (hq-intake-decide): the day's calls to the larger model, written before each. */
+  pulseNoteLedgerDecisionAttempt(): void {
+    this.db().attribution.attempt()
+  }
+
+  pulseLedgerDecisionAttemptsSince(since: number): number {
+    return this.db().attribution.attemptsSince(since)
   }
 
   /** Custom build (hq-intake-decide): the owner's latest changes to guesses in one place. */
