@@ -9,7 +9,13 @@ import { HQ_ROUTING_KIND } from './hq-routing'
 import { HQ_INTAKE_KIND, readHqIntake } from './hq-slack-intake'
 import { HQ_SLACK_REQUEST_BELL_KIND } from './hq-slack-request-bell'
 import { HQ_REMIND_KIND } from './hq-remind'
-import { HQ_WAITING_REPLY_KIND, readHqWaitingReplyRef } from './hq-waiting-reply-bell'
+import {
+  HQ_WAITING_REPLY_KIND,
+  readHqWaitingReplyRef,
+  type HqWaitingReplyRef
+} from './hq-waiting-reply-bell'
+import { hqPlusAnswerOf, hqPlusMessagesLeft } from './hq-plus-answer-split'
+import { messagesOfParts, withAsked } from './hq-plus-conversation-messages'
 import type { PulseInboxItem } from './pulse-types'
 import {
   HQ_PLUS_ANY_ROOM,
@@ -113,63 +119,6 @@ function placeOf(
   return entry ? placeOfEntry(entry, places) : null
 }
 
-/** The conversation told from its cards, when the ledger has no messages of it. */
-function messagesOfParts(members: readonly HqPlusLogItem[]): HqFeedMessage[] {
-  const said: HqFeedMessage[] = []
-  for (const item of members) {
-    if (item.kind !== 'card' || !item.inbox) {
-      continue
-    }
-    const answer =
-      item.inbox.kind === HQ_WAITING_REPLY_KIND ? readHqWaitingReplyRef(item.inbox.refId) : null
-    if (answer) {
-      said.push({
-        direction: 'out',
-        author: null,
-        text: answer.asked || answer.question,
-        link: null,
-        at: answer.askedAt
-      })
-      said.push({
-        direction: 'in',
-        author: answer.author,
-        text: answer.reply,
-        link: answer.link,
-        at: item.at
-      })
-    }
-    const intake = item.inbox.kind === HQ_INTAKE_KIND ? readHqIntake(item.inbox.refId) : null
-    if (intake) {
-      said.push({
-        direction: 'in',
-        author: intake.author,
-        text: intake.text,
-        link: intake.permalink,
-        at: intake.lastAt ?? intake.at
-      })
-    }
-  }
-  const seen = new Set<string>()
-  return said
-    .filter((message) => {
-      const key = `${message.direction}:${message.text}`
-      return seen.has(key) ? false : (seen.add(key), true)
-    })
-    .sort((a, b) => a.at - b.at)
-}
-
-/** Keeps the owner's question in view: the ledger saw the answer, not always what was asked. */
-function withAsked(
-  messages: readonly HqFeedMessage[],
-  members: readonly HqPlusLogItem[]
-): HqFeedMessage[] {
-  if (messages.some((message) => message.direction === 'out')) {
-    return [...messages]
-  }
-  const asked = messagesOfParts(members).find((message) => message.direction === 'out')
-  return asked ? [asked, ...messages] : [...messages]
-}
-
 /** What a card is about, not who did what: «Ann replied» names the question it answers. */
 function titleOfCard(card: HqPlusCard): string {
   const answer =
@@ -228,20 +177,31 @@ export function hqPlusFoldConversations(
   const entryById = new Map(entries.map((entry) => [entry.id, entry]))
   const groups = new Map<string, HqPlusLogItem[]>()
   const keyOfItem = new Map<HqPlusLogItem, string>()
+  const answersOf = new Map<string, HqWaitingReplyRef[]>()
   for (const item of items) {
     const key = placeOf(item, entryById, places)
     if (key) {
-      keyOfItem.set(item, key)
       groups.set(key, [...(groups.get(key) ?? []), item])
+      // Custom build (hq-plus-answer-cards): an answer stays its own card, beside its conversation.
+      const answer = hqPlusAnswerOf(item)
+      if (answer) {
+        answersOf.set(key, [...(answersOf.get(key) ?? []), answer])
+      } else {
+        keyOfItem.set(item, key)
+      }
     }
   }
   const folded = new Map<string, HqPlusCard>()
-  for (const [key, members] of groups) {
+  for (const [key, all] of groups) {
     const conversation = byKey.get(key) ?? null
-    if (!conversation && members.length < 2) {
+    const members = all.filter((item) => keyOfItem.has(item))
+    if (members.length === 0 || (!conversation && members.length < 2)) {
       continue
     }
-    folded.set(key, conversationCard(key, conversation, members))
+    const card = conversationCard(key, conversation, members, answersOf.get(key) ?? [])
+    if (card) {
+      folded.set(key, card)
+    }
   }
   const out: HqPlusLogItem[] = []
   const placed = new Set<string>()
@@ -262,14 +222,22 @@ export function hqPlusFoldConversations(
 function conversationCard(
   key: string,
   conversation: HqFeedConversation | null,
-  members: readonly HqPlusLogItem[]
-): HqPlusCard {
+  members: readonly HqPlusLogItem[],
+  answers: readonly HqWaitingReplyRef[]
+): HqPlusCard | null {
   const cards = members.filter((item): item is HqPlusCard => item.kind === 'card')
   const parts = cards.filter((card) => card.open)
   const newest = Math.max(...members.map((item) => item.at))
-  const messages = conversation?.messages.length
-    ? withAsked(conversation.messages, members)
-    : messagesOfParts(members)
+  const messages = hqPlusMessagesLeft(
+    conversation?.messages.length
+      ? withAsked(conversation.messages, members)
+      : messagesOfParts(members),
+    answers
+  )
+  // Why: once its answer cards show what she said, a conversation with nothing else open is no card.
+  if (answers.length > 0 && parts.length === 0 && !messages.some((m) => m.direction === 'in')) {
+    return null
+  }
   const lastSaid = messages.at(-1)?.at ?? 0
   const placedIn = members.find((item) => item.room !== HQ_PLUS_ANY_ROOM)
   const titled = cards
