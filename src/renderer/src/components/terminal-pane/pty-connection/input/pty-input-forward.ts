@@ -76,7 +76,7 @@ export function installPtyInputForward(session: ConnectPanePtySession): void {
     }
     if (wasUserInput) {
       // Custom build (hq-plus-terminal-drafts): HQ+ lists the words left unsent in an agent's input box.
-      noteHqPlusTerminalTyping(session.cacheKey, session.pane.terminal)
+      noteHqPlusTerminalTyping(session.cacheKey, session.pane.terminal, data)
     }
     // Why xterm's provenance: its own focus reports reach onData too, and no person typed them.
     const inputKind = wasUserInput ? 'driving' : 'query-reply'
