@@ -3,11 +3,13 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import {
   listNativeChatComposerDrafts,
-  nativeChatDraftScopeTabId,
-  structuredAgentSessionIdOfDraftScope,
   subscribeToNativeChatComposerDrafts
 } from '../../native-chat/drafts/native-chat-composer-draft-store'
-import type { HqChatItem, hqChatTabId } from '../hq/hq-chat-list'
+import {
+  nativeChatDraftScopeTabId,
+  structuredAgentSessionIdOfDraftScope
+} from '../../native-chat/drafts/native-chat-draft-scope'
+import { hqChatTabId, type HqChatItem } from '../hq/hq-chat-list'
 import { hqPlusChatOfSession } from './hq-plus-chats'
 import {
   listHqPlusTerminalDrafts,
@@ -31,6 +33,23 @@ const subscribe = (listener: () => void): (() => void) => {
   }
 }
 
+/** The chat of the terminal pane a draft was typed in: that pane's own agent first, since split panes
+ *  share a tab; else the chat holding the pane's terminal tab. */
+export function hqPlusTerminalDraftChat(
+  items: readonly HqChatItem[],
+  paneKey: string
+): HqChatItem | null {
+  const tabId = paneKey.split(':')[0]
+  return (
+    items.find((entry) => entry.kind === 'terminal' && entry.key === paneKey) ??
+    // A terminal pane names its terminal tab, which the chat list holds as the Orca tab's entity.
+    items.find((entry) =>
+      entry.kind === 'chat' ? entry.tab.entityId === tabId : hqChatTabId(entry) === tabId
+    ) ??
+    null
+  )
+}
+
 /** The open chats holding an unsent draft, the newest draft first. */
 export function useHqPlusDraftChats(items: readonly HqChatItem[]): HqPlusDraftChat[] {
   const seen = useSyncExternalStore(subscribe, () => version)
@@ -50,12 +69,7 @@ export function useHqPlusDraftChats(items: readonly HqChatItem[]): HqPlusDraftCh
       }
     }
     for (const draft of listHqPlusTerminalDrafts()) {
-      const tabId = draft.paneKey.split(':')[0]
-      // A terminal pane names its terminal tab, which the chat list holds as the Orca tab's entity.
-      const item =
-        items.find((entry) =>
-          entry.kind === 'chat' ? entry.tab.entityId === tabId : hqChatTabId(entry) === tabId
-        ) ?? null
+      const item = hqPlusTerminalDraftChat(items, draft.paneKey)
       if (item && !used.has(item.key)) {
         used.add(item.key)
         listed.push({ item, text: draft.text, savedAt: draft.savedAt })
