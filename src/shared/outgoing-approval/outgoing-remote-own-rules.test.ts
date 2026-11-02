@@ -144,7 +144,13 @@ describe('own server work from HQ autonomy.yaml (plan 15.17)', () => {
     `ssh myserver '{mv,/srv/data} ~/tmp/x; rm -rf ~/tmp/x'`,
     `bash -c "ssh myserver true; rm -rf ~/tmp/x"`,
     `ssh myserver 'cat ~/tmp/run' | sh; ssh myserver 'rm -rf ~/tmp/x'`,
-    `ssh myserver 'mv\t/srv/data ~/tmp/x; rm -rf ~/tmp/x'`
+    `ssh myserver 'mv\t/srv/data ~/tmp/x; rm -rf ~/tmp/x'`,
+    // Fourth round, 02.11: what reads a pipe may run it.
+    `ssh myserver 'cat /tmp/run' | ssh myserver sh -s; ssh myserver 'rm -rf ~/tmp/x'`,
+    `ssh myserver 'cat /tmp/run' | ssh myserver 'bash -s'; ssh myserver 'rm -rf ~/tmp/x'`,
+    `ssh myserver 'cat /tmp/run' |& sh; ssh myserver 'rm -rf ~/tmp/x'`,
+    `ssh myserver 'cat /tmp/a' | tar -x --to-command=sh; ssh myserver 'rm -rf ~/tmp/x'`,
+    `ssh myserver 'cat /tmp/a' | sort -o /srv/x; ssh myserver 'rm -rf ~/tmp/x'`
   ])('holds %s', (command) => {
     expect(held(command)).toBe(true)
   })
