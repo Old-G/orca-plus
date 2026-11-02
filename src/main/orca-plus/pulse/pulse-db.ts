@@ -28,6 +28,7 @@ import {
 import { listLedgerCards, settleLedgerMessage } from './pulse-ledger-cards'
 import { recordAgentSend, type HqAgentSend } from './pulse-sent'
 import { setConversationChat } from './pulse-ledger-chat'
+import { pulseAttribution } from './pulse-attribution'
 import { listOpenLedgerConversations } from './pulse-ledger-open'
 import {
   closeLedgerConversation,
@@ -97,6 +98,8 @@ export class PulseDb {
   private readonly core: PulseCore
   /** Custom build (hq-ledger-answers): what the ledger keeps in shadow, to compare with the readers. */
   readonly ledgerShadow = pulseLedgerShadow(() => this.core)
+  /** Custom build (hq-attribution-log): guesses about conversations beside the owner's choices. */
+  readonly attribution = pulseAttribution(() => this.core)
 
   constructor(path: (string & {}) | ':memory:', clock: Partial<PulseClock> = {}) {
     this.core = new PulseCore(path, clock)

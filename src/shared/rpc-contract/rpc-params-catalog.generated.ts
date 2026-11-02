@@ -371,6 +371,9 @@ import {
 } from './hosted-review-params'
 import {
   ChatSendParams,
+  HqAccuracyParams,
+  HqAttributionSkipParams,
+  HqAttributionTakeParams,
   HqContextParams,
   HqConversationDoneParams,
   HqConversationProjectParams,
@@ -1233,6 +1236,9 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.createStacked': HostedReviewCreate,
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
+  'hq.accuracy': HqAccuracyParams,
+  'hq.attributionSkip': HqAttributionSkipParams,
+  'hq.attributionTake': HqAttributionTakeParams,
   'hq.context': HqContextParams,
   'hq.conversationDone': HqConversationDoneParams,
   'hq.conversationProject': HqConversationProjectParams,

@@ -5,6 +5,7 @@
 // opened a conversation with no project, and the person's answer became an Unsorted card beside its own
 // answer card).
 import type { PulseCore } from './pulse-core'
+import { noteConversationProjectGuess } from './pulse-attribution'
 
 /** Links the conversation holding the message `ts` and the waiting answered by it, if both exist. */
 export function linkWaitingAnswer(core: PulseCore, waitingId: string, ts: string): void {
@@ -31,6 +32,7 @@ export function linkWaitingAnswer(core: PulseCore, waitingId: string, ts: string
     core.db
       .prepare(`UPDATE conversations SET project = ?, project_how = 'reply' WHERE id = ?`)
       .run(String(waiting.project), conversationId)
+    noteConversationProjectGuess(core, conversationId)
     core.emit('conversation.updated', 'conversation', conversationId, {
       project: String(waiting.project)
     })

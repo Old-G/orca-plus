@@ -18,8 +18,15 @@ import type {
   HqWhereResult
 } from '../../shared/hq-context'
 import type { CommandHandler } from '../dispatch'
-import { getOptionalStringFlag, getRepeatedStringFlag, getRequiredStringFlag } from '../flags'
+import {
+  getOptionalPositiveIntegerFlag,
+  getOptionalStringFlag,
+  getRepeatedStringFlag,
+  getRequiredStringFlag
+} from '../flags'
 import { printResult } from '../format'
+import type { HqAttributionAccuracy } from '../../shared/hq-attribution'
+import { formatHqAccuracy } from '../hq-accuracy-format'
 import {
   formatHqDispatch,
   formatHqEvents,
@@ -143,6 +150,13 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
 
   // Custom build (hq-plus-routing)
   // Custom build (hq-plus-ladder)
+  'hq accuracy': async ({ flags, client, json }) => {
+    const result = await client.call<HqAttributionAccuracy>('hq.accuracy', {
+      days: getOptionalPositiveIntegerFlag(flags, 'days')
+    })
+    printResult(result, json, formatHqAccuracy)
+  },
+
   'hq ladder': async ({ flags, client, json }) => {
     const sinceFlag = getOptionalStringFlag(flags, 'since')
     const since = sinceFlag === undefined ? undefined : parseHqJournalSince(sinceFlag, Date.now())
