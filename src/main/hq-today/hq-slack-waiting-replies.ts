@@ -4,6 +4,7 @@
 // takes the person's plain DM messages and replies in that DM's threads, since people answer there
 // without opening the question's thread. A question asked on a task or in a channel does not: a DM
 // about something else is not its answer.
+/* eslint-disable max-lines -- Why: one reader over DMs, threads and the model pick; split when it next grows */
 import { HQ_GITLAB_AUTHOR_ID } from '../../shared/hq-mr-watch'
 import {
   HQ_WAITING_REPLY_MAX,
@@ -187,10 +188,13 @@ export async function pollHqSlackWaitingReplies(
       }
     }
     const taken = takenRanges(deps)
+    const questionThreads = new Set(
+      watches.flatMap(({ thread }) => (thread ? [`${thread.channel}:${thread.threadTs}`] : []))
+    )
     const gathered: Gathered[] = []
     for (const watch of watches) {
       try {
-        const found = await gather(deps, api, watch, dmMessages, taken)
+        const found = await gather(deps, api, watch, dmMessages, taken, questionThreads)
         if (found) {
           gathered.push(found)
         }
@@ -305,7 +309,8 @@ async function gather(
   api: SlackReadApi,
   watch: Watch,
   dmMessages: Map<string, SlackReadMessage[]>,
-  taken: readonly TakenRange[] = []
+  taken: readonly TakenRange[] = [],
+  questionThreads: ReadonlySet<string> = new Set()
 ): Promise<Gathered | null> {
   const { waiting, after, thread, dm } = watch
   const found = new Map<string, SlackReadMessage>()
@@ -342,7 +347,8 @@ async function gather(
       dm &&
       newer(message.ts, after) &&
       (!dm.from || message.user === dm.from) &&
-      !isTaken(taken, message, dm.channel, waiting.id)
+      !isTaken(taken, message, dm.channel, waiting.id) &&
+      !inOtherQuestionThread(message, dm.channel, thread, questionThreads)
     ) {
       found.set(message.ts, message)
       channelOf.set(message.ts, dm.channel)
@@ -356,6 +362,25 @@ async function gather(
   // Why kept when nothing is new: a waiting that already took these messages still owns them, so
   // another question that sees them too does not take them again.
   return { watch, messages, channelOf, inThread, asked }
+}
+
+/** Custom build (hq-slack-own-thread, owner 02.11: a person answered in the thread of the question, and
+ *  no card came): a reply in another question's own thread answers that question, so a DM waiting does
+ *  not contest it — contested, the model may pick neither and the answer goes nowhere. */
+function inOtherQuestionThread(
+  message: SlackReadMessage,
+  channel: string,
+  own: Watch['thread'],
+  questionThreads: ReadonlySet<string>
+): boolean {
+  const threadTs = message.threadTs
+  if (!threadTs || threadTs === message.ts) {
+    return false
+  }
+  if (own && own.channel === channel && own.threadTs === threadTs) {
+    return false
+  }
+  return questionThreads.has(`${channel}:${threadTs}`)
 }
 
 const messageKey = (found: Gathered, message: SlackReadMessage): string =>
