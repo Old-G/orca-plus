@@ -43,8 +43,15 @@ const PATH_CHARS = /^[\w.\-+@:,=*?/~]+$/
 // (a link or a mount), move other data into it (`mv`) or swap rm itself, in a way the text does not show.
 const UNSURE =
   /\b(?:ln|mount)\s|--bind\b|\bdocker\s+run\b[^\n;|&]*\s(?:-v|--volume|--mount)\b|\b(?:eval|source|xargs|parallel)\b|(?:^|[;&|(\n])\s*\.\s|-exec(?:dir)?\b|\b(?:HOME|IFS|PATH)\+?=|\b(?:mv|alias|enable|builtin|hash)\s|--remove-source-files\b|\b(?:rm|docker|mktemp)\s*\(\s*\)|\bfunction\s+(?:rm|docker|mktemp)\b/
-// Why: these point docker at another engine than the one on the listed host.
-const OTHER_DOCKER = /\bDOCKER_(?:HOST|CONTEXT)=|\bdocker\s+(?:-H|--host|--context|-c)\b/
+// Why: these point docker at another engine than the one on the listed host (security review, 02.11:
+// `docker context use prod` before the removal).
+const OTHER_DOCKER =
+  /\bDOCKER_(?:HOST|CONTEXT|CONFIG)=|\bdocker\s+(?:-H|--host|--context|-c|--config)\b|\bdocker\s+context\s+use\b/
+// Why: a command name the shell builds from a variable (`m${X}v`, `$X`) may be mv or anything else
+// (security review, 02.11); the first word of a command, of an ssh call's script or of `sh -c`.
+const EXPANDED_COMMAND = new RegExp(
+  String.raw`(?:^|[\n;&|\x60]|\$\(|\{\s|\b(?:then|do|else)\b|\bssh\s[^'"\n;&|]*['"]|\b(?:ba|z)?sh\s+-\w*c\s+['"])\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:(?:sudo|command|exec|env|nice|nohup|time)\s+(?:-\S+\s+)*)*(?![A-Za-z_]\w*=)[^\s;&|()'"]*[$\x60]`
+)
 const QUIET_TARGET = /^\/dev\/(?:null|stdout|stderr)$/
 
 function globMatch(pattern: string, name: string): boolean {
@@ -83,6 +90,37 @@ function sshHost(command: string, from: number): string | null {
     }
   }
   return null
+}
+
+/**
+ * Where each ssh call's remote command lies: its words up to the end of the ssh command, and any quote,
+ * subshell or heredoc opened there (`ssh h bash <<'EOF'`). Security review, 02.11: in
+ * `ssh myserver true; rm -rf ~/shadow_old` the rm runs on this machine, not on the listed host.
+ */
+function remoteSpans(command: string, keys: string[]): [number, number][] {
+  return [...command.matchAll(SSH_CALL)].map((call) => {
+    const at = (call.index ?? 0) + call[0].search(/ssh\s+$/)
+    let end = at
+    while (
+      end < command.length &&
+      !(
+        keys[end] === keys[at] &&
+        /[\n;&|)]/.test(command[end]) &&
+        !(command[end] === '&' && (command[end - 1] === '>' || command[end + 1] === '>'))
+      )
+    ) {
+      end++
+    }
+    return [at, end]
+  })
+}
+
+function isRemote(at: number, spans: [number, number][], keys: string[]): boolean {
+  const opened = (keys[at] ?? '').split(',').map((open) => Number(/\d+$/.exec(open)?.[0] ?? -1))
+  return spans.some(
+    ([start, end]) =>
+      (at >= start && at < end) || opened.some((index) => index >= start && index < end)
+  )
 }
 
 const MKTEMP = Symbol('mktemp')
@@ -130,10 +168,12 @@ function pathMatches(pattern: string, path: string): boolean {
   )
 }
 
+/** A temp path or mktemp variable passes anywhere; a listed path only on a listed host (`remote`). */
 function isOwnPath(
   word: Word,
   path: string | typeof MKTEMP | null,
-  own: HqRemoteNoApprove
+  own: HqRemoteNoApprove,
+  remote: boolean
 ): boolean {
   if (path === MKTEMP) {
     return own.mktemp
@@ -148,7 +188,10 @@ function isOwnPath(
     return false
   }
   const normalized = path.replace(/^\/private\/tmp\//, '/tmp/')
-  return isTempTarget(path) || own.rmPaths.some((pattern) => pathMatches(pattern, normalized))
+  return (
+    isTempTarget(path) ||
+    (remote && own.rmPaths.some((pattern) => pathMatches(pattern, normalized)))
+  )
 }
 
 function isOwnContainerRemoval(
@@ -178,14 +221,17 @@ function isOwnSite(
   site: RegExpMatchArray,
   own: HqRemoteNoApprove,
   bindings: Map<string, Binding>,
-  keys: string[]
+  keys: string[],
+  spans: [number, number][]
 ): boolean {
   const at = site.index ?? 0
   const text = site[0]
   const before = command.slice(0, at)
+  const remote = isRemote(at, spans, keys)
   if (/^docker\s+(?:container\s+)?rm\s/i.test(text)) {
     const rmAt = at + text.search(/\brm\s/i)
     return (
+      remote &&
       AT_COMMAND.test(before) &&
       isOwnContainerRemoval(command, readWords(command, rmAt + 2), own.containers)
     )
@@ -211,7 +257,7 @@ function isOwnSite(
   )
   return (
     targets.length > 0 &&
-    targets.every((word) => isOwnPath(word, resolve(word, bindings, keys), own))
+    targets.every((word) => isOwnPath(word, resolve(word, bindings, keys), own, remote))
   )
 }
 
@@ -250,13 +296,14 @@ function listFor(command: string): HqRemoteNoApprove {
 /** Every destructive step is a /tmp cleanup or, on listed hosts, on the owner's list. */
 export function isOwnRemoteWork(command: string): boolean {
   // Why: `'m'v` and `m\v` are `mv` to the shell.
-  if (UNSURE.test(command.replace(/['"\\]/g, ''))) {
+  if (UNSURE.test(command.replace(/['"\\]/g, '')) || EXPANDED_COMMAND.test(command)) {
     return false
   }
   const own = listFor(command)
   const keys = contextKeys(command)
   const bindings = bindingsIn(command, keys)
+  const spans = remoteSpans(command, keys)
   return [...command.matchAll(DESTRUCTION_SITES)].every((site) =>
-    isOwnSite(command, site, own, bindings, keys)
+    isOwnSite(command, site, own, bindings, keys, spans)
   )
 }
