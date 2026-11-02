@@ -661,3 +661,113 @@ button.hqpc-sum:hover {
   color: #2a0705;
   font-weight: 600;
 }
+
+/* Custom build (hq-plus-inbox, owner 02.11: variant B): Inbox and Projects above the feed; Inbox reads
+   top to bottom as one queue; a folded project card is its head line, a button. */
+.hqpi-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--hqp-line);
+  flex: none;
+}
+.hqpi-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--hqp-mute);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 12px 9px;
+}
+.hqpi-tabs button[aria-selected='true'] {
+  color: var(--hqp-fg);
+  border-bottom-color: var(--hqp-ice);
+}
+.hqpi-tabs .hqpc-n {
+  margin-left: 4px;
+}
+.hqpi {
+  gap: 14px;
+}
+.hqpi-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 13px;
+  color: var(--hqp-mute);
+}
+.hqpi-strip button {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+.hqpi-strip button:hover,
+.hqpi-strip button[aria-expanded='true'] {
+  color: var(--hqp-fg);
+}
+.hqpi-strip b {
+  color: var(--hqp-fg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hqpi-drawer,
+.hqpi-group {
+  display: grid;
+  gap: 8px;
+}
+.hqpi-drawer {
+  padding: 10px 12px;
+  border: 1px solid var(--hqp-line);
+  border-radius: 12px;
+  background: var(--hqp-card);
+}
+.hqpi-h {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--hqp-mute);
+}
+.hqpi-h[data-tone='ap'] {
+  color: var(--hqp-red);
+}
+.hqpi-h[data-tone='you'] {
+  color: var(--hqp-amber);
+}
+.hqpi-h span {
+  font-weight: 400;
+  color: var(--hqp-faint);
+  margin-left: 6px;
+}
+.hqpi-ap {
+  display: grid;
+  gap: 4px;
+}
+.hqpi-of,
+.hqpc-proj {
+  font-size: 12px;
+  color: var(--hqpc-c, var(--hqp-mute));
+  white-space: nowrap;
+}
+.hqpc-proj {
+  border: 1px solid var(--hqp-line);
+  border-radius: 999px;
+  padding: 0 8px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hqpc-headbtn {
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding-bottom: 12px;
+}
+.hqpc-headbtn:hover {
+  background: var(--hqp-soft);
+}
