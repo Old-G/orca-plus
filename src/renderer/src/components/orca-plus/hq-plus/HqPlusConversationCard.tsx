@@ -342,7 +342,11 @@ export function HqPlusConversationCard({
             onToWork={(inbox) => {
               // Why: the conversation's project and chat are what its card shows; a folded part may know neither.
               noteHqPlusTakeHint(inbox.id, { project: part.project, sessionId: part.sessionId })
-              noteHqPlusTakeHint(inbox.id, { project: card.project, sessionId: card.sessionId })
+              noteHqPlusTakeHint(inbox.id, {
+                project: card.project,
+                sessionId: card.sessionId,
+                key: card.conversation?.key ?? null
+              })
               ctx.toWork(inbox)
             }}
           />
