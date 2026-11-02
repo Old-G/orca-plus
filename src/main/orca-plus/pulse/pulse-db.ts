@@ -28,7 +28,7 @@ import {
 import { listLedgerCards, settleLedgerMessage } from './pulse-ledger-cards'
 import { recordAgentSend, type HqAgentSend } from './pulse-sent'
 import { setConversationChat } from './pulse-ledger-chat'
-import { pulseAttribution } from './pulse-attribution'
+import { pulseAttribution } from './pulse-attribution-api'
 import { listOpenLedgerConversations } from './pulse-ledger-open'
 import {
   closeLedgerConversation,

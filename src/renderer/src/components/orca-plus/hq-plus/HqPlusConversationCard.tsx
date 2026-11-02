@@ -342,9 +342,11 @@ export function HqPlusConversationCard({
             onToWork={(inbox) => {
               // Why: the conversation's project and chat are what its card shows; a folded part may know neither.
               noteHqPlusTakeHint(inbox.id, { project: part.project, sessionId: part.sessionId })
+              // Custom build (hq-intake-decide): a chat the model proposed, when none holds it yet.
+              const proposed = card.conversation?.guess?.chat
               noteHqPlusTakeHint(inbox.id, {
                 project: card.project,
-                sessionId: card.sessionId,
+                sessionId: card.sessionId ?? (proposed && proposed !== 'new' ? proposed : null),
                 key: card.conversation?.key ?? null
               })
               ctx.toWork(inbox)
