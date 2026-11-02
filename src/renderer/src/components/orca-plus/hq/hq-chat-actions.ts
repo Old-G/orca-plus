@@ -1,7 +1,7 @@
 // Custom build (hq-chats): what the HQ chat screen does to the rest of the app — open a chat in
 // its project, mark a finished one read, and remember which chat was open across visits.
 import type { GitStatusEntry } from '../../../../../shared/git/status/git-status-types'
-import { detectLanguage } from '@/lib/language-detect'
+import { detectLanguage } from '../../../../../shared/editor-language/editor-language-detect'
 import { joinPath } from '@/lib/path'
 import { activateStructuredAgentSessionTab } from '@/lib/agent-session/structured-agent-session-tab-activation'
 import { activateAndRevealWorkspace } from '@/lib/workspace/activation/worktree-activation'
@@ -110,7 +110,7 @@ export function openHqChangeDiff(
 let hqListWrites: Promise<void> = Promise.resolve()
 
 function updateHqList(
-  key: 'hqKeptProjectIds' | 'hqMarkedChatKeys',
+  key: 'hqKeptProjectIds' | 'hqMarkedChatKeys' | 'hqHiddenProjectIds',
   change: (current: string[]) => string[]
 ): void {
   hqListWrites = hqListWrites.then(async () => {
@@ -123,6 +123,13 @@ function updateHqList(
 export function setHqProjectKept(repoId: string, kept: boolean): void {
   updateHqList('hqKeptProjectIds', (current) =>
     kept ? [...new Set([...current, repoId])] : current.filter((id) => id !== repoId)
+  )
+}
+
+/** Custom build (hq-plus-hide-project): hides a project and its chats from HQ+'s left column, or shows it. */
+export function setHqProjectHidden(repoId: string, hidden: boolean): void {
+  updateHqList('hqHiddenProjectIds', (current) =>
+    hidden ? [...new Set([...current, repoId])] : current.filter((id) => id !== repoId)
   )
 }
 

@@ -30,6 +30,9 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqChatsView?: boolean
     /** Custom build (hq-chats): projects whose latest chats stay on view in HQ even when quiet. */
     hqKeptProjectIds?: string[]
+    /** Custom build (hq-plus-hide-project): projects the owner hid from HQ+'s left column, with their
+     *  chats; «All projects» finds them again. The chats stay open. */
+    hqHiddenProjectIds?: string[]
     /** Custom build (hq-marked-chats): chats the owner marked to come back to, by HQ chat key. */
     hqMarkedChatKeys?: string[]
     /** Custom build (hq-pinned-counts): when each pinned item (reports, feed, journal) was last opened. */
