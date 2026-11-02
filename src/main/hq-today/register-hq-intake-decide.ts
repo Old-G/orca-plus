@@ -18,13 +18,14 @@ const DECIDE_MODEL = 'sonnet'
 const GUESS_MODEL = 'haiku'
 /** Why: tens of new talks a day; a runaway day falls back to the small model, not to a bill. */
 const DECISIONS_PER_DAY = 150
-const CHATS_WINDOW_MS = 3 * 24 * 60 * 60_000
+/** Why a month (Codex 03.11): a chat left open a week is still where its thread's answer belongs. */
+const CHATS_WINDOW_MS = 30 * 24 * 60 * 60_000
+const MAX_CHATS = 25
 
 export function hqIntakeDecider(
   store: Store,
   runtime: OrcaRuntimeService
 ): Pick<HqSlackLedgerDeps, 'guess' | 'setGuess'> {
-  const spent = { day: '', count: 0 }
   const liveChats = (): HqIntakeChatOption[] => {
     const since = Date.now() - CHATS_WINDOW_MS
     const reports = new Map<string, string>()
@@ -43,6 +44,7 @@ export function hqIntakeDecider(
         title: session.address ?? session.sessionId,
         lastReport: reports.get(session.sessionId) ?? null
       }))
+      .slice(0, MAX_CHATS)
   }
   return {
     guess: async (message, author, fromOwner, context) => {
@@ -75,13 +77,9 @@ export function hqIntakeDecider(
           }
         )
       const pages = () => listHqProjectPages(hqPath)
-      const day = new Date().toDateString()
-      if (spent.day !== day) {
-        spent.day = day
-        spent.count = 0
-      }
-      if (spent.count < DECISIONS_PER_DAY) {
-        spent.count += 1
+      // Why from the log (Codex 03.11): a restart must not give the day another 150.
+      const dayStart = new Date().setHours(0, 0, 0, 0)
+      if (runtime.pulseLedgerDecisionsSince(dayStart) < DECISIONS_PER_DAY) {
         const decision = await decideHqIntake(
           {
             ...input,
