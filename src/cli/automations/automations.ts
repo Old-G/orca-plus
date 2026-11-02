@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Why: custom build (automations-chat-model) adds --surface; split when it next grows */
 import type {
   Automation,
   AutomationCreateInput,
@@ -34,6 +35,7 @@ import {
 import { RuntimeClientError } from '../runtime/connection/types'
 import { resolveCurrentWorktreeSelector } from '../workspace-selection/workspace-selector'
 import { getExplicitTarget } from './automation-target-flags'
+import { surfacePatch } from './automation-surface-flag'
 import {
   getEnabledFlag,
   getOptionalProviderFlag,
@@ -212,6 +214,7 @@ export const AUTOMATION_HANDLERS: Record<string, CommandHandler> = {
       missedRunGraceMinutes: getOptionalPositiveIntegerFlag(flags, 'missed-run-grace-minutes'),
       ...(on ? { on } : {}),
       ...(once ? { once } : {}),
+      ...surfacePatch(flags),
       ...schedule
     } satisfies AutomationUpdateParams
     await assertAutomationFieldsSupported(client, updates)
