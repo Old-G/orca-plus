@@ -286,6 +286,11 @@ export class RuntimePulseCommands {
     this.db().attribution.skip(key)
   }
 
+  /** Custom build (hq-intake-decide): conversations the model decided since a moment. */
+  pulseLedgerDecisionsSince(since: number): number {
+    return this.db().attribution.decisionsSince(since)
+  }
+
   /** Custom build (hq-intake-decide): the owner's latest changes to guesses in one place. */
   pulseAttributionHints(keyPrefix: string): string[] {
     return this.db().attribution.hints(keyPrefix)

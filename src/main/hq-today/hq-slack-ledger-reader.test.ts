@@ -334,6 +334,26 @@ describe('Slack ledger reader context', () => {
     expect(db.listLedgerConversations()[0]).toMatchObject({ messages: 2, state: 'you' })
   })
 
+  // Why (Codex 03.11): the same message in the next search overlap must not restart the count.
+  it('gives a thread up after five failed reads', async () => {
+    const mention = message({ rawText: `<@${OWNER}> look`, text: 'look' })
+    let calls = 0
+    const { deps } = withApi([mention], {
+      thread: async () => {
+        calls += 1
+        throw new Error('not_in_channel')
+      }
+    })
+
+    let state: Awaited<ReturnType<typeof runHqSlackLedgerReader>> = { cursor: 0, delays: [] }
+    for (let pass = 0; pass < 7; pass += 1) {
+      state = await runHqSlackLedgerReader(deps, state)
+    }
+
+    expect(calls).toBe(5)
+    expect(state.threads?.pending).toEqual([])
+  })
+
   it('С1: a new DM talk is read with the DM lines before it', async () => {
     const ask = message({
       channel: 'D0123HUBXY',

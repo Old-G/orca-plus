@@ -8,7 +8,11 @@ import {
   noteAttributionTake,
   type HqAttributionTake
 } from './pulse-attribution'
-import { setLedgerDecision, type HqLedgerDecision } from './pulse-ledger-decision'
+import {
+  ledgerDecisionsSince,
+  setLedgerDecision,
+  type HqLedgerDecision
+} from './pulse-ledger-decision'
 
 /** What PulseDb exposes: the owner's take and skip, the counts, and the raw rows for tests. */
 export function pulseAttribution(core: () => PulseCore) {
@@ -20,6 +24,7 @@ export function pulseAttribution(core: () => PulseCore) {
     /** Custom build (hq-intake-decide): the model's project, chat, kind and certainty. */
     decide: (conversationId: string, decision: HqLedgerDecision) =>
       setLedgerDecision(core(), conversationId, decision),
+    decisionsSince: (since: number) => ledgerDecisionsSince(core(), since),
     records: () =>
       core()
         .db.prepare(
