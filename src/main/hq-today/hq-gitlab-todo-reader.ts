@@ -70,14 +70,6 @@ const WHILE_OPEN: ReadonlySet<string> = new Set([
   'review_submitted'
 ])
 
-/** GitLab's notices about the owner's own MR, and the to-do he added himself: their author may be him. */
-const RAISED_FOR_OWNER: ReadonlySet<string> = new Set([
-  'build_failed',
-  'unmergeable',
-  'merge_train_removed',
-  'marked'
-])
-
 /** GitLab's bot users (`project_12_bot_…`, `group_3_bot_…`, `service_account_…`) and any name with
  *  `bot` as a part of it (`ci-bot`, `review_bot`). */
 const BOT_NAME = /(?:^|[-_.])bot(?:[-_.\d]|$)|^service_account/i
@@ -173,13 +165,13 @@ export function hqGitLabTodoAsks(
   )
 }
 
-/** The owner's own words on the MR: his account wrote it, and it is no notice GitLab raised for him.
+/** The owner's own words on the MR: his account wrote it.
  *  Why: his agents comment under his account and name him (31.10: «Согласовано и влито … @owner»); that
- *  is his word on the MR, not a request. */
+ *  is his word on the MR, not a request. GitLab's notices on his own MR (cannot merge, build failed) and
+ *  a to-do he added carry his name too, and he wants none of them (02.11: «don't send me my own MR, only
+ *  what other people send»). */
 function ownWords(todo: HqGitLabTodo, owner: string): boolean {
-  return (
-    todo.authorUsername?.toLowerCase() === owner.toLowerCase() && !RAISED_FOR_OWNER.has(todo.action)
-  )
+  return todo.authorUsername?.toLowerCase() === owner.toLowerCase()
 }
 
 /**
