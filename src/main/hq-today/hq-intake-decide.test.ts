@@ -120,12 +120,18 @@ describe('the intake decision', () => {
 
 // Custom build (hq-intake-decide): the day's limit counts every call, failed ones too.
 describe('the decision budget', () => {
-  it('counts attempts that wrote nothing, keeps the log count after a restart, starts over each day', () => {
-    const take = hqIntakeBudget(2)
-    expect(take(1, () => 0)).toBe(true)
-    expect(take(1, () => 0)).toBe(true)
-    expect(take(1, () => 0)).toBe(false)
-    expect(hqIntakeBudget(2)(1, () => 2)).toBe(false)
-    expect(take(2, () => 0)).toBe(true)
+  it('writes each call before it is made and stops at the limit, a restart included', () => {
+    const calls: number[] = []
+    const store = {
+      since: (dayStart: number) => calls.filter((at) => at >= dayStart).length,
+      note: () => calls.push(10)
+    }
+    const take = hqIntakeBudget(2, store)
+    expect(take(1)).toBe(true)
+    expect(take(1)).toBe(true)
+    expect(take(1)).toBe(false)
+    // Why: a restart builds a new budget over the same written calls.
+    expect(hqIntakeBudget(2, store)(1)).toBe(false)
+    expect(take(11)).toBe(true)
   })
 })
