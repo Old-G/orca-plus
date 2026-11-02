@@ -22,6 +22,16 @@ export type HqFeedConversation = {
   sessionId: string | null
   /** The newest messages, oldest first. */
   messages: HqFeedMessage[]
+  /** Custom build (hq-intake-decide): what the model proposed and the owner has not judged yet. */
+  guess?: HqFeedGuess | null
+}
+
+/** Custom build (hq-intake-decide): the chat (`new` for a new one) and card kind the model proposed. */
+export type HqFeedGuess = {
+  chat: string | null
+  kind: string | null
+  confidence: number | null
+  why: string | null
 }
 
 /** What `hq.feed` adds from the ledger. */
