@@ -191,24 +191,19 @@ export async function decideHqIntake(
 }
 
 /**
- * The day's spend on decisions: true takes one more. Why both counts: the decisions in the log survive a
- * restart (Codex 03.11); the attempts in memory include calls that gave nothing usable and wrote no row,
- * which were paid for all the same (security review 03.11). An attempt counts before its call.
+ * The day's spend on decisions: true takes one more and writes it first. Why the database (Codex and
+ * security review 03.11): every call is paid for, failed or unusable ones too, and a restart must not
+ * start the day over.
  */
 export function hqIntakeBudget(
-  limit: number
-): (dayStart: number, recorded: (since: number) => number) => boolean {
-  const attempts = { day: 0, count: 0 }
-  return (dayStart, recorded) => {
-    if (attempts.day !== dayStart) {
-      attempts.day = dayStart
-      attempts.count = 0
-    }
-    const spent = Math.max(recorded(dayStart), attempts.count)
-    if (spent >= limit) {
+  limit: number,
+  spent: { since: (dayStart: number) => number; note: () => void }
+): (dayStart: number) => boolean {
+  return (dayStart) => {
+    if (spent.since(dayStart) >= limit) {
       return false
     }
-    attempts.count = spent + 1
+    spent.note()
     return true
   }
 }

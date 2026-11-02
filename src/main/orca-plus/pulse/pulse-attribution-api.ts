@@ -9,7 +9,8 @@ import {
   type HqAttributionTake
 } from './pulse-attribution'
 import {
-  ledgerDecisionsSince,
+  ledgerDecisionAttemptsSince,
+  noteLedgerDecisionAttempt,
   setLedgerDecision,
   type HqLedgerDecision
 } from './pulse-ledger-decision'
@@ -24,7 +25,8 @@ export function pulseAttribution(core: () => PulseCore) {
     /** Custom build (hq-intake-decide): the model's project, chat, kind and certainty. */
     decide: (conversationId: string, decision: HqLedgerDecision) =>
       setLedgerDecision(core(), conversationId, decision),
-    decisionsSince: (since: number) => ledgerDecisionsSince(core(), since),
+    attempt: () => noteLedgerDecisionAttempt(core()),
+    attemptsSince: (since: number) => ledgerDecisionAttemptsSince(core(), since),
     records: () =>
       core()
         .db.prepare(
