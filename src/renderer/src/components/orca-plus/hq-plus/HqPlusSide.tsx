@@ -9,7 +9,7 @@ import { translate } from '@/i18n/i18n'
 import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
 import type { HqChatItem } from '../hq/hq-chat-list'
 import { useHqChatTitle } from '../hq/HqChatAvatar'
-import { hqPlusChatIsIdle, hqPlusChatWaitingFor, type HqPlusProjectChats } from './hq-plus-chats'
+import { hqPlusChatIsIdle, hqPlusChatWaitingLabel, type HqPlusProjectChats } from './hq-plus-chats'
 import { HqPlusNewChat, useHqPlusNewChatTargets } from './HqPlusNewChat'
 import { useHqPlusLastReply } from './use-hq-plus-last-reply'
 import { AllProjects, ProjectHeader, tileStyle } from './HqPlusSideProjects'
@@ -100,7 +100,8 @@ function ChatRow({
   const sessionId =
     item.kind === 'chat' && item.tab.contentType === 'agent-session' ? item.tab.entityId : null
   const fullReply = useHqPlusLastReply(sessionId, settled, item.sortAt)
-  const waitingFor = settled ? hqPlusChatWaitingFor(fullReply ?? item.card?.lastAgentMessage) : null
+  // Custom build (hq-plus-waiting-after-read): unread, it stays «done» until the owner opens it.
+  const waitingFor = hqPlusChatWaitingLabel(item, fullReply ?? item.card?.lastAgentMessage)
   const chip = waitingFor
     ? { label: translate('auto.hqPlus.side.waitingFor', 'waiting'), tone: 'waits' }
     : chipOf(item, now)
