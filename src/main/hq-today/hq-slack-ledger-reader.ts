@@ -9,7 +9,8 @@ import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-fligh
 import {
   contextOf,
   withWholeThreads,
-  type HqSlackLedgerContextLine
+  type HqSlackLedgerContextLine,
+  type HqSlackThreadQueue
 } from './hq-slack-ledger-context'
 
 export type { HqSlackLedgerContextLine } from './hq-slack-ledger-context'
@@ -90,6 +91,8 @@ export type HqSlackLedgerState = {
   passAt?: number
   /** Seconds without a pass before a catch-up that read something; its messages are not delays. */
   gaps?: number[]
+  /** Custom build (hq-ledger-context): threads read whole and threads still owed a read. */
+  threads?: HqSlackThreadQueue
 }
 
 /** The ledger signal of one Slack message; null for bots and system lines. */
@@ -144,7 +147,11 @@ export async function runHqSlackLedgerReader(
       }
       return names.get(user) ?? user
     }
-    const { messages, threads, fetched } = await withWholeThreads(api, found, deps.lastDirection)
+    const { messages, threads, fetched, queue } = await withWholeThreads(
+      api,
+      found,
+      state.threads ?? { read: [], pending: [] }
+    )
     const fresh: {
       message: HqSlackLedgerMessage
       author: string | null
@@ -199,7 +206,7 @@ export async function runHqSlackLedgerReader(
         item.context = await contextOf(api, item.message, threads, nameOf)
       }
     }
-    return { fresh, cursor, fetched }
+    return { fresh, cursor, fetched, queue }
   })
   if (!read) {
     return state
@@ -234,7 +241,8 @@ export async function runHqSlackLedgerReader(
     cursor: Math.max(read.cursor, state.cursor),
     delays: delays.slice(-500),
     passAt: now,
-    gaps: gaps.slice(-50)
+    gaps: gaps.slice(-50),
+    threads: read.queue
   }
 }
 
