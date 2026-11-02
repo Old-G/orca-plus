@@ -232,3 +232,116 @@ describe('parity with the scout', () => {
     expect(db.ledgerShadow.hasSlackMessage('D0123HUBXY', '1700000900.000100')).toBe(false)
   })
 })
+
+// Custom build (hq-ledger-context, owner 03.11): plan stage 20.2, scenarios С1 and С2.
+describe('Slack ledger reader context', () => {
+  const ROOT = '1700000000.000100'
+  function withApi(
+    found: HqSlackLedgerMessage[],
+    api: {
+      thread?: (channel: string, threadTs: string) => Promise<HqSlackLedgerMessage[]>
+      dmBefore?: () => Promise<HqSlackLedgerMessage[]>
+    }
+  ) {
+    const base = setup(found)
+    const contexts: string[][] = []
+    const deps: HqSlackLedgerDeps = {
+      ...base.deps,
+      read: (run) =>
+        run({
+          owner: OWNER,
+          withOwner: async () => found,
+          name: async (user) => (user === 'U_ANN' ? 'Ann' : user === 'U_BOB' ? 'Bob' : user),
+          ...api
+        }),
+      guess: async (_message, _author, _fromOwner, context) => {
+        contexts.push(context.map((line) => `${line.author}: ${line.text}`))
+        return null
+      }
+    }
+    return { ...base, deps, contexts }
+  }
+
+  it('С2: a mention halfway down a channel thread brings the whole thread, root first', async () => {
+    const mention = message({
+      ts: '1700000100.000100',
+      text: '@owner can you check?',
+      rawText: `<@${OWNER}> can you check?`
+    })
+    const whole = [
+      message({
+        ts: ROOT,
+        threadTs: ROOT,
+        user: 'U_BOB',
+        text: 'Export to CSV breaks on big files'
+      }),
+      message({ ts: '1700000050.000100', text: 'same for me' }),
+      mention
+    ]
+    const { db, deps, contexts } = withApi([mention], { thread: async () => whole })
+
+    const state = await runHqSlackLedgerReader(deps, { cursor: 1_700_000_000_000, delays: [] })
+
+    const [conversation] = db.listLedgerConversations()
+    expect(conversation).toMatchObject({
+      key: `slack:C0123HUBXY:${ROOT}`,
+      messages: 3,
+      title: 'Export to CSV breaks on big files',
+      state: 'you'
+    })
+    expect(contexts).toEqual([['Ann: same for me', 'Ann: @owner can you check?']])
+    // Why: the thread's older lines were read whole, not late.
+    expect(state.delays).toHaveLength(1)
+  })
+
+  it('a thread that cannot be read leaves the message as it was found', async () => {
+    const mention = message({ rawText: `<@${OWNER}> look`, text: 'look' })
+    const { db, deps } = withApi([mention], {
+      thread: async () => {
+        throw new Error('ratelimited')
+      }
+    })
+
+    await runHqSlackLedgerReader(deps, { cursor: 0, delays: [] })
+
+    expect(db.listLedgerConversations()[0]).toMatchObject({ messages: 1, state: 'you' })
+  })
+
+  it('С1: a new DM talk is read with the DM lines before it', async () => {
+    const ask = message({
+      channel: 'D0123HUBXY',
+      ts: '1700000300.000100',
+      threadTs: null,
+      dm: true,
+      text: 'глянь, пожалуйста, ещё раз',
+      rawText: 'глянь, пожалуйста, ещё раз'
+    })
+    const earlier = message({
+      channel: 'D0123HUBXY',
+      ts: '1700000000.000100',
+      threadTs: null,
+      dm: true,
+      text: 'here is the MR: https://gitlab.com/acme/api/-/merge_requests/314'
+    })
+    const asked: unknown[] = []
+    const { db, deps, contexts } = withApi([ask], {
+      dmBefore: async (...args: unknown[]) => {
+        asked.push(args)
+        return [earlier]
+      }
+    })
+
+    await runHqSlackLedgerReader(deps, { cursor: 0, delays: [] })
+
+    expect(db.listLedgerConversations()).toHaveLength(1)
+    expect(contexts).toEqual([
+      ['Ann: here is the MR: https://gitlab.com/acme/api/-/merge_requests/314']
+    ])
+    expect(asked[0]).toEqual([
+      'D0123HUBXY',
+      '1700000300.000100',
+      1_700_000_300_000 - 3 * 24 * 60 * 60_000,
+      20
+    ])
+  })
+})
