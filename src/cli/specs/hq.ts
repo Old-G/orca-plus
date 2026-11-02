@@ -1,5 +1,5 @@
-import type { CommandSpec } from '../args'
-import { GLOBAL_FLAGS } from '../args'
+import type { CommandSpec } from '../discovery/command-spec'
+import { CLI_GLOBAL_FLAGS as GLOBAL_FLAGS } from '../../shared/cli-argument-boundary'
 
 // Custom build (hq-plus-journal): HQ+'s journal for agents. Each chat reads its own room; a chat
 // in the HQ repo (HQ+) reads every room's headings.
@@ -110,6 +110,19 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     allowedFlags: [...GLOBAL_FLAGS, 'address'],
     positionalArgs: ['address'],
     notes: ["Without an address it shows this chat's own thread."]
+  },
+  {
+    // Custom build (hq-attribution-log, owner 03.11)
+    path: ['hq', 'accuracy'],
+    summary:
+      'How often HQ guessed an incoming conversation right: project, chat and card kind kept or changed by you, per source',
+    usage: 'orca hq accuracy [--days <n>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'days'],
+    notes: [
+      'Kept = you sent it to the proposed project and chat unchanged; changed = you picked another; skipped cards are counted apart and never as wrong.',
+      'Choices made before any guess was written are left out. --days defaults to 14.'
+    ],
+    examples: ['orca hq accuracy', 'orca hq accuracy --days 7 --json']
   },
   {
     // Custom build (hq-plus-ladder)
@@ -247,7 +260,7 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
   }
 ]
 
-export const CHAT_COMMAND_SPECS: CommandSpec[] = [
+export const HQ_CHAT_COMMAND_SPECS: CommandSpec[] = [
   {
     // Custom build (hq-plus-reports)
     path: ['chat', 'send'],

@@ -9,10 +9,10 @@ import { PulseDb, pulseDbPath } from './pulse-db'
 import { latestEventSeq } from './pulse-events'
 import { PULSE_SCHEMA_VERSION } from './pulse-schema'
 
-// Why: version 10 (hq-request-ledger) came after every lifted version below.
+// Why: version 10 (hq-request-ledger) and 13 (hq-attribution-log) came after every lifted version below.
 function undoLedger(raw: { exec: (sql: string) => unknown }): void {
   raw.exec(
-    'DROP TABLE ledger_rules; DROP TABLE conversation_messages; DROP TABLE conversations; DROP INDEX waitings_by_conversation'
+    'DROP TABLE attribution_log; DROP TABLE ledger_rules; DROP TABLE conversation_messages; DROP TABLE conversations; DROP INDEX waitings_by_conversation'
   )
   for (const column of [
     'conversation_id',

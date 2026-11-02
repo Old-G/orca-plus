@@ -5,6 +5,7 @@
 import { hqPlaceKey } from '../../../shared/hq-ledger'
 import type { HqFeedConversation, HqFeedLedger } from '../../../shared/hq-feed-ledger'
 import type { PulseCore } from './pulse-core'
+import { noteAttributionFinal, noteAttributionSkip } from './pulse-attribution'
 
 const FEED_MESSAGES = 6
 /** Custom build (hq-ledger-sources): places whose conversation is the card itself, shown however old
@@ -94,6 +95,8 @@ export function setLedgerProject(core: PulseCore, key: string, project: string):
     core.db
       .prepare(`UPDATE conversations SET project = ?, project_how = 'owner' WHERE key = ?`)
       .run(project, key)
+    // Custom build (hq-attribution-log): the owner's pick closes the project guess, kept or changed.
+    noteAttributionFinal(core, key, 'project', project)
     const place = rulePlaceOf(key)
     if (place) {
       core.db
@@ -131,6 +134,7 @@ export function closeLedgerConversation(core: PulseCore, key: string): boolean {
       )
       .run(key).changes > 0
   if (closed) {
+    noteAttributionSkip(core, key)
     core.emit('conversation.updated', 'conversation', key, { state: 'done' })
   }
   return closed

@@ -154,17 +154,17 @@ export function registerHqSlackIntake(
     (_event, itemId: unknown, action: unknown, resolution: unknown, sessionId: unknown) => {
       // Custom build (hq-request-ledger): the thread taken into a chat stays with that chat.
       const chat = text(sessionId)
-      if (action === 'sent' && chat) {
-        const item = runtime
-          .pulseListInbox(true, { kind: HQ_INTAKE_KIND })
-          .find((i) => i.id === text(itemId))
-        const intake = item ? readHqIntake(item.refId) : null
-        if (intake) {
-          runtime.pulseSetConversationChat(
-            `slack:${intake.channel}:${intake.threadTs ?? intake.ts}`,
-            chat
-          )
-        }
+      const item = runtime
+        .pulseListInbox(true, { kind: HQ_INTAKE_KIND })
+        .find((i) => i.id === text(itemId))
+      const intake = item ? readHqIntake(item.refId) : null
+      const key = intake ? `slack:${intake.channel}:${intake.threadTs ?? intake.ts}` : null
+      if (action === 'sent' && chat && key) {
+        runtime.pulseSetConversationChat(key, chat)
+      }
+      // Custom build (hq-attribution-log): a skipped card says nothing about its guesses.
+      if (action !== 'sent' && key) {
+        runtime.pulseNoteAttributionSkip(key)
       }
       return closeHqIntake(deps, text(itemId), {
         action: action === 'sent' ? 'sent' : 'skipped',
