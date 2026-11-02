@@ -220,12 +220,13 @@ run mkdir -p "$backup"
 # between listing and open); one more pass picks up the rest. state_files are checked below.
 # Claude's per-process session records (sessions/<pid>.json) come and go every second; a backup needs none.
 # Custom build (orca-plus-ship): Chromium's caches and Claude's rotating .claude.json copies churn the same
-# way (31.10: three passes in a row failed on Cache_Data) and are rebuilt by themselves.
+# way (31.10: three passes in a row failed on Cache_Data) and are rebuilt by themselves. A file gone between
+# listing and open (23) is as live as one gone mid-copy (24): 02.11, two ships died on Local Storage's leveldb.
 copy_profile() {
   rsync -a --exclude '/claude-profiles/*/home/sessions/' --exclude '/claude-profiles/*/home/backups/' \
     --exclude '/Cache/' --exclude '/Code Cache/' --exclude '/GPUCache/' \
     --exclude '/DawnGraphiteCache/' --exclude '/DawnWebGPUCache/' \
-    "$profile/" "$backup/profile/" || [ $? = 24 ]
+    "$profile/" "$backup/profile/" || { code=$?; [ "$code" = 24 ] || [ "$code" = 23 ]; }
 }
 # Why: macOS openrsync fails the whole pass on one vanished file, so one retry was not always enough.
 backup_profile() { copy_profile || copy_profile || copy_profile; }
