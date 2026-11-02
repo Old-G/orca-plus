@@ -1,15 +1,12 @@
 // Custom build (hq-intake-decide, owner 03.11, plan stage 20.3): one model decision for a new incoming
-// conversation — its project, the chat it belongs to (an open one or a new one), what kind of card it
-// is, whose move it is, how sure the model is and why. It only proposes: the owner sees every field on
-// the card and keeps or changes it, and each choice is counted (hq-attribution-log).
+// conversation — its project, the chat it belongs to (an open one or a new one), whose move it is, how
+// sure the model is and why. It only proposes: the owner keeps or changes each field from the card, and
+// each choice is counted (hq-attribution-log). The card's kind joins with the card that shows it (20.7).
 import type { HqProjectPage } from '../../shared/hq-project-pages'
 import { HQ_ATTRIBUTION_NEW_CHAT } from '../../shared/hq-attribution'
 import { hqPromptName, type HqLedgerGuessInput } from './hq-ledger-guess'
 import { hqIntakeNamedProject } from './hq-slack-intake-suggest'
 import type { HqLedgerDecision } from '../orca-plus/pulse/pulse-ledger-decision'
-
-export const HQ_INTAKE_KINDS = ['do', 'answer', 'fyi', 'reply'] as const
-export type HqIntakeKind = (typeof HQ_INTAKE_KINDS)[number]
 
 /** An open agent chat the conversation may belong to. */
 export type HqIntakeChatOption = {
@@ -39,7 +36,6 @@ export type HqIntakeDecision = {
   project: string | null
   /** A listed chat's session id, or `new`. */
   chat: string
-  kind: HqIntakeKind
   state: 'you' | 'fyi'
   /** 0–1. */
   confidence: number
@@ -109,13 +105,13 @@ export function hqIntakeDecidePrompt(
         ]
       : []),
     '',
-    'kind: "do" — asks the user to do or check something; "answer" — asks him a question or a decision;',
-    '"reply" — answers one of the questions listed above; "fyi" — news, thanks, small talk, for others.',
+    'state: "you" — it asks the user to do, answer, decide or check something; "fyi" — news, thanks,',
+    'small talk, something for others.',
     'chat: the id of the open chat already working on exactly this (same task, MR, thread or question),',
-    `else "${HQ_ATTRIBUTION_NEW_CHAT}". A "reply" goes to the chat that asked.`,
+    `else "${HQ_ATTRIBUTION_NEW_CHAT}". An answer to one of the questions above goes to the chat that asked.`,
     'project: a slug from the list, or empty when none clearly fits.',
     'confidence: 0–1, how sure you are of project and chat together; below 0.6 when you are guessing.',
-    'Answer with JSON only: {"project": "", "chat": "", "kind": "", "state": "you" | "fyi",',
+    'Answer with JSON only: {"project": "", "chat": "", "state": "you" | "fyi",',
     '"confidence": 0.0, "why": "<one line in English, under 140 characters: what you based it on>",',
     '"gist": "<one line in Russian, under 100 characters: what the talk is about>"}'
   ]
@@ -144,7 +140,6 @@ export function parseHqIntakeDecision(
   const get = (key: string): unknown => Reflect.get(raw as object, key)
   const project = get('project')
   const chat = get('chat')
-  const kind = get('kind')
   const state = get('state')
   const confidence = Number(get('confidence'))
   const why = get('why')
@@ -157,7 +152,6 @@ export function parseHqIntakeDecision(
         ? (pages.find((page) => norm(page.slug) === norm(project))?.slug ?? null)
         : null,
     chat: listedChat?.sessionId ?? HQ_ATTRIBUTION_NEW_CHAT,
-    kind: (HQ_INTAKE_KINDS as readonly unknown[]).includes(kind) ? (kind as HqIntakeKind) : 'fyi',
     state: state === 'you' ? 'you' : 'fyi',
     confidence: Number.isFinite(confidence) ? Math.min(1, Math.max(0, confidence)) : 0,
     why: typeof why === 'string' && why.trim() ? why.trim().slice(0, 200) : null,
@@ -191,8 +185,30 @@ export async function decideHqIntake(
     state: input.fromOwner ? 'fyi' : decision.state,
     gist: decision.gist,
     chat: decision.chat,
-    kind: decision.kind,
     confidence: decision.confidence,
     why: decision.why
+  }
+}
+
+/**
+ * The day's spend on decisions: true takes one more. Why both counts: the decisions in the log survive a
+ * restart (Codex 03.11); the attempts in memory include calls that gave nothing usable and wrote no row,
+ * which were paid for all the same (security review 03.11). An attempt counts before its call.
+ */
+export function hqIntakeBudget(
+  limit: number
+): (dayStart: number, recorded: (since: number) => number) => boolean {
+  const attempts = { day: 0, count: 0 }
+  return (dayStart, recorded) => {
+    if (attempts.day !== dayStart) {
+      attempts.day = dayStart
+      attempts.count = 0
+    }
+    const spent = Math.max(recorded(dayStart), attempts.count)
+    if (spent >= limit) {
+      return false
+    }
+    attempts.count = spent + 1
+    return true
   }
 }
