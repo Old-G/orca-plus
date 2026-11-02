@@ -136,7 +136,15 @@ describe('own server work from HQ autonomy.yaml (plan 15.17)', () => {
     `ssh myserver 'docker con\\text use prod && docker rm -f api-mcp-check'`,
     `ssh myserver 'docker co"n"text use prod && docker rm -f api-mcp-check'`,
     `ssh myserver 'export DOCKER_HOST; docker rm -f api-mcp-check'`,
-    `ssh myserver 'rm -rf ~/tmp/x; echo $?'`
+    `ssh myserver 'rm -rf ~/tmp/x; echo $?'`,
+    // Third round, 02.11: names built by globs or braces, ssh inside another shell, a pipe into a shell.
+    `ssh myserver 'docker cont*xt use prod && docker rm -f api-mcp-check'`,
+    `ssh myserver 'docker cont?xt use prod && docker rm -f api-mcp-check'`,
+    `ssh myserver '/bin/m[v] /srv/data ~/tmp/x; rm -rf ~/tmp/x'`,
+    `ssh myserver '{mv,/srv/data} ~/tmp/x; rm -rf ~/tmp/x'`,
+    `bash -c "ssh myserver true; rm -rf ~/tmp/x"`,
+    `ssh myserver 'cat ~/tmp/run' | sh; ssh myserver 'rm -rf ~/tmp/x'`,
+    `ssh myserver 'mv\t/srv/data ~/tmp/x; rm -rf ~/tmp/x'`
   ])('holds %s', (command) => {
     expect(held(command)).toBe(true)
   })
