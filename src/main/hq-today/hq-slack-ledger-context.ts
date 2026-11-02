@@ -70,7 +70,10 @@ export async function withWholeThreads(
     } catch (error) {
       console.warn(`[hq-slack-ledger] thread ${place} not read:`, error)
       if (thread.tries + 1 >= THREAD_TRIES) {
+        // Why (Codex 03.11): marked read, so its message in the next search overlap does not queue it
+        // again with fresh tries.
         pending.delete(place)
+        read.add(place)
       } else {
         pending.set(place, { ...thread, tries: thread.tries + 1 })
       }
