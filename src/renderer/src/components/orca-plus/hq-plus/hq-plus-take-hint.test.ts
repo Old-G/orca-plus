@@ -6,8 +6,24 @@ describe('To work picks the project and chat the card showed', () => {
     noteHqPlusTakeHint('item-1', { project: null, sessionId: 'claude_part' })
     noteHqPlusTakeHint('item-1', { project: 'acme-api', sessionId: null })
 
-    expect(hqPlusTakeHint('item-1')).toEqual({ project: 'acme-api', sessionId: 'claude_part' })
+    expect(hqPlusTakeHint('item-1')).toEqual({
+      project: 'acme-api',
+      sessionId: 'claude_part',
+      key: null
+    })
     expect(hqPlusTakeHint('item-2')).toBeNull()
+  })
+
+  // Custom build (hq-attribution-log): the conversation's key reaches the guess → final log.
+  it('keeps the conversation key the card named', () => {
+    noteHqPlusTakeHint('item-3', { project: null, sessionId: null })
+    noteHqPlusTakeHint('item-3', {
+      project: 'acme-api',
+      sessionId: null,
+      key: 'slack:C0ACME:1700000000.1'
+    })
+
+    expect(hqPlusTakeHint('item-3')?.key).toBe('slack:C0ACME:1700000000.1')
   })
 
   it('finds the repo by HQ page slug, else by the project name in Orca', () => {
