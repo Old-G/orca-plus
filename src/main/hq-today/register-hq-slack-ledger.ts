@@ -112,7 +112,7 @@ export function registerHqSlackLedger(
         }),
       ingest: (signal) => runtime.pulseIngestLedger(signal),
       lastDirection: (key) => runtime.pulseLastLedgerDirection(key),
-      guess: (message, author, fromOwner) => {
+      guess: (message, author, fromOwner, context) => {
         const hqPath = store.getSettings().hqPath
         if (!hqPath) {
           return Promise.resolve(null)
@@ -124,7 +124,8 @@ export function registerHqSlackLedger(
             fromOwner,
             dm: message.dm,
             text: message.text,
-            links: slackTextLinks(message.rawText)
+            links: slackTextLinks(message.rawText),
+            context
           },
           {
             pages: () => listHqProjectPages(hqPath),
