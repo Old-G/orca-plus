@@ -134,12 +134,12 @@ describe('GitLab to-do signal', () => {
       fromOwner: true,
       forOwner: false
     })
-    // GitLab names the MR's author on its notice that the owner's MR cannot merge.
+    // GitLab names the MR's author on its notice that the owner's MR cannot merge: his own, no card.
     const conflict = one({ action: 'unmergeable', author: OWNER })
-    expect(hqLedgerSignalOfTodo(conflict, ctx)).toMatchObject({
-      fromOwner: false,
-      forOwner: true,
-      title: 'Cannot merge: Speed up the import'
+    expect(hqLedgerSignalOfTodo(conflict, ctx)).toBeNull()
+    expect(hqLedgerSignalOfTodo(conflict, { ...ctx, exists: true })).toMatchObject({
+      fromOwner: true,
+      forOwner: false
     })
   })
 
