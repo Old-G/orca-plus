@@ -307,6 +307,33 @@ describe('Slack ledger reader context', () => {
     expect(db.listLedgerConversations()[0]).toMatchObject({ messages: 1, state: 'you' })
   })
 
+  // Why (Codex 03.11): a thread its pass could not read is read on a later one, and its older lines
+  // do not change whose move it is.
+  it('reads a thread whose read failed on the next pass, its move unchanged', async () => {
+    const mention = message({ rawText: `<@${OWNER}> look`, text: 'look' })
+    const root = message({ ts: ROOT, threadTs: ROOT, user: 'U_BOB', text: 'Export breaks' })
+    let fail = true
+    const { db, deps } = withApi([mention], {
+      thread: async () => {
+        if (fail) {
+          throw new Error('ratelimited')
+        }
+        return [root, mention]
+      }
+    })
+
+    const first = await runHqSlackLedgerReader(deps, { cursor: 0, delays: [] })
+    expect(first.threads?.pending).toHaveLength(1)
+    fail = false
+    const second = await runHqSlackLedgerReader(
+      { ...deps, read: (run) => deps.read((api) => run({ ...api, withOwner: async () => [] })) },
+      first
+    )
+
+    expect(second.threads).toEqual({ read: [`C0123HUBXY:${ROOT}`], pending: [] })
+    expect(db.listLedgerConversations()[0]).toMatchObject({ messages: 2, state: 'you' })
+  })
+
   it('С1: a new DM talk is read with the DM lines before it', async () => {
     const ask = message({
       channel: 'D0123HUBXY',

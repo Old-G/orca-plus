@@ -43,3 +43,9 @@ export function noteSendingChat(
     )
     .run(signal.sessionId, conversationId, conversationId, at, at, signal.ts)
 }
+
+/** Custom build (hq-ledger-context): when a conversation's newest message was; 0 for none. */
+export function conversationLastAt(core: PulseCore, conversationId: string): number {
+  const row = core.db.prepare('SELECT last_at FROM conversations WHERE id = ?').get(conversationId)
+  return Number(row?.last_at ?? 0)
+}
