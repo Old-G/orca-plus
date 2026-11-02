@@ -30,12 +30,12 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     name: 'serve-reset-identity',
     keys: ['serve reset-identity'],
     load: async () =>
-      (await import('./handlers/serve-reset-identity.ts')).SERVE_RESET_IDENTITY_HANDLERS
+      (await import('./handlers/serve-reset-identity.js')).SERVE_RESET_IDENTITY_HANDLERS
   },
   {
     name: 'serve-service',
     keys: ['serve service install', 'serve service status', 'serve service uninstall'],
-    load: async () => (await import('./handlers/serve-service.ts')).SERVE_SERVICE_HANDLERS
+    load: async () => (await import('./handlers/serve-service.js')).SERVE_SERVICE_HANDLERS
   },
   {
     name: 'account',
@@ -73,6 +73,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
       'hq whoami',
       'hq route',
       'hq ladder',
+      'hq accuracy',
       'hq settle',
       'hq merge-slot',
       'hq context',
@@ -157,7 +158,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
       'terminal close',
       'terminal split'
     ],
-    load: async () => (await import('./handlers/terminal.ts')).TERMINAL_HANDLERS
+    load: async () => (await import('./handlers/terminal.js')).TERMINAL_HANDLERS
   },
   ...BROWSER_HANDLER_GROUPS,
   {
@@ -291,7 +292,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
   {
     name: 'skill-sharing',
     keys: ['skills installed', 'skills share'],
-    load: async () => (await import('./handlers/skill-sharing.ts')).SKILL_SHARING_HANDLERS
+    load: async () => (await import('./handlers/skill-sharing.js')).SKILL_SHARING_HANDLERS
   },
   ...PLUGIN_HANDLER_GROUPS,
   {

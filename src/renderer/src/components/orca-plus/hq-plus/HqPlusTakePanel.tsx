@@ -2,7 +2,7 @@
 // the suggested project preselected, any project and any of its chats (or a new one) to choose, the
 // request's text to adjust and a note. A new chat for a scout request goes the classic «Do» way
 // (ClickUp task, then Claude in the project); an existing chat gets the request as its next turn.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   HQ_INTAKE_KIND,
@@ -33,6 +33,7 @@ import {
 import { hqPlusSaid } from '../../../../../shared/hq-plus-said'
 import { doHqSlackRequest } from '../slack-requests/hq-slack-request-actions'
 import { hqPlusTakeHint, hqPlusTakeHintRepo } from './hq-plus-take-hint'
+import { hqPlusTakeKey, recordHqPlusTake } from './hq-plus-take-record'
 
 type Request = {
   title: string
@@ -141,6 +142,11 @@ export function HqPlusTakePanel({
   const [text, setText] = useState('')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
+  // Custom build (hq-attribution-log): what the panel opened on, judged against what is sent.
+  const proposed = useRef<{ repoId: string | null; chat: string }>({
+    repoId: null,
+    chat: HQ_ROUTE_NEW_CHAT
+  })
   useEffect(() => {
     let live = true
     setRequest('loading')
@@ -166,12 +172,13 @@ export function HqPlusTakePanel({
         hqProjectChats(useAppStore.getState(), repo).some(
           (entry) => entry.sessionId === hint.sessionId
         )
+      const chatValue =
+        loaded?.chat ??
+        (hintChatOpen && hint?.sessionId ? hqRouteChatValue(hint.sessionId) : HQ_ROUTE_NEW_CHAT)
+      proposed.current = { repoId: repo, chat: chatValue }
       setRequest(loaded)
       setRepoId(repo)
-      setChat(
-        loaded?.chat ??
-          (hintChatOpen && hint?.sessionId ? hqRouteChatValue(hint.sessionId) : HQ_ROUTE_NEW_CHAT)
-      )
+      setChat(chatValue)
       setText(loaded?.text ?? '')
       setNote('')
     })
@@ -205,6 +212,23 @@ export function HqPlusTakePanel({
     if (!repoId) {
       return
     }
+    const sentRepo = repoId
+    const sentChat = chat
+    const recordTake = (): void =>
+      void Promise.all([
+        slugOfRepo(proposed.current.repoId ?? '').catch(() => null),
+        slugOfRepo(sentRepo).catch(() => null)
+      ]).then(([proposedSlug, sentSlug]) =>
+        recordHqPlusTake({
+          key: hqPlusTakeKey(item, hqPlusTakeHint(item.id)?.key ?? null),
+          proposedProject: proposed.current.repoId
+            ? (proposedSlug ?? repoName(proposed.current.repoId))
+            : null,
+          proposedChat: proposed.current.chat,
+          project: sentSlug ?? repoName(sentRepo),
+          chat: sentChat
+        })
+      )
     const projectName = repoName(repoId)
     const draft = request.draft
     // Why: the scout's take path drops the owner's note and a ClickUp task's edited text; with
@@ -216,6 +240,7 @@ export function HqPlusTakePanel({
       if (slug) {
         const taken = await doHqSlackRequest({ ...draft, project: slug, description: text })
         if (taken) {
+          recordTake()
           onDone(null)
         }
         return
@@ -236,6 +261,7 @@ export function HqPlusTakePanel({
       const sentTo =
         target.kind === 'chat' ? `«${target.chat.title}»` : `a new chat «${target.name}»`
       toast.success(translate('auto.hqPlus.take.sent', 'Sent to {{where}}', { where: sentTo }))
+      recordTake()
       onDone(target.kind === 'chat' ? target.chat.sessionId : null)
       return
     }
@@ -266,6 +292,7 @@ export function HqPlusTakePanel({
       await window.api.hqProjects.takeSlackDraft({ id: draft.id })
     }
     toast.success(translate('auto.hqPlus.take.sent', 'Sent to {{where}}', { where }))
+    recordTake()
     onDone(target.kind === 'chat' ? target.chat.sessionId : null)
   }
 

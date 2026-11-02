@@ -14,6 +14,7 @@ import { ledgerRuleOf } from './pulse-ledger-feed'
 import { noteSendingChat } from './pulse-ledger-chat'
 import { linkWaitingAnswer, waitingsAnsweredBy } from './pulse-ledger-answer'
 import { linkedIn, namedIn, namesOtherTask } from './pulse-ledger-refs'
+import { noteConversationProjectGuess } from './pulse-attribution'
 
 /** Why: an answer by DM to a question older than two weeks is rarely to that question. */
 export const HQ_LEDGER_PERSON_WINDOW_MS = 14 * 24 * 60 * 60_000
@@ -239,6 +240,9 @@ export function ingestLedgerSignal(core: PulseCore, signal: HqLedgerSignal): HqL
              project = COALESCE(project, ?) WHERE id = ?`
         )
         .run(state, why, signal.at, signal.project, conversationId)
+      // Custom build (hq-attribution-log): the project the conversation holds now is a guess until the
+      // owner keeps or changes it.
+      noteConversationProjectGuess(core, conversationId)
       core.emit('conversation.updated', 'conversation', conversationId, { state, step })
     }
     const waitingIds = step === 'which' ? candidates.map((w) => w.id) : asking
@@ -325,6 +329,7 @@ export function setLedgerGuess(
        WHERE id = ?`
     )
     .run(guess.project, guess.how, guess.project, guess.gist, guess.state, conversationId)
+  noteConversationProjectGuess(core, conversationId)
   core.emit('conversation.updated', 'conversation', conversationId, { guess: true })
 }
 

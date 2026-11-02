@@ -150,6 +150,26 @@ export const HqConversationDoneParams = z.object({
   key: requiredString('A conversation key is required')
 })
 
+// Custom build (hq-attribution-log, owner 03.11): the owner sent a conversation to work — what its card
+// proposed and what he chose, so the guess is counted kept or changed.
+export const HqAttributionTakeParams = z.object({
+  key: requiredString('A conversation key is required'),
+  proposedProject: z.string().trim().min(1).nullable(),
+  proposedChat: requiredString('The proposed chat is required (a session id or "new")'),
+  project: z.string().trim().min(1).nullable(),
+  chat: requiredString('The chosen chat is required (a session id or "new")')
+})
+
+// Custom build (hq-attribution-log): the owner dropped a conversation's card.
+export const HqAttributionSkipParams = z.object({
+  key: requiredString('A conversation key is required')
+})
+
+// Custom build (hq-attribution-log): how often guesses were kept, over the last N days.
+export const HqAccuracyParams = z.object({
+  days: OptionalPositiveInt
+})
+
 // Custom build (hq-closed-loop): a background job's report — what it found, what it asks the owner,
 // what it did by itself. Not a chat, so no caller: the job names itself and, when it has one, the project.
 export const HqJobParams = z

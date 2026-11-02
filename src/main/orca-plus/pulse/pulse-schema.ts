@@ -251,7 +251,28 @@ ALTER TABLE conversation_messages ADD COLUMN decision_id TEXT;
 CREATE INDEX conversation_messages_by_session ON conversation_messages(session_id, at);
 `
 
-const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12]
+// Custom build (hq-attribution-log, owner 03.11): each guess about a conversation's project, chat or
+// card kind beside the owner's choice, so how often a guess is right can be counted per source and field.
+const V13 = `
+CREATE TABLE attribution_log (
+  id TEXT PRIMARY KEY,
+  conversation_key TEXT NOT NULL,
+  source TEXT NOT NULL,
+  field TEXT NOT NULL CHECK (field IN ('project', 'chat', 'kind', 'state')),
+  guess TEXT,
+  guess_how TEXT NOT NULL,
+  confidence REAL,
+  why TEXT,
+  guessed_at INTEGER NOT NULL,
+  final TEXT,
+  final_how TEXT CHECK (final_how IN ('confirm', 'edit', 'skip')),
+  final_at INTEGER
+);
+CREATE INDEX attribution_open ON attribution_log(conversation_key, field, final_at);
+CREATE INDEX attribution_by_final ON attribution_log(final_at);
+`
+
+const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 
