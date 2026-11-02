@@ -11,6 +11,28 @@ import {
 import { HqPlusProjectCard } from './HqPlusProjectCard'
 import type { HqPlusProjectCardContext } from './HqPlusProjectParts'
 import { observeHqPlusNewRows } from './use-hq-plus-new-marks'
+import { HqPlusInbox } from './HqPlusInbox'
+import { hqPlusInboxQueue } from './hq-plus-inbox'
+
+type FeedTab = 'inbox' | 'projects'
+const TAB_KEY = 'orca-plus.hq-plus-feed-tab'
+
+// Why storage may fail: a private profile or blocked storage still opens on Inbox.
+function readTab(): FeedTab {
+  try {
+    return localStorage.getItem(TAB_KEY) === 'projects' ? 'projects' : 'inbox'
+  } catch {
+    return 'inbox'
+  }
+}
+
+function saveTab(tab: FeedTab): void {
+  try {
+    localStorage.setItem(TAB_KEY, tab)
+  } catch {
+    // Why: the tab is a convenience; the feed works without remembering it.
+  }
+}
 
 const BOTTOM_SLACK_PX = 40
 
@@ -34,6 +56,13 @@ export function HqPlusProjectFeed({
   onFilter: (filter: HqPlusProjectFilter) => void
   ctx: HqPlusProjectCardContext
 }): React.JSX.Element {
+  // Custom build (hq-plus-inbox, owner 02.11: variant B): Inbox — one queue of what to do next — and
+  // Projects — the project cards, each its head line until opened.
+  const [tab, setTabState] = useState<FeedTab>(readTab)
+  const setTab = (next: FeedTab): void => {
+    setTabState(next)
+    saveTab(next)
+  }
   const scroller = useRef<HTMLDivElement>(null)
   const { newKeys, markSeen } = ctx.log
   useEffect(() => {
@@ -84,8 +113,42 @@ export function HqPlusProjectFeed({
     atBottom.current = true
     setUnseen(null)
   }
+  const inboxCount = (() => {
+    const queue = hqPlusInboxQueue(feed)
+    return queue.approve.length + queue.asks.length + queue.moves.length
+  })()
+  const tabs = (
+    <div className="hqpi-tabs" role="tablist" aria-label="Feed">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === 'inbox'}
+        onClick={() => setTab('inbox')}
+      >
+        Inbox <span className="hqpc-n">{inboxCount}</span>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === 'projects'}
+        onClick={() => setTab('projects')}
+      >
+        Projects{' '}
+        <span className="hqpc-n">{feed.cards.filter((card) => !card.unsorted).length}</span>
+      </button>
+    </div>
+  )
+  if (tab === 'inbox') {
+    return (
+      <>
+        {tabs}
+        <HqPlusInbox feed={feed} ctx={ctx} />
+      </>
+    )
+  }
   return (
     <>
+      {tabs}
       <div
         className="hqp-log hqpc-feed scrollbar-sleek"
         ref={scroller}
@@ -113,7 +176,7 @@ export function HqPlusProjectFeed({
         ) : null}
         {/* Why: one keyed list, so a card moving down keeps its open parts and drafts. */}
         {feed.cards.map((card) => (
-          <HqPlusProjectCard key={card.slug} card={card} ctx={ctx} />
+          <HqPlusProjectCard key={card.slug} card={card} ctx={ctx} folded />
         ))}
         {/* Why: sticky at the scroller's bottom, so it never covers the Ask HQ box below the feed. */}
         {approvals.length > 0 ? (
