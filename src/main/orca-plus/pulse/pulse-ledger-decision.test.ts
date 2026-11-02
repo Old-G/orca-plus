@@ -41,7 +41,6 @@ describe('the model decision in the ledger', () => {
       state: 'you',
       gist: 'Посмотреть MR',
       chat: 'claude_mr314',
-      kind: 'do',
       confidence: 0.86,
       why: 'MR !314 in the DM'
     })
@@ -67,7 +66,6 @@ describe('the model decision in the ledger', () => {
       state: 'you',
       gist: null,
       chat: 'claude_mr314',
-      kind: 'do',
       confidence: 0.86,
       why: null
     })
