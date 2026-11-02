@@ -3,7 +3,13 @@
 // HQ autonomy.yaml `remote_no_approve`. Whatever the text cannot settle keeps the card.
 import type { HqRemoteNoApprove } from '../hq-autonomy'
 import { bindingsIn, contextKeys, readWords, type Binding, type Word } from './outgoing-shell-words'
-import { SSH_CALL, hasUnknownExpansion, isRemote, remoteSpans } from './outgoing-remote-scope'
+import {
+  SSH_CALL,
+  hasUnknownExpansion,
+  hasUnreadableWords,
+  isRemote,
+  remoteSpans
+} from './outgoing-remote-scope'
 
 // Why: run on another machine or database, these cannot be taken back.
 export const REMOTE_DESTRUCTION =
@@ -42,7 +48,7 @@ const PATH_CHARS = /^[\w.\-+@:,=*?/~]+$/
 // Why: each can feed rm or docker words, rebind a variable, move `~` or point a listed path elsewhere
 // (a link or a mount), move other data into it (`mv`) or swap rm itself, in a way the text does not show.
 const UNSURE =
-  /\b(?:ln|mount)\s|--bind\b|\bdocker\s+run\b[^\n;|&]*\s(?:-v|--volume|--mount)\b|\b(?:eval|source|xargs|parallel)\b|(?:^|[;&|(\n])\s*\.\s|-exec(?:dir)?\b|\b(?:HOME|IFS|PATH)\+?=|\b(?:mv|alias|enable|builtin|hash)\s|--remove-source-files\b|\b(?:rm|docker|mktemp)\s*\(\s*\)|\bfunction\s+(?:rm|docker|mktemp)\b/
+  /\b(?:ln|mount)(?![\w.-])|--bind\b|\bdocker\s+run\b[^\n;|&]*\s(?:-v|--volume|--mount)\b|\b(?:eval|source|xargs|parallel)\b|(?:^|[;&|(\n])\s*\.\s|-exec(?:dir)?\b|\b(?:HOME|IFS|PATH)\+?=|\b(?:mv|alias|enable|builtin|hash)(?![\w.-])|--remove-source-files\b|\b(?:rm|docker|mktemp)\s*\(\s*\)|\bfunction\s+(?:rm|docker|mktemp)\b/
 // Why: these point docker at another engine than the one on the listed host — set in the environment,
 // a config dir, a context switch or a global flag. Read on the text with quotes and backslashes dropped,
 // as the shell reads `con\\text` and `co"n"text` (security review, 02.11).
@@ -267,11 +273,13 @@ export function isOwnRemoteWork(command: string): boolean {
   const own = listFor(command)
   const keys = contextKeys(command)
   const bindings = bindingsIn(command, keys)
-  if (hasUnknownExpansion(command, bindings)) {
+  const sites = [...command.matchAll(DESTRUCTION_SITES)]
+  const rmWords = sites.flatMap((site) =>
+    /^rm\s/i.test(site[0]) ? (readWords(command, (site.index ?? 0) + 2) ?? []) : []
+  )
+  if (hasUnknownExpansion(command, bindings) || hasUnreadableWords(command, rmWords)) {
     return false
   }
   const spans = remoteSpans(command, keys)
-  return [...command.matchAll(DESTRUCTION_SITES)].every((site) =>
-    isOwnSite(command, site, own, bindings, keys, spans)
-  )
+  return sites.every((site) => isOwnSite(command, site, own, bindings, keys, spans))
 }
