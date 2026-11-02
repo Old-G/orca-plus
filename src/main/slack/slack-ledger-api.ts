@@ -10,6 +10,8 @@ function asString(value: unknown): string | null {
 
 const LEDGER_PAGE = 100
 const LEDGER_PAGES = 5
+/** Custom build (hq-ledger-context): a thread read whole keeps its newest replies past this many. */
+const THREAD_LIMIT = 200
 
 /** `after:` takes a day; the day before `since` (local) keeps Slack's own time zone out of it. */
 function searchDayBefore(since: number): string {
@@ -51,6 +53,64 @@ export function createSlackLedgerApi(
         }
       }
       return [...found.values()].sort((a, b) => Number(b.ts) - Number(a.ts))
+    },
+    // Custom build (hq-ledger-context, owner 03.11): a thread the owner was pulled into is read whole,
+    // root first, so its conversation is the talk and not the one line that found it.
+    thread: async (channel, threadTs, dm) => {
+      const body = await slackRequest(token, 'conversations.replies', {
+        channel,
+        ts: threadTs,
+        limit: THREAD_LIMIT
+      })
+      const messages = Array.isArray(body.messages) ? body.messages : []
+      return await Promise.all(
+        messages.map((entry) => ledgerMessage(asSlackRecord(entry), channel, dm, threadTs))
+      ).then((read) => read.filter((message): message is HqSlackLedgerMessage => message !== null))
+    },
+    // Custom build (hq-ledger-context): the DM lines before a new talk, for understanding it.
+    dmBefore: async (channel, beforeTs, since, limit) => {
+      const body = await slackRequest(token, 'conversations.history', {
+        channel,
+        latest: beforeTs,
+        oldest: (since / 1000).toFixed(6),
+        inclusive: false,
+        limit
+      })
+      const messages = Array.isArray(body.messages) ? body.messages : []
+      const read = await Promise.all(
+        messages.map((entry) => ledgerMessage(asSlackRecord(entry), channel, true, null))
+      )
+      return read
+        .filter((message): message is HqSlackLedgerMessage => message !== null)
+        .sort((a, b) => Number(a.ts) - Number(b.ts))
+    }
+  }
+
+  async function ledgerMessage(
+    entry: Record<string, unknown>,
+    channel: string,
+    dm: boolean,
+    threadTs: string | null
+  ): Promise<HqSlackLedgerMessage | null> {
+    const ts = asString(entry.ts)
+    if (!ts) {
+      return null
+    }
+    const user = asString(entry.user)
+    const raw = asString(entry.text) ?? ''
+    return {
+      channel,
+      ts,
+      threadTs: asString(entry.thread_ts) ?? threadTs,
+      user,
+      text: plainSlackText(raw),
+      rawText: raw,
+      permalink: null,
+      dm,
+      bot:
+        Boolean(entry.bot_id) ||
+        entry.subtype === 'bot_message' ||
+        (user !== null && user !== owner && (await isBot(user)))
     }
   }
 
