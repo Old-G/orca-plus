@@ -1,7 +1,12 @@
 // Custom build (hq-plus-take-hint, owner 02.11): the project and chat a card showed when «To work» was
 // pressed, so the picker on the right opens on them instead of on nothing — the request itself (a
 // Slack or ClickUp message) often names no project; the card's conversation does.
-export type HqPlusTakeHint = { project: string | null; sessionId: string | null }
+export type HqPlusTakeHint = {
+  project: string | null
+  sessionId: string | null
+  /** Custom build (hq-attribution-log): the conversation the card stood for, when it knew one. */
+  key?: string | null
+}
 
 const MAX_HINTS = 50
 const hints = new Map<string, HqPlusTakeHint>()
@@ -12,7 +17,8 @@ export function noteHqPlusTakeHint(itemId: string, hint: HqPlusTakeHint): void {
   hints.delete(itemId)
   hints.set(itemId, {
     project: hint.project ?? known?.project ?? null,
-    sessionId: hint.sessionId ?? known?.sessionId ?? null
+    sessionId: hint.sessionId ?? known?.sessionId ?? null,
+    key: hint.key ?? known?.key ?? null
   })
   if (hints.size > MAX_HINTS) {
     hints.delete(hints.keys().next().value ?? '')
