@@ -21,10 +21,14 @@ describe('a tool-narrowed automation stays in the terminal', () => {
   it('refuses the chat surface while the extras take tools away', async () => {
     const { assertAutomationExtraAgentArgs, narrowsAutomationTools } =
       await import('../../shared/automations/launch/automation-extra-agent-args-record')
-    expect(narrowsAutomationTools('--model sonnet --no-chrome')).toBe(true)
-    expect(narrowsAutomationTools('--disallowedTools=mcp__acme')).toBe(true)
-    expect(narrowsAutomationTools('--strict-mcp-config')).toBe(true)
-    expect(narrowsAutomationTools('--model sonnet')).toBe(false)
+    const narrows = (extraAgentArgs: string) =>
+      narrowsAutomationTools({ agentId: 'claude', extraAgentArgs })
+    expect(narrows('--model sonnet --no-chrome')).toBe(true)
+    expect(narrows('--disallowedTools=mcp__acme')).toBe(true)
+    expect(narrows('--strict-mcp-config')).toBe(true)
+    // Why (Codex 03.11): the parser accepts a quoted flag.
+    expect(narrows("--model sonnet '--no-chrome'")).toBe(true)
+    expect(narrows('--model sonnet')).toBe(false)
     expect(() =>
       assertAutomationExtraAgentArgs({
         agentId: 'claude',
