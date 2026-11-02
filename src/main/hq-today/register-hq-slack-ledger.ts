@@ -5,21 +5,15 @@ import { join } from 'node:path'
 import { HQ_SLACK_SCOUT_DIR } from '../../shared/hq-slack-scout'
 import type { Store } from '../persistence'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
 import { withSlackReader } from '../slack/slack-reader'
 import { createSlackLedgerApi } from '../slack/slack-ledger-api'
-import {
-  createSlackReadApi,
-  createSlackReaderCache,
-  slackTextLinks
-} from '../slack/slack-reader-api'
-import { guessHqLedger } from './hq-ledger-guess'
+import { createSlackReadApi, createSlackReaderCache } from '../slack/slack-reader-api'
+import { hqIntakeDecider } from './register-hq-intake-decide'
 import {
   hqSlackParityLine,
   startHqSlackLedgerReader,
   type HqScoutTopic
 } from './hq-slack-ledger-reader'
-import { generateHqText } from './hq-task-questions'
 import { hqLedgerErrorReporter } from './hq-ledger-errors'
 import {
   createHqLedgerAnswers,
@@ -29,8 +23,6 @@ import {
 import { hqReplyJudges } from './register-hq-waiting-replies'
 import type { ClickUpComment } from '../../shared/clickup-types'
 
-// Why: a new conversation's project and move is a small judgement, like routing a 👾 message.
-const GUESS_MODEL = 'haiku'
 /** Why: the scout may raise a topic up to 15 minutes after it moved; younger ones are not compared. */
 const PARITY_SETTLE_MS = 20 * 60_000
 const DAY_MS = 24 * 60 * 60_000
@@ -112,48 +104,8 @@ export function registerHqSlackLedger(
         }),
       ingest: (signal) => runtime.pulseIngestLedger(signal),
       lastDirection: (key) => runtime.pulseLastLedgerDirection(key),
-      guess: (message, author, fromOwner, context) => {
-        const hqPath = store.getSettings().hqPath
-        if (!hqPath) {
-          return Promise.resolve(null)
-        }
-        const person = people().find((entry) => entry.slackUserId === message.user)
-        return guessHqLedger(
-          {
-            author,
-            fromOwner,
-            dm: message.dm,
-            text: message.text,
-            links: slackTextLinks(message.rawText),
-            context
-          },
-          {
-            pages: () => listHqProjectPages(hqPath),
-            authorProjects: () =>
-              person
-                ? runtime
-                    .pulseListWaitings({ status: 'open' })
-                    .filter((waiting) => waiting.personId === person.id && waiting.project)
-                    .map((waiting) => waiting.project ?? '')
-                : [],
-            generate: (prompt) =>
-              generateHqText(
-                prompt,
-                {
-                  emptyResultName: 'ledger guess',
-                  operation: 'hq-ledger-guess',
-                  model: GUESS_MODEL
-                },
-                {
-                  settings: store.getSettings(),
-                  cwd: hqPath,
-                  getAgentEnvResolvers: () => runtime.getCommitMessageAgentEnvironmentResolvers()
-                }
-              )
-          }
-        )
-      },
-      setGuess: (id, guess) => runtime.pulseSetLedgerGuess(id, guess),
+      // Custom build (hq-intake-decide, plan 20.3): project, chat, kind and certainty in one decision.
+      ...hqIntakeDecider(store, runtime),
       now: Date.now,
       answers
     },
