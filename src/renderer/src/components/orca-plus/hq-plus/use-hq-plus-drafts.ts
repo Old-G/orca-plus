@@ -51,7 +51,11 @@ export function useHqPlusDraftChats(items: readonly HqChatItem[]): HqPlusDraftCh
     }
     for (const draft of listHqPlusTerminalDrafts()) {
       const tabId = draft.paneKey.split(':')[0]
-      const item = items.find((entry) => hqChatTabId(entry) === tabId) ?? null
+      // A terminal pane names its terminal tab, which the chat list holds as the Orca tab's entity.
+      const item =
+        items.find((entry) =>
+          entry.kind === 'chat' ? entry.tab.entityId === tabId : hqChatTabId(entry) === tabId
+        ) ?? null
       if (item && !used.has(item.key)) {
         used.add(item.key)
         listed.push({ item, text: draft.text, savedAt: draft.savedAt })
