@@ -30,6 +30,7 @@ import {
   hqPlusTranscript,
   readHqFeedLedger,
   type HqFeedConversation,
+  type HqFeedGuess,
   type HqFeedLedger,
   type HqFeedMessage
 } from './hq-feed-ledger'
@@ -47,6 +48,8 @@ export type HqPlusConversation = {
   /** Custom build (hq-ledger-sources): set on a GitLab MR or a mail thread no card stands for — the
    *  ledger's own word on it, the owner's move or news; its card opens the place or says Done. */
   ledgerState?: 'you' | 'fyi'
+  /** Custom build (hq-intake-decide): the chat and kind the model proposed, not judged yet. */
+  guess?: HqFeedGuess | null
 }
 
 /** Journal rows that only tell what a conversation's cards already show. */
@@ -278,7 +281,8 @@ function conversationCard(
       guessed: conversation?.projectHow === 'model',
       messages,
       parts,
-      link
+      link,
+      guess: conversation?.guess ?? null
     }
   }
 }
