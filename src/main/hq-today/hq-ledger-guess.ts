@@ -23,6 +23,10 @@ const CONTEXT_LINE_CHARS = 300
 
 /** Any run of quotes made one, so no `"""` survives in what others wrote. */
 const unquoted = (text: string): string => text.replace(/"{2,}/g, '"')
+/** Custom build (hq-ledger-context): a name others chose (a Slack display name) on one short line, so
+ *  it can neither close the quote nor start a line of its own. */
+export const hqPromptName = (name: string): string =>
+  unquoted(name).replace(/\s+/g, ' ').trim().slice(0, 80)
 
 export function hqLedgerGuessPrompt(
   input: HqLedgerGuessInput,
@@ -31,7 +35,7 @@ export function hqLedgerGuessPrompt(
 ): string {
   const where =
     input.where ?? (input.dm ? 'a direct message' : 'a Slack thread the user takes part in')
-  const who = input.fromOwner ? 'the user himself' : (input.author ?? 'someone')
+  const who = input.fromOwner ? 'the user himself' : hqPromptName(input.author ?? 'someone')
   return [
     `A new conversation started in ${where}; its first message is from ${who}.`,
     "The user's projects (slug — title):",
@@ -52,7 +56,9 @@ export function hqLedgerGuessPrompt(
           '"""',
           ...input.context.map(
             (line) =>
-              `${line.fromOwner ? 'the user' : (line.author ?? 'someone')}: ${unquoted(line.text)
+              `${line.fromOwner ? 'the user' : hqPromptName(line.author ?? 'someone')}: ${unquoted(
+                line.text
+              )
                 .replace(/\s+/g, ' ')
                 .slice(0, CONTEXT_LINE_CHARS)}`
           ),
