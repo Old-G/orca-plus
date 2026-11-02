@@ -6,6 +6,7 @@ import { buildHqChatList } from '../hq/hq-chat-list'
 import {
   hqPlusChatIsIdle,
   hqPlusChatOfSession,
+  hqPlusChatWaitingFor,
   hqPlusProjectChats,
   hqPlusTerminalTabMates
 } from './hq-plus-chats'
@@ -197,5 +198,24 @@ describe('HQ+ chats', () => {
     expect(terminal && hqPlusTerminalTabMates(items, terminal)).toBe(1)
     expect(alone && hqPlusTerminalTabMates(items, alone)).toBe(0)
     expect(chat && hqPlusTerminalTabMates(items, chat)).toBe(0)
+  })
+})
+
+// Custom build (hq-plus-chat-waiting, owner 02.11).
+describe('a chat that asks to stay open', () => {
+  it('reads what it waits for from the end of its last turn', () => {
+    expect(
+      hqPlusChatWaitingFor('Сделал макет.\n\nНе закрывай: жду твоего решения по макету.')
+    ).toBe('жду твоего решения по макету')
+    expect(hqPlusChatWaitingFor('Итог.\n**Не закрывай, жду ответа от Ann**')).toBe(
+      'жду ответа от Ann'
+    )
+    expect(hqPlusChatWaitingFor("Done.\nDon't close: waiting for Bob")).toBe('waiting for Bob')
+  })
+
+  it('says nothing when the chat may be closed or the line is far above', () => {
+    expect(hqPlusChatWaitingFor('Готово.\nЧат можно закрывать.')).toBeNull()
+    expect(hqPlusChatWaitingFor('Не закрывай: жду Ann\na\nb\nc\nd')).toBeNull()
+    expect(hqPlusChatWaitingFor(null)).toBeNull()
   })
 })

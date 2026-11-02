@@ -9,7 +9,7 @@ import { translate } from '@/i18n/i18n'
 import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
 import type { HqChatItem } from '../hq/hq-chat-list'
 import { useHqChatTitle } from '../hq/HqChatAvatar'
-import { hqPlusChatIsIdle, type HqPlusProjectChats } from './hq-plus-chats'
+import { hqPlusChatIsIdle, hqPlusChatWaitingFor, type HqPlusProjectChats } from './hq-plus-chats'
 import { HqPlusNewChat, useHqPlusNewChatTargets } from './HqPlusNewChat'
 import { AllProjects, ProjectHeader, tileStyle } from './HqPlusSideProjects'
 import { useAppStore } from '@/store'
@@ -91,7 +91,15 @@ function ChatRow({
   waitsOn?: HqPlusOtherWait | null
 }): React.JSX.Element {
   const title = useHqChatTitle(item)
-  const chip = chipOf(item, now)
+  // Custom build (hq-plus-chat-waiting, owner 02.11): a chat whose last words ask to stay open until
+  // someone answers says «waiting», so the owner keeps it and brings the answer back to it.
+  const waitingFor =
+    item.group === 'needs' || item.group === 'working'
+      ? null
+      : hqPlusChatWaitingFor(item.card?.lastAgentMessage)
+  const chip = waitingFor
+    ? { label: translate('auto.hqPlus.side.waitingFor', 'waiting'), tone: 'waits' }
+    : chipOf(item, now)
   // Custom build (hq-plus-ui-v4): a working or starting chat pulses.
   const live = item.group === 'working' || (item.group === 'quiet' && !hqPlusChatIsIdle(item, now))
   return (
@@ -117,7 +125,11 @@ function ChatRow({
         </span>
         <span className="w">{item.sortAt ? formatRelativeTime(item.sortAt, now) : ''}</span>
         <span className="s">
-          {draft ? `✎ ${draft.replace(/\s+/g, ' ').slice(0, 120)}` : previewOf(item, waitsOn)}
+          {draft
+            ? `✎ ${draft.replace(/\s+/g, ' ').slice(0, 120)}`
+            : waitingFor && !waitsOn
+              ? `${waitingFor.charAt(0).toUpperCase()}${waitingFor.slice(1)}`
+              : previewOf(item, waitsOn)}
         </span>
       </button>
       {closer ? <HqPlusCloseChat closer={closer} name={title} /> : null}

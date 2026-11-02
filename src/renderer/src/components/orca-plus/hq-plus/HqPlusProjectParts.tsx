@@ -78,14 +78,17 @@ export function Fold({
   )
 }
 
-function Line({
+export function Line({
   line,
   unsorted,
-  ctx
+  ctx,
+  project = null
 }: {
   line: HqPlusProjectLine
   unsorted: boolean
   ctx: HqPlusProjectCardContext
+  /** Custom build (hq-plus-inbox): the project a line of the one queue belongs to, named on it. */
+  project?: { name: string; color: string | null } | null
 }): React.JSX.Element {
   const log = ctx.log
   const open = log.isExpanded(line.id)
@@ -130,6 +133,16 @@ function Line({
           {chat && line.badge.tone !== 'chat' ? (
             <span className="hqpc-holder">
               <HqPlusChatName chat={chat} />
+            </span>
+          ) : null}
+          {project ? (
+            <span
+              className="hqpc-proj"
+              style={
+                project.color ? ({ '--hqpc-c': project.color } as React.CSSProperties) : undefined
+              }
+            >
+              {project.name}
             </span>
           ) : null}
           <span className="hqpc-age" data-got={line.replied ? 'true' : undefined}>

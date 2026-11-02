@@ -159,3 +159,30 @@ export function hqPlusProjectChats(
     .sort((a, b) => rank(a) - rank(b) || latest(b) - latest(a))
   return { marked, projects, quiet: [] }
 }
+
+const KEEP_OPEN = /(?:не\s+закрывай|don['’]?t\s+close)/i
+
+/**
+ * Custom build (hq-plus-chat-waiting, owner 02.11): what a chat said it waits for at the end of its last
+ * turn — «Не закрывай: жду ответа от Ann» — so its row says «waiting» and the owner keeps it open to
+ * bring the answer back. Null when its last words do not ask to stay open.
+ */
+export function hqPlusChatWaitingFor(text: string | null | undefined): string | null {
+  const lines = (text ?? '')
+    .split('\n')
+    .map((line) => line.replace(/[*_`]/g, '').trim())
+    .filter(Boolean)
+  const said = lines
+    .slice(-3)
+    .toReversed()
+    .find((line) => KEEP_OPEN.test(line))
+  if (!said) {
+    return null
+  }
+  const what = said
+    .slice((said.search(KEEP_OPEN) ?? 0) + (KEEP_OPEN.exec(said)?.[0].length ?? 0))
+    .replace(/^\s*[:,—–-]\s*/, '')
+    .replace(/[.!]\s*$/, '')
+    .trim()
+  return what || 'waiting'
+}
