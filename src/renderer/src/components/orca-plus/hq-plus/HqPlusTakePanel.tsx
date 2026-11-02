@@ -21,6 +21,7 @@ import { hqRouteTargetFor } from '../pulse-bell/hq-intake-toasts'
 import { sendHqRoutePrompt } from '../pulse-bell/hq-route-send'
 import {
   HQ_ROUTE_NEW_CHAT,
+  hqProjectChats,
   hqRepoOfWorktree,
   hqRouteChatValue
 } from '../pulse-bell/hq-route-targets'
@@ -31,6 +32,7 @@ import {
 } from '../../../../../shared/hq-waiting-reply-bell'
 import { hqPlusSaid } from '../../../../../shared/hq-plus-said'
 import { doHqSlackRequest } from '../slack-requests/hq-slack-request-actions'
+import { hqPlusTakeHint, hqPlusTakeHintRepo } from './hq-plus-take-hint'
 
 type Request = {
   title: string
@@ -142,18 +144,37 @@ export function HqPlusTakePanel({
   useEffect(() => {
     let live = true
     setRequest('loading')
-    void loadRequest(item)
-      .catch(() => null)
-      .then((loaded) => {
-        if (!live) {
-          return
-        }
-        setRequest(loaded)
-        setRepoId(loaded?.repoId ?? null)
-        setChat(loaded?.chat ?? HQ_ROUTE_NEW_CHAT)
-        setText(loaded?.text ?? '')
-        setNote('')
-      })
+    // Custom build (hq-plus-take-hint, owner 02.11): the project and chat the card showed come
+    // preselected; the owner checks them and sends.
+    const hint = hqPlusTakeHint(item.id)
+    void Promise.all([
+      loadRequest(item).catch(() => null),
+      hint?.project ? window.api.hqProjects.list().catch(() => null) : Promise.resolve(null)
+    ]).then(([loaded, pages]) => {
+      if (!live) {
+        return
+      }
+      const hinted = hqPlusTakeHintRepo(
+        hint?.project ?? null,
+        pages?.ok ? pages.pages : [],
+        useAppStore.getState().repos
+      )
+      const repo = hinted ?? loaded?.repoId ?? null
+      // Why only an open chat of that project: a closed one, or another project's, cannot take it.
+      const hintChatOpen =
+        !!hint?.sessionId &&
+        hqProjectChats(useAppStore.getState(), repo).some(
+          (entry) => entry.sessionId === hint.sessionId
+        )
+      setRequest(loaded)
+      setRepoId(repo)
+      setChat(
+        loaded?.chat ??
+          (hintChatOpen && hint?.sessionId ? hqRouteChatValue(hint.sessionId) : HQ_ROUTE_NEW_CHAT)
+      )
+      setText(loaded?.text ?? '')
+      setNote('')
+    })
     return () => {
       live = false
     }
