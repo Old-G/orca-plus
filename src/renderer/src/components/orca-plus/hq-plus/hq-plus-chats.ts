@@ -4,7 +4,6 @@ import { structuredAgentSessionTabId } from '../../../../../shared/structured-ag
 import { useAppStore } from '@/store'
 import type { HqPlusLiveChat } from '../../../../../shared/hq-plus-fold'
 import { groupHqChats, type HqChatItem } from '../hq/hq-chat-list'
-import { splitHqActiveProjects } from '../hq/hq-active-projects'
 import { splitHqMarkedChats } from '../hq/hq-marked-chats'
 import { hqChatSessionId } from '../hq/hq-chat-cleanup'
 
@@ -121,22 +120,22 @@ export type HqPlusProjectChats = {
 const GROUP_ORDER = { needs: 0, working: 1, done: 2, quiet: 3 } as const
 
 /**
- * Custom build (hq-plus-chats-by-project): the left column's chats as the classic HQ's Active projects
- * (owner, 25.10) — each project with what needs him, works or is unread, then its recent read chats;
- * marked chats above, every other quiet chat folded. A project that waits on him comes first.
+ * Custom build (hq-plus-chats-by-project): the left column's chats by project — what needs the owner,
+ * works or is unread first, then the rest by time; marked chats above. Custom build
+ * (hq-plus-all-open-chats, owner 02.11): every open chat stays under its project however quiet or old —
+ * no time window, no cap, no Quiet fold; the owner closes chats himself. A project that waits on him
+ * comes first.
  */
 export function hqPlusProjectChats(
   items: readonly HqChatItem[],
   keptRepoIds: readonly string[],
   markedKeys: readonly string[],
-  now: number
+  // Why kept: the screen still passes the time the active window used; the list no longer needs it.
+  _now?: number
 ): { marked: HqChatItem[]; projects: HqPlusProjectChats[]; quiet: HqChatItem[] } {
   const { marked, groups } = splitHqMarkedChats(groupHqChats(items), markedKeys)
-  const split = splitHqActiveProjects(items, keptRepoIds, now, new Set(markedKeys))
-  const byRepo = new Map<string, HqPlusProjectChats>(
-    split.active.map((project) => [project.repoId, { ...project, items: [...project.items] }])
-  )
-  for (const item of [...groups.needs, ...groups.working, ...groups.done]) {
+  const byRepo = new Map<string, HqPlusProjectChats>()
+  for (const item of [...groups.needs, ...groups.working, ...groups.done, ...groups.quiet]) {
     const project = byRepo.get(item.repoId) ?? {
       repoId: item.repoId,
       projectName: item.projectName,
@@ -158,22 +157,5 @@ export function hqPlusProjectChats(
       )
     }))
     .sort((a, b) => rank(a) - rank(b) || latest(b) - latest(a))
-  // Custom build (hq-plus-all-projects): a project with a chat open never drops out for being quiet
-  // (owner, 30.10) — past the active window it keeps a row with its latest chat; older ones fold.
-  const quiet = split.quiet.filter((item) => !markedKeys.includes(item.key))
-  const promoted = new Set<string>()
-  for (const item of [...quiet].sort((a, b) => b.sortAt - a.sortAt)) {
-    if (byRepo.has(item.repoId)) {
-      continue
-    }
-    projects.push({
-      repoId: item.repoId,
-      projectName: item.projectName,
-      kept: keptRepoIds.includes(item.repoId),
-      items: [item]
-    })
-    byRepo.set(item.repoId, projects.at(-1)!)
-    promoted.add(item.key)
-  }
-  return { marked, projects, quiet: quiet.filter((item) => !promoted.has(item.key)) }
+  return { marked, projects, quiet: [] }
 }
