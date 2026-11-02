@@ -65,10 +65,11 @@ export function HqPlusProjectFeed({
   }
   const scroller = useRef<HTMLDivElement>(null)
   const { newKeys, markSeen } = ctx.log
+  // Why the tab: each tab has its own scroller, and NEW rows lose their mark in either.
   useEffect(() => {
     const element = scroller.current
     return element && newKeys ? observeHqPlusNewRows(element, markSeen) : undefined
-  }, [newKeys, markSeen, feed])
+  }, [newKeys, markSeen, feed, tab])
   const atBottom = useRef(true)
   const [unseen, setUnseen] = useState<string | null>(null)
   // Why: what came last is the bottom card and its newest moment; a change of either is an arrival.
@@ -77,7 +78,8 @@ export function HqPlusProjectFeed({
   const seenArrival = useRef<string | null>(null)
   useLayoutEffect(() => {
     const element = scroller.current
-    if (!element || seenArrival.current === arrival) {
+    // Why: Inbox reads from the top; only the project cards open at the bottom, as a chat.
+    if (!element || tab !== 'projects' || seenArrival.current === arrival) {
       return
     }
     const first = seenArrival.current === null
@@ -87,7 +89,7 @@ export function HqPlusProjectFeed({
     } else if (last) {
       setUnseen(last.unsorted ? 'Unsorted' : last.slug)
     }
-  }, [arrival, last])
+  }, [arrival, last, tab])
   // Custom build (hq-card-v2): every action waiting for Approve, oldest first, on a bar at the bottom
   // until it is decided (owner, 01.11: 2A).
   const approvals = feed.cards
@@ -115,7 +117,7 @@ export function HqPlusProjectFeed({
   }
   const inboxCount = (() => {
     const queue = hqPlusInboxQueue(feed)
-    return queue.approve.length + queue.asks.length + queue.moves.length
+    return queue.approve.length + queue.asks.length + queue.moves.length + queue.fyi.length
   })()
   const tabs = (
     <div className="hqpi-tabs" role="tablist" aria-label="Feed">
@@ -142,7 +144,13 @@ export function HqPlusProjectFeed({
     return (
       <>
         {tabs}
-        <HqPlusInbox feed={feed} ctx={ctx} />
+        <HqPlusInbox
+          ref={scroller}
+          feed={feed}
+          filter={filter}
+          emptyText={filter === 'all' ? 'Nothing waits on you.' : EMPTY[filter]}
+          ctx={ctx}
+        />
       </>
     )
   }
