@@ -28,6 +28,7 @@ import {
 import { hqPlusCall } from './use-hq-plus-data'
 import { hqPlusClock as clock } from './HqPlusChatCard'
 import type { HqPlusLogContext } from './HqPlusLog'
+import { noteHqPlusTakeHint } from './hq-plus-take-hint'
 
 const SHOWN_MESSAGES = 3
 
@@ -338,7 +339,12 @@ export function HqPlusConversationCard({
             onChanged={ctx.onChanged}
             expanded={false}
             onExpand={() => {}}
-            onToWork={ctx.toWork}
+            onToWork={(inbox) => {
+              // Why: the conversation's project and chat are what its card shows; a folded part may know neither.
+              noteHqPlusTakeHint(inbox.id, { project: part.project, sessionId: part.sessionId })
+              noteHqPlusTakeHint(inbox.id, { project: card.project, sessionId: card.sessionId })
+              ctx.toWork(inbox)
+            }}
           />
         </div>
       ))}
