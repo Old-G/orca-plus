@@ -26,7 +26,10 @@ export function hqIntakeDecider(
   store: Store,
   runtime: OrcaRuntimeService
 ): Pick<HqSlackLedgerDeps, 'guess' | 'setGuess'> {
-  const budget = hqIntakeBudget(DECISIONS_PER_DAY)
+  const budget = hqIntakeBudget(DECISIONS_PER_DAY, {
+    since: (dayStart) => runtime.pulseLedgerDecisionAttemptsSince(dayStart),
+    note: () => runtime.pulseNoteLedgerDecisionAttempt()
+  })
   const liveChats = (): HqIntakeChatOption[] => {
     const since = Date.now() - CHATS_WINDOW_MS
     const reports = new Map<string, string>()
@@ -78,8 +81,7 @@ export function hqIntakeDecider(
           }
         )
       const pages = () => listHqProjectPages(hqPath)
-      const dayStart = new Date().setHours(0, 0, 0, 0)
-      if (budget(dayStart, (since) => runtime.pulseLedgerDecisionsSince(since))) {
+      if (budget(new Date().setHours(0, 0, 0, 0))) {
         const decision = await decideHqIntake(
           {
             ...input,
