@@ -222,8 +222,24 @@ run mkdir -p "$backup"
 # Custom build (orca-plus-ship): Chromium's caches and Claude's rotating .claude.json copies churn the same
 # way (31.10: three passes in a row failed on Cache_Data) and are rebuilt by themselves. A file gone between
 # listing and open (23) is as live as one gone mid-copy (24): 02.11, two ships died on Local Storage's leveldb.
-# Why (Codex 03.11): 23 also means a file that could not be read or written; only the vanished kind
-# is live churn, so any other error line fails the pass and the backup is not called whole.
+# Why (Codex 03.11, twice): 23 also means a file that could not be read or written. Only the sender
+# losing a source file of the live profile is churn: a line that names the backup, or a receiver step
+# (mkstemp, rename), is a failed copy even when it says «No such file or directory».
+only_vanished_sources() {
+  local line
+  while IFS= read -r line; do
+    case "$line" in
+      '' | *'some files/attrs were not transferred'*) continue ;;
+    esac
+    case "$line" in
+      *"$backup"* | *mkstemp* | *rename* | *receiver* | *generator* | *recv_*) return 1 ;;
+    esac
+    case "$line" in
+      *"$profile/"*'No such file or directory'* | *'vanished'*"$profile/"*) ;;
+      *) return 1 ;;
+    esac
+  done <"$1"
+}
 copy_profile() {
   local errors="$backup/rsync-errors.log"
   rsync -a --exclude '/claude-profiles/*/home/sessions/' --exclude '/claude-profiles/*/home/backups/' \
@@ -232,7 +248,7 @@ copy_profile() {
     "$profile/" "$backup/profile/" 2>"$errors" && return 0
   local code=$?
   [ "$code" = 24 ] && return 0
-  if [ "$code" = 23 ] && ! grep -v -E 'No such file or directory|vanished|some files/attrs were not transferred|^[[:space:]]*$' "$errors" | grep -q .; then
+  if [ "$code" = 23 ] && only_vanished_sources "$errors"; then
     return 0
   fi
   cat "$errors" >&2
