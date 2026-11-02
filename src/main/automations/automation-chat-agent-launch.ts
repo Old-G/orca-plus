@@ -16,6 +16,10 @@ import {
 import { automationRunOperationId, AUTOMATION_AGENT_CALLER } from './automation-run-operation'
 import { createAutomationDispatchToken } from './dispatch-tokens'
 import { tuiAgentDisplayName } from '../../shared/tui-agent-display-names'
+import {
+  AUTOMATION_NARROWED_TOOLS_STAY_IN_TERMINAL,
+  narrowsAutomationTools
+} from '../../shared/automation-extra-agent-args-record'
 
 export type AutomationChatAgentLaunch = HeadlessAutomationDispatchLaunch & {
   terminalHandle: string | null
@@ -70,6 +74,11 @@ async function launchChat(
   request: AutomationChatLaunchRequest
 ): Promise<AutomationChatAgentLaunch> {
   const { automation, run, target } = request
+  // Why (Codex 03.11): a record saved before the check, or edited around it, must not run in a chat
+  // with the tools its terminal run excluded.
+  if (narrowsAutomationTools(automation.extraAgentArgs)) {
+    throw new AutomationRunLaunchError(AUTOMATION_NARROWED_TOOLS_STAY_IN_TERMINAL)
+  }
   let published: AutomationChatAgentLaunch | undefined
   if (automation.reuseSession && automation.workspaceId) {
     const reused = await reuseAutomationChat(runtime, request)
