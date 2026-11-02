@@ -129,7 +129,7 @@ function feed(entries: HqJournalEntry[], inbox: PulseInboxItem[], withLedger = t
 }
 
 describe('hqPlusFeedLog', () => {
-  it('folds a thread’s answer, mention and waiting rows into one card at its newest message', () => {
+  it('folds a thread’s mention and waiting rows into one card; the answer stands as its own card', () => {
     const waitingRow = row({})
     const answerRow = row({
       kind: 'person.reply',
@@ -150,8 +150,13 @@ describe('hqPlusFeedLog', () => {
       { chatQuestions: 'line' }
     )
     const cards = items.filter((item) => item.kind === 'card')
-    // The MR's reminder has no conversation and stays a card of its own.
-    expect(cards.map((card) => card.kind === 'card' && card.type)).toEqual(['conversation', 'bell'])
+    // The MR's reminder has no conversation and stays a card of its own; the answer to our question
+    // is its own card beside the conversation (hq-plus-answer-cards, 02.11).
+    expect(cards.map((card) => card.kind === 'card' && card.type).sort()).toEqual([
+      'bell',
+      'conversation',
+      'reply'
+    ])
     const conversation = items.find((item) => item.id === `conv:${THREAD}`)
     expect(conversation).toMatchObject({
       at: NOW - 8 * MIN,
@@ -163,15 +168,16 @@ describe('hqPlusFeedLog', () => {
       throw new Error('no conversation card')
     }
     expect(conversation.conversation.guessed).toBe(true)
-    expect(conversation.conversation.parts.map((part) => part.inbox?.kind)).toEqual([
-      'hq-waiting-reply',
-      'hq-intake'
+    expect(conversation.conversation.parts.map((part) => part.inbox?.kind)).toEqual(['hq-intake'])
+    // The answer card shows the question and «Done, 19 of 19»; the conversation keeps the rest.
+    expect(conversation.conversation.messages.map((m) => m.text)).toEqual([
+      'the page says not found'
     ])
-    // The ledger saw the answer; the owner's question comes from the waiting.
-    expect(conversation.conversation.messages.map((m) => m.direction)).toEqual(['out', 'in', 'in'])
-    expect(conversation.inbox?.id).toBe(reply.id)
+    expect(conversation.inbox?.id).toBe(mention.id)
     expect(hqPlusNeedsOwner(conversation)).toBe(true)
-    expect(hqPlusInFeedFilter(conversation, 'waits')).toBe(true)
+    // «We wait» shows the answer to our question, now its own card.
+    const answer = items.find((item) => item.kind === 'card' && item.type === 'reply')
+    expect(answer && hqPlusInFeedFilter(answer, 'waits')).toBe(true)
     expect(hqPlusLook(conversation).badges.map((b) => b.label)).toEqual(['YOUR MOVE', 'SLACK'])
     // The waiting rows of the thread are in the card, not beside it.
     expect(items.some((item) => item.id === waitingRow.id || item.id === routed.id)).toBe(false)
@@ -187,11 +193,11 @@ describe('hqPlusFeedLog', () => {
     expect(items.some((item) => item.kind === 'card' && item.type === 'conversation')).toBe(false)
   })
 
-  it('folds a settled conversation to a done card', () => {
+  it('keeps an answer already sent to its chat as its own done card, not a conversation', () => {
     const decided = { ...reply, doneAt: NOW - 2 * MIN, doneAction: 'deliver' }
     const card = hqPlusFeedLog(feed([], [decided]), DAY_START).find((item) => item.kind === 'card')
     expect(card).toMatchObject({
-      type: 'conversation',
+      type: 'reply',
       open: false,
       done: { by: 'action', action: 'deliver' }
     })
