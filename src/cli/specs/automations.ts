@@ -147,6 +147,7 @@ export const AUTOMATION_COMMAND_SPECS: CommandSpec[] = [
       'results-to',
       'once',
       'by',
+      'surface',
       ...AUTOMATION_PRECHECK_FLAGS,
       ...AUTOMATION_TARGET_FLAGS,
       ...AUTOMATION_SCHEDULE_FLAGS,
@@ -166,7 +167,8 @@ export const AUTOMATION_COMMAND_SPECS: CommandSpec[] = [
       'orca automations edit 2f9e... --extra-agent-args=',
       'orca automations edit 2f9e... --on "slack.mentioned in=C0123ABCD" --on "slack.reaction in=C0123ABCD contains=:rocket:"',
       'orca automations edit 2f9e... --runs-in chat --results-to channel:C0123ABCD',
-      'orca automations edit 2f9e... --agent bot'
+      'orca automations edit 2f9e... --agent bot',
+      'orca automations edit 2f9e... --surface chat'
     ]
   },
   {
