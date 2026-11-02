@@ -15,3 +15,31 @@ describe('an automation chat keeps the model its terminal runs named', () => {
     expect(chatSessionOptions(undefined)).toEqual({})
   })
 })
+
+// Custom build (automation-narrow-tools, Codex 03.11): a chat cannot keep the terminal's tool limits.
+describe('a tool-narrowed automation stays in the terminal', () => {
+  it('refuses the chat surface while the extras take tools away', async () => {
+    const { assertAutomationExtraAgentArgs, narrowsAutomationTools } =
+      await import('../../shared/automations/launch/automation-extra-agent-args-record')
+    expect(narrowsAutomationTools('--model sonnet --no-chrome')).toBe(true)
+    expect(narrowsAutomationTools('--disallowedTools=mcp__acme')).toBe(true)
+    expect(narrowsAutomationTools('--strict-mcp-config')).toBe(true)
+    expect(narrowsAutomationTools('--model sonnet')).toBe(false)
+    expect(() =>
+      assertAutomationExtraAgentArgs({
+        agentId: 'claude',
+        extraAgentArgs: '--model sonnet --no-chrome',
+        reuseSession: false,
+        surface: 'chat'
+      })
+    ).toThrow(/terminal/)
+    expect(() =>
+      assertAutomationExtraAgentArgs({
+        agentId: 'claude',
+        extraAgentArgs: '--model sonnet',
+        reuseSession: false,
+        surface: 'chat'
+      })
+    ).not.toThrow()
+  })
+})
