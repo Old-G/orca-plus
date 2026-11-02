@@ -117,6 +117,23 @@ describe('the guess → final log', () => {
     expect(chat).toMatchObject({ confirmed: 0, edited: 1, rate: 0 })
   })
 
+  // Why (Codex 03.11): one decision is counted once.
+  it('a project picked on the chip is not judged again when the card goes to work', () => {
+    const db = openDb()
+    db.ingestLedgerSignal(signal({ project: 'acme-api' }))
+    db.setLedgerProject(THREAD, 'acme-web')
+    db.attribution.take({
+      key: THREAD,
+      proposedProject: 'acme-web',
+      proposedChat: 'new',
+      project: 'acme-web',
+      chat: 'new'
+    })
+
+    const project = db.attribution.accuracy(0).slices.find((slice) => slice.field === 'project')
+    expect(project).toMatchObject({ decided: 1, edited: 1, confirmed: 0 })
+  })
+
   it('a dropped card is a skip, never counted as right or wrong', () => {
     const db = openDb()
     const key = 'gitlab:acme/hub!7'
