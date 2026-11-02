@@ -49,7 +49,8 @@ describe('the model decision in the ledger', () => {
       { field: 'project', guess: 'acme-api', guess_how: 'model', final: null, final_how: null },
       { field: 'chat', guess: 'claude_mr314', guess_how: 'model', final: null, final_how: null }
     ])
-    expect(db.attribution.decisionsSince(0)).toBe(1)
+    db.attribution.attempt()
+    expect(db.attribution.attemptsSince(0)).toBe(1)
     const [conversation] = db.listLedgerFeed(0).conversations
     expect(conversation?.guess).toEqual({
       chat: 'claude_mr314',
