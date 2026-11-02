@@ -2,7 +2,7 @@
 // (hq-chat-cleanup) and, by the owner's setting, only reports them in HQ Reports or closes them
 // like the tab's ×. Renders nothing; lives at the app root.
 import { useEffect, useMemo, useRef } from 'react'
-import { isWebClientLocation } from '@/lib/web-client-location'
+import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import { useAppStore } from '@/store'
 import { resolveRuntimePath } from '../../../../../shared/cross-platform-path'
 import { resolveAgentSessionTabTitle } from '../../tab-bar/tab-bar-item-model'
@@ -82,7 +82,9 @@ function Cleanup(): null {
   const lastReport = useRef('')
 
   useEffect(() => {
-    if (mode === 'off' || !hqPath) {
+    // Custom build (hq-plus-all-open-chats, owner 02.11): HQ+ closes no chat by itself — every open chat
+    // stays under its project until the owner closes it; the classic HQ keeps its cleanup.
+    if (mode === 'off' || !hqPath || hqFlavor() === 'plus') {
       return
     }
     const sweep = async (): Promise<void> => {

@@ -4,9 +4,9 @@ import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app, BrowserWindow, ipcMain } from 'electron'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import { agentHookServer } from '../agent-hooks/server'
+import { agentHookServer } from '../agent-hooks/server/agent-hook-server'
 import { PulseDb, pulseDbPath } from '../orca-plus/pulse/pulse-db'
 import {
   createClaudeHandoffOffers,
@@ -260,7 +260,9 @@ export function registerClaudeHandoffHandlers(
   )
   provideClaudeHandoffLauncher({
     list: () => offers.list(),
-    launch: (id) => launch(id, 'background')
+    // Custom build (hq-plus-all-open-chats, owner 02.11): a successor started for him leaves the old chat
+    // open; he closes it himself once he sees the new one took over.
+    launch: (id) => launch(id, 'background', true)
   })
   return offers
 }
