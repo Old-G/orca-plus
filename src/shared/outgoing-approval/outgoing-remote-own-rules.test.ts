@@ -35,7 +35,8 @@ describe('own server work from HQ autonomy.yaml (plan 15.17)', () => {
     "S=/private/tmp/x/scratchpad; python3 - <<EOF\ns = open('$S/a.py').read() + '''\nEOF\nrm -f $S/a.py; ssh myserver 'rm -f /tmp/a.py'",
     "ssh myserver bash <<'EOF'\ncd ~/api\nrm -rf ~/tmp/deploy-2510\nEOF",
     `ssh myserver true; rm -rf /tmp/x.log`,
-    `ssh myserver 'docker rm -f api-mcp-check' 2>&1 | tail -2`
+    `ssh myserver 'docker rm -f api-mcp-check' 2>&1 | tail -2`,
+    `ssh myserver '(cd ~/api && rm -rf ~/tmp/deploy-2510)'`
   ])('passes %s', (command) => {
     expect(held(command)).toBe(false)
   })
@@ -123,7 +124,19 @@ describe('own server work from HQ autonomy.yaml (plan 15.17)', () => {
     `ssh myserver '$X /srv/data ~/tmp/x; rm -rf ~/tmp/x'`,
     `ssh myserver 'docker context use prod && docker rm -f api-mcp-check'`,
     `ssh myserver 'docker --config ~/other rm -f api-mcp-check'`,
-    `ssh myserver 'DOCKER_CONFIG=~/other docker rm -f api-mcp-check'`
+    `ssh myserver 'DOCKER_CONFIG=~/other docker rm -f api-mcp-check'`,
+    // Second round, 02.11: a local substitution in ssh's words, a quoted name splice, a spliced context.
+    `ssh myserver echo $(rm -rf ~/shadow_old)`,
+    'ssh myserver echo `rm -rf ~/shadow_old`',
+    `ssh myserver "echo $(rm -rf ~/tmp/x)"`,
+    `ssh myserver true <(rm -rf ~/tmp/x)`,
+    `ssh myserver 'X=; m"\${X}"v /srv/data ~/tmp/x; rm -rf ~/tmp/x'`,
+    `ssh myserver 'X=mv; "$X" /srv/data ~/tmp/x; rm -rf ~/tmp/x'`,
+    `ssh myserver 'S=/bin/mv; $S /srv/data ~/tmp/x; rm -rf ~/tmp/x'`,
+    `ssh myserver 'docker con\\text use prod && docker rm -f api-mcp-check'`,
+    `ssh myserver 'docker co"n"text use prod && docker rm -f api-mcp-check'`,
+    `ssh myserver 'export DOCKER_HOST; docker rm -f api-mcp-check'`,
+    `ssh myserver 'rm -rf ~/tmp/x; echo $?'`
   ])('holds %s', (command) => {
     expect(held(command)).toBe(true)
   })
