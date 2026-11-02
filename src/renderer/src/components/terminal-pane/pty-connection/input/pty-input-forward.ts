@@ -19,6 +19,7 @@ import { installTerminalSelectionFitGuard } from '../../viewport/terminal-select
 import type { ConnectPanePtySession } from '../connect-pane-pty-session'
 import { recordAdmittedTerminalUserInput } from '@/diagnostics/telemetry/telemetry'
 import { noteTerminalWebglAtlasTyping } from '@/lib/pane-manager/terminal-rendering/terminal-webgl-atlas-rebuild-interaction'
+import { noteHqPlusTerminalTyping } from '@/components/orca-plus/hq-plus/hq-plus-terminal-drafts'
 
 export function installPtyInputForward(session: ConnectPanePtySession): void {
   session.forwardPtyInput = (data: string, wasUserInput = false): void => {
@@ -76,6 +77,10 @@ export function installPtyInputForward(session: ConnectPanePtySession): void {
     }
     if (!wasUserInput && !isPassiveTerminalInputReport(data)) {
       session.noteTerminalInputForPty(currentPtyId)
+    }
+    if (wasUserInput) {
+      // Custom build (hq-plus-terminal-drafts): HQ+ lists the words left unsent in an agent's input box.
+      noteHqPlusTerminalTyping(session.cacheKey, session.pane.terminal)
     }
     // Why xterm's provenance: its own focus reports reach onData too, and no person typed them.
     const inputKind = wasUserInput ? 'driving' : 'query-reply'
