@@ -7,17 +7,29 @@ import {
   structuredAgentSessionIdOfDraftScope,
   subscribeToNativeChatComposerDrafts
 } from '../../native-chat/native-chat-composer-draft-store'
-import type { HqChatItem } from '../hq/hq-chat-list'
+import { hqChatTabId, type HqChatItem } from '../hq/hq-chat-list'
 import { hqPlusChatOfSession } from './hq-plus-chats'
+import {
+  listHqPlusTerminalDrafts,
+  subscribeToHqPlusTerminalDrafts
+} from './hq-plus-terminal-drafts'
 
 export type HqPlusDraftChat = { item: HqChatItem; text: string; savedAt: number }
 
 let version = 0
-const subscribe = (listener: () => void): (() => void) =>
-  subscribeToNativeChatComposerDrafts(() => {
+const subscribe = (listener: () => void): (() => void) => {
+  const changed = (): void => {
     version += 1
     listener()
-  })
+  }
+  const offChat = subscribeToNativeChatComposerDrafts(changed)
+  // Custom build (hq-plus-terminal-drafts): words left in a terminal agent's own input box count too.
+  const offTerminal = subscribeToHqPlusTerminalDrafts(changed)
+  return () => {
+    offChat()
+    offTerminal()
+  }
+}
 
 /** The open chats holding an unsent draft, the newest draft first. */
 export function useHqPlusDraftChats(items: readonly HqChatItem[]): HqPlusDraftChat[] {
@@ -37,6 +49,14 @@ export function useHqPlusDraftChats(items: readonly HqChatItem[]): HqPlusDraftCh
         listed.push({ item, text: draft.text, savedAt: draft.savedAt })
       }
     }
-    return listed
+    for (const draft of listHqPlusTerminalDrafts()) {
+      const tabId = draft.paneKey.split(':')[0]
+      const item = items.find((entry) => hqChatTabId(entry) === tabId) ?? null
+      if (item && !used.has(item.key)) {
+        used.add(item.key)
+        listed.push({ item, text: draft.text, savedAt: draft.savedAt })
+      }
+    }
+    return listed.sort((a, b) => b.savedAt - a.savedAt)
   }, [items, seen])
 }
