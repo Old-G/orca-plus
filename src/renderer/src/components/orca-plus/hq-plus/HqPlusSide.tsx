@@ -11,6 +11,7 @@ import type { HqChatItem } from '../hq/hq-chat-list'
 import { useHqChatTitle } from '../hq/HqChatAvatar'
 import { hqPlusChatIsIdle, hqPlusChatWaitingFor, type HqPlusProjectChats } from './hq-plus-chats'
 import { HqPlusNewChat, useHqPlusNewChatTargets } from './HqPlusNewChat'
+import { useHqPlusLastReply } from './use-hq-plus-last-reply'
 import { AllProjects, ProjectHeader, tileStyle } from './HqPlusSideProjects'
 import { useAppStore } from '@/store'
 import { setHqProjectHidden } from '../hq/hq-chat-actions'
@@ -92,11 +93,14 @@ function ChatRow({
 }): React.JSX.Element {
   const title = useHqChatTitle(item)
   // Custom build (hq-plus-chat-waiting, owner 02.11): a chat whose last words ask to stay open until
-  // someone answers says «waiting», so the owner keeps it and brings the answer back to it.
-  const waitingFor =
-    item.group === 'needs' || item.group === 'working'
-      ? null
-      : hqPlusChatWaitingFor(item.card?.lastAgentMessage)
+  // someone answers says «waiting», so the owner keeps it and brings the answer back to it. Those words
+  // close a reply, and the card's preview is its first 200 characters on one line, so the row reads the
+  // whole reply from the chat's transcript.
+  const settled = item.group !== 'needs' && item.group !== 'working'
+  const sessionId =
+    item.kind === 'chat' && item.tab.contentType === 'agent-session' ? item.tab.entityId : null
+  const fullReply = useHqPlusLastReply(sessionId, settled, item.sortAt)
+  const waitingFor = settled ? hqPlusChatWaitingFor(fullReply ?? item.card?.lastAgentMessage) : null
   const chip = waitingFor
     ? { label: translate('auto.hqPlus.side.waitingFor', 'waiting'), tone: 'waits' }
     : chipOf(item, now)
