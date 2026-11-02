@@ -338,16 +338,30 @@ describe('ledger cards', () => {
     const [card] = db.listLedgerCards(0)
     expect(card?.messages.map((m) => m.text)).toEqual(['look', 'and this'])
     const other = 'slack:C0123HUBXY:1700000100.000100'
-    db.addWaiting({ direction: 'on-them', title: 'Asked Ann', source: 'slack', sourceRef: other })
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'Asked Ann',
+      source: 'slack',
+      sourceRef: other
+    })
     db.ingestLedgerSignal(signal({ key: other, ts: '1700000101.000000' }))
+    // Why: until the answer is read into its waiting, the conversation's own card shows it (02.11).
+    expect(db.listLedgerCards(0).map((c) => c.key)).toEqual([THREAD, other])
+    db.recordWaitingReply(asked.id, { text: 'hi', author: 'Ann', ts: '1700000101.000000' })
     expect(db.listLedgerCards(0).map((c) => c.key)).toEqual([THREAD])
   })
 
   it('a conversation a chat waits in gets its card once the person wrote more than the answer', () => {
     const db = openDb()
-    db.addWaiting({ direction: 'on-them', title: 'Asked Ann', source: 'slack', sourceRef: THREAD })
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'Asked Ann',
+      source: 'slack',
+      sourceRef: THREAD
+    })
     tick += 10
     db.ingestLedgerSignal(signal({ ts: '1700000001.000000', at: tick + 1, text: 'the answer' }))
+    db.recordWaitingReply(asked.id, { text: 'the answer', author: 'Ann', ts: '1700000001.000000' })
     expect(db.listLedgerCards(0)).toEqual([])
     db.ingestLedgerSignal(signal({ ts: '1700000002.000000', at: tick + 2, text: 'something new' }))
     expect(db.listLedgerCards(0).map((c) => c.key)).toEqual([THREAD])
