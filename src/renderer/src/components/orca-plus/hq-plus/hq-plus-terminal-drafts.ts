@@ -21,6 +21,12 @@ function emit(): void {
   }
 }
 
+function forget(paneKey: string): void {
+  if (drafts.delete(paneKey)) {
+    emit()
+  }
+}
+
 function strip(row: string): string {
   return row.replace(/^\s*[│|]/, '').replace(/[│|]\s*$/, '')
 }
@@ -75,25 +81,27 @@ function readScreen(paneKey: string, terminal: Terminal): void {
         ?.getCell(col)
         ?.isDim() === 1
   )
-  if (text === null) {
-    return
-  }
-  const known = drafts.get(paneKey)
+  // Why null clears too: an agent may hide its box while it works on what was just sent.
   if (!text) {
-    if (known && drafts.delete(paneKey)) {
-      emit()
-    }
+    forget(paneKey)
     return
   }
-  if (known?.text !== text) {
+  if (drafts.get(paneKey)?.text !== text) {
     drafts.set(paneKey, { paneKey, text, savedAt: Date.now() })
     emit()
   }
 }
 
 /** Called on the owner's own keystrokes in a terminal pane; reads its agent's input box once typing pauses. */
-export function noteHqPlusTerminalTyping(paneKey: string, terminal: Terminal): void {
+export function noteHqPlusTerminalTyping(paneKey: string, terminal: Terminal, data: string): void {
   clearTimeout(timers.get(paneKey))
+  // Why: Enter sends the box. Read right after, the screen may show the sent words echoed above a
+  // hidden box, and they would come back as a draft.
+  if (data === '\r') {
+    timers.delete(paneKey)
+    forget(paneKey)
+    return
+  }
   timers.set(
     paneKey,
     setTimeout(() => {
