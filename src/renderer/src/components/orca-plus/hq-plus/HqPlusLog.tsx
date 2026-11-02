@@ -19,6 +19,7 @@ import { observeHqPlusNewRows } from './use-hq-plus-new-marks'
 import { hqPlusDaysAgo, hqPlusSameDay } from '../../../../../shared/hq-plus-feed-days'
 import type { HqPlusLinkClick } from './hq-plus-link-open'
 import type { HqPlusChatRef } from './HqPlusChatName'
+import { noteHqPlusTakeHint } from './hq-plus-take-hint'
 
 const BOTTOM_SLACK_PX = 40
 
@@ -244,7 +245,10 @@ function LogItem({
           onChanged={ctx.onChanged}
           expanded={ctx.isExpanded(item.id)}
           onExpand={(next) => ctx.setExpanded(item.id, next)}
-          onToWork={ctx.toWork}
+          onToWork={(inbox) => {
+            noteHqPlusTakeHint(inbox.id, { project: item.project, sessionId: item.sessionId })
+            ctx.toWork(inbox)
+          }}
         />
       </HqPlusGrow>
     </div>
