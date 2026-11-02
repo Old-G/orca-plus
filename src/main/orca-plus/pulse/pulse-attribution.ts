@@ -230,21 +230,16 @@ function judgeTaken(
   noteAttributionFinal(core, key, field, chosen)
 }
 
-/** Custom build (hq-intake-decide): the open guesses of a conversation's chat and card kind, with how
- *  sure the model was and why — what its card proposes. */
+/** Custom build (hq-intake-decide): the open guess of a conversation's chat, with how sure the model
+ *  was and why — what its card proposes. */
 export function openAttributionGuesses(
   core: PulseCore,
   key: string
-): {
-  chat: string | null
-  kind: string | null
-  confidence: number | null
-  why: string | null
-} | null {
+): { chat: string | null; confidence: number | null; why: string | null } | null {
   const rows = core.db
     .prepare(
       `SELECT field, guess, confidence, why FROM attribution_log
-        WHERE conversation_key = ? AND final_at IS NULL AND field IN ('chat', 'kind', 'project')
+        WHERE conversation_key = ? AND final_at IS NULL AND field IN ('chat', 'project')
           AND guess_how = 'model'`
     )
     .all(key)
@@ -255,7 +250,6 @@ export function openAttributionGuesses(
   const any = rows.find((row) => row.confidence != null) ?? rows[0]
   return {
     chat: of('chat')?.guess == null ? null : String(of('chat')?.guess),
-    kind: of('kind')?.guess == null ? null : String(of('kind')?.guess),
     confidence: any?.confidence == null ? null : Number(any.confidence),
     why: any?.why == null ? null : String(any.why)
   }
