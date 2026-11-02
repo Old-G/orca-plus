@@ -3,6 +3,7 @@
 // HQ autonomy.yaml `remote_no_approve`. Whatever the text cannot settle keeps the card.
 import type { HqRemoteNoApprove } from '../hq-autonomy'
 import { bindingsIn, contextKeys, readWords, type Binding, type Word } from './outgoing-shell-words'
+import { SSH_CALL, hasUnknownExpansion, isRemote, remoteSpans } from './outgoing-remote-scope'
 
 // Why: run on another machine or database, these cannot be taken back.
 export const REMOTE_DESTRUCTION =
@@ -28,7 +29,6 @@ export function isTempTarget(target: string): boolean {
   )
 }
 
-const SSH_CALL = new RegExp(String.raw`(?:^|[\s;&|(\x60{"'/]|\$\()ssh\s+`, 'g')
 const SSH_FLAGS = '46AaCfGgKkMNnqsTtVvXxYy'
 const SSH_SAFE_VALUE_OPTIONS = 'ilOop'
 const SSH_SAFE_CONFIG =
@@ -43,15 +43,11 @@ const PATH_CHARS = /^[\w.\-+@:,=*?/~]+$/
 // (a link or a mount), move other data into it (`mv`) or swap rm itself, in a way the text does not show.
 const UNSURE =
   /\b(?:ln|mount)\s|--bind\b|\bdocker\s+run\b[^\n;|&]*\s(?:-v|--volume|--mount)\b|\b(?:eval|source|xargs|parallel)\b|(?:^|[;&|(\n])\s*\.\s|-exec(?:dir)?\b|\b(?:HOME|IFS|PATH)\+?=|\b(?:mv|alias|enable|builtin|hash)\s|--remove-source-files\b|\b(?:rm|docker|mktemp)\s*\(\s*\)|\bfunction\s+(?:rm|docker|mktemp)\b/
-// Why: these point docker at another engine than the one on the listed host (security review, 02.11:
-// `docker context use prod` before the removal).
+// Why: these point docker at another engine than the one on the listed host — set in the environment,
+// a config dir, a context switch or a global flag. Read on the text with quotes and backslashes dropped,
+// as the shell reads `con\\text` and `co"n"text` (security review, 02.11).
 const OTHER_DOCKER =
-  /\bDOCKER_(?:HOST|CONTEXT|CONFIG)=|\bdocker\s+(?:-H|--host|--context|-c|--config)\b|\bdocker\s+context\s+use\b/
-// Why: a command name the shell builds from a variable (`m${X}v`, `$X`) may be mv or anything else
-// (security review, 02.11); the first word of a command, of an ssh call's script or of `sh -c`.
-const EXPANDED_COMMAND = new RegExp(
-  String.raw`(?:^|[\n;&|\x60]|\$\(|\{\s|\b(?:then|do|else)\b|\bssh\s[^'"\n;&|]*['"]|\b(?:ba|z)?sh\s+-\w*c\s+['"])\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:(?:sudo|command|exec|env|nice|nohup|time)\s+(?:-\S+\s+)*)*(?![A-Za-z_]\w*=)[^\s;&|()'"]*[$\x60]`
-)
+  /DOCKER_[A-Z]|\.docker\b|\bcontext\s+(?:use|create|update|import|rm)\b|\bdocker\s+(?:-H|--host|--context|-c|--config)\b/
 const QUIET_TARGET = /^\/dev\/(?:null|stdout|stderr)$/
 
 function globMatch(pattern: string, name: string): boolean {
@@ -90,37 +86,6 @@ function sshHost(command: string, from: number): string | null {
     }
   }
   return null
-}
-
-/**
- * Where each ssh call's remote command lies: its words up to the end of the ssh command, and any quote,
- * subshell or heredoc opened there (`ssh h bash <<'EOF'`). Security review, 02.11: in
- * `ssh myserver true; rm -rf ~/shadow_old` the rm runs on this machine, not on the listed host.
- */
-function remoteSpans(command: string, keys: string[]): [number, number][] {
-  return [...command.matchAll(SSH_CALL)].map((call) => {
-    const at = (call.index ?? 0) + call[0].search(/ssh\s+$/)
-    let end = at
-    while (
-      end < command.length &&
-      !(
-        keys[end] === keys[at] &&
-        /[\n;&|)]/.test(command[end]) &&
-        !(command[end] === '&' && (command[end - 1] === '>' || command[end + 1] === '>'))
-      )
-    ) {
-      end++
-    }
-    return [at, end]
-  })
-}
-
-function isRemote(at: number, spans: [number, number][], keys: string[]): boolean {
-  const opened = (keys[at] ?? '').split(',').map((open) => Number(/\d+$/.exec(open)?.[0] ?? -1))
-  return spans.some(
-    ([start, end]) =>
-      (at >= start && at < end) || opened.some((index) => index >= start && index < end)
-  )
 }
 
 const MKTEMP = Symbol('mktemp')
@@ -204,7 +169,7 @@ function isOwnContainerRemoval(
     []
   return (
     !!words &&
-    !OTHER_DOCKER.test(command) &&
+    !OTHER_DOCKER.test(command.replace(/['"\\]/g, '')) &&
     names.length > 0 &&
     words.every(
       (word) =>
@@ -296,12 +261,15 @@ function listFor(command: string): HqRemoteNoApprove {
 /** Every destructive step is a /tmp cleanup or, on listed hosts, on the owner's list. */
 export function isOwnRemoteWork(command: string): boolean {
   // Why: `'m'v` and `m\v` are `mv` to the shell.
-  if (UNSURE.test(command.replace(/['"\\]/g, '')) || EXPANDED_COMMAND.test(command)) {
+  if (UNSURE.test(command.replace(/['"\\]/g, ''))) {
     return false
   }
   const own = listFor(command)
   const keys = contextKeys(command)
   const bindings = bindingsIn(command, keys)
+  if (hasUnknownExpansion(command, bindings)) {
+    return false
+  }
   const spans = remoteSpans(command, keys)
   return [...command.matchAll(DESTRUCTION_SITES)].every((site) =>
     isOwnSite(command, site, own, bindings, keys, spans)
