@@ -11,7 +11,7 @@ import {
 import type { PulseCore } from './pulse-core'
 import { closeWaiting } from './pulse-waitings'
 import { ledgerRuleOf } from './pulse-ledger-feed'
-import { noteSendingChat } from './pulse-ledger-chat'
+import { conversationLastAt, noteSendingChat } from './pulse-ledger-chat'
 import { linkWaitingAnswer, waitingsAnsweredBy } from './pulse-ledger-answer'
 import { linkedIn, namedIn, namesOtherTask } from './pulse-ledger-refs'
 import { noteConversationProjectGuess } from './pulse-attribution'
@@ -216,7 +216,9 @@ export function ingestLedgerSignal(core: PulseCore, signal: HqLedgerSignal): HqL
       )
       .all(conversationId)
     const asking = linked.filter((row) => row.direction === 'on-them').map((row) => String(row.id))
-    if (added) {
+    // Custom build (hq-ledger-context, Codex 03.11): a thread read whole on a later pass fills in lines
+    // older than the conversation's newest; they join it but say nothing about whose move it is now.
+    if (added && signal.at >= conversationLastAt(core, conversationId)) {
       let state: HqConversationState
       let why: string | null = null
       if (signal.fromOwner) {
