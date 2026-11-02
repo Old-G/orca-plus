@@ -6,6 +6,13 @@ import type { HqLedgerResult, HqLedgerSignal } from '../../shared/hq-ledger'
 import { slackMessageForOwner } from '../../shared/hq-reply-addressee'
 import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
+import {
+  contextOf,
+  withWholeThreads,
+  type HqSlackLedgerContextLine
+} from './hq-slack-ledger-context'
+
+export type { HqSlackLedgerContextLine } from './hq-slack-ledger-context'
 
 // Why half a minute: a message should be in its conversation within a minute (plan 19.8).
 const POLL_MS = 30_000
@@ -41,6 +48,16 @@ export type HqSlackLedgerReadApi = {
   /** Messages in the owner's DMs and threads since `since` (ms), newest first. */
   withOwner: (since: number) => Promise<HqSlackLedgerMessage[]>
   name: (userId: string) => Promise<string>
+  /** Custom build (hq-ledger-context): a thread whole, root first. */
+  thread?: (channel: string, threadTs: string, dm: boolean) => Promise<HqSlackLedgerMessage[]>
+  /** Custom build (hq-ledger-context): up to `limit` DM lines before `beforeTs`, not older than
+   *  `since` (ms), oldest first. */
+  dmBefore?: (
+    channel: string,
+    beforeTs: string,
+    since: number,
+    limit: number
+  ) => Promise<HqSlackLedgerMessage[]>
 }
 
 export type HqSlackLedgerDeps = {
@@ -53,7 +70,8 @@ export type HqSlackLedgerDeps = {
   guess: (
     message: HqSlackLedgerMessage,
     author: string | null,
-    fromOwner: boolean
+    fromOwner: boolean,
+    context: readonly HqSlackLedgerContextLine[]
   ) => Promise<HqLedgerGuess | null>
   setGuess: (conversationId: string, guess: HqLedgerGuess) => void
   now: () => number
@@ -118,13 +136,21 @@ export async function runHqSlackLedgerReader(
   const now = deps.now()
   const since = Math.max(state.cursor - OVERLAP_MS, now - CATCH_UP_MS)
   const read = await deps.read(async (api) => {
-    const messages = await api.withOwner(since)
+    const found = await api.withOwner(since)
     const names = new Map<string, string>()
+    const nameOf = async (user: string): Promise<string> => {
+      if (!names.has(user)) {
+        names.set(user, await api.name(user))
+      }
+      return names.get(user) ?? user
+    }
+    const { messages, threads, fetched } = await withWholeThreads(api, found, deps.lastDirection)
     const fresh: {
       message: HqSlackLedgerMessage
       author: string | null
       fromOwner: boolean
       result: HqLedgerResult
+      context?: HqSlackLedgerContextLine[]
     }[] = []
     let cursor = state.cursor
     const roots = new Set(
@@ -151,10 +177,7 @@ export async function runHqSlackLedgerReader(
         continue
       }
       const user = message.user
-      if (user && !names.has(user)) {
-        names.set(user, await api.name(user))
-      }
-      const author = user ? (names.get(user) ?? null) : null
+      const author = user ? await nameOf(user) : null
       const signal = hqLedgerSignalOfSlack(message, api.owner, author, last)
       if (!signal) {
         continue
@@ -165,7 +188,18 @@ export async function runHqSlackLedgerReader(
         fresh.push({ message, author, fromOwner: signal.fromOwner, result })
       }
     }
-    return { fresh, cursor }
+    // Custom build (hq-ledger-context): what the model reads beside a new talk's first message.
+    let wanted = 0
+    for (const item of fresh) {
+      if (
+        (item.result.step === 'new' || item.result.step === 'owner') &&
+        wanted < GUESSES_PER_PASS
+      ) {
+        wanted += 1
+        item.context = await contextOf(api, item.message, threads, nameOf)
+      }
+    }
+    return { fresh, cursor, fetched }
   })
   if (!read) {
     return state
@@ -178,14 +212,19 @@ export async function runHqSlackLedgerReader(
     gaps.push(Math.round(gap / 1000))
   }
   let guessed = 0
-  for (const { message, author, fromOwner, result } of read.fresh) {
-    // Why not on the first pass: catching up on a day would read as a day's delay.
-    if (state.cursor > 0 && gap <= GAP_MS) {
+  for (const { message, author, fromOwner, result, context } of read.fresh) {
+    // Why not on the first pass: catching up on a day would read as a day's delay. A thread's older
+    // lines read whole are not late either.
+    if (
+      state.cursor > 0 &&
+      gap <= GAP_MS &&
+      !read.fetched.has(`${message.channel}:${message.ts}`)
+    ) {
       delays.push(Math.max(0, Math.round((deps.now() - Number(message.ts) * 1000) / 1000)))
     }
     if ((result.step === 'new' || result.step === 'owner') && guessed < GUESSES_PER_PASS) {
       guessed += 1
-      const guess = await deps.guess(message, author, fromOwner).catch(() => null)
+      const guess = await deps.guess(message, author, fromOwner, context ?? []).catch(() => null)
       if (guess) {
         deps.setGuess(result.conversationId, guess)
       }
