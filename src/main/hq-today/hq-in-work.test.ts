@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  checkHqInWorkChats,
   findHqInWorkChat,
   hqInWorkChatPrompt,
   hqInWorkQueries,
@@ -113,5 +114,74 @@ describe('the new-chat check', () => {
     expect(parseHqInWorkChatAnswer('{"conversations": []}', ['c1'])).toEqual([])
     expect(parseHqInWorkChatAnswer('{"conversation": "c1"}', ['c1'])).toEqual([])
     expect(parseHqInWorkChatAnswer('no json', ['c1'])).toEqual([])
+  })
+})
+
+// Why (Codex 03.11): a chat was marked read before the model answered, with only ten conversations shown.
+describe('checkHqInWorkChats', () => {
+  const chat = { sessionId: 'claude_specs', project: 'acme', address: 'acme/specs', openedAt: 500 }
+  const waiting = () =>
+    new Map(
+      Array.from({ length: 12 }, (_, n) => [
+        `c${n}`,
+        { id: `c${n}`, title: `Talk ${n}`, texts: ['words'], lastAt: 100 + n }
+      ])
+    )
+  function deps(
+    answer: (prompt: string) => { ok: true; text: string } | { ok: false; error: string }
+  ) {
+    const shown = new Map<string, Set<string> | null>()
+    const prompts: string[] = []
+    const inWork: string[] = []
+    return {
+      shown,
+      prompts,
+      inWork,
+      deps: {
+        shown,
+        reports: () => ['Writes the spec drafts'],
+        budget: () => true,
+        generate: async (prompt: string) => {
+          prompts.push(prompt)
+          return answer(prompt)
+        },
+        noteChecked: (sessionId: string, ids: readonly string[]) =>
+          shown.set(sessionId, new Set([...(shown.get(sessionId) ?? []), ...ids])),
+        setInWork: (conversationId: string) => {
+          inWork.push(conversationId)
+        }
+      }
+    }
+  }
+
+  it('shows the chat the conversations past the first ten on the next pass', async () => {
+    const run = deps((prompt) =>
+      prompt.includes('- c11 ')
+        ? { ok: true, text: '{"conversations": [{"id": "c11", "confidence": 0.8}]}' }
+        : { ok: true, text: '{"conversations": []}' }
+    )
+    await checkHqInWorkChats([chat], waiting(), run.deps)
+    expect([...(run.shown.get('claude_specs') ?? [])]).toHaveLength(10)
+    await checkHqInWorkChats([chat], waiting(), run.deps)
+    expect(run.prompts[1]).toContain('- c10 ')
+    expect(run.prompts[1]).not.toContain('- c0 ')
+    expect(run.inWork).toEqual(['c11'])
+    await checkHqInWorkChats([chat], waiting(), run.deps)
+    expect(run.prompts).toHaveLength(2)
+  })
+
+  it('a failed call leaves the chat to read again; a chat read whole before stays read', async () => {
+    let fail = true
+    const run = deps(() => (fail ? { ok: false, error: 'busy' } : { ok: true, text: '{}' }))
+    await checkHqInWorkChats([chat], waiting(), run.deps)
+    expect(run.shown.has('claude_specs')).toBe(false)
+    fail = false
+    await checkHqInWorkChats([chat], waiting(), run.deps)
+    expect(run.shown.get('claude_specs')?.size).toBe(10)
+
+    const old = deps(() => ({ ok: true, text: '{}' }))
+    old.shown.set('claude_specs', null)
+    await checkHqInWorkChats([chat], waiting(), old.deps)
+    expect(old.prompts).toEqual([])
   })
 })

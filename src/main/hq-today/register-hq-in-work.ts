@@ -1,19 +1,18 @@
 // Custom build (hq-in-work, owner 03.11, plan stage 20.11): every few minutes, the conversations that
 // wait on the owner are checked against his agent chats — by their link, task or sentence in a chat's
-// transcript, and, once per new chat, by the model reading what that chat reports. A match takes the
+// transcript, and, by the model reading what that chat reports. A match takes the
 // card down to «In work in <chat>». The model's calls share the day's 150 with the intake decisions.
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { searchSessionService } from '../ai-vault-search/session-search-service-registry'
 import {
   OPENS_EVERY_STRUCTURED_CHAT,
   searchWithStructuredOwners
-} from '../ai-vault/structured-session-ownership'
+} from '../ai-vault/structured-sessions/structured-session-ownership'
 import {
+  checkHqInWorkChats,
   findHqInWorkChat,
-  hqInWorkChatPrompt,
   hqInWorkQueries,
-  parseHqInWorkChatAnswer,
   type HqInWorkSearch
 } from './hq-in-work'
 import { hqIntakeBudget } from './hq-intake-decide'
@@ -24,14 +23,8 @@ const FIRST_PASS_MS = 60_000
 /** Why three days: an announcement handed to a chat the next morning is still the same work. */
 const LOOKBACK_MS = 3 * 24 * 60 * 60_000
 const DECISIONS_PER_DAY = 150
-/** Why: a chat is read once; more than this many new chats in a pass wait for the next one. */
-const CHATS_PER_PASS = 3
-const MAX_CONVERSATIONS = 10
 const MAX_REPORTS = 3
 const MODEL = 'sonnet'
-/** Why 0.6 (owner, 03.11, live check): a colleague's announcement, handed over in other words, came at 0.6
- *  and a wrong pick at 0.5. A wrong line is one «Not in work» away and counted as a miss. */
-const MIN_CONFIDENCE = 0.6
 
 export function startHqInWork(store: Store, runtime: OrcaRuntimeService): () => void {
   const budget = hqIntakeBudget(DECISIONS_PER_DAY, {
@@ -106,69 +99,39 @@ export function startHqInWork(store: Store, runtime: OrcaRuntimeService): () => 
     if (!hqPath || left.size === 0) {
       return
     }
-    const checked = runtime.pulseAttribution().inWork.checked(now - LOOKBACK_MS)
-    const fresh = sessions
-      .filter((session) => !checked.has(session.sessionId))
+    const day = new Date(now).setHours(0, 0, 0, 0)
+    await checkHqInWorkChats(
       // Why newest first: a chat just opened is where a message was just handed; the backlog can wait.
-      .toSorted((a, b) => b.openedAt - a.openedAt)
-    let read = 0
-    for (const session of fresh) {
-      const older = [...left.values()].filter((candidate) => candidate.lastAt <= session.openedAt)
-      const reports = runtime.pulseListJournal({
-        kind: 'chat.report',
-        sessionId: session.sessionId,
-        oldestFirst: true,
-        limit: MAX_REPORTS
-      })
-      if (older.length === 0 || reports.length === 0) {
-        continue
+      sessions.toSorted((a, b) => b.openedAt - a.openedAt),
+      left,
+      {
+        shown: runtime.pulseAttribution().inWork.checked(now - LOOKBACK_MS),
+        reports: (sessionId) =>
+          runtime
+            .pulseListJournal({
+              kind: 'chat.report',
+              sessionId,
+              oldestFirst: true,
+              limit: MAX_REPORTS
+            })
+            .map((entry) => entry.body ?? entry.title),
+        budget: () => budget(day),
+        generate: (prompt) =>
+          generateHqText(
+            prompt,
+            { emptyResultName: 'in-work check', operation: 'hq-in-work', model: MODEL },
+            {
+              settings: store.getSettings(),
+              cwd: hqPath,
+              getAgentEnvResolvers: () => runtime.getCommitMessageAgentEnvironmentResolvers()
+            }
+          ),
+        noteChecked: (sessionId, ids) =>
+          runtime.pulseAttribution().inWork.noteChecked(sessionId, ids),
+        setInWork: (conversationId, sessionId, why, confidence) =>
+          runtime.pulseSetConversationInWork(conversationId, sessionId, 'model', why, confidence)
       }
-      if (read >= CHATS_PER_PASS || !budget(new Date(now).setHours(0, 0, 0, 0))) {
-        return
-      }
-      read += 1
-      runtime.pulseAttribution().inWork.noteChecked(session.sessionId)
-      const offered = older.slice(0, MAX_CONVERSATIONS)
-      const generated = await generateHqText(
-        hqInWorkChatPrompt(
-          {
-            sessionId: session.sessionId,
-            project: session.project,
-            address: session.address ?? session.sessionId,
-            reports: reports.map((entry) => entry.body ?? entry.title)
-          },
-          offered.map((candidate) => ({
-            id: candidate.id,
-            title: candidate.title,
-            texts: candidate.texts
-          }))
-        ),
-        { emptyResultName: 'in-work check', operation: 'hq-in-work', model: MODEL },
-        {
-          settings: store.getSettings(),
-          cwd: hqPath,
-          getAgentEnvResolvers: () => runtime.getCommitMessageAgentEnvironmentResolvers()
-        }
-      ).catch((error: unknown) => ({ ok: false as const, error: String(error) }))
-      const answers = generated.ok
-        ? parseHqInWorkChatAnswer(
-            generated.text,
-            offered.map((candidate) => candidate.id)
-          )
-        : []
-      for (const answer of answers) {
-        if (answer.confidence >= MIN_CONFIDENCE) {
-          runtime.pulseSetConversationInWork(
-            answer.conversationId,
-            session.sessionId,
-            'model',
-            answer.why,
-            answer.confidence
-          )
-          left.delete(answer.conversationId)
-        }
-      }
-    }
+    )
   }
 
   let running = false
