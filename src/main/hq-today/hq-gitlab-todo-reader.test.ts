@@ -35,6 +35,7 @@ type Over = {
   type?: string
   /** Who opened the MR. */
   mrAuthor?: string
+  branch?: string
 }
 
 /** One to-do as `glab api todos` lists it, with only the fields the reader reads. */
@@ -50,7 +51,8 @@ function todo(over: Over = {}): Record<string, unknown> {
       iid,
       title: 'Speed up the import',
       state: over.state ?? 'opened',
-      author: { username: over.mrAuthor ?? 'ann' }
+      author: { username: over.mrAuthor ?? 'ann' },
+      source_branch: over.branch ?? 'speed-up-import'
     },
     project: { path_with_namespace: repo },
     author: { username: over.author ?? 'ann', name: over.name ?? 'Ann' },
@@ -290,5 +292,42 @@ describe('GitLab to-do reader', () => {
         ['gitlab:acme/other!2', 'acme-shop', 'model', 'fyi', 'Mentioned: Speed up the import']
       ]
     )
+  })
+
+  // Custom build (hq-ledger-own-mrs, С7): the fix goes with the chat that made the MR.
+  it('С7: a reviewer turning to him on his own MR goes with the chat working on its branch', async () => {
+    const { db, deps, rows } = setup(
+      [
+        [
+          todo({
+            id: 1,
+            mrAuthor: OWNER,
+            author: 'bob',
+            action: 'directly_addressed',
+            repo: 'acme/app'
+          }),
+          todo({ id: 2, iid: 8, author: 'bob', action: 'directly_addressed', repo: 'acme/app' })
+        ]
+      ],
+      { projects: ['app'] }
+    )
+    const asked: string[] = []
+    await runHqGitLabTodoReader(
+      {
+        ...deps,
+        chatOfBranch: async (project, branch) => {
+          asked.push(`${project}:${branch}`)
+          return 'chat-made-it'
+        },
+        setChat: (key, sessionId) => db.setConversationChat(key, sessionId)
+      },
+      { cursor: 0 }
+    )
+    // Why only the first: the second MR is someone else's.
+    expect(asked).toEqual(['app:speed-up-import'])
+    expect(db.listLedgerFeed(0).conversations.find((row) => row.key === MR)?.sessionId).toBe(
+      'chat-made-it'
+    )
+    expect(rows().find((row) => row.key === MR)?.state).toBe('you')
   })
 })
