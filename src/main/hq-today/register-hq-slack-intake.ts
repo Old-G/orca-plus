@@ -25,7 +25,7 @@ import { generateHqText } from './hq-task-questions'
 import { hqIntakeOfConversation } from './hq-ledger-cards'
 import { hqIntakeThreadOf } from './hq-intake-thread'
 import { createSlackLedgerApi } from '../slack/slack-ledger-api'
-import { hqLedgerMode } from '../../shared/hq-ledger-mode'
+import { hqLedgerReplacesScout } from './hq-ledger-cutover'
 
 const RAISED_LOOKBACK_MS = 8 * 24 * 60 * 60_000
 const ERROR_REPEAT_MS = 60 * 60_000
@@ -108,7 +108,7 @@ export function registerHqSlackIntake(
       }),
     // Custom build (hq-request-ledger): switched on, the ledger's conversations are the cards.
     ledgerCards: () =>
-      hqLedgerMode(store.getSettings()) === 'on'
+      hqLedgerReplacesScout(store.getSettings())
         ? runtime
             .pulseListLedgerCards(Date.now() - RAISED_LOOKBACK_MS)
             .flatMap(
