@@ -99,8 +99,7 @@ async function loadRequest(item: PulseInboxItem): Promise<Request | null> {
     return {
       title: item.title,
       author: intake.author,
-      // Custom build (hq-ledger-draft): the reply HQ drafted goes along, as the scout's request did.
-      text: `${whole ? whole.lines.join('\n') : intake.text}${intake.replyDraft ? `\n\nDraft reply: ${intake.replyDraft}` : ''}`,
+      text: whole ? whole.lines.join('\n') : intake.text,
       repoId: intake.repoId,
       draft: null,
       ...(whole ? { thread: { links: whole.links } } : {})
