@@ -6,11 +6,11 @@ import {
   HqAttributionSkipParams,
   HqAttributionTakeParams,
   HqConversationDoneParams,
-  HqConversationNotInWorkParams
+  HqConversationNotInWorkParams,
+  HqConversationToWorkParams
 } from '../../../../shared/rpc-contract/hq-journal-params'
-
-/** Why: Slack and ClickUp conversations settle through their own cards until the switch (19.6). */
-const CLOSED_FROM_CARD = /^(?:gitlab|gmail):/
+import { hqIntakeBellItem } from '../../../../shared/hq-slack-intake'
+import { hqIntakeOfConversation } from '../../../hq-today/hq-ledger-cards'
 
 export const HQ_LEDGER_METHODS = [
   defineMethod({
@@ -23,10 +23,28 @@ export const HQ_LEDGER_METHODS = [
       if (caller?.kind !== 'desktop' && caller?.kind !== 'paired-device') {
         throw new Error('Only the owner closes a conversation, from HQ+ on the Mac or the phone.')
       }
-      if (!CLOSED_FROM_CARD.test(params.key)) {
-        throw new Error('Only GitLab and mail conversations are closed from their card.')
-      }
       return { closed: runtime.pulseCloseLedgerConversation(params.key) }
+    }
+  }),
+  // Custom build (hq-ledger-cutover, owner 03.11): a Slack conversation with no card of its own still
+  // goes to a project or chat — its «To work» card is made, or the one already there is given.
+  defineMethod({
+    name: 'hq.conversationToWork',
+
+    permission: 'workspace',
+    params: HqConversationToWorkParams,
+    handler: (params, { runtime, caller }) => {
+      if (caller?.kind !== 'desktop' && caller?.kind !== 'paired-device') {
+        throw new Error('Only the owner takes a conversation to work, from HQ+.')
+      }
+      const row = runtime.pulseAttribution().card(params.key)
+      const intake = row
+        ? hqIntakeOfConversation(row, runtime.pulseAttribution().drafts.of(row.id))
+        : null
+      if (!intake) {
+        throw new Error('This conversation has no Slack message to take to work.')
+      }
+      return { item: runtime.pulseAddInboxItem(hqIntakeBellItem(intake)).record }
     }
   }),
   // Custom build (hq-in-work, plan 20.11): «Not in work» brings the card back and counts the guess as

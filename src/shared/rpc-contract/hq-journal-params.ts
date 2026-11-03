@@ -150,6 +150,11 @@ export const HqConversationDoneParams = z.object({
   key: requiredString('A conversation key is required')
 })
 
+// Custom build (hq-ledger-cutover): «To work» on a conversation card — its «To work» card, made if none.
+export const HqConversationToWorkParams = z.object({
+  key: requiredString('A conversation key is required')
+})
+
 // Custom build (hq-in-work, plan 20.11): «Not in work» on a conversation a chat was thought to do.
 export const HqConversationNotInWorkParams = z.object({
   conversationId: requiredString('A conversation id is required')

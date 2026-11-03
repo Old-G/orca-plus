@@ -36,7 +36,9 @@ export async function replyToHqIntake(item: PulseInboxItem): Promise<boolean> {
     toast.error(launched.message)
     return false
   }
-  await window.api.pulseBell.closeIntake(item.id, 'sent', 'Reply sent for approval', null)
+  // Why open (Codex 03.11): nothing is sent yet; a rejected or failed send must leave the card. Once
+  // the reply goes out, his line in the talk takes it off his move and the card goes by itself.
+  await window.api.pulseBell.markRead([item.id])
   toast.success(
     translate('auto.hqIntake.replyStarted', 'The reply waits for your approval in Approve.')
   )

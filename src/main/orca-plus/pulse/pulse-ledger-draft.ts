@@ -66,11 +66,17 @@ export function pulseLedgerDrafts(core: () => PulseCore) {
     /** Custom build (hq-ledger-draft, 03.11: 3 of 8 «your move» cards were thanks): the newest message
      *  read as for information takes the talk off the owner — a state guess like «in work», so his
      *  «it was mine» is counted. A newer message from the person makes it his move again. */
-    quiet: (conversationId: string, why: string): boolean =>
+    quiet: (conversationId: string, lastTs: string, why: string): boolean =>
       core().transaction(() => {
+        // Why (Codex 03.11): a request said while the model read the thanks before it stays his move.
         const row = core()
-          .db.prepare(`SELECT key FROM conversations WHERE id = ? AND state = 'you'`)
-          .get(conversationId)
+          .db.prepare(
+            `SELECT key FROM conversations c WHERE id = ? AND state = 'you'
+               AND (SELECT ts FROM conversation_messages m WHERE m.conversation_id = c.id
+                     AND m.direction = 'in' AND m.ts NOT LIKE 'req:%'
+                     ORDER BY m.at DESC, m.ts DESC LIMIT 1) = ?`
+          )
+          .get(conversationId, lastTs)
         if (!row) {
           return false
         }
