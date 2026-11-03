@@ -3,6 +3,7 @@
 // classic HQ toasts stay as they are. It shows the people's last messages and the conversation's gist.
 import type { HqIntake } from '../../shared/hq-slack-intake'
 import type { HqLedgerCardRow } from '../orca-plus/pulse/pulse-ledger-cards'
+import type { HqLedgerDraft } from '../orca-plus/pulse/pulse-ledger-draft'
 
 const SLACK_KEY = /^slack:([A-Z0-9]+):(.+)$/
 
@@ -14,8 +15,13 @@ function threadOf(link: string | null): string | null {
   }
 }
 
-/** The card of one conversation; null when its key names no Slack place. */
-export function hqIntakeOfConversation(row: HqLedgerCardRow): HqIntake | null {
+/** The card of one conversation; null when its key names no Slack place. Custom build
+ *  (hq-ledger-draft): a draft written for an older message is left off — it answers what was said
+ *  before. */
+export function hqIntakeOfConversation(
+  row: HqLedgerCardRow,
+  draft: HqLedgerDraft | null = null
+): HqIntake | null {
   const place = SLACK_KEY.exec(row.key)
   const newest = row.messages.at(-1)
   if (!place || !newest) {
@@ -50,6 +56,9 @@ export function hqIntakeOfConversation(row: HqLedgerCardRow): HqIntake | null {
     lastTs: newest.ts,
     repoId: null,
     project: row.project,
-    summary: row.title
+    summary: row.title,
+    ...(draft?.lastTs === newest.ts
+      ? { ask: draft.ask, ...(draft.draft ? { replyDraft: draft.draft } : {}) }
+      : {})
   }
 }

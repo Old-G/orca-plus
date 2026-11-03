@@ -255,6 +255,21 @@ export function syncInboxKind(
     const openKeys = new Set(open.map((entry) => entry.dedupeKey))
     let closed = 0
     for (const item of open) {
+      const same = item.dedupeKey ? wanted.get(item.dedupeKey) : undefined
+      // Custom build (hq-ledger-draft): a conversation's card learns its draft after it popped — the
+      // words change in place, the card stays where it was and as read as it was.
+      if (same?.replaces && (same.refId ?? null) !== item.refId) {
+        core.db
+          .prepare('UPDATE inbox SET title = ?, body = ?, ref_id = ? WHERE id = ?')
+          .run(same.title, same.body ?? null, same.refId ?? null, item.id)
+        core.emit('inbox.updated', 'inbox', item.id, {
+          ...item,
+          title: same.title,
+          body: same.body ?? null,
+          refId: same.refId ?? null
+        })
+        continue
+      }
       if (!item.dedupeKey || !wanted.has(item.dedupeKey)) {
         const successor = [...wanted.values()].find(
           (input) =>
