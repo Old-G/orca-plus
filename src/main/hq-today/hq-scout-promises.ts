@@ -34,19 +34,28 @@ export type HqScoutPromisesDeps = {
 /** By Slack id first, then by name. The scout's Slack id only looks people up, never binds one: it
  *  comes from a model reading other people's messages. */
 function personFor(promise: HqScoutPromise, deps: HqScoutPromisesDeps): string {
+  return hqPromisePerson(promise.person, promise.personSlackId, deps)
+}
+
+/** Custom build (hq-ledger-promises): the same lookup for the ledger's own promises. */
+export function hqPromisePerson(
+  name: string,
+  slackUserId: string | null,
+  deps: Pick<HqScoutPromisesDeps, 'listPeople' | 'upsertPerson'>
+): string {
   const people = deps.listPeople()
-  const bySlack = promise.personSlackId
-    ? people.find((person) => person.slackUserId === promise.personSlackId)
+  const bySlack = slackUserId
+    ? people.find((person) => person.slackUserId === slackUserId)
     : undefined
   if (bySlack) {
     return bySlack.id
   }
-  const name = promise.person.toLocaleLowerCase()
-  const byName = people.find((person) => person.name.toLocaleLowerCase() === name)
+  const lower = name.toLocaleLowerCase()
+  const byName = people.find((person) => person.name.toLocaleLowerCase() === lower)
   if (byName) {
     return byName.id
   }
-  return deps.upsertPerson({ name: promise.person }).id
+  return deps.upsertPerson({ name }).id
 }
 
 export async function importHqScoutPromises(deps: HqScoutPromisesDeps): Promise<void> {

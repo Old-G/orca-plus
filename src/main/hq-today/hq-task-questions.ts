@@ -6,16 +6,19 @@ import {
   restoreFirstQuestionNumber,
   type HqTaskQuestionsResult
 } from '../../shared/hq-triage'
-import type { ResolvedSourceControlAiGenerationParams } from '../../shared/source-control-ai'
+import type { ResolvedSourceControlAiGenerationParams } from '../../shared/source-control/ai/source-control-ai-operation-resolution'
 import { resolveGenerationTarget } from '../agent-hooks/first-work/first-work-generation-target'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/execution/commit-message-agent-environment'
 import { resolveTextGenerationParams } from '../text-generation/commit-message-text-generation'
 import { spawnSourceControlAgent } from '../text-generation/execution/source-control-agent-launch'
 import { runGenerationRequest } from '../text-generation/agent-generation-request'
+import { CLAUDE_TEXT_GENERATION_TOOLS } from '../../shared/claude-background-run-isolation'
 
 const FALLBACK_MODEL = 'sonnet'
-// Why: tools would let text in the task read files or reach the network on this Mac.
-const NO_TOOLS_ARGS = '--tools "" --strict-mcp-config'
+// Why: tools would let text in the task read files or reach the network on this Mac. Text
+// generation now grants Read/Grep/Glob itself, and repeated --tools add up, so the deny rule
+// (which outranks every allow) is what keeps the run tool-less.
+const NO_TOOLS_ARGS = `--tools "" --disallowedTools ${CLAUDE_TEXT_GENERATION_TOOLS.join(',')} --strict-mcp-config`
 
 /** Claude, with the model and command the user set for PR texts when that agent is Claude. */
 export function hqTaskQuestionsParams(
@@ -56,6 +59,7 @@ export async function generateHqText(
       | 'hq-ledger-guess'
       | 'hq-in-work'
       | 'hq-ledger-draft'
+      | 'hq-ledger-promises'
     /** Custom build (hq-clickup-triage): a cheaper model than the one set for HQ text. */
     model?: string
   },
