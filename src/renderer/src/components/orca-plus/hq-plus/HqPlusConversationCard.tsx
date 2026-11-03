@@ -29,6 +29,7 @@ import { hqPlusCall } from './use-hq-plus-data'
 import { hqPlusClock as clock } from './HqPlusChatCard'
 import type { HqPlusLogContext } from './HqPlusLog'
 import { noteHqPlusTakeHint } from './hq-plus-take-hint'
+import { HqPlusInWorkButtons } from './HqPlusInWorkButtons'
 
 const SHOWN_MESSAGES = 3
 
@@ -269,7 +270,14 @@ export function HqPlusConversationCard({
     'data-source': look.source ?? undefined,
     'data-flash': flash ? 'true' : undefined
   }
-  const done = card.done ? hqPlusDoneLabel(card.done) : null
+  const inWork = conversation.inWork && conversation.id ? conversation.id : null
+  const done = inWork
+    ? translate('auto.hqPlus.conv.inWork', 'In work in «{{chat}}»', {
+        chat: chat?.name ?? translate('auto.hqPlus.conv.aChat', 'a chat')
+      })
+    : card.done
+      ? hqPlusDoneLabel(card.done)
+      : null
   // Why: a settled conversation folds to two lines, as every decided card does; a click opens it.
   if (!card.open && !expanded) {
     return (
@@ -313,6 +321,13 @@ export function HqPlusConversationCard({
       </div>
       {card.open && hqPlusLedgerOnly(card) ? (
         <LedgerOnlyButtons card={card} link={link} ctx={ctx} />
+      ) : null}
+      {inWork ? (
+        <HqPlusInWorkButtons
+          conversationId={inWork}
+          openChat={chat && (chat.item || chat.name) ? openChat : null}
+          ctx={ctx}
+        />
       ) : null}
       {conversation.parts.map((part) => (
         <div key={part.id} className="hqp-part">

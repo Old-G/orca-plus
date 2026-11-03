@@ -50,6 +50,10 @@ export type HqPlusConversation = {
   ledgerState?: 'you' | 'fyi'
   /** Custom build (hq-intake-decide): the chat the model proposed, not judged yet. */
   guess?: HqFeedGuess | null
+  /** Custom build (hq-in-work): its ledger id, when the ledger knows it. */
+  id?: string
+  /** Custom build (hq-in-work): a chat already does it — the card says so instead of asking. */
+  inWork?: boolean
 }
 
 /** Journal rows that only tell what a conversation's cards already show. */
@@ -282,7 +286,9 @@ function conversationCard(
       messages,
       parts,
       link,
-      guess: conversation?.guess ?? null
+      guess: conversation?.guess ?? null,
+      id: conversation?.id,
+      inWork: conversation?.stateWhy === 'in-work'
     }
   }
 }
