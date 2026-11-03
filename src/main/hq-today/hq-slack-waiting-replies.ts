@@ -348,7 +348,8 @@ async function gather(
       newer(message.ts, after) &&
       (!dm.from || message.user === dm.from) &&
       !isTaken(taken, message, dm.channel, waiting.id) &&
-      !inOtherQuestionThread(message, dm.channel, thread, questionThreads)
+      !inOtherQuestionThread(message, dm.channel, thread, questionThreads) &&
+      !inThreadStartedAfter(message, after)
     ) {
       found.set(message.ts, message)
       channelOf.set(message.ts, dm.channel)
@@ -381,6 +382,15 @@ function inOtherQuestionThread(
     return false
   }
   return questionThreads.has(`${channel}:${threadTs}`)
+}
+
+/** Custom build (hq-dm-newer-thread, owner 03.11: «Привет, согласен» in the thread of a message the
+ *  owner wrote that morning became the answer to a question asked four days before, glued to a reply
+ *  from yet another thread): a reply in a DM thread started after the question answers that thread's
+ *  message — the owner's newer question or the person's new topic — not this waiting. */
+function inThreadStartedAfter(message: SlackReadMessage, after: string): boolean {
+  const threadTs = message.threadTs
+  return Boolean(threadTs && threadTs !== message.ts && newer(threadTs, after))
 }
 
 const messageKey = (found: Gathered, message: SlackReadMessage): string =>
