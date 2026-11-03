@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { HQ_SLACK_SCOUT_DIR } from '../../shared/hq-slack-scout'
+import { retireHqSlackScoutWhen } from './hq-slack-scout'
 import type { Store } from '../persistence'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { withSlackReader } from '../slack/slack-reader'
@@ -173,6 +174,8 @@ export function registerHqSlackLedger(
       runtime.pulseRecordJournal(rows)
     )
   )
+  // Custom build (hq-ledger-cutover, plan 20.9): the ledger on, the scout's Slack cards are not shown.
+  retireHqSlackScoutWhen(() => store.getSettings().hqLedger === 'on')
   // Custom build (hq-in-work, plan 20.11): a conversation a chat already works on is not his move.
   startHqInWork(store, runtime)
   // Custom build (hq-ledger-draft, plan 20.9): the scout's kind, ask and reply draft on the ledger's cards.
