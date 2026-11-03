@@ -66,6 +66,20 @@ describe('claude connector gap', () => {
     expect(syncBell).toHaveBeenLastCalledWith([])
   })
 
+  it('leaves the bell to a later switch that landed while the check ran', async () => {
+    const syncBell = vi.fn()
+    const deps = {
+      readConnectors: async (dir: string) =>
+        parseClaudeAiConnectors(dir === '/w' ? WORK : PERSONAL),
+      accountLabel: () => 'Personal',
+      syncBell,
+      log: () => {},
+      isCurrent: () => false
+    }
+    await checkClaudeConnectorGap(deps, '/w', '/p')
+    expect(syncBell).not.toHaveBeenCalled()
+  })
+
   it('does nothing when the folder did not change', async () => {
     const readConnectors = vi.fn()
     const deps = { readConnectors, accountLabel: () => '', syncBell: vi.fn(), log: () => {} }
