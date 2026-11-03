@@ -37,6 +37,7 @@ import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
 import { moveClaudeChatToRoutedAccount } from '../claude-limit-guard/claude-chat-account-follow'
 import { claudeChatLaunchHome } from '../claude-limit-guard/claude-chat-launch-homes'
 import { claudeAccountIdOfHome } from '../claude-limit-guard/claude-chat-home-account'
+import { checkConnectorGapAfterSwitch } from '../claude-accounts/claude-connector-gap'
 
 const ESCAPE = '\x1b'
 // Why: the TUI must settle the Esc before the prompt arrives, or both land in one input event.
@@ -220,6 +221,9 @@ export function registerClaudeLimitGuardHandlers(
   )
 
   let lastActive = activeAccountId()
+  // Custom build (claude-connector-gap): the folder chats ran in before a switch.
+  let lastDir: string | null = null
+  void routedClaudeConfigDir().then((dir) => (lastDir = dir))
   store.onSettingsChanged((_updates, settings) => {
     const next = normalizeClaudeRuntimeSelection(settings).host
     if (next === lastActive) {
@@ -232,6 +236,11 @@ export function registerClaudeLimitGuardHandlers(
       if (activeAccountId() === next) {
         console.log('[claude-limit-guard]', `active account → ${next ?? 'system default'}`)
         await stops.onAccountChanged(next)
+        const [previousDir, nextDir] = [lastDir, await routedClaudeConfigDir()]
+        lastDir = nextDir
+        if (previousDir && nextDir) {
+          await checkConnectorGapAfterSwitch(runtime, previousDir, nextDir)
+        }
       }
     })().catch((error: unknown) => console.warn('[claude-limit-guard] resume failed:', error))
   })

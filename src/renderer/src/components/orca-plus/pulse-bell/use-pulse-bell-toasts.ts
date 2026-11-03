@@ -33,7 +33,8 @@ import { useHqPopupsGoToFeed } from '../hq-plus/hq-plus-popups'
 const TOASTED_KINDS: ReadonlySet<string> = new Set([
   PULSE_BELL_KIND.agentFinished,
   PULSE_BELL_KIND.claudeChatLimit,
-  PULSE_BELL_KIND.claudeAuthStop
+  PULSE_BELL_KIND.claudeAuthStop,
+  PULSE_BELL_KIND.claudeConnectorGap
 ])
 
 const toastId = (item: PulseInboxItem): string => `pulse-bell-toast-${item.id}`
