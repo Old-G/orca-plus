@@ -64,7 +64,8 @@ const SUMMARY_CHARS = 280
 const withSummary = (summary: string | null): { summary?: string } => (summary ? { summary } : {})
 
 function pageSummary(body: string): string | null {
-  const section = /^## (?:Кратко|Summary)\s*\n+([\s\S]*?)(?:\n## |$)/m.exec(body)?.[1]
+  // Why no `m` flag: with it `$` ends the capture at the first line of a wrapped «Кратко».
+  const section = /(?:^|\n)## (?:Кратко|Summary)[ \t]*\n+([\s\S]*?)(?=\n## |$)/.exec(body)?.[1]
   const text = section?.replace(/\s+/g, ' ').trim()
   if (!text) {
     return null
