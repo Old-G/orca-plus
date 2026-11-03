@@ -45,7 +45,7 @@ import {
 } from '../../clickup/clickup-tasks'
 import { listHqProjectPages } from '../../hq-project-pages/hq-project-pages'
 import { registerHqWaitingReplies } from '../../hq-today/register-hq-waiting-replies'
-import { startHqScoutPromises } from '../../hq-today/hq-scout-promises'
+import { startHqPromises } from '../../hq-today/register-hq-promises'
 import { startHqFeed } from '../../hq-today/hq-feed-collector'
 import { HQ_FEED_COMMIT_LOG_ARGS, readHqFeedCommits } from '../../hq-today/hq-feed-work'
 import { startHqFeedPosts } from '../../hq-today/hq-feed-posts'
@@ -271,15 +271,8 @@ export function registerPulseBell(
       }),
     now: Date.now
   })
-  // Custom build (hq-promises): the owner's Slack promises into Notes, and a bell line the day before.
-  startHqScoutPromises({
-    hqPath: () => store.getSettings().hqPath ?? null,
-    listWaitings: () => runtime.pulseListWaitings(),
-    listPeople: () => runtime.pulseListPeople(),
-    upsertPerson: (input) => runtime.pulseUpsertPerson(input),
-    addWaiting: (input) => runtime.pulseAddWaiting(input),
-    closeWaiting: (id, resolution) => void runtime.pulseCloseWaiting(id, 'resolved', resolution)
-  })
+  // Custom build (hq-promises): the owner's promises into Notes — the ledger's or, until it is on, the scout's.
+  startHqPromises(store, runtime)
   // Custom build (hq-people): pulse people get their Slack/ClickUp ids and role from HQ's org matrix.
   startHqPeopleSync({
     hqPath: () => store.getSettings().hqPath ?? null,

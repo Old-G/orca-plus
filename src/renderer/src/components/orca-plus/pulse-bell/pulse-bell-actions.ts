@@ -46,7 +46,8 @@ import {
   readHqWaitingReplyRef
 } from '../../../../../shared/hq-waiting-reply-bell'
 import { openHqWaitingReplyChat, runHqWaitingReplyAction } from './hq-waiting-reply-actions'
-import { HQ_INTAKE_KIND } from '../../../../../shared/hq-slack-intake'
+import { HQ_INTAKE_KIND, HQ_INTAKE_REPLY_ACTION } from '../../../../../shared/hq-slack-intake'
+import { replyToHqIntake } from './hq-intake-reply'
 import { showHqIntakeCard } from './hq-intake-toasts'
 
 function paneRefTabId(ref: PulseBellPaneRef): string | undefined {
@@ -159,6 +160,10 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
   }
   // Custom build (hq-slack-intake): the bell's «To work» brings the card back; it closes on a decision.
   if (item.kind === HQ_INTAKE_KIND) {
+    if (actionId === HQ_INTAKE_REPLY_ACTION) {
+      await replyToHqIntake(item)
+      return
+    }
     showHqIntakeCard(item)
     return
   }
