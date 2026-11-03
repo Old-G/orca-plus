@@ -18,7 +18,7 @@ export type HqIntakeChatOption = {
   project: string | null
   /** The chat's address or name. */
   title: string
-  /** The first line of its last report, when it wrote one. */
+  /** Its latest reports' first lines, newest first, when it wrote any. */
   lastReport: string | null
 }
 
@@ -42,6 +42,8 @@ export type HqIntakeDecision = {
   chat: string
   kind: HqAttributionKind
   state: 'you' | 'fyi'
+  /** Custom build (hq-in-work, plan 20.11): the listed chat already does it, so it waits on nobody. */
+  inWork: boolean
   /** 0–1. */
   confidence: number
   why: string | null
@@ -49,6 +51,8 @@ export type HqIntakeDecision = {
 }
 
 const MAX_CHATS = 25
+/** Why 0.6: the prompt asks for less when the model guesses; same floor as the new-chat check. */
+const IN_WORK_CONFIDENCE = 0.6
 const unquoted = (text: string): string => text.replace(/"{2,}/g, '"')
 const line = (text: string, max: number): string =>
   unquoted(text).replace(/\s+/g, ' ').trim().slice(0, max)
@@ -76,7 +80,7 @@ export function hqIntakeDecidePrompt(
       : 'No open agent chats.',
     ...chats.map(
       (chat) =>
-        `- ${chat.sessionId} — ${chat.project ?? '?'} — ${line(chat.title, 80)}${chat.lastReport ? ` — ${line(chat.lastReport, 160)}` : ''}`
+        `- ${chat.sessionId} — ${chat.project ?? '?'} — ${line(chat.title, 80)}${chat.lastReport ? ` — ${line(chat.lastReport, 320)}` : ''}`
     ),
     ...(input.waitings.length > 0
       ? [
@@ -118,9 +122,11 @@ export function hqIntakeDecidePrompt(
     'state: "you" — it waits on the user; "fyi" — it does not.',
     'chat: the id of the open chat already working on exactly this (same task, MR, thread or question),',
     `else "${HQ_ATTRIBUTION_NEW_CHAT}". An answer to one of the questions above goes to the chat that asked.`,
+    'in_work: true only when that chat is already doing what the message asks or announces, so nothing',
+    'waits on the user; a question to him, or a request the chat has not taken up, is never in work.',
     'project: a slug from the list, or empty when none clearly fits.',
     'confidence: 0–1, how sure you are of project and chat together; below 0.6 when you are guessing.',
-    'Answer with JSON only: {"project": "", "chat": "", "kind": "", "state": "you" | "fyi",',
+    'Answer with JSON only: {"project": "", "chat": "", "in_work": false, "kind": "", "state": "you" | "fyi",',
     '"confidence": 0.0, "why": "<one line in English, under 140 characters: what you based it on>",',
     '"gist": "<one line in Russian, under 100 characters: what the talk is about>"}'
   ]
@@ -166,6 +172,7 @@ export function parseHqIntakeDecision(
       ? (kind as HqAttributionKind)
       : 'fyi',
     state: state === 'you' ? 'you' : 'fyi',
+    inWork: get('in_work') === true && listedChat !== undefined,
     confidence: Number.isFinite(confidence) ? Math.min(1, Math.max(0, confidence)) : 0,
     why: typeof why === 'string' && why.trim() ? why.trim().slice(0, 200) : null,
     gist: typeof gist === 'string' && gist.trim() ? gist.trim().slice(0, 140) : null
@@ -199,6 +206,8 @@ export async function decideHqIntake(
     gist: decision.gist,
     chat: decision.chat,
     kind: decision.kind,
+    // Why: the owner's own line waits on nobody, and below the floor the model is guessing.
+    inWork: decision.inWork && !input.fromOwner && decision.confidence >= IN_WORK_CONFIDENCE,
     confidence: decision.confidence,
     why: decision.why
   }

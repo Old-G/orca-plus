@@ -18,6 +18,8 @@ export type HqFeedConversation = {
   projectHow: string | null
   title: string
   state: string
+  /** Custom build (hq-in-work): `in-work` — a chat already does it; it is not the owner's move. */
+  stateWhy?: string | null
   lastAt: number
   sessionId: string | null
   /** The newest messages, oldest first. */
