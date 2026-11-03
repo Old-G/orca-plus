@@ -37,6 +37,8 @@ import { hqLedgerErrorReporter } from './hq-ledger-errors'
 import { HQ_GITLAB_TODO_READER, startHqGitLabTodoReader } from './hq-gitlab-todo-reader'
 import { startHqMailLedgerReader } from './hq-mail-ledger-reader'
 import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
+import { noteHqClickUpWatchedTask } from './hq-clickup-ledger-reader'
+import { registerHqClickUpLedger } from './register-hq-clickup-ledger'
 
 async function glabJson(host: string, path: string): Promise<unknown> {
   const { stdout } = await glabExecFileAsync(['api', '--hostname', host, path])
@@ -207,6 +209,9 @@ function registerMailLetters(store: Store, runtime: OrcaRuntimeService): void {
 
 export function registerHqMailIntake(store: Store, runtime: OrcaRuntimeService): void {
   registerGmailHandlers()
+  // Custom build (hq-clickup-ledger, plan 20.4): ClickUp comments straight into the request ledger,
+  // on his tasks and on those this mail names.
+  registerHqClickUpLedger(store, runtime)
   // Custom build (hq-mr-watch): waitings that name an MR, checked against GitLab every few minutes.
   const hqPath = (): string | null => store.getSettings().hqPath ?? null
   const readConfig = async (): Promise<string> => {
@@ -270,7 +275,11 @@ export function registerHqMailIntake(store: Store, runtime: OrcaRuntimeService):
       collectHqMailIntake(hq, {
         listMailIds: listGmailMessageIds,
         getMail: getGmailMail,
-        getTask: getClickUpTask,
+        // Custom build (hq-clickup-ledger): a task ClickUp mailed about is read into the ledger too.
+        getTask: (ref) => {
+          noteHqClickUpWatchedTask(ref, Date.now())
+          return getClickUpTask(ref)
+        },
         listComments: listClickUpTaskComments,
         listReplies: listClickUpCommentReplies,
         viewer: getClickUpViewer,
