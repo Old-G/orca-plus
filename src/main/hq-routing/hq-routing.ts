@@ -278,13 +278,16 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
       if (action.kind === 'open' && action.note) {
         deps.log(`routing: ${action.project}: ${action.note}`)
       }
+      if (lateWork.busy(action.project)) {
+        return Promise.resolve({ ...action, note: 'still starting from the last pass' })
+      }
       const findings = action.findings.flatMap((id) => byId.get(id) ?? [])
       const work = carryOut(hqPath, action, findings, now, manual).catch((error: unknown) => {
         const message = error instanceof Error ? error.message : String(error)
         deps.log(`routing: ${action.project} failed: ${message}`)
         return { ...action, note: message }
       })
-      return lateWork.orAfter(work, CARRY_TIMEOUT_MS, () => ({
+      return lateWork.orAfter(action.project, work, CARRY_TIMEOUT_MS, () => ({
         ...action,
         note: 'still starting after 2 min'
       }))
@@ -380,13 +383,9 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
   const run = (options: HqRouteOptions = {}): Promise<HqRouteResult> => {
     // Why: the timer and a manual run must not open two chats for one project.
     if (!running) {
-      // Why: a launch that outlived the last pass's timeout records its chat first (hq-routing-pool).
-      running = lateWork
-        .settled()
-        .then(() => runOnce(options))
-        .finally(() => {
-          running = null
-        })
+      running = runOnce(options).finally(() => {
+        running = null
+      })
       return running
     }
     if (options.dryRun) {
