@@ -1,6 +1,13 @@
 // Custom build (hq-clickup-ledger, owner 03.11, plan stage 20.4): the ClickUp reader of the request
 // ledger, wired to the ClickUp API, the HQ project pages and the pulse database.
-import type { Store } from '../persistence'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import {
+  HQ_SLACK_SCOUT_CONFIG_FILE,
+  HQ_SLACK_SCOUT_DIR,
+  parseHqSlackScoutTuning
+} from '../../shared/hq-slack-scout'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import {
   getClickUpTask,
@@ -34,6 +41,15 @@ export function registerHqClickUpLedger(store: Store, runtime: OrcaRuntimeServic
       listReplies: listClickUpCommentReplies,
       viewer: getClickUpViewer,
       projectForList: (listId) => forList(listId),
+      ownAccounts: async () => {
+        const hq = store.getSettings().hqPath
+        const text = hq
+          ? await readFile(join(hq, HQ_SLACK_SCOUT_DIR, HQ_SLACK_SCOUT_CONFIG_FILE), 'utf8').catch(
+              () => ''
+            )
+          : ''
+        return new Set(parseHqSlackScoutTuning(text).clickUpIgnoreAuthors)
+      },
       projectOfLinks: async (links) => {
         const hq = store.getSettings().hqPath
         return hq
