@@ -74,6 +74,8 @@ export type ClaudeConnectorGapDeps = {
   accountLabel: (configDir: string) => string
   syncBell: (items: PulseBellInput[]) => void
   log: (message: string) => void
+  /** Why: a later switch may land while `claude mcp list` runs; its check owns the bell then. */
+  isCurrent?: (configDir: string) => boolean
 }
 
 /** Compares the folder chats ran in with the one they run in now; a gap goes to the bell. */
@@ -90,6 +92,9 @@ export async function checkClaudeConnectorGap(
     deps.readConnectors(nextDir)
   ])
   const missing = claudeConnectorGap(previous, next)
+  if (deps.isCurrent && !deps.isCurrent(nextDir)) {
+    return missing
+  }
   deps.log(`connectors missing on the new account: ${missing.join(', ') || 'none'}`)
   deps.syncBell(
     missing.length > 0 ? [claudeConnectorGapBellItem(deps.accountLabel(nextDir), missing)] : []
@@ -117,14 +122,16 @@ export function claudeAccountLabelOfDir(configDir: string): string {
 export function checkConnectorGapAfterSwitch(
   runtime: { pulseSyncInboxKind: (kind: string, items: PulseBellInput[]) => void },
   previousDir: string,
-  nextDir: string
+  nextDir: string,
+  isCurrent: (configDir: string) => boolean
 ): Promise<string[]> {
   return checkClaudeConnectorGap(
     {
       readConnectors: readClaudeAiConnectors,
       accountLabel: claudeAccountLabelOfDir,
       syncBell: (items) => runtime.pulseSyncInboxKind(CLAUDE_CONNECTOR_GAP_KIND, items),
-      log: (message) => console.log('[claude-connector-gap]', message)
+      log: (message) => console.log('[claude-connector-gap]', message),
+      isCurrent
     },
     previousDir,
     nextDir
