@@ -25,6 +25,11 @@ export type HqPlusTakeChoice = {
   proposedChat: string
   project: string | null
   chat: string
+  /** Custom build (owner 03.11): the card's kind, proposed and chosen, and his reason when he changed. */
+  proposedKind: string | null
+  /** Null when HQ proposed no kind: nothing to judge. */
+  kind: string | null
+  why: string
 }
 
 export function recordHqPlusTake(choice: HqPlusTakeChoice): void {
@@ -36,7 +41,9 @@ export function recordHqPlusTake(choice: HqPlusTakeChoice): void {
     proposedProject: choice.proposedProject,
     proposedChat: hqPlusTakeChat(choice.proposedChat),
     project: choice.project,
-    chat: hqPlusTakeChat(choice.chat)
+    chat: hqPlusTakeChat(choice.chat),
+    ...(choice.kind ? { proposedKind: choice.proposedKind, kind: choice.kind } : {}),
+    ...(choice.why.trim() ? { why: choice.why.trim() } : {})
   }).then((result) => {
     if (!result.ok) {
       console.warn('[hq-attribution] could not record the choice:', result.message)

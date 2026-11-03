@@ -25,6 +25,11 @@ export type HqAttributionGuessHow =
 /** A chat field's value for «start a new chat». */
 export const HQ_ATTRIBUTION_NEW_CHAT = 'new'
 
+/** Custom build (hq-intake-decide, owner 03.11): what a card asks of the owner — do something, answer
+ *  a question, an answer to one of our questions, or news. */
+export const HQ_ATTRIBUTION_KINDS = ['do', 'answer', 'reply', 'fyi'] as const
+export type HqAttributionKind = (typeof HQ_ATTRIBUTION_KINDS)[number]
+
 export type HqAttributionSlice = {
   source: string
   field: HqAttributionField
@@ -47,9 +52,13 @@ export type HqAttributionEdit = {
 
 export type HqAttributionAccuracy = {
   since: number
+  /** Custom build (owner 03.11): cards he sent with everything kept, and with at least one change. */
+  cards: { decided: number; wrong: number }
   slices: HqAttributionSlice[]
   /** What he changes most: «guessed X → chose Y», most frequent first. */
   topEdits: HqAttributionEdit[]
+  /** His own words on why a guess was wrong, newest first. */
+  whys: { source: string; field: HqAttributionField; text: string }[]
 }
 
 /** The source a conversation's place key names: `slack:…` → slack. */
