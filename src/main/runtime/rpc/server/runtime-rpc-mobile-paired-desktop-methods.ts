@@ -39,6 +39,10 @@ export const PAIRED_DESKTOP_METHODS = [
   'hq.conversationDone',
   'hq.conversationNotInWork',
   'hq.conversationToWork',
+  // Custom build (hq-project-cards): the phone's project chip on a conversation and «Skip» on a chat's
+  // question — the phone already calls both, and they were refused.
+  'hq.conversationProject',
+  'hq.skipOwner',
   'hqProjects.people',
   'hqProjects.person',
   // Its notes, waitings and bell, which live in the Mac's pulse database.
