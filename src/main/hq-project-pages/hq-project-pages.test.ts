@@ -114,3 +114,29 @@ describe('listHqProjectPages', () => {
     await expect(listHqProjectPages(dir)).rejects.toThrow()
   })
 })
+
+// Custom build (hq-intake-decide, owner 03.11).
+describe('readHqProjectPage summary', () => {
+  it('keeps the first two sentences of «Кратко»', () => {
+    const page = readHqProjectPage(
+      [
+        '---',
+        'project: acme-agents',
+        'id: repo-9',
+        '---',
+        '',
+        '# acme-agents — first-line agent',
+        '',
+        '## Кратко',
+        '',
+        'One core for every agent. The first one answers #acme-bugs requests. Since 16.10 it runs on uat.',
+        '',
+        '## Next'
+      ].join('\n')
+    )
+
+    expect(page?.summary).toBe(
+      'One core for every agent. The first one answers #acme-bugs requests.'
+    )
+  })
+})
