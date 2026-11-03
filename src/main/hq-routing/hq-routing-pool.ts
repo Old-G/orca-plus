@@ -29,27 +29,30 @@ export function orAfter<R>(work: Promise<R>, ms: number, late: () => R): Promise
   return Promise.race([work, timeout]).finally(() => clearTimeout(timer))
 }
 
-/** Work that answered late and still runs. Why: a launch past its timeout goes on and records its chat
- *  later; the next pass must wait for it, or it opens a second chat for the same findings (Codex P1,
- *  04.11). */
+/** Launches that answered late and still run, by project. Why: a launch past its timeout goes on and
+ *  records its chat later; the next pass must not start that project again, or it opens a second chat
+ *  for the same findings (Codex P1, 04.11) — while every other project goes ahead (a hung launch must
+ *  not hold all routing). */
 export function createLateWork(): {
-  orAfter: <R>(work: Promise<R>, ms: number, late: () => R) => Promise<R>
-  settled: () => Promise<void>
+  orAfter: <R>(key: string, work: Promise<R>, ms: number, late: () => R) => Promise<R>
+  busy: (key: string) => boolean
 } {
-  const pending = new Set<Promise<unknown>>()
+  const pending = new Map<string, Promise<unknown>>()
   return {
-    orAfter: (work, ms, late) =>
+    orAfter: (key, work, ms, late) =>
       orAfter(work, ms, () => {
         const tracked = work.then(
           () => undefined,
           () => undefined
         )
-        pending.add(tracked)
-        void tracked.then(() => pending.delete(tracked))
+        pending.set(key, tracked)
+        void tracked.then(() => {
+          if (pending.get(key) === tracked) {
+            pending.delete(key)
+          }
+        })
         return late()
       }),
-    settled: async () => {
-      await Promise.all(pending)
-    }
+    busy: (key) => pending.has(key)
   }
 }
