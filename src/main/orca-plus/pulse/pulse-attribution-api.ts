@@ -2,12 +2,11 @@
 // itself so the model's decision (which writes guesses) can join without an import cycle.
 import type { PulseCore } from './pulse-core'
 import {
-  attributionAccuracy,
-  attributionHints,
   noteAttributionSkip,
   noteAttributionTake,
   type HqAttributionTake
 } from './pulse-attribution'
+import { attributionAccuracy, attributionHints } from './pulse-attribution-stats'
 import {
   ledgerDecisionAttemptsSince,
   noteLedgerDecisionAttempt,
