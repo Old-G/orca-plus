@@ -65,6 +65,8 @@ export type TextGenerationOperation =
   | 'hq-slack-intake'
   // Custom build (hq-request-ledger): a new conversation's project, whose move and gist.
   | 'hq-ledger-guess'
+  // Custom build (hq-in-work): whether a new agent chat already does a conversation waiting on the owner.
+  | 'hq-in-work'
   // Custom build (hq-plus-person-replies): whether a person's answer may go to the asking chat by itself.
   | 'hq-reply-routing'
 

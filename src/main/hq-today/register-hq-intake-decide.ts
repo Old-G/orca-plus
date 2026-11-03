@@ -21,6 +21,7 @@ const DECISIONS_PER_DAY = 150
 /** Why a month (Codex 03.11): a chat left open a week is still where its thread's answer belongs. */
 const CHATS_WINDOW_MS = 30 * 24 * 60 * 60_000
 const MAX_CHATS = 25
+const REPORTS_PER_CHAT = 2
 
 export function hqIntakeDecider(
   store: Store,
@@ -32,10 +33,13 @@ export function hqIntakeDecider(
   })
   const liveChats = (): HqIntakeChatOption[] => {
     const since = Date.now() - CHATS_WINDOW_MS
-    const reports = new Map<string, string>()
+    // Custom build (hq-in-work, owner 03.11): two latest reports, not one line — what a chat is doing
+    // is how the model tells a message it already works on.
+    const reports = new Map<string, string[]>()
     for (const entry of runtime.pulseListJournal({ kind: 'chat.report', since, limit: 300 })) {
-      if (entry.sessionId && !reports.has(entry.sessionId)) {
-        reports.set(entry.sessionId, entry.title)
+      const held = entry.sessionId ? (reports.get(entry.sessionId) ?? []) : null
+      if (entry.sessionId && held && held.length < REPORTS_PER_CHAT) {
+        reports.set(entry.sessionId, [...held, entry.title])
       }
     }
     return runtime
@@ -46,7 +50,7 @@ export function hqIntakeDecider(
         sessionId: session.sessionId,
         project: session.project,
         title: session.address ?? session.sessionId,
-        lastReport: reports.get(session.sessionId) ?? null
+        lastReport: reports.get(session.sessionId)?.join(' / ') ?? null
       }))
       .slice(0, MAX_CHATS)
   }
