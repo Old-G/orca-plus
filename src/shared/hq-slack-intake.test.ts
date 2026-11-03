@@ -46,6 +46,29 @@ describe('hq-slack-intake', () => {
     expect(prompt.match(/"""/g)).toHaveLength(2)
   })
 
+  // Custom build (hq-intake-thread, owner 03.11): a thread goes whole, with its own link.
+  it('a thread taken whole carries the thread link, the reply link and its label', () => {
+    const prompt = hqIntakePrompt(
+      {
+        ...intake,
+        channel: 'C0ACME',
+        venue: 'channel',
+        threadTs: '1793694625.526019',
+        permalink:
+          'https://example.slack.com/archives/C0ACME/p1793695423337509?thread_ts=1793694625.526019',
+        text: 'Ann: Could we connect Search Console?\nYou: Принял',
+        wholeThread: true
+      },
+      { projectName: null, note: '' }
+    )
+    expect(prompt).toContain(
+      'Thread: https://example.slack.com/archives/C0ACME/p1793694625526019\n'
+    )
+    expect(prompt).toContain('Message: https://example.slack.com/archives/C0ACME/p1793695423337509')
+    expect(prompt).toContain('The thread, oldest first; «You» is the user')
+    expect(hqIntakePrompt(intake, { projectName: null, note: '' })).not.toContain('Thread:')
+  })
+
   it('saves to Notes who said it, where and the full text', () => {
     const { title, detail } = hqIntakeNote(intake, '')
     expect(title).toBe('В работу: Анна прислал реализацию роутов чата')
