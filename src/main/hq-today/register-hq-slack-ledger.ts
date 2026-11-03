@@ -9,6 +9,7 @@ import { withSlackReader } from '../slack/slack-reader'
 import { createSlackLedgerApi } from '../slack/slack-ledger-api'
 import { createSlackReadApi, createSlackReaderCache } from '../slack/slack-reader-api'
 import { hqIntakeDecider } from './register-hq-intake-decide'
+import { startHqInWork } from './register-hq-in-work'
 import {
   hqSlackParityLine,
   startHqSlackLedgerReader,
@@ -114,6 +115,8 @@ export function registerHqSlackLedger(
       runtime.pulseRecordJournal(rows)
     )
   )
+  // Custom build (hq-in-work, plan 20.11): a conversation a chat already works on is not his move.
+  startHqInWork(store, runtime)
   return {
     answers: () => {
       const since = Date.now() - 2 * DAY_MS
