@@ -109,7 +109,8 @@ export function startHqInWork(store: Store, runtime: OrcaRuntimeService): () => 
     const checked = runtime.pulseInWorkChatsChecked(now - LOOKBACK_MS)
     const fresh = sessions
       .filter((session) => !checked.has(session.sessionId))
-      .toSorted((a, b) => a.openedAt - b.openedAt)
+      // Why newest first: a chat just opened is where a message was just handed; the backlog can wait.
+      .toSorted((a, b) => b.openedAt - a.openedAt)
     let read = 0
     for (const session of fresh) {
       const older = [...left.values()].filter((candidate) => candidate.lastAt <= session.openedAt)
