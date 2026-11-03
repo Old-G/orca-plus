@@ -35,6 +35,8 @@ export type HqGitLabTodo = {
   /** `opened`, `merged`, `closed`; null when GitLab did not say. */
   targetState: string | null
   targetTitle: string
+  /** Custom build (hq-ledger-own-mrs, plan 20.5): who opened the MR; null when GitLab did not say. */
+  mrAuthor: string | null
   /** `group/repo`. */
   repo: string | null
   authorName: string | null
@@ -100,6 +102,7 @@ export function parseHqGitLabTodos(rows: readonly unknown[]): HqGitLabTodo[] {
         targetUrl: url,
         targetState: str(field(target, 'state')),
         targetTitle: str(field(target, 'title')) ?? '',
+        mrAuthor: str(field(field(target, 'author'), 'username')),
         repo: str(field(field(row, 'project'), 'path_with_namespace')),
         authorName: str(field(author, 'name')),
         authorUsername: str(field(author, 'username')),
@@ -153,6 +156,18 @@ export function hqGitLabTodoAsks(
 ): boolean {
   if (ownWords(todo, ctx.owner)) {
     return false
+  }
+  // Custom build (hq-ledger-own-mrs, plan 20.5): on his own MR only a person turning to him while it is
+  // open is his move — a reviewer's «fix this here» (С7). Merged, closed or approved, and GitLab's own
+  // notices (cannot merge, failed pipeline), are not (С8).
+  if (todo.mrAuthor?.toLowerCase() === ctx.owner.toLowerCase()) {
+    const person = !hqGitLabIsBot(todo.authorUsername, ctx.bots)
+    const open = todo.targetState === null || todo.targetState === 'opened'
+    const turns =
+      todo.action === 'mentioned' ||
+      todo.action === 'directly_addressed' ||
+      (todo.action === 'review_submitted' && todo.body.trim() !== '')
+    return person && open && turns
   }
   if (todo.action === 'mentioned') {
     return !hqGitLabIsBot(todo.authorUsername, ctx.bots)
