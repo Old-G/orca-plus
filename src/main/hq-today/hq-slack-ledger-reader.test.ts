@@ -3,12 +3,11 @@ import { PulseDb } from '../orca-plus/pulse/pulse-db'
 import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import {
   hqLedgerSignalOfSlack,
-  hqSlackParityLine,
-  normalizeScoutId,
   runHqSlackLedgerReader,
   type HqSlackLedgerDeps,
   type HqSlackLedgerMessage
 } from './hq-slack-ledger-reader'
+import { hqSlackParityLine, normalizeScoutId } from './hq-slack-parity'
 
 const OWNER = 'U0OWNER'
 const open: PulseDb[] = []
@@ -98,12 +97,45 @@ describe('Slack ledger reader', () => {
   })
 
   it('reads the same messages twice into nothing new, and measures the delay after the first pass', async () => {
-    const { db, deps } = setup([message({})])
+    const { db, deps } = setup([message({ rawText: `<@${OWNER}> hi` })])
     const first = await runHqSlackLedgerReader(deps, { cursor: 1, delays: [] })
     const second = await runHqSlackLedgerReader(deps, first)
     expect(db.listLedgerConversations()).toHaveLength(1)
     expect(first.delays).toEqual([100])
     expect(second.delays).toEqual([100])
+  })
+
+  it('does not count as late a line said before the owner was in the talk', async () => {
+    // Why (03.11, max 1958 s): search finds a thread's earlier lines once the owner joins it.
+    const { deps } = setup([message({})])
+    const state = await runHqSlackLedgerReader(deps, { cursor: 1, delays: [] })
+    expect(state.delays).toEqual([])
+  })
+
+  it('measures the delay when the message reached the ledger, not after the model looked at it', async () => {
+    const { deps } = setup([
+      message({ ts: '1700000100.000100', rawText: `<@${OWNER}> one` }),
+      message({
+        ts: '1700000150.000100',
+        threadTs: '1700000150.000100',
+        rawText: `<@${OWNER}> two`
+      })
+    ])
+    let clock = 1_700_000_200_000
+    const state = await runHqSlackLedgerReader(
+      {
+        ...deps,
+        now: () => clock,
+        // Why: a slow model must not add its time to the next message's delay.
+        guess: async () => {
+          clock += 120_000
+          return null
+        }
+      },
+      { cursor: 1, delays: [] }
+    )
+    expect(state.delays).toEqual([100, 50])
+    expect(state.slowest).toEqual({ seconds: 100, id: 'C0123HUBXY:1700000100.000100' })
   })
 
   it('counts a pass after a long gap as a catch-up, not as delays', async () => {
@@ -195,7 +227,30 @@ describe('parity with the scout', () => {
       [10, 40, 70]
     )
     expect(line).toBe(
-      'Slack API vs scout: 2 of 3 topics in conversations, missing D1:3.3; delay median 40 s, max 70 s over 3'
+      'Slack API vs scout: 2 of 3 topics in conversations, missing D1:3.3; delay median 40 s, max 70 s over 3, 1 over 1 min'
+    )
+  })
+
+  it('holds quiet topics apart, names the slowest message and the scout cards', () => {
+    const line = hqSlackParityLine(
+      [
+        { id: 'C1:1.1', messages: ['C1:1.1'] },
+        // Why: the scout files colleagues' talks it read for context as quiet; not said to the owner.
+        { id: 'C2:2.2', messages: ['C2:2.2'], quiet: true },
+        { id: 'D1:3.3', messages: ['D1:3.3'], quiet: true }
+      ],
+      (channel) => channel !== 'C2',
+      [20, 30, 95],
+      [],
+      {
+        slowest: { seconds: 95, id: 'D1:4.4' },
+        cards: { cards: 4, held: 3, sameKind: 2, drafted: 3 }
+      }
+    )
+    expect(line).toBe(
+      'Slack API vs scout: 1 of 1 topics in conversations; quiet: 1 of 2 (the rest not said to you); ' +
+        "scout cards: 3 of 4 held, kind as the scout's 2 of 3, reply drafted 3 of 3; " +
+        'delay median 30 s, max 95 s (D1:4.4) over 3, 1 over 1 min'
     )
   })
 
