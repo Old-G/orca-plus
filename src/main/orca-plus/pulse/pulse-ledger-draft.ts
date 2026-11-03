@@ -3,9 +3,12 @@
 // words. Kept as events, not a table: an older build opens the database as it is (no schema step to
 // roll back), and the day's count is read from the same rows.
 import type { PulseCore } from './pulse-core'
+import { noteAttributionGuess } from './pulse-attribution'
 import { HQ_ATTRIBUTION_KINDS, type HqAttributionKind } from '../../../shared/hq-attribution'
 
 export const LEDGER_DRAFT_EVENT = 'conversation.draft'
+/** A conversation's `state_why` once its newest message was read as for information. */
+export const LEDGER_DRAFT_QUIET = 'draft:fyi'
 
 export type HqLedgerDraft = {
   /** The person's message it answers; a newer one wants a new draft. */
@@ -60,6 +63,30 @@ export function pulseLedgerDrafts(core: () => PulseCore) {
         .get(LEDGER_DRAFT_EVENT, conversationId)
       return row ? readDraft(row.payload) : null
     },
+    /** Custom build (hq-ledger-draft, 03.11: 3 of 8 «your move» cards were thanks): the newest message
+     *  read as for information takes the talk off the owner — a state guess like «in work», so his
+     *  «it was mine» is counted. A newer message from the person makes it his move again. */
+    quiet: (conversationId: string, why: string): boolean =>
+      core().transaction(() => {
+        const row = core()
+          .db.prepare(`SELECT key FROM conversations WHERE id = ? AND state = 'you'`)
+          .get(conversationId)
+        if (!row) {
+          return false
+        }
+        core()
+          .db.prepare(`UPDATE conversations SET state = 'fyi', state_why = ? WHERE id = ?`)
+          .run(LEDGER_DRAFT_QUIET, conversationId)
+        noteAttributionGuess(core(), {
+          key: String(row.key),
+          field: 'state',
+          value: 'fyi',
+          how: 'model',
+          why
+        })
+        core().emit('conversation.updated', 'conversation', conversationId, { state: 'fyi' })
+        return true
+      }),
     /** The talk's last lines, both ways, oldest first — a scout's request line is its summary, not
      *  something said. */
     lines: (
