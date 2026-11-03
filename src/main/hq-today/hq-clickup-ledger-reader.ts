@@ -48,6 +48,9 @@ export type HqClickUpLedgerDeps = {
   viewer: () => Promise<{ id: string; username: string }>
   /** The HQ project of a ClickUp list, from the owner's mapping. */
   projectForList: (listId: string | null) => string | null
+  /** ClickUp accounts that write for the owner — the agents' account (HQ config
+   *  `clickup_ignore_authors`): their comments are his side, not people asking him. */
+  ownAccounts: () => Promise<ReadonlySet<string>>
   /** The HQ project a link names (a repo path segment), for commits, MRs and branches. */
   projectOfLinks: (links: readonly string[]) => Promise<string | null>
   ingest: (signal: HqLedgerSignal) => HqLedgerResult
@@ -57,6 +60,9 @@ export type HqClickUpLedgerDeps = {
 export type HqClickUpLedgerState = { lastLookAt: number | null }
 
 const URL = /https?:\/\/[^\s<>()"']+/g
+/** A Slack thread mirrored into the task by a sync bot — the Slack reader has those lines already. */
+const SLACK_MIRROR = /^\s*\[Slack Sync\]/
+
 /** A link to code: a commit, an MR or PR, a branch or tree on GitLab or GitHub. */
 const CODE_LINK = /\/(?:-\/)?(?:commit|merge_requests|pull|tree|compare)\//
 
@@ -85,18 +91,25 @@ export function hqClickUpCodeLinks(body: string): string[] {
     .filter((link) => CODE_LINK.test(link))
 }
 
-/** The ledger signal of one comment; null for Orca+'s own footer lines (the sent reader has them).
+/** The ledger signal of one comment; null for Orca+'s own footer lines (the sent reader has them) and
+ *  Slack mirrors. The agents' account writes for the owner, so its comments are his.
  *  `project`: the one its code links name, else its list's. */
 export function hqLedgerSignalOfClickUp(
   task: ClickUpTask,
   comment: ClickUpComment,
   owner: { id: string; username: string },
-  project: string | null
+  project: string | null,
+  ownAccounts: ReadonlySet<string> = new Set()
 ): HqLedgerSignal | null {
-  if (!comment.author || !comment.body.trim() || ORCA_FOOTER.test(comment.body)) {
+  if (
+    !comment.author ||
+    !comment.body.trim() ||
+    ORCA_FOOTER.test(comment.body) ||
+    SLACK_MIRROR.test(comment.body)
+  ) {
     return null
   }
-  const fromOwner = comment.author.id === owner.id
+  const fromOwner = comment.author.id === owner.id || ownAccounts.has(comment.author.id)
   const at = comment.createdAt ?? 0
   return {
     key: `clickup:${task.customId ?? task.id}`,
@@ -122,7 +135,11 @@ export async function runHqClickUpLedgerReader(
 ): Promise<{ state: HqClickUpLedgerState; added: number }> {
   const now = deps.now()
   const since = (state.lastLookAt ?? now - FIRST_LOOK_MS) - OVERLAP_MS
-  const [owner, mine] = await Promise.all([deps.viewer(), deps.listMyTasks()])
+  const [owner, mine, ownAccounts] = await Promise.all([
+    deps.viewer(),
+    deps.listMyTasks(),
+    deps.ownAccounts()
+  ])
   const refs = new Set<string>([
     ...mine.filter((task) => (task.updatedAt ?? 0) >= since).map((task) => task.id),
     ...deps.watchedTasks()
@@ -150,7 +167,7 @@ export async function runHqClickUpLedgerReader(
       const links = hqClickUpCodeLinks(comment.body)
       const project =
         (links.length > 0 ? await deps.projectOfLinks(links).catch(() => null) : null) ?? forList
-      const signal = hqLedgerSignalOfClickUp(task, comment, owner, project)
+      const signal = hqLedgerSignalOfClickUp(task, comment, owner, project, ownAccounts)
       if (signal && deps.ingest(signal).added) {
         added += 1
       }
