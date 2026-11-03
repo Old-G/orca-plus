@@ -84,28 +84,32 @@ export function noteAttributionGuess(core: PulseCore, guess: HqAttributionGuess)
 }
 
 /** Call inside a transaction. The owner chose `value` for the field: the open guess is kept (same
- *  value) or changed; with no guess written, the choice is kept apart as `unrecorded`. */
+ *  value) or changed; with no guess written, the choice is kept apart as `unrecorded`. Returns the
+ *  row it closed. */
 export function noteAttributionFinal(
   core: PulseCore,
   key: string,
   field: HqAttributionField,
   value: string | null
-): void {
+): { id: string; how: 'confirm' | 'edit' } {
   const now = core.clock.now()
   const open = openRow(core, key, field)
   if (open) {
+    const how = open.guess === value ? 'confirm' : 'edit'
     core.db
       .prepare(`UPDATE attribution_log SET final = ?, final_how = ?, final_at = ? WHERE id = ?`)
-      .run(value, open.guess === value ? 'confirm' : 'edit', now, open.id)
-    return
+      .run(value, how, now, open.id)
+    return { id: open.id, how }
   }
+  const id = core.clock.newId()
   core.db
     .prepare(
       `INSERT INTO attribution_log
          (id, conversation_key, source, field, guess, guess_how, guessed_at, final, final_how, final_at)
        VALUES (?, ?, ?, ?, NULL, 'unrecorded', ?, ?, 'edit', ?)`
     )
-    .run(core.clock.newId(), key, hqAttributionSource(key), field, now, value, now)
+    .run(id, key, hqAttributionSource(key), field, now, value, now)
+  return { id, how: 'edit' }
 }
 
 /** Call inside a transaction. The owner dropped the conversation's card: its open guesses close as
@@ -159,19 +163,22 @@ export type HqAttributionTake = {
  *  went unchanged. */
 export function noteAttributionTake(core: PulseCore, take: HqAttributionTake): void {
   core.transaction(() => {
-    judgeTaken(core, take.key, 'project', take.proposedProject, take.project)
-    judgeTaken(core, take.key, 'chat', take.proposedChat, take.chat)
-    if (take.kind) {
-      judgeTaken(core, take.key, 'kind', take.proposedKind ?? null, take.kind)
-    }
+    // Why the rows themselves (Codex 03.11): matching them by the clock lost the reason whenever it
+    // moved between fields.
+    const judged = [
+      judgeTaken(core, take.key, 'project', take.proposedProject, take.project),
+      judgeTaken(core, take.key, 'chat', take.proposedChat, take.chat),
+      take.kind ? judgeTaken(core, take.key, 'kind', take.proposedKind ?? null, take.kind) : null
+    ]
     const why = take.why?.trim()
     if (why) {
-      core.db
-        .prepare(
-          `UPDATE attribution_log SET owner_why = ?
-            WHERE conversation_key = ? AND final_how = 'edit' AND final_at = ?`
-        )
-        .run(why.slice(0, 500), take.key, core.clock.now())
+      for (const row of judged) {
+        if (row?.how === 'edit') {
+          core.db
+            .prepare('UPDATE attribution_log SET owner_why = ? WHERE id = ?')
+            .run(why.slice(0, 500), row.id)
+        }
+      }
     }
   })
 }
@@ -184,7 +191,7 @@ function judgeTaken(
   field: HqAttributionField,
   proposed: string | null,
   chosen: string | null
-): void {
+): { id: string; how: 'confirm' | 'edit' } | null {
   if (!openRow(core, key, field)) {
     const decided = core.db
       .prepare(
@@ -193,11 +200,11 @@ function judgeTaken(
       )
       .get(key, field)
     if (decided) {
-      return
+      return null
     }
     noteAttributionGuess(core, { key, field, value: proposed, how: 'card' })
   }
-  noteAttributionFinal(core, key, field, chosen)
+  return noteAttributionFinal(core, key, field, chosen)
 }
 
 /** Custom build (hq-intake-decide): the open guesses of a conversation's chat and card kind, with how
