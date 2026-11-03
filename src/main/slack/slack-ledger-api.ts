@@ -13,6 +13,35 @@ const LEDGER_PAGES = 5
 /** Custom build (hq-ledger-context): a thread read whole keeps its newest replies past this many. */
 const THREAD_LIMIT = 200
 
+/**
+ * Custom build (hq-ledger-context, owner 03.11: «I forwarded him a thread from #lh-bugs-and-support —
+ * it should have looked at what I forwarded and where from»): a shared or forwarded message rides as an
+ * attachment the plain text leaves out; its author, channel and words join the text the model reads.
+ */
+export function slackSharedText(entry: Record<string, unknown>): string {
+  const attachments = Array.isArray(entry.attachments) ? entry.attachments : []
+  return attachments
+    .flatMap((value) => {
+      const attachment = asSlackRecord(value)
+      const text = asString(attachment.text) ?? asString(attachment.fallback)
+      if (!text || (!attachment.is_share && !attachment.from_url && !attachment.is_msg_unfurl)) {
+        return []
+      }
+      const who = asString(attachment.author_name) ?? asString(attachment.author_subname)
+      const where = asString(attachment.channel_name)
+      const link = asString(attachment.from_url)
+      return [
+        `↪ ${who ?? 'someone'}${where ? ` in #${where}` : ''}${link ? ` (${link})` : ''}: ${plainSlackText(text)}`
+      ]
+    })
+    .join('\n')
+}
+
+function withShared(text: string, entry: Record<string, unknown>): string {
+  const shared = slackSharedText(entry)
+  return shared ? `${text}\n${shared}`.trim() : text
+}
+
 /** `after:` takes a day; the day before `since` (local) keeps Slack's own time zone out of it. */
 function searchDayBefore(since: number): string {
   const day = new Date(since - 24 * 60 * 60_000)
@@ -103,7 +132,7 @@ export function createSlackLedgerApi(
       ts,
       threadTs: asString(entry.thread_ts) ?? threadTs,
       user,
-      text: plainSlackText(raw),
+      text: withShared(plainSlackText(raw), entry),
       rawText: raw,
       permalink: null,
       dm,
@@ -153,7 +182,7 @@ export function createSlackLedgerApi(
           ts,
           threadTs,
           user,
-          text: plainSlackText(raw),
+          text: withShared(plainSlackText(raw), match),
           rawText: raw,
           permalink,
           dm: channel.is_im === true || channel.is_mpim === true || id.startsWith('D'),
