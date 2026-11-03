@@ -9,7 +9,8 @@ describe('To work picks the project and chat the card showed', () => {
     expect(hqPlusTakeHint('item-1')).toEqual({
       project: 'acme-api',
       sessionId: 'claude_part',
-      key: null
+      key: null,
+      guess: null
     })
     expect(hqPlusTakeHint('item-2')).toBeNull()
   })
