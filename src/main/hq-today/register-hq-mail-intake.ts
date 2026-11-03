@@ -35,6 +35,7 @@ import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
 import { guessHqLedger, type HqLedgerGuessInput } from './hq-ledger-guess'
 import { hqLedgerErrorReporter } from './hq-ledger-errors'
 import { HQ_GITLAB_TODO_READER, startHqGitLabTodoReader } from './hq-gitlab-todo-reader'
+import { hqMrChatOfBranch } from './hq-mr-chat'
 import { startHqMailLedgerReader } from './hq-mail-ledger-reader'
 import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import { noteHqClickUpWatchedTask } from './hq-clickup-ledger-reader'
@@ -171,6 +172,8 @@ function registerGitLabTodos(
           links: [todo.targetUrl]
         }),
       setGuess: (id, guess) => runtime.pulseSetLedgerGuess(id, guess),
+      chatOfBranch: hqMrChatOfBranch(store, runtime),
+      setChat: (key, sessionId) => runtime.pulseSetConversationChat(key, sessionId),
       now: Date.now
     },
     hqLedgerErrorReporter('hq-gitlab-todos', 'GitLab To-Do list not read', (rows) =>
