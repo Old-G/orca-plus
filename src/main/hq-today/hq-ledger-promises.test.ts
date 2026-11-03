@@ -15,6 +15,7 @@ const LINK = 'https://acme.slack.com/archives/D0ANN/p1700000060000100'
 
 function own(over: Partial<HqLedgerOwnLine> = {}): HqLedgerOwnLine {
   return {
+    row: 7,
     conversationId: 'c1',
     key: 'slack:D0ANN:1700000000.000100',
     ts: '1700000060.000100',
@@ -39,7 +40,7 @@ function setup(
   const prompts: string[] = []
   const deps: HqLedgerPromisesDeps = {
     enabled: () => true,
-    ownLines: (since) => lines.filter((entry) => entry.at > since),
+    ownLines: (afterRow) => lines.filter((entry) => entry.row > afterRow),
     lookedUpTo: () => looked.at(-1) ?? null,
     looked: (upTo) => looked.push(upTo),
     looksSince: () => looked.length,
@@ -74,7 +75,7 @@ describe('promises from the ledger', () => {
       })
     ])
     expect(added[0]?.dueAt).toBeGreaterThan(0)
-    expect(looked).toEqual([NOW - 60_000])
+    expect(looked).toEqual([7])
     expect(await runHqLedgerPromises(deps)).toBe(0)
     expect(prompts).toHaveLength(1)
   })
@@ -92,11 +93,11 @@ describe('promises from the ledger', () => {
   it('reads a failed call again next time, skips a talk with nobody in it, and keeps to the day', async () => {
     const failing = setup([own()], null)
     expect(await runHqLedgerPromises(failing.deps)).toBe(0)
-    expect(failing.looked).toEqual([NOW - 2 * 24 * 60 * 60_000])
+    expect(failing.looked).toEqual([0])
     const alone = setup([own({ peer: null, peerId: null, peerText: null })], '{"promises": []}')
     expect(await runHqLedgerPromises(alone.deps)).toBe(0)
     expect(alone.prompts).toEqual([])
-    expect(alone.looked).toEqual([NOW - 60_000])
+    expect(alone.looked).toEqual([7])
     const spent = setup([own()], '{"promises": []}')
     expect(
       await runHqLedgerPromises({
