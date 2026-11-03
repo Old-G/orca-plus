@@ -162,20 +162,17 @@ describe('a ledger card draft', () => {
     }
     const [row] = db.listLedgerCards(0)
     const card = row ? hqIntakeOfConversation(row, draft) : null
-    expect(card).toMatchObject({ ask: 'Keep the tables?', replyDraft: 'Bob, yes — today.' })
+    expect(card).toMatchObject({ ask: 'Keep the tables?' })
+    expect(card).not.toHaveProperty('replyDraft')
     expect(card ? hqIntakeBellItem(card) : null).toMatchObject({
       title: 'Bob: Keep the tables?',
-      actions: [
-        { id: 'intake-open', label: 'To work' },
-        { id: 'intake-reply', label: 'Reply' }
-      ],
-      body: 'Bob: Can the export keep the tables?\n\nDraft reply: Bob, yes — today.'
+      actions: [{ id: 'intake-open', label: 'To work' }],
+      body: 'Bob: Can the export keep the tables?'
     })
     said('1700000090.000100', 'Also the images')
     const [later] = db.listLedgerCards(0)
     const stale = later ? hqIntakeOfConversation(later, draft) : null
     expect(stale?.ask).toBeUndefined()
-    expect(stale?.replyDraft).toBeUndefined()
     expect(conversationId).toBe(row?.id)
   })
 
@@ -206,7 +203,6 @@ describe('a ledger card draft', () => {
     expect(after).toMatchObject({
       id: first?.id,
       title: 'Bob: Keep the tables?',
-      actions: [{ id: 'intake-open' }, { id: 'intake-reply' }],
       createdAt: first?.createdAt
     })
     expect(after?.readAt).not.toBeNull()

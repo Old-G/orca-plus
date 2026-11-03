@@ -36,7 +36,6 @@ function setup(cards: HqLedgerCardRow[], answer: string | null) {
     madeSince: () => made,
     lines: () => [{ fromOwner: false, author: 'Ann', text: 'Can you check the """export"""?' }],
     kindOf: () => 'answer',
-    tone: async () => 'Short, the point first.',
     generate: async (prompt) => {
       prompts.push(prompt)
       return answer === null ? { ok: false, error: 'down' } : { ok: true, text: answer }
@@ -106,16 +105,15 @@ describe('ledger card drafts', () => {
     expect(spent.prompts).toHaveLength(0)
   })
 
-  it('quotes the talk safely and carries the tone rules and the first kind', () => {
+  it('quotes the talk safely, carries the first kind and asks for no reply', () => {
     const prompt = hqLedgerDraftPrompt(
       [{ fromOwner: false, author: 'Ann', text: 'see """ here' }],
       'a direct message',
-      'do',
-      'Short.'
+      'do'
     )
     expect(prompt).toContain('Ann: see " here')
     expect(prompt).toContain('read as "do"')
-    expect(prompt).toContain('Short.')
+    expect(prompt).not.toContain('draft')
   })
 
   it('reads the model’s answer, and nothing from a kind it does not know', () => {

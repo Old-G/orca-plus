@@ -1,16 +1,13 @@
 // Custom build (hq-ledger-draft, plan 20.9 step 1): the ledger's card drafts wired to Orca+ — its
-// conversations, HQ's tone rules and the larger model. Runs in shadow too, so the day's line can hold
+// conversations and the larger model. Runs in shadow too, so the day's line can hold
 // its kinds against the scout's before the scout is switched off.
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import { HQ_TONE_GUIDE_PATH } from '../../shared/hq-slack-request-prompts'
 import { hqLedgerErrorReporter } from './hq-ledger-errors'
 import { startHqLedgerDrafts } from './hq-ledger-drafts'
 import { generateHqText } from './hq-task-questions'
 
-// Why sonnet: a reply that goes out in the owner's name needs more than routing does.
+// Why sonnet: telling a request from a thanks in a long thread needs more than routing does.
 const MODEL = 'sonnet'
 
 export function startHqLedgerDraftWriter(store: Store, runtime: OrcaRuntimeService): () => void {
@@ -26,10 +23,6 @@ export function startHqLedgerDraftWriter(store: Store, runtime: OrcaRuntimeServi
         return channel && ts
           ? (runtime.pulseAttribution().drafts.kindOfSlack(channel, ts)?.kind ?? null)
           : null
-      },
-      tone: async () => {
-        const hqPath = store.getSettings().hqPath
-        return hqPath ? readFile(join(hqPath, HQ_TONE_GUIDE_PATH), 'utf8') : null
       },
       generate: (prompt) => {
         const hqPath = store.getSettings().hqPath
