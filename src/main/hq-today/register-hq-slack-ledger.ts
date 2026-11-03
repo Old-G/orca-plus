@@ -28,6 +28,7 @@ import {
 import { hqReplyJudges } from './register-hq-waiting-replies'
 import type { ClickUpComment } from '../../shared/clickup-types'
 import type { HqLedgerDrafts } from '../orca-plus/pulse/pulse-ledger-draft'
+import { hqLedgerMode } from '../../shared/hq-ledger-mode'
 
 /** Why: the scout may raise a topic up to 15 minutes after it moved; younger ones are not compared. */
 const PARITY_SETTLE_MS = 20 * 60_000
@@ -175,7 +176,7 @@ export function registerHqSlackLedger(
     )
   )
   // Custom build (hq-ledger-cutover, plan 20.9): the ledger on, the scout's Slack cards are not shown.
-  retireHqSlackScoutWhen(() => store.getSettings().hqLedger === 'on')
+  retireHqSlackScoutWhen(() => hqLedgerMode(store.getSettings()) === 'on')
   // Custom build (hq-in-work, plan 20.11): a conversation a chat already works on is not his move.
   startHqInWork(store, runtime)
   // Custom build (hq-ledger-draft, plan 20.9): the scout's kind, ask and reply draft on the ledger's cards.
