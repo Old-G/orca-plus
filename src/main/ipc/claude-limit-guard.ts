@@ -2,11 +2,11 @@
 // through the StopFailure hook, native chats through their stream frames — and nudges only those
 // (Esc + a continue prompt) once another account is active or the limit lifted.
 import { BrowserWindow, ipcMain } from 'electron'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import type { RateLimitService } from '../rate-limits/service'
-import { agentHookServer } from '../agent-hooks/server'
-import { normalizeClaudeRuntimeSelection } from '../claude-accounts/runtime-selection'
+import type { RateLimitService } from '../rate-limits/service/rate-limit-service'
+import { agentHookServer } from '../agent-hooks/server/agent-hook-server'
+import { normalizeClaudeRuntimeSelection } from '../claude-accounts/selection/runtime-selection'
 import type { ClaudeHandoffOffers } from '../claude-handoff/claude-handoff-offers'
 import { createClaudeLimitStops } from '../claude-limit-guard/claude-limit-stops'
 import { setClaudeNativeFrameListener } from '../claude-limit-guard/claude-native-frame-tap'
@@ -239,11 +239,12 @@ export function registerClaudeLimitGuardHandlers(
         const [previousDir, nextDir] = [lastDir, await routedClaudeConfigDir()]
         lastDir = nextDir
         if (previousDir && nextDir) {
+          // Why: the selection, not lastDir — a newer switch changes it at once (Codex P2, 04.11).
           await checkConnectorGapAfterSwitch(
             runtime,
             previousDir,
             nextDir,
-            (dir) => dir === lastDir
+            () => activeAccountId() === next
           )
         }
       }
