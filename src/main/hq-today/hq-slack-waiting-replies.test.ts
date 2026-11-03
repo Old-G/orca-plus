@@ -140,6 +140,31 @@ describe('pollHqSlackWaitingReplies', () => {
     })
   })
 
+  // Custom build (hq-dm-newer-thread, owner 03.11).
+  it('leaves replies in DM threads the owner started after the question to those threads', async () => {
+    const { db, anna, dm, deps, at } = setup()
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'DEV-1: which copy for the dry run',
+      personId: anna.id,
+      source: 'slack',
+      sourceRef: `slack:DANNA01:${(ASKED_AT / 1000).toFixed(6)}`,
+      agentSessionId: 'chat-1'
+    })
+    const later = ASKED_AT + 4 * DAY
+    const first = ((later - 10 * 60_000) / 1000).toFixed(6)
+    const second = ((later - 9 * 60_000) / 1000).toFixed(6)
+    dm.push(msg(later - 10 * 60_000, OWNER, 'answer after the form?', { threadTs: first }))
+    dm.push(msg(later - 9 * 60_000, OWNER, 'and if it solved it at once?', { threadTs: second }))
+    dm.push(msg(later - 3 * 60_000, ANNA, 'Hi, agreed', { threadTs: first }))
+    dm.push(msg(later - 2 * 60_000, ANNA, 'Leave it for now', { threadTs: second }))
+    at(later)
+
+    await pollHqSlackWaitingReplies(deps)
+
+    expect(db.getWaiting(asked.id)?.reply).toBeNull()
+  })
+
   it("keeps the owner's message that opened the thread as what was asked, beside the tags", async () => {
     const { db, anna, thread, api, deps, at } = setup()
     const parentTs = '1792184199.000100'
