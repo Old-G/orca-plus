@@ -269,7 +269,13 @@ copy_databases() {
     rel="${src#"$profile/"}"
     dst="$backup/profile/$rel"
     mkdir -p "$(dirname "$dst")"
-    sqlite3 -cmd '.timeout 10000' "$src" ".backup '$dst'" 2>/dev/null || cp -p "$src" "$dst" || return 1
+    sqlite3 -cmd '.timeout 10000' "$src" ".backup '$dst'" 2>/dev/null && continue
+    # Why the -wal too (Codex 03.11): rsync left it out, and without it the copy lacks what is not
+    # checkpointed yet.
+    cp -p "$src" "$dst" || return 1
+    for side in -wal -shm; do
+      [ ! -f "$src$side" ] || cp -p "$src$side" "$dst$side" || return 1
+    done
   done < <(find "$profile" \( -path "$profile/Cache" -o -path "$profile/Code Cache" -o -path "$profile/GPUCache" \
     -o -path "$profile/claude-profiles/*/home/sessions" -o -path "$profile/claude-profiles/*/home/backups" \) -prune \
     -o -type f \( -name '*.db' -o -name '*.sqlite' \) -print0)

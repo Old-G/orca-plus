@@ -29,7 +29,7 @@ export function startHqPromises(store: Store, runtime: OrcaRuntimeService): void
   startHqLedgerPromises(
     {
       enabled: () => ledgerOn() && !!store.getSettings().hqPath,
-      ownLines: (since, limit) => promises().ownLines(since, limit),
+      ownLines: (afterRow, since, limit) => promises().ownLines(afterRow, since, limit),
       lookedUpTo: () => promises().lookedUpTo(),
       looked: (upTo) => promises().looked(upTo),
       looksSince: (since) => promises().looksSince(since),
