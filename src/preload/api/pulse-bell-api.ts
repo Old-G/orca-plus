@@ -16,6 +16,12 @@ export type PulseBellApi = {
   skipWaitingReply: (waitingId: string, replyTs?: string) => Promise<void>
   /** Custom build (hq-slack-intake): a prompt into a native chat; `chat-closed` when it has no live session. */
   sendToChat: (sessionId: string, prompt: string) => Promise<HqWaitingReplyPassResult>
+  /** Custom build (hq-intake-thread): a Slack thread whole for «To work» — its lines and links; null
+   *  when Slack could not be read. */
+  intakeThread: (
+    channel: string,
+    threadTs: string
+  ) => Promise<{ lines: string[]; links: string[] } | null>
   /** Later on a «To work» card: a Notes line with the whole source. */
   keepIntakeInNotes: (
     itemId: string,

@@ -23,6 +23,8 @@ import { guessHqIntake } from './hq-slack-intake-suggest'
 import { startHqSlackIntake } from './hq-slack-intake'
 import { generateHqText } from './hq-task-questions'
 import { hqIntakeOfConversation } from './hq-ledger-cards'
+import { hqIntakeThreadOf } from './hq-intake-thread'
+import { createSlackLedgerApi } from '../slack/slack-ledger-api'
 
 const RAISED_LOOKBACK_MS = 8 * 24 * 60 * 60_000
 const ERROR_REPEAT_MS = 60 * 60_000
@@ -149,6 +151,26 @@ export function registerHqSlackIntake(
   ipcMain.handle('hqIntake:later', (_event, itemId: unknown, project: unknown, note: unknown) =>
     keepHqIntakeInNotes(deps, text(itemId), { project: text(project) || null, note: text(note) })
   )
+  // Custom build (hq-intake-thread, owner 03.11): the thread whole for «To work», read when it opens.
+  ipcMain.handle('hqIntake:thread', async (_event, channel: unknown, threadTs: unknown) => {
+    const where = text(channel)
+    const root = text(threadTs)
+    if (!where || !root) {
+      return null
+    }
+    return withSlackReader(async (token, owner) => {
+      const names = createSlackReadApi(token, owner, cache)
+      const name = async (userId: string) =>
+        people().find((person) => person.slackUserId === userId)?.name ??
+        (await names.userName(userId))
+      const api = createSlackLedgerApi(token, owner, name, (userId) => names.isBot(userId))
+      const messages = (await api.thread?.(where, root, where.startsWith('D'))) ?? []
+      return hqIntakeThreadOf(messages, owner, name)
+    }).catch((error: unknown) => {
+      console.warn('[hq-intake-thread] thread not read', error)
+      return null
+    })
+  })
   ipcMain.handle(
     'hqIntake:close',
     (_event, itemId: unknown, action: unknown, resolution: unknown, sessionId: unknown) => {
