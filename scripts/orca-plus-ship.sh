@@ -240,12 +240,18 @@ only_vanished_sources() {
     esac
   done <"$1"
 }
+# Custom build (orca-plus-ship, 03.11): live SQLite files and sockets stay out of rsync. A database written
+# mid-copy fails rsync's check («hash does not match, will redo») and macOS openrsync then dies on the
+# redo («unexpected end of file»): three ships out of four on 03.11. Each database is copied below by
+# SQLite's own backup, a whole snapshot even while it is written; a socket is nothing to restore.
+sqlite_files=(--exclude '*.db' --exclude '*.db-wal' --exclude '*.db-shm' --exclude '*.db-journal'
+  --exclude '*.sqlite' --exclude '*.sqlite-wal' --exclude '*.sqlite-shm' --exclude '*.sqlite-journal')
 copy_profile() {
   local errors="$backup/rsync-errors.log"
   rsync -a --exclude '/claude-profiles/*/home/sessions/' --exclude '/claude-profiles/*/home/backups/' \
     --exclude '/Cache/' --exclude '/Code Cache/' --exclude '/GPUCache/' \
-    --exclude '/DawnGraphiteCache/' --exclude '/DawnWebGPUCache/' \
-    "$profile/" "$backup/profile/" 2>"$errors" && return 0
+    --exclude '/DawnGraphiteCache/' --exclude '/DawnWebGPUCache/' --exclude '*.sock' \
+    "${sqlite_files[@]}" "$profile/" "$backup/profile/" 2>"$errors" && return 0
   local code=$?
   [ "$code" = 24 ] && return 0
   if [ "$code" = 23 ] && only_vanished_sources "$errors"; then
@@ -255,7 +261,20 @@ copy_profile() {
   return "$code"
 }
 # Why: macOS openrsync fails the whole pass on one vanished file, so one retry was not always enough.
-backup_profile() { copy_profile || copy_profile || copy_profile; }
+# Why a plain copy when the snapshot fails: a file named .db that is not SQLite, or one locked past the
+# timeout, is still kept; it may be torn, which is what rsync gave before.
+copy_databases() {
+  local src rel dst
+  while IFS= read -r -d '' src; do
+    rel="${src#"$profile/"}"
+    dst="$backup/profile/$rel"
+    mkdir -p "$(dirname "$dst")"
+    sqlite3 -cmd '.timeout 10000' "$src" ".backup '$dst'" 2>/dev/null || cp -p "$src" "$dst" || return 1
+  done < <(find "$profile" \( -path "$profile/Cache" -o -path "$profile/Code Cache" -o -path "$profile/GPUCache" \
+    -o -path "$profile/claude-profiles/*/home/sessions" -o -path "$profile/claude-profiles/*/home/backups" \) -prune \
+    -o -type f \( -name '*.db' -o -name '*.sqlite' \) -print0)
+}
+backup_profile() { { copy_profile || copy_profile || copy_profile; } && copy_databases; }
 run backup_profile
 if [ "$dry" = 0 ]; then
   shasum "${state_files[@]}" 2>/dev/null >"$backup/state.sha" || true
