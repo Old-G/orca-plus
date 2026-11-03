@@ -19,6 +19,8 @@ const FIRST_LOOK_MS = 3 * 24 * 60 * 60_000
 const OVERLAP_MS = 10 * 60_000
 /** Why: a long absence is read over several passes, not in one that holds the API for minutes. */
 const TASKS_PER_PASS = 30
+/** Why: a task that fails to read this many passes in a row is gone or closed to us, not a blip. */
+const TRIES_PER_TASK = 3
 const WATCHED_KEEP_MS = 3 * 24 * 60 * 60_000
 
 /** Tasks ClickUp mailed the owner about, by id or custom id, with when — the mail intake notes them. */
@@ -63,6 +65,8 @@ export type HqClickUpLedgerState = {
    *  and the tasks already read in it, so the next pass goes on from the rest. */
   windowAt?: number
   read?: string[]
+  /** Custom build (Codex 03.11): the tasks whose read failed in this window, with how many times. */
+  tries?: Record<string, number>
 }
 
 const URL = /https?:\/\/[^\s<>()"']+/g
@@ -151,21 +155,33 @@ export async function runHqClickUpLedgerReader(
     ...deps.watchedTasks()
   ])
   const read = new Set(state.read ?? [])
+  // Why only the refs still here: a failed task no longer in view must not hold the window open.
+  const tries = Object.fromEntries(
+    Object.entries(state.tries ?? {}).filter(([ref]) => refs.has(ref))
+  )
   const todo = [...refs].filter((ref) => !read.has(ref))
   let added = 0
   for (const ref of todo.slice(0, TASKS_PER_PASS)) {
-    read.add(ref)
-    const task = await deps.getTask(ref).catch(() => null)
-    if (!task || (task.updatedAt ?? now) < since) {
+    let talk: { task: ClickUpTask | null; all: ClickUpComment[] }
+    try {
+      talk = await readClickUpTaskTalk(deps, ref)
+    } catch {
+      // Why (Codex 03.11): a failed read left unread keeps the window open, so its comments are read
+      // on a later pass instead of slipping behind the cursor.
+      const tried = (tries[ref] ?? 0) + 1
+      if (tried < TRIES_PER_TASK) {
+        tries[ref] = tried
+      } else {
+        read.add(ref)
+        delete tries[ref]
+      }
       continue
     }
-    const comments = clickUpCommentsOldestFirst(await deps.listComments(task.id))
-    const all: ClickUpComment[] = []
-    for (const comment of comments) {
-      all.push(comment)
-      if ((comment.replyCount ?? 0) > 0) {
-        all.push(...(await deps.listReplies(comment.id).catch(() => [])))
-      }
+    read.add(ref)
+    delete tries[ref]
+    const { task, all } = talk
+    if (!task || (task.updatedAt ?? now) < since) {
+      continue
     }
     const fresh = clickUpCommentsOldestFirst(all).filter(
       (comment) => (comment.createdAt ?? 0) >= since
@@ -185,13 +201,38 @@ export async function runHqClickUpLedgerReader(
   // Why: tasks left past the cap are read on the next pass from the same point, the ones read skipped;
   // once all are read the window closes where it began, so nothing said meanwhile is missed.
   const windowAt = state.windowAt ?? now
-  if (todo.length <= TASKS_PER_PASS) {
+  const failed = Object.keys(tries).length > 0
+  if (todo.length <= TASKS_PER_PASS && !failed) {
     return { state: { lastLookAt: windowAt }, added }
   }
   return {
-    state: { lastLookAt: state.lastLookAt ?? now - FIRST_LOOK_MS, windowAt, read: [...read] },
+    state: {
+      lastLookAt: state.lastLookAt ?? now - FIRST_LOOK_MS,
+      windowAt,
+      read: [...read],
+      ...(failed ? { tries } : {})
+    },
     added
   }
+}
+
+/** One task and every comment and reply on it; throws when any part of it failed to read. */
+async function readClickUpTaskTalk(
+  deps: HqClickUpLedgerDeps,
+  ref: string
+): Promise<{ task: ClickUpTask | null; all: ClickUpComment[] }> {
+  const task = await deps.getTask(ref)
+  if (!task) {
+    return { task, all: [] }
+  }
+  const all: ClickUpComment[] = []
+  for (const comment of clickUpCommentsOldestFirst(await deps.listComments(task.id))) {
+    all.push(comment)
+    if ((comment.replyCount ?? 0) > 0) {
+      all.push(...(await deps.listReplies(comment.id)))
+    }
+  }
+  return { task, all }
 }
 
 const POLL_MS = 5 * 60_000
