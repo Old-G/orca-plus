@@ -40,6 +40,10 @@ export type HqIntake = {
   lastTs?: string
   /** Custom build (hq-intake-thread): `text` is the whole thread, read when «To work» opened. */
   wholeThread?: boolean
+  /** Custom build (hq-ledger-draft): what the person wants, in a line, and a reply in the owner's
+   *  words — written for the conversation's newest message, as the scout's cards had them. */
+  ask?: string
+  replyDraft?: string
   /** Orca+'s guess at the project, and what is being sent, in one line. */
   repoId: string | null
   project: string | null
@@ -68,8 +72,9 @@ export function hqIntakeBellItem(intake: HqIntake): PulseBellInput {
     const prefix = hqConversationCardPrefix(intake.conversationId)
     return {
       kind: HQ_INTAKE_KIND,
-      title: `${intake.author}: ${intake.summary}`,
-      body: intake.text.slice(0, 600),
+      // Custom build (hq-ledger-draft): what they want and the reply draft, as the scout's card read.
+      title: `${intake.author}: ${intake.ask || intake.summary}`,
+      body: `${intake.text.slice(0, 600)}${intake.replyDraft ? `\n\nDraft reply: ${intake.replyDraft}` : ''}`,
       urgency: 'urgent',
       refKind: 'slack-message',
       refId: JSON.stringify(intake),
@@ -139,6 +144,8 @@ export function readHqIntake(refId: string | null): HqIntake | null {
       : {}),
     ...(text(raw, 'conversationId') ? { conversationId: text(raw, 'conversationId') ?? '' } : {}),
     ...(text(raw, 'lastTs') ? { lastTs: text(raw, 'lastTs') ?? '' } : {}),
+    ...(text(raw, 'ask') ? { ask: text(raw, 'ask') ?? '' } : {}),
+    ...(text(raw, 'replyDraft') ? { replyDraft: text(raw, 'replyDraft') ?? '' } : {}),
     repoId: text(raw, 'repoId'),
     project: text(raw, 'project'),
     summary: text(raw, 'summary') ?? ''
