@@ -103,9 +103,12 @@ describe('a conversation already in work in a chat', () => {
     expect(db.attribution.inWork.list(0)[0]?.sessionId).toBe('claude_specs')
   })
 
-  it('remembers the chats the model already read', () => {
+  it('remembers the conversations each chat was already shown', () => {
     const { db } = setup()
-    db.attribution.inWork.noteChecked('claude_specs')
-    expect([...db.attribution.inWork.checked(0)]).toEqual(['claude_specs'])
+    db.attribution.inWork.noteChecked('claude_specs', ['c1', 'c2'])
+    db.attribution.inWork.noteChecked('claude_specs', ['c3'])
+    expect([...db.attribution.inWork.checked(0)]).toEqual([
+      ['claude_specs', new Set(['c1', 'c2', 'c3'])]
+    ])
   })
 })
