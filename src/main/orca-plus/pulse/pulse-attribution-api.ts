@@ -3,6 +3,7 @@
 import type { PulseCore } from './pulse-core'
 import { pulseInWork } from './pulse-ledger-in-work'
 import { pulseLedgerDrafts } from './pulse-ledger-draft'
+import { pulseLedgerPromises } from './pulse-ledger-promises'
 import {
   noteAttributionSkip,
   noteAttributionTake,
@@ -24,6 +25,8 @@ export function pulseAttribution(core: () => PulseCore) {
     inWork: pulseInWork(core),
     /** Custom build (hq-ledger-draft): a card's kind, ask and reply draft, as the scout gave them. */
     drafts: pulseLedgerDrafts(core),
+    /** Custom build (hq-ledger-promises): the owner's own lines for the promise finder. */
+    promises: pulseLedgerPromises(core),
     skip: (key: string) => core().transaction(() => noteAttributionSkip(core(), key)),
     accuracy: (since: number) => attributionAccuracy(core(), since),
     hints: (keyPrefix: string) => attributionHints(core(), keyPrefix),
