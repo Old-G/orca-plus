@@ -186,6 +186,10 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
       }
     },
     dispatchSlackNotification: (request) => {
+      // Custom build (slack-notifications, owner 03.11): opt-in; the bot alone sends nothing.
+      if (store.getSettings().slackAgentUpdates !== true) {
+        return
+      }
       if (!isOrcaPlusQuietHour(orcaPlusQuietHours(store.getSettings()), new Date())) {
         void slackChannel.notify(request)
       }

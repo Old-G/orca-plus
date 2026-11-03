@@ -17,6 +17,7 @@ import type { SlackConnectionStatus } from '../../../../shared/slack-types'
 import { buildSlackCreateAppUrl } from '../../../../shared/slack-app-manifest'
 import { IntegrationCardDetails, IntegrationCardShell } from './integration-card-shell'
 import { SlackReaderRow } from './slack-reader-row'
+import { SlackAgentUpdatesRow } from './slack-agent-updates-row'
 import { useIntegrationSubordinateRowClass } from './integration-card-presentation'
 
 export const SLACK_INTEGRATION_SECTION_ID = 'integrations-slack'
@@ -286,6 +287,7 @@ export function SlackIntegrationCard(): React.JSX.Element {
             ) : null}
           </div>
         ) : null}
+        {connected ? <SlackAgentUpdatesRow rowClass={rowClass} /> : null}
         {/* Custom build (slack-reply-reader) */}
         {!checking ? (
           <SlackReaderRow reader={status?.reader} rowClass={rowClass} onChanged={refresh} />

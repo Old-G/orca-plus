@@ -41,7 +41,7 @@ export function HqPlusReportCard({
   onDone: () => void
 }): React.JSX.Element {
   const [text, setText] = useState('')
-  const { busy, error, run } = useHqPlusRun(() => {
+  const { busy, pending, error, run } = useHqPlusRun(() => {
     setText('')
     onDone()
   })
@@ -68,10 +68,14 @@ export function HqPlusReportCard({
       ? [
           {
             id: 'fix-now',
-            label: translate('auto.hqPlus.report.fixNow', 'Fix now'),
+            label:
+              pending === 'fix-now'
+                ? translate('auto.hqPlus.report.fixing', 'Opening fixing chats…')
+                : translate('auto.hqPlus.report.fixNow', 'Fix now'),
             main: true,
             disabled: busy,
-            onClick: () => run(() => runHqPlusCodexFix(card, hqPath))
+            pending: pending === 'fix-now',
+            onClick: () => run(() => runHqPlusCodexFix(card, hqPath), 'fix-now')
           },
           {
             id: 'wait-rule',
