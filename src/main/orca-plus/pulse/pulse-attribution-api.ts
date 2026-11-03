@@ -2,6 +2,7 @@
 // itself so the model's decision (which writes guesses) can join without an import cycle.
 import type { PulseCore } from './pulse-core'
 import { pulseInWork } from './pulse-ledger-in-work'
+import { pulseLedgerDrafts } from './pulse-ledger-draft'
 import {
   noteAttributionSkip,
   noteAttributionTake,
@@ -21,6 +22,8 @@ export function pulseAttribution(core: () => PulseCore) {
     take: (take: HqAttributionTake) => noteAttributionTake(core(), take),
     /** Custom build (hq-in-work): conversations a chat already works on — a state guess like the rest. */
     inWork: pulseInWork(core),
+    /** Custom build (hq-ledger-draft): a card's kind, ask and reply draft, as the scout gave them. */
+    drafts: pulseLedgerDrafts(core),
     skip: (key: string) => core().transaction(() => noteAttributionSkip(core(), key)),
     accuracy: (since: number) => attributionAccuracy(core(), since),
     hints: (keyPrefix: string) => attributionHints(core(), keyPrefix),
