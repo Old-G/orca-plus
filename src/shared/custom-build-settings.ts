@@ -53,7 +53,7 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqPlusJournalEnabled?: boolean
     /** Custom build (hq-request-ledger): the request ledger — off, in shadow (reads the cards into
      *  conversations beside them, changes nothing shown) or on (one card per Slack conversation in
-     *  place of the mention cards). Default shadow. */
+     *  place of the mention cards). Default on since 03.11 (hq-ledger-mode). */
     hqLedger?: 'off' | 'shadow' | 'on'
     /** Custom build (hq-plus-sessions): the session dispatcher is off, only writes what it would do,
      *  or continues, opens and queues chats itself; default report. */

@@ -6,6 +6,7 @@ import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { SearchableSetting } from './SearchableSetting'
 import { translate } from '@/i18n/i18n'
+import { hqLedgerMode } from '../../../../shared/hq-ledger-mode'
 
 type HqLedgerMode = NonNullable<GlobalSettings['hqLedger']>
 const MODES: readonly HqLedgerMode[] = ['off', 'shadow', 'on']
@@ -24,7 +25,7 @@ export function HqLedgerSetting({
   if (!settings.hqPath) {
     return null
   }
-  const value = settings.hqLedger ?? 'shadow'
+  const value = hqLedgerMode(settings)
   const title = translate('auto.hq.ledger.settingTitle', 'Conversations')
   const description = translate(
     'auto.hq.ledger.settingDescription',
