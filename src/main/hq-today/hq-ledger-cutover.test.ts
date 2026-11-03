@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { hqLedgerReplacesScout } from './hq-ledger-cutover'
+import { hqLedgerReplacesScout, noteHqLedgerReadSlack } from './hq-ledger-cutover'
 
 describe('ledger cutover', () => {
-  it('retires the scout only with the ledger on and its Slack reader working', () => {
-    expect(hqLedgerReplacesScout({}, () => true)).toBe(true)
-    expect(hqLedgerReplacesScout({}, () => false)).toBe(false)
-    expect(hqLedgerReplacesScout({ hqLedger: 'shadow' }, () => true)).toBe(false)
+  it('retires the scout only with the ledger on and its own last pass read Slack', () => {
+    expect(hqLedgerReplacesScout({})).toBe(false)
+    noteHqLedgerReadSlack(true)
+    expect(hqLedgerReplacesScout({})).toBe(true)
+    expect(hqLedgerReplacesScout({ hqLedger: 'shadow' })).toBe(false)
+    noteHqLedgerReadSlack(false)
+    expect(hqLedgerReplacesScout({})).toBe(false)
   })
 })
