@@ -33,7 +33,7 @@ function setup() {
 
 // Custom build (hq-intake-decide, owner 03.11): plan stage 20.3.
 describe('the model decision in the ledger', () => {
-  it('writes project and chat as guesses with certainty, and the feed carries them', () => {
+  it('writes project, chat and kind as guesses with certainty, and the feed carries them', () => {
     const { db, conversationId } = setup()
     db.attribution.decide(conversationId, {
       project: 'acme-api',
@@ -41,19 +41,22 @@ describe('the model decision in the ledger', () => {
       state: 'you',
       gist: 'Посмотреть MR',
       chat: 'claude_mr314',
+      kind: 'do',
       confidence: 0.86,
       why: 'MR !314 in the DM'
     })
 
     expect(db.attribution.records()).toEqual([
       { field: 'project', guess: 'acme-api', guess_how: 'model', final: null, final_how: null },
-      { field: 'chat', guess: 'claude_mr314', guess_how: 'model', final: null, final_how: null }
+      { field: 'chat', guess: 'claude_mr314', guess_how: 'model', final: null, final_how: null },
+      { field: 'kind', guess: 'do', guess_how: 'model', final: null, final_how: null }
     ])
     db.attribution.attempt()
     expect(db.attribution.attemptsSince(0)).toBe(1)
     const [conversation] = db.listLedgerFeed(0).conversations
     expect(conversation?.guess).toEqual({
       chat: 'claude_mr314',
+      kind: 'do',
       confidence: 0.86,
       why: 'MR !314 in the DM'
     })
@@ -67,6 +70,7 @@ describe('the model decision in the ledger', () => {
       state: 'you',
       gist: null,
       chat: 'claude_mr314',
+      kind: 'do',
       confidence: 0.86,
       why: null
     })
@@ -81,5 +85,39 @@ describe('the model decision in the ledger', () => {
     const chat = db.attribution.accuracy(0).slices.find((slice) => slice.field === 'chat')
     expect(chat).toMatchObject({ confirmed: 1, edited: 0 })
     expect(db.attribution.hints('slack:D0ANN12345:')).toEqual([])
+  })
+
+  // Custom build (owner 03.11): what he changes in «To work», and why, is what the report shows.
+  it('a changed kind with his reason makes a wrong card, the rest kept', () => {
+    const { db, conversationId } = setup()
+    db.attribution.decide(conversationId, {
+      project: 'acme-api',
+      how: 'model',
+      state: 'you',
+      gist: null,
+      chat: 'new',
+      kind: 'fyi',
+      confidence: 0.7,
+      why: null
+    })
+    db.attribution.take({
+      key: KEY,
+      proposedProject: 'acme-api',
+      proposedChat: 'new',
+      project: 'acme-api',
+      chat: 'new',
+      proposedKind: 'fyi',
+      kind: 'do',
+      why: 'Ann asks to check, not tells'
+    })
+
+    const accuracy = db.attribution.accuracy(0)
+    expect(accuracy.cards).toEqual({ decided: 1, wrong: 1 })
+    expect(accuracy.whys).toEqual([
+      { source: 'slack', field: 'kind', text: 'Ann asks to check, not tells' }
+    ])
+    expect(db.attribution.hints('slack:D0ANN12345:')).toEqual([
+      'kind: guessed fyi, the user chose do — his reason: Ann asks to check, not tells'
+    ])
   })
 })
