@@ -120,4 +120,41 @@ describe('the model decision in the ledger', () => {
       'kind: guessed fyi, the user chose do — his reason: Ann asks to check, not tells'
     ])
   })
+
+  // Why (Codex 03.11): the reason went by the clock, and a clock that moved between fields lost it.
+  it('his reason lands on every field he changed, however the clock moves', () => {
+    let id = 0
+    let now = 1_000
+    const db = new PulseDb(':memory:', { now: () => (now += 1), newId: () => `id-${++id}` })
+    open.push(db)
+    db.ingestLedgerSignal({
+      key: KEY,
+      ts: '1700000000.000100',
+      at: 1_000,
+      author: 'Ann',
+      authorId: 'U_ANN',
+      fromOwner: false,
+      text: 'глянь, пожалуйста',
+      link: null,
+      reader: 'slack-api',
+      forOwner: true,
+      project: 'acme-api',
+      title: 'глянь, пожалуйста'
+    })
+    db.attribution.take({
+      key: KEY,
+      proposedProject: 'acme-api',
+      proposedChat: 'new',
+      project: 'acme-web',
+      chat: 'session-2',
+      why: 'it is the web shop'
+    })
+
+    expect(
+      db.attribution
+        .accuracy(0)
+        .whys.map((why) => why.field)
+        .sort()
+    ).toEqual(['chat', 'project'])
+  })
 })
