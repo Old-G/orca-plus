@@ -1,19 +1,19 @@
 // Custom build (hq-ledger-promises, plan 20.9): where the owner's promises come from. With the ledger on
 // it finds them in his own lines itself; until then the scout's promises.json is read as before. One
 // switch, so the two never both record the same promise.
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { hqLedgerErrorReporter } from './hq-ledger-errors'
 import { startHqLedgerPromises } from './hq-ledger-promises'
 import { hqPromisePerson, startHqScoutPromises } from './hq-scout-promises'
 import { generateHqText } from './hq-task-questions'
-import { hqLedgerMode } from '../../shared/hq-ledger-mode'
+import { hqLedgerReplacesScout } from './hq-ledger-cutover'
 
 // Why sonnet: telling «гляну» that commits from «гляну» that brushes off needs more than routing.
 const MODEL = 'sonnet'
 
 export function startHqPromises(store: Store, runtime: OrcaRuntimeService): void {
-  const ledgerOn = (): boolean => hqLedgerMode(store.getSettings()) === 'on'
+  const ledgerOn = (): boolean => hqLedgerReplacesScout(store.getSettings())
   const people = {
     listPeople: () => runtime.pulseListPeople(),
     upsertPerson: (input: { name: string }) => runtime.pulseUpsertPerson(input)
