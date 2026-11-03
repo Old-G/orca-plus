@@ -181,4 +181,50 @@ describe('ClickUp comments in the ledger', () => {
     expect(new Set(got).size).toBe(45)
     expect(second.state).toEqual({ lastLookAt: 10_000_000 })
   })
+
+  // Why (Codex 03.11): a failed read used to count as read, and the cursor moved past its comments.
+  it('a task that failed to read keeps the window open and is read again; one that keeps failing is let go', async () => {
+    const ingested: string[] = []
+    let failing = new Set(['t1', 't2'])
+    let now = 10_000_000
+    const deps: HqClickUpLedgerDeps = {
+      listMyTasks: async () => [],
+      watchedTasks: () => ['t1', 't2', 't3'],
+      getTask: async (ref) => {
+        if (ref === 't1' && failing.has('t1')) {
+          throw new Error('ClickUp 502')
+        }
+        return task({ id: ref, customId: null, url: `https://app.clickup.com/t/${ref}` })
+      },
+      listComments: async (id) => [{ ...comment(`c-${id}`, 'done', 9_950_000), replyCount: 1 }],
+      listReplies: async (id) => {
+        if (id === 'c-t2' && failing.has('t2')) {
+          throw new Error('ClickUp 429')
+        }
+        return [comment(`r-${id}`, 'ok', 9_960_000)]
+      },
+      viewer: async () => OWNER,
+      ownAccounts: async () => new Set(),
+      projectForList: () => null,
+      projectOfLinks: async () => null,
+      ingest: (signal) => {
+        ingested.push(signal.ts)
+        return { conversationId: 'c', step: 'new', added: true, waitingIds: [] }
+      },
+      now: () => now
+    }
+    const first = await runHqClickUpLedgerReader(deps, { lastLookAt: 9_900_000 })
+    expect(ingested).toEqual(['comment:c-t3', 'comment:r-c-t3'])
+    expect(first.state).toMatchObject({ lastLookAt: 9_900_000, windowAt: 10_000_000 })
+
+    failing = new Set(['t1'])
+    now = 10_300_000
+    const second = await runHqClickUpLedgerReader(deps, first.state)
+    expect(ingested.slice(2)).toEqual(['comment:c-t2', 'comment:r-c-t2'])
+    expect(second.state).toMatchObject({ lastLookAt: 9_900_000, windowAt: 10_000_000 })
+
+    now = 10_600_000
+    const third = await runHqClickUpLedgerReader(deps, second.state)
+    expect(third.state).toEqual({ lastLookAt: 10_000_000 })
+  })
 })
