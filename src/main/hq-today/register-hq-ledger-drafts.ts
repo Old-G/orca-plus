@@ -46,7 +46,7 @@ export function startHqLedgerDraftWriter(store: Store, runtime: OrcaRuntimeServi
           : Promise.resolve({ ok: false as const, error: 'No HQ folder is set.' })
       },
       save: (id, draft) => runtime.pulseAttribution().drafts.set(id, draft),
-      quiet: (id, why) => void runtime.pulseAttribution().drafts.quiet(id, why),
+      quiet: (id, lastTs, why) => void runtime.pulseAttribution().drafts.quiet(id, lastTs, why),
       now: Date.now
     },
     hqLedgerErrorReporter('hq-ledger-draft', 'Ledger card drafts not written', (rows) =>

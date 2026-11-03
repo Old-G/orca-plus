@@ -74,6 +74,43 @@ export function listLedgerCards(core: PulseCore, since: number): HqLedgerCardRow
     .filter((row) => row.messages.length > 0)
 }
 
+/** Custom build (hq-ledger-cutover, owner 03.11): one conversation as a card, whatever its state —
+ *  «To work» on any conversation card in HQ+, not only one a reader raised a card for. */
+export function ledgerCardOf(core: PulseCore, key: string): HqLedgerCardRow | null {
+  const row = core.db
+    .prepare('SELECT id, key, project, title, last_at FROM conversations WHERE key = ?')
+    .get(key)
+  if (!row) {
+    return null
+  }
+  const messages = core.db
+    .prepare(
+      `SELECT ts, author, author_id, text, link, at FROM conversation_messages
+        WHERE conversation_id = ? AND direction = 'in' AND ts NOT LIKE 'req:%'
+        ORDER BY at DESC, ts DESC LIMIT ${CARD_MESSAGES}`
+    )
+    .all(String(row.id))
+    .map((m) => ({
+      ts: String(m.ts),
+      author: m.author == null ? null : String(m.author),
+      authorId: m.author_id == null ? null : String(m.author_id),
+      text: String(m.text),
+      link: m.link == null ? null : String(m.link),
+      at: Number(m.at)
+    }))
+    .toReversed()
+  return messages.length > 0
+    ? {
+        id: String(row.id),
+        key: String(row.key),
+        project: row.project == null ? null : String(row.project),
+        title: String(row.title),
+        lastAt: Number(row.last_at),
+        messages
+      }
+    : null
+}
+
 /** Custom build (hq-request-ledger): a message the owner sent or skipped from its card is handled —
  *  its conversation is no longer his move, unless someone wrote after it. */
 export function settleLedgerMessage(core: PulseCore, ts: string): void {

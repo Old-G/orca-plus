@@ -4,6 +4,7 @@ import type { PulseCore } from './pulse-core'
 import { pulseInWork } from './pulse-ledger-in-work'
 import { pulseLedgerDrafts } from './pulse-ledger-draft'
 import { pulseLedgerPromises } from './pulse-ledger-promises'
+import { ledgerCardOf } from './pulse-ledger-cards'
 import {
   noteAttributionSkip,
   noteAttributionTake,
@@ -27,6 +28,8 @@ export function pulseAttribution(core: () => PulseCore) {
     drafts: pulseLedgerDrafts(core),
     /** Custom build (hq-ledger-promises): the owner's own lines for the promise finder. */
     promises: pulseLedgerPromises(core),
+    /** Custom build (hq-ledger-cutover): one conversation as a card, for «To work» on any of them. */
+    card: (key: string) => ledgerCardOf(core(), key),
     skip: (key: string) => core().transaction(() => noteAttributionSkip(core(), key)),
     accuracy: (since: number) => attributionAccuracy(core(), since),
     hints: (keyPrefix: string) => attributionHints(core(), keyPrefix),
