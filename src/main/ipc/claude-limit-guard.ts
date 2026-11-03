@@ -239,7 +239,12 @@ export function registerClaudeLimitGuardHandlers(
         const [previousDir, nextDir] = [lastDir, await routedClaudeConfigDir()]
         lastDir = nextDir
         if (previousDir && nextDir) {
-          await checkConnectorGapAfterSwitch(runtime, previousDir, nextDir)
+          await checkConnectorGapAfterSwitch(
+            runtime,
+            previousDir,
+            nextDir,
+            (dir) => dir === lastDir
+          )
         }
       }
     })().catch((error: unknown) => console.warn('[claude-limit-guard] resume failed:', error))
