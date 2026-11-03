@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
+import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 import type { HqFeedMessage } from '../../../../../shared/hq-feed-ledger'
 import { hqPlusLook, type HqPlusLook } from '../../../../../shared/hq-plus-kinds'
 import { HQ_INTAKE_KIND } from '../../../../../shared/hq-slack-intake'
@@ -184,14 +185,51 @@ function LedgerOnlyButtons({
   const { busy, pending, error, run } = useHqPlusRun(ctx.onChanged)
   const key = card.conversation?.key ?? ''
   const yours = card.conversation?.ledgerState === 'you'
+  // Custom build (hq-ledger-cutover, owner 03.11): a Slack talk goes to a project or chat from its
+  // card, also when no reader raised a «To work» card for it.
+  const slack = key.startsWith('slack:')
   const buttons: HqPlusCardButton[] = [
+    ...(slack
+      ? [
+          {
+            id: 'to-work',
+            label: translate('auto.hqPlus.conv.toWork', 'To work'),
+            hint: translate(
+              'auto.hqPlus.conv.toWorkHint',
+              'Pick a project and a chat; the chat gets the whole thread'
+            ),
+            main: true,
+            disabled: busy,
+            pending: pending === 'to-work',
+            onClick: () =>
+              run(async () => {
+                const taken = await hqPlusCall('hq.conversationToWork', { key })
+                const item = taken.ok
+                  ? (Reflect.get(Object(taken.result), 'item') as PulseInboxItem)
+                  : null
+                if (!taken.ok || !item) {
+                  return taken.ok ? { ok: false as const, message: 'No card to take' } : taken
+                }
+                const proposed = card.conversation?.guess?.chat
+                noteHqPlusTakeHint(item.id, {
+                  project: card.project,
+                  sessionId: card.sessionId ?? (proposed && proposed !== 'new' ? proposed : null),
+                  key,
+                  guess: card.conversation?.guess ?? null
+                })
+                ctx.toWork(item)
+                return { ok: true as const }
+              }, 'to-work')
+          }
+        ]
+      : []),
     ...(link
       ? [
           {
             id: 'open',
             label: translate('auto.hqPlus.conv.open', 'Open ↗'),
-            main: yours,
-            ghost: !yours,
+            main: yours && !slack,
+            ghost: !yours || slack,
             onClick: (event: React.MouseEvent<HTMLButtonElement>) => ctx.openLink(link, event)
           }
         ]

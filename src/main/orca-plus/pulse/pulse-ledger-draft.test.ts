@@ -70,13 +70,23 @@ describe('a ledger card draft', () => {
 
   it('takes a talk read as for information off the owner, as a state guess, until the person writes again', () => {
     const { db, conversationId, said } = setup()
-    expect(db.attribution.drafts.quiet(conversationId, 'Bob says thanks')).toBe(true)
+    expect(
+      db.attribution.drafts.quiet(conversationId, '1700000000.000100', 'Bob says thanks')
+    ).toBe(true)
     expect(db.listLedgerCards(0)).toEqual([])
-    expect(db.attribution.drafts.quiet(conversationId, 'again')).toBe(false)
+    expect(db.attribution.drafts.quiet(conversationId, '1700000000.000100', 'again')).toBe(false)
     expect(db.attribution.records()).toContainEqual(
       expect.objectContaining({ field: 'state', guess: 'fyi', guess_how: 'model' })
     )
     said('1700000090.000100', 'And one more thing: the images?')
+    expect(db.listLedgerCards(0).map((row) => row.id)).toEqual([conversationId])
+  })
+
+  it('leaves a talk alone when the person wrote again while the model read the thanks', () => {
+    // Why (Codex 03.11): the newer message is a request; quieting the talk would hide it.
+    const { db, conversationId, said } = setup()
+    said('1700000090.000100', 'Also, can you send the images?')
+    expect(db.attribution.drafts.quiet(conversationId, '1700000000.000100', 'thanks')).toBe(false)
     expect(db.listLedgerCards(0).map((row) => row.id)).toEqual([conversationId])
   })
 
@@ -98,7 +108,8 @@ describe('a ledger card draft', () => {
     })
     said('1700000070.000100', 'No link on this one', true)
     const promises = db.attribution.promises
-    expect(promises.ownLines(0, 10)).toEqual([
+    const [first] = promises.ownLines(0, 0, 10)
+    expect(promises.ownLines(0, 0, 10)).toEqual([
       expect.objectContaining({
         conversationId,
         text: 'I will send it by Friday',
@@ -108,9 +119,27 @@ describe('a ledger card draft', () => {
       })
     ])
     expect(promises.lookedUpTo()).toBeNull()
-    promises.looked(1_700_000_060_000)
-    expect(promises.lookedUpTo()).toBe(1_700_000_060_000)
-    expect(promises.ownLines(1_700_000_060_000, 10)).toEqual([])
+    promises.looked(first?.row ?? 0)
+    expect(promises.lookedUpTo()).toBe(first?.row)
+    expect(promises.ownLines(first?.row ?? 0, 0, 10)).toEqual([])
+    // Why (Codex 03.11): a line said earlier but read later — a thread read whole — still comes.
+    db.ingestLedgerSignal({
+      key: KEY,
+      ts: '1700000030.000100',
+      at: 1_700_000_030_000,
+      author: 'Me',
+      authorId: 'U_ME',
+      fromOwner: true,
+      text: 'Will check tonight',
+      link: 'https://acme.slack.com/archives/C0ACME/p1700000030000100',
+      reader: 'slack-api',
+      forOwner: false,
+      project: null,
+      title: 'Bob asks about the export'
+    })
+    expect(promises.ownLines(first?.row ?? 0, 0, 10).map((line) => line.text)).toEqual([
+      'Will check tonight'
+    ])
     expect(promises.looksSince(0)).toBe(1)
   })
 
@@ -182,5 +211,19 @@ describe('a ledger card draft', () => {
     })
     expect(after?.readAt).not.toBeNull()
     expect(conversationId).toBe(row.id)
+  })
+
+  it('makes a «To work» card for any Slack conversation, once, also one off his move', () => {
+    // Why (owner 03.11): a thread card had only Done and Not needed; he copied the thread by hand.
+    const { db, conversationId } = setup()
+    db.attribution.drafts.quiet(conversationId, '1700000000.000100', 'read as news')
+    const row = db.attribution.card(KEY)
+    expect(row).toMatchObject({ id: conversationId, messages: [{ author: 'Bob' }] })
+    const intake = row ? hqIntakeOfConversation(row) : null
+    const first = intake ? db.addInboxItem(hqIntakeBellItem(intake)) : null
+    const again = intake ? db.addInboxItem(hqIntakeBellItem(intake)) : null
+    expect(first?.created).toBe(true)
+    expect(again?.record.id).toBe(first?.record.id)
+    expect(db.attribution.card('slack:C0NONE:1.1')).toBeNull()
   })
 })
