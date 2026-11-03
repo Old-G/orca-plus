@@ -285,14 +285,6 @@ export class RuntimePulseCommands {
     return this.db().attribution.inWork.list(since)
   }
 
-  pulseNoteInWorkChatChecked(sessionId: string): void {
-    this.db().attribution.inWork.noteChecked(sessionId)
-  }
-
-  pulseInWorkChatsChecked(since: number): Set<string> {
-    return this.db().attribution.inWork.checked(since)
-  }
-
   /** Custom build (hq-ledger-sources): one reader's conversations that still show, by place. */
   pulseListLedgerOpenKeys(reader: string): string[] {
     return this.db().listLedgerOpenKeys(reader)
@@ -306,6 +298,12 @@ export class RuntimePulseCommands {
   /** Custom build (hq-intake-decide): the model's whole decision on a new conversation. */
   pulseSetLedgerDecision(conversationId: string, decision: HqLedgerDecision): void {
     this.db().attribution.decide(conversationId, decision)
+  }
+
+  /** Custom build (hq-ledger-draft): the guesses about conversations in one place — cards' drafts,
+   *  the chats already checked for work in hand. */
+  pulseAttribution(): PulseDb['attribution'] {
+    return this.db().attribution
   }
 
   /** Custom build (hq-attribution-log): the owner sent a conversation to work from its card. */

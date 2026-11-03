@@ -106,7 +106,7 @@ export function startHqInWork(store: Store, runtime: OrcaRuntimeService): () => 
     if (!hqPath || left.size === 0) {
       return
     }
-    const checked = runtime.pulseInWorkChatsChecked(now - LOOKBACK_MS)
+    const checked = runtime.pulseAttribution().inWork.checked(now - LOOKBACK_MS)
     const fresh = sessions
       .filter((session) => !checked.has(session.sessionId))
       // Why newest first: a chat just opened is where a message was just handed; the backlog can wait.
@@ -127,7 +127,7 @@ export function startHqInWork(store: Store, runtime: OrcaRuntimeService): () => 
         return
       }
       read += 1
-      runtime.pulseNoteInWorkChatChecked(session.sessionId)
+      runtime.pulseAttribution().inWork.noteChecked(session.sessionId)
       const offered = older.slice(0, MAX_CONVERSATIONS)
       const generated = await generateHqText(
         hqInWorkChatPrompt(
