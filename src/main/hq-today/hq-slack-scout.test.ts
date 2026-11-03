@@ -11,6 +11,7 @@ import {
   readHqSlackScout,
   rejectHqSlackScoutDraft,
   restoreHqSlackScoutDraft,
+  retireHqSlackScoutWhen,
   type HqSlackScoutDeps
 } from './hq-slack-scout'
 
@@ -96,6 +97,34 @@ describe('HQ Slack scout files', () => {
       ['D1:1', undefined, undefined],
       ['clickup:t1:c1', 'clickup', 't1']
     ])
+  })
+
+  it('with the ledger on, shows only the requests Orca+ wrote, not the scout’s Slack ones', async () => {
+    // Custom build (hq-ledger-cutover, plan 20.9): Orca+ reads Slack alone once the ledger is on.
+    scoutFile('drafts.json', JSON.stringify({ drafts: [{ ...draft('D1:1'), foundAt: 'x' }] }))
+    scoutFile(
+      'clickup.json',
+      JSON.stringify({ drafts: [{ ...draft('clickup:t1:c1'), clickupTaskId: 't1', foundAt: 'x' }] })
+    )
+    scoutFile(
+      'quiet.json',
+      JSON.stringify({ items: [{ id: 'D1:2', at: new Date(42).toISOString(), summary: 'thanks' }] })
+    )
+    let on = true
+    retireHqSlackScoutWhen(() => on)
+    try {
+      const retired = await readHqSlackScout(hq, () => 42)
+      expect(retired.ok ? retired.drafts.map((entry) => entry.id) : null).toEqual(['clickup:t1:c1'])
+      expect(retired.ok ? retired.quiet : null).toEqual([])
+      on = false
+      const back = await readHqSlackScout(hq, () => 42)
+      expect(back.ok ? back.drafts.map((entry) => entry.id) : null).toEqual([
+        'D1:1',
+        'clickup:t1:c1'
+      ])
+    } finally {
+      retireHqSlackScoutWhen(() => false)
+    }
   })
 
   it('reports a failed last run from the status run.sh writes, and clears it after a good one', async () => {

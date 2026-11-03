@@ -32,6 +32,8 @@ export type HqLedgerDraftsDeps = {
   tone: () => Promise<string | null>
   generate: (prompt: string) => Promise<{ ok: true; text: string } | { ok: false; error: string }>
   save: (conversationId: string, draft: HqLedgerDraft) => void
+  /** The newest message is for information: the talk is no longer the owner's move. */
+  quiet: (conversationId: string, why: string) => void
   now: () => number
 }
 
@@ -115,7 +117,13 @@ export async function runHqLedgerDrafts(
     .flatMap((card) => {
       const newest = card.messages.at(-1)
       const mark = newest ? `${card.id}:${newest.ts}` : null
-      return newest && mark && !tried.has(mark) && deps.draftOf(card.id)?.lastTs !== newest.ts
+      const drafted = deps.draftOf(card.id)
+      if (newest && drafted?.lastTs === newest.ts && drafted.kind === 'fyi') {
+        // Why: a card drafted before the draft could settle it still waits on the owner.
+        deps.quiet(card.id, drafted.ask)
+        return []
+      }
+      return newest && mark && !tried.has(mark) && drafted?.lastTs !== newest.ts
         ? [{ card, lastTs: newest.ts, mark }]
         : []
     })
@@ -139,6 +147,9 @@ export async function runHqLedgerDrafts(
       continue
     }
     deps.save(card.id, draft)
+    if (draft.kind === 'fyi') {
+      deps.quiet(card.id, draft.ask)
+    }
     written += 1
   }
   return written
