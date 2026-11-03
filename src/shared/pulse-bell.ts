@@ -14,7 +14,9 @@ export const PULSE_BELL_KIND = {
   claudeLimit: 'claude-limit',
   agentFinished: 'agent-finished',
   claudeChatLimit: 'claude-chat-limit',
-  claudeAuthStop: 'claude-auth-stop'
+  claudeAuthStop: 'claude-auth-stop',
+  /** Custom build (claude-connector-gap): connectors the account switched to lacks. */
+  claudeConnectorGap: 'claude-connector-gap'
 } as const
 
 export const PULSE_BELL_ACTION = {
