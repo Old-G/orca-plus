@@ -272,7 +272,10 @@ CREATE INDEX attribution_open ON attribution_log(conversation_key, field, final_
 CREATE INDEX attribution_by_final ON attribution_log(final_at);
 `
 
-const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13]
+// Custom build (hq-attribution-log, owner 03.11): his own words on why a guess was wrong.
+const V14 = `ALTER TABLE attribution_log ADD COLUMN owner_why TEXT;`
+
+const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 

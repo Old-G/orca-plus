@@ -1,9 +1,13 @@
 // Custom build (hq-intake-decide, owner 03.11, plan stage 20.3): one model decision for a new incoming
-// conversation — its project, the chat it belongs to (an open one or a new one), whose move it is, how
-// sure the model is and why. It only proposes: the owner keeps or changes each field from the card, and
-// each choice is counted (hq-attribution-log). The card's kind joins with the card that shows it (20.7).
+// conversation — its project, the chat it belongs to (an open one or a new one), what the card asks of
+// the owner, whose move it is, how sure the model is and why. It only proposes: the owner keeps or
+// changes each field in «To work», and each choice is counted (hq-attribution-log).
 import type { HqProjectPage } from '../../shared/hq-project-pages'
-import { HQ_ATTRIBUTION_NEW_CHAT } from '../../shared/hq-attribution'
+import {
+  HQ_ATTRIBUTION_KINDS,
+  HQ_ATTRIBUTION_NEW_CHAT,
+  type HqAttributionKind
+} from '../../shared/hq-attribution'
 import { hqPromptName, type HqLedgerGuessInput } from './hq-ledger-guess'
 import { hqIntakeNamedProject } from './hq-slack-intake-suggest'
 import type { HqLedgerDecision } from '../orca-plus/pulse/pulse-ledger-decision'
@@ -36,6 +40,7 @@ export type HqIntakeDecision = {
   project: string | null
   /** A listed chat's session id, or `new`. */
   chat: string
+  kind: HqAttributionKind
   state: 'you' | 'fyi'
   /** 0–1. */
   confidence: number
@@ -105,13 +110,14 @@ export function hqIntakeDecidePrompt(
         ]
       : []),
     '',
-    'state: "you" — it asks the user to do, answer, decide or check something; "fyi" — news, thanks,',
-    'small talk, something for others.',
+    'kind: "do" — asks the user to do or check something; "answer" — asks him a question or a decision;',
+    '"reply" — answers one of the questions listed above; "fyi" — news, thanks, small talk, for others.',
+    'state: "you" — it waits on the user; "fyi" — it does not.',
     'chat: the id of the open chat already working on exactly this (same task, MR, thread or question),',
     `else "${HQ_ATTRIBUTION_NEW_CHAT}". An answer to one of the questions above goes to the chat that asked.`,
     'project: a slug from the list, or empty when none clearly fits.',
     'confidence: 0–1, how sure you are of project and chat together; below 0.6 when you are guessing.',
-    'Answer with JSON only: {"project": "", "chat": "", "state": "you" | "fyi",',
+    'Answer with JSON only: {"project": "", "chat": "", "kind": "", "state": "you" | "fyi",',
     '"confidence": 0.0, "why": "<one line in English, under 140 characters: what you based it on>",',
     '"gist": "<one line in Russian, under 100 characters: what the talk is about>"}'
   ]
@@ -141,6 +147,7 @@ export function parseHqIntakeDecision(
   const project = get('project')
   const chat = get('chat')
   const state = get('state')
+  const kind = get('kind')
   const confidence = Number(get('confidence'))
   const why = get('why')
   const gist = get('gist')
@@ -152,6 +159,9 @@ export function parseHqIntakeDecision(
         ? (pages.find((page) => norm(page.slug) === norm(project))?.slug ?? null)
         : null,
     chat: listedChat?.sessionId ?? HQ_ATTRIBUTION_NEW_CHAT,
+    kind: (HQ_ATTRIBUTION_KINDS as readonly unknown[]).includes(kind)
+      ? (kind as HqAttributionKind)
+      : 'fyi',
     state: state === 'you' ? 'you' : 'fyi',
     confidence: Number.isFinite(confidence) ? Math.min(1, Math.max(0, confidence)) : 0,
     why: typeof why === 'string' && why.trim() ? why.trim().slice(0, 200) : null,
@@ -185,6 +195,7 @@ export async function decideHqIntake(
     state: input.fromOwner ? 'fyi' : decision.state,
     gist: decision.gist,
     chat: decision.chat,
+    kind: decision.kind,
     confidence: decision.confidence,
     why: decision.why
   }
