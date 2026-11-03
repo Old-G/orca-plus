@@ -56,6 +56,7 @@ export async function generateHqText(
       | 'hq-ledger-guess'
       | 'hq-in-work'
       | 'hq-ledger-draft'
+      | 'hq-ledger-promises'
     /** Custom build (hq-clickup-triage): a cheaper model than the one set for HQ text. */
     model?: string
   },

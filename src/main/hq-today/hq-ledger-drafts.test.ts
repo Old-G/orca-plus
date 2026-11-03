@@ -27,6 +27,7 @@ function card(id: string, ts: string, lastAt: number): HqLedgerCardRow {
 function setup(cards: HqLedgerCardRow[], answer: string | null) {
   const saved = new Map<string, HqLedgerDraft>()
   const prompts: string[] = []
+  const quieted: string[] = []
   let made = 0
   const deps: HqLedgerDraftsDeps = {
     enabled: () => true,
@@ -44,9 +45,10 @@ function setup(cards: HqLedgerCardRow[], answer: string | null) {
       made += 1
       saved.set(id, draft)
     },
+    quiet: (id) => quieted.push(id),
     now: () => NOW
   }
-  return { deps, saved, prompts }
+  return { deps, saved, prompts, quieted }
 }
 
 const ANSWER = '{"kind": "answer", "ask": "Check the export", "draft": "Ann, checking it today."}'
@@ -68,6 +70,20 @@ describe('ledger card drafts', () => {
     })
     expect(await runHqLedgerDrafts(deps, new Set())).toBe(0)
     expect(prompts).toHaveLength(2)
+  })
+
+  it('takes a thanks off the owner, also one drafted before it could', async () => {
+    // Why (03.11): 3 of 8 «your move» cards were a colleague saying thanks.
+    const thanks = '{"kind": "fyi", "ask": "Ann says thanks", "draft": ""}'
+    const fresh = setup([card('a', '1.1', NOW)], thanks)
+    await runHqLedgerDrafts(fresh.deps, new Set())
+    expect(fresh.quieted).toEqual(['a'])
+
+    const earlier = setup([card('b', '2.2', NOW)], ANSWER)
+    earlier.saved.set('b', { lastTs: '2.2', kind: 'fyi', ask: 'Thanks', draft: null })
+    expect(await runHqLedgerDrafts(earlier.deps, new Set())).toBe(0)
+    expect(earlier.quieted).toEqual(['b'])
+    expect(earlier.prompts).toHaveLength(0)
   })
 
   it('does not ask again for a draft the model failed, and stops at the day’s limit', async () => {
