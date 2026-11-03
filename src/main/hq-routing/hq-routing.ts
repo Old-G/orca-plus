@@ -31,7 +31,7 @@ import {
   planHqReportFix
 } from './hq-routing-codex-fix'
 import { parseHqRouting } from './hq-routing-rules'
-import { mapAtMost, orAfter } from './hq-routing-pool'
+import { createLateWork, mapAtMost } from './hq-routing-pool'
 
 // Why: a launch that failed is tried again within the evening, not every five minutes.
 const RETRY_AFTER_MS = 60 * 60_000
@@ -79,6 +79,7 @@ export type HqRoutingService = {
 export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
   const failedAt = new Map<string, number>()
   let running: Promise<HqRouteResult> | null = null
+  const lateWork = createLateWork()
 
   const actionRow = (
     action: HqRouteAction,
@@ -283,7 +284,7 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
         deps.log(`routing: ${action.project} failed: ${message}`)
         return { ...action, note: message }
       })
-      return orAfter(work, CARRY_TIMEOUT_MS, () => ({
+      return lateWork.orAfter(work, CARRY_TIMEOUT_MS, () => ({
         ...action,
         note: 'still starting after 2 min'
       }))
@@ -379,9 +380,13 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
   const run = (options: HqRouteOptions = {}): Promise<HqRouteResult> => {
     // Why: the timer and a manual run must not open two chats for one project.
     if (!running) {
-      running = runOnce(options).finally(() => {
-        running = null
-      })
+      // Why: a launch that outlived the last pass's timeout records its chat first (hq-routing-pool).
+      running = lateWork
+        .settled()
+        .then(() => runOnce(options))
+        .finally(() => {
+          running = null
+        })
       return running
     }
     if (options.dryRun) {
