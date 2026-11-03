@@ -90,6 +90,26 @@ describe('ClickUp comments in the ledger', () => {
     ).toBeNull()
   })
 
+  it('the agents’ account writes for the owner, and Slack mirrors are left out', () => {
+    expect(
+      hqLedgerSignalOfClickUp(
+        mine,
+        comment('c4', 'Report: done?', 1, { ...ANN, id: 'u-agents' }),
+        OWNER,
+        null,
+        new Set(['u-agents'])
+      )
+    ).toMatchObject({ fromOwner: true, forOwner: false })
+    expect(
+      hqLedgerSignalOfClickUp(
+        mine,
+        comment('c5', '[Slack Sync] 💬 @Ann (Slack): ok?', 1),
+        OWNER,
+        null
+      )
+    ).toBeNull()
+  })
+
   it('a pass reads his tasks and the mailed ones, replies too, oldest first, from the last look', async () => {
     const ingested: HqLedgerSignal[] = []
     const other = task({ id: 't2', customId: null, url: 'https://app.clickup.com/t/t2' })
@@ -113,6 +133,7 @@ describe('ClickUp comments in the ledger', () => {
           : [comment('c9', '@owner?', 9_904_000)],
       listReplies: async () => [comment('r1', 'ok?', 9_903_500)],
       viewer: async () => OWNER,
+      ownAccounts: async () => new Set(['u-agents']),
       projectForList: () => 'acme-list',
       projectOfLinks: async (links) =>
         links.some((l) => l.includes('acme-shop')) ? 'acme-shop' : null,
