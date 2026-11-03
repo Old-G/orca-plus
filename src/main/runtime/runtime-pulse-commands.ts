@@ -3,6 +3,7 @@
 import type { HqLedgerAnswer, HqLedgerResult, HqLedgerSignal } from '../../shared/hq-ledger'
 import type { HqConversationRow, HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import type { HqLedgerCardRow } from '../orca-plus/pulse/pulse-ledger-cards'
+import type { HqInWorkCandidate, HqInWorkRow } from '../orca-plus/pulse/pulse-ledger-in-work'
 import type { HqOpenConversation } from '../orca-plus/pulse/pulse-ledger-open'
 import type { HqFeedLedger } from '../../shared/hq-feed-ledger'
 import type { HqAttributionAccuracy } from '../../shared/hq-attribution'
@@ -259,6 +260,37 @@ export class RuntimePulseCommands {
   /** Custom build (hq-request-ledger): Slack conversations waiting on the owner, for their cards. */
   pulseListLedgerCards(since: number): HqLedgerCardRow[] {
     return this.db().listLedgerCards(since)
+  }
+
+  /** Custom build (hq-in-work): conversations waiting on the owner that a chat may already work on. */
+  pulseListInWorkCandidates(since: number): HqInWorkCandidate[] {
+    return this.db().attribution.inWork.candidates(since)
+  }
+
+  pulseSetConversationInWork(
+    conversationId: string,
+    sessionId: string,
+    how: 'named' | 'model',
+    why: string | null,
+    confidence: number | null = null
+  ): boolean {
+    return this.db().attribution.inWork.set(conversationId, sessionId, how, why, confidence)
+  }
+
+  pulseClearConversationInWork(conversationId: string): boolean {
+    return this.db().attribution.inWork.clear(conversationId)
+  }
+
+  pulseListInWorkConversations(since: number): HqInWorkRow[] {
+    return this.db().attribution.inWork.list(since)
+  }
+
+  pulseNoteInWorkChatChecked(sessionId: string): void {
+    this.db().attribution.inWork.noteChecked(sessionId)
+  }
+
+  pulseInWorkChatsChecked(since: number): Set<string> {
+    return this.db().attribution.inWork.checked(since)
   }
 
   /** Custom build (hq-ledger-sources): one reader's conversations that still show, by place. */

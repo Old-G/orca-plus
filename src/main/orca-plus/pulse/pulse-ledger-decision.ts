@@ -5,11 +5,15 @@
 import type { PulseCore } from './pulse-core'
 import { setLedgerGuess, type HqLedgerGuess } from './pulse-ledger'
 import { noteAttributionGuess } from './pulse-attribution'
+import { setConversationInWork } from './pulse-ledger-in-work'
+import { HQ_ATTRIBUTION_NEW_CHAT } from '../../../shared/hq-attribution'
 
 export type HqLedgerDecision = HqLedgerGuess & {
   /** A chat's session id, or `new`. */
   chat: string
   kind: string
+  /** Custom build (hq-in-work): the chat already does it — the card goes down to «In work». */
+  inWork?: boolean
   confidence: number
   why: string | null
 }
@@ -42,6 +46,16 @@ export function setLedgerDecision(
     // Why the kind now (owner, 03.11): «To work» shows it and lets him change it, so it is judged.
     noteAttributionGuess(core, { key, field: 'kind', value: decision.kind, how: 'model', ...sure })
   })
+  if (decision.inWork && decision.chat !== HQ_ATTRIBUTION_NEW_CHAT) {
+    setConversationInWork(
+      core,
+      conversationId,
+      decision.chat,
+      'model',
+      decision.why,
+      decision.confidence
+    )
+  }
 }
 
 /** Custom build (hq-intake-decide): one call to the larger model, written before it is made. */
