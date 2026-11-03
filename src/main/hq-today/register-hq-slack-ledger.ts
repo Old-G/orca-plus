@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { HQ_SLACK_SCOUT_DIR } from '../../shared/hq-slack-scout'
 import { retireHqSlackScoutWhen } from './hq-slack-scout'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { withSlackReader } from '../slack/slack-reader'
 import { createSlackLedgerApi } from '../slack/slack-ledger-api'
@@ -28,7 +28,7 @@ import {
 import { hqReplyJudges } from './register-hq-waiting-replies'
 import type { ClickUpComment } from '../../shared/clickup-types'
 import type { HqLedgerDrafts } from '../orca-plus/pulse/pulse-ledger-draft'
-import { hqLedgerReplacesScout } from './hq-ledger-cutover'
+import { hqLedgerReplacesScout, noteHqLedgerReadSlack } from './hq-ledger-cutover'
 
 /** Why: the scout may raise a topic up to 15 minutes after it moved; younger ones are not compared. */
 const PARITY_SETTLE_MS = 20 * 60_000
@@ -155,14 +155,33 @@ export function registerHqSlackLedger(
   const reader = startHqSlackLedgerReader(
     {
       enabled: () => store.getSettings().hqLedger !== 'off',
-      read: (run) =>
-        withSlackReader((token, owner) => {
-          const base = createSlackReadApi(token, owner, cache)
-          const name = async (userId: string) =>
-            people().find((person) => person.slackUserId === userId)?.name ??
-            (await base.userName(userId))
-          return run(createSlackLedgerApi(token, owner, name, (userId) => base.isBot(userId)))
-        }),
+      read: async (run) => {
+        // Why: the cutover follows this reader's own reads of Slack, not the token status other
+        // readers share (hq-ledger-cutover).
+        let readSlack = false
+        try {
+          const result = await withSlackReader((token, owner) => {
+            const base = createSlackReadApi(token, owner, cache)
+            const name = async (userId: string) =>
+              people().find((person) => person.slackUserId === userId)?.name ??
+              (await base.userName(userId))
+            const api = createSlackLedgerApi(token, owner, name, (userId) => base.isBot(userId))
+            return run({
+              ...api,
+              withOwner: async (since) => {
+                const found = await api.withOwner(since)
+                readSlack = true
+                return found
+              }
+            })
+          })
+          noteHqLedgerReadSlack(result !== null && readSlack)
+          return result
+        } catch (error) {
+          noteHqLedgerReadSlack(readSlack)
+          throw error
+        }
+      },
       ingest: (signal) => runtime.pulseIngestLedger(signal),
       lastDirection: (key) => runtime.pulseLastLedgerDirection(key),
       // Custom build (hq-intake-decide, plan 20.3): project, chat, kind and certainty in one decision.
