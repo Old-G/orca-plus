@@ -46,6 +46,8 @@ type Request = {
   reply?: HqWaitingReplyRef
   /** The chat picked at first: the one that asked, for an answer. */
   chat?: string
+  /** Custom build (hq-intake-thread): a Slack thread read whole — `text` holds it; its links go along. */
+  thread?: { links: string[] }
 }
 
 /** A person's answer handed to the chat the owner picked — the asking one or any other. */
@@ -85,15 +87,23 @@ async function loadRequest(item: PulseInboxItem): Promise<Request | null> {
   }
   if (item.kind === HQ_INTAKE_KIND) {
     const intake = readHqIntake(item.refId)
-    return intake
-      ? {
-          title: item.title,
-          author: intake.author,
-          text: intake.text,
-          repoId: intake.repoId,
-          draft: null
-        }
+    if (!intake) {
+      return null
+    }
+    // Custom build (hq-intake-thread, owner 03.11): the chat gets the thread whole and its links, not
+    // the person's last lines; Slack unread, the card's own text goes as before.
+    const thread = intake.threadTs
+      ? await window.api.pulseBell.intakeThread(intake.channel, intake.threadTs).catch(() => null)
       : null
+    const whole = thread && thread.lines.length > 0 ? thread : null
+    return {
+      title: item.title,
+      author: intake.author,
+      text: whole ? whole.lines.join('\n') : intake.text,
+      repoId: intake.repoId,
+      draft: null,
+      ...(whole ? { thread: { links: whole.links } } : {})
+    }
   }
   const ref = readHqSlackRequestRef(item.refId)
   if (!ref) {
@@ -282,7 +292,17 @@ export function HqPlusTakePanel({
     }
     const intake = draft ? null : readHqIntake(item.refId)
     const prompt = intake
-      ? hqIntakePrompt({ ...intake, text }, { projectName, note })
+      ? hqIntakePrompt(
+          request.thread
+            ? {
+                ...intake,
+                text,
+                wholeThread: true,
+                links: [...new Set([...intake.links, ...request.thread.links])]
+              }
+            : { ...intake, text },
+          { projectName, note }
+        )
       : hqRequestTakePrompt(
           {
             source: draft?.source === 'clickup' ? 'ClickUp' : 'Slack',
