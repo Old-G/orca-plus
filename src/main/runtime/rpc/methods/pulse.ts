@@ -1,4 +1,7 @@
 import { defineMethod } from '../core'
+import { getHqProjectPagesService } from '../../../hq-project-pages/hq-project-pages-service'
+import { listHqProjectPages } from '../../../hq-project-pages/hq-project-pages'
+import { hqWaitingProject } from '../../../hq-today/hq-waiting-project'
 import {
   PulseAddDraftParams,
   PulseAddInboxItemParams,
@@ -69,8 +72,17 @@ export const PULSE_METHODS = [
       const record = params.agentSessionId
         ? runtime.openedAgentSessionRecordStore()?.getRecord(params.agentSessionId)
         : undefined
+      // Custom build (hq-waiting-project, plan 20.6): the project as HQ spells it, else the chat's (С10).
+      const hqPath = getHqProjectPagesService()?.settings().hqPath
+      const slugs = hqPath
+        ? (await listHqProjectPages(hqPath).catch(() => [])).map((page) => page.slug)
+        : []
+      const chatProject = params.agentSessionId
+        ? (runtime.pulseGetSession(params.agentSessionId)?.project ?? null)
+        : null
       return runtime.pulseAddWaiting({
         ...params,
+        project: hqWaitingProject(params.project, chatProject, slugs),
         agentSessionId: record ? params.agentSessionId : null,
         worktreeId: record?.location.workspaceId ?? null
       })
