@@ -2,11 +2,11 @@
 // through the StopFailure hook, native chats through their stream frames — and nudges only those
 // (Esc + a continue prompt) once another account is active or the limit lifted.
 import { BrowserWindow, ipcMain } from 'electron'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import type { RateLimitService } from '../rate-limits/service'
-import { agentHookServer } from '../agent-hooks/server'
-import { normalizeClaudeRuntimeSelection } from '../claude-accounts/runtime-selection'
+import type { RateLimitService } from '../rate-limits/service/rate-limit-service'
+import { agentHookServer } from '../agent-hooks/server/agent-hook-server'
+import { normalizeClaudeRuntimeSelection } from '../claude-accounts/selection/runtime-selection'
 import type { ClaudeHandoffOffers } from '../claude-handoff/claude-handoff-offers'
 import { createClaudeLimitStops } from '../claude-limit-guard/claude-limit-stops'
 import { setClaudeNativeFrameListener } from '../claude-limit-guard/claude-native-frame-tap'
@@ -112,7 +112,7 @@ async function hasClaudeTranscript(input: {
 }
 
 async function routedClaudeConfigDir(): Promise<string | null> {
-  return (await mainProcessState.claudeRuntimeAuth?.prepareForClaudeLaunch())?.configDir ?? null
+  return (await mainProcessState.core.claudeRuntimeAuth?.prepareForClaudeLaunch())?.configDir ?? null
 }
 
 async function nativeChatOnOtherAccount(sessionId: string): Promise<boolean> {
@@ -164,7 +164,7 @@ export function registerClaudeLimitGuardHandlers(
   const chats: ClaudeChatLimitContinueDeps = {
     settings: () => store.getSettings(),
     baseConfigDir: () =>
-      mainProcessState.claudeAccounts?.getRuntimeConfigDir({ runtime: 'host' }) ?? null,
+      mainProcessState.core.claudeAccounts?.getRuntimeConfigDir({ runtime: 'host' }) ?? null,
     getRecord: (sessionId) =>
       getStructuredAgentSessionHost()?.deps.store.getRecord(sessionId) ?? null
   }
@@ -232,18 +232,19 @@ export function registerClaudeLimitGuardHandlers(
     lastActive = next
     void (async () => {
       await delay(SWITCH_SETTLE_MS)
-      await mainProcessState.claudeRuntimeAuth?.syncForCurrentSelection()
+      await mainProcessState.core.claudeRuntimeAuth?.syncForCurrentSelection()
       if (activeAccountId() === next) {
         console.log('[claude-limit-guard]', `active account → ${next ?? 'system default'}`)
         await stops.onAccountChanged(next)
         const [previousDir, nextDir] = [lastDir, await routedClaudeConfigDir()]
         lastDir = nextDir
         if (previousDir && nextDir) {
+          // Why: the selection, not lastDir — a newer switch changes it at once (Codex P2, 04.11).
           await checkConnectorGapAfterSwitch(
             runtime,
             previousDir,
             nextDir,
-            (dir) => dir === lastDir
+            () => activeAccountId() === next
           )
         }
       }
@@ -262,7 +263,7 @@ export function registerClaudeLimitGuardHandlers(
   ipcMain.handle('claudeLimitGuard:list', () => stops.list())
   ipcMain.handle('claudeLimitGuard:continueAuthStops', async () => {
     // Why: rewrites the CLI sign-in from the selected account, in case it was the stale one.
-    await mainProcessState.claudeRuntimeAuth
+    await mainProcessState.core.claudeRuntimeAuth
       ?.syncForCurrentSelection()
       .catch((error: unknown) => console.warn('[claude-limit-guard] re-sync failed:', error))
     const resumed = await stops.resumeAuthStops()
