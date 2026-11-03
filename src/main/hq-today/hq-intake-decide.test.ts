@@ -77,7 +77,7 @@ describe('the intake decision', () => {
 
   it('С1: reads a listed chat, a known project and how sure it is', () => {
     const decision = parseHqIntakeDecision(
-      '{"project":"acme_api","chat":"claude_mr314","state":"you","confidence":0.86,"why":"MR !314 in the DM","gist":"Посмотреть MR"}',
+      '{"project":"acme_api","chat":"claude_mr314","kind":"do","state":"you","confidence":0.86,"why":"MR !314 in the DM","gist":"Посмотреть MR"}',
       pages,
       chats
     )
@@ -85,6 +85,7 @@ describe('the intake decision', () => {
     expect(decision).toEqual({
       project: 'acme-api',
       chat: 'claude_mr314',
+      kind: 'do',
       state: 'you',
       confidence: 0.86,
       why: 'MR !314 in the DM',
@@ -95,11 +96,11 @@ describe('the intake decision', () => {
   it('an unknown chat is a new one, an unknown state news, certainty kept within 0–1', () => {
     expect(
       parseHqIntakeDecision(
-        '{"project":"other","chat":"claude_nope","state":"x","confidence":7}',
+        '{"project":"other","chat":"claude_nope","kind":"panic","state":"x","confidence":7}',
         pages,
         chats
       )
-    ).toMatchObject({ project: null, chat: 'new', state: 'fyi', confidence: 1 })
+    ).toMatchObject({ project: null, chat: 'new', kind: 'fyi', state: 'fyi', confidence: 1 })
     expect(parseHqIntakeDecision('not json', pages, chats)).toBeNull()
   })
 

@@ -34,6 +34,7 @@ import { hqPlusSaid } from '../../../../../shared/hq-plus-said'
 import { doHqSlackRequest } from '../slack-requests/hq-slack-request-actions'
 import { hqPlusTakeHint, hqPlusTakeHintRepo } from './hq-plus-take-hint'
 import { hqPlusTakeKey, recordHqPlusTake } from './hq-plus-take-record'
+import { HqPlusTakeGuess } from './HqPlusTakeGuess'
 
 type Request = {
   title: string
@@ -143,10 +144,15 @@ export function HqPlusTakePanel({
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   // Custom build (hq-attribution-log): what the panel opened on, judged against what is sent.
-  const proposed = useRef<{ repoId: string | null; chat: string }>({
+  const proposed = useRef<{ repoId: string | null; chat: string; kind: string | null }>({
     repoId: null,
-    chat: HQ_ROUTE_NEW_CHAT
+    chat: HQ_ROUTE_NEW_CHAT,
+    kind: null
   })
+  // Custom build (hq-intake-decide, owner 03.11): the card's kind HQ proposed, and why he changed things.
+  const [kind, setKind] = useState('do')
+  const [why, setWhy] = useState('')
+  const guess = hqPlusTakeHint(item.id)?.guess ?? null
   useEffect(() => {
     let live = true
     setRequest('loading')
@@ -175,7 +181,10 @@ export function HqPlusTakePanel({
       const chatValue =
         loaded?.chat ??
         (hintChatOpen && hint?.sessionId ? hqRouteChatValue(hint.sessionId) : HQ_ROUTE_NEW_CHAT)
-      proposed.current = { repoId: repo, chat: chatValue }
+      const proposedKind = hint?.guess?.kind ?? null
+      proposed.current = { repoId: repo, chat: chatValue, kind: proposedKind }
+      setKind(proposedKind ?? (loaded?.reply ? 'reply' : 'do'))
+      setWhy('')
       setRequest(loaded)
       setRepoId(repo)
       setChat(chatValue)
@@ -214,6 +223,8 @@ export function HqPlusTakePanel({
     }
     const sentRepo = repoId
     const sentChat = chat
+    const sentKind = kind
+    const sentWhy = why
     const recordTake = (): void =>
       void Promise.all([
         slugOfRepo(proposed.current.repoId ?? '').catch(() => null),
@@ -226,7 +237,11 @@ export function HqPlusTakePanel({
             : null,
           proposedChat: proposed.current.chat,
           project: sentSlug ?? repoName(sentRepo),
-          chat: sentChat
+          chat: sentChat,
+          // Why only with HQ's own kind: a kind nobody proposed is no guess to judge.
+          proposedKind: proposed.current.kind,
+          kind: proposed.current.kind ? sentKind : null,
+          why: sentWhy
         })
       )
     const projectName = repoName(repoId)
@@ -328,6 +343,21 @@ export function HqPlusTakePanel({
         disabled={busy}
         portal={null}
       />
+      {guess ? (
+        <HqPlusTakeGuess
+          guess={guess}
+          kind={kind}
+          onKindChange={setKind}
+          changed={
+            repoId !== proposed.current.repoId ||
+            chat !== proposed.current.chat ||
+            (proposed.current.kind !== null && kind !== proposed.current.kind)
+          }
+          why={why}
+          onWhyChange={setWhy}
+          disabled={busy}
+        />
+      ) : null}
       <label className="hqp-take-l">
         <span>
           {request.reply

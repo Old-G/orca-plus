@@ -6,6 +6,8 @@ export type HqPlusTakeHint = {
   sessionId: string | null
   /** Custom build (hq-attribution-log): the conversation the card stood for, when it knew one. */
   key?: string | null
+  /** Custom build (hq-intake-decide): what the model proposed for it — kind, certainty, why. */
+  guess?: { kind: string | null; confidence: number | null; why: string | null } | null
 }
 
 const MAX_HINTS = 50
@@ -18,7 +20,8 @@ export function noteHqPlusTakeHint(itemId: string, hint: HqPlusTakeHint): void {
   hints.set(itemId, {
     project: hint.project ?? known?.project ?? null,
     sessionId: hint.sessionId ?? known?.sessionId ?? null,
-    key: hint.key ?? known?.key ?? null
+    key: hint.key ?? known?.key ?? null,
+    guess: hint.guess ?? known?.guess ?? null
   })
   if (hints.size > MAX_HINTS) {
     hints.delete(hints.keys().next().value ?? '')

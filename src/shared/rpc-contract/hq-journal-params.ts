@@ -157,7 +157,11 @@ export const HqAttributionTakeParams = z.object({
   proposedProject: z.string().trim().min(1).nullable(),
   proposedChat: requiredString('The proposed chat is required (a session id or "new")'),
   project: z.string().trim().min(1).nullable(),
-  chat: requiredString('The chosen chat is required (a session id or "new")')
+  chat: requiredString('The chosen chat is required (a session id or "new")'),
+  // Custom build (owner 03.11): the card's kind and his reason, when «To work» showed them.
+  proposedKind: z.enum(['do', 'answer', 'reply', 'fyi']).nullable().optional(),
+  kind: z.enum(['do', 'answer', 'reply', 'fyi']).optional(),
+  why: z.string().trim().max(500).optional()
 })
 
 // Custom build (hq-attribution-log): the owner dropped a conversation's card.

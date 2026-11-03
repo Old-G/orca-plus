@@ -347,7 +347,8 @@ export function HqPlusConversationCard({
               noteHqPlusTakeHint(inbox.id, {
                 project: card.project,
                 sessionId: card.sessionId ?? (proposed && proposed !== 'new' ? proposed : null),
-                key: card.conversation?.key ?? null
+                key: card.conversation?.key ?? null,
+                guess: card.conversation?.guess ?? null
               })
               ctx.toWork(inbox)
             }}
