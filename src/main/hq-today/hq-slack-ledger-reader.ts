@@ -87,6 +87,8 @@ export type HqSlackLedgerState = {
   cursor: number
   /** Seconds from a message to its conversation, for the day's parity line. */
   delays: number[]
+  /** Custom build (hq-ledger-parity, plan 20.9): the slowest of them, by place, so a late one is found. */
+  slowest?: { seconds: number; id: string } | null
   /** When the last pass read Slack. */
   passAt?: number
   /** Seconds without a pass before a catch-up that read something; its messages are not delays. */
@@ -157,6 +159,10 @@ export async function runHqSlackLedgerReader(
       author: string | null
       fromOwner: boolean
       result: HqLedgerResult
+      /** When it reached the ledger — the delay ends here, not after the model's guesses. */
+      ingestedAt: number
+      /** It was the owner's when said: his own, said to him, or in a talk he was already in. */
+      owned: boolean
       context?: HqSlackLedgerContextLine[]
     }[] = []
     let cursor = state.cursor
@@ -192,7 +198,14 @@ export async function runHqSlackLedgerReader(
       const result = deps.ingest(signal)
       cursor = Math.max(cursor, signal.at)
       if (result.added) {
-        fresh.push({ message, author, fromOwner: signal.fromOwner, result })
+        fresh.push({
+          message,
+          author,
+          fromOwner: signal.fromOwner,
+          result,
+          ingestedAt: deps.now(),
+          owned: signal.fromOwner || signal.forOwner || last !== null
+        })
       }
     }
     // Custom build (hq-ledger-context): what the model reads beside a new talk's first message.
@@ -218,16 +231,23 @@ export async function runHqSlackLedgerReader(
   if (gap > GAP_MS && read.fresh.length > 0) {
     gaps.push(Math.round(gap / 1000))
   }
+  let slowest = state.slowest ?? null
   let guessed = 0
-  for (const { message, author, fromOwner, result, context } of read.fresh) {
+  for (const { message, author, fromOwner, result, context, ingestedAt, owned } of read.fresh) {
     // Why not on the first pass: catching up on a day would read as a day's delay. A thread's older
-    // lines read whole are not late either.
+    // lines read whole are not late either. Custom build (hq-ledger-parity, 03.11): nor a line said
+    // before the owner was in the talk — search finds a thread's earlier lines once he joins it.
     if (
       state.cursor > 0 &&
       gap <= GAP_MS &&
+      owned &&
       !read.fetched.has(`${message.channel}:${message.ts}`)
     ) {
-      delays.push(Math.max(0, Math.round((deps.now() - Number(message.ts) * 1000) / 1000)))
+      const seconds = Math.max(0, Math.round((ingestedAt - Number(message.ts) * 1000) / 1000))
+      delays.push(seconds)
+      if (!slowest || seconds > slowest.seconds) {
+        slowest = { seconds, id: `${message.channel}:${message.ts}` }
+      }
     }
     if ((result.step === 'new' || result.step === 'owner') && guessed < GUESSES_PER_PASS) {
       guessed += 1
@@ -240,65 +260,24 @@ export async function runHqSlackLedgerReader(
   return {
     cursor: Math.max(read.cursor, state.cursor),
     delays: delays.slice(-500),
+    slowest,
     passAt: now,
     gaps: gaps.slice(-50),
     threads: read.queue
   }
 }
 
-/** The day's line: what the scout looked at that the ledger has not, and how fast the API reader was. */
-/** A topic the scout raised (a request, a quiet item, a thread he waits in) and its messages. */
-export type HqScoutTopic = { id: string; messages: string[] }
-
-/**
- * The day's comparison with the scout: of the topics it raised, how many the ledger holds, and how
- * fast messages reached it. Custom build (hq-ledger-sources, 31.10): topics, not every message the
- * scout looked at — it also looks at what it then skips («not for Gleb»), which the ledger rightly
- * leaves alone; a catch-up after a gap is named apart from the delay.
- */
-export function hqSlackParityLine(
-  topics: readonly HqScoutTopic[],
-  inLedger: (channel: string, ts: string) => boolean,
-  delays: readonly number[],
-  gaps: readonly number[] = []
-): string {
-  const missing = topics.filter(
-    (topic) =>
-      !topic.messages.some((id) => {
-        const [channel, ts] = normalizeScoutId(id).split(':')
-        return Boolean(channel && ts && inLedger(channel, ts))
-      })
-  )
-  const sorted = [...delays].sort((a, b) => a - b)
-  const median = sorted[Math.floor(sorted.length / 2)]
-  const speed =
-    sorted.length > 0
-      ? `delay median ${median} s, max ${sorted.at(-1)} s over ${sorted.length}`
-      : 'no new messages read'
-  const caughtUp =
-    gaps.length > 0
-      ? `; ${gaps.length} catch-up${gaps.length === 1 ? '' : 's'} after up to ${Math.ceil(Math.max(...gaps) / 60)} min without Slack`
-      : ''
-  const shown = missing
-    .slice(0, 5)
-    .map((topic) => topic.id)
-    .join(', ')
-  return `Slack API vs scout: ${topics.length - missing.length} of ${topics.length} topics in conversations${missing.length > 0 ? `, missing ${shown}${missing.length > 5 ? ` and ${missing.length - 5} more` : ''}` : ''}; ${speed}${caughtUp}`
-}
-
-/** A scout id with its ts written without the dot (`C1:1793359387819889`) made Slack's form. */
-export function normalizeScoutId(id: string): string {
-  const [channel, ts] = id.split(':')
-  if (!channel || !ts) {
-    return id
-  }
-  return /^\d{16}$/.test(ts) ? `${channel}:${ts.slice(0, 10)}.${ts.slice(10)}` : `${channel}:${ts}`
-}
-
 export function startHqSlackLedgerReader(
   deps: HqSlackLedgerDeps,
   onError: (error: unknown) => void
-): { stop: () => void; delays: () => { delays: number[]; gaps: number[] } } {
+): {
+  stop: () => void
+  delays: () => {
+    delays: number[]
+    gaps: number[]
+    slowest: { seconds: number; id: string } | null
+  }
+} {
   let state: HqSlackLedgerState = { cursor: 0, delays: [] }
   const flight = createDebouncedSingleFlight(
     async () => {
@@ -323,8 +302,8 @@ export function startHqSlackLedgerReader(
       flight.dispose()
     },
     delays: () => {
-      const taken = { delays: state.delays, gaps: state.gaps ?? [] }
-      state = { ...state, delays: [], gaps: [] }
+      const taken = { delays: state.delays, gaps: state.gaps ?? [], slowest: state.slowest ?? null }
+      state = { ...state, delays: [], gaps: [], slowest: null }
       return taken
     }
   }

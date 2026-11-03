@@ -10,11 +10,14 @@ import { createSlackLedgerApi } from '../slack/slack-ledger-api'
 import { createSlackReadApi, createSlackReaderCache } from '../slack/slack-reader-api'
 import { hqIntakeDecider } from './register-hq-intake-decide'
 import { startHqInWork } from './register-hq-in-work'
+import { startHqLedgerDraftWriter } from './register-hq-ledger-drafts'
+import { startHqSlackLedgerReader } from './hq-slack-ledger-reader'
 import {
   hqSlackParityLine,
-  startHqSlackLedgerReader,
-  type HqScoutTopic
-} from './hq-slack-ledger-reader'
+  normalizeScoutId,
+  type HqScoutTopic,
+  type HqSlackParityCards
+} from './hq-slack-parity'
 import { hqLedgerErrorReporter } from './hq-ledger-errors'
 import {
   createHqLedgerAnswers,
@@ -23,6 +26,7 @@ import {
 } from './hq-ledger-answers'
 import { hqReplyJudges } from './register-hq-waiting-replies'
 import type { ClickUpComment } from '../../shared/clickup-types'
+import type { HqLedgerDrafts } from '../orca-plus/pulse/pulse-ledger-draft'
 
 /** Why: the scout may raise a topic up to 15 minutes after it moved; younger ones are not compared. */
 const PARITY_SETTLE_MS = 20 * 60_000
@@ -52,6 +56,7 @@ function scoutTopicsOfDay(hqPath: string, now: number): HqScoutTopic[] {
       return []
     }
     const id = Reflect.get(topic, 'id')
+    const quiet = Reflect.get(topic, 'status') === 'quiet'
     const messages = Reflect.get(topic, 'messages')
     const at = Date.parse(String(Reflect.get(topic, 'lastAt') ?? ''))
     const slack = Array.isArray(messages)
@@ -64,9 +69,62 @@ function scoutTopicsOfDay(hqPath: string, now: number): HqScoutTopic[] {
       slack.length > 0 &&
       at > now - DAY_MS &&
       at < now - PARITY_SETTLE_MS
-      ? [{ id, messages: slack }]
+      ? [{ id, messages: slack, quiet }]
       : []
   })
+}
+
+type ScoutCard = { channel: string; ts: string; kind: string; drafted: boolean }
+
+/** Custom build (hq-ledger-draft, plan 20.9): the scout's Slack cards found during the last day, with
+ *  their kind and whether they carry a reply draft. */
+function scoutCardsOfDay(hqPath: string, now: number): ScoutCard[] {
+  let drafts: unknown
+  try {
+    const file: unknown = JSON.parse(
+      readFileSync(join(hqPath, HQ_SLACK_SCOUT_DIR, 'drafts.json'), 'utf8')
+    )
+    drafts = Array.isArray(file)
+      ? file
+      : file && typeof file === 'object'
+        ? Reflect.get(file, 'drafts')
+        : null
+  } catch {
+    return []
+  }
+  return (Array.isArray(drafts) ? drafts : []).flatMap((draft: unknown) => {
+    if (!draft || typeof draft !== 'object') {
+      return []
+    }
+    const [channel, ts] = normalizeScoutId(String(Reflect.get(draft, 'id') ?? '')).split(':')
+    const kind = Reflect.get(draft, 'kind')
+    const at = Date.parse(String(Reflect.get(draft, 'foundAt') ?? ''))
+    const description = String(Reflect.get(draft, 'description') ?? '')
+    return channel &&
+      ts &&
+      SLACK_CHANNEL.test(channel) &&
+      (kind === 'do' || kind === 'answer') &&
+      at > now - DAY_MS &&
+      at < now - PARITY_SETTLE_MS
+      ? [{ channel, ts, kind, drafted: /Черновик ответа:|Draft reply:/.test(description) }]
+      : []
+  })
+}
+
+function parityCards(
+  cards: readonly ScoutCard[],
+  kindOf: HqLedgerDrafts['kindOfSlack']
+): HqSlackParityCards {
+  const held = cards.flatMap((card) => {
+    const ledger = kindOf(card.channel, card.ts)
+    return ledger ? [{ card, ledger }] : []
+  })
+  return {
+    cards: cards.length,
+    held: held.length,
+    sameKind: held.filter(({ card, ledger }) => ledger.kind === card.kind).length,
+    drafted: held.filter(({ ledger }) => ledger.drafted).length
+  }
 }
 
 /** Starts the reader; returns the day's parity line for the ledger's report. */
@@ -117,6 +175,8 @@ export function registerHqSlackLedger(
   )
   // Custom build (hq-in-work, plan 20.11): a conversation a chat already works on is not his move.
   startHqInWork(store, runtime)
+  // Custom build (hq-ledger-draft, plan 20.9): the scout's kind, ask and reply draft on the ledger's cards.
+  startHqLedgerDraftWriter(store, runtime)
   return {
     answers: () => {
       const since = Date.now() - 2 * DAY_MS
@@ -135,12 +195,18 @@ export function registerHqSlackLedger(
       const hqPath = store.getSettings().hqPath
       return hqPath
         ? (() => {
-            const { delays, gaps } = reader.delays()
+            const { delays, gaps, slowest } = reader.delays()
             return hqSlackParityLine(
               scoutTopicsOfDay(hqPath, Date.now()),
               (channel, ts) => runtime.pulseLedgerHasSlackMessage(channel, ts),
               delays,
-              gaps
+              gaps,
+              {
+                slowest,
+                cards: parityCards(scoutCardsOfDay(hqPath, Date.now()), (channel, ts) =>
+                  runtime.pulseAttribution().drafts.kindOfSlack(channel, ts)
+                )
+              }
             )
           })()
         : null
