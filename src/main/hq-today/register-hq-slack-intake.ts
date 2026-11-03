@@ -110,7 +110,10 @@ export function registerHqSlackIntake(
       store.getSettings().hqLedger === 'on'
         ? runtime
             .pulseListLedgerCards(Date.now() - RAISED_LOOKBACK_MS)
-            .flatMap((row) => hqIntakeOfConversation(row) ?? [])
+            .flatMap(
+              (row) =>
+                hqIntakeOfConversation(row, runtime.pulseAttribution().drafts.of(row.id)) ?? []
+            )
         : null,
     sync: (kind, items) => void runtime.pulseSyncInboxKind(kind, items),
     now: Date.now,

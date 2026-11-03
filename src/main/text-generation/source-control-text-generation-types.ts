@@ -68,6 +68,7 @@ export type TextGenerationOperation =
   | 'hq-ledger-guess'
   // Custom build (hq-in-work): whether a new agent chat already does a conversation waiting on the owner.
   | 'hq-in-work'
+  | 'hq-ledger-draft'
   // Custom build (hq-plus-person-replies): whether a person's answer may go to the asking chat by itself.
   | 'hq-reply-routing'
 
