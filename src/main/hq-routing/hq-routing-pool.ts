@@ -28,3 +28,28 @@ export function orAfter<R>(work: Promise<R>, ms: number, late: () => R): Promise
   })
   return Promise.race([work, timeout]).finally(() => clearTimeout(timer))
 }
+
+/** Work that answered late and still runs. Why: a launch past its timeout goes on and records its chat
+ *  later; the next pass must wait for it, or it opens a second chat for the same findings (Codex P1,
+ *  04.11). */
+export function createLateWork(): {
+  orAfter: <R>(work: Promise<R>, ms: number, late: () => R) => Promise<R>
+  settled: () => Promise<void>
+} {
+  const pending = new Set<Promise<unknown>>()
+  return {
+    orAfter: (work, ms, late) =>
+      orAfter(work, ms, () => {
+        const tracked = work.then(
+          () => undefined,
+          () => undefined
+        )
+        pending.add(tracked)
+        void tracked.then(() => pending.delete(tracked))
+        return late()
+      }),
+    settled: async () => {
+      await Promise.all(pending)
+    }
+  }
+}
