@@ -45,15 +45,35 @@ export function readHqProjectPage(markdown: string): HqProjectPage | null {
   if (!repoId || !slug) {
     return null
   }
-  const heading = /^# (.+)$/m.exec(markdown.slice(match[0].length))
+  const body = markdown.slice(match[0].length)
+  const heading = /^# (.+)$/m.exec(body)
   return {
     repoId,
     slug,
     title: heading ? heading[1].trim() : null,
     status: fields.get('status') ?? null,
     group: fields.get('group') ?? null,
-    relations: readRelations(fields.get('relations'))
+    relations: readRelations(fields.get('relations')),
+    ...withSummary(pageSummary(body))
   }
+}
+
+/** Why the first two sentences: the rest of «Кратко» is history, not what the project is for. */
+const SUMMARY_CHARS = 280
+
+const withSummary = (summary: string | null): { summary?: string } => (summary ? { summary } : {})
+
+function pageSummary(body: string): string | null {
+  const section = /^## (?:Кратко|Summary)\s*\n+([\s\S]*?)(?:\n## |$)/m.exec(body)?.[1]
+  const text = section?.replace(/\s+/g, ' ').trim()
+  if (!text) {
+    return null
+  }
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .slice(0, 2)
+    .join(' ')
+  return sentences.slice(0, SUMMARY_CHARS)
 }
 
 export async function listHqProjectPages(hqPath: string): Promise<HqProjectPage[]> {

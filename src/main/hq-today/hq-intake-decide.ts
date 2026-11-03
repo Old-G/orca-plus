@@ -65,8 +65,11 @@ export function hqIntakeDecidePrompt(
     `A new conversation started in ${where}; the message below is from ${who}.`,
     'Decide where it belongs. The user checks every field, so say how sure you are.',
     '',
-    "The user's projects (slug — title):",
-    ...pages.map((page) => `- ${page.slug} — ${page.title ?? page.slug}`),
+    "The user's projects (slug — title — what it is for):",
+    ...pages.map(
+      (page) =>
+        `- ${page.slug} — ${page.title ?? page.slug}${page.summary ? ` — ${line(page.summary, 280)}` : ''}`
+    ),
     '',
     chats.length > 0
       ? 'Open agent chats (id — project — name — last report):'

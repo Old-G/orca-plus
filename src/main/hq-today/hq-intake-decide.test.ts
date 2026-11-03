@@ -9,7 +9,7 @@ import {
 } from './hq-intake-decide'
 
 const pages = [
-  { slug: 'acme-api', title: 'Acme API' },
+  { slug: 'acme-api', title: 'Acme API', summary: 'Answers #acme-bugs requests.' },
   { slug: 'acme-web', title: 'Acme web' }
 ] as HqProjectPage[]
 
@@ -56,6 +56,7 @@ describe('the intake decision', () => {
     expect(prompt).toContain('- claude_mr314 — acme-api — acme-api/mr-314-review-fixes')
     expect(prompt).toContain('Review of MR !314 — acme-api — claude_mr314')
     expect(prompt).toContain('guessed acme-web, the user chose acme-api')
+    expect(prompt).toContain('- acme-api — Acme API — Answers #acme-bugs requests.')
     expect(prompt).toContain('Ann: here is the MR')
     expect(prompt.split('"""')).toHaveLength(5)
   })
