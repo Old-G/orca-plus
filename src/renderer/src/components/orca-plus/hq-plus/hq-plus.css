@@ -1640,6 +1640,7 @@
 }
 .hqp-pgrp-hist {
   flex-basis: 100%;
+  min-width: 0;
   padding: 4px 0 6px 14px;
 }
 .hqp-projchats {
@@ -3058,6 +3059,9 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 }
 .hqp-pgrp-sec {
   display: grid;
+  /* Custom build (hq-plus-history-width): a long past-chat title must not widen the column and push
+     the project's buttons, History among them, out of sight. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
   padding-top: 8px;
 }
