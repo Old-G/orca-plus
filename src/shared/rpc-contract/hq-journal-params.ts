@@ -150,6 +150,11 @@ export const HqConversationDoneParams = z.object({
   key: requiredString('A conversation key is required')
 })
 
+// Custom build (hq-in-work, plan 20.11): «Not in work» on a conversation a chat was thought to do.
+export const HqConversationNotInWorkParams = z.object({
+  conversationId: requiredString('A conversation id is required')
+})
+
 // Custom build (hq-attribution-log, owner 03.11): the owner sent a conversation to work — what its card
 // proposed and what he chose, so the guess is counted kept or changed.
 export const HqAttributionTakeParams = z.object({

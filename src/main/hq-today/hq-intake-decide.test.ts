@@ -88,6 +88,7 @@ describe('the intake decision', () => {
       chat: 'claude_mr314',
       kind: 'do',
       state: 'you',
+      inWork: false,
       confidence: 0.86,
       why: 'MR !314 in the DM',
       gist: 'Посмотреть MR'
@@ -117,6 +118,24 @@ describe('the intake decision', () => {
 
     expect(decision).toMatchObject({ project: 'acme-web', how: 'named', state: 'fyi', chat: 'new' })
     expect(await decideHqIntake(input, deps(null))).toBeNull()
+  })
+
+  // Custom build (hq-in-work, plan 20.11): a listed chat already doing it, when the model is sure.
+  it('in work only in a listed chat, sure enough, and not on the owner’s own line', async () => {
+    const sure = '{"chat":"claude_mr314","in_work":true,"state":"you","confidence":0.8}'
+    expect(await decideHqIntake(input, deps(sure))).toMatchObject({
+      chat: 'claude_mr314',
+      inWork: true
+    })
+    expect(await decideHqIntake(input, deps(sure.replace('0.8', '0.5')))).toMatchObject({
+      inWork: false
+    })
+    expect(
+      await decideHqIntake(input, deps(sure.replace('claude_mr314', 'claude_nope')))
+    ).toMatchObject({ chat: 'new', inWork: false })
+    expect(await decideHqIntake({ ...input, fromOwner: true }, deps(sure))).toMatchObject({
+      inWork: false
+    })
   })
 })
 
