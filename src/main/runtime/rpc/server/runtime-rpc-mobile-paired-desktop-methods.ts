@@ -38,6 +38,7 @@ export const PAIRED_DESKTOP_METHODS = [
   // Custom build (hq-ledger-sources): «Done» on the card of an MR or a mail thread.
   'hq.conversationDone',
   'hq.conversationNotInWork',
+  'hq.conversationToWork',
   'hqProjects.people',
   'hqProjects.person',
   // Its notes, waitings and bell, which live in the Mac's pulse database.
