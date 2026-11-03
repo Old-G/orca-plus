@@ -237,11 +237,12 @@ export function registerClaudeLimitGuardHandlers(
         const [previousDir, nextDir] = [lastDir, await routedClaudeConfigDir()]
         lastDir = nextDir
         if (previousDir && nextDir) {
+          // Why: the selection, not lastDir — a newer switch changes it at once (Codex P2, 04.11).
           await checkConnectorGapAfterSwitch(
             runtime,
             previousDir,
             nextDir,
-            (dir) => dir === lastDir
+            () => activeAccountId() === next
           )
         }
       }
