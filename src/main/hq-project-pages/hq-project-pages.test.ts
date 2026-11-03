@@ -139,4 +139,27 @@ describe('readHqProjectPage summary', () => {
       'One core for every agent. The first one answers #acme-bugs requests.'
     )
   })
+
+  // Why (Codex 03.11): a wrapped «Кратко» used to end at its first line.
+  it('reads «Кратко» across wrapped lines up to the next heading', () => {
+    const page = readHqProjectPage(
+      [
+        '---',
+        'project: acme-agents',
+        'id: repo-9',
+        '---',
+        '',
+        '## Кратко',
+        'One core for every',
+        'agent. The first one answers',
+        '#acme-bugs requests. Since 16.10 it runs on uat.',
+        '## Next',
+        'Not this.'
+      ].join('\n')
+    )
+
+    expect(page?.summary).toBe(
+      'One core for every agent. The first one answers #acme-bugs requests.'
+    )
+  })
 })
