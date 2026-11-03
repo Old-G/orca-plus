@@ -88,6 +88,7 @@ const BELL_LABEL: Record<string, string> = {
   'hq-intake': 'to work, from Slack',
   'claude-chat-limit': 'Claude limit',
   'claude-auth-stop': 'Claude sign-in',
+  'claude-connector-gap': 'Claude connectors',
   handoff: 'handoff ready'
 }
 
