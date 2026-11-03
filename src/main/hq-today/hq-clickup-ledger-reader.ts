@@ -57,7 +57,13 @@ export type HqClickUpLedgerDeps = {
   now: () => number
 }
 
-export type HqClickUpLedgerState = { lastLookAt: number | null }
+export type HqClickUpLedgerState = {
+  lastLookAt: number | null
+  /** Custom build (hq-clickup-ledger, Codex 03.11): a window too big for one pass — when it began,
+   *  and the tasks already read in it, so the next pass goes on from the rest. */
+  windowAt?: number
+  read?: string[]
+}
 
 const URL = /https?:\/\/[^\s<>()"']+/g
 /** A Slack thread mirrored into the task by a sync bot — the Slack reader has those lines already. */
@@ -144,8 +150,11 @@ export async function runHqClickUpLedgerReader(
     ...mine.filter((task) => (task.updatedAt ?? 0) >= since).map((task) => task.id),
     ...deps.watchedTasks()
   ])
+  const read = new Set(state.read ?? [])
+  const todo = [...refs].filter((ref) => !read.has(ref))
   let added = 0
-  for (const ref of [...refs].slice(0, TASKS_PER_PASS)) {
+  for (const ref of todo.slice(0, TASKS_PER_PASS)) {
+    read.add(ref)
     const task = await deps.getTask(ref).catch(() => null)
     if (!task || (task.updatedAt ?? now) < since) {
       continue
@@ -173,9 +182,16 @@ export async function runHqClickUpLedgerReader(
       }
     }
   }
-  // Why: tasks left past the cap are read on the next pass from the same point.
-  const done = refs.size <= TASKS_PER_PASS
-  return { state: { lastLookAt: done ? now : (state.lastLookAt ?? now - FIRST_LOOK_MS) }, added }
+  // Why: tasks left past the cap are read on the next pass from the same point, the ones read skipped;
+  // once all are read the window closes where it began, so nothing said meanwhile is missed.
+  const windowAt = state.windowAt ?? now
+  if (todo.length <= TASKS_PER_PASS) {
+    return { state: { lastLookAt: windowAt }, added }
+  }
+  return {
+    state: { lastLookAt: state.lastLookAt ?? now - FIRST_LOOK_MS, windowAt, read: [...read] },
+    added
+  }
 }
 
 const POLL_MS = 5 * 60_000
