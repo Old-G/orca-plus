@@ -16,6 +16,9 @@ export type HqProjectPage = {
   relations: string[]
   /** Custom build (hq-autonomy): from HQ's autonomy.yaml; absent from hosts that predate it. */
   autonomy?: HqAutonomyLevel
+  /** Custom build (hq-intake-decide, owner 03.11): the start of the page's «Кратко» — what the project
+   *  is for, so a guess can tell a support request from an API one. */
+  summary?: string | null
 }
 
 /** `pages` is empty when no HQ folder is set. */
