@@ -55,6 +55,9 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
      *  conversations beside them, changes nothing shown) or on (one card per Slack conversation in
      *  place of the mention cards). Default on since 03.11 (hq-ledger-mode). */
     hqLedger?: 'off' | 'shadow' | 'on'
+    /** Custom build (slack-notifications, owner 03.11): agent updates posted to Slack by the bot;
+     *  off unless turned on. */
+    slackAgentUpdates?: boolean
     /** Custom build (hq-plus-sessions): the session dispatcher is off, only writes what it would do,
      *  or continues, opens and queues chats itself; default report. */
     hqSessionDispatcher?: 'off' | 'report' | 'on'
