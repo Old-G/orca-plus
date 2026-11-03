@@ -56,7 +56,8 @@ const BG_TAG: Readonly<Record<string, string>> = {
   [HQ_REMIND_KIND]: 'NOTES',
   [HQ_DEFERRED_KIND]: 'UNFINISHED',
   [PULSE_BELL_KIND.claudeChatLimit]: 'LIMIT',
-  [PULSE_BELL_KIND.claudeAuthStop]: 'CLAUDE'
+  [PULSE_BELL_KIND.claudeAuthStop]: 'CLAUDE',
+  [PULSE_BELL_KIND.claudeConnectorGap]: 'CLAUDE'
 }
 
 const MOVE: HqPlusBadge = { label: 'YOUR MOVE', tone: 'move' }
