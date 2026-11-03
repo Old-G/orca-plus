@@ -57,8 +57,6 @@ export function hqIntakeOfConversation(
     repoId: null,
     project: row.project,
     summary: row.title,
-    ...(draft?.lastTs === newest.ts
-      ? { ask: draft.ask, ...(draft.draft ? { replyDraft: draft.draft } : {}) }
-      : {})
+    ...(draft?.lastTs === newest.ts ? { ask: draft.ask } : {})
   }
 }

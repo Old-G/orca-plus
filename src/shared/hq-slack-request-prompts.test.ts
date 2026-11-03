@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hqIntakeReplyPrompt, hqSlackReplyPrompt, hqSlackThread } from './hq-slack-request-prompts'
+import { hqSlackReplyPrompt, hqSlackThread } from './hq-slack-request-prompts'
 
 describe('Slack request prompts', () => {
   it('reads the thread from the request id, and a follow-up id to its root', () => {
@@ -31,25 +31,5 @@ describe('Slack request prompts', () => {
     })
     expect(prompt).toContain('Тон владельца описан в /hq/wiki/tone.md')
     expect(prompt).toContain('/hq/slack-scout/corrections.jsonl (draft → sent)')
-  })
-})
-
-// Custom build (hq-ledger-draft, plan 20.9): «Reply» on a ledger card sends HQ's draft.
-describe('hqIntakeReplyPrompt', () => {
-  it('answers a thread in the thread and a DM in the DM, starting from the draft', () => {
-    const thread = hqIntakeReplyPrompt(
-      {
-        channelId: 'C0ACME',
-        threadTs: '1.2',
-        permalink: 'https://acme.slack.com/archives/C0ACME/p12'
-      },
-      'Bob, yes — today. """ end'
-    )
-    expect(thread).toContain('thread_ts 1.2')
-    expect(thread).toContain('в этот тред (thread_ts)')
-    expect(thread).toContain('Bob, yes — today. "" end')
-    const dm = hqIntakeReplyPrompt({ channelId: 'D0ANN', threadTs: null, permalink: '' }, 'Ok')
-    expect(dm).toContain('в личку Slack channel_id D0ANN')
-    expect(dm).toContain('без thread_ts')
   })
 })
