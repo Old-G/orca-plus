@@ -60,7 +60,7 @@ describe('ledger card drafts', () => {
       [card('a', '1.1', NOW - 60_000), card('b', '2.2', NOW - 1_000)],
       ANSWER
     )
-    expect(await runHqLedgerDrafts(deps, new Set())).toBe(2)
+    expect(await runHqLedgerDrafts(deps, new Map())).toBe(2)
     expect([...saved.keys()]).toEqual(['b', 'a'])
     expect(saved.get('a')).toEqual({
       lastTs: '1.1',
@@ -68,7 +68,7 @@ describe('ledger card drafts', () => {
       ask: 'Check the export',
       draft: 'Ann, checking it today.'
     })
-    expect(await runHqLedgerDrafts(deps, new Set())).toBe(0)
+    expect(await runHqLedgerDrafts(deps, new Map())).toBe(0)
     expect(prompts).toHaveLength(2)
   })
 
@@ -76,26 +76,33 @@ describe('ledger card drafts', () => {
     // Why (03.11): 3 of 8 «your move» cards were a colleague saying thanks.
     const thanks = '{"kind": "fyi", "ask": "Ann says thanks", "draft": ""}'
     const fresh = setup([card('a', '1.1', NOW)], thanks)
-    await runHqLedgerDrafts(fresh.deps, new Set())
+    await runHqLedgerDrafts(fresh.deps, new Map())
     expect(fresh.quieted).toEqual(['a'])
 
     const earlier = setup([card('b', '2.2', NOW)], ANSWER)
     earlier.saved.set('b', { lastTs: '2.2', kind: 'fyi', ask: 'Thanks', draft: null })
-    expect(await runHqLedgerDrafts(earlier.deps, new Set())).toBe(0)
+    expect(await runHqLedgerDrafts(earlier.deps, new Map())).toBe(0)
     expect(earlier.quieted).toEqual(['b'])
     expect(earlier.prompts).toHaveLength(0)
   })
 
   it('does not ask again for a draft the model failed, and stops at the day’s limit', async () => {
     const failing = setup([card('a', '1.1', NOW)], null)
-    const tried = new Set<string>()
+    const tried = new Map<string, number>()
     expect(await runHqLedgerDrafts(failing.deps, tried)).toBe(0)
     expect(await runHqLedgerDrafts(failing.deps, tried)).toBe(0)
     expect(failing.prompts).toHaveLength(1)
 
+    // Why (Codex 03.11): yesterday's failures do not eat today's drafts.
+    const yesterday = setup([card('c', '3.3', NOW)], ANSWER)
+    const old = new Map(
+      Array.from({ length: 60 }, (_, n) => [`x:${n}`, NOW - 24 * 60 * 60_000] as const)
+    )
+    expect(await runHqLedgerDrafts(yesterday.deps, old)).toBe(1)
+
     const spent = setup([card('a', '1.1', NOW)], ANSWER)
     const atLimit = { ...spent.deps, madeSince: () => HQ_LEDGER_DRAFTS_PER_DAY }
-    expect(await runHqLedgerDrafts(atLimit, new Set())).toBe(0)
+    expect(await runHqLedgerDrafts(atLimit, new Map())).toBe(0)
     expect(spent.prompts).toHaveLength(0)
   })
 

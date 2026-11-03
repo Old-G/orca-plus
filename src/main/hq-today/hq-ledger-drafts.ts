@@ -33,7 +33,7 @@ export type HqLedgerDraftsDeps = {
   generate: (prompt: string) => Promise<{ ok: true; text: string } | { ok: false; error: string }>
   save: (conversationId: string, draft: HqLedgerDraft) => void
   /** The newest message is for information: the talk is no longer the owner's move. */
-  quiet: (conversationId: string, why: string) => void
+  quiet: (conversationId: string, lastTs: string, why: string) => void
   now: () => number
 }
 
@@ -106,7 +106,8 @@ function whereOf(key: string): string {
 /** One pass: a draft for each waiting talk whose newest message has none. Returns how many it wrote. */
 export async function runHqLedgerDrafts(
   deps: HqLedgerDraftsDeps,
-  tried: Set<string>
+  /** Failed drafts by message, with when they failed: not asked again this run, counted on their day. */
+  tried: Map<string, number>
 ): Promise<number> {
   const now = deps.now()
   const dayStart = new Date(now).setHours(0, 0, 0, 0)
@@ -120,7 +121,7 @@ export async function runHqLedgerDrafts(
       const drafted = deps.draftOf(card.id)
       if (newest && drafted?.lastTs === newest.ts && drafted.kind === 'fyi') {
         // Why: a card drafted before the draft could settle it still waits on the owner.
-        deps.quiet(card.id, drafted.ask)
+        deps.quiet(card.id, newest.ts, drafted.ask)
         return []
       }
       return newest && mark && !tried.has(mark) && drafted?.lastTs !== newest.ts
@@ -134,7 +135,8 @@ export async function runHqLedgerDrafts(
   let written = 0
   for (const { card, lastTs, mark } of owed.slice(0, DRAFTS_PER_PASS)) {
     // Why the failed ones too: a call that gave nothing usable was still paid for.
-    if (deps.madeSince(dayStart) + tried.size >= HQ_LEDGER_DRAFTS_PER_DAY) {
+    const failedToday = [...tried.values()].filter((at) => at >= dayStart).length
+    if (deps.madeSince(dayStart) + failedToday >= HQ_LEDGER_DRAFTS_PER_DAY) {
       break
     }
     const lines = deps.lines(card.id)
@@ -143,12 +145,12 @@ export async function runHqLedgerDrafts(
       .catch((error: unknown) => ({ ok: false as const, error: String(error) }))
     const draft = generated.ok ? parseHqLedgerDraft(generated.text, lastTs) : null
     if (!draft) {
-      tried.add(mark)
+      tried.set(mark, deps.now())
       continue
     }
     deps.save(card.id, draft)
     if (draft.kind === 'fyi') {
-      deps.quiet(card.id, draft.ask)
+      deps.quiet(card.id, lastTs, draft.ask)
     }
     written += 1
   }
@@ -160,7 +162,7 @@ export function startHqLedgerDrafts(
   onError: (error: unknown) => void
 ): () => void {
   // Why in memory: a failed draft is not asked again this run; a restart tries it once more.
-  const tried = new Set<string>()
+  const tried = new Map<string, number>()
   let running = false
   const tick = (): void => {
     if (running || !deps.enabled()) {

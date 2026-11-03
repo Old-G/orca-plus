@@ -18,7 +18,7 @@ const LINE_CHARS = 500
 
 export type HqLedgerPromisesDeps = {
   enabled: () => boolean
-  ownLines: (since: number, limit: number) => HqLedgerOwnLine[]
+  ownLines: (afterRow: number, since: number, limit: number) => HqLedgerOwnLine[]
   lookedUpTo: () => number | null
   looked: (upTo: number) => void
   looksSince: (since: number) => number
@@ -102,11 +102,11 @@ export async function runHqLedgerPromises(deps: HqLedgerPromisesDeps): Promise<n
   if (deps.looksSince(new Date(now).setHours(0, 0, 0, 0)) >= HQ_LEDGER_PROMISE_CALLS_PER_DAY) {
     return 0
   }
-  const since = deps.lookedUpTo() ?? now - FIRST_LOOK_MS
+  const afterRow = deps.lookedUpTo() ?? 0
   // Why a talk with nobody else in it is left: a promise is to someone.
-  const read = deps.ownLines(since, LINES_PER_CALL)
+  const read = deps.ownLines(afterRow, now - FIRST_LOOK_MS, LINES_PER_CALL)
   const lines = read.filter((entry) => entry.peer !== null)
-  const upTo = read.at(-1)?.at
+  const upTo = read.at(-1)?.row
   if (upTo === undefined) {
     return 0
   }
@@ -120,7 +120,7 @@ export async function runHqLedgerPromises(deps: HqLedgerPromisesDeps): Promise<n
     .catch((error: unknown) => ({ ok: false as const, error: String(error) }))
   if (!generated.ok) {
     // Why the same mark: the call is counted against the day, the lines are read again next pass.
-    deps.looked(since)
+    deps.looked(afterRow)
     return 0
   }
   const known = new Set(
