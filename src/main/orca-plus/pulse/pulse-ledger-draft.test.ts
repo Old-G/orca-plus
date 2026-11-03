@@ -68,6 +68,52 @@ describe('a ledger card draft', () => {
     expect(db.attribution.drafts.kindOfSlack('C0OTHER', '1700000000.000100')).toBeNull()
   })
 
+  it('takes a talk read as for information off the owner, as a state guess, until the person writes again', () => {
+    const { db, conversationId, said } = setup()
+    expect(db.attribution.drafts.quiet(conversationId, 'Bob says thanks')).toBe(true)
+    expect(db.listLedgerCards(0)).toEqual([])
+    expect(db.attribution.drafts.quiet(conversationId, 'again')).toBe(false)
+    expect(db.attribution.records()).toContainEqual(
+      expect.objectContaining({ field: 'state', guess: 'fyi', guess_how: 'model' })
+    )
+    said('1700000090.000100', 'And one more thing: the images?')
+    expect(db.listLedgerCards(0).map((row) => row.id)).toEqual([conversationId])
+  })
+
+  it('gives the promise finder the owner’s lines with what was said before them, once each', () => {
+    const { db, conversationId, said } = setup()
+    db.ingestLedgerSignal({
+      key: KEY,
+      ts: '1700000060.000100',
+      at: 1_700_000_060_000,
+      author: 'Me',
+      authorId: 'U_ME',
+      fromOwner: true,
+      text: 'I will send it by Friday',
+      link: 'https://acme.slack.com/archives/C0ACME/p1700000060000100',
+      reader: 'slack-api',
+      forOwner: false,
+      project: null,
+      title: 'Bob asks about the export'
+    })
+    said('1700000070.000100', 'No link on this one', true)
+    const promises = db.attribution.promises
+    expect(promises.ownLines(0, 10)).toEqual([
+      expect.objectContaining({
+        conversationId,
+        text: 'I will send it by Friday',
+        peer: 'Bob',
+        peerId: 'U_BOB',
+        peerText: 'Can the export keep the tables?'
+      })
+    ])
+    expect(promises.lookedUpTo()).toBeNull()
+    promises.looked(1_700_000_060_000)
+    expect(promises.lookedUpTo()).toBe(1_700_000_060_000)
+    expect(promises.ownLines(1_700_000_060_000, 10)).toEqual([])
+    expect(promises.looksSince(0)).toBe(1)
+  })
+
   it('reads the talk both ways, oldest first', () => {
     const { db, conversationId, said } = setup()
     said('1700000060.000100', 'Looking', true)
@@ -90,6 +136,10 @@ describe('a ledger card draft', () => {
     expect(card).toMatchObject({ ask: 'Keep the tables?', replyDraft: 'Bob, yes — today.' })
     expect(card ? hqIntakeBellItem(card) : null).toMatchObject({
       title: 'Bob: Keep the tables?',
+      actions: [
+        { id: 'intake-open', label: 'To work' },
+        { id: 'intake-reply', label: 'Reply' }
+      ],
       body: 'Bob: Can the export keep the tables?\n\nDraft reply: Bob, yes — today.'
     })
     said('1700000090.000100', 'Also the images')
@@ -127,6 +177,7 @@ describe('a ledger card draft', () => {
     expect(after).toMatchObject({
       id: first?.id,
       title: 'Bob: Keep the tables?',
+      actions: [{ id: 'intake-open' }, { id: 'intake-reply' }],
       createdAt: first?.createdAt
     })
     expect(after?.readAt).not.toBeNull()

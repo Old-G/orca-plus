@@ -152,6 +152,7 @@ function questionOf(card: Card): string {
 const INBOX_ACTION_LABEL: Readonly<Record<string, string>> = {
   'slack-do': 'To work',
   'intake-open': 'To work',
+  'intake-reply': 'Reply',
   'slack-answer': 'Reply',
   'slack-review': 'Investigate'
 }

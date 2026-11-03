@@ -6,7 +6,7 @@ import {
   restoreFirstQuestionNumber,
   type HqTaskQuestionsResult
 } from '../../shared/hq-triage'
-import type { ResolvedSourceControlAiGenerationParams } from '../../shared/source-control-ai'
+import type { ResolvedSourceControlAiGenerationParams } from '../../shared/source-control/ai/source-control-ai-operation-resolution'
 import { resolveGenerationTarget } from '../agent-hooks/first-work/first-work-generation-target'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import { resolveTextGenerationParams } from '../text-generation/commit-message-text-generation'
@@ -56,6 +56,7 @@ export async function generateHqText(
       | 'hq-ledger-guess'
       | 'hq-in-work'
       | 'hq-ledger-draft'
+      | 'hq-ledger-promises'
     /** Custom build (hq-clickup-triage): a cheaper model than the one set for HQ text. */
     model?: string
   },
