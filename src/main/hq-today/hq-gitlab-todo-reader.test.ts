@@ -33,6 +33,8 @@ type Over = {
   at?: number
   body?: string
   type?: string
+  /** Who opened the MR. */
+  mrAuthor?: string
 }
 
 /** One to-do as `glab api todos` lists it, with only the fields the reader reads. */
@@ -44,7 +46,12 @@ function todo(over: Over = {}): Record<string, unknown> {
     action_name: over.action ?? 'review_requested',
     target_type: over.type ?? 'MergeRequest',
     target_url: `https://gitlab.com/${repo}/-/merge_requests/${iid}`,
-    target: { iid, title: 'Speed up the import', state: over.state ?? 'opened' },
+    target: {
+      iid,
+      title: 'Speed up the import',
+      state: over.state ?? 'opened',
+      author: { username: over.mrAuthor ?? 'ann' }
+    },
     project: { path_with_namespace: repo },
     author: { username: over.author ?? 'ann', name: over.name ?? 'Ann' },
     body: over.body ?? 'Speed up the import',
@@ -125,6 +132,40 @@ describe('GitLab to-do signal', () => {
       forOwner: true,
       title: 'Addressed to you: Speed up the import'
     })
+  })
+
+  // Custom build (hq-ledger-own-mrs, plan 20.5): scenarios С7–С9, by who opened the MR.
+  it('С7: a reviewer turning to him on his open MR is his move', () => {
+    const asks = (over: Over) =>
+      hqLedgerSignalOfTodo(one({ mrAuthor: OWNER, author: 'bob', ...over }), ctx)?.forOwner
+    expect(asks({ action: 'directly_addressed', body: 'please fix the import here' })).toBe(true)
+    expect(asks({ action: 'mentioned', body: '@owner1 why this?' })).toBe(true)
+    expect(asks({ action: 'review_submitted', body: 'two notes inline' })).toBe(true)
+  })
+
+  it('С8: his MR merged, closed, approved or a GitLab notice on it is not', () => {
+    const asks = (over: Over) =>
+      hqLedgerSignalOfTodo(one({ mrAuthor: OWNER, author: 'bob', ...over }), ctx)?.forOwner
+    expect(asks({ action: 'mentioned', state: 'merged', body: 'merged, thanks @owner1' })).toBe(
+      false
+    )
+    expect(asks({ action: 'directly_addressed', state: 'closed' })).toBe(false)
+    expect(asks({ action: 'review_submitted', body: '' })).toBe(false)
+    expect(asks({ action: 'unmergeable' })).toBe(false)
+    expect(asks({ action: 'build_failed' })).toBe(false)
+    expect(asks({ action: 'mentioned', author: 'project_12_bot_ab' })).toBe(false)
+  })
+
+  it('С9: a review asked of him on someone else’s MR is his move, named by its repo', () => {
+    expect(
+      hqLedgerSignalOfTodo(
+        one({ action: 'review_requested', mrAuthor: 'bob', repo: 'acme/shop' }),
+        {
+          ...ctx,
+          project: 'shop'
+        }
+      )
+    ).toMatchObject({ forOwner: true, project: 'shop', key: 'gitlab:acme/shop!7' })
   })
 
   it('takes the owner’s own words only into an MR that is a conversation already', () => {
