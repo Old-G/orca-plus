@@ -7,12 +7,13 @@ import { hqLedgerErrorReporter } from './hq-ledger-errors'
 import { startHqLedgerPromises } from './hq-ledger-promises'
 import { hqPromisePerson, startHqScoutPromises } from './hq-scout-promises'
 import { generateHqText } from './hq-task-questions'
+import { hqLedgerMode } from '../../shared/hq-ledger-mode'
 
 // Why sonnet: telling «гляну» that commits from «гляну» that brushes off needs more than routing.
 const MODEL = 'sonnet'
 
 export function startHqPromises(store: Store, runtime: OrcaRuntimeService): void {
-  const ledgerOn = (): boolean => store.getSettings().hqLedger === 'on'
+  const ledgerOn = (): boolean => hqLedgerMode(store.getSettings()) === 'on'
   const people = {
     listPeople: () => runtime.pulseListPeople(),
     upsertPerson: (input: { name: string }) => runtime.pulseUpsertPerson(input)
