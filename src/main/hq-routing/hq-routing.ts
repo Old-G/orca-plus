@@ -31,9 +31,13 @@ import {
   planHqReportFix
 } from './hq-routing-codex-fix'
 import { parseHqRouting } from './hq-routing-rules'
+import { mapAtMost, orAfter } from './hq-routing-pool'
 
 // Why: a launch that failed is tried again within the evening, not every five minutes.
 const RETRY_AFTER_MS = 60 * 60_000
+// Custom build (hq-fix-now-all): chats started at once by one pass, and how long one may take.
+const CARRY_AT_ONCE = 3
+const CARRY_TIMEOUT_MS = 2 * 60_000
 export const HQ_CODEX_FIX_CHAT_NAME = 'Codex: починить'
 
 export type HqRoutingDeps = {
@@ -269,21 +273,22 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
     manual: boolean
   ): Promise<HqRouteAction[]> => {
     const byId = new Map(rows.map((finding) => [finding.id, finding]))
-    const done: HqRouteAction[] = []
-    for (const action of actions) {
+    const one = (action: HqRouteAction): Promise<HqRouteAction> => {
       if (action.kind === 'open' && action.note) {
         deps.log(`routing: ${action.project}: ${action.note}`)
       }
       const findings = action.findings.flatMap((id) => byId.get(id) ?? [])
-      done.push(
-        await carryOut(hqPath, action, findings, now, manual).catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : String(error)
-          deps.log(`routing: ${action.project} failed: ${message}`)
-          return { ...action, note: message }
-        })
-      )
+      const work = carryOut(hqPath, action, findings, now, manual).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error)
+        deps.log(`routing: ${action.project} failed: ${message}`)
+        return { ...action, note: message }
+      })
+      return orAfter(work, CARRY_TIMEOUT_MS, () => ({
+        ...action,
+        note: 'still starting after 2 min'
+      }))
     }
-    return done
+    return mapAtMost(actions, CARRY_AT_ONCE, one)
   }
 
   // Custom build (hq-fix-now-all): the owner pressed «Fix now» on a report — all of it, now.
