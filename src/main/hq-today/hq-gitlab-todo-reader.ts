@@ -2,6 +2,8 @@
 // and put into the request ledger — a review asked of him, an MR that cannot merge, a comment that
 // turns to him. One MR is one conversation. A to-do he finished in GitLab (or that went with its MR)
 // leaves his list, and its conversation stops showing; the next to-do on that MR opens it again.
+import { hqMrChatFor, type HqMrChatDeps } from './hq-mr-chat'
+import { TODO_TITLE } from './hq-gitlab-todo-titles'
 import { hqPlaceKey, type HqLedgerResult, type HqLedgerSignal } from '../../shared/hq-ledger'
 import { hqMrProjectOfRepo } from '../../shared/hq-mr-watch'
 import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
@@ -37,27 +39,14 @@ export type HqGitLabTodo = {
   targetTitle: string
   /** Custom build (hq-ledger-own-mrs, plan 20.5): who opened the MR; null when GitLab did not say. */
   mrAuthor: string | null
+  /** Custom build (hq-ledger-own-mrs, С7): the MR's branch, to find the chat that made it. */
+  sourceBranch?: string | null
   /** `group/repo`. */
   repo: string | null
   authorName: string | null
   authorUsername: string | null
   body: string
   createdAt: number
-}
-
-/** What each kind of to-do asks, as its card's title says it. */
-const TODO_TITLE: Readonly<Record<string, string>> = {
-  review_requested: 'Review requested',
-  approval_required: 'Approval required',
-  added_approver: 'Approval required',
-  assigned: 'Assigned to you',
-  build_failed: 'Build failed',
-  unmergeable: 'Cannot merge',
-  merge_train_removed: 'Removed from merge train',
-  review_submitted: 'Review submitted',
-  directly_addressed: 'Addressed to you',
-  mentioned: 'Mentioned',
-  marked: 'To-do'
 }
 
 /** Asks about the MR as it stands; once it merged or closed nothing is left to do. */
@@ -103,6 +92,7 @@ export function parseHqGitLabTodos(rows: readonly unknown[]): HqGitLabTodo[] {
         targetState: str(field(target, 'state')),
         targetTitle: str(field(target, 'title')) ?? '',
         mrAuthor: str(field(field(target, 'author'), 'username')),
+        sourceBranch: str(field(target, 'source_branch')),
         repo: str(field(field(row, 'project'), 'path_with_namespace')),
         authorName: str(field(author, 'name')),
         authorUsername: str(field(author, 'username')),
@@ -244,6 +234,9 @@ export type HqGitLabTodoDeps = {
   /** The small model's project for a new MR no rule placed; null when it could not say. */
   guess: (todo: HqGitLabTodo) => Promise<HqLedgerGuess | null>
   setGuess: (conversationId: string, guess: HqLedgerGuess) => void
+  /** Custom build (hq-ledger-own-mrs, С7): the chat that made an MR; «To work» proposes it. */
+  chatOfBranch?: HqMrChatDeps['chatOfBranch']
+  setChat?: HqMrChatDeps['setChat']
   now: () => number
 }
 
@@ -324,6 +317,10 @@ export async function runHqGitLabTodoReader(
       continue
     }
     const result = deps.ingest(signal)
+    // Custom build (hq-ledger-own-mrs, С7): his own MR's fix goes with the chat that made it.
+    if (result.added && signal.forOwner && project) {
+      await hqMrChatFor(deps, { key, project, owner, todo })
+    }
     if (result.added && !project && (result.step === 'new' || result.step === 'owner')) {
       fresh.push({ todo, result })
     }
