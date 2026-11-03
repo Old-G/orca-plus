@@ -7,6 +7,8 @@ import type { PulseCore } from './pulse-core'
 const LOOKED_EVENT = 'ledger.promise.looked'
 
 export type HqLedgerOwnLine = {
+  /** Its place in the order lines reached the ledger — the finder's cursor. */
+  row: number
   conversationId: string
   key: string
   ts: string
@@ -23,11 +25,13 @@ export type HqLedgerOwnLine = {
 
 export function pulseLedgerPromises(core: () => PulseCore) {
   return {
-    /** The owner's lines after `since` (ms), oldest first — only those with a link to open them by. */
-    ownLines: (since: number, limit: number): HqLedgerOwnLine[] =>
+    /** The owner's lines that reached the ledger after line `afterRow` and were said after `since`
+     *  (ms), in the order they came — a thread read whole later still gets read (Codex 03.11) — only
+     *  those with a link to open them by. */
+    ownLines: (afterRow: number, since: number, limit: number): HqLedgerOwnLine[] =>
       core()
         .db.prepare(
-          `SELECT m.conversation_id, c.key, c.project, m.ts, m.text, m.link, m.at,
+          `SELECT m.rowid row_no, m.conversation_id, c.key, c.project, m.ts, m.text, m.link, m.at,
                   p.author peer, p.author_id peer_id, p.text peer_text
              FROM conversation_messages m JOIN conversations c ON c.id = m.conversation_id
              LEFT JOIN conversation_messages p ON p.rowid = (
@@ -35,12 +39,13 @@ export function pulseLedgerPromises(core: () => PulseCore) {
                 WHERE i.conversation_id = m.conversation_id AND i.direction = 'in' AND i.at <= m.at
                   AND i.ts NOT LIKE 'req:%'
                 ORDER BY i.at DESC LIMIT 1)
-            WHERE m.direction = 'out' AND m.at > ? AND m.link LIKE 'https://%'
+            WHERE m.direction = 'out' AND m.rowid > ? AND m.at > ? AND m.link LIKE 'https://%'
               AND m.ts NOT LIKE 'sent:%' AND m.ts NOT LIKE 'req:%'
-            ORDER BY m.at, m.ts LIMIT ?`
+            ORDER BY m.rowid LIMIT ?`
         )
-        .all(since, limit)
+        .all(afterRow, since, limit)
         .map((row) => ({
+          row: Number(row.row_no),
           conversationId: String(row.conversation_id),
           key: String(row.key),
           ts: String(row.ts),
@@ -52,7 +57,7 @@ export function pulseLedgerPromises(core: () => PulseCore) {
           peerId: row.peer_id == null ? null : String(row.peer_id),
           peerText: row.peer_text == null ? null : String(row.peer_text)
         })),
-    /** The newest line already read; null before the first look. */
+    /** The last line read, by its place in the ledger; null before the first look. */
     lookedUpTo: (): number | null => {
       const row = core()
         .db.prepare('SELECT payload FROM events WHERE kind = ? ORDER BY seq DESC LIMIT 1')
@@ -61,14 +66,14 @@ export function pulseLedgerPromises(core: () => PulseCore) {
         return null
       }
       try {
-        const at: unknown = Reflect.get(JSON.parse(String(row.payload)) as object, 'upTo')
+        const at: unknown = Reflect.get(JSON.parse(String(row.payload)) as object, 'upToRow')
         return typeof at === 'number' ? at : null
       } catch {
         return null
       }
     },
-    looked: (upTo: number): void =>
-      core().transaction(() => core().emit(LOOKED_EVENT, 'conversation', 'promises', { upTo })),
+    looked: (upToRow: number): void =>
+      core().transaction(() => core().emit(LOOKED_EVENT, 'conversation', 'promises', { upToRow })),
     looksSince: (since: number): number =>
       Number(
         core()
