@@ -19,6 +19,7 @@ import {
   type HqSlackScoutResult
 } from '../../shared/hq-slack-scout'
 import type { PulseBellInput } from '../../shared/pulse-bell'
+import { hqSlackScoutRetired } from './hq-slack-scout'
 
 const STATE_FILE = 'digest-state.json'
 const CHECK_MS = 60_000
@@ -105,7 +106,8 @@ export async function runHqSlackDigest(deps: HqSlackDigestDeps): Promise<boolean
   const since = Date.parse(state.at ?? '') || 0
   const scoutAt = scoutLastRun(await readText(join(dir, SCOUT_STATE_FILE)))
   let item: PulseBellInput | null
-  if (deps.ledger && scoutAt < now.getTime() - SCOUT_ALIVE_MS) {
+  // Custom build (hq-ledger-cutover): the ledger on, its lists at once, not three hours later.
+  if (deps.ledger && (hqSlackScoutRetired() || scoutAt < now.getTime() - SCOUT_ALIVE_MS)) {
     const lists = hqLedgerDigestLists(deps.ledger(), since)
     item = hqSlackDigestItem(slot, lists.waiting, lists.quiet)
   } else {

@@ -57,8 +57,22 @@ function scoutPath(hqPath: string, file: string): string {
   return join(hqPath, HQ_SLACK_SCOUT_DIR, file)
 }
 
+let scoutRetired: () => boolean = () => false
+
+/** Custom build (hq-ledger-cutover, plan 20.9): with the ledger on, Orca+ reads Slack alone — the scout's
+ *  Slack requests and quiet items left in its files are not shown; ClickUp and mail requests Orca+
+ *  writes there itself stay. Back to shadow, and the scout's files count again. */
+export function retireHqSlackScoutWhen(retired: () => boolean): void {
+  scoutRetired = retired
+}
+
+export function hqSlackScoutRetired(): boolean {
+  return scoutRetired()
+}
+
 /** Every request in the scout's files and Orca+'s own, with the owner's corrections over them. */
 async function readScoutFiles(hqPath: string) {
+  const retired = scoutRetired()
   const [config, drafts, decisions, status, edits, clickup, quiet, triage, reviews, mail] =
     await Promise.all([
       readOptional(scoutPath(hqPath, HQ_SLACK_SCOUT_CONFIG_FILE)),
@@ -76,7 +90,7 @@ async function readScoutFiles(hqPath: string) {
   // Custom build (hq-clickup-requests): comments on the owner's tasks sit beside the Slack requests.
   // Why: only Orca+'s own clickup.json may name a ClickUp task to comment on or take; the scout
   // writes drafts.json from Slack text other people control.
-  const slackDrafts = file.drafts.map(
+  const slackDrafts = (retired ? [] : file.drafts).map(
     ({ source: _source, clickupTaskId: _taskId, needsReview: _look, review: _chat, ...draft }) =>
       draft
   )
@@ -98,9 +112,10 @@ async function readScoutFiles(hqPath: string) {
   )
   const clickupDrafts = [...apiDrafts, ...mailDrafts]
   return {
-    quietItems: [...parseHqSlackQuiet(quiet ?? '{}'), ...parseHqSlackQuiet(triage ?? '{}')].sort(
-      (a, b) => Date.parse(a.at) - Date.parse(b.at)
-    ),
+    quietItems: [
+      ...(retired ? [] : parseHqSlackQuiet(quiet ?? '{}')),
+      ...parseHqSlackQuiet(triage ?? '{}')
+    ].sort((a, b) => Date.parse(a.at) - Date.parse(b.at)),
     tuning: parseHqSlackScoutTuning(config ?? ''),
     configured: config !== null || clickupDrafts.length > 0,
     lastRunAt: file.lastRunAt,

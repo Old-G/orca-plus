@@ -259,15 +259,16 @@ export function syncInboxKind(
       // Custom build (hq-ledger-draft): a conversation's card learns its draft after it popped — the
       // words change in place, the card stays where it was and as read as it was.
       if (same?.replaces && (same.refId ?? null) !== item.refId) {
-        core.db
-          .prepare('UPDATE inbox SET title = ?, body = ?, ref_id = ? WHERE id = ?')
-          .run(same.title, same.body ?? null, same.refId ?? null, item.id)
-        core.emit('inbox.updated', 'inbox', item.id, {
-          ...item,
+        const changed = {
           title: same.title,
           body: same.body ?? null,
-          refId: same.refId ?? null
-        })
+          refId: same.refId ?? null,
+          actions: same.actions ?? []
+        }
+        core.db
+          .prepare('UPDATE inbox SET title = ?, body = ?, ref_id = ?, actions = ? WHERE id = ?')
+          .run(changed.title, changed.body, changed.refId, JSON.stringify(changed.actions), item.id)
+        core.emit('inbox.updated', 'inbox', item.id, { ...item, ...changed })
         continue
       }
       if (!item.dedupeKey || !wanted.has(item.dedupeKey)) {

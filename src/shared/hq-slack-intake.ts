@@ -11,6 +11,8 @@ export const HQ_INTAKE_TEXT_MAX = 4_000
 export const HQ_INTAKE_NOTE_SOURCE = 'intake'
 /** The bell's one button: pops the «To work» card again. */
 export const HQ_INTAKE_OPEN_ACTION = 'intake-open'
+/** Custom build (hq-ledger-draft): a ledger card with a reply draft sends it, through Approve. */
+export const HQ_INTAKE_REPLY_ACTION = 'intake-reply'
 
 export type HqIntakeVenue = 'dm' | 'group' | 'channel'
 
@@ -78,7 +80,10 @@ export function hqIntakeBellItem(intake: HqIntake): PulseBellInput {
       urgency: 'urgent',
       refKind: 'slack-message',
       refId: JSON.stringify(intake),
-      actions: [{ id: HQ_INTAKE_OPEN_ACTION, label: 'To work' }],
+      actions: [
+        { id: HQ_INTAKE_OPEN_ACTION, label: 'To work' },
+        ...(intake.replyDraft ? [{ id: HQ_INTAKE_REPLY_ACTION, label: 'Reply' }] : [])
+      ],
       dedupeKey: `${prefix}${intake.lastTs ?? intake.ts}`,
       replaces: prefix
     }
