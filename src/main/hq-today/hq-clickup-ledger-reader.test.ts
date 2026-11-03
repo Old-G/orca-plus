@@ -151,4 +151,34 @@ describe('ClickUp comments in the ledger', () => {
     ])
     expect(result).toEqual({ state: { lastLookAt: 10_000_000 }, added: 3 })
   })
+
+  it('goes on past the first 30 tasks on the next pass and closes the window where it began', async () => {
+    // Why (Codex 03.11): each pass used to read the same first 30 and never the rest.
+    const refs = Array.from({ length: 45 }, (_, n) => `t${n}`)
+    const got: string[] = []
+    let now = 10_000_000
+    const deps: HqClickUpLedgerDeps = {
+      listMyTasks: async () => [],
+      watchedTasks: () => refs,
+      getTask: async (ref) => {
+        got.push(ref)
+        return task({ id: ref, customId: null, url: `https://app.clickup.com/t/${ref}` })
+      },
+      listComments: async () => [],
+      listReplies: async () => [],
+      viewer: async () => OWNER,
+      ownAccounts: async () => new Set(),
+      projectForList: () => null,
+      projectOfLinks: async () => null,
+      ingest: () => ({ conversationId: 'c', step: 'new', added: true, waitingIds: [] }),
+      now: () => now
+    }
+    const first = await runHqClickUpLedgerReader(deps, { lastLookAt: 9_900_000 })
+    expect(got).toHaveLength(30)
+    expect(first.state).toMatchObject({ lastLookAt: 9_900_000, windowAt: 10_000_000 })
+    now = 10_300_000
+    const second = await runHqClickUpLedgerReader(deps, first.state)
+    expect(new Set(got).size).toBe(45)
+    expect(second.state).toEqual({ lastLookAt: 10_000_000 })
+  })
 })
