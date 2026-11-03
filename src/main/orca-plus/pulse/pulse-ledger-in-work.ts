@@ -128,18 +128,37 @@ export function listInWorkConversations(core: PulseCore, since: number): HqInWor
 
 const CHAT_CHECKED = 'ledger.inwork.checked'
 
-/** A chat the model already read for work in progress — once per chat, kept across restarts. */
-export function noteInWorkChatChecked(core: PulseCore, sessionId: string): void {
-  core.transaction(() => core.emit(CHAT_CHECKED, 'conversation', sessionId, {}))
+/** A chat the model read for work in progress, and the conversations it was shown — each once per
+ *  chat, kept across restarts. */
+export function noteInWorkChatChecked(
+  core: PulseCore,
+  sessionId: string,
+  conversationIds: readonly string[]
+): void {
+  core.transaction(() =>
+    core.emit(CHAT_CHECKED, 'conversation', sessionId, { conversations: conversationIds })
+  )
 }
 
-export function inWorkChatsChecked(core: PulseCore, since: number): Set<string> {
-  return new Set(
-    core.db
-      .prepare('SELECT DISTINCT entity_id FROM events WHERE kind = ? AND at >= ?')
-      .all(CHAT_CHECKED, since)
-      .map((row) => String(row.entity_id))
-  )
+/** The conversations each chat was shown; null for a chat read whole, before they were noted. */
+export function inWorkChatsChecked(
+  core: PulseCore,
+  since: number
+): Map<string, Set<string> | null> {
+  const shown = new Map<string, Set<string> | null>()
+  for (const row of core.db
+    .prepare('SELECT entity_id, payload FROM events WHERE kind = ? AND at >= ?')
+    .all(CHAT_CHECKED, since)) {
+    const sessionId = String(row.entity_id)
+    const ids: unknown = Reflect.get(JSON.parse(String(row.payload ?? '{}')) ?? {}, 'conversations')
+    const seen = shown.get(sessionId)
+    if (!Array.isArray(ids) || seen === null) {
+      shown.set(sessionId, null)
+      continue
+    }
+    shown.set(sessionId, new Set([...(seen ?? []), ...ids.map(String)]))
+  }
+  return shown
 }
 
 /** What PulseDb exposes as `inWork`. */
@@ -155,7 +174,8 @@ export function pulseInWork(core: () => PulseCore) {
     ) => setConversationInWork(core(), conversationId, sessionId, how, why, confidence),
     clear: (conversationId: string) => clearConversationInWork(core(), conversationId),
     list: (since: number) => listInWorkConversations(core(), since),
-    noteChecked: (sessionId: string) => noteInWorkChatChecked(core(), sessionId),
+    noteChecked: (sessionId: string, conversationIds: readonly string[]) =>
+      noteInWorkChatChecked(core(), sessionId, conversationIds),
     checked: (since: number) => inWorkChatsChecked(core(), since)
   }
 }
