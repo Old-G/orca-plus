@@ -21,17 +21,16 @@ describe('routing pool', () => {
     expect(await orAfter(Promise.resolve('done'), 1_000, () => 'late')).toBe('done')
   })
 
-  it('keeps late work pending until it ends, so the next pass waits for it', async () => {
+  it('holds only the project whose launch answered late, until that launch ends', async () => {
     const late = createLateWork()
     let finish: (value: string) => void = () => {}
     const work = new Promise<string>((resolve) => (finish = resolve))
-    expect(await late.orAfter(work, 10, () => 'late')).toBe('late')
-    let settled = false
-    const waiting = late.settled().then(() => (settled = true))
-    await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(settled).toBe(false)
+    expect(await late.orAfter('acme', work, 10, () => 'late')).toBe('late')
+    expect(late.busy('acme')).toBe(true)
+    expect(late.busy('other')).toBe(false)
     finish('done')
-    await waiting
-    expect(settled).toBe(true)
+    await work
+    await Promise.resolve()
+    expect(late.busy('acme')).toBe(false)
   })
 })
