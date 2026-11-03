@@ -12,6 +12,7 @@ export const pulseBellApi = {
     ipcRenderer.invoke('hqWaitingReply:skip', waitingId, replyTs),
   sendToChat: (sessionId, prompt) =>
     ipcRenderer.invoke('hqIntake:sendToSession', sessionId, prompt),
+  intakeThread: (channel, threadTs) => ipcRenderer.invoke('hqIntake:thread', channel, threadTs),
   keepIntakeInNotes: (itemId, project, note) =>
     ipcRenderer.invoke('hqIntake:later', itemId, project, note),
   closeIntake: (itemId, action, resolution, sessionId) =>
