@@ -5,7 +5,8 @@ import {
   HqAccuracyParams,
   HqAttributionSkipParams,
   HqAttributionTakeParams,
-  HqConversationDoneParams
+  HqConversationDoneParams,
+  HqConversationNotInWorkParams
 } from '../../../../shared/rpc-contract/hq-journal-params'
 
 /** Why: Slack and ClickUp conversations settle through their own cards until the switch (19.6). */
@@ -26,6 +27,20 @@ export const HQ_LEDGER_METHODS = [
         throw new Error('Only GitLab and mail conversations are closed from their card.')
       }
       return { closed: runtime.pulseCloseLedgerConversation(params.key) }
+    }
+  }),
+  // Custom build (hq-in-work, plan 20.11): «Not in work» brings the card back and counts the guess as
+  // wrong — the owner's word, so only from his window or paired phone.
+  defineMethod({
+    name: 'hq.conversationNotInWork',
+
+    permission: 'workspace',
+    params: HqConversationNotInWorkParams,
+    handler: (params, { runtime, caller }) => {
+      if (caller?.kind !== 'desktop' && caller?.kind !== 'paired-device') {
+        throw new Error('Only the owner says a conversation is not in work, from HQ+.')
+      }
+      return { back: runtime.pulseClearConversationInWork(params.conversationId) }
     }
   }),
   // Custom build (hq-attribution-log, owner 03.11): the owner's own choices are what get counted, so

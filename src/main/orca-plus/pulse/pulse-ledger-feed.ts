@@ -77,6 +77,7 @@ export function listLedgerFeed(core: PulseCore, since: number): HqFeedLedger {
       projectHow: str(row.project_how),
       title: String(row.title),
       state: String(row.state),
+      stateWhy: str(row.state_why),
       lastAt: Number(row.last_at),
       sessionId: str(row.session_id),
       messages: messages

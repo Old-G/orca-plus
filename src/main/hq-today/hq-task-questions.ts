@@ -54,6 +54,7 @@ export async function generateHqText(
       | 'hq-slack-intake'
       | 'hq-reply-routing'
       | 'hq-ledger-guess'
+      | 'hq-in-work'
     /** Custom build (hq-clickup-triage): a cheaper model than the one set for HQ text. */
     model?: string
   },

@@ -1,6 +1,7 @@
 // Custom build (hq-attribution-log): what PulseDb exposes of the guess → final log, apart from the log
 // itself so the model's decision (which writes guesses) can join without an import cycle.
 import type { PulseCore } from './pulse-core'
+import { pulseInWork } from './pulse-ledger-in-work'
 import {
   noteAttributionSkip,
   noteAttributionTake,
@@ -18,6 +19,8 @@ import {
 export function pulseAttribution(core: () => PulseCore) {
   return {
     take: (take: HqAttributionTake) => noteAttributionTake(core(), take),
+    /** Custom build (hq-in-work): conversations a chat already works on — a state guess like the rest. */
+    inWork: pulseInWork(core),
     skip: (key: string) => core().transaction(() => noteAttributionSkip(core(), key)),
     accuracy: (since: number) => attributionAccuracy(core(), since),
     hints: (keyPrefix: string) => attributionHints(core(), keyPrefix),
