@@ -169,3 +169,91 @@ export function parseHqInWorkChatAnswer(
       : []
   })
 }
+
+/** Why: more than this many new chats in a pass wait for the next one. */
+const CHATS_PER_PASS = 3
+const MAX_CONVERSATIONS = 10
+/** Why 0.6 (owner, 03.11, live check): a colleague's announcement, handed over in other words, came at 0.6
+ *  and a wrong pick at 0.5. A wrong line is one «Not in work» away and counted as a miss. */
+const MIN_CONFIDENCE = 0.6
+
+export type HqInWorkCandidate = HqInWorkConversation & { lastAt: number }
+
+export type HqInWorkOpenChat = {
+  sessionId: string
+  project: string | null
+  address: string | null
+  openedAt: number
+}
+
+export type HqInWorkChatCheckDeps = {
+  /** The conversations each chat was already shown; null for a chat read whole before 03.11. */
+  shown: ReadonlyMap<string, ReadonlySet<string> | null>
+  reports: (sessionId: string) => string[]
+  /** One model call of the day's share; false when it is spent. */
+  budget: () => boolean
+  generate: (prompt: string) => Promise<{ ok: true; text: string } | { ok: false; error: string }>
+  noteChecked: (sessionId: string, conversationIds: readonly string[]) => void
+  setInWork: (
+    conversationId: string,
+    sessionId: string,
+    why: string | null,
+    confidence: number
+  ) => void
+}
+
+/** The model reads each chat, newest first, against the conversations it was not shown yet that came
+ *  before it opened; `left` loses the ones found in work. */
+export async function checkHqInWorkChats(
+  chats: readonly HqInWorkOpenChat[],
+  left: Map<string, HqInWorkCandidate>,
+  deps: HqInWorkChatCheckDeps
+): Promise<void> {
+  let read = 0
+  for (const chat of chats) {
+    const shown = deps.shown.get(chat.sessionId)
+    if (shown === null) {
+      continue
+    }
+    // Why not just the first ten (Codex 03.11): the rest are shown on a later pass, ten at a time.
+    const offered = [...left.values()]
+      .filter((candidate) => candidate.lastAt <= chat.openedAt && !shown?.has(candidate.id))
+      .slice(0, MAX_CONVERSATIONS)
+    if (offered.length === 0) {
+      continue
+    }
+    const reports = deps.reports(chat.sessionId)
+    if (reports.length === 0) {
+      continue
+    }
+    if (read >= CHATS_PER_PASS || !deps.budget()) {
+      return
+    }
+    read += 1
+    const generated = await deps
+      .generate(
+        hqInWorkChatPrompt(
+          {
+            sessionId: chat.sessionId,
+            project: chat.project,
+            address: chat.address ?? chat.sessionId,
+            reports
+          },
+          offered
+        )
+      )
+      .catch((error: unknown) => ({ ok: false as const, error: String(error) }))
+    // Why after the answer (Codex 03.11): a failed call is read again next pass, within the day's budget.
+    if (!generated.ok) {
+      continue
+    }
+    const ids = offered.map((candidate) => candidate.id)
+    deps.noteChecked(chat.sessionId, ids)
+    for (const answer of parseHqInWorkChatAnswer(generated.text, ids)) {
+      if (answer.confidence >= MIN_CONFIDENCE) {
+        deps.setInWork(answer.conversationId, chat.sessionId, answer.why, answer.confidence)
+        left.delete(answer.conversationId)
+      }
+    }
+  }
+}
