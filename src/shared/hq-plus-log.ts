@@ -109,6 +109,7 @@ export const HQ_PLUS_CARD_KINDS: ReadonlySet<string> = new Set([
   // Custom build (hq-plus-ui): what used to pop up on the right lands in the feed instead.
   PULSE_BELL_KIND.claudeChatLimit,
   PULSE_BELL_KIND.claudeAuthStop,
+  PULSE_BELL_KIND.claudeConnectorGap,
   PULSE_BELL_KIND.handoff,
   HQ_SLACK_REQUEST_BELL_KIND,
   HQ_INTAKE_KIND,
