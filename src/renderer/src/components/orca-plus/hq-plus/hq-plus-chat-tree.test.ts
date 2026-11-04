@@ -42,13 +42,13 @@ const chat = (
 }
 
 const links = (
-  spawned: [child: string, parent: string, at?: number][],
+  spawned: [child: string, parent: string, at?: number, via?: 'launch' | 'send'][],
   continues: [next: string, from: string][] = []
 ): HqChatLinksResult => ({
-  links: spawned.map(([sessionId, parentSessionId, at = 1]) => ({
+  links: spawned.map(([sessionId, parentSessionId, at = 1, via = 'launch']) => ({
     sessionId,
     parentSessionId,
-    via: 'launch',
+    via,
     at
   })),
   continues: continues.map(([sessionId, fromSessionId]) => ({ sessionId, fromSessionId }))
@@ -113,6 +113,19 @@ describe('HQ+ «By work» tree', () => {
       ])
     )
     expect(shape(rows)).toEqual(['top', '  leaf'])
+  })
+
+  it('a chat whose starter was closed stays in the tree on its own, without a parent', () => {
+    const rows = hqPlusChatTree(
+      [chat('step-4', 'working', 30, 'hq'), chat('other', 'working', 40)],
+      links([['step-4', 'brain']])
+    )
+    expect(shape(rows)).toEqual(['step-4'])
+  })
+
+  it('a chat a closed chat only wrote to goes back to its project', () => {
+    const rows = hqPlusChatTree([chat('old', 'done', 30)], links([['old', 'gone', 1, 'send']]))
+    expect(shape(rows)).toEqual([])
   })
 
   it('a loop in the links leaves every chat listed once', () => {
