@@ -257,6 +257,13 @@ describe('own server work from HQ autonomy.yaml (plan 15.17)', () => {
     `ssh other-box 'rm -f /tmp/q*.json'`,
     `ssh myserver 'rm -rf /tmp/s*; f=$(ls)'`,
     `ssh myserver 'rm -rf /tmp/a?; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/ssh-*; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/ssh-*.sock; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/systemd*; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/systemd-private-*.d; f=$(ls)'`,
+    `ssh myserver 'rm -f /tmp/sess_*.tmp; f=$(ls)'`,
+    `ssh myserver 'rm -f /tmp/report*; f=$(ls)'`,
+    `ssh myserver 'rm -f /tmp/x.*; f=$(ls)'`,
     `mysql -h prod -e "$Q"; rm -f /tmp/q.sql`
   ])('holds %s', (command) => {
     expect(held(command)).toBe(true)
