@@ -13,9 +13,13 @@ export type Binding = { value: string | null; at: number; context: string }
 
 /**
  * The redirection at `at`: the index after it and the file it writes (null for a read or a descriptor);
- * `next` -1 when there is none, -2 when it cannot be read for sure.
+ * `next` -1 when there is none, -2 when it cannot be read for sure. `variables`: a `$D/x` target is read.
  */
-function readRedirect(text: string, at: number): { next: number; writes: Word | null } {
+function readRedirect(
+  text: string,
+  at: number,
+  variables = false
+): { next: number; writes: Word | null } {
   const op = REDIRECT.exec(text.slice(at))?.[0]
   if (!op) {
     return { next: /^\d*<</.test(text.slice(at)) ? -2 : -1, writes: null }
@@ -32,8 +36,9 @@ function readRedirect(text: string, at: number): { next: number; writes: Word | 
     i++
   }
   const target = text.slice(start, i)
-  // Why: `<(…)` or `>$(…)` runs a command the reader would mistake for the end of this one.
-  if (!target || /[($`\\]/.test(target)) {
+  // Why: `<(…)` or `>$(…)` runs a command the reader would mistake for the end of this one; a plain
+  // variable runs nothing.
+  if (!target || (variables ? /[(`\\]|\$(?![{\w])/ : /[($`\\]/).test(target)) {
     return { next: -2, writes: null }
   }
   return {
@@ -44,8 +49,14 @@ function readRedirect(text: string, at: number): { next: number; writes: Word | 
 
 /** The quotes at `at` close an outer argument: nothing but redirections follows before the command ends. */
 function endsHere(text: string, at: number): boolean {
+  const keys = keysOf(text)
   let i = at
   while (QUOTE.test(text[i] ?? '')) {
+    // Why: each quote must close the one open there — in `'rm -rf /tmp/x"&" /srv'` it opens another,
+    // and the `&` after it is text to the shell that runs rm (security review, 04.11).
+    if (keys[i]?.split(',').at(-1)?.[0] !== text[i]) {
+      return false
+    }
     i++
   }
   for (;;) {
@@ -59,7 +70,8 @@ function endsHere(text: string, at: number): boolean {
     if (text[i] === '#' && i > gap) {
       return true
     }
-    const { next } = readRedirect(text, i)
+    // Why variables: what follows the outer argument redirects that command, not the one read here.
+    const { next } = readRedirect(text, i, true)
     if (next < 0) {
       return false
     }
@@ -129,6 +141,15 @@ export function readWords(text: string, from: number): Word[] | null {
       return endsHere(text, i) ? words : null
     }
   }
+}
+
+let lastKeys: { text: string; keys: string[] } | null = null
+
+function keysOf(text: string): string[] {
+  if (lastKeys?.text !== text) {
+    lastKeys = { text, keys: contextKeys(text) }
+  }
+  return lastKeys.keys
 }
 
 const HEREDOC = /^<<(-?)[ \t]*(['"]?)(\w+)\2/

@@ -83,6 +83,16 @@ export function hasUnreadableWords(command: string, rmWords: readonly Word[]): b
   )
 }
 
+// Why: `python3 -c "…"` and `bash -c "…"` show their code; `| sh`, `| bash -s`, `| python3` run a script
+// the text does not show.
+const PIPE_INTO_SCRIPT =
+  /(?<!\|)\|&?\s*(?:sudo\s+(?:-\S+\s+)*)?(?:env\s+)?(?:(?:ba|z|da|k|fi)?sh|python[\d.]*|perl|ruby|node)\b(?!\s+-[ce]\b)/
+
+/** A pipe into a shell or interpreter that reads its script from the pipe (`curl … | sh`). */
+export function hasPipeIntoScript(command: string): boolean {
+  return PIPE_INTO_SCRIPT.test(command.replace(/['"\\]/g, ''))
+}
+
 /** Runs on the listed host: in the ssh call's words, or under a quote or heredoc opened there — but not
  *  in a `(…)` or backquote the local shell runs first (`ssh h echo $(rm …)`); past a single quote or a
  *  quoted heredoc everything is the remote shell's text. */
