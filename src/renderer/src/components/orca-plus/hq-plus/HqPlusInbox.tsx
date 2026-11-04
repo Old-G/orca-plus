@@ -1,5 +1,5 @@
 // Custom build (hq-plus-inbox, owner 02.11: variant B; 04.11: one stream): HQ+'s feed as one stream read
-// top to bottom, oldest first, newest at the bottom — Approves waiting and given, chats that ask, the
+// top to bottom, oldest first, newest at the bottom — Approves waiting, chats that ask, the
 // people's conversations — each row naming its project and opening to the same card the project cards show. «We wait», «Working» and «Done today» are one line above, opened on a click.
 import { useEffect, useRef, useState } from 'react'
 import type {
@@ -17,7 +17,7 @@ import { hqPlusInboxQueue, type HqPlusInboxRow } from './hq-plus-inbox'
 type Drawer = 'wait' | 'working' | 'today' | null
 
 function streamRowId(row: HqPlusInboxRow): string {
-  return row.type === 'ask' ? row.chat.key : row.type === 'approved' ? row.row.id : row.line.id
+  return row.type === 'ask' ? row.chat.key : row.line.id
 }
 
 export function HqPlusInbox({
@@ -104,23 +104,6 @@ export function HqPlusInbox({
       return (
         <ul key={row.chat.key} className="hqpc-lines hqpc-chats">
           {chatRow(row)}
-        </ul>
-      )
-    }
-    if (row.type === 'approved') {
-      return (
-        <ul key={row.row.id} className="hqpc-today hqpi-done">
-          <li>
-            <span className="hqpc-tt">{hqPlusClock(row.row.at)}</span>
-            <span>
-              <b>{project(row.slug, row.unsorted).name}</b> ·{' '}
-              <b>{HQ_PLUS_PROJECT_TODAY_LABEL[row.row.kind]}</b>
-              {row.row.to ? <span className="hqpc-to"> → {row.row.to}</span> : null}
-              <span className="hqpc-said">
-                <HqPlusText text={row.row.text} maxLines={2} />
-              </span>
-            </span>
-          </li>
         </ul>
       )
     }
