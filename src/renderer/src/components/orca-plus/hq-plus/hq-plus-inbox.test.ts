@@ -122,7 +122,7 @@ describe('Inbox, one queue over the project cards (owner 02.11, variant B)', () 
     expect(queue.waits).toBe(0)
   })
 
-  it('reads as one stream, oldest first: the newest Approve, and the one just given, are at the bottom (owner 04.11)', () => {
+  it('reads as one stream, oldest first, newest at the bottom; what he already approved stays out (owner 04.11)', () => {
     const today = (id: string, at: number, kind: string) => ({
       id,
       at,
@@ -154,8 +154,7 @@ describe('Inbox, one queue over the project cards (owner 02.11, variant B)', () 
       ['move', 'acme-api'],
       ['fyi', 'acme-web'],
       ['ask', 'acme-api'],
-      ['approve', 'acme-api'],
-      ['approved', 'acme-api']
+      ['approve', 'acme-api']
     ])
   })
 })

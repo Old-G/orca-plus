@@ -744,13 +744,9 @@ button.hqpc-sum:hover {
   display: grid;
   gap: 4px;
 }
-/* Custom build (hq-plus-inbox, 04.11): one stream, oldest first; an Approve the owner gave lands at the
-   bottom as a quiet done row. */
+/* Custom build (hq-plus-inbox, 04.11): one stream, oldest first. */
 .hqpi-stream > ul {
   margin: 0;
-}
-.hqpi-done {
-  opacity: 0.75;
 }
 .hqpi-of,
 .hqpc-proj {
