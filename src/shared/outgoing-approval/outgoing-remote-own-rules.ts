@@ -280,8 +280,13 @@ const NO_BINDINGS = new Map<string, Binding>()
 // Why: a command named by an expansion may be mv or ln; checked where a command starts — after a
 // separator, a subshell, `$(`, a group, a condition, an ssh host or `sh -c` — and after the prefixes that
 // run the next word (security check, 04.11).
+// Why: what a command's name starts with when the text hides it — a `$`/backquote expansion, or a
+// glob or brace the shell expands (`/bin/m[v]` is `mv`; Codex at ship, 05.11).
+const COMMAND_START = String.raw`(?:^|[\n;&|!]|(?:^|[\s;&|!'"])\(|\$\(|\{\s|\b(?:then|do|else|if|elif|while|until)\s|\bssh\s+(?:-\S+\s+)*[\w.@-]+\s|\b(?:ba|da|z)?sh\s+-c\s)\s*['"]*(?:(?:sudo|doas|env|exec|command|nohup|time|nice|builtin|setsid|stdbuf|timeout(?:\s+-\S+)*\s+\d\S*)\s+(?:-\S+\s+)*)*['"]*\\?`
 const HIDDEN_COMMAND_NAME = new RegExp(
-  String.raw`(?:^|[\n;&|!]|(?:^|[\s;&|!'"])\(|\$\(|\{\s|\b(?:then|do|else|if|elif|while|until)\s|\bssh\s+(?:-\S+\s+)*[\w.@-]+\s|\b(?:ba|da|z)?sh\s+-c\s)\s*['"]*(?:(?:sudo|doas|env|exec|command|nohup|time|nice|builtin|setsid|stdbuf|timeout(?:\s+-\S+)*\s+\d\S*)\s+(?:-\S+\s+)*)*['"]*\\?[$\x60]`
+  COMMAND_START +
+    // Why: a name, not an assignment (`n=${v%%:*}`) or the `[` test command.
+    String.raw`(?:[$\x60]|[^\s;&|()'"=]+[*?[]|[^\s;&|()'"=]*\{[^\s{}]*(?:,|\.\.))`
 )
 
 /** The list applies only when every ssh call in the command goes to a listed host. */
