@@ -29,6 +29,7 @@ import { printLineageSummary } from './worktree-lineage-summary'
 import { printHookWarning } from './worktree-removal-warnings'
 import { withSetupDecisionRecovery } from './worktree-setup-decision-recovery'
 import { withCliAgentLaunchRecovery } from '../agents/agent-launch-recovery'
+import { linkLaunchedChat } from '../hq-chat-link'
 
 type WorktreeAgentLaunchResult = Pick<
   RuntimeWorktreeCreateResult,
@@ -105,6 +106,8 @@ export async function createWorktreeWithAgent(args: {
     ),
     launch.operationId !== undefined
   )
+  // Custom build (hq-plus-chat-tree): the calling chat is the new chat's parent in HQ+.
+  await linkLaunchedChat(client, launched.result)
   const worktree = await showLaunchedWorktree(client, launched.result.worktreeId)
   const setupWarning = await folderSetupUnsupportedWarning(
     client,
