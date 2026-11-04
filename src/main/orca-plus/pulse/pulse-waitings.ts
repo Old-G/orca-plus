@@ -184,8 +184,10 @@ export function closeWaiting(
       .run(closed.status, closed.resolution, closed.resolvedAt, id)
     // Custom build (hq-ledger-feed): a conversation that waited on the owner only for this answer is
     // handled once the waiting closes; its next message from the person raises it again (Codex, 30.10).
-    // A message from the person after the answer (the recorded reply, else the first one since the
-    // waiting opened) is a new request and keeps the conversation on the owner (Codex, 31.10).
+    // Custom build (hq-ledger-answers-stay, owner 04.11: «Laure answers me and it never reaches my
+    // inbox»): the person's answer itself stays on the owner until he marks it done — a chat taking the
+    // answer and closing its waiting no longer hides it. Only a waiting closed with no word from the
+    // person since it opened settles the conversation.
     core.db
       .prepare(
         `UPDATE conversations SET state = 'done', state_why = 'waiting-closed'
@@ -194,14 +196,9 @@ export function closeWaiting(
                              WHERE w.conversation_id = conversations.id AND w.status = 'open')
             AND NOT EXISTS (SELECT 1 FROM conversation_messages later
                              WHERE later.conversation_id = conversations.id AND later.direction = 'in'
-                               AND later.at > COALESCE(
-                                 (SELECT m.at FROM conversation_messages m
-                                   WHERE m.conversation_id = conversations.id AND m.ts = ?),
-                                 (SELECT MIN(m.at) FROM conversation_messages m
-                                   WHERE m.conversation_id = conversations.id AND m.direction = 'in'
-                                     AND m.at >= ?)))`
+                               AND later.at >= ?)`
       )
-      .run(id, existing.replyTs, existing.createdAt)
+      .run(id, existing.createdAt)
     core.emit(`waiting.${status}`, 'waiting', id, closed)
     return closed
   })
