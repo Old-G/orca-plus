@@ -1,6 +1,5 @@
-// Custom build (hq-plus-inbox, owner 02.11: variant B): the project cards' rows as one queue — what holds
-// an agent first (Approve), then the chats that ask the owner, then the people's conversations on him,
-// each group oldest first, so the order reads as «this, then this». A section the chip above the feed
+// Custom build (hq-plus-inbox, owner 02.11: variant B; 04.11: one stream): the project cards' rows as one
+// stream, oldest first, so the newest — an Approve that came, an Approve he gave — is at the bottom. A section the chip above the feed
 // hides on the cards stays out of the queue too, and the FYI chip lists its rows.
 import type {
   HqPlusProjectFeed,
@@ -23,9 +22,39 @@ export type HqPlusInboxQueue = {
   persons: Placed<{ person: HqPlusProjectPerson }>[]
   today: Placed<{ row: HqPlusProjectToday }>[]
   waits: number
+  /** Everything above as one stream, oldest first: the newest row is the last one (owner 04.11). */
+  stream: HqPlusInboxRow[]
 }
 
+/** A row of the stream; `at` is when it came to the owner. An «approved» row is an approval the
+ *  owner gave today (a send, a delete, a push), so his Approve lands at the bottom too. */
+export type HqPlusInboxRow =
+  | Placed<{ type: 'approve'; at: number; line: HqPlusProjectLine }>
+  | Placed<{ type: 'ask'; at: number; chat: HqPlusProjectChat }>
+  | Placed<{ type: 'move' | 'fyi'; at: number; line: HqPlusProjectLine }>
+  | Placed<{ type: 'approved'; at: number; row: HqPlusProjectToday }>
+
+const APPROVED_KINDS = new Set<HqPlusProjectToday['kind']>(['sent', 'deleted', 'pushed'])
+
 export function hqPlusInboxQueue(feed: HqPlusProjectFeed): HqPlusInboxQueue {
+  const queue = hqPlusInboxSections(feed)
+  const stream: HqPlusInboxRow[] = [
+    ...queue.approve.map((e) => ({ ...e, type: 'approve' as const, at: e.line.since })),
+    ...queue.asks.map((e) => ({
+      ...e,
+      type: 'ask' as const,
+      at: e.chat.question?.since ?? e.chat.at
+    })),
+    ...queue.moves.map((e) => ({ ...e, type: 'move' as const, at: e.line.since })),
+    ...queue.fyi.map((e) => ({ ...e, type: 'fyi' as const, at: e.line.at })),
+    ...queue.today
+      .filter((e) => APPROVED_KINDS.has(e.row.kind))
+      .map((e) => ({ ...e, type: 'approved' as const, at: e.row.at }))
+  ]
+  return { ...queue, stream: stream.sort((a, b) => a.at - b.at) }
+}
+
+function hqPlusInboxSections(feed: HqPlusProjectFeed): Omit<HqPlusInboxQueue, 'stream'> {
   const place = (card: HqPlusProjectFeed['cards'][number]) => ({
     slug: card.slug,
     unsorted: card.unsorted
@@ -64,7 +93,9 @@ export function hqPlusInboxQueue(feed: HqPlusProjectFeed): HqPlusInboxQueue {
       )
       .sort((a, b) => (a.person.oldestAt ?? 0) - (b.person.oldestAt ?? 0)),
     today: cards
-      .flatMap((card) => (card.shown.today ? card.today.map((row) => ({ ...place(card), row })) : []))
+      .flatMap((card) =>
+        card.shown.today ? card.today.map((row) => ({ ...place(card), row })) : []
+      )
       .sort((a, b) => b.row.at - a.row.at),
     waits: cards.reduce((sum, card) => sum + (card.shown.wait ? card.waits : 0), 0)
   }
