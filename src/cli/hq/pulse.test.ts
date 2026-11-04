@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { HandlerContext } from '../dispatch'
-import type { RuntimeClient } from '../runtime-client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { HandlerContext } from '../dispatch/dispatch'
+import type { RuntimeClient } from '../runtime/client'
 import { PULSE_HANDLERS } from './pulse'
 
 // Made-up people, not real data.
@@ -109,6 +109,20 @@ describe('orca pulse wait list and resolve', () => {
 })
 
 describe('orca pulse draft', () => {
+  beforeEach(() => {
+    vi.stubEnv('CLAUDECODE', '')
+  })
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('sends a Claude chat back to its own tools, so the owner approves in that chat', async () => {
+    vi.stubEnv('CLAUDECODE', '1')
+    const { done, calls } = run('pulse draft add', { kind: 'message', body: 'Hi Bob' })
+    await expect(done).rejects.toThrow(/Send it from this chat with the Slack or ClickUp tool/)
+    expect(calls).toEqual([])
+  })
+
   it('says when a draft with that fingerprint already exists', async () => {
     const { done, printed } = run(
       'pulse draft add',
