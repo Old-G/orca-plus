@@ -7,6 +7,7 @@ import {
   SSH_CALL,
   hasUnknownExpansion,
   hasUnreadableWords,
+  hasPipeIntoScript,
   isRemote,
   remoteSpans
 } from './outgoing-remote-scope'
@@ -336,6 +337,8 @@ export function isOwnRemoteWork(command: string): boolean {
     [...command.matchAll(SSH_CALL)].length > 0 &&
     sites.length > 0 &&
     !HIDDEN_COMMAND_NAME.test(command) &&
+    // Why: `rm -f /tmp/x; curl … | sh` runs a script the text does not show (Codex at ship, 05.11).
+    !hasPipeIntoScript(command) &&
     sites.every((site) => isOwnSite(command, site, NOTHING_LISTED, NO_BINDINGS, keys, spans, true))
   ) {
     return true
