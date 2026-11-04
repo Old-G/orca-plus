@@ -1,6 +1,7 @@
 // Custom build (hq-plus-ui): one decision in HQ+'s log — the agent's question, a held message, a
 // person's answer, a wait on the owner or a new report. Open while it waits; once decided it folds to
 // two lines that say what was chosen, and opens again on a click.
+import { hqPlusStamp, slackTsAt } from '../../../../../shared/hq-plus-stamp'
 import { useState } from 'react'
 import {
   HQ_PLUS_DONE_HANDED_OFF,
@@ -93,7 +94,7 @@ const BELL_LABEL: Record<string, string> = {
 }
 
 function clock(at: number | null): string {
-  return at ? new Date(at).toTimeString().slice(0, 5) : ''
+  return at ? hqPlusStamp(at) : ''
 }
 
 export function hqPlusDoneLabel(done: HqPlusDone): string {
@@ -462,7 +463,9 @@ export function HqPlusCardView({
           <>
             <strong>{answerOf.author}</strong>
             <span className="hqp-note">
-              {translate('auto.hqPlus.answered', 'answered')} · {card.project ?? 'HQ'}
+              {translate('auto.hqPlus.answered', 'answered')}
+              {slackTsAt(answerOf.replyTs) ? ` ${hqPlusStamp(slackTsAt(answerOf.replyTs) ?? 0)}` : ''}{' '}
+              · {card.project ?? 'HQ'}
             </span>
           </>
         ) : (
