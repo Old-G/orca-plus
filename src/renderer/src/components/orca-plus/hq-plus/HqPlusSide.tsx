@@ -3,6 +3,9 @@
 // list the classic HQ shows, so a chat started a second ago is there), and three plain numbers.
 import { useState } from 'react'
 import { readHqPlusViewState, saveHqPlusViewState } from './hq-plus-view-state'
+import type { HqChatLinksResult } from '../../../../../shared/hq-chat-links'
+import { hqPlusChatTree } from './hq-plus-chat-tree'
+import { HqPlusChatsBySwitch, useHqPlusChatsBy } from './HqPlusChatsBy'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import type { HqPlusScreenStats } from '../../../../../shared/hq-plus-screen'
 import { translate } from '@/i18n/i18n'
@@ -78,7 +81,9 @@ function ChatRow({
   closer,
   onPick,
   draft,
-  waitsOn = null
+  waitsOn = null,
+  depth,
+  project
 }: {
   item: HqChatItem
   picked: boolean
@@ -90,6 +95,10 @@ function ChatRow({
   draft?: string
   /** Custom build (hq-plus-chat-waits): what we wait for from a person on this chat's behalf. */
   waitsOn?: HqPlusOtherWait | null
+  /** Custom build (hq-plus-chat-tree): how deep under the chat that started it, in «By work». */
+  depth?: number
+  /** Custom build (hq-plus-chat-tree): the project's name beside the title, in «By work». */
+  project?: string
 }): React.JSX.Element {
   const title = useHqChatTitle(item)
   // Custom build (hq-plus-chat-waiting, owner 02.11): a chat whose last words ask to stay open until
@@ -108,7 +117,12 @@ function ChatRow({
   // Custom build (hq-plus-ui-v4): a working or starting chat pulses.
   const live = item.group === 'working' || (item.group === 'quiet' && !hqPlusChatIsIdle(item, now))
   return (
-    <div className="hqp-qi-row" data-live={live ? 'true' : undefined}>
+    <div
+      className="hqp-qi-row"
+      data-live={live ? 'true' : undefined}
+      data-child={depth ? 'true' : undefined}
+      style={depth ? ({ '--hqp-depth': depth } as React.CSSProperties) : undefined}
+    >
       <button
         type="button"
         className="hqp-pc"
@@ -127,6 +141,7 @@ function ChatRow({
             </span>
           ) : null}
           {title}
+          {project ? <span className="hqp-pc-pj">{project}</span> : null}
         </span>
         <span className="w">{item.sortAt ? formatRelativeTime(item.sortAt, now) : ''}</span>
         <span className="s">
@@ -159,8 +174,11 @@ export function HqPlusSide({
   closerOf,
   queue,
   onPickChat,
-  openChats
+  openChats,
+  chatLinks
 }: {
+  /** Custom build (hq-plus-chat-tree): which chat started which, for «By work». */
+  chatLinks: HqChatLinksResult | null
   /** Custom build (hq-plus-all-projects): every chat open as a tab, any room. */
   openChats: readonly HqChatItem[]
   /** Custom build (hq-plus-ticker): the live strip above the chats. */
@@ -189,6 +207,8 @@ export function HqPlusSide({
     setShowIdleState(next)
     saveHqPlusViewState({ showIdle: next })
   }
+  // Custom build (hq-plus-chat-tree): By status (by project, as before) or By work (the tree).
+  const [chatsBy, setChatsBy] = useHqPlusChatsBy()
   const now = queue.now
   const targets = useHqPlusNewChatTargets([])
   const targetOf = new Map(targets.map((target) => [target.repoId, target]))
@@ -224,7 +244,7 @@ export function HqPlusSide({
   }
   const waitOf = (item: HqChatItem): HqPlusOtherWait | null =>
     item.kind === 'chat' ? (waitOfSession.get(item.tab.entityId) ?? null) : null
-  const row = (item: HqChatItem): React.JSX.Element => (
+  const row = (item: HqChatItem, tree?: { depth: number }): React.JSX.Element => (
     <ChatRow
       key={item.key}
       item={item}
@@ -234,8 +254,17 @@ export function HqPlusSide({
       closer={closerOf(item)}
       onPick={onPickChat}
       waitsOn={waitOf(item)}
+      depth={tree?.depth}
+      project={tree ? item.projectName : undefined}
     />
   )
+  const byWork = chatsBy === 'work'
+  const treeRows = byWork
+    ? hqPlusChatTree(
+        [...chats.marked, ...chats.projects.flatMap((project) => project.items)],
+        chatLinks
+      )
+    : []
   return (
     <aside className="hqp-side" aria-label={translate('auto.hqPlus.side.label', 'Live and chats')}>
       {/* Custom build (hq-plus-ticker): «Waiting on you» and «We wait for» live in the feed's chips now;
@@ -265,6 +294,7 @@ export function HqPlusSide({
             {translate('auto.hqPlus.side.noSessions', 'no live chats')}
           </p>
         ) : null}
+        {listed > 0 ? <HqPlusChatsBySwitch chatsBy={chatsBy} onChange={setChatsBy} /> : null}
         {shownDrafts.length > 0 ? (
           <>
             <div className="hqp-side-sub">
@@ -284,7 +314,8 @@ export function HqPlusSide({
             ))}
           </>
         ) : null}
-        {chats.marked.length > 0 ? (
+        {byWork ? treeRows.map((entry) => row(entry.item, { depth: entry.depth })) : null}
+        {!byWork && chats.marked.length > 0 ? (
           <>
             <div className="hqp-side-sub">
               {translate('auto.hq.chats.group.marked', 'Come back to')} · {chats.marked.length}
@@ -292,7 +323,7 @@ export function HqPlusSide({
             {chats.marked.map(row)}
           </>
         ) : null}
-        {chats.projects.map((project) => (
+        {(byWork ? [] : chats.projects).map((project) => (
           <div key={project.repoId} className="hqp-pgrp-sec">
             <ProjectHeader
               project={project}

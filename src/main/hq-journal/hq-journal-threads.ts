@@ -17,6 +17,7 @@ import {
   type HqSession,
   type HqThreadResult
 } from '../../shared/hq-journal'
+import type { HqChatLinkVia } from '../../shared/hq-chat-links'
 import { HQ_ROUTING_KIND, type HqSettleResult } from '../../shared/hq-routing'
 import type { PulsePerson, PulsePersonInput } from '../../shared/pulse-types'
 import { hqJournalLink, journalEntryAsInput } from './hq-journal-adapters'
@@ -32,6 +33,13 @@ export type HqThreadsDeps = {
     getEntry: (id: string) => HqJournalEntry | null
     listPeople: () => PulsePerson[]
     upsertPerson: (input: PulsePersonInput) => PulsePerson
+    /** Custom build (hq-plus-chat-tree): which chat handed which one work. */
+    linkChat?: (input: {
+      sessionId: string
+      parentSessionId: string
+      via: HqChatLinkVia
+      at: number
+    }) => boolean
   }
   /** The chat's name, as its tab shows it. */
   sessionName: (sessionId: string) => string | null

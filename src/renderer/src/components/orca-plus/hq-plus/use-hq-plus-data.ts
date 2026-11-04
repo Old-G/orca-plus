@@ -3,6 +3,7 @@
 // automations still to run today — reloaded on every pulse write and on a timer.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { HqSessionsResult } from '../../../../../shared/hq-sessions'
+import { isHqChatLinksResult, type HqChatLinksResult } from '../../../../../shared/hq-chat-links'
 import type { PulsePerson, PulseWaiting } from '../../../../../shared/pulse-types'
 import {
   HQ_PLUS_FEED_WINDOW_MS,
@@ -29,6 +30,8 @@ export type HqPlusData = {
   sessions: HqSessionsResult | null
   stats: HqPlusScreenStats | null
   upcoming: HqPlusUpcoming[]
+  /** Custom build (hq-plus-chat-tree): which chat started which, for «By work». */
+  chatLinks: HqChatLinksResult | null
   error: string | null
   reload: () => void
 }
@@ -48,6 +51,7 @@ export function useHqPlusData(): HqPlusData {
   const [sessions, setSessions] = useState<HqSessionsResult | null>(null)
   const [stats, setStats] = useState<HqPlusScreenStats | null>(null)
   const [upcoming, setUpcoming] = useState<HqPlusUpcoming[]>([])
+  const [chatLinks, setChatLinks] = useState<HqChatLinksResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const alive = useRef(true)
 
@@ -59,35 +63,42 @@ export function useHqPlusData(): HqPlusData {
       call('pulse.listPeople'),
       call('hq.sessions'),
       call('hq.screenStats', {}),
-      call('automation.list', {})
-    ]).then(([nextFeed, nextWaits, nextPeople, nextSessions, nextStats, nextAutomations]) => {
-      if (!alive.current) {
-        return
+      call('automation.list', {}),
+      call('hq.chatLinks', {})
+    ]).then(
+      ([nextFeed, nextWaits, nextPeople, nextSessions, nextStats, nextAutomations, nextLinks]) => {
+        if (!alive.current) {
+          return
+        }
+        if (nextFeed.status === 'fulfilled') {
+          setFeed(isHqFeed(nextFeed.value) ? nextFeed.value : null)
+          setError(null)
+        } else {
+          setError(
+            String(nextFeed.reason instanceof Error ? nextFeed.reason.message : nextFeed.reason)
+          )
+        }
+        if (nextWaits.status === 'fulfilled') {
+          setWaits(isPulseWaitings(nextWaits.value) ? nextWaits.value : [])
+        }
+        if (nextPeople.status === 'fulfilled') {
+          setPeople(isPulsePeople(nextPeople.value) ? nextPeople.value : [])
+        }
+        if (nextSessions.status === 'fulfilled') {
+          setSessions(isHqSessionsResult(nextSessions.value) ? nextSessions.value : null)
+        }
+        if (nextStats.status === 'fulfilled' && isHqScreenStats(nextStats.value)) {
+          setStats(nextStats.value)
+        }
+        if (nextAutomations.status === 'fulfilled') {
+          setUpcoming(readUpcomingAutomations(nextAutomations.value, Date.now()))
+        }
+        // Why: an older host has no links; the tree then lists every chat flat.
+        if (nextLinks.status === 'fulfilled' && isHqChatLinksResult(nextLinks.value)) {
+          setChatLinks(nextLinks.value)
+        }
       }
-      if (nextFeed.status === 'fulfilled') {
-        setFeed(isHqFeed(nextFeed.value) ? nextFeed.value : null)
-        setError(null)
-      } else {
-        setError(
-          String(nextFeed.reason instanceof Error ? nextFeed.reason.message : nextFeed.reason)
-        )
-      }
-      if (nextWaits.status === 'fulfilled') {
-        setWaits(isPulseWaitings(nextWaits.value) ? nextWaits.value : [])
-      }
-      if (nextPeople.status === 'fulfilled') {
-        setPeople(isPulsePeople(nextPeople.value) ? nextPeople.value : [])
-      }
-      if (nextSessions.status === 'fulfilled') {
-        setSessions(isHqSessionsResult(nextSessions.value) ? nextSessions.value : null)
-      }
-      if (nextStats.status === 'fulfilled' && isHqScreenStats(nextStats.value)) {
-        setStats(nextStats.value)
-      }
-      if (nextAutomations.status === 'fulfilled') {
-        setUpcoming(readUpcomingAutomations(nextAutomations.value, Date.now()))
-      }
-    })
+    )
   }, [])
 
   useEffect(() => {
@@ -103,7 +114,7 @@ export function useHqPlusData(): HqPlusData {
     }
   }, [reload])
 
-  return { feed, waits, people, sessions, stats, upcoming, error, reload }
+  return { feed, waits, people, sessions, stats, upcoming, chatLinks, error, reload }
 }
 
 /** One runtime call from the screen's buttons; the error text is the method's own. */

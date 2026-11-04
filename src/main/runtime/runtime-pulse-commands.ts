@@ -194,7 +194,7 @@ export class RuntimePulseCommands {
 
   /** Custom build (hq-request-ledger): the chat that continues `sessionId` after handoffs. */
   pulseLiveSessionOf(sessionId: string): string {
-    return this.db().liveSessionOf(sessionId)
+    return this.db().chats.liveSessionOf(sessionId)
   }
 
   /** Custom build (hq-request-ledger): the chat a conversation was taken into. */
@@ -394,6 +394,11 @@ export class RuntimePulseCommands {
   /** Custom build (hq-plus-sessions) */
   pulseListRecentSessions(since: number): HqSession[] {
     return this.db().listRecentSessions(since)
+  }
+
+  /** Custom build (hq-plus-chat-tree): which chat started which. */
+  pulseChats(): PulseDb['chats'] {
+    return this.db().chats
   }
 
   /** Custom build (pulse-bell): see syncInboxKind. */
