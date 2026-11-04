@@ -75,11 +75,15 @@ export function hqPlusChatTree(
   }
   // Why: the earliest fact wins, as it does when a link is written.
   const parentOfLine = new Map<string, string>()
+  const launchedLines = new Set<string>()
   for (const link of [...(links?.links ?? [])].sort((a, b) => a.at - b.at)) {
     const line = lineOf(link.sessionId)
     // Why: a chat writing to its own continuation is one line, not a parent.
     if (!parentOfLine.has(line) && lineOf(link.parentSessionId) !== line) {
       parentOfLine.set(line, link.parentSessionId)
+      if (link.via === 'launch') {
+        launchedLines.add(line)
+      }
     }
   }
 
@@ -124,7 +128,11 @@ export function hqPlusChatTree(
     return null
   }
   const parentOf = new Map<Node, Node>()
+  const orphans = new Set<Node>()
   for (const [line, node] of nodeOfLine) {
+    if (launchedLines.has(line)) {
+      orphans.add(node)
+    }
     const parent = parentNodeOf(line)
     if (parent && parent !== node) {
       parentOf.set(node, parent)
@@ -164,9 +172,11 @@ export function hqPlusChatTree(
     }
   }
   // Custom build (hq-plus-chat-tree, owner 05.11): only work that branched — a chat with chats under it;
-  // a chat on its own stays under its project below, or the list reads as one heap.
+  // a chat on its own stays under its project below, or the list reads as one heap. A chat another chat
+  // started stays here when that chat is closed, on its own: it moving down to its project read as
+  // closed with its parent (owner 05.11). One a closed chat only wrote to goes back to its project.
   for (const root of sortNodes(roots)) {
-    if (root.children.length > 0) {
+    if (root.children.length > 0 || orphans.has(root)) {
       walk(root, 0)
     }
   }
