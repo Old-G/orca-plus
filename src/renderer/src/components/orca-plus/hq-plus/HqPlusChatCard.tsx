@@ -12,14 +12,16 @@ import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
 import { HqPlusThreadComposer } from './HqPlusThreadComposer'
 import { openPane } from '../pulse-bell/pulse-bell-actions'
+import { hqPlusStamp } from '../../../../../shared/hq-plus-stamp'
 import { HqPlusCloseChat } from './HqPlusCloseChat'
 import { HqPlusGrow } from './HqPlusGrow'
 import { HqPlusCardHead, HqPlusCardShell } from './HqPlusCardShell'
 import { hqPlusPinWhileMoving } from './hq-plus-scroll-pin'
 import type { HqPlusLogContext } from './HqPlusLog'
 
+/** Custom build (hq-plus-stamp): today's time alone, an earlier day's with its date. */
 export function hqPlusClock(at: number): string {
-  return new Date(at).toTimeString().slice(0, 5)
+  return hqPlusStamp(at)
 }
 
 const clock = hqPlusClock
