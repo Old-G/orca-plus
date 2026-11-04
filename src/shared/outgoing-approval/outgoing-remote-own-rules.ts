@@ -32,13 +32,27 @@ const PLAIN_NAME = /^[^\s*?[\]/]+$/
 // `/tmp/q[1-6].json` name the agent's own files; `/tmp/*`, `/tmp/.*`, `/tmp/*/x` and `/tmp/s*` name
 // everyone's, and system prefixes stay off even with one (`/tmp/ssh-*.sock`). Owner 04.11, security review.
 const GLOB_NAME = /^\w(?:[\w.,+@=-]|[*?]|\[!?[\w-]+\])*\.\w+$/
-const SYSTEM_PREFIX = /^(?:ssh|systemd|tmux|snap|pulse|gpg|krb5|sess_|screen|vscode|com\.apple|\.)/i
+// Why both ways: `/tmp/s*.sock` reaches `ssh-…` as surely as `/tmp/ssh*` does (security review, 04.11).
+const SYSTEM_PREFIXES = [
+  'ssh',
+  'systemd',
+  'tmux',
+  'snap',
+  'pulse',
+  'gpg',
+  'krb5',
+  'sess_',
+  'screen',
+  'vscode',
+  'com.apple'
+]
 
 function isOwnGlob(name: string): boolean {
+  const stem = name.slice(0, name.search(/[*?[]/)).toLowerCase()
   return (
     GLOB_NAME.test(name) &&
     !/[*?[\]]/.test(name.slice(name.lastIndexOf('.'))) &&
-    !SYSTEM_PREFIX.test(name)
+    !SYSTEM_PREFIXES.some((prefix) => prefix.startsWith(stem) || stem.startsWith(prefix))
   )
 }
 
