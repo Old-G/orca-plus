@@ -51,7 +51,13 @@ echo "build-orca-plus-mac: version $ORCA_LOCAL_BUILD_VERSION"
 if [ ! -d mobile/node_modules/expo-router ]; then
   (cd mobile && corepack pnpm install --frozen-lockfile)
 fi
-corepack pnpm run build:desktop
+# Why: build:desktop starts with a full parallel typecheck that froze the owner's laptop (04.11); the
+# bundle never depended on it (esbuild strips types). Types are checked by the upstream sync; ask for
+# them here with ORCA_PLUS_TYPECHECK=1, and they run one project at a time at low priority.
+if [ "${ORCA_PLUS_TYPECHECK:-0}" = 1 ]; then
+  scripts/typecheck-once.sh
+fi
+corepack pnpm run build:desktop:assets
 corepack pnpm run build:computer-macos
 corepack pnpm run build:keyboard-layout-macos
 # Why: the helper answers notification-permission checks for the app's own bundle id.
