@@ -165,6 +165,34 @@ describe('pollHqSlackWaitingReplies', () => {
     expect(db.getWaiting(asked.id)?.reply).toBeNull()
   })
 
+  it('takes his newest question in an old thread as what was asked, not the thread opener (04.11)', async () => {
+    const { db, anna, thread, api, deps, at } = setup()
+    const parentTs = '1792084199.000100'
+    const asked = db.addWaiting({
+      direction: 'on-them',
+      title: 'v4 status',
+      personId: anna.id,
+      source: 'slack',
+      sourceRef: `slack:DANNA01:${parentTs}`,
+      agentSessionId: 'chat-1'
+    })
+    vi.mocked(api.replies).mockImplementation(async (_channel, _threadTs, oldest) => [
+      msg(ASKED_AT - 100_000_000, OWNER, 'Old question from days ago', {
+        ts: parentTs,
+        threadTs: parentTs
+      }),
+      ...thread.filter((m) => Number(m.ts) > Number(oldest))
+    ])
+    thread.push(msg(ASKED_AT - 5_000, OWNER, 'Is v4 on UAT or prod?', { threadTs: parentTs }))
+    thread.push(msg(ASKED_AT + 60_000, ANNA, 'Just shipped, testing now', { threadTs: parentTs }))
+    at(ASKED_AT + 5 * 60_000)
+    expect(await pollHqSlackWaitingReplies(deps)).toBe(1)
+    expect(db.getWaiting(asked.id)).toMatchObject({
+      reply: 'Анна Ли: Just shipped, testing now',
+      detail: 'Is v4 on UAT or prod?'
+    })
+  })
+
   it("keeps the owner's message that opened the thread as what was asked, beside the tags", async () => {
     const { db, anna, thread, api, deps, at } = setup()
     const parentTs = '1792184199.000100'

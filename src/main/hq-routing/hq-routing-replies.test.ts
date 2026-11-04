@@ -50,7 +50,6 @@ function routing() {
         replyTs,
         prompt
       ),
-    settle: (id, ts) => void db.markWaitingReplyDelivered(id, ts),
     address: (sessionId) => (sessionId === 'chat-1' ? 'acme-api/orders' : null),
     asked: (personId) => {
       const person = db.listPeople().find((entry) => entry.id === personId)
@@ -199,7 +198,7 @@ describe('person.reply routing', () => {
     expect(judge).not.toHaveBeenCalled()
   })
 
-  it('without the rule only sorts out the owner\'s own talk; a dry run looks back over handled ones', async () => {
+  it("without the rule only sorts out the owner's own talk; a dry run looks back over handled ones", async () => {
     const replies = routing()
     const waiting = answered('The orders live in the reporting replica.')
     judge.mockResolvedValueOnce('CHAT')
@@ -216,16 +215,19 @@ describe('person.reply routing', () => {
 
 // 28.10: with the rule off every answer was a card, even talk the owner answers himself in Slack.
 describe('with the rule off', () => {
-  it("settles the owner's own talk without a card and keeps the chat's answer for the card", async () => {
+  it("keeps the owner's own talk on its card as his move in Slack, and the chat's answer for the card", async () => {
     const service = routing()
     const talk = answered('License goes through Priority support now, it depends on them')
     judge.mockResolvedValueOnce('OWNER')
     expect(service.note(talk)).toEqual({ hold: true, why: null })
     await service.route(null, { dryRun: false })
-    expect(db.getWaiting(talk.id)?.replyDeliveredAt).not.toBeNull()
-    expect(decisions()).toEqual([
-      expect.objectContaining({ needs: 'nobody', status: 'done' })
-    ])
+    // 04.11: settled quietly, Bohdan's «залил, щас протестирую» reached nobody — the card stays.
+    expect(db.getWaiting(talk.id)?.replyDeliveredAt).toBeNull()
+    expect(service.note(talk)).toEqual({
+      hold: false,
+      why: 'Your move in Slack: this answers you, not the chat'
+    })
+    expect(decisions()).toEqual([expect.objectContaining({ needs: 'nobody', status: 'done' })])
     const fact = answered('Postgres, the replica is read-only')
     judge.mockResolvedValueOnce('CHAT')
     await service.route(null, { dryRun: false })

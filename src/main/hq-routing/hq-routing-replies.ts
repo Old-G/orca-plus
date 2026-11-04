@@ -48,8 +48,6 @@ export type HqReplyRoutingDeps = {
     replyTs: string,
     prompt: (waiting: PulseWaiting) => string
   ) => Promise<HqWaitingReplyPassResult>
-  /** Custom build (hq-reply-owner-talk): closes an answer as handled, so it raises no card. */
-  settle: (waitingId: string, replyTs: string) => void
   /** The asking chat's thread, if it has one. */
   address: (sessionId: string) => string | null
   /** The person asked, by their Slack / ClickUp user ids. */
@@ -236,7 +234,7 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
 
   /**
    * Custom build (hq-reply-owner-talk): with the rule off, each new answer is asked once whether the
-   * asking chat or the owner acts on it; the owner's own talk is settled quietly — a journal line, no card.
+   * asking chat or the owner acts on it; the owner's own talk keeps its card, marked as his move in Slack.
    */
   const sortOwnerTalk = async (): Promise<HqReplyRouteAction[]> => {
     const actions: HqReplyRouteAction[] = []
@@ -269,14 +267,12 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
       if (!owner) {
         continue
       }
-      const done = action(waiting, 'wait', { note: 'the owner answers this himself in Slack' })
-      deps.settle(waiting.id, waiting.replyTs ?? '')
-      await record(
-        waiting,
-        done,
-        `${done.author} answered — yours to reply in Slack, no card`,
-        false
-      )
+      // Why (owner 04.11): settled quietly, 76 answers since 28.10 reached nobody — Bohdan's «залил, щас
+      // протестирую» among them. The card stays, marked as his move in Slack, until he clears it.
+      const note = 'Your move in Slack: this answers you, not the chat'
+      notes.set(decidedKey(waiting), note)
+      const done = action(waiting, 'wait', { note })
+      await record(waiting, done, `${done.author} answered — yours to reply in Slack`, false)
       actions.push(done)
     }
     return actions

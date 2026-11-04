@@ -320,7 +320,9 @@ async function gather(
   if (thread) {
     let replies: SlackReadMessage[] = []
     try {
-      replies = await api.replies(thread.channel, thread.threadTs, after)
+      // Why: read back from before the waiting, to see the owner's question when he asked again in an old thread.
+      const since = slackTsAt(Number(after) * 1000 - HQ_SLACK_DM_THREAD_LOOKBACK_MS)
+      replies = await api.replies(thread.channel, thread.threadTs, since)
     } catch (error) {
       // Why: a thread the token cannot read (a private channel) must not hide the DM answer.
       if (isTokenFailure(error)) {
@@ -328,8 +330,12 @@ async function gather(
       }
       console.warn(`[hq-slack-waiting] reading thread of ${waiting.id} failed:`, error)
     }
-    const parent = replies.find((message) => message.ts === thread.threadTs)
-    asked = parent && parent.user === api.owner ? plainSlackText(parent.text) || null : null
+    // Why (04.11): a new question in an old thread was read as the thread's first one, so the reply was
+    // judged against a question from days before; what was asked is the owner's last message before it.
+    const ownerBefore = replies
+      .filter((message) => message.user === api.owner && !newer(message.ts, after))
+      .sort((a, b) => Number(b.ts) - Number(a.ts))[0]
+    asked = ownerBefore ? plainSlackText(ownerBefore.text) || null : null
     for (const message of answers(replies, api.owner)) {
       if (
         message.ts !== thread.threadTs &&
