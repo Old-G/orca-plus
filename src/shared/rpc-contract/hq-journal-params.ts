@@ -213,3 +213,11 @@ export const HqJobReplyParams = z.object({
 /** Custom build (hq-closed-loop): `orca hq person <name|@handle|id>` and `orca hq who <project>`. */
 export const HqPersonLookupParams = z.object({ query: z.string().trim().min(1).max(200) })
 export const HqWhoParams = z.object({ project: z.string().trim().min(1).max(200) })
+
+// Custom build (hq-plus-chat-tree): a chat that ran `orca agent launch` names the chat it started; the
+// caller's own session is the parent. HQ+ reads every link to draw its «By work» tree.
+export const HqLinkChatParams = z.object({
+  ...CallerFields,
+  sessionId: requiredString('The started chat’s session id is required')
+})
+export const HqChatLinksParams = z.object({})

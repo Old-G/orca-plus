@@ -122,7 +122,7 @@ import { setHqPlusLayout, useHqPlusLayout } from './hq-plus-layout'
 import { HqPlusMapLayout } from './HqPlusMapLayout'
 import { HqPlusLayoutSwitch } from './HqPlusLayoutSwitch'
 import { startHqChat } from '../hq/hq-new-chat'
-import { activateAndRevealWorktree } from '@/lib/worktree-activation'
+import { activateAndRevealWorktree } from '@/lib/workspace/activation/worktree-activation'
 import './hq-plus.css'
 import './hq-plus-map.css'
 
@@ -1355,6 +1355,7 @@ export function HqPlusScreen(): React.JSX.Element {
       queue={queue}
       onPickChat={(item) => showChat(item.key)}
       openChats={chatItems}
+      chatLinks={data.chatLinks}
     />
   )
   const centerOverlay = centerFile ? (
