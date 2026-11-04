@@ -135,7 +135,6 @@ export function registerHqRouting(
         replyTs,
         prompt
       ),
-    settle: (waitingId, replyTs) => void runtime.pulseMarkWaitingReplyDelivered(waitingId, replyTs),
     address: (sessionId) => runtime.pulseGetSession(sessionId)?.address ?? null,
     asked: (personId) => {
       const person = runtime.pulseListPeople().find((entry) => entry.id === personId)
