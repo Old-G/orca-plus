@@ -42,18 +42,19 @@ export function HqPlusInbox({
   const lastRow = queue.stream.at(-1)
   const lastRowId = lastRow ? streamRowId(lastRow) : null
   const seenLast = useRef<string | null | undefined>(undefined)
+  // Why: read on scroll, before a new row lands — measured after, a row taller than the margin made
+  // the owner at the bottom look scrolled up (Codex 05.11).
+  const nearBottom = useRef(true)
   // Why: the newest row is the last one; open at it, and follow a new one only when the owner is
   // already at the bottom — never pull him away from a row he scrolled up to read.
   useEffect(() => {
     const end = bottomRef.current
-    const scroller = end?.parentElement
-    if (!end || !scroller || seenLast.current === lastRowId) {
+    if (!end || seenLast.current === lastRowId) {
       return
     }
     const first = seenLast.current === undefined
-    const nearBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 160
     seenLast.current = lastRowId
-    if (first || nearBottom) {
+    if (first || nearBottom.current) {
       end.scrollIntoView({ block: 'end' })
     }
   }, [lastRowId])
@@ -119,7 +120,15 @@ export function HqPlusInbox({
     )
   }
   return (
-    <div className="hqp-log hqpi scrollbar-sleek" ref={ref}>
+    <div
+      className="hqp-log hqpi scrollbar-sleek"
+      ref={ref}
+      onScroll={(event) => {
+        const scroller = event.currentTarget
+        nearBottom.current =
+          scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 160
+      }}
+    >
       <div className="hqpi-strip" role="group" aria-label="Around the queue">
         <button type="button" aria-expanded={drawer === 'wait'} onClick={() => toggle('wait')}>
           We wait <b>{queue.waits}</b>
