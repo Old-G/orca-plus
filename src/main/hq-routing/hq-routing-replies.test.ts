@@ -221,7 +221,7 @@ describe('with the rule off', () => {
     judge.mockResolvedValueOnce('OWNER')
     expect(service.note(talk)).toEqual({ hold: true, why: null })
     await service.route(null, { dryRun: false })
-    // 04.11: settled quietly, Bob's «залил, щас протестирую» reached nobody — the card stays.
+    // 04.11: settled quietly, a colleague's «merged, testing now» reached nobody — the card stays.
     expect(db.getWaiting(talk.id)?.replyDeliveredAt).toBeNull()
     expect(service.note(talk)).toEqual({
       hold: false,
