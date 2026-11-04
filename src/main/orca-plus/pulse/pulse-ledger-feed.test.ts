@@ -155,7 +155,7 @@ describe('ledger states the feed relies on (Codex, 30.10)', () => {
   const stateOf = (db: PulseDb, key = THREAD): string | undefined =>
     db.listLedgerConversations().find((row) => row.key === key)?.state
 
-  it('settles a conversation once its waiting is closed, and a new message raises it again', () => {
+  it('settles a conversation whose waiting closes with no word from the person, and a new message raises it again', () => {
     const db = openDb()
     const asked = db.addWaiting({
       direction: 'on-them',
@@ -163,7 +163,8 @@ describe('ledger states the feed relies on (Codex, 30.10)', () => {
       source: 'slack',
       sourceRef: THREAD
     })
-    db.ingestLedgerSignal(signal({ text: 'Done' }))
+    // Why: the person's request came before the owner's side asked; nothing came after.
+    db.ingestLedgerSignal(signal({ text: 'Can you mark 37 pairs?', at: tick - 5 }))
     expect(stateOf(db)).toBe('you')
     db.closeWaiting(asked.id, 'resolved', 'Close waiting')
     expect(stateOf(db)).toBe('done')
@@ -187,7 +188,7 @@ describe('ledger states the feed relies on (Codex, 30.10)', () => {
     expect(stateOf(db)).toBe('you')
   })
 
-  it('settles the conversation when the recorded answer is the newest message', () => {
+  it("keeps the person's answer on the owner after a chat closes its waiting (owner, 04.11)", () => {
     const db = openDb()
     const asked = db.addWaiting({
       direction: 'on-them',
@@ -199,7 +200,7 @@ describe('ledger states the feed relies on (Codex, 30.10)', () => {
     db.ingestLedgerSignal(signal({ ts: '1700000003.000000', text: 'Done', at: tick + 3 }))
     db.recordWaitingReply(asked.id, { ts: '1700000003.000000', text: 'Done', author: 'Ann' })
     db.closeWaiting(asked.id, 'resolved', 'Close waiting')
-    expect(stateOf(db)).toBe('done')
+    expect(stateOf(db)).toBe('you')
   })
 
   it('does not let a late guess raise a conversation the owner already answered', () => {
