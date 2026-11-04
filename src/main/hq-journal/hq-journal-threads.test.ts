@@ -62,7 +62,8 @@ beforeEach(() => {
       listSessionsByAddress: (address) => db.listSessionsByAddress(address),
       getEntry: (id) => db.getJournalEntry(id),
       listPeople: () => db.listPeople(),
-      upsertPerson: (input) => db.upsertPerson(input)
+      upsertPerson: (input) => db.upsertPerson(input),
+      linkChat: (input) => db.chats.link(input)
     },
     sessionName: (id) => ({ claude_api: 'Refund limits', claude_web: 'Checkout page' })[id] ?? null,
     sessionWorkspace: () => null,
@@ -142,6 +143,26 @@ describe('HQ+ threads', () => {
     const fromOwner = await threads.send({}, { address: web.address, text: 'Thanks.' })
     expect(fromChat.entry.title).toBe('From HQ chat: Add a line.')
     expect(fromOwner.entry.title).toBe('From HQ+: Thanks.')
+  })
+
+  it('makes the chat that hands work its parent in «By work»; the owner typing in HQ+ makes none', async () => {
+    const web = await threads.report({ sessionId: 'claude_web' }, { done: 'Checkout fixed' })
+    const api = await threads.report({ sessionId: 'claude_api' }, { done: 'Limits read' })
+    await threads.send({}, { address: api.address, text: 'Thanks.' })
+    expect(db.chats.list().links).toEqual([])
+
+    await threads.send({ sessionId: 'claude_hq' }, { address: web.address, text: 'Add a line.' })
+    // Why: the first fact wins, and the parent answering back makes no loop.
+    await threads.send({ sessionId: 'claude_api' }, { address: web.address, text: 'Ready.' })
+    open.add('claude_hq')
+    await threads.send({ sessionId: 'claude_web' }, { address: 'claude_hq', text: 'Done.' })
+    expect(db.chats.list().links).toEqual([
+      expect.objectContaining({
+        sessionId: 'claude_web',
+        parentSessionId: 'claude_hq',
+        via: 'send'
+      })
+    ])
   })
 
   it("settles the owner's question when the owner answers it, not when another chat does", async () => {

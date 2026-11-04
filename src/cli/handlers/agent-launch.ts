@@ -12,6 +12,7 @@ import { RuntimeClientError } from '../runtime-client'
 import { getRequiredWorktreeSelector } from '../selectors'
 import { resolveCurrentAgentWorkspaceSelector } from '../agent-workspace-selector'
 import { CLAUDE_SUBSCRIPTION_SESSION_OPTION } from '../../shared/claude-subscriptions'
+import { linkLaunchedChat } from '../hq-chat-link'
 
 export const AGENT_LAUNCH_HANDLERS: Record<string, CommandHandler> = {
   'agent launch': async ({ flags, client, cwd, json, rawArgs }) => {
@@ -60,6 +61,8 @@ export const AGENT_LAUNCH_HANDLERS: Record<string, CommandHandler> = {
       capabilities,
       rawArgs
     )
+    // Custom build (hq-plus-chat-tree): the calling chat is the new chat's parent in HQ+.
+    await linkLaunchedChat(client, result.result)
     printResult(result, json, formatAgentLaunch)
   }
 }

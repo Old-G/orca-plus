@@ -15,7 +15,7 @@ import type {
   PulseWaitingStatus
 } from '../../../shared/pulse-types'
 import type { OutgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
-import { liveSessionOf } from './pulse-chat-chain'
+import { pulseChats } from './pulse-chat-links'
 import { linkWaitingAnswer } from './pulse-ledger-answer'
 import { pulseLedgerShadow } from './pulse-ledger-answer-shadow'
 import {
@@ -100,6 +100,8 @@ export class PulseDb {
   readonly ledgerShadow = pulseLedgerShadow(() => this.core)
   /** Custom build (hq-attribution-log): guesses about conversations beside the owner's choices. */
   readonly attribution = pulseAttribution(() => this.core)
+  /** Custom build (hq-plus-chat-tree): handoff chains and which chat started which. */
+  readonly chats = pulseChats(() => this.core)
 
   constructor(path: (string & {}) | ':memory:', clock: Partial<PulseClock> = {}) {
     this.core = new PulseCore(path, clock)
@@ -204,10 +206,6 @@ export class PulseDb {
       string,
       unknown
     >
-  }
-
-  liveSessionOf(sessionId: string): string {
-    return liveSessionOf(this.core, sessionId)
   }
 
   moveOpenWaitingsToChat(fromSessionId: string, toSessionId: string) {

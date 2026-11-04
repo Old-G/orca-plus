@@ -1355,6 +1355,7 @@ export function HqPlusScreen(): React.JSX.Element {
       queue={queue}
       onPickChat={(item) => showChat(item.key)}
       openChats={chatItems}
+      chatLinks={data.chatLinks}
     />
   )
   const centerOverlay = centerFile ? (

@@ -41,6 +41,7 @@ import { JIRA_METHODS } from './jira'
 import { CLICKUP_METHODS } from './clickup'
 import { PULSE_METHODS } from './pulse'
 import { HQ_JOURNAL_METHODS } from './hq-journal'
+import { HQ_CHAT_LINK_METHODS } from './hq-chat-links'
 import { HQ_LEDGER_METHODS } from './hq-ledger'
 import { HQ_PROJECTS_METHODS } from './hq-projects'
 import { HQ_PLUS_PHONE_METHODS } from './hq-plus-phone'
@@ -142,6 +143,7 @@ export const ALL_RPC_METHODS = [
   ...CLICKUP_METHODS,
   ...PULSE_METHODS,
   ...HQ_JOURNAL_METHODS,
+  ...HQ_CHAT_LINK_METHODS,
   ...HQ_LEDGER_METHODS,
   ...HQ_PROJECTS_METHODS,
   ...HQ_PLUS_PHONE_METHODS,
