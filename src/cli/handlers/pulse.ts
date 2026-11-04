@@ -110,6 +110,11 @@ function requiredDirection(flags: Map<string, string | boolean>): 'on-me' | 'on-
 const source = (flags: Map<string, string | boolean>): string =>
   getOptionalStringFlag(flags, 'source') ?? DEFAULT_SOURCE
 
+const DRAFT_FROM_CHAT =
+  'Send it from this chat with the Slack or ClickUp tool: the owner approves it right here, as always. ' +
+  'No such tool in your list? Load it with ToolSearch ("slack", "clickup"); after a restart connectors take ' +
+  'a minute to connect. `orca pulse draft add` is for scripts that run without a chat.'
+
 export const PULSE_HANDLERS: Record<string, CommandHandler> = {
   'pulse wait add': async ({ flags, client, json }) => {
     const result = await client.call<PulseWaitingAdded>('pulse.addWaiting', {
@@ -210,6 +215,11 @@ export const PULSE_HANDLERS: Record<string, CommandHandler> = {
   },
 
   'pulse draft add': async ({ flags, client, json }) => {
+    // Custom build (draft-from-chat): a chat's message is approved in that chat, by the gate on its
+    // Slack/ClickUp call. A draft parked here surfaced in HQ+ as «Send via HQ» from another chat (owner 04.11).
+    if (process.env.CLAUDECODE === '1') {
+      throw new Error(DRAFT_FROM_CHAT)
+    }
     const result = await client.call<PulseAddResult<PulseDraft>>('pulse.addDraft', {
       kind:
         oneOfFlag(flags, 'kind', [
