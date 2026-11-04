@@ -60,4 +60,46 @@ describe('chat links', () => {
       continues: [{ sessionId: 'new', fromSessionId: 'old' }]
     })
   })
+
+  it('reads a chat send recorded before links were written as a link from the sending chat', () => {
+    const d = db()
+    const base = {
+      agent: 'claude',
+      worktreeId: null,
+      workspace: 'w',
+      project: 'acme',
+      state: 'working' as const,
+      contextPct: null,
+      parentSessionId: null,
+      taskRef: null,
+      at: 1
+    }
+    d.noteSessions([
+      { ...base, sessionId: 'brain', address: 'acme/brain' },
+      { ...base, sessionId: 'kid', address: 'acme/kid' }
+    ])
+    d.recordJournal([
+      {
+        workspace: 'w',
+        kind: 'chat.message',
+        at: 5,
+        project: 'acme',
+        address: 'acme/kid',
+        sessionId: 'kid',
+        personId: null,
+        title: 'From acme/brain: take this',
+        body: null,
+        needs: 'agent:acme/kid',
+        status: 'done',
+        replyTo: null,
+        refKind: 'session',
+        refId: 'kid',
+        source: 'chat-send',
+        dedupeKey: null
+      }
+    ])
+    expect(d.chats.list().links).toEqual([
+      { sessionId: 'kid', parentSessionId: 'brain', via: 'send', at: 5 }
+    ])
+  })
 })
