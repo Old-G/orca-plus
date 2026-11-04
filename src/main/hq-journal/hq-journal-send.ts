@@ -141,6 +141,16 @@ export function createHqSend(
       },
       ...(ownerAnswers ? [journalEntryAsInput(quoted, { status: 'done' })] : [])
     ])
+    // Custom build (hq-plus-chat-tree): a chat that hands another chat work is its parent in HQ+'s
+    // «By work» tree, unless it already has one; the owner typing in HQ+ is no chat.
+    if (scope.sessionId && scope.sessionId !== target.sessionId) {
+      deps.pulse.linkChat?.({
+        sessionId: target.sessionId,
+        parentSessionId: scope.sessionId,
+        via: 'send',
+        at: deps.now()
+      })
+    }
     const entry = latest({ address, source: SEND_SOURCE })
     if (!entry) {
       throw new Error('The message was delivered but not recorded.')

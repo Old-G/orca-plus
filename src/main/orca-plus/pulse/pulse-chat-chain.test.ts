@@ -58,7 +58,7 @@ describe('liveSessionOf', () => {
   })
   it('is reachable through PulseDb', () => {
     const db = new PulseDb(':memory:', { now: () => 1, newId: () => 'y' })
-    expect(db.liveSessionOf('z')).toBe('z')
+    expect(db.chats.liveSessionOf('z')).toBe('z')
     db.close()
   })
 })
