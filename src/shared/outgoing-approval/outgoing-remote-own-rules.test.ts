@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseHqRemoteNoApprove } from '../hq-autonomy'
+import { OWN_TEMP_CLEANUPS } from './__fixtures__/remote-temp-cleanups'
 import { classifyOutgoingToolCall } from './outgoing-action-classifier'
 import { setRemoteNoApprove } from './outgoing-remote-own-rules'
 
@@ -161,6 +162,102 @@ describe('own server work from HQ autonomy.yaml (plan 15.17)', () => {
     `git archive HEAD | ssh myserver 'docker cp - api-mcp-check:/app; rm -rf ~/tmp/x'`,
     `git archive HEAD | ssh myserver 'tar -x -C /srv/app; rm -rf ~/tmp/x'`,
     `git archive HEAD | ssh myserver 'cd /srv && tar -x; rm -rf ~/tmp/x'`
+  ])('holds %s', (command) => {
+    expect(held(command)).toBe(true)
+  })
+
+  // Owner 04.11: a command whose every deletion is an rm of literal /tmp names passes on listed hosts
+  // whatever else it runs; the rest still needs the whole command readable.
+  it.each(OWN_TEMP_CLEANUPS)('passes the 04.11 cleanup #%#', (command) => {
+    expect(held(command)).toBe(false)
+  })
+
+  it.each([
+    `ssh myserver "docker exec c sh -c 'rm -f /tmp/x.py'"`,
+    `ssh myserver 'rm -f /tmp/q[1-6].json /tmp/p*.py; f=$(ls /tmp)'`,
+    `ssh myserver 'rm -f /tmp/x.py' > $D/out.txt`,
+    `ssh myserver 'docker exec $C rm -f /tmp/x.py; docker exec "$C" rm -rf /tmp/y | tail -1'`,
+    `ssh myserver 'rm -rf /tmp/pc/ /var/tmp/x.log; echo $(date)' | grep -c x`,
+    `ssh myserver 'sudo rm -f /tmp/x.py; ls /tmp | awk "{print}"'`
+  ])('passes the /tmp cleanup %s', (command) => {
+    expect(held(command)).toBe(false)
+  })
+
+  it.each([
+    `ssh myserver 'rm -rf /tmp/../etc; f=$(ls)'`,
+    `ssh myserver 'rm -rf /var/tmp/../../srv | tail -1'`,
+    `ssh myserver 'rm -rf /tmp/*; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/.*; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/[a-z]*; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/*/x; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/x{,/../../srv}; f=$(ls)'`,
+    `ssh myserver 'rm -rf ~; f=$(ls)'`,
+    `ssh myserver 'rm -rf ~/ | tail -1'`,
+    `ssh myserver 'rm -rf $HOME; f=$(ls)'`,
+    `ssh myserver 'rm -rf "$HOME"/tmp | tail -1'`,
+    `ssh myserver 'rm -rf /tmp/$X; f=$(ls)'`,
+    `ssh myserver 'rm -rf $D/x | tail -1'`,
+    `ssh myserver 'X=/srv; rm -rf /tmp/x $X'`,
+    `ssh myserver 'rm -rf /tmp; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/ | tail -1'`,
+    `ssh myserver 'cd /tmp && rm -rf pc; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/x /etc/y; f=$(ls)'`,
+    `ssh myserver 'rm -f /tmp/x > $F; f=$(ls)'`,
+    `ssh myserver "rm -rf /tmp/x\\" /srv"`,
+    `ssh myserver 'rm -f /tmp/x; docker exec db psql -c "DELETE FROM sessions"; f=$(ls)'`,
+    `ssh myserver 'rm -f /tmp/x; docker exec db mysql -e "DROP TABLE orders"'`,
+    `ssh myserver 'rm -f /tmp/x; docker exec db psql -c "TRUNCATE events"'`,
+    `ssh other-box 'rm -f /tmp/x.py; echo $(hostname)'`,
+    `ssh myserver 'rm -f /tmp/x.py'; ssh prod 'ls $D'`,
+    `ssh myserver 'rm -f /tmp/x; docker volume rm data'`,
+    `ssh myserver 'rm -f /tmp/x; docker system prune -af'`,
+    `ssh myserver 'docker rm -f api-mcp-check; rm -f /tmp/x; f=$(ls)'`,
+    `ssh myserver 'docker exec $C rm -rf ~/tmp/x'`,
+    `ssh myserver 'rm -rf ~/tmp/x; f=$(ls)'`,
+    `ssh myserver 'mv /srv/data /tmp/x; rm -rf /tmp/x | tail -1'`,
+    `ssh myserver 'ln -s /srv /tmp/x && rm -rf /tmp/x/data; f=$(ls)'`,
+    `ssh myserver 'mount --bind /srv /tmp/x; rm -rf /tmp/x/data; f=$(ls)'`,
+    `ssh myserver 'docker run -v /srv:/tmp/d img; rm -rf /tmp/d/a; f=$(ls)'`,
+    `ssh myserver 'eval "$CMD"; rm -f /tmp/x'`,
+    `ssh myserver 'rm(){ command rm -rf /srv; }; rm -f /tmp/x; f=$(ls)'`,
+    `ssh myserver 'PATH=/tmp/bin:$PATH; rm -f /tmp/x'`,
+    `ssh myserver 'f=$(ls); $X rm -f /tmp/x'`,
+    // Security check 04.11: a substitution, backquote or eval next to the own /tmp rm on the listed host.
+    `ssh myserver 'echo $(rm -rf /srv/data); rm -f /tmp/x'`,
+    "ssh myserver 'echo `rm -rf /srv/data`; rm -f /tmp/x'",
+    `ssh myserver 'f=$(mv /srv/data /tmp/x); rm -rf /tmp/x'`,
+    `ssh myserver 'rm -f /tmp/x; echo $(docker volume rm data)'`,
+    `ssh myserver 'rm -f /tmp/x; eval $(cat /tmp/run)'`,
+    `ssh myserver 'rm -rf $(echo /tmp/x)'`,
+    `ssh myserver 'rm -rf /tmp/x/$(cat /tmp/name)'`,
+    "ssh myserver 'rm -rf `cat /tmp/list`'",
+    `ssh myserver '$X /srv/data /tmp/x; rm -rf /tmp/x'`,
+    `ssh myserver '"$X" /srv/data /tmp/x && rm -rf /tmp/x'`,
+    `ssh myserver 'sudo $X /srv/data /tmp/x; rm -rf /tmp/x'`,
+    `ssh myserver '$(cat /tmp/cmd) /srv/data /tmp/x; rm -rf /tmp/x'`,
+    "ssh myserver '`cat /tmp/cmd` /srv/data /tmp/x; rm -rf /tmp/x'",
+    `ssh myserver "\\$X /srv/data /tmp/x; rm -rf /tmp/x"`,
+    `ssh myserver 'f=$($X /srv/data /tmp/x); rm -rf /tmp/x'`,
+    `ssh myserver '($X /srv/data /tmp/x); rm -rf /tmp/x'`,
+    `ssh myserver 'if $X /srv/data /tmp/x; then rm -rf /tmp/x; fi'`,
+    `ssh myserver 'while ! $X /srv/data /tmp/x; do :; done; rm -rf /tmp/x'`,
+    `ssh myserver 'timeout 5 $X /srv/data /tmp/x; rm -rf /tmp/x'`,
+    `ssh myserver 'doas $X /srv/data /tmp/x; rm -rf /tmp/x'`,
+    `ssh myserver 'stdbuf -o0 $X /srv/data /tmp/x; rm -rf /tmp/x'`,
+    `ssh myserver 'setsid "$X" /srv/data /tmp/x; rm -rf /tmp/x'`,
+    // Security review 04.11: a quote that opens rather than closes hides a second target; globs off the
+    // listed hosts or too short; no ssh call means no listed host.
+    `ssh myserver "rm -rf /tmp/x\\" #\\" /srv"`,
+    `ssh myserver "rm -rf /tmp/x\\"&\\" /srv"`,
+    `ssh myserver 'rm -rf /tmp/x'\\''&'\\'' /srv'`,
+    `ssh prod 'rm -rf /tmp/x"&" /srv'`,
+    `ssh prod 'rm -rf /tmp/x" #" /srv'`,
+    `ssh myserver "docker exec c sh -c \\"rm -f /tmp/x.py\\""`,
+    `ssh other-box 'rm -rf /tmp/s*'`,
+    `ssh other-box 'rm -f /tmp/q*.json'`,
+    `ssh myserver 'rm -rf /tmp/s*; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/a?; f=$(ls)'`,
+    `mysql -h prod -e "$Q"; rm -f /tmp/q.sql`
   ])('holds %s', (command) => {
     expect(held(command)).toBe(true)
   })
