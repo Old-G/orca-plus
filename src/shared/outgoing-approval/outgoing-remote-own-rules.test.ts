@@ -174,7 +174,7 @@ describe('own server work from HQ autonomy.yaml (plan 15.17)', () => {
 
   it.each([
     `ssh myserver "docker exec c sh -c 'rm -f /tmp/x.py'"`,
-    `ssh myserver 'rm -f /tmp/q[1-6].json /tmp/p*.py; f=$(ls /tmp)'`,
+    `ssh myserver 'rm -f /tmp/q[1-6].json /tmp/probe*.py; f=$(ls /tmp)'`,
     `ssh myserver 'rm -f /tmp/x.py' > $D/out.txt`,
     `ssh myserver 'docker exec $C rm -f /tmp/x.py; docker exec "$C" rm -rf /tmp/y | tail -1'`,
     `ssh myserver 'rm -rf /tmp/pc/ /var/tmp/x.log; echo $(date)' | grep -c x`,
@@ -258,6 +258,11 @@ describe('own server work from HQ autonomy.yaml (plan 15.17)', () => {
     `ssh myserver 'rm -rf /tmp/s*; f=$(ls)'`,
     `ssh myserver 'rm -rf /tmp/a?; f=$(ls)'`,
     `ssh myserver 'rm -rf /tmp/ssh-*; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/s*.sock; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/sy*.d; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/p*.py; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/SSH-*.sock; f=$(ls)'`,
+    `ssh myserver 'rm -rf /tmp/ssh_agent*.sock; f=$(ls)'`,
     `ssh myserver 'rm -rf /tmp/ssh-*.sock; f=$(ls)'`,
     `ssh myserver 'rm -rf /tmp/systemd*; f=$(ls)'`,
     `ssh myserver 'rm -rf /tmp/systemd-private-*.d; f=$(ls)'`,
