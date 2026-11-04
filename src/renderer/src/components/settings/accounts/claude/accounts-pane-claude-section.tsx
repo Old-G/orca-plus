@@ -1,3 +1,4 @@
+import { claudeAccountKind } from './claude-account-kind'
 import { Loader2, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import type { Translate } from '@/i18n/use-translate'
@@ -305,7 +306,20 @@ export function renderClaudeAccountsSection(
                         className="flex min-w-0 flex-1 flex-col gap-0.5 text-left disabled:cursor-default"
                       >
                         <div className="flex min-w-0 items-center gap-2">
-                          <span className="truncate text-sm font-medium">{account.email}</span>
+                          {/* Custom build (claude-account-kind): «Personal» or the team's name, a Personal/Team badge, the email below. */}
+                          <span className="truncate text-sm font-medium">
+                            {claudeAccountKind(account).title}
+                          </span>
+                          {claudeAccountKind(account).kind ? (
+                            <Badge
+                              variant={
+                                claudeAccountKind(account).kind === 'team' ? 'default' : 'secondary'
+                              }
+                              className="h-4 shrink-0 rounded px-1.5 text-[10px] font-medium leading-none"
+                            >
+                              {claudeAccountKind(account).kind === 'team' ? 'Team' : 'Personal'}
+                            </Badge>
+                          ) : null}
                           <Badge
                             variant="outline"
                             className="h-4 shrink-0 rounded px-1.5 text-[10px] font-medium leading-none text-foreground/70"
@@ -327,9 +341,7 @@ export function renderClaudeAccountsSection(
                                 'accounts.claude.signInRequired',
                                 'Sign in again to use this account'
                               )
-                            : account.organizationName
-                              ? `${account.organizationName} · ${formatAccountTimestamp(account.lastAuthenticatedAt, intlLocale)}`
-                              : formatAccountTimestamp(account.lastAuthenticatedAt, intlLocale)}
+                            : `${account.email} · ${formatAccountTimestamp(account.lastAuthenticatedAt, intlLocale)}`}
                         </span>
                       </button>
                       <div className="flex shrink-0 items-center justify-end gap-1 max-md:w-full max-md:flex-wrap">
