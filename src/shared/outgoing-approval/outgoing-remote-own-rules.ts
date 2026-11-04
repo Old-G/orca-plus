@@ -28,14 +28,18 @@ const SHELL_EXPANSION = /[$`\\'"{}~]/
 
 const TEMP_ROOT = /^(?:\/private)?\/(?:var\/)?tmp\//
 const PLAIN_NAME = /^[^\s*?[\]/]+$/
-// Why: a glob only in the last name, never first in it, after three letters or before an extension —
-// `/tmp/q*.json`, `/tmp/q[1-6].json` name the agent's own files; `/tmp/*`, `/tmp/.*`, `/tmp/*/x` and
-// `/tmp/s*` (systemd and ssh dirs) name everyone's (owner 04.11, security review).
-const GLOB_NAME = /^\w(?:[\w.,+@=-]|[*?]|\[!?[\w-]+\])*$/
+// Why: a glob only in the last name, never first in it, and before a literal extension — `/tmp/q*.json`,
+// `/tmp/q[1-6].json` name the agent's own files; `/tmp/*`, `/tmp/.*`, `/tmp/*/x` and `/tmp/s*` name
+// everyone's, and system prefixes stay off even with one (`/tmp/ssh-*.sock`). Owner 04.11, security review.
+const GLOB_NAME = /^\w(?:[\w.,+@=-]|[*?]|\[!?[\w-]+\])*\.\w+$/
+const SYSTEM_PREFIX = /^(?:ssh|systemd|tmux|snap|pulse|gpg|krb5|sess_|screen|vscode|com\.apple|\.)/i
 
 function isOwnGlob(name: string): boolean {
-  const stem = name.slice(0, name.search(/[*?[]/))
-  return GLOB_NAME.test(name) && (stem.length >= 3 || /\.\w+$/.test(name))
+  return (
+    GLOB_NAME.test(name) &&
+    !/[*?[\]]/.test(name.slice(name.lastIndexOf('.'))) &&
+    !SYSTEM_PREFIX.test(name)
+  )
 }
 
 /**
