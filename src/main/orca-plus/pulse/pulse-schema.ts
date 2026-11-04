@@ -275,7 +275,20 @@ CREATE INDEX attribution_by_final ON attribution_log(final_at);
 // Custom build (hq-attribution-log, owner 03.11): his own words on why a guess was wrong.
 const V14 = `ALTER TABLE attribution_log ADD COLUMN owner_why TEXT;`
 
-const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14]
+// Custom build (hq-plus-chat-tree, owner 04.11): which chat started a chat or handed it work — `orca agent
+// launch` or `orca chat send` from a chat. One parent per chat, the first fact wins. A handoff is not
+// here: it is the same chat going on, sessions.parent_session_id.
+const V15 = `
+CREATE TABLE IF NOT EXISTS chat_links (
+  session_id TEXT PRIMARY KEY,
+  parent_session_id TEXT NOT NULL,
+  via TEXT NOT NULL CHECK (via IN ('launch', 'send')),
+  at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS chat_links_by_at ON chat_links(at);
+`
+
+const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 

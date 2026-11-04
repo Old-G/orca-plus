@@ -18,6 +18,7 @@ export const HQ_PLUS_VIEW_TABS = [
 export type HqPlusViewTab = (typeof HQ_PLUS_VIEW_TABS)[number]
 export const HQ_PLUS_SIDE_BLOCKS = ['waiting', 'weWait', 'tracked', 'people', 'chats'] as const
 export type HqPlusSideBlockId = (typeof HQ_PLUS_SIDE_BLOCKS)[number]
+export type HqPlusChatsBy = 'status' | 'work'
 
 export type HqPlusViewState = {
   scope: string | null
@@ -40,6 +41,8 @@ export type HqPlusViewState = {
   openedSides: HqPlusSideBlockId[]
   /** Pixels between the feed's bottom edge and the end of the log; null = following the bottom. */
   fromBottom: number | null
+  /** Custom build (hq-plus-chat-tree): the Chats column by status (by project) or as the work tree. */
+  chatsBy: HqPlusChatsBy
 }
 
 const INITIAL: HqPlusViewState = {
@@ -57,7 +60,8 @@ const INITIAL: HqPlusViewState = {
   showAllProjects: false,
   foldedSides: [],
   openedSides: [],
-  fromBottom: null
+  fromBottom: null,
+  chatsBy: 'status'
 }
 
 let current: HqPlusViewState | null = null
@@ -113,7 +117,8 @@ export function parseHqPlusViewState(raw: unknown): HqPlusViewState {
     fromBottom:
       typeof fromBottom === 'number' && Number.isFinite(fromBottom) && fromBottom > 0
         ? fromBottom
-        : null
+        : null,
+    chatsBy: get('chatsBy') === 'work' ? 'work' : 'status'
   }
 }
 
