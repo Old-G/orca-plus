@@ -265,6 +265,17 @@ export function HqPlusSide({
         chatLinks
       )
     : []
+  // Custom build (hq-plus-chat-tree, owner 05.11): below the trees, every other chat by project.
+  const inTree = new Set(treeRows.map((entry) => entry.item.key))
+  const lone = byWork
+    ? chats.projects
+        .map((project) => ({
+          ...project,
+          items: project.items.filter((item) => !inTree.has(item.key))
+        }))
+        .filter((project) => project.items.length > 0 || project.kept)
+    : chats.projects
+  const loneMarked = chats.marked.filter((item) => !inTree.has(item.key))
   return (
     <aside className="hqp-side" aria-label={translate('auto.hqPlus.side.label', 'Live and chats')}>
       {/* Custom build (hq-plus-ticker): «Waiting on you» and «We wait for» live in the feed's chips now;
@@ -314,16 +325,21 @@ export function HqPlusSide({
             ))}
           </>
         ) : null}
-        {byWork ? treeRows.map((entry) => row(entry.item, { depth: entry.depth })) : null}
-        {!byWork && chats.marked.length > 0 ? (
+        {treeRows.length > 0 ? (
+          <div className="hqp-side-sub">
+            {translate('auto.hqPlus.side.byWorkTrees', 'Started by a chat')}
+          </div>
+        ) : null}
+        {treeRows.map((entry) => row(entry.item, { depth: entry.depth }))}
+        {loneMarked.length > 0 ? (
           <>
             <div className="hqp-side-sub">
-              {translate('auto.hq.chats.group.marked', 'Come back to')} · {chats.marked.length}
+              {translate('auto.hq.chats.group.marked', 'Come back to')} · {loneMarked.length}
             </div>
-            {chats.marked.map(row)}
+            {loneMarked.map(row)}
           </>
         ) : null}
-        {(byWork ? [] : chats.projects).map((project) => (
+        {lone.map((project) => (
           <div key={project.repoId} className="hqp-pgrp-sec">
             <ProjectHeader
               project={project}
