@@ -25,6 +25,7 @@ import {
 } from './claude-sign-in-link-menu'
 import { AccountRenameButton, renameTargetFor } from '../account-rename-button'
 import { getObservedAccountPlan } from '@/lib/provider-accounts/observed-account-plans'
+import { claudeAccountKind } from './claude-account-kind'
 
 export function renderClaudeAccountRow(
   account: ClaudeRateLimitAccountsState['accounts'][number],
@@ -55,7 +56,12 @@ export function renderClaudeAccountRow(
   const isReauthing = claudeAction === `reauth:${account.id}`
   const isBusy = claudeAction !== 'idle' || accountRuntimeUnavailable
   const accountRuntimeView = getProviderAccountRuntime(account)
-  const accountLabel = getManagedAccountPrimaryLabel(account)
+  // Custom build (claude-account-kind): an unnamed row reads «Personal» or the team's name with a
+  // Personal/Team badge and the email below; a name the user gave still leads.
+  const accountKind = claudeAccountKind(account)
+  const accountLabel = account.displayName
+    ? getManagedAccountPrimaryLabel(account)
+    : accountKind.title
   const plan = getObservedAccountPlan(claudeAccountPlans, account.id, accountRuntimeView)
   // A named row keeps its sign-in email visible, most of all when it needs signing in.
   const namedEmail = account.displayName ? account.email : null
@@ -104,6 +110,14 @@ export function renderClaudeAccountRow(
         >
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate text-sm font-medium">{accountLabel}</span>
+            {accountKind.kind ? (
+              <Badge
+                variant={accountKind.kind === 'team' ? 'default' : 'secondary'}
+                className="h-4 shrink-0 rounded px-1.5 text-[10px] font-medium leading-none"
+              >
+                {accountKind.kind === 'team' ? 'Team' : 'Personal'}
+              </Badge>
+            ) : null}
             <Badge
               variant="outline"
               className="h-4 shrink-0 rounded px-1.5 text-[10px] font-medium leading-none text-foreground/70"
@@ -127,9 +141,10 @@ export function renderClaudeAccountRow(
                     t('accounts.claude.signInRequired', 'Sign in again to use this account')
                   ]
                 : [
-                    account.organizationName,
+                    // Custom build (claude-account-kind): the badge already says which organization.
+                    accountKind.kind ? null : account.organizationName,
                     plan,
-                    namedEmail,
+                    accountKind.kind ? account.email : namedEmail,
                     formatAccountTimestamp(account.lastAuthenticatedAt, intlLocale)
                   ]
             )}
