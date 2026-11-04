@@ -267,8 +267,8 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
       if (!owner) {
         continue
       }
-      // Why (owner 04.11): settled quietly, 76 answers since 28.10 reached nobody — Bohdan's «залил, щас
-      // протестирую» among them. The card stays, marked as his move in Slack, until he clears it.
+      // Why (owner 04.11): settled quietly, 76 answers since 28.10 reached nobody — a colleague's «merged,
+      // testing now» among them. The card stays, marked as his move in Slack, until he clears it.
       const note = 'Your move in Slack: this answers you, not the chat'
       notes.set(decidedKey(waiting), note)
       const done = action(waiting, 'wait', { note })
