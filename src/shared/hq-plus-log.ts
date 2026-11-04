@@ -3,6 +3,8 @@
 // bell's open decisions (Approve, people's answers, new reports) folded in where they arrived.
 import { HQ_JOURNAL_KIND, type HqJournalEntry } from './hq-journal'
 import type { PulseInboxItem } from './pulse-types'
+import { slackTsAt } from './hq-plus-stamp'
+import { HQ_INTAKE_KIND, readHqIntake } from './hq-slack-intake'
 import {
   PULSE_BELL_KIND,
   readPulseBellPaneRef,
@@ -11,7 +13,6 @@ import {
 } from './pulse-bell'
 import { readHqFinishedChat } from './hq-chat-history'
 import { HQ_SLACK_REQUEST_BELL_KIND } from './hq-slack-request-bell'
-import { HQ_INTAKE_KIND } from './hq-slack-intake'
 import { OUTGOING_APPROVAL_BELL_KIND } from './outgoing-approval/outgoing-approval-bell'
 import { HQ_WAITING_REPLY_KIND, readHqWaitingReplyRef } from './hq-waiting-reply-bell'
 import { HQ_REPORT_BELL_KIND } from './hq-reports'
@@ -339,7 +340,7 @@ export function hqPlusLog(
   ): HqPlusCard => ({
     kind: 'card',
     id: entry ? entry.id : `inbox:${item?.id ?? ''}`,
-    at: entry?.at ?? item?.createdAt ?? 0,
+    at: entry?.at ?? (item ? (hqPlusSentAt(item) ?? item.createdAt) : 0),
     ...(entry ? where(entry) : NOWHERE),
     report: parseHqPlusReport(fields.body),
     entry,
@@ -670,4 +671,17 @@ export function hqPlusChoices(body: string | null): string[] {
     }
   }
   return choices.slice(0, 4)
+}
+
+/** Custom build (hq-plus-stamp, owner 04.11: «the time it was written in Slack or ClickUp, not when we
+ *  caught it»): a person's message card is timed by the message, not by when the card was raised. */
+export function hqPlusSentAt(item: PulseInboxItem): number | null {
+  if (item.kind === HQ_WAITING_REPLY_KIND) {
+    return slackTsAt(readHqWaitingReplyRef(item.refId)?.replyTs)
+  }
+  if (item.kind === HQ_INTAKE_KIND) {
+    const intake = readHqIntake(item.refId)
+    return slackTsAt(intake?.lastTs ?? intake?.ts)
+  }
+  return null
 }
