@@ -64,6 +64,13 @@ function addressedTo(comment: ClickUpComment, username: string): boolean {
   return comment.body.toLowerCase().includes(`@${username.toLowerCase()}`)
 }
 
+/** Custom build (hq-clickup-new-ask, owner 04.11): a comment on the task that @mentions the owner with
+ *  a question of its own is a new request, not an answer to an old one — it gets its own card. Replies
+ *  under the asking comment still answer it, whatever they say. */
+export function isNewAskOnTask(comment: ClickUpComment, username: string): boolean {
+  return addressedTo(comment, username) && comment.body.includes('?')
+}
+
 /** The thread a question sits in when it was itself a reply; ClickUp threads are one level deep, so
  *  its answers land beside it. Null for a top-level question or one not found among recent threads. */
 async function threadOf(
@@ -125,9 +132,11 @@ export async function pollHqClickUpWaitingReplies(
         addressedTo(comment, viewer.username)
       // Anyone's reply under the asking comment; beside it in a thread and on the task, only the
       // person it waits on or a comment that @mentions the owner.
+      const onTask = (comment: ClickUpComment): boolean =>
+        counts(comment) && !isNewAskOnTask(comment, viewer.username)
       const candidates = thread
-        ? [...replies, ...comments].filter(counts)
-        : [...replies, ...comments.filter(counts)]
+        ? [...replies.filter(counts), ...comments.filter(onTask)]
+        : [...replies, ...comments.filter(onTask)]
       const answering = answerComments(candidates, waiting.createdAt, viewer, ref.commentId)
       deps.observe?.(waiting.id, answering, taskId)
       const answer = answering.findLast((comment) => (comment.createdAt ?? 0) > since)

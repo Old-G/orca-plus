@@ -143,6 +143,16 @@ describe('ClickUp waiting replies', () => {
     expect(recorded[0]?.reply.text).toBe('@Alex Owner да, готовы')
   })
 
+  it('leaves a new @mention question on the task to its own card, not as the answer (owner 04.11)', async () => {
+    const { deps: d, recorded } = deps(
+      [waiting('clickup:DEV-18114:900', { personId: 'p-anna' })],
+      [comment('905', ASKED_AT + 60_000, 'anna', '@Alex Owner could you share all held cases?')],
+      { '900': [comment('906', ASKED_AT + 30_000, 'anna', 'Yes, all three look right?')] }
+    )
+    expect(await pollHqClickUpWaitingReplies(d)).toBe(1)
+    expect(recorded[0]?.reply.text).toBe('Yes, all three look right?')
+  })
+
   it('cuts a long answer to what a Slack one may carry', async () => {
     const { deps: d, recorded } = deps([waiting('clickup:DEV-18114:900')], [], {
       '900': [comment('r1', ASKED_AT + 1_000, 'petya', 'да '.repeat(5_000))]
