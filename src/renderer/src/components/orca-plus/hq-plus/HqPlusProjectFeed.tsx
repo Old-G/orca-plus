@@ -78,7 +78,7 @@ export function HqPlusProjectFeed({
   const seenArrival = useRef<string | null>(null)
   useLayoutEffect(() => {
     const element = scroller.current
-    // Why: Inbox reads from the top; only the project cards open at the bottom, as a chat.
+    // Why: the project cards open at the bottom, as a chat; the Inbox follows its own newest row.
     if (!element || tab !== 'projects' || seenArrival.current === arrival) {
       return
     }
