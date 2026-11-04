@@ -1,5 +1,5 @@
 // Custom build (hq-plus-inbox, owner 02.11: variant B; 04.11: one stream): the project cards' rows as one
-// stream, oldest first, so the newest — an Approve that came, an Approve he gave — is at the bottom. A section the chip above the feed
+// stream, oldest first, so the newest is at the bottom. A section the chip above the feed
 // hides on the cards stays out of the queue too, and the FYI chip lists its rows.
 import type {
   HqPlusProjectFeed,
@@ -26,15 +26,12 @@ export type HqPlusInboxQueue = {
   stream: HqPlusInboxRow[]
 }
 
-/** A row of the stream; `at` is when it came to the owner. An «approved» row is an approval the
- *  owner gave today (a send, a delete, a push), so his Approve lands at the bottom too. */
+/** A row of the stream; `at` is when it came to the owner. What he already approved stays out: it is
+ *  in «Done today», and in the feed it was a wall of sent messages he can read in Slack (owner 04.11). */
 export type HqPlusInboxRow =
   | Placed<{ type: 'approve'; at: number; line: HqPlusProjectLine }>
   | Placed<{ type: 'ask'; at: number; chat: HqPlusProjectChat }>
   | Placed<{ type: 'move' | 'fyi'; at: number; line: HqPlusProjectLine }>
-  | Placed<{ type: 'approved'; at: number; row: HqPlusProjectToday }>
-
-const APPROVED_KINDS = new Set<HqPlusProjectToday['kind']>(['sent', 'deleted', 'pushed'])
 
 export function hqPlusInboxQueue(feed: HqPlusProjectFeed): HqPlusInboxQueue {
   const queue = hqPlusInboxSections(feed)
@@ -46,10 +43,7 @@ export function hqPlusInboxQueue(feed: HqPlusProjectFeed): HqPlusInboxQueue {
       at: e.chat.question?.since ?? e.chat.at
     })),
     ...queue.moves.map((e) => ({ ...e, type: 'move' as const, at: e.line.since })),
-    ...queue.fyi.map((e) => ({ ...e, type: 'fyi' as const, at: e.line.at })),
-    ...queue.today
-      .filter((e) => APPROVED_KINDS.has(e.row.kind))
-      .map((e) => ({ ...e, type: 'approved' as const, at: e.row.at }))
+    ...queue.fyi.map((e) => ({ ...e, type: 'fyi' as const, at: e.line.at }))
   ]
   return { ...queue, stream: stream.sort((a, b) => a.at - b.at) }
 }
