@@ -16,10 +16,6 @@ import { hqPlusInboxQueue, type HqPlusInboxRow } from './hq-plus-inbox'
 
 type Drawer = 'wait' | 'working' | 'today' | null
 
-function streamRowId(row: HqPlusInboxRow): string {
-  return row.type === 'ask' ? row.chat.key : row.line.id
-}
-
 export function HqPlusInbox({
   feed,
   filter,
@@ -39,25 +35,27 @@ export function HqPlusInbox({
   const [chatKey, setChatKey] = useState<string | null>(null)
   const queue = hqPlusInboxQueue(feed)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const lastRow = queue.stream.at(-1)
-  const lastRowId = lastRow ? streamRowId(lastRow) : null
-  const seenLast = useRef<string | null | undefined>(undefined)
-  // Why: read on scroll, before a new row lands — measured after, a row taller than the margin made
-  // the owner at the bottom look scrolled up (Codex 05.11).
-  const nearBottom = useRef(true)
-  // Why: the newest row is the last one; open at it, and follow a new one only when the owner is
-  // already at the bottom — never pull him away from a row he scrolled up to read.
+  const approveIds = queue.stream.flatMap((row) => (row.type === 'approve' ? [row.line.id] : []))
+  const approveKey = approveIds.join('\n')
+  const seenApproves = useRef<Set<string> | null>(null)
+  // Why (owner 05.11): the feed opens at its newest row; after that it moves only for a new Approve —
+  // scrolled to it so it is on screen at once. Any other new card leaves the scroll where he put it.
   useEffect(() => {
-    const end = bottomRef.current
-    if (!end || seenLast.current === lastRowId) {
+    const ids = approveKey ? approveKey.split('\n') : []
+    if (seenApproves.current === null) {
+      seenApproves.current = new Set(ids)
+      bottomRef.current?.scrollIntoView({ block: 'end' })
       return
     }
-    const first = seenLast.current === undefined
-    seenLast.current = lastRowId
-    if (first || nearBottom.current) {
-      end.scrollIntoView({ block: 'end' })
+    const fresh = ids.filter((id) => !seenApproves.current?.has(id))
+    seenApproves.current = new Set(ids)
+    const target = fresh.at(-1)
+    if (target) {
+      document
+        .getElementById(`hqp-${target}`)
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
     }
-  }, [lastRowId])
+  }, [approveKey])
   const project = (slug: string, unsorted: boolean): { name: string; color: string | null } =>
     unsorted
       ? { name: 'No project', color: null }
@@ -120,15 +118,7 @@ export function HqPlusInbox({
     )
   }
   return (
-    <div
-      className="hqp-log hqpi scrollbar-sleek"
-      ref={ref}
-      onScroll={(event) => {
-        const scroller = event.currentTarget
-        nearBottom.current =
-          scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 160
-      }}
-    >
+    <div className="hqp-log hqpi scrollbar-sleek" ref={ref}>
       <div className="hqpi-strip" role="group" aria-label="Around the queue">
         <button type="button" aria-expanded={drawer === 'wait'} onClick={() => toggle('wait')}>
           We wait <b>{queue.waits}</b>
