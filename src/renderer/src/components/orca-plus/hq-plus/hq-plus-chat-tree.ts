@@ -5,6 +5,7 @@ import type { HqChatLinksResult } from '../../../../../shared/hq-chat-links'
 import type { HqChatItem } from '../hq/hq-chat-list'
 import { hqChatSessionId } from '../hq/hq-chat-cleanup'
 
+/** The chats that started others, each with the chats under it; lone chats are left out. */
 export type HqPlusTreeRow = {
   item: HqChatItem
   /** 0 for a chat nobody open started. */
@@ -162,8 +163,12 @@ export function hqPlusChatTree(
       walk(child, depth + 1)
     }
   }
+  // Custom build (hq-plus-chat-tree, owner 05.11): only work that branched — a chat with chats under it;
+  // a chat on its own stays under its project below, or the list reads as one heap.
   for (const root of sortNodes(roots)) {
-    walk(root, 0)
+    if (root.children.length > 0) {
+      walk(root, 0)
+    }
   }
   return rows
 }
