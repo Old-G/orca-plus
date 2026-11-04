@@ -316,7 +316,8 @@ run_checks() {
     || ! git diff --quiet "$OLD_CUSTOM" HEAD -- mobile/package.json mobile/pnpm-lock.yaml; }; then
     run_step install-mobile bash -c 'cd mobile && corepack pnpm install --frozen-lockfile' || return 1
   fi
-  run_step typecheck pnpm_ tc || return 1
+  # Why: one project at a time at low priority; `pnpm tc` in parallel froze the laptop (04.11).
+  run_step typecheck scripts/typecheck-once.sh || return 1
   run_step build pnpm_ build:electron-vite || return 1
   if [ "$FULL_TESTS" = 1 ]; then
     run_step tests-full tests_step full || return 1
