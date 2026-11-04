@@ -1,8 +1,7 @@
-// Custom build (hq-plus-inbox, owner 02.11: variant B): HQ+'s feed as one queue of what to do next, read
-// top to bottom — the actions waiting for Approve, the chats that ask the owner, then the people's
-// conversations on him, oldest first — each row naming its project and opening to the same card the
-// project cards show. «We wait», «Working» and «Done today» are one line above, opened on a click.
-import { useState } from 'react'
+// Custom build (hq-plus-inbox, owner 02.11: variant B; 04.11: one stream): HQ+'s feed as one stream read
+// top to bottom, oldest first, newest at the bottom — Approves waiting and given, chats that ask, the
+// people's conversations — each row naming its project and opening to the same card the project cards show. «We wait», «Working» and «Done today» are one line above, opened on a click.
+import { useEffect, useRef, useState } from 'react'
 import type {
   HqPlusProjectFeed as Feed,
   HqPlusProjectFilter
@@ -13,9 +12,13 @@ import { HqPlusLogCards } from './HqPlusLog'
 import { HqPlusText } from './HqPlusText'
 import { hqPlusClock } from './HqPlusChatCard'
 import { ChatRow, Line, Person, type HqPlusProjectCardContext } from './HqPlusProjectParts'
-import { hqPlusInboxQueue } from './hq-plus-inbox'
+import { hqPlusInboxQueue, type HqPlusInboxRow } from './hq-plus-inbox'
 
 type Drawer = 'wait' | 'working' | 'today' | null
+
+function streamRowId(row: HqPlusInboxRow): string {
+  return row.type === 'ask' ? row.chat.key : row.type === 'approved' ? row.row.id : row.line.id
+}
 
 export function HqPlusInbox({
   feed,
@@ -35,6 +38,25 @@ export function HqPlusInbox({
   const [drawer, setDrawer] = useState<Drawer>(null)
   const [chatKey, setChatKey] = useState<string | null>(null)
   const queue = hqPlusInboxQueue(feed)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const lastRow = queue.stream.at(-1)
+  const lastRowId = lastRow ? streamRowId(lastRow) : null
+  const seenLast = useRef<string | null | undefined>(undefined)
+  // Why: the newest row is the last one; open at it, and follow a new one only when the owner is
+  // already at the bottom — never pull him away from a row he scrolled up to read.
+  useEffect(() => {
+    const end = bottomRef.current
+    const scroller = end?.parentElement
+    if (!end || !scroller || seenLast.current === lastRowId) {
+      return
+    }
+    const first = seenLast.current === undefined
+    const nearBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 160
+    seenLast.current = lastRowId
+    if (first || nearBottom) {
+      end.scrollIntoView({ block: 'end' })
+    }
+  }, [lastRowId])
   const project = (slug: string, unsorted: boolean): { name: string; color: string | null } =>
     unsorted
       ? { name: 'No project', color: null }
@@ -49,9 +71,7 @@ export function HqPlusInbox({
     }
   }
   const waitsInQueue = filter === 'wait'
-  const empty =
-    queue.approve.length + queue.asks.length + queue.moves.length + queue.fyi.length === 0 &&
-    !(waitsInQueue && queue.persons.length > 0)
+  const empty = queue.stream.length === 0 && !(waitsInQueue && queue.persons.length > 0)
   const persons = queue.persons.map(({ slug, unsorted, person }) => (
     <ul key={`${slug}:${person.name}`} className="hqpc-lines">
       <Person person={person} ctx={ctx} project={project(slug, unsorted)} />
@@ -71,6 +91,50 @@ export function HqPlusInbox({
       project={project(slug, unsorted)}
     />
   )
+  const streamRow = (row: HqPlusInboxRow): React.JSX.Element => {
+    if (row.type === 'approve') {
+      return (
+        <div key={row.line.id} className="hqpc-ap hqpi-ap" id={`hqp-${row.line.id}`}>
+          <span className="hqpi-of">{project(row.slug, row.unsorted).name}</span>
+          <HqPlusLogCards items={[row.line.card]} ctx={ctx.log} bare />
+        </div>
+      )
+    }
+    if (row.type === 'ask') {
+      return (
+        <ul key={row.chat.key} className="hqpc-lines hqpc-chats">
+          {chatRow(row)}
+        </ul>
+      )
+    }
+    if (row.type === 'approved') {
+      return (
+        <ul key={row.row.id} className="hqpc-today hqpi-done">
+          <li>
+            <span className="hqpc-tt">{hqPlusClock(row.row.at)}</span>
+            <span>
+              <b>{project(row.slug, row.unsorted).name}</b> ·{' '}
+              <b>{HQ_PLUS_PROJECT_TODAY_LABEL[row.row.kind]}</b>
+              {row.row.to ? <span className="hqpc-to"> → {row.row.to}</span> : null}
+              <span className="hqpc-said">
+                <HqPlusText text={row.row.text} maxLines={2} />
+              </span>
+            </span>
+          </li>
+        </ul>
+      )
+    }
+    return (
+      <ul key={row.line.id} className="hqpc-lines">
+        <Line
+          line={row.line}
+          unsorted={row.unsorted}
+          ctx={ctx}
+          project={project(row.slug, row.unsorted)}
+        />
+      </ul>
+    )
+  }
   return (
     <div className="hqp-log hqpi scrollbar-sleek" ref={ref}>
       <div className="hqpi-strip" role="group" aria-label="Around the queue">
@@ -120,63 +184,6 @@ export function HqPlusInbox({
           </ul>
         </section>
       ) : null}
-      {queue.approve.length > 0 ? (
-        <section className="hqpi-group">
-          <h4 className="hqpi-h" data-tone="ap">
-            Approve first · {queue.approve.length}
-          </h4>
-          {queue.approve.map(({ slug, unsorted, line }) => (
-            <div key={line.id} className="hqpc-ap hqpi-ap" id={`hqp-${line.id}`}>
-              <span className="hqpi-of">{project(slug, unsorted).name}</span>
-              <HqPlusLogCards items={[line.card]} ctx={ctx.log} bare />
-            </div>
-          ))}
-        </section>
-      ) : null}
-      {queue.asks.length > 0 ? (
-        <section className="hqpi-group">
-          <h4 className="hqpi-h" data-tone="you">
-            Chats ask you · {queue.asks.length}
-          </h4>
-          <ul className="hqpc-lines hqpc-chats">{queue.asks.map(chatRow)}</ul>
-        </section>
-      ) : null}
-      {queue.moves.length > 0 ? (
-        <section className="hqpi-group">
-          <h4 className="hqpi-h" data-tone="you">
-            Your move · {queue.moves.length} <span>oldest first</span>
-          </h4>
-          <ul className="hqpc-lines">
-            {queue.moves.map(({ slug, unsorted, line }) => (
-              <Line
-                key={line.id}
-                line={line}
-                unsorted={unsorted}
-                ctx={ctx}
-                project={project(slug, unsorted)}
-              />
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      {queue.fyi.length > 0 ? (
-        <section className="hqpi-group">
-          <h4 className="hqpi-h">
-            FYI · {queue.fyi.length} <span>oldest first</span>
-          </h4>
-          <ul className="hqpc-lines">
-            {queue.fyi.map(({ slug, unsorted, line }) => (
-              <Line
-                key={line.id}
-                line={line}
-                unsorted={unsorted}
-                ctx={ctx}
-                project={project(slug, unsorted)}
-              />
-            ))}
-          </ul>
-        </section>
-      ) : null}
       {waitsInQueue && queue.persons.length > 0 ? (
         <section className="hqpi-group">
           <h4 className="hqpi-h">
@@ -185,7 +192,13 @@ export function HqPlusInbox({
           {persons}
         </section>
       ) : null}
+      {queue.stream.length > 0 ? (
+        <section className="hqpi-group hqpi-stream">
+          {queue.stream.map((row) => streamRow(row))}
+        </section>
+      ) : null}
       {empty ? <p className="hqp-empty">{emptyText}</p> : null}
+      <div ref={bottomRef} aria-hidden="true" />
     </div>
   )
 }

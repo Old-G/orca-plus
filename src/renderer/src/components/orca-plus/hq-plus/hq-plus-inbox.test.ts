@@ -85,7 +85,14 @@ describe('Inbox, one queue over the project cards (owner 02.11, variant B)', () 
 
   // Codex 02.11 (ignored-feed-filter): the chip above the feed narrows Inbox as it narrows the cards.
   it('shows only what the chip shows: FYI rows on FYI, nothing the card hides', () => {
-    const fyiOnly = { approve: false, you: false, fyi: true, wait: false, today: false, chats: false }
+    const fyiOnly = {
+      approve: false,
+      you: false,
+      fyi: true,
+      wait: false,
+      today: false,
+      chats: false
+    }
     const feed = {
       cards: [
         card('acme-api', {
@@ -113,5 +120,42 @@ describe('Inbox, one queue over the project cards (owner 02.11, variant B)', () 
     expect(queue.persons).toEqual([])
     expect(queue.today).toEqual([])
     expect(queue.waits).toBe(0)
+  })
+
+  it('reads as one stream, oldest first: the newest Approve, and the one just given, are at the bottom (owner 04.11)', () => {
+    const today = (id: string, at: number, kind: string) => ({
+      id,
+      at,
+      kind,
+      to: null,
+      text: '',
+      sessionId: null
+    })
+    const feed = {
+      cards: [
+        card('acme-api', {
+          approve: [line('ap-new', 50)],
+          you: [line('you-old', 10)],
+          chats: [chat('c-ask', 'asks', { since: 30 })],
+          today: [
+            today('sent-1', 60, 'sent'),
+            today('merged-1', 40, 'merged')
+          ] as unknown as Card['today']
+        }),
+        card('acme-web', { fyi: [line('fyi-mid', 20)] })
+      ],
+      counts: { approve: 1, asks: 1, move: 1, wait: 0, fyi: 1 },
+      fyi: []
+    } as unknown as HqPlusProjectFeed
+
+    const stream = hqPlusInboxQueue(feed).stream
+
+    expect(stream.map((row) => [row.type, row.slug])).toEqual([
+      ['move', 'acme-api'],
+      ['fyi', 'acme-web'],
+      ['ask', 'acme-api'],
+      ['approve', 'acme-api'],
+      ['approved', 'acme-api']
+    ])
   })
 })
