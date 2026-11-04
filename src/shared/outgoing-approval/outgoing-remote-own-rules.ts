@@ -282,11 +282,12 @@ const NO_BINDINGS = new Map<string, Binding>()
 // run the next word (security check, 04.11).
 // Why: what a command's name starts with when the text hides it — a `$`/backquote expansion, or a
 // glob or brace the shell expands (`/bin/m[v]` is `mv`; Codex at ship, 05.11).
-const COMMAND_START = String.raw`(?:^|[\n;&|!]|(?:^|[\s;&|!'"])\(|\$\(|\{\s|\b(?:then|do|else|if|elif|while|until)\s|\bssh\s+(?:-\S+\s+)*[\w.@-]+\s|\b(?:ba|da|z)?sh\s+-c\s)\s*['"]*(?:(?:sudo|doas|env|exec|command|nohup|time|nice|builtin|setsid|stdbuf|timeout(?:\s+-\S+)*\s+\d\S*)\s+(?:-\S+\s+)*)*['"]*\\?`
+const COMMAND_START = String.raw`(?:^|[\n;&|!]|(?:^|[\s;&|!'"])\(|\$\(|\{\s|\b(?:then|do|else|if|elif|while|until)\s|\bssh\s+(?:-\S+\s+)*[\w.@-]+\s|\b(?:ba|da|z)?sh\s+-c\s)\s*['"]*(?:(?:sudo|doas|env|exec|command|nohup|time|nice|builtin|setsid|stdbuf|timeout(?:\s+-\S+)*\s+\d\S*)\s+(?:-\S+\s+)*|[A-Za-z_]\w*=\S*\s+)*['"]*\\?`
 const HIDDEN_COMMAND_NAME = new RegExp(
   COMMAND_START +
-    // Why: a name, not an assignment (`n=${v%%:*}`) or the `[` test command.
-    String.raw`(?:[$\x60]|[^\s;&|()'"=]+[*?[]|[^\s;&|()'"=]*\{[^\s{}]*(?:,|\.\.))`
+    // Why: not an assignment (`n=${v%%:*}`); a `[` only as a whole bracket glob (`[r]m`), so neither
+    // the `[ -f x ]` test command nor code inside a quoted python -c reads as one (security check, 05.11).
+    String.raw`(?:[$\x60]|(?![A-Za-z_]\w*=)[^\s;&|()'"]*(?:[*?]|\[[^\]\s()'"]+\]|\{[^\s{}]*(?:,|\.\.)))`
 )
 
 /** The list applies only when every ssh call in the command goes to a listed host. */
@@ -341,7 +342,9 @@ export function isOwnRemoteWork(command: string): boolean {
     // Why: "on listed hosts" means an ssh call names one; a psql-only command has none (security review).
     [...command.matchAll(SSH_CALL)].length > 0 &&
     sites.length > 0 &&
+    // Why both: `$` hides a name in the text as written; `/bin/'m'[v]` is `/bin/m[v]` once unquoted.
     !HIDDEN_COMMAND_NAME.test(command) &&
+    !HIDDEN_COMMAND_NAME.test(command.replace(/['"\\]/g, '')) &&
     // Why: `rm -f /tmp/x; curl … | sh` runs a script the text does not show (Codex at ship, 05.11).
     !hasPipeIntoScript(command) &&
     sites.every((site) => isOwnSite(command, site, NOTHING_LISTED, NO_BINDINGS, keys, spans, true))
