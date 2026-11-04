@@ -7,6 +7,11 @@ import type { HqPlusProjectCardContext } from './HqPlusProjectParts'
 
 const observe = vi.hoisted(() => vi.fn((_element: HTMLElement) => () => {}))
 vi.mock('./use-hq-plus-new-marks', () => ({ observeHqPlusNewRows: observe }))
+// The log card under an Approve row is HqPlusLog's own business; these tests read rows and scroll.
+vi.mock('./HqPlusLog', async (original) => ({
+  ...(await original<typeof import('./HqPlusLog')>()),
+  HqPlusLogCards: () => null
+}))
 
 import { HqPlusInbox } from './HqPlusInbox'
 import { HqPlusProjectFeed } from './HqPlusProjectFeed'
@@ -100,14 +105,15 @@ describe('HQ+ Inbox (Codex 02.11)', () => {
       expect.any(Function)
     )
   })
-  // post-render-scroll-check: whether the owner was at the bottom is read before the new row lands —
-  // a row taller than the margin must not make him look scrolled up.
-  describe('follows a new row only when the owner was at the bottom', () => {
-    const asking = (n: number) =>
+  // Owner 05.11: the Inbox opens at its newest row; after that it moves only for a new Approve,
+  // and any other new row leaves the scroll where he put it.
+  describe('moves only for a new Approve once open', () => {
+    const feedOf = (chats: number, approves: string[]) =>
       ({
         cards: [
           card('acme-api', {
-            chats: Array.from({ length: n }, (_, i) => ({
+            approve: approves.map((id, i) => ({ id, since: i + 1, at: i + 1 })) as Card['approve'],
+            chats: Array.from({ length: chats }, (_, i) => ({
               key: `c-${i}`,
               title: `Ask ${i}`,
               state: 'asks',
@@ -117,45 +123,37 @@ describe('HQ+ Inbox (Codex 02.11)', () => {
             })) as unknown as Card['chats']
           })
         ],
-        counts: { approve: 0, asks: n, move: 0, wait: 0, fyi: 0 },
+        counts: { approve: approves.length, asks: chats, move: 0, wait: 0, fyi: 0 },
         fyi: []
       }) as unknown as Feed
-    // Every row is 300px, the view 500px.
     function mount() {
       const follow = vi.fn()
       HTMLElement.prototype.scrollIntoView = follow
-      const view = render(<HqPlusInbox feed={asking(1)} filter="all" emptyText="" ctx={ctx} />)
-      const scroller = view.container.querySelector('.hqpi') as HTMLElement
-      let top = 0
-      Object.defineProperties(scroller, {
-        clientHeight: { configurable: true, get: () => 500 },
-        scrollHeight: {
-          configurable: true,
-          get: () => 400 + 300 * scroller.querySelectorAll('.hqpi-stream li').length
-        },
-        scrollTop: { configurable: true, get: () => top, set: (value: number) => (top = value) }
-      })
-      const scrollTo = (value: number) => {
-        top = value
-        fireEvent.scroll(scroller)
-      }
-      return { view, follow, scrollTo }
+      const view = render(<HqPlusInbox feed={feedOf(1, [])} filter="all" emptyText="" ctx={ctx} />)
+      return { view, follow }
     }
 
-    it('at the bottom: a tall new row is followed', () => {
-      const { view, follow, scrollTo } = mount()
-      scrollTo(200)
-      follow.mockClear()
-      view.rerender(<HqPlusInbox feed={asking(2)} filter="all" emptyText="" ctx={ctx} />)
-      expect(follow).toHaveBeenCalledTimes(1)
+    it('opens at the newest row', () => {
+      const { follow } = mount()
+      expect(follow).toHaveBeenCalledWith({ block: 'end' })
     })
 
-    it('scrolled up to read: the new row is not followed', () => {
-      const { view, follow, scrollTo } = mount()
-      scrollTo(0)
+    it('a new chat row leaves the scroll alone', () => {
+      const { view, follow } = mount()
       follow.mockClear()
-      view.rerender(<HqPlusInbox feed={asking(2)} filter="all" emptyText="" ctx={ctx} />)
+      view.rerender(<HqPlusInbox feed={feedOf(2, [])} filter="all" emptyText="" ctx={ctx} />)
       expect(follow).not.toHaveBeenCalled()
+    })
+
+    it('a new Approve is scrolled to the middle of the view', () => {
+      const { view, follow } = mount()
+      follow.mockClear()
+      const target = document.createElement('div')
+      target.id = 'hqp-ap-1'
+      document.body.append(target)
+      view.rerender(<HqPlusInbox feed={feedOf(1, ['ap-1'])} filter="all" emptyText="" ctx={ctx} />)
+      target.remove()
+      expect(follow).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' })
     })
   })
 })
