@@ -117,7 +117,8 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
         listSessionsByAddress: (address) => runtime.pulseListSessionsByAddress(address),
         getEntry: (id) => runtime.pulseGetJournalEntry(id),
         listPeople: () => runtime.pulseListPeople(),
-        upsertPerson: (input) => runtime.pulseUpsertPerson(input)
+        upsertPerson: (input) => runtime.pulseUpsertPerson(input),
+        linkChat: (input) => runtime.pulseChats().link(input)
       },
       sessionName: (sessionId) => record(sessionId)?.conversationName?.trim() || null,
       sessionWorkspace,
