@@ -288,7 +288,32 @@ CREATE TABLE IF NOT EXISTS chat_links (
 CREATE INDEX IF NOT EXISTS chat_links_by_at ON chat_links(at);
 `
 
-const STEPS: readonly string[] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15]
+// Custom build (battery-idle): two lookups scanned a whole table on every poll — the journal settling
+// a chat's older open rows (kind + ref_id) and the ledger reading a conversation's newest draft from
+// events (kind + entity_id) — 0.3 s and more of the main thread each time. Indexes only, no data change.
+const V16 = `
+CREATE INDEX IF NOT EXISTS journal_by_ref ON journal(kind, ref_id);
+CREATE INDEX IF NOT EXISTS events_by_entity ON events(kind, entity_id, seq);
+`
+
+const STEPS: readonly string[] = [
+  V1,
+  V2,
+  V3,
+  V4,
+  V5,
+  V6,
+  V7,
+  V8,
+  V9,
+  V10,
+  V11,
+  V12,
+  V13,
+  V14,
+  V15,
+  V16
+]
 
 export const PULSE_SCHEMA_VERSION = STEPS.length
 
