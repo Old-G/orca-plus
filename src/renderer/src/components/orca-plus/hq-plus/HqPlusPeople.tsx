@@ -14,6 +14,7 @@ import {
   type HqPersonCardItem
 } from '../../../../../shared/hq-people'
 import { translate } from '@/i18n/i18n'
+import { HqPlusBrainLink } from './HqPlusBrainLink'
 import { startHqChatWithPrompt } from '../hq/hq-ask-chat'
 import { useHqPersonCard } from '../hq/HqPersonCard'
 
@@ -199,7 +200,10 @@ function Dossier({
         <div className="hqp-dossier-who">
           <PersonTile row={row} />
           <div>
-            <h3>{row.name}</h3>
+            {/* Custom build (hq-plus-brain): the name opens everything about the person in Brain. */}
+            <h3>
+              <HqPlusBrainLink entity={row.name}>{row.name}</HqPlusBrainLink>
+            </h3>
             <p>
               {[row.orgName !== row.name ? row.orgName : null, row.jobTitle, row.department]
                 .filter(Boolean)

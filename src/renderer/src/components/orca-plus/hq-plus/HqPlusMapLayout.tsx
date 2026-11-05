@@ -93,7 +93,7 @@ export type HqPlusMapLayoutProps = {
   panel: HqPlusMapPanel
   /** A file or Orca's browser over the map, when open. */
   overlay: React.ReactNode
-  overlayKind: 'file' | 'browser'
+  overlayKind: 'file' | 'browser' | 'brain'
   closeOverlay: () => void
   /** «Your move» on top: the feed, filtered to what waits on the owner. */
   onYourMove: () => void
@@ -260,7 +260,8 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
       go: props.overlay ? props.closeOverlay : null
     })
   }
-  const overlayName = props.overlayKind === 'file' ? 'File' : 'Browser'
+  const overlayName =
+    props.overlayKind === 'file' ? 'File' : props.overlayKind === 'brain' ? 'Brain' : 'Browser'
   if (props.overlay) {
     crumbs.push({ id: 'overlay', label: overlayName, go: null })
   }

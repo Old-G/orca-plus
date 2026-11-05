@@ -28,6 +28,7 @@ import { HQ_JOB_METHODS } from './hq-jobs'
 import { HQ_PEOPLE_METHODS } from './hq-people'
 import { HQ_LEDGER_METHODS } from './hq-ledger'
 import { HQ_CHAT_LINK_METHODS } from './hq-chat-links'
+import { HQ_BRAIN_METHODS } from './hq-brain'
 
 export { DEFAULT_LAZY_RPC_METHOD_GROUPS }
 
@@ -60,7 +61,8 @@ export const EAGER_SERVICE_RPC_METHODS = [
   ...HQ_JOB_METHODS,
   ...HQ_PEOPLE_METHODS,
   ...HQ_LEDGER_METHODS,
-  ...HQ_CHAT_LINK_METHODS
+  ...HQ_CHAT_LINK_METHODS,
+  ...HQ_BRAIN_METHODS
 ] as const
 
 export const EAGER_RPC_METHODS = [...EAGER_CORE_RPC_METHODS, ...EAGER_SERVICE_RPC_METHODS] as const
