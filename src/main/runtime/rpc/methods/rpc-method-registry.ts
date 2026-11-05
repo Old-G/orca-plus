@@ -139,6 +139,7 @@ import { HQ_JOB_METHODS } from './hq-jobs'
 import { HQ_PEOPLE_METHODS } from './hq-people'
 import { HQ_LEDGER_METHODS } from './hq-ledger'
 import { HQ_CHAT_LINK_METHODS } from './hq-chat-links'
+import { HQ_BRAIN_METHODS } from './hq-brain'
 
 // Keep registration order and the full RPC/security surface visible in one manifest.
 const CORE_RPC_METHODS = [
@@ -285,7 +286,8 @@ const SERVICE_RPC_METHODS = [
   ...HQ_JOB_METHODS,
   ...HQ_PEOPLE_METHODS,
   ...HQ_LEDGER_METHODS,
-  ...HQ_CHAT_LINK_METHODS
+  ...HQ_CHAT_LINK_METHODS,
+  ...HQ_BRAIN_METHODS
 ] as const
 
 type ConcatMethods<A extends readonly unknown[], B extends readonly unknown[]> = readonly [
