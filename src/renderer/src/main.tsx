@@ -33,11 +33,14 @@ import { installBodyOverlayAttributes } from './lib/overlay-interaction/body-ove
 import { applyWindowMaterialToDocument } from './app-shell/appearance/window-material-runtime'
 import { trackPageFocusLossForTerminalIme } from './components/terminal-pane/input/focus/regular-terminal-focus-ownership'
 import { orcaPlusAppName } from './lib/orca-plus-app-name'
+import { installIdleMotionPause } from './lib/idle-motion-pause'
 
 const disposeOsFileDropGuard = installOsFileDropCancellationGuard()
 import.meta.hot?.dispose(disposeOsFileDropGuard)
 const disposeBodyOverlayAttributes = installBodyOverlayAttributes()
 import.meta.hot?.dispose(disposeBodyOverlayAttributes)
+const disposeIdleMotionPause = installIdleMotionPause()
+import.meta.hot?.dispose(disposeIdleMotionPause)
 recordRendererCrashBreadcrumb('renderer_bootstrap_started', { dev: import.meta.env.DEV })
 document.title = orcaPlusAppName(document.title)
 installRendererCrashDiagnostics()
