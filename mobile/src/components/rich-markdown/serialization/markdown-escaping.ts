@@ -53,7 +53,16 @@ export function escapeAttr(value: string): string {
   return escapeHtml(value).replace(/\n/g, ' ')
 }
 
-/** The one scheme a link or image in untrusted markdown may not carry. */
+/** A link or image in untrusted markdown may be relative or use http(s)/mailto, nothing else. */
 export function isSafeUrl(value: string | null | undefined): boolean {
-  return !/^javascript:/i.test(String(value ?? '').trim())
+  // Judge the URL the browser will read: escapeAttr decodes entities once, and the URL parser drops
+  // tabs, newlines and controls, so `&#106;avascript:` or `java\tscript:` must not pass as relative.
+  const url = Array.from(decodeMarkdownEntities(String(value ?? '')))
+    .filter((char) => {
+      const code = char.codePointAt(0) ?? 0
+      return code > 0x20 && (code < 0x7f || code > 0x9f)
+    })
+    .join('')
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(url)
+  return scheme === null || /^(?:https?|mailto)$/i.test(scheme[1]!)
 }
