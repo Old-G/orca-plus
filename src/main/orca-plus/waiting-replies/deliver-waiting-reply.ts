@@ -6,6 +6,7 @@ import type { PulseWaiting } from '../../../shared/pulse-types'
 import { getStructuredAgentSessionHost } from '../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { sendAgentTurn } from '../../runtime/orchestration/send-agent-turn'
 import { mintAgentSessionOperationId } from '../../runtime/orchestration/structured-pointer-operation-id'
+import { showNativeChatTab } from './native-chat-tab-reveal'
 
 /** `operationId` is the send's idempotency key: reuse it on a retry of the same message. */
 export async function deliverToNativeChat(
@@ -37,7 +38,13 @@ export async function deliverToNativeChat(
       delivery: 'queue'
     }
   })
-  return outcome.kind !== 'refused'
+  if (outcome.kind === 'refused') {
+    return false
+  }
+  // Custom build (chat-tab-reveal): a chat whose tab was closed still took the turn; it works
+  // where the owner can see it, not unseen.
+  await showNativeChatTab(sessionId)
+  return true
 }
 
 export async function deliverWaitingReply(waiting: PulseWaiting, prompt: string): Promise<boolean> {
