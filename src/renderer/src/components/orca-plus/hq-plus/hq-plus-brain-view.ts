@@ -135,3 +135,21 @@ export function hqBrainClock(at: number): string {
   const time = new Date(at)
   return `${pad(time.getHours())}:${pad(time.getMinutes())}`
 }
+
+const DOC_FILE = /\.(md|markdown|mdx|txt|rst|adoc|pdf)$/i
+
+export type HqBrainFileTarget = { kind: 'hq'; path: string } | { kind: 'doc'; path: string }
+
+/**
+ * Where a row's file opens: a page of HQ in Reports, another document in the system's viewer. Anything
+ * else — a program, an app bundle, a relative or `..` path — is not opened at all.
+ */
+export function hqBrainFileTarget(path: string, hqPath: string | null): HqBrainFileTarget | null {
+  if (!path.startsWith('/') || path.split('/').includes('..') || !DOC_FILE.test(path)) {
+    return null
+  }
+  const root = hqPath ? `${hqPath.replace(/\/+$/, '')}/` : null
+  return root && path.startsWith(root)
+    ? { kind: 'hq', path: path.slice(root.length) }
+    : { kind: 'doc', path }
+}
