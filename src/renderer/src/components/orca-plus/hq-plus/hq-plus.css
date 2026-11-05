@@ -1086,10 +1086,12 @@
 .hqp-thread-input {
   min-height: 48px;
 }
-/* motion */
+/* motion — Custom build (battery-idle): every endless loop here ticks in steps (3–8 frames a second,
+   like the agent spinner) and moves only opacity/transform, glows included (a still shadow on its own
+   layer that fades). Smooth loops and animated box-shadows redrew the window 120 times a second. */
 @media (prefers-reduced-motion: no-preference) {
   .hq-plus::before {
-    animation: hqp-drift 38s ease-in-out infinite alternate;
+    animation: hqp-drift 38s steps(48, jump-none) infinite alternate;
   }
   @keyframes hqp-drift {
     0% {
@@ -1103,11 +1105,20 @@
     }
   }
   .hqp-arc {
-    animation: hqp-arc 3.2s ease-in-out infinite;
+    position: relative;
   }
-  @keyframes hqp-arc {
+  .hqp-arc::after {
+    content: '';
+    position: absolute;
+    inset: -1.5px;
+    border-radius: 50%;
+    box-shadow: 0 0 20px rgba(143, 233, 255, 0.75);
+    opacity: 0;
+    animation: hqp-glow 3.2s steps(10, jump-none) infinite;
+  }
+  @keyframes hqp-glow {
     50% {
-      box-shadow: 0 0 20px rgba(143, 233, 255, 0.75);
+      opacity: 1;
     }
   }
   .hqp-card {
@@ -1186,15 +1197,14 @@
       opacity: 0.2;
     }
   }
-  .hqp-tr u {
-    animation: hqp-ping 2.4s ease-in-out infinite;
-  }
-  @keyframes hqp-ping {
-    50% {
-      box-shadow:
-        0 0 0 6px rgba(143, 233, 255, 0),
-        0 0 14px var(--hqp-ice);
-    }
+  .hqp-tr u::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 14px var(--hqp-ice);
+    opacity: 0;
+    animation: hqp-glow 2.4s steps(7, jump-none) infinite;
   }
   .hqp-graph path.rel {
     stroke-dasharray: 400;
@@ -1207,7 +1217,7 @@
     }
   }
   .hqp-graph path.flow {
-    animation: hqp-dash 1.4s linear infinite;
+    animation: hqp-dash 1.4s steps(7) infinite;
   }
   @keyframes hqp-dash {
     to {
@@ -1215,7 +1225,7 @@
     }
   }
   .hqp-live i {
-    animation: hqp-blink 1.4s ease-in-out infinite;
+    animation: hqp-blink 1.4s steps(5, jump-none) infinite;
   }
   @keyframes hqp-blink {
     50% {
@@ -2178,7 +2188,7 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 @media (prefers-reduced-motion: no-preference) {
   .hqp-badge[data-tone='working']::before,
   .hqp-qi-row[data-live='true'] .hqp-dot {
-    animation: hqp-blink 1.4s ease-in-out infinite;
+    animation: hqp-blink 1.4s steps(5, jump-none) infinite;
   }
   .hqp-cb,
   .hqp-cc {
@@ -2332,7 +2342,7 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 .hqp-agents-edge[data-live='true'] {
   stroke: var(--hqp-yellow, var(--hqp-amber));
   stroke-dasharray: 5 5;
-  animation: hqp-agents-flow 1.1s linear infinite;
+  animation: hqp-agents-flow 1.1s steps(6) infinite;
 }
 @keyframes hqp-agents-flow {
   to {
@@ -2359,7 +2369,7 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 .hqp-agents-node[data-live='true'] circle {
   fill: var(--hqp-yellow, var(--hqp-amber));
   stroke: var(--hqp-yellow, var(--hqp-amber));
-  animation: hqp-agents-pulse 1.6s ease-in-out infinite;
+  animation: hqp-agents-pulse 1.6s steps(5, jump-none) infinite;
 }
 @keyframes hqp-agents-pulse {
   50% {
@@ -2768,7 +2778,7 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   border-radius: 50%;
   border: 1.5px solid currentColor;
   border-right-color: transparent;
-  animation: hqp-spin 0.7s linear infinite;
+  animation: hqp-spin 0.7s steps(8) infinite;
 }
 @keyframes hqp-spin {
   to {
@@ -3470,7 +3480,7 @@ button.hqp-chat-name[data-opens='true']:hover {
   content: ' ';
 }
 /* Custom build (hq-plus-ticker): Live reads alive — a softly pulsing red dot, a mark per line, and the
-   lines that ask the owner in his colour */
+   lines that ask the owner in his colour. The dot's ring is its own layer that grows and fades (battery-idle). */
 .hqp-ticker {
   background: linear-gradient(180deg, rgba(255, 106, 92, 0.06), transparent 40%), var(--hqp-card);
 }
@@ -3480,21 +3490,31 @@ button.hqp-chat-name[data-opens='true']:hover {
 .hqp-ticker-dot {
   width: 7px;
   height: 7px;
-  box-shadow: 0 0 0 0 rgba(255, 106, 92, 0.6);
-  animation: hqp-live-pulse 1.8s ease-in-out infinite;
+  position: relative;
+  animation: hqp-live-pulse 1.8s steps(6, jump-none) infinite;
+}
+.hqp-ticker-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px rgba(255, 106, 92, 0.55);
+  animation: hqp-live-ring 1.8s steps(14, jump-none) infinite;
 }
 @keyframes hqp-live-pulse {
-  0% {
-    opacity: 1;
-    box-shadow: 0 0 0 0 rgba(255, 106, 92, 0.55);
-  }
   60% {
     opacity: 0.55;
-    box-shadow: 0 0 0 6px rgba(255, 106, 92, 0);
   }
-  100% {
+}
+@keyframes hqp-live-ring {
+  0% {
+    transform: scale(1);
     opacity: 1;
-    box-shadow: 0 0 0 0 rgba(255, 106, 92, 0);
+  }
+  60%,
+  100% {
+    transform: scale(2.7);
+    opacity: 0;
   }
 }
 .hqp-ticker-list .mk {
@@ -3510,7 +3530,8 @@ button.hqp-chat-name[data-opens='true']:hover {
   background: rgba(143, 233, 255, 0.05);
 }
 @media (prefers-reduced-motion: reduce) {
-  .hqp-ticker-dot {
+  .hqp-ticker-dot,
+  .hqp-ticker-dot::after {
     animation: none;
   }
 }
