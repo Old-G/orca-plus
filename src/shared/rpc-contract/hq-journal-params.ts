@@ -221,3 +221,8 @@ export const HqLinkChatParams = z.object({
   sessionId: requiredString('The started chat’s session id is required')
 })
 export const HqChatLinksParams = z.object({})
+
+// Custom build (hq-plus-brain): a task, an MR, a person, a project or words for HQ+'s «Brain».
+export const HqBrainParams = z.object({
+  query: requiredString('A task, an MR, a person, a project or words are required')
+})
