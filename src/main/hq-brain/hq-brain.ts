@@ -85,10 +85,12 @@ export function createHqBrain(deps: HqBrainDeps): HqBrainService {
         '--hq',
         hq,
         'search',
-        text,
         '--json',
         '--limit',
-        String(SEARCH_LIMIT)
+        String(SEARCH_LIMIT),
+        // Why: «--» ends the options, so a query that starts with «-» stays the query.
+        '--',
+        text
       ])
       const parsed = readHqBrainSearch(JSON.parse(out))
       if (!parsed) {
@@ -104,10 +106,12 @@ export function createHqBrain(deps: HqBrainDeps): HqBrainService {
         '--hq',
         hq,
         'timeline',
-        text,
         '--json',
         '--limit',
-        String(TIMELINE_LIMIT)
+        String(TIMELINE_LIMIT),
+        // Why: «--» ends the options, so a query that starts with «-» stays the query.
+        '--',
+        text
       ])
       const parsed = readHqBrainTimeline(JSON.parse(out))
       if (!parsed) {
