@@ -4,6 +4,7 @@ import type { HqBrainResult, HqBrainRow } from '../../../../../shared/hq-brain'
 import type { HqPlusBrainState } from './use-hq-plus-brain'
 import {
   hqBrainDayLabel,
+  hqBrainFileTarget,
   hqBrainRowTitle,
   hqBrainSourceLabel,
   hqBrainStatusTag
@@ -178,5 +179,25 @@ describe('row words', () => {
     expect(hqBrainDayLabel('2026-11-04', now)).toBe('Yesterday')
     expect(hqBrainDayLabel('2026-10-29', now)).toBe('29 October')
     expect(hqBrainDayLabel('2025-10-29', now)).toBe('29 October 2025')
+  })
+})
+
+describe('hqBrainFileTarget', () => {
+  it('opens an HQ page in Reports and another document in the viewer', () => {
+    expect(hqBrainFileTarget('/Users/me/HQ/ideas/plan.md', '/Users/me/HQ/')).toEqual({
+      kind: 'hq',
+      path: 'ideas/plan.md'
+    })
+    expect(hqBrainFileTarget('/Users/me/acme/docs/ADR-004.md', '/Users/me/HQ')).toEqual({
+      kind: 'doc',
+      path: '/Users/me/acme/docs/ADR-004.md'
+    })
+  })
+
+  it('opens no program, bundle, relative or climbing path', () => {
+    expect(hqBrainFileTarget('/Applications/Calculator.app', null)).toBeNull()
+    expect(hqBrainFileTarget('/tmp/run.command', null)).toBeNull()
+    expect(hqBrainFileTarget('docs/a.md', null)).toBeNull()
+    expect(hqBrainFileTarget('/Users/me/HQ/../evil/a.md', '/Users/me/HQ')).toBeNull()
   })
 })
