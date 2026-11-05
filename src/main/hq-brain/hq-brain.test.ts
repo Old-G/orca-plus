@@ -164,10 +164,11 @@ describe('createHqBrain', () => {
       '--hq',
       '/hq',
       'timeline',
-      'DEV-123',
       '--json',
       '--limit',
-      '150'
+      '150',
+      '--',
+      'DEV-123'
     ])
     const byKey = new Map(result.rows.map((row) => [row.key, row]))
     expect(byKey.get('decisions:d-cmd')?.command).toBe(true)
@@ -208,10 +209,11 @@ describe('createHqBrain', () => {
       '--hq',
       '/hq',
       'search',
-      'dry run on prod',
       '--json',
       '--limit',
-      '40'
+      '40',
+      '--',
+      'dry run on prod'
     ])
     expect((await service.look('Bob')).mode).toBe('search')
   })

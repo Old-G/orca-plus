@@ -1,6 +1,6 @@
 // Custom build (hq-plus-brain): HQ+'s «Brain» screen (owner 05.11, mockup approved) — one feed of every
 // mention of a task, an MR, a person or a project: chats, what went out through Approve, waits, Slack,
-// ClickUp, MRs, documents — by day, newest first; the search on top (⌘K), chips by source, «Open chat»
+// ClickUp, MRs, documents — by day, newest first; the search on top (⌘⌥B), chips by source, «Open chat»
 // on a row said in a chat. It covers the feed like an opened file; «←» goes back.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { translate } from '@/i18n/i18n'
@@ -22,6 +22,7 @@ import {
   HQ_BRAIN_HEAD_LABEL,
   hqBrainClock,
   hqBrainDayLabel,
+  hqBrainFileTarget,
   hqBrainRowTitle,
   hqBrainSourceLabel,
   hqBrainStatusTag
@@ -49,8 +50,9 @@ function Row({
 }): React.JSX.Element {
   const tag = hqBrainStatusTag(row.status)
   const title = hqBrainRowTitle(row)
-  const link = row.link && !row.link.startsWith('orca-session:') ? row.link : null
-  const web = link !== null && /^https?:\/\//.test(link)
+  const web = row.link !== null && /^https?:\/\//.test(row.link)
+  // A file opens only when it is a document by an absolute path (see hqBrainFileTarget).
+  const link = web || (row.link && hqBrainFileTarget(row.link, null)) ? row.link : null
   const resolution = row.status?.kind === 'wait' ? row.status.resolution : null
   return (
     <div className="hqp-brain-item" data-group={row.group}>
@@ -207,7 +209,7 @@ export function HqPlusBrain({
   focusSearch
 }: {
   query: string
-  /** Grows by one each time ⌘K is pressed while Brain is open. */
+  /** Grows by one each time ⌘⌥B is pressed while Brain is open. */
   focusSearch: number
   /** Where «←» goes: the previous query, the feed, the map. */
   backLabel: string
@@ -233,7 +235,7 @@ export function HqPlusBrain({
     }
   }, [query])
 
-  // ⌘K again, with Brain already open, goes to the search box.
+  // ⌘⌥B again, with Brain already open, goes to the search box.
   useEffect(() => {
     if (focusSearch > 0) {
       inputRef.current?.focus()
@@ -298,7 +300,7 @@ export function HqPlusBrain({
                 }
               }}
             />
-            <span className="kbd">⌘K</span>
+            <span className="kbd">⌘⌥B</span>
           </form>
 
           {state.status === 'idle' ? (
