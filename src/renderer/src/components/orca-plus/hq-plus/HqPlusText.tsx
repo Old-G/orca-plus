@@ -1,11 +1,34 @@
 // Custom build (hq-plus-ui-v2): an agent's markdown shown as clean feed text (see hq-plus-text).
 import { hqPlusTextLines, type HqPlusSpan } from '../../../../../shared/hq-plus-text'
+import { splitHqBrainEntities } from '../../../../../shared/hq-brain'
 import { useHqPlusSlackText } from './use-hq-plus-slack-text'
+import { HqPlusBrainLink } from './HqPlusBrainLink'
+
+/** Custom build (hq-plus-brain): a task id or an MR in the text opens Brain on it. */
+function Mentions({ text }: { text: string }): React.JSX.Element {
+  return (
+    <>
+      {splitHqBrainEntities(text).map((part, at) =>
+        part.kind === 'entity' ? (
+          <HqPlusBrainLink key={at} entity={part.entity}>
+            {part.text}
+          </HqPlusBrainLink>
+        ) : (
+          part.text
+        )
+      )}
+    </>
+  )
+}
 
 function Span({ span }: { span: HqPlusSpan }): React.JSX.Element {
   switch (span.kind) {
     case 'bold':
-      return <b>{span.text}</b>
+      return (
+        <b>
+          <Mentions text={span.text} />
+        </b>
+      )
     case 'code':
       return <code className="hqp-chip">{span.text}</code>
     case 'link':
@@ -15,7 +38,7 @@ function Span({ span }: { span: HqPlusSpan }): React.JSX.Element {
         </a>
       )
     case 'text':
-      return <>{span.text}</>
+      return <Mentions text={span.text} />
   }
 }
 
