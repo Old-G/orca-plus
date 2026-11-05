@@ -33,11 +33,14 @@ import { installOsFileDropCancellationGuard } from './lib/os-file-drop-cancellat
 import { installBodyOverlayAttributes } from './lib/body-overlay-attributes'
 import { applyWindowMaterialToDocument } from './lib/window-material-runtime'
 import { orcaPlusAppName } from './lib/orca-plus-app-name'
+import { installIdleMotionPause } from './lib/idle-motion-pause'
 
 const disposeOsFileDropGuard = installOsFileDropCancellationGuard()
 import.meta.hot?.dispose(disposeOsFileDropGuard)
 const disposeBodyOverlayAttributes = installBodyOverlayAttributes()
 import.meta.hot?.dispose(disposeBodyOverlayAttributes)
+const disposeIdleMotionPause = installIdleMotionPause()
+import.meta.hot?.dispose(disposeIdleMotionPause)
 recordRendererCrashBreadcrumb('renderer_bootstrap_started', { dev: import.meta.env.DEV })
 document.title = orcaPlusAppName(document.title)
 installRendererCrashDiagnostics()
