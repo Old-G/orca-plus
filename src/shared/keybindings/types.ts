@@ -41,6 +41,7 @@ export type HqPlusKeybindingActionId =
   | 'hqPlus.filterChats'
   | 'hqPlus.filterInbox'
   | 'hqPlus.escape'
+  | 'hqPlus.brain'
 export type PluginKeybindingActionId = `plugin:${string}`
 
 export type KeybindingActionId =

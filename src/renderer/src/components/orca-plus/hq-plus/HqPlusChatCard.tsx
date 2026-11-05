@@ -2,7 +2,7 @@
 // box below. Custom build (hq-plus-ui-v4): it grows and folds smoothly, and the keys can select it.
 // Custom build (hq-plus-card-shell): drawn in the cards' one shell.
 import { useLayoutEffect, useRef, useState } from 'react'
-import { NativeChatMarkdown } from '../../native-chat/NativeChatMarkdown'
+import { NativeChatMarkdown } from '../../native-chat/markdown/NativeChatMarkdown'
 import { useHqPlusLastReply } from './use-hq-plus-last-reply'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import { translate } from '@/i18n/i18n'
@@ -10,6 +10,7 @@ import type { HqPlusLogItem } from '../../../../../shared/hq-plus-log'
 import type { HqPlusBadge } from '../../../../../shared/hq-plus-kinds'
 import { HqPlusBadges } from './HqPlusBadge'
 import { HqPlusText } from './HqPlusText'
+import { HqPlusBrainLink } from './HqPlusBrainLink'
 import { HqPlusThreadComposer } from './HqPlusThreadComposer'
 import { openPane } from '../pulse-bell/pulse-bell-actions'
 import { hqPlusStamp } from '../../../../../shared/hq-plus-stamp'
@@ -90,23 +91,30 @@ export function ChatCard({
       }}
       head={
         inRow ? null : (
-        <HqPlusCardHead
-          badges={badges}
-          lead={
-            <>
-              <NewMark item={item} ctx={ctx} />
-              <strong>{item.project ?? 'HQ'}</strong>
-            </>
-          }
-          chat={ctx.chatOf(item.sessionId)}
-          when={clock(item.at)}
-          right={
-            <>
-              <HqPlusBadges badges={waitsOn ? [waitsOn, status] : [status]} />
-              {closer ? <HqPlusCloseChat closer={closer} name={item.project ?? 'chat'} /> : null}
-            </>
-          }
-        />
+          <HqPlusCardHead
+            badges={badges}
+            lead={
+              <>
+                <NewMark item={item} ctx={ctx} />
+                {/* Custom build (hq-plus-brain): the project's name opens Brain on it. */}
+                {item.project ? (
+                  <HqPlusBrainLink entity={item.project} strong>
+                    {item.project}
+                  </HqPlusBrainLink>
+                ) : (
+                  <strong>HQ</strong>
+                )}
+              </>
+            }
+            chat={ctx.chatOf(item.sessionId)}
+            when={clock(item.at)}
+            right={
+              <>
+                <HqPlusBadges badges={waitsOn ? [waitsOn, status] : [status]} />
+                {closer ? <HqPlusCloseChat closer={closer} name={item.project ?? 'chat'} /> : null}
+              </>
+            }
+          />
         )
       }
       composer={
