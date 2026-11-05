@@ -38,6 +38,7 @@ import { HqPlusReportCard } from './HqPlusReportBody'
 import type { HqPlusLook } from '../../../../../shared/hq-plus-kinds'
 import { readHqSlackRequestRef } from '../../../../../shared/hq-slack-request-bell'
 import { HqPlusText } from './HqPlusText'
+import { HqPlusBrainLink } from './HqPlusBrainLink'
 import { hqPlusSaid } from '../../../../../shared/hq-plus-said'
 import { HqPlusComposer } from './HqPlusComposer'
 import { HQ_FIX_NOW_DONE_PREFIX } from '../../../../../shared/hq-fix-now'
@@ -461,17 +462,28 @@ export function HqPlusCardView({
         // Custom build (hq-plus-cards): one head for every card — who, then where it belongs.
         answerOf ? (
           <>
-            <strong>{answerOf.author}</strong>
+            <HqPlusBrainLink entity={answerOf.author} strong>
+              {answerOf.author}
+            </HqPlusBrainLink>
             <span className="hqp-note">
               {translate('auto.hqPlus.answered', 'answered')}
-              {slackTsAt(answerOf.replyTs) ? ` ${hqPlusStamp(slackTsAt(answerOf.replyTs) ?? 0)}` : ''}{' '}
+              {slackTsAt(answerOf.replyTs)
+                ? ` ${hqPlusStamp(slackTsAt(answerOf.replyTs) ?? 0)}`
+                : ''}{' '}
               · {card.project ?? 'HQ'}
             </span>
           </>
         ) : (
           <>
             {note ? <span className="hqp-note">{note}</span> : null}
-            <strong>{card.job ?? card.project ?? 'HQ'}</strong>
+            {/* Custom build (hq-plus-brain): a project's name opens Brain on it. */}
+            {!card.job && card.project ? (
+              <HqPlusBrainLink entity={card.project} strong>
+                {card.project}
+              </HqPlusBrainLink>
+            ) : (
+              <strong>{card.job ?? card.project ?? 'HQ'}</strong>
+            )}
           </>
         )
       }

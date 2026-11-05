@@ -5,10 +5,8 @@ import { useAppStore } from '@/store'
 import { addAppKeyListener, removeAppKeyListener } from '@/lib/keyboard/app-keyboard-router'
 import { getShortcutPlatform } from '@/lib/keyboard/shortcut-platform'
 import { hasVisibleOverlay } from '@/lib/overlay-interaction/visible-overlay'
-import {
-  keybindingMatchesAction,
-  type HqPlusKeybindingActionId
-} from '../../../../../shared/keybindings'
+import { keybindingMatchesAction } from '../../../../../shared/keybindings/matching'
+import type { HqPlusKeybindingActionId } from '../../../../../shared/keybindings/types'
 import type { HqPlusFeedFilter } from '../../../../../shared/hq-plus-feed-filter'
 import type { HqPlusLogItem } from '../../../../../shared/hq-plus-log'
 
@@ -26,6 +24,8 @@ export type HqPlusFeedKeyActions = {
   done: (item: HqPlusLogItem) => void
   setFilter: (filter: HqPlusFeedFilter) => void
   openSearch: () => void
+  /** Custom build (hq-plus-brain): ⌘⌥B — the «Brain» screen, on its search box. */
+  openBrain: () => void
   /** Folds what is open first; false when there was nothing for Esc to do here. */
   escape: () => boolean
 }
@@ -84,10 +84,21 @@ export function useHqPlusFeedKeys(actions: HqPlusFeedKeyActions): void {
       if (event.defaultPrevented || event.isComposing || activeModal !== 'none') {
         return
       }
+      const platform = getShortcutPlatform()
+      // Custom build (hq-plus-brain): a chord, so it works from HQ+'s own fields too (not a chat's).
+      if (
+        keybindingMatchesAction('hqPlus.brain', event, platform, keybindings) &&
+        onHqPlus(event.target) &&
+        !hasVisibleOverlay()
+      ) {
+        event.preventDefault()
+        event.stopPropagation()
+        latest.current.openBrain()
+        return
+      }
       if (typingIn(event.target) || !onHqPlus(event.target) || hasVisibleOverlay()) {
         return
       }
-      const platform = getShortcutPlatform()
       const is = (id: HqPlusKeybindingActionId): boolean =>
         keybindingMatchesAction(id, event, platform, keybindings)
       const now = latest.current
