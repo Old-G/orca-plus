@@ -98,6 +98,7 @@ import { HqPlusReportView } from './HqPlusReportView'
 import { HqPlusCenterFile } from './HqPlusCenterFile'
 import { HqPlusBrain, type HqPlusBrainActions } from './HqPlusBrain'
 import { registerHqPlusBrain } from './hq-plus-brain-open'
+import { hqBrainFileTarget } from './hq-plus-brain-view'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../../shared/execution-host'
 import { HqPlusCenterBrowser, openHqPlusBrowserPage } from './HqPlusCenterBrowser'
 import { registerHqPlusCenterFile } from './hq-plus-center-file'
@@ -1430,11 +1431,11 @@ export function HqPlusScreen(): React.JSX.Element {
     },
     openLink,
     openFile: (path) => {
-      const root = hqPath ? `${hqPath.replace(/\/+$/, '')}/` : null
-      if (root && path.startsWith(root)) {
-        openReport(path.slice(root.length))
-      } else {
-        void window.api.shell.openFilePath(path, LOCAL_EXECUTION_HOST_ID)
+      const target = hqBrainFileTarget(path, hqPath)
+      if (target?.kind === 'hq') {
+        openReport(target.path)
+      } else if (target?.kind === 'doc') {
+        void window.api.shell.openFilePath(target.path, LOCAL_EXECUTION_HOST_ID)
       }
     }
   }

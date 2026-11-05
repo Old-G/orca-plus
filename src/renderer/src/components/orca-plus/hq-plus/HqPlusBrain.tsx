@@ -22,6 +22,7 @@ import {
   HQ_BRAIN_HEAD_LABEL,
   hqBrainClock,
   hqBrainDayLabel,
+  hqBrainFileTarget,
   hqBrainRowTitle,
   hqBrainSourceLabel,
   hqBrainStatusTag
@@ -49,8 +50,9 @@ function Row({
 }): React.JSX.Element {
   const tag = hqBrainStatusTag(row.status)
   const title = hqBrainRowTitle(row)
-  const link = row.link && !row.link.startsWith('orca-session:') ? row.link : null
-  const web = link !== null && /^https?:\/\//.test(link)
+  const web = row.link !== null && /^https?:\/\//.test(row.link)
+  // A file opens only when it is a document by an absolute path (see hqBrainFileTarget).
+  const link = web || (row.link && hqBrainFileTarget(row.link, null)) ? row.link : null
   const resolution = row.status?.kind === 'wait' ? row.status.resolution : null
   return (
     <div className="hqp-brain-item" data-group={row.group}>
