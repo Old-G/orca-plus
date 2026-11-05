@@ -35,6 +35,7 @@ function manualRoutingScript(): string | null {
   return candidates.find((path) => existsSync(path)) ?? null
 }
 import { registerHqContext } from '../hq-context/register-hq-context'
+import { registerHqBrain } from '../hq-brain/register-hq-brain'
 import { setHqSpaceLiveGroups } from '../hq-today/hq-spaces'
 
 // Why: the evening review writes its report once a day; the pulse writes wake the journal sooner.
@@ -105,6 +106,8 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
       .catch((error: unknown) => console.warn('[hq-journal] effort row failed:', error))
   })
   registerHqContext(store, runtime, service)
+  // Custom build (hq-plus-brain): the «Brain» screen's host side.
+  registerHqBrain(store, runtime)
   provideHqThreads(
     createHqThreads({
       enabled,

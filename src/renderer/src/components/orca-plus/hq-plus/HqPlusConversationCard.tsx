@@ -16,6 +16,7 @@ import {
 } from '../../../../../shared/hq-waiting-reply-bell'
 import { hqPlusLedgerOnly } from '../../../../../shared/hq-plus-ledger-cards'
 import { HqPlusText } from './HqPlusText'
+import { HqPlusBrainNames } from './HqPlusBrainLink'
 import { HqPlusCardView, hqPlusDoneLabel } from './HqPlusCard'
 import {
   HqPlusCardButtons,
@@ -291,7 +292,8 @@ export function HqPlusConversationCard({
       badges={look.badges}
       lead={
         <>
-          {who ? <strong>{who}</strong> : null}
+          {/* Custom build (hq-plus-brain): each name opens Brain on that person. */}
+          {who ? <HqPlusBrainNames names={who.split(', ')} /> : null}
           <span className="hqp-note">{placeLabel(conversation.key)}</span>
           <HqPlusProjectChip card={card} onChanged={ctx.onChanged} />
         </>

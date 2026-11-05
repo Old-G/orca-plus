@@ -96,6 +96,9 @@ import {
 } from './hq-plus-view-state'
 import { HqPlusReportView } from './HqPlusReportView'
 import { HqPlusCenterFile } from './HqPlusCenterFile'
+import { HqPlusBrain, type HqPlusBrainActions } from './HqPlusBrain'
+import { registerHqPlusBrain } from './hq-plus-brain-open'
+import { LOCAL_EXECUTION_HOST_ID } from '../../../../../shared/execution-host'
 import { HqPlusCenterBrowser, openHqPlusBrowserPage } from './HqPlusCenterBrowser'
 import { registerHqPlusCenterFile } from './hq-plus-center-file'
 import { useHqPlusData } from './use-hq-plus-data'
@@ -231,7 +234,17 @@ export function HqPlusScreen(): React.JSX.Element {
   const [linkRequest, setLinkRequest] = useState<LinkActionRequest | null>(null)
   // Custom build (hq-plus-center-file): a file opened from HQ+ shows in the center over the feed.
   const [centerFile, setCenterFile] = useState(false)
-  useEffect(() => registerHqPlusCenterFile(() => setCenterFile(true)), [])
+  // Custom build (hq-plus-brain): the «Brain» screen over the feed — the queries walked, newest last.
+  const [brainStack, setBrainStack] = useState<string[] | null>(null)
+  const [brainFocus, setBrainFocus] = useState(0)
+  useEffect(
+    () =>
+      registerHqPlusCenterFile(() => {
+        setBrainStack(null)
+        setCenterFile(true)
+      }),
+    []
+  )
   // Custom build (hq-plus-center-browser): Orca's own browser over the feed, and whether it has the window.
   const [centerBrowser, setCenterBrowser] = useState(false)
   const [browserFull, setBrowserFull] = useState(false)
@@ -244,9 +257,33 @@ export function HqPlusScreen(): React.JSX.Element {
       return false
     }
     setCenterFile(false)
+    setBrainStack(null)
     setCenterBrowser(true)
     return true
   }
+  /** Brain on `query`: a new one is walked to, the same one stays; empty opens it on the search box. */
+  const openBrain = (query: string): void => {
+    setCenterFile(false)
+    setCenterBrowser(false)
+    setBrowserFull(false)
+    if (!query) {
+      setBrainFocus((count) => count + 1)
+    }
+    setBrainStack((stack) => {
+      const current = stack?.at(-1)
+      if (!stack) {
+        return [query]
+      }
+      if (!query || query === current) {
+        return stack
+      }
+      return current === '' ? [...stack.slice(0, -1), query] : [...stack, query]
+    })
+  }
+  const backFromBrain = (): void =>
+    setBrainStack((stack) => (stack && stack.length > 1 ? stack.slice(0, -1) : null))
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- openBrain only calls state setters
+  useEffect(() => registerHqPlusBrain(openBrain), [])
   const closeBrowser = (): void => {
     setCenterBrowser(false)
     setBrowserFull(false)
@@ -1009,8 +1046,9 @@ export function HqPlusScreen(): React.JSX.Element {
   }
   const closeSearch = (): void => setSearch({ open: false, query: '', at: -1 })
   useHqPlusFeedKeys({
-    items: feedItems,
-    moveIds,
+    // Custom build (hq-plus-brain): with Brain over the feed, the feed's keys have no rows to walk.
+    items: brainStack ? [] : feedItems,
+    moveIds: brainStack ? [] : moveIds,
     // Why: on «All» J/K walk the owner's lines first; on a chip, every line it shows.
     filter: feedFilter === 'all' ? 'all' : 'move',
     selectedId,
@@ -1033,13 +1071,22 @@ export function HqPlusScreen(): React.JSX.Element {
     },
     setFilter: (filter) => changeFeedFilter(KEY_FILTER[filter]),
     openSearch: () => {
+      if (brainStack) {
+        setBrainFocus((count) => count + 1)
+        return
+      }
       setSearch((current) => ({ ...current, open: true }))
       requestAnimationFrame(() => searchRef.current?.select())
     },
+    openBrain: () => openBrain(''),
     escape: () => {
       // Why: the Map layout's own Esc closes its browser, chat and card.
       if (layout === 'map') {
         return false
+      }
+      if (brainStack) {
+        backFromBrain()
+        return true
       }
       if (search.open) {
         closeSearch()
@@ -1323,6 +1370,19 @@ export function HqPlusScreen(): React.JSX.Element {
   const layoutSwitch = <HqPlusLayoutSwitch layout={layout} onLayout={setHqPlusLayout} />
   const topTail = (
     <div className="hqp-meter">
+      {/* Custom build (hq-plus-brain): Brain — everything about a task, an MR, a person or a project. */}
+      <button
+        type="button"
+        className="hqp-pill hqp-brain-btn"
+        aria-pressed={brainStack ? 'true' : 'false'}
+        title={translate(
+          'auto.hqPlus.brain.button',
+          'Everything about a task, an MR, a person or a project (⌘K)'
+        )}
+        onClick={() => (brainStack ? setBrainStack(null) : openBrain(''))}
+      >
+        {translate('auto.hqPlus.brain', 'Brain')}
+      </button>
       <PulseBellButton />
     </div>
   )
@@ -1358,20 +1418,58 @@ export function HqPlusScreen(): React.JSX.Element {
       chatLinks={data.chatLinks}
     />
   )
-  const centerOverlay = centerFile ? (
-    <HqPlusCenterFile
-      onClose={() => setCenterFile(false)}
-      backLabel={layout === 'map' ? 'Map' : null}
-    />
-  ) : centerBrowser && browserWorktreeId ? (
-    <HqPlusCenterBrowser
-      worktreeId={browserWorktreeId}
-      full={browserFull}
-      onFull={setBrowserFull}
-      onClose={closeBrowser}
-      backLabel={layout === 'map' ? 'Map' : null}
-    />
-  ) : null
+  // Custom build (hq-plus-brain): what Brain's rows open — a chat on the right, a link, an HQ page.
+  const brainActions: HqPlusBrainActions = {
+    openChat: (chat) => {
+      const open = openChat(chat.sessionId)
+      if (open) {
+        open()
+      } else if (chat.worktreeId) {
+        void openHqRouteChat({ worktreeId: chat.worktreeId, sessionId: chat.sessionId })
+      }
+    },
+    openLink,
+    openFile: (path) => {
+      const root = hqPath ? `${hqPath.replace(/\/+$/, '')}/` : null
+      if (root && path.startsWith(root)) {
+        openReport(path.slice(root.length))
+      } else {
+        void window.api.shell.openFilePath(path, LOCAL_EXECUTION_HOST_ID)
+      }
+    }
+  }
+  const brainQuery = brainStack?.at(-1) ?? null
+  const centerOverlay =
+    brainStack && brainQuery !== null ? (
+      <HqPlusBrain
+        query={brainQuery}
+        backLabel={
+          brainStack.length > 1
+            ? (brainStack.at(-2) ?? '') || translate('auto.hqPlus.brain', 'Brain')
+            : layout === 'map'
+              ? 'Map'
+              : translate('auto.hqPlus.centerFile.back', 'Feed')
+        }
+        onQuery={openBrain}
+        onBack={backFromBrain}
+        actions={brainActions}
+        now={now}
+        focusSearch={brainFocus}
+      />
+    ) : centerFile ? (
+      <HqPlusCenterFile
+        onClose={() => setCenterFile(false)}
+        backLabel={layout === 'map' ? 'Map' : null}
+      />
+    ) : centerBrowser && browserWorktreeId ? (
+      <HqPlusCenterBrowser
+        worktreeId={browserWorktreeId}
+        full={browserFull}
+        onFull={setBrowserFull}
+        onClose={closeBrowser}
+        backLabel={layout === 'map' ? 'Map' : null}
+      />
+    ) : null
   const linkPopover = (
     <LinkActionPopover
       request={linkRequest}
@@ -1420,8 +1518,9 @@ export function HqPlusScreen(): React.JSX.Element {
           }}
           panel={renderPanel}
           overlay={centerOverlay}
-          overlayKind={centerFile ? 'file' : 'browser'}
+          overlayKind={brainStack ? 'brain' : centerFile ? 'file' : 'browser'}
           closeOverlay={() => {
+            setBrainStack(null)
             setCenterFile(false)
             closeBrowser()
           }}
