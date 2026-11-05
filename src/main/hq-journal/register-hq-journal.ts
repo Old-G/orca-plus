@@ -1,6 +1,6 @@
 // Custom build (hq-plus-journal): starts HQ+'s journal — it follows every pulse write, re-reads the
 // Codex reports on a timer, and serves `hq.*` and `chat.send` through the runtime RPC.
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { onPulseChanged } from '../orca-plus/pulse/pulse-change-events'
 import { PULSE_BELL_KIND } from '../../shared/pulse-bell'
@@ -11,6 +11,8 @@ import { provideAutoEffortLog } from '../native-chat/auto-effort/native-chat-aut
 import { createHqThreads, provideHqThreads } from './hq-journal-threads'
 import { registerHqSessions } from '../hq-sessions/register-hq-sessions'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
+import { provideNativeChatTabReveal } from '../orca-plus/waiting-replies/native-chat-tab-reveal'
+import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/host/structured-agent-session-registry'
 import { runHqReopenChatOnDesktop } from '../hq-today/hq-request-on-desktop'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -60,6 +62,20 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
       ? `folder:${location.workspaceId}`
       : location.workspaceId
   }
+  // Custom build (chat-tab-reveal): a chat any Orca+ delivery writes to (`orca chat send`, a
+  // person's answer, a restart notice) gets its tab back in the sidebar if it was closed.
+  provideNativeChatTabReveal({
+    tabShown: (sessionId) =>
+      getStructuredAgentSessionHost()?.isSessionTabVisible(sessionId) ?? true,
+    reveal: async (sessionId) => {
+      const host = getStructuredAgentSessionHost()
+      if (!host) {
+        throw new Error('No chat host on this Mac.')
+      }
+      return host.revealSession(sessionId)
+    },
+    publish: (tab) => runtime.publishStructuredAgentSessionTab(tab)
+  })
   const enabled = (): boolean => store.getSettings().hqPlusJournalEnabled !== false
   const service = createHqJournalService({
     enabled,
