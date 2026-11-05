@@ -471,7 +471,7 @@ button.hqpc-sum:hover {
   --hqpc-s: var(--hqp-ice);
 }
 .hqpc-st[data-state='working'] i {
-  animation: hqpc-pulse 1.6s ease-in-out infinite;
+  animation: hqpc-pulse 1.6s steps(5, jump-none) infinite;
 }
 @keyframes hqpc-pulse {
   50% {
