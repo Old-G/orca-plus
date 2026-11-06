@@ -236,7 +236,7 @@ function conversationCard(
   answers: readonly HqWaitingReplyRef[]
 ): HqPlusCard | null {
   const cards = members.filter((item): item is HqPlusCard => item.kind === 'card')
-  const { parts, earlier } = oneRequest(cards.filter((card) => card.open))
+  const { parts, earlier } = oneRequest(cards)
   const newest = Math.max(...members.map((item) => item.at))
   const messages = hqPlusMessagesLeft(
     conversation?.messages.length
@@ -302,15 +302,16 @@ function conversationCard(
  * own Reply / To work / Done (owner 06.11). One talk asks once: the newest request keeps the buttons,
  * the earlier ones are only messages above it.
  */
-function oneRequest(open: readonly HqPlusCard[]): { parts: HqPlusCard[]; earlier: string[] } {
-  const requests = open.filter((card) => card.inbox?.kind === HQ_SLACK_REQUEST_BELL_KIND)
+function oneRequest(cards: readonly HqPlusCard[]): { parts: HqPlusCard[]; earlier: string[] } {
+  const requests = cards.filter((card) => card.inbox?.kind === HQ_SLACK_REQUEST_BELL_KIND)
   const newest = requests.reduce<HqPlusCard | null>(
     (kept, card) => (!kept || card.at >= kept.at ? card : kept),
     null
   )
-  const earlier = requests.filter((card) => card !== newest)
+  // Why: decided or not, the newest request speaks for the talk; earlier open ones wait on it.
+  const earlier = requests.filter((card) => card !== newest && card.open)
   return {
-    parts: open.filter((card) => !earlier.includes(card)),
+    parts: cards.filter((card) => card.open && !earlier.includes(card)),
     earlier: earlier.flatMap((card) => (card.inbox ? [card.inbox.id] : []))
   }
 }

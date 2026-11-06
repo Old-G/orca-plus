@@ -354,6 +354,16 @@ describe('one request per conversation (hq-plus-one-request)', () => {
     expect(conversation?.earlierRequests).toEqual([first.id, second.id])
   })
 
+  it('keeps the earlier open until the newest is decided, then hands them to the card to close', () => {
+    const [first, second] = [comment(1), comment(2)]
+    const decided = { ...comment(3), doneAt: NOW - MIN, doneAction: 'done' }
+    const log = hqPlusFeedLog(feed([], [first, second, decided]), DAY_START)
+    const card = log.find((item) => item.kind === 'card' && item.conversation)
+    const conversation = card?.kind === 'card' ? card.conversation : undefined
+    expect(conversation?.parts).toEqual([])
+    expect(conversation?.earlierRequests).toEqual([first.id, second.id])
+  })
+
   it('leaves a lone request with nothing to close', () => {
     const only = comment(1)
     const log = hqPlusFeedLog(feed([], [only, remind]), DAY_START)
