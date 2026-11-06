@@ -17,9 +17,9 @@ export const THEME_AUTO_SET_CHANNEL = 'orcaPlusTheme:setAuto'
 export const THEME_AUTO_CHANGED_CHANNEL = 'orcaPlusTheme:autoChanged'
 
 /** Paper at or below this share of the maximum brightness… */
-export const PAPER_AT_OR_BELOW = 0.3
+export const PAPER_AT_OR_BELOW = 0.45
 /** …and back to dark only from here, so a level near the line does not flicker. */
-export const DARK_AT_OR_ABOVE = 0.38
+export const DARK_AT_OR_ABOVE = 0.55
 export const BRIGHTNESS_POLL_MS = 4000
 export const POWER_POLL_MS = 5000
 
