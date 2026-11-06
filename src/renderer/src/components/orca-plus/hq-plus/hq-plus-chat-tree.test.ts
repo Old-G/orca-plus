@@ -3,7 +3,7 @@ import type { HqChatLinksResult } from '../../../../../shared/hq-chat-links'
 import { structuredAgentSessionTabId } from '../../../../../shared/agent-session/view/structured-agent-session-projection'
 import type { Tab } from '../../../../../shared/tab-types'
 import type { HqChatItem } from '../hq/hq-chat-list'
-import { hqPlusChatTree } from './hq-plus-chat-tree'
+import { hqPlusChatTree, type HqPlusTreeRow } from './hq-plus-chat-tree'
 
 const chat = (
   sessionId: string,
@@ -138,6 +138,42 @@ describe('HQ+ «By work» tree', () => {
     )
     expect(rows.length).toBeLessThanOrEqual(2)
     expect(new Set(rows.map((row) => row.item.key)).size).toBe(rows.length)
+  })
+
+  it('counts the chats right under a chat and names the closed lead of a lone worker', () => {
+    const rows = hqPlusChatTree(
+      [
+        chat('lead', 'working', 10),
+        chat('a', 'working', 20),
+        chat('b', 'done', 30),
+        chat('a1', 'working', 40),
+        chat('worker', 'needs', 50)
+      ],
+      links([
+        ['a', 'lead'],
+        ['b', 'lead'],
+        ['a1', 'a'],
+        ['mid', 'gone-lead'],
+        ['worker', 'mid']
+      ])
+    )
+    const of = (key: string): HqPlusTreeRow | undefined => rows.find((row) => row.item.key === key)
+    expect(of('lead')).toMatchObject({ depth: 0, children: 2, startedBy: null, earlier: false })
+    expect(of('a')).toMatchObject({ depth: 1, children: 1, startedBy: null })
+    expect(of('a1')).toMatchObject({ depth: 2, children: 0 })
+    expect(of('worker')).toMatchObject({ depth: 0, children: 0, startedBy: 'gone-lead' })
+  })
+
+  it('marks the older chats of a handed-off line as earlier', () => {
+    const rows = hqPlusChatTree(
+      [chat('lead-1', 'done', 10), chat('lead-2', 'working', 20), chat('kid', 'working', 30)],
+      links([['kid', 'lead-1']], [['lead-2', 'lead-1']])
+    )
+    expect(rows.map((row) => [row.item.key, row.earlier, row.children])).toEqual([
+      ['lead-2', false, 1],
+      ['lead-1', true, 0],
+      ['kid', false, 0]
+    ])
   })
 
   it('the earliest link wins for a chat handed work by two chats', () => {

@@ -62,7 +62,8 @@ import { useHqChatList, useHqProjectColor } from '../hq/use-hq-chat-list'
 import { onHqTabRequested, takeRequestedHqTab } from '../hq/hq-view'
 import { PulseBellButton } from '../pulse-bell/PulseBellButton'
 import { openHqRouteChat } from '../pulse-bell/hq-route-send'
-import { hqPlusThreadKey, hqPlusTileOf, type HqPlusLogContext } from './HqPlusLog'
+import { hqPlusThreadKey, type HqPlusLogContext } from './HqPlusLog'
+import { hqPlusTileFamilies, hqPlusTileOf } from '../../../../../shared/hq-plus-tile'
 import { HqPlusProjectChips, HqPlusProjectFeed } from './HqPlusProjectFeed'
 import type { HqPlusProjectCardContext } from './HqPlusProjectParts'
 import { useHqPlusDraftChats } from './use-hq-plus-drafts'
@@ -125,12 +126,16 @@ import {
 import { setHqPlusLayout, useHqPlusLayout } from './hq-plus-layout'
 import { HqPlusMapLayout } from './HqPlusMapLayout'
 import { HqPlusLayoutSwitch } from './HqPlusLayoutSwitch'
+import { HqPlusWork, type HqPlusWorkActions } from './HqPlusWork'
+import { hqPlusWorkView } from './hq-plus-work-view'
+import { hqPlusChatTree } from './hq-plus-chat-tree'
 import { startHqChat } from '../hq/hq-new-chat'
 import { activateAndRevealWorktree } from '@/lib/workspace/activation/worktree-activation'
 import { useHqPlusRootClass } from './hq-plus-theme'
 import { OrcaPlusThemeMenu } from '../theme/OrcaPlusThemeMenu'
 import './hq-plus.css'
 import './hq-plus-map.css'
+import './hq-plus-work.css'
 import './hq-plus-paper.css'
 
 /** Custom build (hq-plus-map): the Map layout's «Card» tab — what is picked on the map. */
@@ -555,6 +560,17 @@ export function HqPlusScreen(): React.JSX.Element {
       new Map(pages.status === 'ready' ? pages.pages.map((page) => [page.slug, page.repoId]) : []),
     [pages]
   )
+  // Custom build (hq-plus-work-view): one tile per project everywhere; a family's shared first word
+  // (every project of one company) is read off the projects themselves.
+  const repoNames = useAppStore((state) => state.repos)
+  const tileFamilies = useMemo(
+    () =>
+      hqPlusTileFamilies([
+        ...(pages.status === 'ready' ? pages.pages.map((page) => page.slug) : []),
+        ...repoNames.map((repo) => repo.displayName)
+      ]),
+    [pages, repoNames]
+  )
   // Custom build (hq-project-cards): what the project cards are built from — the room's rows as the feed
   // shows them, its waits on people, its open chats and today's journal rows; one model for the feed
   // and the Map's panel (and the phone's, from the same src/shared).
@@ -670,13 +686,16 @@ export function HqPlusScreen(): React.JSX.Element {
     return repoId ? colorFor(repoId) : null
   }
   const tileOfChat = (item: (typeof chatItems)[number]): HqPlusTile => ({
-    letters: hqPlusTileOf(slugOfRepo.get(item.repoId) ?? item.projectName),
+    letters: hqPlusTileOf(slugOfRepo.get(item.repoId) ?? item.projectName, tileFamilies),
     color: colorFor(item.repoId)
   })
   const tileOfRepo = (repoName: string): HqPlusTile => {
     const repoId = useAppStore.getState().repos.find((repo) => repo.displayName === repoName)?.id
     return {
-      letters: hqPlusTileOf((repoId ? slugOfRepo.get(repoId) : undefined) ?? repoName),
+      letters: hqPlusTileOf(
+        (repoId ? slugOfRepo.get(repoId) : undefined) ?? repoName,
+        tileFamilies
+      ),
       color: repoId ? colorFor(repoId) : null
     }
   }
@@ -931,6 +950,7 @@ export function HqPlusScreen(): React.JSX.Element {
     hqPath,
     hqWorktreeId,
     roomColor,
+    tileOf: (project) => hqPlusTileOf(project, tileFamilies),
     openChat,
     openLink,
     onScope: (key) => {
@@ -1053,8 +1073,8 @@ export function HqPlusScreen(): React.JSX.Element {
   const closeSearch = (): void => setSearch({ open: false, query: '', at: -1 })
   useHqPlusFeedKeys({
     // Custom build (hq-plus-brain): with Brain over the feed, the feed's keys have no rows to walk.
-    items: brainStack ? [] : feedItems,
-    moveIds: brainStack ? [] : moveIds,
+    items: brainStack || layout === 'work' ? [] : feedItems,
+    moveIds: brainStack || layout === 'work' ? [] : moveIds,
     // Why: on «All» J/K walk the owner's lines first; on a chip, every line it shows.
     filter: feedFilter === 'all' ? 'all' : 'move',
     selectedId,
@@ -1394,6 +1414,44 @@ export function HqPlusScreen(): React.JSX.Element {
       <PulseBellButton />
     </div>
   )
+  // Custom build (hq-plus-work-view, owner 06.11): the Work view — the same tree as «By work», on the
+  // whole screen; hidden projects stay out, as in the column.
+  const hiddenProjectIds = useAppStore((state) => state.settings?.hqHiddenProjectIds) ?? NO_IDS
+  const workModel = useMemo(() => {
+    if (layout !== 'work') {
+      return null
+    }
+    const items = roomChats.filter((item) => !hiddenProjectIds.includes(item.repoId))
+    return hqPlusWorkView({
+      tree: hqPlusChatTree(items, data.chatLinks),
+      links: data.chatLinks,
+      sessions: (data.sessions?.sessions ?? []).filter(
+        (session) => !room || session.workspace === room
+      ),
+      since: dayStart
+    })
+  }, [layout, roomChats, hiddenProjectIds, data.chatLinks, data.sessions, room, dayStart])
+  const workActions: HqPlusWorkActions = {
+    now,
+    picked: tab === 'session' ? chatKey : null,
+    onOpen: (item) => showChat(item.key),
+    onOpenClosed: (session) => {
+      const open = openChat(session.sessionId)
+      if (open) {
+        open()
+      } else if (session.worktreeId) {
+        void openHqRouteChat({ worktreeId: session.worktreeId, sessionId: session.sessionId })
+      }
+    },
+    slugOf: (item) => slugOfRepo.get(item.repoId) ?? item.projectName,
+    colorOf: (item) => colorFor(item.repoId),
+    colorOfProject: projectColor,
+    nameOf: (sessionId) => liveOf(sessionId)?.name ?? null,
+    waitOf: (item) =>
+      item.kind === 'chat'
+        ? (waitsOnThem.find((wait) => wait.sessionId === item.tab.entityId) ?? null)
+        : null
+  }
   const side = (
     <HqPlusSide
       ticker={
@@ -1411,7 +1469,7 @@ export function HqPlusScreen(): React.JSX.Element {
       drafts={draftChats}
       colorFor={colorFor}
       tileOfRepo={(repoId, name) => ({
-        letters: hqPlusTileOf(slugOfRepo.get(repoId) ?? name),
+        letters: hqPlusTileOf(slugOfRepo.get(repoId) ?? name, tileFamilies),
         color: colorFor(repoId)
       })}
       onKeepProject={setHqProjectKept}
@@ -1424,6 +1482,7 @@ export function HqPlusScreen(): React.JSX.Element {
       onPickChat={(item) => showChat(item.key)}
       openChats={chatItems}
       chatLinks={data.chatLinks}
+      slugOf={(item) => slugOfRepo.get(item.repoId) ?? item.projectName}
     />
   )
   // Custom build (hq-plus-brain): what Brain's rows open — a chat on the right, a link, an HQ page.
@@ -1564,89 +1623,104 @@ export function HqPlusScreen(): React.JSX.Element {
         className="hqp-body"
         data-wide={wide ? 'true' : undefined}
         data-center-full={centerBrowser && browserFull ? 'true' : undefined}
+        data-work={workModel ? 'true' : undefined}
       >
-        <div className="hqp-side-wrap" ref={left.containerRef}>
-          {side}
-        </div>
-        <button
-          type="button"
-          className="hqp-resize"
-          data-active={left.isResizing ? 'true' : undefined}
-          aria-label={translate('auto.hqPlus.resizeLeft', 'Resize the left panel')}
-          onMouseDown={left.onResizeStart}
-        >
-          <i aria-hidden="true" />
-        </button>
+        {workModel ? (
+          <main
+            className="hqp-feed hqw-main"
+            aria-label={translate('auto.hqPlus.work.label', 'Work')}
+          >
+            <HqPlusWork model={workModel} actions={workActions} />
+            {centerOverlay}
+          </main>
+        ) : (
+          <>
+            <div className="hqp-side-wrap" ref={left.containerRef}>
+              {side}
+            </div>
+            <button
+              type="button"
+              className="hqp-resize"
+              data-active={left.isResizing ? 'true' : undefined}
+              aria-label={translate('auto.hqPlus.resizeLeft', 'Resize the left panel')}
+              onMouseDown={left.onResizeStart}
+            >
+              <i aria-hidden="true" />
+            </button>
+          </>
+        )}
 
-        <main
-          className="hqp-feed"
-          aria-label={translate('auto.hqPlus.feed', 'Conversation with HQ')}
-        >
-          <div className="hqp-fh">
-            <span className="hqp-hl">
-              {scope
-                ? translate('auto.hqPlus.feed.thread', 'thread · {{key}}', { key: scopeLabel })
-                : translate('auto.hqPlus.feed.projects', 'projects · today')}
-            </span>
-            {scope ? (
-              <button type="button" className="hqp-chip-btn" onClick={() => setScope(null)}>
-                {translate('auto.hqPlus.feed.all', 'whole log')}
-              </button>
-            ) : null}
-            <span className="hqp-spacer" />
-            <HqPlusProjectChips
-              filter={feedFilter}
-              counts={projectFeed.counts}
-              onFilter={changeFeedFilter}
-            />
-          </div>
-          {search.open ? (
-            <HqPlusFeedSearch
-              query={search.query}
-              matches={matchIds.length}
-              at={search.at}
-              inputRef={searchRef}
-              onQuery={(query) => setSearch({ open: true, query, at: -1 })}
-              onStep={stepSearch}
-              onClose={closeSearch}
-            />
-          ) : null}
-          {data.error && !data.feed ? <p className="hqp-error">{data.error}</p> : null}
-          <HqPlusProjectFeed
-            feed={projectFeed}
-            filter={feedFilter}
-            onFilter={changeFeedFilter}
-            ctx={projectCtx}
-          />
-          <div className="hqp-composer">
-            {scope ? (
-              <HqPlusThreadComposer
-                key={scope}
-                target={{
-                  address: scopedItem?.address ?? null,
-                  sessionId: scopedItem?.sessionId ?? null,
-                  replyTo: null,
-                  about: null
-                }}
-                openQuestion={
-                  all.findLast(
-                    (item): item is HqPlusCard =>
-                      item.kind === 'card' &&
-                      item.type === 'move' &&
-                      item.open &&
-                      hqPlusThreadKey(item) === scope
-                  ) ?? null
-                }
-                label={scopeLabel}
-                hqPath={hqPath}
-                onSent={data.reload}
+        {workModel ? null : (
+          <main
+            className="hqp-feed"
+            aria-label={translate('auto.hqPlus.feed', 'Conversation with HQ')}
+          >
+            <div className="hqp-fh">
+              <span className="hqp-hl">
+                {scope
+                  ? translate('auto.hqPlus.feed.thread', 'thread · {{key}}', { key: scopeLabel })
+                  : translate('auto.hqPlus.feed.projects', 'projects · today')}
+              </span>
+              {scope ? (
+                <button type="button" className="hqp-chip-btn" onClick={() => setScope(null)}>
+                  {translate('auto.hqPlus.feed.all', 'whole log')}
+                </button>
+              ) : null}
+              <span className="hqp-spacer" />
+              <HqPlusProjectChips
+                filter={feedFilter}
+                counts={projectFeed.counts}
+                onFilter={changeFeedFilter}
               />
-            ) : (
-              <HqCommandBox hqWorktreeId={hqWorktreeId} />
-            )}
-          </div>
-          {centerOverlay}
-        </main>
+            </div>
+            {search.open ? (
+              <HqPlusFeedSearch
+                query={search.query}
+                matches={matchIds.length}
+                at={search.at}
+                inputRef={searchRef}
+                onQuery={(query) => setSearch({ open: true, query, at: -1 })}
+                onStep={stepSearch}
+                onClose={closeSearch}
+              />
+            ) : null}
+            {data.error && !data.feed ? <p className="hqp-error">{data.error}</p> : null}
+            <HqPlusProjectFeed
+              feed={projectFeed}
+              filter={feedFilter}
+              onFilter={changeFeedFilter}
+              ctx={projectCtx}
+            />
+            <div className="hqp-composer">
+              {scope ? (
+                <HqPlusThreadComposer
+                  key={scope}
+                  target={{
+                    address: scopedItem?.address ?? null,
+                    sessionId: scopedItem?.sessionId ?? null,
+                    replyTo: null,
+                    about: null
+                  }}
+                  openQuestion={
+                    all.findLast(
+                      (item): item is HqPlusCard =>
+                        item.kind === 'card' &&
+                        item.type === 'move' &&
+                        item.open &&
+                        hqPlusThreadKey(item) === scope
+                    ) ?? null
+                  }
+                  label={scopeLabel}
+                  hqPath={hqPath}
+                  onSent={data.reload}
+                />
+              ) : (
+                <HqCommandBox hqWorktreeId={hqWorktreeId} />
+              )}
+            </div>
+            {centerOverlay}
+          </main>
+        )}
 
         <button
           type="button"
