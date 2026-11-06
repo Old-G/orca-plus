@@ -109,7 +109,9 @@ export const LOCAL_STORAGE_MODULE_DISPOSITIONS: Record<string, WslMoveFieldDispo
       'src/renderer/src/components/orca-plus/hq-plus/hq-plus-not-now.ts',
       'src/renderer/src/components/orca-plus/hq-plus/hq-plus-panel-widths.ts',
       'src/renderer/src/components/orca-plus/hq-plus/hq-plus-view-state.ts',
-      'src/renderer/src/components/orca-plus/hq-plus/use-hq-plus-new-marks.ts'
+      'src/renderer/src/components/orca-plus/hq-plus/use-hq-plus-new-marks.ts',
+      // Custom build (paper-theme): whether the theme follows the charger.
+      'src/renderer/src/components/orca-plus/theme/orca-plus-theme-mode.ts'
     ].map((path) => [
       path,
       notApplicableDisposition(62, 'Global preference or web-client storage.')

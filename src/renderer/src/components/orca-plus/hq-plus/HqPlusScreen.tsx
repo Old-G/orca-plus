@@ -127,8 +127,11 @@ import { HqPlusMapLayout } from './HqPlusMapLayout'
 import { HqPlusLayoutSwitch } from './HqPlusLayoutSwitch'
 import { startHqChat } from '../hq/hq-new-chat'
 import { activateAndRevealWorktree } from '@/lib/workspace/activation/worktree-activation'
+import { useHqPlusRootClass } from './hq-plus-theme'
+import { OrcaPlusThemeMenu } from '../theme/OrcaPlusThemeMenu'
 import './hq-plus.css'
 import './hq-plus-map.css'
+import './hq-plus-paper.css'
 
 /** Custom build (hq-plus-map): the Map layout's «Card» tab — what is picked on the map. */
 type HqPlusPanelCard = { label: string; active: boolean; body: React.ReactNode; onPick: () => void }
@@ -176,6 +179,8 @@ export function HqPlusScreen(): React.JSX.Element {
     findHqWorktreeId(state.settings?.hqPath, state.repos, state.worktreesByRepo)
   )
   // Custom build (hq-plus-ui-v5): the screen comes back as the owner left it.
+  // Custom build (paper-theme): dark HUD or Paper, as Orca's theme.
+  const rootClass = useHqPlusRootClass()
   const [view] = useState(readHqPlusViewState)
   const [scope, setScope] = useState<string | null>(view.scope)
   // Custom build (hq-project-cards): which sections the project cards show, remembered per viewer.
@@ -1384,6 +1389,8 @@ export function HqPlusScreen(): React.JSX.Element {
       >
         {translate('auto.hqPlus.brain', 'Brain')}
       </button>
+      {/* Custom build (paper-theme): Dark, Paper or Auto, next to Brain (owner, 06.11). */}
+      <OrcaPlusThemeMenu />
       <PulseBellButton />
     </div>
   )
@@ -1539,7 +1546,7 @@ export function HqPlusScreen(): React.JSX.Element {
   }
 
   return (
-    <div className="hq-plus dark">
+    <div className={rootClass}>
       <header className="hqp-top">
         <span className="hqp-brand">
           <span className="hqp-arc" aria-hidden="true">

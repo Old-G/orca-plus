@@ -40,6 +40,7 @@ import { claudeHandoffApi } from './api/claude-handoff-bridge'
 import { pulseBellApi } from './api/pulse-bell-bridge'
 import { outgoingApprovalApi } from './api/outgoing-approval-bridge'
 import { claudeLimitGuardApi } from './api/claude-limit-guard-bridge'
+import { orcaPlusPowerApi } from './api/orca-plus-power-bridge'
 import { claudeSubscriptionsApi } from './api/claude-subscriptions-bridge'
 import { strataApi } from './api/strata-bridge'
 import { hqGroupChatApi } from './api/hq-group-chat-bridge'
@@ -158,6 +159,7 @@ const api = {
   pulseBell: pulseBellApi,
   outgoingApproval: outgoingApprovalApi,
   claudeLimitGuard: claudeLimitGuardApi,
+  orcaPlusPower: orcaPlusPowerApi,
   claudeSubscriptions: claudeSubscriptionsApi,
   strata: strataApi,
   hqGroupChat: hqGroupChatApi,
