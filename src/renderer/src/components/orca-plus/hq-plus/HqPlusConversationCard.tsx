@@ -32,7 +32,6 @@ import { hqPlusClock as clock } from './HqPlusChatCard'
 import type { HqPlusLogContext } from './HqPlusLog'
 import { noteHqPlusTakeHint } from './hq-plus-take-hint'
 import { HqPlusInWorkButtons } from './HqPlusInWorkButtons'
-import { useCloseEarlierRequests } from './hq-plus-earlier-requests'
 
 const SHOWN_MESSAGES = 3
 
@@ -279,7 +278,6 @@ export function HqPlusConversationCard({
 }): React.JSX.Element | null {
   const conversation = card.conversation
   const expanded = ctx.isExpanded(card.id)
-  useCloseEarlierRequests(conversation ?? null, ctx.onChanged)
   if (!conversation) {
     return null
   }
