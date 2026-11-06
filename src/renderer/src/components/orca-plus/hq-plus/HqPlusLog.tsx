@@ -20,6 +20,7 @@ import { hqPlusDaysAgo, hqPlusSameDay } from '../../../../../shared/hq-plus-feed
 import type { HqPlusLinkClick } from './hq-plus-link-open'
 import type { HqPlusChatRef } from './HqPlusChatName'
 import { noteHqPlusTakeHint } from './hq-plus-take-hint'
+import { hqPlusTileOf } from '../../../../../shared/hq-plus-tile'
 
 const BOTTOM_SLACK_PX = 40
 
@@ -48,6 +49,8 @@ export type HqPlusLogContext = {
   ) => HqPlusChatCloser | null
   /** The project's own colour, the same as in the chat list; null leaves the room's. */
   projectColor: (project: string | null) => string | null
+  /** Custom build (hq-plus-work-view): the project's tile letters, the same as in the chat list. */
+  tileOf?: (project: string | null) => string
   /** True for the chat open on the right, so its card stands out. */
   isOpenChat: (sessionId: string | null) => boolean
   /** Custom build (hq-plus-ui-v4): unfolded cards, the card the keys act on, and what came while away. */
@@ -93,16 +96,6 @@ function roomStyle(color: string): React.CSSProperties & Record<'--hqp-room', st
   return { '--hqp-room': color }
 }
 
-export function hqPlusTileOf(project: string | null): string {
-  if (!project) {
-    return 'HQ'
-  }
-  const parts = project.split(/[-_\s]+/).filter(Boolean)
-  const letters =
-    parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : (parts[0] ?? project).slice(0, 2)
-  return letters.toUpperCase()
-}
-
 function LogItem({
   item,
   flash,
@@ -128,7 +121,7 @@ function LogItem({
   const color = ctx.projectColor(item.project) ?? ctx.roomColor(item.room)
   const tile = (
     <span className="hqp-tile" style={color ? roomStyle(color) : undefined} aria-hidden="true">
-      {hqPlusTileOf(item.project)}
+      {ctx.tileOf?.(item.project) ?? hqPlusTileOf(item.project)}
     </span>
   )
   // Custom build (hq-closed-loop): a job's lesson stays a card, so it can be undone.
