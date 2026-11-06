@@ -1,11 +1,11 @@
 // Custom build (paper-theme): the theme's Auto modes live in main, which can see what the renderer
-// cannot — the power source (powerMonitor) and the built-in screen's brightness (corebrightnessdiag) — and writes
+// cannot — the power source (pmset) and the built-in screen's brightness (corebrightnessdiag) — and writes
 // light or dark into the stock `theme` setting; the store sends the change to every window.
 // «Auto: Paper on battery» follows the charger; «Auto: Paper at low brightness» polls the backlight
 // while picked (owner 07.11: «нажимаю F1, уменьшаю яркость, а тема не переключается»).
 // The pick is a per-device file in userData, so it survives restarts and can be set without the UI.
 import { execFile } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, unwatchFile, watchFile, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BrowserWindow, app, ipcMain, powerMonitor } from 'electron'
 
@@ -21,6 +21,7 @@ export const PAPER_AT_OR_BELOW = 0.3
 /** …and back to dark only from here, so a level near the line does not flicker. */
 export const DARK_AT_OR_ABOVE = 0.38
 export const BRIGHTNESS_POLL_MS = 4000
+export const POWER_POLL_MS = 5000
 
 /** The built-in screen's brightness slider (what F1/F2 move) as 0..1, from `corebrightnessdiag
  *  status-info`; null when no built-in display reports one (an external monitor only, another Mac).
@@ -50,8 +51,16 @@ export function themeOnBrightness(level: number | null): 'light' | 'dark' | null
   return level >= DARK_AT_OR_ABOVE ? 'dark' : null
 }
 
-export function themeOnPower(onBattery: boolean): 'light' | 'dark' {
-  return onBattery ? 'light' : 'dark'
+export function themeOnPower(onBattery: boolean | null): 'light' | 'dark' | null {
+  return onBattery === null ? null : onBattery ? 'light' : 'dark'
+}
+
+/** On battery or not, from `pmset -g batt` («Now drawing from 'Battery Power'»); null when it says
+ *  neither. Why not powerMonitor: Electron 43.8.4 answers isOnBatteryPower() = false on battery
+ *  (07.11, MBP M1 Pro, pmset «Battery Power»), so the battery mode never left dark. */
+export function parsePmsetOnBattery(pmset: string): boolean | null {
+  const source = /Now drawing from '([^']+)'/.exec(pmset)?.[1]
+  return source === 'Battery Power' ? true : source === 'AC Power' ? false : null
 }
 
 export function normalizeThemeAutoMode(value: unknown): ThemeAutoMode {
@@ -63,15 +72,16 @@ type ThemeStore = {
   updateSettings(updates: { theme: Theme }, options: { notifyListeners: boolean }): unknown
 }
 
-type PowerSource = {
+/** powerMonitor's charger events — only a nudge to read pmset at once; the poll is what counts. */
+type PowerEvents = {
   on(event: 'on-battery' | 'on-ac', listener: () => void): unknown
   off(event: 'on-battery' | 'on-ac', listener: () => void): unknown
-  isOnBatteryPower(): boolean
 }
 
 export type ThemeAutoDeps = {
   store: ThemeStore
-  power: PowerSource
+  power: PowerEvents
+  readOnBattery: () => Promise<boolean | null>
   readBrightness: () => Promise<number | null>
   readMode: () => ThemeAutoMode
   writeMode: (mode: ThemeAutoMode) => void
@@ -103,6 +113,16 @@ export class ThemeAuto {
     this.run()
   }
 
+  /** The file changed outside this process (or a ship pre-set it): follow it without writing back. */
+  reloadMode(): void {
+    const mode = this.deps.readMode()
+    if (mode !== this.mode) {
+      this.mode = mode
+      this.deps.notify(mode)
+      this.run()
+    }
+  }
+
   stop(): void {
     this.stopCurrent?.()
     this.stopCurrent = null
@@ -119,6 +139,17 @@ export class ThemeAuto {
     }
   }
 
+  /** One power-source reading → theme. */
+  async checkPower(): Promise<void> {
+    if (this.mode !== 'battery') {
+      return
+    }
+    const next = themeOnPower(await this.deps.readOnBattery().catch(() => null))
+    if (this.mode === 'battery') {
+      this.apply(next)
+    }
+  }
+
   private apply(theme: 'light' | 'dark' | null): void {
     if (theme && this.deps.store.getSettings().theme !== theme) {
       // Why notify: without it the store saves the theme but no window repaints.
@@ -129,14 +160,15 @@ export class ThemeAuto {
   private run(): void {
     this.stop()
     if (this.mode === 'battery') {
-      const onBattery = (): void => this.apply(themeOnPower(true))
-      const onAc = (): void => this.apply(themeOnPower(false))
-      this.deps.power.on('on-battery', onBattery)
-      this.deps.power.on('on-ac', onAc)
-      this.apply(themeOnPower(this.deps.power.isOnBatteryPower()))
+      const nudge = (): void => void this.checkPower()
+      this.deps.power.on('on-battery', nudge)
+      this.deps.power.on('on-ac', nudge)
+      const handle = this.deps.setInterval(nudge, POWER_POLL_MS)
+      nudge()
       this.stopCurrent = () => {
-        this.deps.power.off('on-battery', onBattery)
-        this.deps.power.off('on-ac', onAc)
+        this.deps.power.off('on-battery', nudge)
+        this.deps.power.off('on-ac', nudge)
+        this.deps.clearInterval(handle)
       }
     } else if (this.mode === 'brightness') {
       const handle = this.deps.setInterval(() => void this.checkBrightness(), BRIGHTNESS_POLL_MS)
@@ -144,6 +176,17 @@ export class ThemeAuto {
       this.stopCurrent = () => this.deps.clearInterval(handle)
     }
   }
+}
+
+function readOnBattery(): Promise<boolean | null> {
+  if (process.platform !== 'darwin') {
+    return Promise.resolve(null)
+  }
+  return new Promise((resolve) => {
+    execFile('/usr/bin/pmset', ['-g', 'batt'], { timeout: 2000 }, (error, stdout) =>
+      resolve(error ? null : parsePmsetOnBattery(stdout))
+    )
+  })
 }
 
 function readBuiltInBrightness(): Promise<number | null> {
@@ -165,6 +208,7 @@ export function registerThemeAuto(store: ThemeStore): () => void {
   const auto = new ThemeAuto({
     store,
     power: powerMonitor,
+    readOnBattery,
     readBrightness: readBuiltInBrightness,
     readMode: () => {
       try {
@@ -195,7 +239,11 @@ export function registerThemeAuto(store: ThemeStore): () => void {
     auto.setMode(normalizeThemeAutoMode(mode))
   )
   auto.start()
+  // Why watch: the pick can be set without the UI (a ship, a chat fixing the owner's setup).
+  const onFile = (): void => auto.reloadMode()
+  watchFile(file, { interval: 2000 }, onFile)
   return () => {
+    unwatchFile(file, onFile)
     auto.stop()
     ipcMain.removeHandler(THEME_AUTO_GET_CHANNEL)
     ipcMain.removeHandler(THEME_AUTO_SET_CHANNEL)
