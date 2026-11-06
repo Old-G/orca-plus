@@ -1,7 +1,6 @@
 // Custom build (pulse-bell): the bell's IPC, its live refresh, and the producers main owns
 // (handoff offers, agents waiting on the user). The bell is the pulse database's first reader
 // that everyone sees, so from here on it creates the file.
-import { HQ_SLACK_REQUEST_BELL_KIND } from '../../../shared/hq-slack-request-bell'
 import { closeHqEarlierRequests } from './close-hq-earlier-requests'
 import { BrowserWindow, ipcMain } from 'electron'
 import type { Store } from '../../persistence'
@@ -84,15 +83,19 @@ export function registerPulseBell(
   rateLimits: RateLimitService
 ): void {
   // Custom build (hq-plus-one-request): a decided newest request takes its talk's earlier ones along.
-  const settleEarlierRequests = (): void => closeHqEarlierRequests(runtime)
+  // Any write — a click here, the phone, a sent reply, a sync — so after every pulse change, once.
+  let settling: ReturnType<typeof setTimeout> | null = null
+  onPulseChanged(() => {
+    settling ??= setTimeout(() => {
+      settling = null
+      closeHqEarlierRequests(runtime)
+    }, 0)
+  })
   const sync = (kind: string, desired: readonly PulseBellInput[]): void => {
     try {
       runtime.pulseSyncInboxKind(kind, desired)
     } catch (error) {
       console.warn(`[pulse-bell] ${kind} sync failed:`, error)
-    }
-    if (kind === HQ_SLACK_REQUEST_BELL_KIND) {
-      settleEarlierRequests()
     }
   }
 
@@ -343,7 +346,6 @@ export function registerPulseBell(
   ipcMain.handle('pulseBell:markDone', (_event, id: unknown, action: unknown) => {
     if (typeof id === 'string') {
       runtime.pulseMarkInboxDone(id, typeof action === 'string' ? action : undefined)
-      settleEarlierRequests()
     }
   })
   ipcMain.handle('pulseBell:syncKind', (_event, kind: unknown, items: unknown) => {
