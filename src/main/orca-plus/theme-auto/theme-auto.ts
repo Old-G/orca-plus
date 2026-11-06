@@ -16,10 +16,10 @@ export const THEME_AUTO_GET_CHANNEL = 'orcaPlusTheme:getAuto'
 export const THEME_AUTO_SET_CHANNEL = 'orcaPlusTheme:setAuto'
 export const THEME_AUTO_CHANGED_CHANNEL = 'orcaPlusTheme:autoChanged'
 
-/** Paper at or below this share of the maximum brightness… */
-export const PAPER_AT_OR_BELOW = 0.45
-/** …and back to dark only from here, so a level near the line does not flicker. */
-export const DARK_AT_OR_ABOVE = 0.55
+/** Paper at or below this share of the maximum brightness (F1/F2 move it by 1/16: 5 steps and down)… */
+export const PAPER_AT_OR_BELOW = 0.32
+/** …and dark from 6 steps (0.375) up; the gap between keeps a level near the line from flickering. */
+export const DARK_AT_OR_ABOVE = 0.37
 export const BRIGHTNESS_POLL_MS = 4000
 export const POWER_POLL_MS = 5000
 
