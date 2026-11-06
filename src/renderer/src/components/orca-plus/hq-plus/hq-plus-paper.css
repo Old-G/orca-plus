@@ -43,7 +43,12 @@ html.light .hq-plus-pop {
     rgba(184, 108, 0, 0.35) 60%,
     rgba(16, 42, 56, 0.16)
   );
-  --hqp-edge-ap: linear-gradient(135deg, #c1251a, rgba(193, 37, 26, 0.35) 60%, rgba(16, 42, 56, 0.16));
+  --hqp-edge-ap: linear-gradient(
+    135deg,
+    #c1251a,
+    rgba(193, 37, 26, 0.35) 60%,
+    rgba(16, 42, 56, 0.16)
+  );
   --hqp-edge-report: linear-gradient(
     135deg,
     #5636c0,
@@ -167,4 +172,41 @@ html.light .hq-plus rect[fill='#1b3340'] {
   align-items: center;
   justify-content: center;
   padding: 1px 9px;
+}
+
+/* Status badges — Chats, Work, the feed: filled in Paper, so a state reads at a glance (owner 07.11:
+   «статусы выглядят блекло и сливаются»). The owner's #14a44d / #e8590c gave white text 3.3:1 / 3.6:1,
+   so done and waiting sit a shade deeper; every label holds at least 4.5:1 on its fill. */
+html.light
+  .hq-plus
+  .hqp-badge:is(
+    [data-tone='done'],
+    [data-tone='waits'],
+    [data-tone='move'],
+    [data-tone='approve'],
+    [data-tone='working']
+  ) {
+  --hqp-badge-fill: var(--hqp-b);
+  --hqp-badge-ink: #ffffff;
+  border-color: var(--hqp-badge-fill);
+  background: var(--hqp-badge-fill);
+  color: var(--hqp-badge-ink);
+  font-weight: 600;
+}
+html.light .hq-plus .hqp-badge[data-tone='done'] {
+  --hqp-badge-fill: #0d853b;
+}
+html.light .hq-plus .hqp-badge[data-tone='waits'] {
+  --hqp-badge-fill: #c94a06;
+}
+html.light .hq-plus .hqp-badge:is([data-tone='move'], [data-tone='approve']) {
+  --hqp-badge-fill: #c92a2a;
+}
+html.light .hq-plus .hqp-badge[data-tone='working'] {
+  --hqp-badge-fill: #f2b100;
+  --hqp-badge-ink: #1d1500;
+}
+html.light .hq-plus .hqp-badge[data-tone='working']::before {
+  background: #1d1500;
+  box-shadow: none;
 }
