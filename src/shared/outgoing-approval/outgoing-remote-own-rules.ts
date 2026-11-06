@@ -4,12 +4,20 @@
 import type { HqRemoteNoApprove } from '../hq-autonomy'
 import { bindingsIn, contextKeys, readWords, type Binding, type Word } from './outgoing-shell-words'
 import {
+  OWN_SCRIPT_ENTRY,
+  globMatch,
+  isOwnContainerScript,
+  scratchBindings,
+  withoutDataHeredocs
+} from './outgoing-remote-own-probes'
+import {
   SSH_CALL,
   hasUnknownExpansion,
   hasUnreadableWords,
   hasPipeIntoScript,
   isRemote,
-  remoteSpans
+  remoteSpans,
+  sshHost
 } from './outgoing-remote-scope'
 
 // Why: run on another machine or database, these cannot be taken back.
@@ -74,66 +82,26 @@ export function isTempTarget(target: string, globs = false): boolean {
   )
 }
 
-const SSH_FLAGS = '46AaCfGgKkMNnqsTtVvXxYy'
-const SSH_SAFE_VALUE_OPTIONS = 'ilOop'
-const SSH_SAFE_CONFIG =
-  /^(?:ControlPath|ControlMaster|ControlPersist|BatchMode|ConnectTimeout|ConnectionAttempts|ServerAliveInterval|ServerAliveCountMax|StrictHostKeyChecking|LogLevel)[=\s]/i
 const AT_COMMAND = new RegExp(
   String.raw`(?:^|[\n;&|('"\x60{]|\$\(|\bthen|\bdo|\belse)\s*(?:sudo\s+(?:-\S+\s+)*)?$`
 )
 // Why a variable may name the container (`docker exec $C rm …`): which container's /tmp it is does not
 // change what is deleted, and outside /tmp the variable keeps the card through hasUnknownExpansion.
+// Groups: `compose` when it is a service, then the container as written.
 const RM_IN_CONTAINER =
-  /\bdocker\s+(?:compose\s+)?exec\s+(?:(?:-[uwe]|--(?:user|workdir|env|env-file))\s+\S+\s+|-\S+\s+)*(?:[\w.-]+|\\?\$\{?\w+\}?|"\$\{?\w+\}?")\s+$/
+  /\bdocker\s+(compose\s+)?exec\s+(?:(?:-[uwe]|--(?:user|workdir|env|env-file))\s+\S+\s+|-\S+\s+)*([\w.-]+|\\?\$\{?\w+\}?|"\$\{?\w+\}?")\s+$/
 const PATH_CHARS = /^[\w.\-+@:,=*?/~[\]!]+$/
 // Why: each can feed rm or docker words, rebind a variable, move `~` or point a listed path elsewhere
 // (a link or a mount), move other data into it (`mv`) or swap rm itself, in a way the text does not show.
+// A file named after one (`eval.env`) is not the command (owner 06.11).
 const UNSURE =
-  /\b(?:ln|mount)(?![\w.-])|--bind\b|\bdocker\s+run\b[^\n;|&]*\s(?:-v|--volume|--mount)\b|\b(?:eval|source|xargs|parallel)\b|(?:^|[;&|(\n])\s*\.\s|-exec(?:dir)?\b|\b(?:HOME|IFS|PATH)\+?=|\b(?:mv|alias|enable|builtin|hash)(?![\w.-])|--remove-source-files\b|\b(?:rm|docker|mktemp)\s*\(\s*\)|\bfunction\s+(?:rm|docker|mktemp)\b/
+  /\b(?:ln|mount)(?![\w.-])|--bind\b|\bdocker\s+run\b[^\n;|&]*\s(?:-v|--volume|--mount)\b|\b(?:eval|source|xargs|parallel)(?![\w.-])|(?:^|[;&|(\n])\s*\.\s|-exec(?:dir)?\b|\b(?:HOME|IFS|PATH)\+?=|\b(?:mv|alias|enable|builtin|hash)(?![\w.-])|--remove-source-files\b|\b(?:rm|docker|mktemp)\s*\(\s*\)|\bfunction\s+(?:rm|docker|mktemp)\b/
 // Why: these point docker at another engine than the one on the listed host — set in the environment,
 // a config dir, a context switch or a global flag. Read on the text with quotes and backslashes dropped,
 // as the shell reads `con\\text` and `co"n"text` (security review, 02.11).
 const OTHER_DOCKER =
   /DOCKER_[A-Z]|\.docker\b|\bcontext\s+(?:use|create|update|import|rm)\b|\bdocker\s+(?:-H|--host|--context|-c|--config)\b/
 const QUIET_TARGET = /^\/dev\/(?:null|stdout|stderr)$/
-
-function globMatch(pattern: string, name: string): boolean {
-  const source = pattern
-    .split('*')
-    .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
-    .join('[\\w.-]*')
-  return /^[\w.-]+$/.test(name) && new RegExp(`^${source}$`).test(name)
-}
-
-/** The host of the ssh call whose options start at `from`, or null when it cannot be read. */
-function sshHost(command: string, from: number): string | null {
-  const tokens = [...command.slice(from).matchAll(/\S+/g)].map((match) => match[0])
-  for (let t = 0; t < tokens.length; t++) {
-    // Why: `-o "HostName=…"` is the same option to ssh once the shell drops the quotes.
-    const token = tokens[t].replace(/['"]/g, '')
-    if (!token.startsWith('-')) {
-      const host = /^(?:[\w.-]+@)?([\w.-]+)$/.exec(tokens[t].replace(/[;&|)]+$/, ''))?.[1] ?? null
-      // Why: ssh also reads options given after the host, and one may name another machine.
-      return /^['"]?-/.test(tokens[t + 1] ?? '') ? null : host
-    }
-    // Why: walked like getopt; any option off this short list may send ssh somewhere else.
-    for (let c = 1; c < token.length; c++) {
-      const letter = token[c]
-      if (SSH_FLAGS.includes(letter)) {
-        continue
-      }
-      if (!SSH_SAFE_VALUE_OPTIONS.includes(letter)) {
-        return null
-      }
-      const value = token.slice(c + 1) || (tokens[++t] ?? '').replace(/['"]/g, '')
-      if (letter === 'o' && !SSH_SAFE_CONFIG.test(value)) {
-        return null
-      }
-      break
-    }
-  }
-  return null
-}
 
 const MKTEMP = Symbol('mktemp')
 
@@ -161,7 +129,8 @@ function resolve(
   if (binding.value === null) {
     return rest === '' ? MKTEMP : null
   }
-  return binding.value + rest
+  // Why: `${S}x` names a sibling of the path set, not something in it.
+  return rest === '' || rest.startsWith('/') ? binding.value + rest : null
 }
 
 function pathMatches(pattern: string, path: string): boolean {
@@ -254,9 +223,10 @@ function isOwnSite(
     return false
   }
   const words = readWords(command, at + 2)
+  const inContainer = RM_IN_CONTAINER.exec(before)
   if (
     !words ||
-    !(AT_COMMAND.test(before) || RM_IN_CONTAINER.test(before)) ||
+    !(AT_COMMAND.test(before) || inContainer) ||
     !words.every((word) => !word.redirect || QUIET_TARGET.test(word.text))
   ) {
     return false
@@ -269,14 +239,39 @@ function isOwnSite(
         ((endOfOptions === -1 || index < endOfOptions) &&
           (word.quote !== '' || !word.text.startsWith('-'))))
   )
+  // Why: a listed script is a file the agent copied in — `rm -f` and nothing else; only a container
+  // named as written, not a compose service or one on another docker engine (owner 06.11).
+  const container =
+    remote &&
+    inContainer &&
+    !inContainer[1] &&
+    /^[\w.-]+$/.test(inContainer[2]) &&
+    !OTHER_DOCKER.test(command.replace(/['"\\]/g, '')) &&
+    words.every(
+      (word) =>
+        word.redirect ||
+        targets.includes(word) ||
+        (word.quote === '' && /^(?:-f|--force|--)$/.test(word.text))
+    )
+      ? inContainer[2]
+      : null
   return (
     targets.length > 0 &&
-    targets.every((word) => isOwnPath(word, resolve(word, bindings, keys), own, remote, globs))
+    targets.every(
+      (word) =>
+        isOwnPath(word, resolve(word, bindings, keys), own, remote, globs) ||
+        isOwnContainerScript(word, own.containerRmPaths, container)
+    )
   )
 }
 
-const NOTHING_LISTED: HqRemoteNoApprove = { hosts: [], containers: [], rmPaths: [], mktemp: false }
-const NO_BINDINGS = new Map<string, Binding>()
+const NOTHING_LISTED: HqRemoteNoApprove = {
+  hosts: [],
+  containers: [],
+  rmPaths: [],
+  containerRmPaths: [],
+  mktemp: false
+}
 // Why: a command named by an expansion may be mv or ln; checked where a command starts — after a
 // separator, a subshell, `$(`, a group, a condition, an ssh host or `sh -c` — and after the prefixes that
 // run the next word (security check, 04.11).
@@ -302,6 +297,9 @@ function narrowed(own: HqRemoteNoApprove): HqRemoteNoApprove {
     hosts: own.hosts.filter((host) => !host.includes('*') && named(host)),
     containers: own.containers.filter(named),
     rmPaths: own.rmPaths.filter(rooted),
+    containerRmPaths: own.containerRmPaths.filter(
+      (entry) => OWN_SCRIPT_ENTRY.test(entry) && !entry.includes('..')
+    ),
     mktemp: own.mktemp
   }
 }
@@ -330,6 +328,12 @@ export function isOwnRemoteWork(command: string): boolean {
   const keys = contextKeys(command)
   const sites = [...command.matchAll(DESTRUCTION_SITES)]
   const spans = remoteSpans(command, keys)
+  const bindings = bindingsIn(command, keys)
+  const shellText = withoutDataHeredocs(command, keys)
+  // Owner 06.11: the agent's probe scripts in a listed container and its scratchpad by a variable set
+  // here pass the same way.
+  const fastList: HqRemoteNoApprove = { ...NOTHING_LISTED, containerRmPaths: own.containerRmPaths }
+  const scratch = scratchBindings(bindings)
   // Custom build (remote-own-work, owner 04.11): on listed hosts, a command whose every destructive step
   // is an rm of literal /tmp names passes whatever else it runs (151 of 151 such cards approved). Why:
   // this rule sees only deletions written out (`ssh h 'X=rm; $X -rf /srv'` passes with no card), so a
@@ -343,15 +347,14 @@ export function isOwnRemoteWork(command: string): boolean {
     [...command.matchAll(SSH_CALL)].length > 0 &&
     sites.length > 0 &&
     // Why both: `$` hides a name in the text as written; `/bin/'m'[v]` is `/bin/m[v]` once unquoted.
-    !HIDDEN_COMMAND_NAME.test(command) &&
-    !HIDDEN_COMMAND_NAME.test(command.replace(/['"\\]/g, '')) &&
+    !HIDDEN_COMMAND_NAME.test(shellText) &&
+    !HIDDEN_COMMAND_NAME.test(shellText.replace(/['"\\]/g, '')) &&
     // Why: `rm -f /tmp/x; curl … | sh` runs a script the text does not show (Codex at ship, 05.11).
     !hasPipeIntoScript(command) &&
-    sites.every((site) => isOwnSite(command, site, NOTHING_LISTED, NO_BINDINGS, keys, spans, true))
+    sites.every((site) => isOwnSite(command, site, fastList, scratch, keys, spans, true))
   ) {
     return true
   }
-  const bindings = bindingsIn(command, keys)
   const rmWords = sites.flatMap((site) =>
     /^rm\s/i.test(site[0]) ? (readWords(command, (site.index ?? 0) + 2) ?? []) : []
   )
