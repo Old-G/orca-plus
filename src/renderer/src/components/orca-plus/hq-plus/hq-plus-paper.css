@@ -1,0 +1,170 @@
+/* Custom build (paper-theme): «Paper» — HQ+ while Orca is light (owner, 06.11: «мне нравится светлая
+   тема»). Warm paper, white cards, ink text; tuned for a dim screen on battery. Every caption colour
+   holds at least 5:1 on the page, the side panel and the segment fill. HQ+'s root drops its `dark`
+   class in light (hq-plus-theme.ts); menus portal out of it, hence html.light .hq-plus-pop. */
+html.light .hq-plus,
+html.light .hq-plus-pop {
+  --hqp-bg: #f3f2ee;
+  --hqp-bg-2: #ebe9e3;
+  --hqp-card: #ffffff;
+  --hqp-soft: rgba(16, 42, 56, 0.04);
+  --hqp-soft-2: rgba(16, 42, 56, 0.08);
+  --hqp-line: rgba(16, 42, 56, 0.16);
+  --hqp-line-2: rgba(16, 42, 56, 0.4);
+  --hqp-ice: #00657b;
+  --hqp-ice-ink: #ffffff;
+  --hqp-fg: #0c1418;
+  --hqp-hi: #0c1418;
+  --hqp-mute: #33444c;
+  --hqp-faint: #4d5b62;
+  --hqp-amber: #844b00;
+  --hqp-amber-ink: #ffffff;
+  --hqp-red: #ad2016;
+  --hqp-red-ink: #ffffff;
+  --hqp-rose: #9a352e;
+  --hqp-green: #0a6a3c;
+  --hqp-violet: #5636c0;
+  --hqp-blue: #2450cf;
+  --hqp-yellow: #6a5800;
+  --hqp-rel: #6b7d85;
+  --hqp-axis: #4d5b62;
+  --hqp-node: #ffffff;
+  --hqp-src-slack: #a8226f;
+  --hqp-src-gmail: #9e4110;
+  /* shadows and wells: the dark theme's black at about a third of its strength, in ink blue */
+  --hqp-shade: rgba(16, 42, 56, 0.35);
+  --hqp-open-move: linear-gradient(#fffaf0, #fffaf0);
+  --hqp-open-ap: linear-gradient(#fff6f4, #fff6f4);
+  --hqp-open-report: linear-gradient(#f8f6ff, #f8f6ff);
+  --hqp-edge: linear-gradient(135deg, rgba(16, 42, 56, 0.22), rgba(16, 42, 56, 0.14));
+  --hqp-edge-move: linear-gradient(
+    135deg,
+    #b86c00,
+    rgba(184, 108, 0, 0.35) 60%,
+    rgba(16, 42, 56, 0.16)
+  );
+  --hqp-edge-ap: linear-gradient(135deg, #c1251a, rgba(193, 37, 26, 0.35) 60%, rgba(16, 42, 56, 0.16));
+  --hqp-edge-report: linear-gradient(
+    135deg,
+    #5636c0,
+    rgba(86, 54, 192, 0.35) 60%,
+    rgba(16, 42, 56, 0.16)
+  );
+  color-scheme: light;
+}
+
+/* the field: no coloured glows, a faint ink grid */
+html.light .hq-plus::before {
+  display: none;
+}
+html.light .hq-plus::after {
+  background-image:
+    linear-gradient(rgba(16, 42, 56, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 42, 56, 0.05) 1px, transparent 1px);
+}
+html.light .hq-plus .hqp-card {
+  box-shadow: 0 1px 2px rgba(16, 42, 56, 0.08);
+}
+html.light .hq-plus .hqp-arc,
+html.light .hq-plus .hqp-arc::after {
+  box-shadow: none;
+}
+
+/* segments (Feed | Map, By status | By work): a recessed track, the picked one a raised white chip */
+html.light .hq-plus .hqm-seg {
+  background: #e6e4dd;
+}
+html.light .hq-plus .hqm-seg button[aria-pressed='true'] {
+  background: #ffffff;
+  color: var(--hqp-fg);
+  box-shadow: 0 1px 2px rgba(16, 42, 56, 0.18);
+}
+
+/* project chips carry the project's colour — darkened so the name reads on white */
+html.light .hq-plus .hqpc-proj {
+  color: color-mix(in srgb, var(--hqpc-c, var(--hqp-mute)) 55%, #000);
+  border-color: color-mix(in srgb, var(--hqpc-c, var(--hqp-mute)) 45%, transparent);
+}
+html.light .hq-plus .hqp-pc .t .hqp-pc-pj {
+  color: var(--hqp-mute);
+}
+
+/* surfaces the dark theme paints as tinted glass */
+html.light .hq-plus .hqp-reply {
+  background: rgba(255, 255, 255, 0.92);
+}
+html.light .hq-plus .hqp-kv div {
+  background: var(--hqp-bg);
+}
+html.light .hq-plus .hqpc[data-ap='true'] {
+  background:
+    linear-gradient(#fff6f4, #fff6f4) padding-box,
+    var(--hqp-edge-ap) border-box;
+}
+html.light .hq-plus .hqpc-apbar {
+  background:
+    linear-gradient(#fff1ee, #fff1ee) padding-box,
+    var(--hqp-edge-ap) border-box;
+}
+html.light .hq-plus .hqp-lane .why[data-tone='long'],
+html.light .hq-plus .hqp-ticker-h {
+  color: var(--hqp-red);
+}
+html.light .hq-plus .hqp-ticker {
+  background: linear-gradient(180deg, rgba(193, 37, 26, 0.05), transparent 40%), var(--hqp-card);
+}
+html.light .hq-plus .hqp-ticker-dot {
+  background: #c1251a;
+}
+html.light .hq-plus .hqp-ticker-dot::after {
+  box-shadow: 0 0 0 1.5px rgba(193, 37, 26, 0.55);
+}
+html.light ::highlight(hqp-search) {
+  background-color: rgba(255, 214, 0, 0.45);
+  color: #0c1418;
+}
+
+/* Map: the HUD's dark glass and SVG fills (presentation attributes, so CSS wins over them) */
+html.light .hq-plus .hqm-tools button,
+html.light .hq-plus .hqm-unfold {
+  background: rgba(255, 255, 255, 0.95);
+}
+html.light .hq-plus .hqm-sheet {
+  background: rgba(251, 250, 247, 0.98);
+}
+html.light .hq-plus .hqm-box,
+html.light .hq-plus .hqm-src {
+  fill: #ffffff;
+}
+html.light .hq-plus .hqm-avatar {
+  fill: #e3eef2;
+}
+html.light .hq-plus .hqm-initial {
+  fill: #0c1418;
+}
+html.light .hq-plus .hqm-x[data-asking='true'] rect {
+  fill: #fff1e0;
+}
+html.light .hq-plus #hqm-orb stop[stop-color='#1d3a4a'] {
+  stop-color: #ffffff;
+}
+html.light .hq-plus #hqm-orb stop[stop-color='#08131c'] {
+  stop-color: #e3eef2;
+}
+html.light .hq-plus [stroke='#3a5562'],
+html.light .hq-plus [stroke='#2e4652'],
+html.light .hq-plus [stroke='#173040'],
+html.light .hq-plus [stroke='#3a6578'] {
+  stroke: #8a9ba2;
+}
+html.light .hq-plus rect[fill='#1b3340'] {
+  fill: #c9d3d6;
+}
+
+/* the theme pill next to Brain: an icon, centred like the text pills */
+.hqp-theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 9px;
+}

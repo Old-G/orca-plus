@@ -46,6 +46,14 @@
     rgba(143, 233, 255, 0.3) 50%,
     rgba(185, 162, 255, 0.1)
   );
+  /* Custom build (paper-theme): literals that were spread over the file, as tokens Paper redefines. */
+  --hqp-hi: #fff;
+  --hqp-shade: #000;
+  --hqp-open-move: linear-gradient(180deg, #132232, #0c1924);
+  --hqp-open-ap: linear-gradient(180deg, #22161a, #160f12);
+  --hqp-open-report: linear-gradient(180deg, #171a2e, #10142a);
+  --hqp-red-ink: #2a0705;
+  --hqp-amber-ink: #1d1300;
   --hqp-mono: var(--font-mono);
   position: relative;
   isolation: isolate;
@@ -68,10 +76,10 @@
   z-index: -2;
   pointer-events: none;
   background:
-    radial-gradient(520px 520px at 18% 22%, rgba(143, 233, 255, 0.16), transparent 70%),
-    radial-gradient(640px 640px at 78% 12%, rgba(185, 162, 255, 0.13), transparent 70%),
-    radial-gradient(560px 560px at 62% 78%, rgba(95, 224, 160, 0.08), transparent 70%),
-    radial-gradient(700px 700px at 8% 92%, rgba(107, 150, 255, 0.1), transparent 72%);
+    radial-gradient(520px 520px at 18% 22%, color-mix(in srgb, var(--hqp-ice) 16%, transparent), transparent 70%),
+    radial-gradient(640px 640px at 78% 12%, color-mix(in srgb, var(--hqp-violet) 13%, transparent), transparent 70%),
+    radial-gradient(560px 560px at 62% 78%, color-mix(in srgb, var(--hqp-green) 8%, transparent), transparent 70%),
+    radial-gradient(700px 700px at 8% 92%, color-mix(in srgb, var(--hqp-blue) 10%, transparent), transparent 72%);
 }
 .hq-plus::after {
   content: '';
@@ -80,8 +88,8 @@
   z-index: -1;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(143, 233, 255, 0.11) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(143, 233, 255, 0.11) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--hqp-ice) 11%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--hqp-ice) 11%, transparent) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image:
     radial-gradient(560px 480px at 18% 22%, #000 0%, rgba(0, 0, 0, 0.25) 70%, transparent 100%),
@@ -157,7 +165,7 @@
   height: 24px;
   border-radius: 50%;
   border: 1.5px solid var(--hqp-ice);
-  box-shadow: 0 0 12px rgba(143, 233, 255, 0.5);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--hqp-ice) 50%, transparent);
   display: grid;
   place-items: center;
 }
@@ -490,29 +498,29 @@
   background:
     linear-gradient(var(--hqp-card), var(--hqp-card)) padding-box,
     var(--hqp-edge) border-box;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--hqp-shade) 25%, transparent);
 }
 .hqp-card[data-type='move'][data-open='true'],
 .hqp-card[data-type='wait'][data-open='true'] {
   background:
-    linear-gradient(180deg, #132232, #0c1924) padding-box,
+    var(--hqp-open-move) padding-box,
     var(--hqp-edge-move) border-box;
 }
 .hqp-card[data-type='approve'][data-open='true'] {
   background:
-    linear-gradient(180deg, #22161a, #160f12) padding-box,
+    var(--hqp-open-ap) padding-box,
     var(--hqp-edge-ap) border-box;
 }
 .hqp-card[data-type='report'][data-open='true'],
 .hqp-card[data-type='reply'][data-open='true'] {
   background:
-    linear-gradient(180deg, #171a2e, #10142a) padding-box,
+    var(--hqp-open-report) padding-box,
     var(--hqp-edge-report) border-box;
 }
 .hqp-card[data-flash='true'] {
   box-shadow:
-    0 0 0 3px rgba(143, 233, 255, 0.35),
-    0 10px 30px rgba(0, 0, 0, 0.25);
+    0 0 0 3px color-mix(in srgb, var(--hqp-ice) 35%, transparent),
+    0 10px 30px color-mix(in srgb, var(--hqp-shade) 25%, transparent);
 }
 .hqp-cb {
   padding: 14px 16px;
@@ -538,7 +546,7 @@
   font-size: 17px;
   line-height: 1.3;
   font-weight: 500;
-  color: #fff;
+  color: var(--hqp-hi);
   margin: 0;
   text-wrap: balance;
   overflow-wrap: anywhere;
@@ -693,7 +701,7 @@
 /* Approve's own card inside ours keeps its controls, on the HUD's ground */
 .hqp-approve-host {
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.22);
+  background: color-mix(in srgb, var(--hqp-shade) 22%, transparent);
   padding: 4px;
 }
 .hqp-live {
@@ -867,7 +875,7 @@
   right: 0;
   top: 5px;
   height: 2px;
-  background: rgba(143, 233, 255, 0.07);
+  background: color-mix(in srgb, var(--hqp-ice) 7%, transparent);
   border-radius: 2px;
 }
 .hqp-tr b {
@@ -1077,7 +1085,7 @@
 /* the bell's other items, and the thread's own input */
 .hqp-card[data-type='bell'][data-open='true'] {
   background:
-    linear-gradient(180deg, #171a2e, #10142a) padding-box,
+    var(--hqp-open-report) padding-box,
     var(--hqp-edge-report) border-box;
 }
 .hqp-card[data-type='bell'] .hqp-lab {
@@ -1112,7 +1120,7 @@
     position: absolute;
     inset: -1.5px;
     border-radius: 50%;
-    box-shadow: 0 0 20px rgba(143, 233, 255, 0.75);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--hqp-ice) 75%, transparent);
     opacity: 0;
     animation: hqp-glow 3.2s steps(10, jump-none) infinite;
   }
@@ -1129,8 +1137,8 @@
   .hqp-card:hover {
     transform: translateY(-1px);
     box-shadow:
-      0 14px 36px rgba(0, 0, 0, 0.32),
-      0 0 0 1px rgba(143, 233, 255, 0.06);
+      0 14px 36px color-mix(in srgb, var(--hqp-shade) 32%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--hqp-ice) 6%, transparent);
   }
   .hqp-cb,
   .hqp-cc {
@@ -1159,8 +1167,8 @@
     25% {
       border-color: var(--hqp-ice);
       box-shadow:
-        0 0 0 2px rgba(143, 233, 255, 0.35),
-        0 0 22px rgba(143, 233, 255, 0.25);
+        0 0 0 2px color-mix(in srgb, var(--hqp-ice) 35%, transparent),
+        0 0 22px color-mix(in srgb, var(--hqp-ice) 25%, transparent);
     }
   }
   .hqp-log > * {
@@ -1416,11 +1424,11 @@
   font-weight: 500;
 }
 .hqp-txt-l[data-label='question'] .hqp-txt-k {
-  border-color: rgba(255, 195, 90, 0.45);
+  border-color: color-mix(in srgb, var(--hqp-amber) 45%, transparent);
   color: var(--hqp-amber);
 }
 .hqp-txt-l[data-label='next'] .hqp-txt-k {
-  border-color: rgba(143, 233, 255, 0.4);
+  border-color: color-mix(in srgb, var(--hqp-ice) 40%, transparent);
   color: var(--hqp-ice);
 }
 .hqp-txt-l[data-label] + .hqp-txt-l[data-label] {
@@ -1442,7 +1450,7 @@
   overflow-wrap: anywhere;
 }
 .hqp-chatc[data-flash='true'] {
-  box-shadow: 0 0 0 3px rgba(143, 233, 255, 0.35);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hqp-ice) 35%, transparent);
 }
 /* background: a plain grey line */
 .hqp-bgl {
@@ -1708,7 +1716,7 @@ button.hqp-allproj {
 /* the owner's move: the amber frame whatever it came from — Approve and Reply keep only their badge */
 .hqp-card[data-look='move'][data-open='true'] {
   background:
-    linear-gradient(180deg, #132232, #0c1924) padding-box,
+    var(--hqp-open-move) padding-box,
     var(--hqp-edge-move) border-box;
 }
 .hqp-wq > span:last-child {
@@ -1724,7 +1732,7 @@ button.hqp-allproj {
   border-color: var(--hqp-ice);
   box-shadow:
     0 0 0 1px var(--hqp-ice),
-    0 0 22px rgba(143, 233, 255, 0.22);
+    0 0 22px color-mix(in srgb, var(--hqp-ice) 22%, transparent);
 }
 .hqp-chatc[data-picked='true'] .hqp-row-h strong,
 .hqp-chatc[data-picked='true'] .hqp-chat-name {
@@ -1770,7 +1778,7 @@ button.hqp-allproj {
   border: 1px solid var(--hqp-line-2);
   border-radius: 14px;
   background: var(--hqp-bg-2);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 24px 80px color-mix(in srgb, var(--hqp-shade) 55%, transparent);
 }
 .hqp-exp[aria-pressed='true'] {
   color: var(--hqp-ice);
@@ -2105,7 +2113,7 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   border-color: var(--hqp-ice);
   box-shadow:
     0 0 0 1px var(--hqp-ice),
-    0 0 22px rgba(143, 233, 255, 0.22);
+    0 0 22px color-mix(in srgb, var(--hqp-ice) 22%, transparent);
 }
 .hqp-day {
   display: flex;
@@ -2176,8 +2184,8 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   border: 1px solid var(--hqp-line);
   background-color: var(--hqp-card);
   background-image:
-    linear-gradient(rgba(143, 233, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(143, 233, 255, 0.05) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--hqp-ice) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--hqp-ice) 5%, transparent) 1px, transparent 1px);
   background-size: 44px 44px;
   overflow: hidden;
 }
@@ -2276,7 +2284,7 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   overflow: auto;
   padding: 8px 10px;
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.25);
+  background: color-mix(in srgb, var(--hqp-shade) 25%, transparent);
 }
 .hqp-chatc-text .hqp-md pre code {
   padding: 0;
@@ -2625,7 +2633,7 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 .hqp-m[data-selected='true'] .hqp-card {
   outline: 2px solid var(--hqp-ice);
   outline-offset: -1px;
-  box-shadow: 0 0 22px rgba(143, 233, 255, 0.22);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--hqp-ice) 22%, transparent);
 }
 
 /* Custom build (hq-plus-side-blocks): the Reports tab's list — a title over its kind and age. */
@@ -2804,6 +2812,11 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   --hqp-mute: #a3c1cc;
   --hqp-faint: #6f8d99;
   --hqp-red: #ff6b62;
+  /* Custom build (paper-theme): the new tokens, so shared rules (the room form's well) work in a menu. */
+  --hqp-hi: #fff;
+  --hqp-shade: #000;
+  --hqp-red-ink: #2a0705;
+  --hqp-amber-ink: #1d1300;
   --hqp-mono: var(--font-mono);
   background: var(--hqp-card);
   color: var(--hqp-fg);
@@ -2855,7 +2868,7 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   padding: 0 12px;
   border-radius: 10px;
   border: 1px solid var(--hqp-line-2);
-  background: rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--hqp-shade) 20%, transparent);
   color: var(--hqp-fg);
   font-size: 14px;
 }
@@ -3371,7 +3384,7 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   text-align: left;
 }
 .hqp-ticker-list button:hover {
-  background: rgba(143, 233, 255, 0.06);
+  background: color-mix(in srgb, var(--hqp-ice) 6%, transparent);
   color: var(--hqp-fg);
 }
 .hqp-ticker-list .tm {
@@ -3429,7 +3442,7 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   box-shadow: none;
 }
 .hqp-card[data-flash='true'] {
-  box-shadow: 0 0 0 2px rgba(143, 233, 255, 0.35);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--hqp-ice) 35%, transparent);
 }
 .hqp-card:not([data-open='true']) {
   background: transparent;
@@ -3527,7 +3540,7 @@ button.hqp-chat-name[data-opens='true']:hover {
   color: var(--hqp-amber);
 }
 .hqp-ticker-list li:last-child button {
-  background: rgba(143, 233, 255, 0.05);
+  background: color-mix(in srgb, var(--hqp-ice) 5%, transparent);
 }
 @media (prefers-reduced-motion: reduce) {
   .hqp-ticker-dot,
@@ -3628,10 +3641,10 @@ button.hqp-chat-name[data-opens='true']:hover {
 }
 /* Custom build (hq-plus-map): who said it at a glance — the owner in ice, the person in green */
 .hqp-msg {
-  border-left: 3px solid rgba(95, 224, 160, 0.55);
+  border-left: 3px solid color-mix(in srgb, var(--hqp-green) 55%, transparent);
 }
 .hqp-msg[data-out='true'] {
-  border-left-color: rgba(143, 233, 255, 0.45);
+  border-left-color: color-mix(in srgb, var(--hqp-ice) 45%, transparent);
 }
 .hqp-msg .who {
   display: flex;
