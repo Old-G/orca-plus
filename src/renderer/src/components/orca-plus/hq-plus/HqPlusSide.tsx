@@ -1,7 +1,7 @@
 // Custom build (hq-plus-ui): HQ+'s left column — what waits on the owner (with the same badge as its card
 // in the feed), what we wait for from people, the FYI pile to clear in one go, the live chats (the same
 // list the classic HQ shows, so a chat started a second ago is there), and three plain numbers.
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { readHqPlusViewState, saveHqPlusViewState } from './hq-plus-view-state'
 import type { HqChatLinksResult } from '../../../../../shared/hq-chat-links'
 import { hqPlusChatTree } from './hq-plus-chat-tree'
@@ -9,153 +9,19 @@ import { HqPlusChatsBySwitch, useHqPlusChatsBy } from './HqPlusChatsBy'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import type { HqPlusScreenStats } from '../../../../../shared/hq-plus-screen'
 import { translate } from '@/i18n/i18n'
-import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
 import type { HqChatItem } from '../hq/hq-chat-list'
-import { useHqChatTitle } from '../hq/HqChatAvatar'
-import { hqPlusChatIsIdle, hqPlusChatWaitingLabel, type HqPlusProjectChats } from './hq-plus-chats'
+import type { HqPlusProjectChats } from './hq-plus-chats'
 import { HqPlusNewChat, useHqPlusNewChatTargets } from './HqPlusNewChat'
-import { useHqPlusLastReply } from './use-hq-plus-last-reply'
-import { AllProjects, ProjectHeader, tileStyle } from './HqPlusSideProjects'
+import { AllProjects, ProjectHeader } from './HqPlusSideProjects'
+import { HqPlusChatRow, type HqPlusTile } from './HqPlusChatRow'
 import { useAppStore } from '@/store'
 import { setHqProjectHidden } from '../hq/hq-chat-actions'
-import { HqPlusCloseChat, type HqPlusChatCloser } from './HqPlusCloseChat'
+import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusSideBlock } from './HqPlusSideBlock'
 import type { HqPlusDraftChat } from './use-hq-plus-drafts'
 import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
 
-/** Custom build (hq-plus-chats-by-project): what the chat is doing, as a coloured chip; none once read. */
-function chipOf(item: HqChatItem, now: number): { label: string; tone: string } | null {
-  switch (item.group) {
-    case 'needs':
-      return { label: translate('auto.hqPlus.side.waiting', 'waits on you'), tone: 'move' }
-    case 'working':
-      return { label: translate('auto.hqPlus.side.working', 'working'), tone: 'working' }
-    case 'done':
-      return { label: translate('auto.hqPlus.side.done', 'done'), tone: 'done' }
-    case 'quiet':
-      // Why: a chat opened a moment ago has no turn yet; it is starting, not idle.
-      return hqPlusChatIsIdle(item, now)
-        ? null
-        : { label: translate('auto.hqPlus.side.starting', 'starting'), tone: 'working' }
-  }
-}
-
-/**
- * Custom build (hq-plus-chat-waits): one line under the chat's name says what it waits for — the owner
- * (its question), a person (who and what), or nothing because it works or is done. The latest word
- * from it moved to the row's tooltip.
- */
-function previewOf(item: HqChatItem, waitsOn: HqPlusOtherWait | null): string {
-  const card = item.card
-  if (item.group === 'needs') {
-    return card?.askSummary ?? translate('auto.hq.chats.waitsForYou', 'Waiting for you')
-  }
-  if (waitsOn) {
-    return translate('auto.hqPlus.side.waitsFor', 'Waits for {{who}} · {{what}}', {
-      who: waitsOn.who ?? translate('auto.hqPlus.side.someone', 'someone'),
-      what: waitsOn.title
-    })
-  }
-  switch (item.group) {
-    case 'working':
-      return translate('auto.hqPlus.side.worksAlone', 'Working on its own')
-    case 'done':
-      return translate('auto.hqPlus.side.doneUnread', 'Finished — not read yet')
-    case 'quiet':
-      return translate('auto.hqPlus.side.nothing', 'Idle')
-  }
-}
-
-function lastWordOf(item: HqChatItem): string | undefined {
-  const card = item.card
-  return card?.lastAgentMessage ?? card?.lastUserMessage ?? (card?.task || undefined)
-}
-
-export type HqPlusTile = { letters: string; color: string | null }
-
-function ChatRow({
-  item,
-  picked,
-  now,
-  tile,
-  closer,
-  onPick,
-  draft,
-  waitsOn = null,
-  depth,
-  project
-}: {
-  item: HqChatItem
-  picked: boolean
-  now: number
-  tile: HqPlusTile
-  closer: HqPlusChatCloser | null
-  onPick: (item: HqChatItem) => void
-  /** Custom build (hq-plus-drafts): the owner's unsent words, shown instead of the chat's last line. */
-  draft?: string
-  /** Custom build (hq-plus-chat-waits): what we wait for from a person on this chat's behalf. */
-  waitsOn?: HqPlusOtherWait | null
-  /** Custom build (hq-plus-chat-tree): how deep under the chat that started it, in «By work». */
-  depth?: number
-  /** Custom build (hq-plus-chat-tree): the project's name beside the title, in «By work». */
-  project?: string
-}): React.JSX.Element {
-  const title = useHqChatTitle(item)
-  // Custom build (hq-plus-chat-waiting, owner 02.11): a chat whose last words ask to stay open until
-  // someone answers says «waiting», so the owner keeps it and brings the answer back to it. Those words
-  // close a reply, and the card's preview is its first 200 characters on one line, so the row reads the
-  // whole reply from the chat's transcript.
-  const settled = item.group !== 'needs' && item.group !== 'working'
-  const sessionId =
-    item.kind === 'chat' && item.tab.contentType === 'agent-session' ? item.tab.entityId : null
-  const fullReply = useHqPlusLastReply(sessionId, settled, item.sortAt)
-  // Custom build (hq-plus-waiting-after-read): unread, it stays «done» until the owner opens it.
-  const waitingFor = hqPlusChatWaitingLabel(item, fullReply ?? item.card?.lastAgentMessage)
-  const chip = waitingFor
-    ? { label: translate('auto.hqPlus.side.waitingFor', 'waiting'), tone: 'waits' }
-    : chipOf(item, now)
-  // Custom build (hq-plus-ui-v4): a working or starting chat pulses.
-  const live = item.group === 'working' || (item.group === 'quiet' && !hqPlusChatIsIdle(item, now))
-  return (
-    <div
-      className="hqp-qi-row"
-      data-live={live ? 'true' : undefined}
-      data-child={depth ? 'true' : undefined}
-      style={depth ? ({ '--hqp-depth': depth } as React.CSSProperties) : undefined}
-    >
-      <button
-        type="button"
-        className="hqp-pc"
-        title={lastWordOf(item)?.replace(/\s+/g, ' ').slice(0, 300)}
-        aria-current={picked ? 'true' : undefined}
-        data-read={chip ? undefined : 'true'}
-        onClick={() => onPick(item)}
-      >
-        <span className="hqp-tile" style={tileStyle(tile.color)} aria-hidden="true">
-          {tile.letters}
-        </span>
-        <span className="t">
-          {chip ? (
-            <span className="hqp-badge" data-tone={chip.tone}>
-              {chip.label}
-            </span>
-          ) : null}
-          {title}
-          {project ? <span className="hqp-pc-pj">{project}</span> : null}
-        </span>
-        <span className="w">{item.sortAt ? formatRelativeTime(item.sortAt, now) : ''}</span>
-        <span className="s">
-          {draft
-            ? `✎ ${draft.replace(/\s+/g, ' ').slice(0, 120)}`
-            : waitingFor && !waitsOn
-              ? `${waitingFor.charAt(0).toUpperCase()}${waitingFor.slice(1)}`
-              : previewOf(item, waitsOn)}
-        </span>
-      </button>
-      {closer ? <HqPlusCloseChat closer={closer} name={title} /> : null}
-    </div>
-  )
-}
+export type { HqPlusTile }
 
 const NO_HIDDEN: readonly string[] = []
 
@@ -175,8 +41,11 @@ export function HqPlusSide({
   queue,
   onPickChat,
   openChats,
-  chatLinks
+  chatLinks,
+  slugOf
 }: {
+  /** Custom build (hq-plus-work-view): the project's HQ name for a chat, as its tile is built from. */
+  slugOf: (item: HqChatItem) => string
   /** Custom build (hq-plus-chat-tree): which chat started which, for «By work». */
   chatLinks: HqChatLinksResult | null
   /** Custom build (hq-plus-all-projects): every chat open as a tab, any room. */
@@ -244,8 +113,8 @@ export function HqPlusSide({
   }
   const waitOf = (item: HqChatItem): HqPlusOtherWait | null =>
     item.kind === 'chat' ? (waitOfSession.get(item.tab.entityId) ?? null) : null
-  const row = (item: HqChatItem, tree?: { depth: number }): React.JSX.Element => (
-    <ChatRow
+  const row = (item: HqChatItem, tree?: { depth: number; kids: number }): React.JSX.Element => (
+    <HqPlusChatRow
       key={item.key}
       item={item}
       picked={picked === item.key}
@@ -255,7 +124,8 @@ export function HqPlusSide({
       onPick={onPickChat}
       waitsOn={waitOf(item)}
       depth={tree?.depth}
-      project={tree ? item.projectName : undefined}
+      project={tree ? slugOf(item) : undefined}
+      kids={tree?.kids}
     />
   )
   const byWork = chatsBy === 'work'
@@ -312,7 +182,7 @@ export function HqPlusSide({
               {translate('auto.hqPlus.side.drafts', 'Drafts')} · {shownDrafts.length}
             </div>
             {shownDrafts.map((draft) => (
-              <ChatRow
+              <HqPlusChatRow
                 key={draft.item.key}
                 item={draft.item}
                 picked={picked === draft.item.key}
@@ -325,12 +195,32 @@ export function HqPlusSide({
             ))}
           </>
         ) : null}
-        {treeRows.length > 0 ? (
-          <div className="hqp-side-sub">
-            {translate('auto.hqPlus.side.byWorkTrees', 'Started by a chat')}
-          </div>
-        ) : null}
-        {treeRows.map((entry) => row(entry.item, { depth: entry.depth }))}
+        {/* Custom build (hq-plus-work-view, owner 06.11): each tree opens with its lead (the «lead» skill);
+            chats whose lead is closed gather under one line. */}
+        {treeRows.map((entry, index) => {
+          const top = entry.depth === 0 && !entry.earlier
+          const lead = top && entry.children > 0
+          const before = treeRows[index - 1]
+          const loneStart =
+            top && !lead && !(before?.depth === 0 && !before.earlier && before.children === 0)
+          return (
+            <Fragment key={entry.item.key}>
+              {lead ? (
+                <div className="hqp-side-sub hqp-lead-h">
+                  <span className="hqp-pc-lead">LEAD</span>
+                  {translate('auto.hqPlus.side.leadOf', '{{count}} started', {
+                    count: entry.children
+                  })}
+                </div>
+              ) : loneStart ? (
+                <div className="hqp-side-sub">
+                  {translate('auto.hqPlus.side.leadClosed', 'Lead closed')}
+                </div>
+              ) : null}
+              {row(entry.item, { depth: entry.depth, kids: entry.children })}
+            </Fragment>
+          )
+        })}
         {loneMarked.length > 0 ? (
           <>
             <div className="hqp-side-sub">
