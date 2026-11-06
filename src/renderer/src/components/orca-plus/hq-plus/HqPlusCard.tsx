@@ -16,6 +16,7 @@ import { readPulseBellPaneRef } from '../../../../../shared/pulse-bell'
 import { translate } from '@/i18n/i18n'
 import { OutgoingApprovalDecision } from '../outgoing-approval/OutgoingApprovalCard'
 import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
+import { useHqPlusClickUpReply } from './use-hq-plus-clickup-reply'
 import {
   PULSE_BELL_ACTION,
   PULSE_BELL_KIND,
@@ -436,6 +437,8 @@ export function HqPlusCardView({
     setExpanded(false)
     onChanged()
   })
+  // Custom build (hq-plus-clickup-reply): Reply on a ClickUp comment opens its reply box here.
+  const clickUpReply = useHqPlusClickUpReply(() => run(async () => ({ ok: true })))
   const open = card.open
   const reportPath = card.type === 'report' ? (hqPlusReportOf(card)?.path ?? null) : null
   const note = noteOf(card)
@@ -697,6 +700,8 @@ export function HqPlusCardView({
               action.id === HANDOFF_KEEP ? readHandoffBellOfferId(item.refId ?? null) : null
             if (onToWork && TO_WORK_ACTIONS.has(action.id)) {
               onToWork(item)
+            } else if (clickUpReply.start(item, action.id)) {
+              // The reply box opened in the card; Send there decides it.
             } else if (offerId) {
               run(async () => {
                 await launchClaudeHandoffOffer(offerId, true)
@@ -813,7 +818,7 @@ export function HqPlusCardView({
       head={bare ? null : head}
       done={card.done ? hqPlusDoneLabel(card.done) : null}
       buttons={buttons}
-      composer={composer}
+      composer={clickUpReply.composer ?? composer}
       trailing={trailing}
       error={error}
       footer={{ onCollapse: collapse }}
