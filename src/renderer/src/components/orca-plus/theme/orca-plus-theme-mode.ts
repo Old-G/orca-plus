@@ -7,7 +7,12 @@ import type { OrcaPlusThemeAutoMode } from '../../../../../preload/api/orca-plus
 
 export type AppTheme = GlobalSettings['theme']
 export type ThemeAuto = OrcaPlusThemeAutoMode
-export type OrcaPlusThemeMode = 'dark' | 'paper' | 'auto-battery' | 'auto-brightness' | 'auto-system'
+export type OrcaPlusThemeMode =
+  | 'dark'
+  | 'paper'
+  | 'auto-battery'
+  | 'auto-brightness'
+  | 'auto-system'
 
 export const ORCA_PLUS_THEME_MODES: readonly OrcaPlusThemeMode[] = [
   'dark',
@@ -45,11 +50,6 @@ export function themeForMode(mode: OrcaPlusThemeMode): AppTheme | null {
     default:
       return null
   }
-}
-
-/** One click on the sun/moon: the other of what is on screen now, and no more auto. */
-export function toggledTheme(darkNow: boolean): AppTheme {
-  return darkNow ? 'light' : 'dark'
 }
 
 const listeners = new Set<() => void>()

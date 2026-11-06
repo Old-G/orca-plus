@@ -1,13 +1,12 @@
-// Custom build (paper-theme): what the sun/moon button and the HQ+ theme menu do. A fixed mode writes
+// Custom build (paper-theme): what the HQ+ theme menu by Brain does. A fixed mode writes
 // the stock `theme` and turns main's Auto off; an Auto mode hands the theme to main. Effects come in
 // as deps so tests drive them without a window or a store.
-import { applyDocumentTheme } from '@/lib/document-theme'
+import { applyDocumentTheme } from '@/app-shell/appearance/document-theme'
 import { useAppStore } from '@/store'
 import {
   autoForMode,
   setThemeAuto,
   themeForMode,
-  toggledTheme,
   type AppTheme,
   type OrcaPlusThemeMode,
   type ThemeAuto
@@ -16,7 +15,6 @@ import {
 export type ThemeDeps = {
   apply: (theme: AppTheme) => void
   setAuto: (auto: ThemeAuto) => void
-  darkNow: () => boolean
 }
 
 export const themeDeps: ThemeDeps = {
@@ -25,8 +23,7 @@ export const themeDeps: ThemeDeps = {
     applyDocumentTheme(theme)
     void useAppStore.getState().updateSettings({ theme })
   },
-  setAuto: setThemeAuto,
-  darkNow: () => document.documentElement.classList.contains('dark')
+  setAuto: setThemeAuto
 }
 
 export function setOrcaPlusThemeMode(mode: OrcaPlusThemeMode, deps: ThemeDeps = themeDeps): void {
@@ -35,9 +32,4 @@ export function setOrcaPlusThemeMode(mode: OrcaPlusThemeMode, deps: ThemeDeps = 
   if (theme) {
     deps.apply(theme)
   }
-}
-
-export function toggleOrcaPlusTheme(deps: ThemeDeps = themeDeps): void {
-  deps.setAuto('off')
-  deps.apply(toggledTheme(deps.darkNow()))
 }
