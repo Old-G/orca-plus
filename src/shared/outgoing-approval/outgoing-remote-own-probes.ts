@@ -67,7 +67,7 @@ const DATA_FILE = String.raw`[^\s;&|<>()\x60'"]+\.(?:py|json|jsonl|ya?ml|md|txt|
 // Why: a heredoc that `cat` writes into a data file or Python reads as its script, alone on its line
 // after `;`/`&&` — no pipe or shell reads that text.
 // Why: a file `cat` wrote may then run as a shell script; the text stays checked when anything does that.
-const RUNS_A_FILE = /(?:^|[\s;&|('"\x60])(?:(?:ba|da|z|k)?sh|chmod)\s+(?!-c\s)/
+const RUNS_A_FILE = /(?:^|[\s;&|('"\x60/\\])(?:(?:ba|da|z|k)?sh|chmod)\s+(?!-c\s)/
 const DATA_HEREDOC_LINE = new RegExp(
   String.raw`(?:^|&&|;)\s*(?:cat\s+(?:>\s*${DATA_FILE}\s+<<-?\s*(['"]?)\w+\1|<<-?\s*(['"]?)\w+\2\s*>\s*${DATA_FILE})|(?:[\w./-]*\/)?python[\d.]*\s+-\s+<<-?\s*(['"]?)\w+\3)\s*$`
 )
@@ -92,10 +92,15 @@ export function withoutDataHeredocs(command: string, keys: string[]): string {
       const to = command.indexOf('\n', at)
       const line = command.slice(from, to === -1 ? undefined : to)
       const quiet = key.startsWith("<'") || !/\$\(|\x60/.test(body)
-      const reader = DATA_HEREDOC_LINE.exec(line)
+      // Why one: with two heredocs on a line (`bash <<'A'; python3 - <<'B'`) the reader is not sure.
+      const reader = (line.match(/<</g) ?? []).length === 1 ? DATA_HEREDOC_LINE.exec(line) : null
       const runnable = reader?.[3] === undefined && RUNS_A_FILE.test(command)
       return quiet && reader && !runnable ? [key] : []
     })
   )
-  return [...command].map((ch, k) => (ch !== '\n' && data.has(keys[k] ?? '') ? ' ' : ch)).join('')
+  // Why split(''): keys are indexed by UTF-16 code units, as contextKeys reads the text (Codex, 06.11).
+  return command
+    .split('')
+    .map((ch, k) => (ch !== '\n' && data.has(keys[k] ?? '') ? ' ' : ch))
+    .join('')
 }
