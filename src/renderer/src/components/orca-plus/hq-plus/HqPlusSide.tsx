@@ -136,14 +136,14 @@ export function HqPlusSide({
       )
     : []
   // Custom build (hq-plus-chat-tree, owner 05.11): below the trees, every other chat by project.
+  // A project whose chats all went into trees keeps its header — its «+» is the only way to start a
+  // chat there, as «All projects» lists only projects with no chat (owner 07.11: «плюсик пропал»).
   const inTree = new Set(treeRows.map((entry) => entry.item.key))
   const lone = byWork
-    ? chats.projects
-        .map((project) => ({
-          ...project,
-          items: project.items.filter((item) => !inTree.has(item.key))
-        }))
-        .filter((project) => project.items.length > 0 || project.kept)
+    ? chats.projects.map((project) => ({
+        ...project,
+        items: project.items.filter((item) => !inTree.has(item.key))
+      }))
     : chats.projects
   const loneMarked = chats.marked.filter((item) => !inTree.has(item.key))
   return (
@@ -226,7 +226,7 @@ export function HqPlusSide({
             <div className="hqp-side-sub">
               {translate('auto.hq.chats.group.marked', 'Come back to')} · {loneMarked.length}
             </div>
-            {loneMarked.map(row)}
+            {loneMarked.map((item) => row(item))}
           </>
         ) : null}
         {lone.map((project) => (
@@ -239,7 +239,7 @@ export function HqPlusSide({
               target={targetOf.get(project.repoId) ?? null}
               onPickChat={onPickChat}
             />
-            {project.items.map(row)}
+            {project.items.map((item) => row(item))}
           </div>
         ))}
         {chats.quiet.length > 0 ? (
@@ -258,7 +258,7 @@ export function HqPlusSide({
               })}
             </button>
             <CollapsibleContent animation="height">
-              <div className="hqp-side-sec">{chats.quiet.map(row)}</div>
+              <div className="hqp-side-sec">{chats.quiet.map((item) => row(item))}</div>
             </CollapsibleContent>
           </Collapsible>
         ) : null}
