@@ -54,6 +54,9 @@ export type HqPlusConversation = {
   id?: string
   /** Custom build (hq-in-work): a chat already does it — the card says so instead of asking. */
   inWork?: boolean
+  /** Custom build (hq-plus-one-request): bell items of the person's earlier messages here; the newest
+   *  request stands for them all, and deciding it closes them too. */
+  earlierRequests?: string[]
 }
 
 /** Journal rows that only tell what a conversation's cards already show. */
@@ -233,7 +236,7 @@ function conversationCard(
   answers: readonly HqWaitingReplyRef[]
 ): HqPlusCard | null {
   const cards = members.filter((item): item is HqPlusCard => item.kind === 'card')
-  const parts = cards.filter((card) => card.open)
+  const { parts, earlier } = oneRequest(cards.filter((card) => card.open))
   const newest = Math.max(...members.map((item) => item.at))
   const messages = hqPlusMessagesLeft(
     conversation?.messages.length
@@ -288,8 +291,27 @@ function conversationCard(
       link,
       guess: conversation?.guess ?? null,
       id: conversation?.id,
-      inWork: conversation?.stateWhy === 'in-work'
+      inWork: conversation?.stateWhy === 'in-work',
+      ...(earlier.length > 0 ? { earlierRequests: earlier } : {})
     }
+  }
+}
+
+/**
+ * Custom build (hq-plus-one-request): three comments in one task are three requests, and each drew its
+ * own Reply / To work / Done (owner 06.11). One talk asks once: the newest request keeps the buttons,
+ * the earlier ones are only messages above it.
+ */
+function oneRequest(open: readonly HqPlusCard[]): { parts: HqPlusCard[]; earlier: string[] } {
+  const requests = open.filter((card) => card.inbox?.kind === HQ_SLACK_REQUEST_BELL_KIND)
+  const newest = requests.reduce<HqPlusCard | null>(
+    (kept, card) => (!kept || card.at >= kept.at ? card : kept),
+    null
+  )
+  const earlier = requests.filter((card) => card !== newest)
+  return {
+    parts: open.filter((card) => !earlier.includes(card)),
+    earlier: earlier.flatMap((card) => (card.inbox ? [card.inbox.id] : []))
   }
 }
 
