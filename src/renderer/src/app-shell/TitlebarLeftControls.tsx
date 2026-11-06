@@ -18,6 +18,7 @@ import { useAppStore } from '../store'
 import { hasCustomTitleBar, hasMacTrafficLights } from './app-window-chrome'
 import { orcaPlusAppName } from '../lib/orca-plus-app-name'
 import { HqModeSwitch } from '../components/orca-plus/hq/HqModeSwitch'
+import { OrcaPlusThemeToggle } from '../components/orca-plus/theme/OrcaPlusThemeToggle'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 
 /** Reuse left chrome across full-width and sidebar-width headers so controls/popovers stay consistent. */
@@ -105,6 +106,8 @@ export function TitlebarLeftControls({ layout }: { layout: AppChromeLayout }): R
           </Tooltip>
         )}
         <HqModeSwitch />
+        {/* Custom build (paper-theme): dark ↔ Paper in one click (owner, 06.11). */}
+        <OrcaPlusThemeToggle />
       </div>
       {/* Show shared workspace/page history wherever its shortcut is available. */}
       {shouldShowWorktreeHistoryControls(layout.activeView) && (
