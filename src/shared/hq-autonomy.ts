@@ -62,11 +62,19 @@ export type HqRemoteNoApprove = {
   containers: string[]
   /** Paths `rm -r`/`rm -f` may remove, on the server or inside a container; a trailing `*` is a prefix. */
   rmPaths: string[]
+  /** `container:/path` files `rm -f` may remove inside that container; `*` stands for part of the
+   *  file's name (owner 06.11: the agent's probe scripts it copies in and removes after the run). */
+  containerRmPaths: string[]
   /** `rm` of a variable the same command set from `mktemp` passes. */
   mktemp: boolean
 }
 
-const REMOTE_LIST_KEYS = { hosts: 'hosts', containers: 'containers', rm_paths: 'rmPaths' } as const
+const REMOTE_LIST_KEYS = {
+  hosts: 'hosts',
+  containers: 'containers',
+  rm_paths: 'rmPaths',
+  container_rm_paths: 'containerRmPaths'
+} as const
 
 /** `key: a, b` or `key: [a, b]` → its items, quotes stripped. */
 function readList(value: string): string[] {
@@ -78,11 +86,18 @@ function readList(value: string): string[] {
 }
 
 /**
- * The `remote_no_approve:` block: `hosts`, `containers` and `rm_paths` as comma-separated lists
- * (plain YAML strings, so `*-check` stays valid YAML) and `mktemp: yes`. Unknown keys are ignored.
+ * The `remote_no_approve:` block: `hosts`, `containers`, `rm_paths` and `container_rm_paths` as
+ * comma-separated lists (plain YAML strings, so `*-check` stays valid YAML) and `mktemp: yes`. Unknown
+ * keys are ignored.
  */
 export function parseHqRemoteNoApprove(text: string | null): HqRemoteNoApprove {
-  const config: HqRemoteNoApprove = { hosts: [], containers: [], rmPaths: [], mktemp: false }
+  const config: HqRemoteNoApprove = {
+    hosts: [],
+    containers: [],
+    rmPaths: [],
+    containerRmPaths: [],
+    mktemp: false
+  }
   let inBlock = false
   for (const raw of (text ?? '').split(/\r?\n/)) {
     const line = raw.replace(/\s+#.*$/, '').replace(/^\s*#.*$/, '')
