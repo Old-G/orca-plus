@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { setOrcaPlusThemeMode, toggleOrcaPlusTheme, type ThemeDeps } from './orca-plus-theme-actions'
+import { setOrcaPlusThemeMode, type ThemeDeps } from './orca-plus-theme-actions'
 import { autoForMode, themeForMode, themeModeOf } from './orca-plus-theme-mode'
 import { hqPlusRootClass } from '../hq-plus/hq-plus-theme'
 
@@ -14,8 +14,7 @@ function fakeDeps(state: { dark: boolean; auto: string }) {
     },
     setAuto: (auto) => {
       state.auto = auto
-    },
-    darkNow: () => state.dark
+    }
   }
   return { deps, applied }
 }
@@ -38,7 +37,7 @@ describe('HQ+ root class', () => {
 })
 
 describe('theme modes', () => {
-  it('maps the stock setting and main\'s Auto to the picked mode', () => {
+  it("maps the stock setting and main's Auto to the picked mode", () => {
     expect(themeModeOf('dark', 'off')).toBe('dark')
     expect(themeModeOf('light', 'off')).toBe('paper')
     expect(themeModeOf('system', 'off')).toBe('auto-system')
@@ -46,16 +45,6 @@ describe('theme modes', () => {
     expect(themeModeOf('dark', 'brightness')).toBe('auto-brightness')
     expect(autoForMode('auto-brightness')).toBe('brightness')
     expect(themeForMode('auto-brightness')).toBeNull()
-  })
-
-  it('the sun/moon flips dark ↔ Paper and turns auto off', () => {
-    const state = { dark: true, auto: 'brightness' }
-    const { deps, applied } = fakeDeps(state)
-    toggleOrcaPlusTheme(deps)
-    expect(applied).toEqual(['light'])
-    expect(state.auto).toBe('off')
-    toggleOrcaPlusTheme(deps)
-    expect(applied).toEqual(['light', 'dark'])
   })
 
   it('an Auto mode hands the theme to main; a fixed one writes it and turns Auto off', () => {
