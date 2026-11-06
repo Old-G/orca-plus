@@ -10,6 +10,7 @@ vi.mock('electron', () => ({
 import {
   ThemeAuto,
   parseBuiltInBrightness,
+  parsePmsetOnBattery,
   themeOnBrightness,
   type ThemeAutoDeps,
   type ThemeAutoMode
@@ -44,6 +45,14 @@ describe('parseBuiltInBrightness', () => {
   })
 })
 
+describe('parsePmsetOnBattery', () => {
+  it('reads the source pmset names', () => {
+    expect(parsePmsetOnBattery("Now drawing from 'Battery Power'\n -InternalBattery-0")).toBe(true)
+    expect(parsePmsetOnBattery("Now drawing from 'AC Power'\n")).toBe(false)
+    expect(parsePmsetOnBattery('')).toBeNull()
+  })
+})
+
 describe('themeOnBrightness', () => {
   it('Paper at 30% and below, dark from 38%, nothing in between (no flicker)', () => {
     expect(themeOnBrightness(0.3)).toBe('light')
@@ -55,11 +64,18 @@ describe('themeOnBrightness', () => {
   })
 })
 
-function harness(mode: ThemeAutoMode, levels: (number | null)[], theme: 'dark' | 'light' = 'dark') {
+function harness(
+  mode: ThemeAutoMode,
+  levels: (number | null)[],
+  theme: 'dark' | 'light' = 'dark',
+  sources: (boolean | null)[] = []
+) {
   const settings = { theme: theme as 'system' | 'dark' | 'light' }
   const writes: string[] = []
   let tick: (() => void) | null = null
+  // Electron 43 on a MacBook on battery: powerMonitor still says AC (07.11).
   const power = { on: vi.fn(), off: vi.fn(), isOnBatteryPower: () => false }
+  let mode_ = mode
   const deps: ThemeAutoDeps = {
     store: {
       getSettings: () => settings,
@@ -70,8 +86,9 @@ function harness(mode: ThemeAutoMode, levels: (number | null)[], theme: 'dark' |
       }
     },
     power,
+    readOnBattery: () => Promise.resolve(sources.length ? (sources.shift() ?? null) : null),
     readBrightness: () => Promise.resolve(levels.length ? (levels.shift() ?? null) : null),
-    readMode: () => mode,
+    readMode: () => mode_,
     writeMode: vi.fn(),
     notify: vi.fn(),
     setInterval: (callback) => {
@@ -82,7 +99,17 @@ function harness(mode: ThemeAutoMode, levels: (number | null)[], theme: 'dark' |
       tick = null
     }
   }
-  return { auto: new ThemeAuto(deps), settings, writes, power, deps, polling: () => tick !== null }
+  return {
+    auto: new ThemeAuto(deps),
+    settings,
+    writes,
+    power,
+    deps,
+    polling: () => tick !== null,
+    setFileMode: (next: ThemeAutoMode) => {
+      mode_ = next
+    }
+  }
 }
 
 describe('ThemeAuto', () => {
@@ -114,13 +141,37 @@ describe('ThemeAuto', () => {
     expect(h.deps.notify).toHaveBeenCalledWith('off')
   })
 
-  it('on battery: the charger picks, and switching the mode off lets go of it', () => {
-    const h = harness('battery', [])
+  it('on battery even while Electron says AC: pmset decides, so unplugging gives Paper', async () => {
+    const h = harness('battery', [], 'dark', [true, true, false])
     h.auto.start()
-    const onBattery = h.power.on.mock.calls.find(([event]) => event === 'on-battery')?.[1]
-    onBattery?.()
-    expect(h.writes).toEqual(['light'])
+    await vi.waitFor(() => expect(h.writes).toEqual(['light']))
+    await h.auto.checkPower()
+    await h.auto.checkPower()
+    expect(h.writes).toEqual(['light', 'dark'])
+  })
+
+  it('a charger event reads pmset at once; an unreadable source keeps the theme', async () => {
+    const h = harness('battery', [], 'dark', [null, true])
+    h.auto.start()
+    await Promise.resolve()
+    expect(h.writes).toEqual([])
+    const nudge = h.power.on.mock.calls.find(([event]) => event === 'on-battery')?.[1]
+    nudge?.()
+    await vi.waitFor(() => expect(h.writes).toEqual(['light']))
     h.auto.setMode('off')
     expect(h.power.off).toHaveBeenCalledTimes(2)
+    expect(h.polling()).toBe(false)
+  })
+
+  it('follows the mode file when it changes outside the app', () => {
+    const h = harness('off', [0.1])
+    h.auto.start()
+    expect(h.polling()).toBe(false)
+    h.setFileMode('brightness')
+    h.auto.reloadMode()
+    expect(h.auto.getMode()).toBe('brightness')
+    expect(h.polling()).toBe(true)
+    expect(h.deps.notify).toHaveBeenCalledWith('brightness')
+    expect(h.deps.writeMode).not.toHaveBeenCalled()
   })
 })
