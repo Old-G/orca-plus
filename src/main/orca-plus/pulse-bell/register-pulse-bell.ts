@@ -85,19 +85,23 @@ export function registerPulseBell(
 ): void {
   // Custom build (hq-plus-one-request): a decided newest request takes its talk's earlier ones along.
   // Any write — a click here, the phone, a sent reply, a sync — so after every pulse change, once.
+  // Why «rejected»: Skip's decision — the request asks nothing more; «Done for you» can bring it back.
+  const settle = (): void =>
+    closeHqEarlierRequests(runtime, async (requestId) => {
+      const hqPath = store.getSettings().hqPath
+      if (hqPath) {
+        await rejectHqSlackScoutDraft(hqPath, requestId)
+      }
+    })
   let settling: ReturnType<typeof setTimeout> | null = null
   onPulseChanged(() => {
     settling ??= setTimeout(() => {
       settling = null
-      // Why «rejected»: Skip's decision — the request asks nothing more; «Done for you» can bring it back.
-      closeHqEarlierRequests(runtime, async (requestId) => {
-        const hqPath = store.getSettings().hqPath
-        if (hqPath) {
-          await rejectHqSlackScoutDraft(hqPath, requestId)
-        }
-      })
+      settle()
     }, 0)
   })
+  // Why: requests decided before this build, or while it was down, settle at start too.
+  settle()
   const sync = (kind: string, desired: readonly PulseBellInput[]): void => {
     try {
       runtime.pulseSyncInboxKind(kind, desired)
