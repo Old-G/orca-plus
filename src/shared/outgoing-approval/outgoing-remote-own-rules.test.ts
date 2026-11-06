@@ -448,6 +448,12 @@ describe('own work of 06.11', () => {
     "python3 - <<'EOF'; [r]m -rf /srv/data\nprint(1)\nEOF\nssh myserver 'rm -f /tmp/x'",
     "cat > /tmp/q.py <<'EOF'\nprint(1)\nEOF\n[r]m -rf /srv/data; ssh myserver 'rm -f /tmp/x'",
     "cat > /tmp/q.py <<'EOF'\n/bin/m[v] /srv/data /tmp/x\nEOF\nbash /tmp/q.py; ssh myserver 'rm -rf /tmp/x'",
+    // Codex at ship, 06.11: a shell by path, two heredocs on one line, characters past the BMP.
+    "cat > /tmp/q.py <<'EOF'\n/bin/m[v] /srv/data /tmp/x\nEOF\n/bin/bash /tmp/q.py; rm -rf /tmp/x; ssh myserver true",
+    "bash <<'SH'; python3 - <<'PY'\n/bin/m[v] /srv/data /tmp/x\nSH\nprint(1)\nPY\nrm -rf /tmp/x; ssh myserver true",
+    "cat > /tmp/q.py <<'EOF'\n# " +
+      `cat > /tmp/q.py <<'EOF'\n# ${'😀'.repeat(25)}\nEOF\n/bin/m[v] /srv/data /tmp/x; rm -rf /tmp/x; ssh myserver true`,
+    '\nEOF\n/bin/m[v] /srv/data /tmp/x; rm -rf /tmp/x; ssh myserver true',
     "cat > /tmp/q.py <<'EOF'\n/bin/m[v] /srv/data /tmp/x\nEOF\nchmod +x /tmp/q.py && /tmp/q.py; ssh myserver 'rm -rf /tmp/x'",
     "cat > /tmp/q.py <<'EOF'\n/bin/m[v] /srv/data /tmp/x\nEOF\nscp /tmp/q.py myserver:/tmp/q.sh && ssh myserver 'sh /tmp/q.sh; rm -rf /tmp/x'",
     "bash <<'EOF'\n[r]m -rf /srv/data\nEOF\nssh myserver 'rm -f /tmp/x'",
