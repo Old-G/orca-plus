@@ -68,6 +68,7 @@ import { HqPlusProjectChips, HqPlusProjectFeed } from './HqPlusProjectFeed'
 import type { HqPlusProjectCardContext } from './HqPlusProjectParts'
 import { useHqPlusDraftChats } from './use-hq-plus-drafts'
 import { HqPlusSide, type HqPlusTile } from './HqPlusSide'
+import { HqPlusNewChat } from './HqPlusNewChat'
 import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
 import { HqPlusTicker } from './HqPlusTicker'
 import type { HqPlusChatCloser } from './HqPlusCloseChat'
@@ -1452,6 +1453,18 @@ export function HqPlusScreen(): React.JSX.Element {
         ? (waitsOnThem.find((wait) => wait.sessionId === item.tab.entityId) ?? null)
         : null
   }
+  const tileOfRepoId = (repoId: string, name: string): HqPlusTile => ({
+    letters: hqPlusTileOf(slugOfRepo.get(repoId) ?? name, tileFamilies),
+    color: colorFor(repoId)
+  })
+  // Custom build (hq-plus-work-view, owner 07.11): the Work view's projects lead its «+ Chat» picker.
+  const workRepoIds = useMemo(
+    () =>
+      workModel
+        ? [...new Set(workModel.runs.flatMap((run) => run.rows.map((row) => row.item.repoId)))]
+        : NO_IDS,
+    [workModel]
+  )
   const side = (
     <HqPlusSide
       ticker={
@@ -1468,10 +1481,7 @@ export function HqPlusScreen(): React.JSX.Element {
       chats={sideChats}
       drafts={draftChats}
       colorFor={colorFor}
-      tileOfRepo={(repoId, name) => ({
-        letters: hqPlusTileOf(slugOfRepo.get(repoId) ?? name, tileFamilies),
-        color: colorFor(repoId)
-      })}
+      tileOfRepo={tileOfRepoId}
       onKeepProject={setHqProjectKept}
       onMarkDoneRead={acknowledgeHqChats}
       stats={data.stats}
@@ -1630,7 +1640,18 @@ export function HqPlusScreen(): React.JSX.Element {
             className="hqp-feed hqw-main"
             aria-label={translate('auto.hqPlus.work.label', 'Work')}
           >
-            <HqPlusWork model={workModel} actions={workActions} />
+            <HqPlusWork
+              model={workModel}
+              actions={workActions}
+              newChat={
+                <HqPlusNewChat
+                  activeRepoIds={workRepoIds}
+                  tileOf={tileOfRepoId}
+                  openChats={chatItems}
+                  onPickChat={(item) => showChat(item.key)}
+                />
+              }
+            />
             {centerOverlay}
           </main>
         ) : (

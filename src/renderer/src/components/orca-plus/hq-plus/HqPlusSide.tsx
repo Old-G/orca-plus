@@ -136,14 +136,14 @@ export function HqPlusSide({
       )
     : []
   // Custom build (hq-plus-chat-tree, owner 05.11): below the trees, every other chat by project.
+  // A project whose chats all went into trees keeps its header — its «+» is the only way to start a
+  // chat there, as «All projects» lists only projects with no chat (owner 07.11: «плюсик пропал»).
   const inTree = new Set(treeRows.map((entry) => entry.item.key))
   const lone = byWork
-    ? chats.projects
-        .map((project) => ({
-          ...project,
-          items: project.items.filter((item) => !inTree.has(item.key))
-        }))
-        .filter((project) => project.items.length > 0 || project.kept)
+    ? chats.projects.map((project) => ({
+        ...project,
+        items: project.items.filter((item) => !inTree.has(item.key))
+      }))
     : chats.projects
   const loneMarked = chats.marked.filter((item) => !inTree.has(item.key))
   return (
