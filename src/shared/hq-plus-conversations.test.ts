@@ -325,3 +325,41 @@ describe('hqPlusTranscript', () => {
     ).toBe('You: Ready?\nAnn: yes, done')
   })
 })
+
+describe('one request per conversation (hq-plus-one-request)', () => {
+  const comment = (n: number): PulseInboxItem =>
+    bell({
+      kind: 'slack-request',
+      title: `Ann: comment ${n}`,
+      refKind: 'slack-request',
+      refId: JSON.stringify({
+        id: `clickup:abc123:${n}`,
+        kind: 'answer',
+        link: 'https://app.clickup.com/t/abc123'
+      }),
+      createdAt: NOW - (30 - n) * MIN,
+      actions: [
+        { id: 'slack-answer', label: 'Just reply' },
+        { id: 'slack-do', label: 'Do' }
+      ]
+    })
+
+  it('keeps the buttons of the newest of three comments in one task; the earlier go with it', () => {
+    const [first, second, third] = [comment(1), comment(2), comment(3)]
+    const log = hqPlusFeedLog(feed([], [first, second, third]), DAY_START)
+    const cards = log.filter((item) => item.kind === 'card')
+    expect(cards).toHaveLength(1)
+    const conversation = cards[0]?.kind === 'card' ? cards[0].conversation : undefined
+    expect(conversation?.parts.map((part) => part.inbox?.id)).toEqual([third.id])
+    expect(conversation?.earlierRequests).toEqual([first.id, second.id])
+  })
+
+  it('leaves a lone request with nothing to close', () => {
+    const only = comment(1)
+    const log = hqPlusFeedLog(feed([], [only, remind]), DAY_START)
+    const conversation = log.flatMap((item) =>
+      item.kind === 'card' && item.conversation ? [item.conversation] : []
+    )
+    expect(conversation.every((c) => c.earlierRequests === undefined)).toBe(true)
+  })
+})
