@@ -502,9 +502,7 @@ vi.mock('../../orca-plus/pulse-bell/register-pulse-bell', () => ({
   registerPulseBell: registerPulseBellMock
 }))
 
-vi.mock('../../orca-plus/power-source/power-source-broadcast', () => ({
-  registerPowerSourceBroadcast: vi.fn()
-}))
+vi.mock('../../orca-plus/theme-auto/theme-auto', () => ({ registerThemeAuto: vi.fn() }))
 
 vi.mock('../../hq-today/hq-morning-briefing', () => ({ startHqMorningBriefing: vi.fn() }))
 

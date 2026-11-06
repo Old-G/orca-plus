@@ -1,23 +1,21 @@
-// Custom build (paper-theme): what the sun/moon button, the HQ+ theme menu and the charger do to the
-// stock `theme` setting. Effects come in as deps so tests drive them without a window or a store.
+// Custom build (paper-theme): what the sun/moon button and the HQ+ theme menu do. A fixed mode writes
+// the stock `theme` and turns main's Auto off; an Auto mode hands the theme to main. Effects come in
+// as deps so tests drive them without a window or a store.
 import { applyDocumentTheme } from '@/lib/document-theme'
 import { useAppStore } from '@/store'
 import {
-  setThemeFollowsBattery,
-  themeFollowsBattery,
+  autoForMode,
+  setThemeAuto,
   themeForMode,
-  themeOnPower,
   toggledTheme,
   type AppTheme,
-  type OrcaPlusThemeMode
+  type OrcaPlusThemeMode,
+  type ThemeAuto
 } from './orca-plus-theme-mode'
 
 export type ThemeDeps = {
   apply: (theme: AppTheme) => void
-  setFollowsBattery: (next: boolean) => void
-  followsBattery: () => boolean
-  isOnBattery: () => Promise<boolean>
-  onPowerChanged: (callback: (change: { onBattery: boolean }) => void) => () => void
+  setAuto: (auto: ThemeAuto) => void
   darkNow: () => boolean
 }
 
@@ -27,48 +25,19 @@ export const themeDeps: ThemeDeps = {
     applyDocumentTheme(theme)
     void useAppStore.getState().updateSettings({ theme })
   },
-  setFollowsBattery: setThemeFollowsBattery,
-  followsBattery: themeFollowsBattery,
-  isOnBattery: () => window.api.orcaPlusPower?.isOnBattery() ?? Promise.resolve(false),
-  onPowerChanged: (callback) => window.api.orcaPlusPower?.onChanged(callback) ?? (() => {}),
+  setAuto: setThemeAuto,
   darkNow: () => document.documentElement.classList.contains('dark')
 }
 
-export async function setOrcaPlusThemeMode(
-  mode: OrcaPlusThemeMode,
-  deps: ThemeDeps = themeDeps
-): Promise<void> {
-  deps.setFollowsBattery(mode === 'auto-battery')
-  const onBattery = mode === 'auto-battery' ? await deps.isOnBattery().catch(() => false) : false
-  deps.apply(themeForMode(mode, onBattery))
+export function setOrcaPlusThemeMode(mode: OrcaPlusThemeMode, deps: ThemeDeps = themeDeps): void {
+  deps.setAuto(autoForMode(mode))
+  const theme = themeForMode(mode)
+  if (theme) {
+    deps.apply(theme)
+  }
 }
 
 export function toggleOrcaPlusTheme(deps: ThemeDeps = themeDeps): void {
-  deps.setFollowsBattery(false)
+  deps.setAuto('off')
   deps.apply(toggledTheme(deps.darkNow()))
-}
-
-/** While «Auto: Paper on battery» is on, the charger decides; checks once at start too, since the
- *  Mac may have changed source while Orca+ was closed. Returns the unsubscribe. */
-export function startPowerTheme(deps: ThemeDeps = themeDeps): () => void {
-  let stopped = false
-  const stop = deps.onPowerChanged(({ onBattery }) => {
-    if (deps.followsBattery()) {
-      deps.apply(themeOnPower(onBattery))
-    }
-  })
-  if (deps.followsBattery()) {
-    void deps
-      .isOnBattery()
-      .then((onBattery) => {
-        if (!stopped && deps.followsBattery()) {
-          deps.apply(themeOnPower(onBattery))
-        }
-      })
-      .catch(() => {})
-  }
-  return () => {
-    stopped = true
-    stop()
-  }
 }
