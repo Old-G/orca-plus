@@ -3195,7 +3195,7 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   text-overflow: ellipsis;
 }
 /* Custom build (hq-plus-chat-tree): «By status | By work» over the chats, and the work tree — a chat
-   under the one that started it, indented with a hook line, its project named beside the title. */
+   under the one that started it, indented with a hook line (its project line: hq-plus-work.css). */
 .hq-plus .hqm-seg.hqp-chats-by {
   align-self: flex-start;
   width: fit-content;
@@ -3204,13 +3204,6 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 .hq-plus .hqm-seg.hqp-chats-by button {
   padding: 2px 11px;
   font-size: 12px;
-}
-.hqp-pc .t .hqp-pc-pj {
-  flex: none;
-  font-family: var(--hqp-mono);
-  font-size: 10.5px;
-  font-weight: 400;
-  color: var(--hqp-faint);
 }
 .hqp-qi-row[data-child='true'] {
   position: relative;
