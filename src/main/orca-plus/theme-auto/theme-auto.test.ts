@@ -54,11 +54,13 @@ describe('parsePmsetOnBattery', () => {
 })
 
 describe('themeOnBrightness', () => {
-  it('Paper at 30% and below, dark from 38%, nothing in between (no flicker)', () => {
-    expect(themeOnBrightness(0.3)).toBe('light')
+  it('Paper at 45% and below, dark from 55%, nothing in between (no flicker)', () => {
+    // 0.375: the owner's screen on 07.11 when «тема не работает» — the old 30/38 band kept it dark
+    expect(themeOnBrightness(0.375)).toBe('light')
+    expect(themeOnBrightness(0.45)).toBe('light')
     expect(themeOnBrightness(0.1)).toBe('light')
-    expect(themeOnBrightness(0.34)).toBeNull()
-    expect(themeOnBrightness(0.38)).toBe('dark')
+    expect(themeOnBrightness(0.5)).toBeNull()
+    expect(themeOnBrightness(0.55)).toBe('dark')
     expect(themeOnBrightness(1)).toBe('dark')
     expect(themeOnBrightness(null)).toBeNull()
   })
@@ -113,8 +115,8 @@ function harness(
 }
 
 describe('ThemeAuto', () => {
-  it('at low brightness: down past 30% → Paper, the band keeps it, up past 38% → dark', async () => {
-    const h = harness('brightness', [0.5, 0.25, 0.34, 0.4])
+  it('at low brightness: down past 45% → Paper, the band keeps it, up past 55% → dark', async () => {
+    const h = harness('brightness', [0.7, 0.375, 0.5, 0.6])
     h.auto.start()
     await vi.waitFor(() => expect(h.polling()).toBe(true))
     for (let i = 0; i < 3; i++) {
