@@ -10,7 +10,8 @@ const AUTONOMY = [
   '  hosts: myserver',
   '  containers: api-mcp-check, *-check, *-shadow',
   '  rm_paths: ~/shadow_*, ~/tmp/*, /tmp/*',
-  '  mktemp: yes'
+  '  mktemp: yes',
+  '  container_rm_paths: agent-app:/app/e2e_*.py, agent-app:/app/deep_probe.py'
 ].join('\n')
 
 const held = (command: string) => classifyOutgoingToolCall('Bash', { command }) !== null
@@ -233,6 +234,8 @@ describe('own server work from HQ autonomy.yaml (plan 15.17)', () => {
     `ssh myserver 'mount --bind /srv /tmp/x; rm -rf /tmp/x/data; f=$(ls)'`,
     `ssh myserver 'docker run -v /srv:/tmp/d img; rm -rf /tmp/d/a; f=$(ls)'`,
     `ssh myserver 'eval "$CMD"; rm -f /tmp/x'`,
+    `ssh myserver 'eval;rm -f /tmp/x; x=$(ls)'`,
+    `ssh myserver 'rm -f /tmp/x; ls | xargs -I{} cp {} /tmp/y'`,
     `ssh myserver 'rm(){ command rm -rf /srv; }; rm -f /tmp/x; f=$(ls)'`,
     `ssh myserver 'PATH=/tmp/bin:$PATH; rm -f /tmp/x'`,
     `ssh myserver 'f=$(ls); $X rm -f /tmp/x'`,
@@ -307,5 +310,170 @@ describe('own server work from HQ autonomy.yaml (plan 15.17)', () => {
   it('passes a mktemp variable only when the block says so', () => {
     setRemoteNoApprove(parseHqRemoteNoApprove(AUTONOMY.replace('mktemp: yes', 'mktemp: no')))
     expect(held(`ssh myserver 'D=$(mktemp -d); rm -rf "$D"'`)).toBe(true)
+  })
+})
+
+// Owner 06.11 (daily review item 2): 26 cards a day, all approved. The agent's probe scripts in its own
+// container, its scratchpad by a variable set in the same command, and /tmp cleanups after a data heredoc.
+describe('own work of 06.11', () => {
+  beforeEach(() => setRemoteNoApprove(parseHqRemoteNoApprove(AUTONOMY)))
+  afterEach(() => setRemoteNoApprove(null))
+
+  const SP = '/private/tmp/claude-501/-Users-me-src-acme/s1/scratchpad'
+
+  it.each([
+    // (a) probe scripts copied into the listed container and removed after the run.
+    [
+      `SP=${SP}`,
+      'B=$(base64 < $SP/e2e_marks.py)',
+      `ssh -o ConnectTimeout=15 myserver "sleep 8; echo $B | base64 -d > /tmp/e2e_marks.py && docker cp /tmp/e2e_marks.py agent-app:/app/e2e_marks.py && docker exec -w /app agent-app python e2e_marks.py 2>&1 | grep -E 'spec_mark|RESULT' ; docker exec agent-app rm -f /app/e2e_marks.py" 2>&1 | cut -c1-400 | tail -6`
+    ].join('\n'),
+    [
+      `B=$(base64 < ${SP}/deep_probe.py)`,
+      `ssh -o ConnectTimeout=15 myserver "echo $B | base64 -d > /tmp/deep_probe.py && docker cp /tmp/deep_probe.py agent-app:/app/deep_probe.py && docker exec -w /app agent-app python deep_probe.py 2>&1 | grep -v '^\\s*$' | tail -15; docker exec agent-app rm -f /app/deep_probe.py" 2>&1 | tail -15`
+    ].join('\n'),
+    `ssh myserver 'docker exec agent-app rm -f /app/e2e_len.py'`,
+    `ssh myserver 'docker exec -u root agent-app rm -f /app/e2e_read.py /tmp/e2e_read.py'`,
+    // (b) the scratchpad by a variable set to it in the same command.
+    `set -e; T=${SP}/pp; rm -rf $T; mkdir -p $T; ssh myserver 'docker exec acme-agents tar -C /app -cf - profiles' | tar -C $T -xf -; diff -rq $T/profiles profiles || true`,
+    `SP=${SP} && rm -rf $SP/iter2 && mkdir -p $SP/iter2/evals && git archive HEAD src profiles | tar -x -C $SP/iter2 && COPYFILE_DISABLE=1 tar -C $SP/iter2 -czf $SP/iter2.tgz . && scp -q $SP/iter2.tgz myserver:/tmp/open/ && ssh myserver 'docker exec -u 0 acme-agents rm -rf /tmp/acme-iter2'`,
+    `S=/private/tmp/claude-501/s5x && rm -rf $S && mkdir -p $S && cp -R src $S/ && ssh myserver 'rm -rf /tmp/s5w' && scp -q -r $S/src myserver:/tmp/s5w`,
+    `S=${SP} && grep -E '^KEY=' .env > $S/eval.env && scp -q $S/eval.env myserver:/tmp/s5env/eval.env && rm -f $S/eval.env && ssh myserver 'docker exec -d --env-file /tmp/s5env/eval.env acme-agents true; rm -rf /tmp/s5env'`,
+    // (c) a cleanup after a heredoc that only writes a data file or feeds Python: its text is no shell's.
+    [
+      `set -e; T=${SP}/pp; rm -rf $T; mkdir -p $T; .venv/bin/python - <<EOF`,
+      'import yaml',
+      'd=yaml.safe_load(open("evals/open.yaml"))',
+      'd["cases"]=[c for c in d["cases"] if c["id"]=="phone-optional"]',
+      'yaml.safe_dump(d,open("$T/pp.yaml","w"),allow_unicode=True)',
+      'EOF',
+      `ssh myserver 'docker exec acme-agents tar -C /app -cf - profiles' | tar -C $T -xf -; ssh myserver 'rm -rf /tmp/pp && mkdir -p /tmp/pp' && scp -q -r $T/profiles $T/pp.yaml myserver:/tmp/pp/ && ssh myserver 'docker exec -d acme-agents sh -c "python -m evals /tmp/pp/pp.yaml > /tmp/pp/run.log 2>&1; echo exit=\\$? >> /tmp/pp/run.log" && echo started'`
+    ].join('\n'),
+    [
+      `cat > ${SP}/q2.py <<'EOF'`,
+      'import sqlite3,statistics as st',
+      "c=sqlite3.connect('/app/state/journal.sqlite3')",
+      "first=c.execute(\"select min(ts) from runs where mode='deep'\").fetchone()[0]; print('first deep',first)",
+      'rows=c.execute("select f.ms,d.ms from runs f join runs d on d.run_id=f.deep_run_id where f.ts>=?",(first,)).fetchall()',
+      'if rows:',
+      "  print('fast med s',st.median(r[0] for r in rows)/1000,'deep med s',st.median(r[1] for r in rows if r[1])/1000)",
+      "  print('decision changed',sum(r[0]!=r[1] for r in rows))",
+      'EOF',
+      `D=${SP}; scp -q $D/q2.py myserver:/tmp/q2.py && ssh myserver 'docker cp /tmp/q2.py acme-agents:/tmp/q2.py && docker exec acme-agents python /tmp/q2.py; docker exec acme-agents rm -f /tmp/q.py /tmp/q2.py; rm -f /tmp/q.py /tmp/q2.py'`
+    ].join('\n'),
+    [
+      `cd "${SP}" && cat > q2.py <<'EOF'`,
+      'import sqlite3, json',
+      "c = sqlite3.connect('file:/app/state/journal.sqlite3?mode=ro', uri=True)",
+      'ids = [r[0] for r in c.execute("select run_id from runs where mode=\'deep\'")]',
+      "fast = [dict(r) for r in c.execute(f\"select * from runs where run_id in ({','.join('?'*len(ids))})\", ids)]",
+      'EOF',
+      `B=$(base64 < q2.py); ssh myserver "echo $B | base64 -d > /tmp/q_deep2.py && docker cp /tmp/q_deep2.py acme-agents:/tmp/q_deep2.py && docker exec acme-agents python /tmp/q_deep2.py; docker exec acme-agents rm -f /tmp/q_deep.py /tmp/q_deep2.py; rm -f /tmp/q_deep2.py" > uat_pairs.json`
+    ].join('\n')
+  ])('passes %s', (command) => {
+    expect(held(command)).toBe(false)
+  })
+
+  it.each([
+    // (a) anything but a listed probe script, in anything but the listed container, removed by anything
+    // but `rm -f` of its whole literal name.
+    `ssh myserver 'docker exec agent-app rm -f /app/main.py'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/state/journal.sqlite3'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/e2e_*.py'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/e2e_?.py'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/*'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/e2e_x.py /app/state.db'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/../app/e2e_x.py'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/e2e_../../etc/x.py'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/sub/e2e_x.py'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/e2e_x.pyc'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/deep_probe2.py'`,
+    `ssh myserver 'docker exec agent-app rm -rf /app/e2e_x.py'`,
+    `ssh myserver 'docker exec agent-app rm -r -f /app/deep_probe.py'`,
+    `ssh myserver 'docker exec agent-app rm -f $F'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/e2e_$X.py'`,
+    `ssh myserver 'docker exec agent-app rm -f ~/e2e_x.py'`,
+    `ssh myserver 'docker exec $C rm -f /app/e2e_x.py'`,
+    `ssh myserver 'docker exec "$C" rm -f /app/deep_probe.py'`,
+    `ssh myserver 'docker exec other-app rm -f /app/e2e_x.py'`,
+    `ssh myserver 'docker exec agent-app-2 rm -f /app/e2e_x.py'`,
+    `ssh myserver 'docker compose exec agent-app rm -f /app/e2e_x.py'`,
+    `ssh myserver 'docker exec agent-app sh -c "rm -f /app/e2e_x.py"'`,
+    `ssh myserver 'rm -f /app/e2e_x.py'`,
+    `ssh other-box 'docker exec agent-app rm -f /app/e2e_x.py'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/e2e_x.py'; ssh prod 'ls'`,
+    `docker exec agent-app rm -f /app/e2e_x.py; ssh myserver true`,
+    `ssh myserver 'DOCKER_HOST=tcp://prod:2375 docker exec agent-app rm -f /app/e2e_x.py'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/e2e_x.py; rm -rf /srv/app'`,
+    `ssh myserver 'docker exec agent-app rm -f /app/e2e_x.py; docker exec db psql -c "DELETE FROM sessions"'`,
+    // (b) a variable not set here, set elsewhere than the scratch root, reset, or used past its path.
+    `rm -rf $T; ssh myserver true`,
+    `rm -rf $T/pp; ssh myserver true`,
+    `T=$HOME/x; rm -rf $T; ssh myserver true`,
+    `T=~/code-repos-sync; rm -rf $T; ssh myserver true`,
+    `T=/Users/me/code-repos-sync; rm -rf $T; ssh myserver true`,
+    `T=/srv/app; rm -rf $T; ssh myserver true`,
+    `T=/var/lib/docker; rm -rf $T; ssh myserver true`,
+    `T=/private/tmp/claude-501; rm -rf $T; ssh myserver true`,
+    `T=/private/tmp/claude-501/; rm -rf $T; ssh myserver true`,
+    `T=/private/tmp/claude-501x/y; rm -rf $T; ssh myserver true`,
+    `T=/private/tmp/claude-501/../../srv; rm -rf $T; ssh myserver true`,
+    `T=${SP}; rm -rf $T/..; ssh myserver true`,
+    `T=${SP}; rm -rf $T/../..; ssh myserver true`,
+    `T=${SP}; rm -rf $T/*; ssh myserver true`,
+    `T=${SP}; rm -rf \${T}x; ssh myserver true`,
+    `T=${SP}; rm -rf $T $HOME; ssh myserver true`,
+    `T=${SP}; rm -rf $T /srv/app; ssh myserver true`,
+    `T=${SP}; rm -rf $T/$(whoami); ssh myserver true`,
+    `T=${SP}/$(whoami); rm -rf $T; ssh myserver true`,
+    `T="${SP}/a b"; rm -rf $T; ssh myserver true`,
+    `T=${SP}; T=/srv; rm -rf $T; ssh myserver true`,
+    `T=${SP}; unset T; rm -rf $T/pp; ssh myserver true`,
+    `T=${SP}; read T; rm -rf $T; ssh myserver true`,
+    `if true; then T=${SP}; fi; rm -rf $T/pp; ssh myserver true`,
+    `(T=${SP}); rm -rf $T/pp; ssh myserver true`,
+    `T=${SP}; ssh myserver "rm -rf $T"`,
+    `T=${SP}; ssh myserver 'rm -rf $T'`,
+    `T=${SP}; ssh myserver 'docker exec agent-app rm -rf $T'`,
+    `T=${SP}/link; ln -s /srv $T; rm -rf $T/data; ssh myserver true`,
+    `T=${SP}; rm -rf $T; ssh myserver 'rm -rf /srv/app'`,
+    // (c) a heredoc whose text a shell reads, or one not quoted, still has its command names checked.
+    "cat > /tmp/run.sh <<'EOF'\n[r]m -rf /srv/data\nEOF\nssh myserver 'rm -f /tmp/x'",
+    "cat <<'EOF' | sh\n[r]m -rf /srv/data\nEOF\nssh myserver 'rm -f /tmp/x'",
+    "cat > /tmp/q.py <<'EOF' && sh /tmp/q.py\n[r]m -rf /srv/data\nEOF\nssh myserver 'rm -f /tmp/x'",
+    "cat > /tmp/q.py <<EOF\n[r]m -rf /srv/data $(id)\nEOF\nssh myserver 'rm -f /tmp/x'",
+    "cat > /tmp/q.py <<EOF\n[r]m -rf /srv/data `id`\nEOF\nssh myserver 'rm -f /tmp/x'",
+    "python3 - <<EOF\n[r]m -rf /srv/data `id`\nEOF\nssh myserver 'rm -f /tmp/x'",
+    "python3 - arg <<'EOF' | sh\n[r]m -rf /srv/data\nEOF\nssh myserver 'rm -f /tmp/x'",
+    "python3 - <<'EOF'; [r]m -rf /srv/data\nprint(1)\nEOF\nssh myserver 'rm -f /tmp/x'",
+    "cat > /tmp/q.py <<'EOF'\nprint(1)\nEOF\n[r]m -rf /srv/data; ssh myserver 'rm -f /tmp/x'",
+    "cat > /tmp/q.py <<'EOF'\n/bin/m[v] /srv/data /tmp/x\nEOF\nbash /tmp/q.py; ssh myserver 'rm -rf /tmp/x'",
+    "cat > /tmp/q.py <<'EOF'\n/bin/m[v] /srv/data /tmp/x\nEOF\nchmod +x /tmp/q.py && /tmp/q.py; ssh myserver 'rm -rf /tmp/x'",
+    "cat > /tmp/q.py <<'EOF'\n/bin/m[v] /srv/data /tmp/x\nEOF\nscp /tmp/q.py myserver:/tmp/q.sh && ssh myserver 'sh /tmp/q.sh; rm -rf /tmp/x'",
+    "bash <<'EOF'\n[r]m -rf /srv/data\nEOF\nssh myserver 'rm -f /tmp/x'",
+    "ssh myserver bash <<'EOF'\n[r]m -rf /srv/data\nrm -f /tmp/x\nEOF",
+    "cat > /tmp/q.py <<'EOF'\nimport os; os.system(\"rm -rf /srv/data\")\nEOF\nssh myserver 'rm -f /tmp/q.py'",
+    "cat > /tmp/q.py <<'EOF'\nimport sqlite3; sqlite3.connect('/app/s.db').execute('delete from cards')\nEOF\nssh myserver 'rm -f /tmp/q.py'"
+  ])('holds %s', (command) => {
+    expect(held(command)).toBe(true)
+  })
+
+  it('passes no container path once the block drops it', () => {
+    setRemoteNoApprove(parseHqRemoteNoApprove(AUTONOMY.replace(/\n.*container_rm_paths.*/, '')))
+    expect(held(`ssh myserver 'docker exec agent-app rm -f /app/e2e_len.py'`)).toBe(true)
+  })
+
+  it("ignores container paths too broad to mean the agent's own scripts", () => {
+    setRemoteNoApprove(
+      parseHqRemoteNoApprove(
+        AUTONOMY.replace(
+          /container_rm_paths:.*/,
+          'container_rm_paths: agent-app:/app/*, *:/app/e2e_*.py, agent-app:/*/e2e_*.py, agent-app:e2e_*.py, agent-app:/app/*.py'
+        )
+      )
+    )
+    expect(held(`ssh myserver 'docker exec agent-app rm -f /app/main.py'`)).toBe(true)
+    expect(held(`ssh myserver 'docker exec other rm -f /app/e2e_x.py'`)).toBe(true)
+    expect(held(`ssh myserver 'docker exec agent-app rm -f /srv/e2e_x.py'`)).toBe(true)
   })
 })
