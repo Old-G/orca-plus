@@ -21,6 +21,7 @@ import { HqPlusMapDock, type HqPlusMapDockPick } from './HqPlusMapDock'
 import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusMapSheet } from './HqPlusMapSheet'
 import { trunc } from './hq-plus-map-geometry'
+import { useHqPlusRootClass } from './hq-plus-theme'
 import { HqPlusMapCrumbs, type HqPlusMapCrumb } from './HqPlusLayoutSwitch'
 import {
   readHqPlusMapView,
@@ -105,6 +106,7 @@ export type HqPlusMapLayoutProps = {
 
 export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element {
   const { items, waits, chats, chat, now } = props
+  const rootClass = useHqPlusRootClass('hqm')
   const [saved] = useState(readHqPlusMapView)
   const [expandedByRoom, setExpandedByRoom] = useState(saved.expanded)
   const [dock, setDock] = useState<HqPlusMapDockPlace>(saved.dock)
@@ -287,7 +289,7 @@ export function HqPlusMapLayout(props: HqPlusMapLayoutProps): React.JSX.Element 
   )
 
   return (
-    <div className="hq-plus dark hqm">
+    <div className={rootClass}>
       <header className="hqp-top">
         <span className="hqp-brand">
           <span className="hqp-arc" aria-hidden="true">

@@ -54,6 +54,7 @@ import { installActiveWorktreeRemovalSuccessor } from './lib/workspace/activatio
 import { useAppStore } from './store'
 import { HqChatListPublisher } from './components/orca-plus/hq/HqChatListPublisher'
 import { HqChatCleanup } from './components/orca-plus/hq/HqChatCleanup'
+import { useOrcaPlusPowerTheme } from './components/orca-plus/theme/use-orca-plus-power-theme'
 
 function App(): React.JSX.Element {
   const layout = useAppChromeLayout()
@@ -84,6 +85,8 @@ function App(): React.JSX.Element {
   useRuntimeGraphSync()
   usePersistedUIWriter()
   useDocumentAppearance()
+  // Custom build (paper-theme): «Auto: Paper on battery» follows the charger.
+  useOrcaPlusPowerTheme()
   useCustomCss()
   useCustomAppearanceBackground()
   useCustomAppearanceTheme()

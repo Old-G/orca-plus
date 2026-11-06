@@ -49,6 +49,7 @@ import type { ClaudeHandoffApi } from './api/claude-handoff-api'
 import type { PulseBellApi } from './api/pulse-bell-api'
 import type { OutgoingApprovalApi } from './api/outgoing-approval-api'
 import type { ClaudeLimitGuardApi } from './api/claude-limit-guard-api'
+import type { OrcaPlusPowerApi } from './api/orca-plus-power-api'
 import type { ClaudeSubscriptionsApi } from './api/claude-subscriptions-api'
 import type { StrataApi } from './api/strata-api'
 import type { HqGroupChatApi } from './api/hq-group-chat-api'
@@ -148,6 +149,7 @@ export type PreloadApi = {
   pulseBell: PulseBellApi
   outgoingApproval: OutgoingApprovalApi
   claudeLimitGuard: ClaudeLimitGuardApi
+  orcaPlusPower: OrcaPlusPowerApi
   claudeSubscriptions: ClaudeSubscriptionsApi
   strata: StrataApi
   hqGroupChat: HqGroupChatApi
