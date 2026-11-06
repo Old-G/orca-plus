@@ -49,7 +49,7 @@ import type { ClaudeHandoffApi } from './api/claude-handoff-api'
 import type { PulseBellApi } from './api/pulse-bell-api'
 import type { OutgoingApprovalApi } from './api/outgoing-approval-api'
 import type { ClaudeLimitGuardApi } from './api/claude-limit-guard-api'
-import type { OrcaPlusPowerApi } from './api/orca-plus-power-api'
+import type { OrcaPlusThemeApi } from './api/orca-plus-theme-api'
 import type { ClaudeSubscriptionsApi } from './api/claude-subscriptions-api'
 import type { StrataApi } from './api/strata-api'
 import type { HqGroupChatApi } from './api/hq-group-chat-api'
@@ -112,7 +112,6 @@ import type {
   SparsePresetsApi,
   WorktreeApi
 } from './api/workspaces/worktree-api'
-import type { CustomCssApi, KeybindingsApi, SettingsApi } from './api/preferences/settings-api'
 
 // Flattens contracts that share one PreloadApi key: an intersection is not type-identical to the flat shape.
 type Merged<T> = { [K in keyof T]: T[K] }
@@ -149,7 +148,7 @@ export type PreloadApi = {
   pulseBell: PulseBellApi
   outgoingApproval: OutgoingApprovalApi
   claudeLimitGuard: ClaudeLimitGuardApi
-  orcaPlusPower: OrcaPlusPowerApi
+  orcaPlusTheme: OrcaPlusThemeApi
   claudeSubscriptions: ClaudeSubscriptionsApi
   strata: StrataApi
   hqGroupChat: HqGroupChatApi
