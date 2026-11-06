@@ -31,7 +31,8 @@ import { startHqSlackRequestBell } from '../../hq-today/hq-slack-request-bell'
 import {
   notifyHqSlackScoutChanged,
   onHqSlackScoutChanged,
-  readHqSlackScout
+  readHqSlackScout,
+  rejectHqSlackScoutDraft
 } from '../../hq-today/hq-slack-scout'
 import {
   collectHqClickUpRequests,
@@ -88,7 +89,13 @@ export function registerPulseBell(
   onPulseChanged(() => {
     settling ??= setTimeout(() => {
       settling = null
-      closeHqEarlierRequests(runtime)
+      // Why «rejected»: Skip's decision — the request asks nothing more; «Done for you» can bring it back.
+      closeHqEarlierRequests(runtime, async (requestId) => {
+        const hqPath = store.getSettings().hqPath
+        if (hqPath) {
+          await rejectHqSlackScoutDraft(hqPath, requestId)
+        }
+      })
     }, 0)
   })
   const sync = (kind: string, desired: readonly PulseBellInput[]): void => {
