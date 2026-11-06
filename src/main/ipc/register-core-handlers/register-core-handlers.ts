@@ -33,7 +33,7 @@ import { registerHqProjectPagesHandlers } from '../../hq-project-pages/register-
 import { startHqMorningBriefing } from '../../hq-today/hq-morning-briefing'
 import { registerHqPulseMirror } from '../../hq-pulse-mirror/register-hq-pulse-mirror'
 import { registerPulseBell } from '../../orca-plus/pulse-bell/register-pulse-bell'
-import { registerPowerSourceBroadcast } from '../../orca-plus/power-source/power-source-broadcast'
+import { registerThemeAuto } from '../../orca-plus/theme-auto/theme-auto'
 import { registerHqJournal } from '../../hq-journal/register-hq-journal'
 import { registerHqRouting } from '../../hq-routing/register-hq-routing'
 import { registerOutgoingApproval } from '../../orca-plus/outgoing-approval/register-outgoing-approval'
@@ -230,8 +230,8 @@ export function registerCoreHandlers(
   registerHqProjectPagesHandlers(store, () => runtime.getCommitMessageAgentEnvironmentResolvers())
   registerHqPulseMirror(store)
   registerPulseBell(store, runtime, rateLimits)
-  // Custom build (paper-theme): charger in/out for the theme «Auto: Paper on battery».
-  registerPowerSourceBroadcast()
+  // Custom build (paper-theme): the theme's Auto modes — on battery, at low brightness.
+  registerThemeAuto(store)
   registerHqJournal(store, runtime)
   registerHqRouting(store, runtime, rateLimits)
   startHqMorningBriefing({
