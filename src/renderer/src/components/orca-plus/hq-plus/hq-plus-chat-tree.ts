@@ -10,6 +10,15 @@ export type HqPlusTreeRow = {
   item: HqChatItem
   /** 0 for a chat nobody open started. */
   depth: number
+  /** Custom build (hq-plus-work-view): the open chats right under this one (0 for an older chat of a line). */
+  children: number
+  /** Custom build (hq-plus-work-view): an older open chat of the same line, after a handoff. */
+  earlier: boolean
+  /**
+   * Custom build (hq-plus-work-view): for a top row, the first chat of the work it hangs from when that
+   * chat is closed — the lead whose workers outlived it; null when nobody started it.
+   */
+  startedBy: string | null
 }
 
 const GROUP_ORDER = { needs: 0, working: 1, done: 2, quiet: 3 } as const
@@ -161,11 +170,38 @@ export function hqPlusChatTree(
       roots.push(node)
     }
   }
+  // Why: the work's first chat, up the recorded links through closed chats — the lead a block is named by.
+  const lineOfNode = new Map([...nodeOfLine].map(([line, node]) => [node, line]))
+  const leadOf = (node: Node): string | null => {
+    let current = lineOfNode.get(node)
+    let lead: string | null = null
+    const seen = new Set<string>()
+    for (let hop = 0; current && hop < MAX_HOPS; hop += 1) {
+      const parent = parentOfLine.get(current)
+      if (!parent) {
+        break
+      }
+      const up = lineOf(parent)
+      if (seen.has(up)) {
+        break
+      }
+      seen.add(up)
+      lead = up
+      current = up
+    }
+    return lead
+  }
   const rows: HqPlusTreeRow[] = []
   const walk = (node: Node, depth: number): void => {
-    rows.push({ item: node.head, depth })
+    rows.push({
+      item: node.head,
+      depth,
+      children: node.children.length,
+      earlier: false,
+      startedBy: depth === 0 ? leadOf(node) : null
+    })
     for (const item of node.earlier) {
-      rows.push({ item, depth })
+      rows.push({ item, depth, children: 0, earlier: true, startedBy: null })
     }
     for (const child of node.children) {
       walk(child, depth + 1)
