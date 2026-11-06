@@ -103,6 +103,13 @@
   padding-bottom: 16px;
 }
 
+/* Custom build (owner 07.11): «+ Chat» on top, right. */
+.hqw-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -6px;
+}
+
 /* Needs you */
 .hqw-needs {
   display: flex;

@@ -202,14 +202,18 @@ function Run({
 
 export function HqPlusWork({
   model,
-  actions
+  actions,
+  newChat
 }: {
   model: HqPlusWorkModel
   actions: HqPlusWorkActions
+  /** Custom build (hq-plus-work-view, owner 07.11): «+ Chat» — a new chat in any project from Work. */
+  newChat?: React.ReactNode
 }): React.JSX.Element {
   const [showClosed, setShowClosed] = useState(false)
   return (
     <div className="hqw" aria-label={translate('auto.hqPlus.work.label', 'Work')}>
+      {newChat ? <div className="hqw-bar">{newChat}</div> : null}
       {model.needsYou.length > 0 ? (
         <section className="hqw-needs">
           <div className="hqw-needs-h">
