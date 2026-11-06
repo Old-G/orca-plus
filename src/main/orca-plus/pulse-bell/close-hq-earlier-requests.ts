@@ -17,6 +17,9 @@ type Inbox = {
 /** Writes the scout's decision on a request, keyed by its request id (not the bell item's). */
 export type RecordHqEarlierRequestDecision = (requestId: string) => Promise<void>
 
+// Why: a settle comes after every pulse write; one decision write per request at a time.
+const writing = new Set<string>()
+
 export function closeHqEarlierRequests(
   inbox: Inbox,
   recordDecision?: RecordHqEarlierRequestDecision
@@ -25,15 +28,24 @@ export function closeHqEarlierRequests(
     const all = inbox.pulseListInbox(true, { kind: HQ_SLACK_REQUEST_BELL_KIND })
     const byId = new Map(all.map((item) => [item.id, item]))
     for (const id of hqEarlierRequestsToClose(all)) {
-      inbox.pulseMarkInboxDone(id, HQ_EARLIER_REQUEST_ACTION)
-      // Why (Codex P2, 06.11): the bell alone leaves the scout's draft undecided, and classic HQ's
-      // Today kept showing it as pending. Recorded once: a closed item is not picked again.
       const requestId = readHqSlackRequestRef(byId.get(id)?.refId ?? null)?.id
-      if (requestId && recordDecision) {
-        void recordDecision(requestId).catch((error: unknown) =>
+      if (!requestId || !recordDecision) {
+        inbox.pulseMarkInboxDone(id, HQ_EARLIER_REQUEST_ACTION)
+        continue
+      }
+      if (writing.has(id)) {
+        continue
+      }
+      // Why (Codex P2, 06.11): the bell alone leaves the scout's draft undecided and classic HQ's
+      // Today shows it as pending — so the bell closes only once the decision is on file; a failed
+      // write keeps it open, and the next settle tries again.
+      writing.add(id)
+      void recordDecision(requestId)
+        .then(() => inbox.pulseMarkInboxDone(id, HQ_EARLIER_REQUEST_ACTION))
+        .catch((error: unknown) =>
           console.warn('[pulse-bell] recording an earlier request decision failed:', error)
         )
-      }
+        .finally(() => writing.delete(id))
     }
   } catch (error) {
     console.warn('[pulse-bell] closing earlier requests failed:', error)
