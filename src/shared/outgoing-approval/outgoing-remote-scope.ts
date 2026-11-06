@@ -161,3 +161,38 @@ export function hasUnknownExpansion(command: string, bindings: Map<string, Bindi
   }
   return false
 }
+
+const SSH_FLAGS = '46AaCfGgKkMNnqsTtVvXxYy'
+const SSH_SAFE_VALUE_OPTIONS = 'ilOop'
+const SSH_SAFE_CONFIG =
+  /^(?:ControlPath|ControlMaster|ControlPersist|BatchMode|ConnectTimeout|ConnectionAttempts|ServerAliveInterval|ServerAliveCountMax|StrictHostKeyChecking|LogLevel)[=\s]/i
+
+/** The host of the ssh call whose options start at `from`, or null when it cannot be read. */
+export function sshHost(command: string, from: number): string | null {
+  const tokens = [...command.slice(from).matchAll(/\S+/g)].map((match) => match[0])
+  for (let t = 0; t < tokens.length; t++) {
+    // Why: `-o "HostName=…"` is the same option to ssh once the shell drops the quotes.
+    const token = tokens[t].replace(/['"]/g, '')
+    if (!token.startsWith('-')) {
+      const host = /^(?:[\w.-]+@)?([\w.-]+)$/.exec(tokens[t].replace(/[;&|)]+$/, ''))?.[1] ?? null
+      // Why: ssh also reads options given after the host, and one may name another machine.
+      return /^['"]?-/.test(tokens[t + 1] ?? '') ? null : host
+    }
+    // Why: walked like getopt; any option off this short list may send ssh somewhere else.
+    for (let c = 1; c < token.length; c++) {
+      const letter = token[c]
+      if (SSH_FLAGS.includes(letter)) {
+        continue
+      }
+      if (!SSH_SAFE_VALUE_OPTIONS.includes(letter)) {
+        return null
+      }
+      const value = token.slice(c + 1) || (tokens[++t] ?? '').replace(/['"]/g, '')
+      if (letter === 'o' && !SSH_SAFE_CONFIG.test(value)) {
+        return null
+      }
+      break
+    }
+  }
+  return null
+}
