@@ -24,6 +24,8 @@ function request(id: string, at: number, done = false): PulseInboxItem {
   }
 }
 
+const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
+
 function inboxOf(items: PulseInboxItem[]) {
   return {
     pulseListInbox: () => items,
@@ -43,7 +45,7 @@ describe('closeHqEarlierRequests (Codex P2, 06.11)', () => {
     const recordDecision = vi.fn(async () => undefined)
 
     closeHqEarlierRequests(inbox, recordDecision)
-    await Promise.resolve()
+    await flush()
 
     expect(inbox.pulseMarkInboxDone.mock.calls.map(([id]) => id)).toEqual(['a', 'b'])
     expect(recordDecision.mock.calls).toEqual([['clickup:abc123:a'], ['clickup:abc123:b']])
@@ -60,15 +62,33 @@ describe('closeHqEarlierRequests (Codex P2, 06.11)', () => {
     expect(recordDecision).not.toHaveBeenCalled()
   })
 
-  it('keeps closing the bell when the decision write fails', async () => {
+  it('keeps the bell open when the decision write fails, and retries on the next settle', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const inbox = inboxOf([request('a', 1), request('c', 3, true)])
     closeHqEarlierRequests(inbox, async () => {
       throw new Error('disk full')
     })
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(inbox.pulseMarkInboxDone).toHaveBeenCalledTimes(1)
+    await flush()
+    expect(inbox.pulseMarkInboxDone).not.toHaveBeenCalled()
     expect(warn).toHaveBeenCalled()
+
+    const recordDecision = vi.fn(async () => undefined)
+    closeHqEarlierRequests(inbox, recordDecision)
+    await flush()
+    expect(recordDecision.mock.calls).toEqual([['clickup:abc123:a']])
+    expect(inbox.pulseMarkInboxDone.mock.calls.map(([id]) => id)).toEqual(['a'])
     warn.mockRestore()
+  })
+
+  it('writes one decision per request while a write is still running', async () => {
+    const inbox = inboxOf([request('a', 1), request('c', 3, true)])
+    let finish: () => void = () => undefined
+    const recordDecision = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)))
+    closeHqEarlierRequests(inbox, recordDecision)
+    closeHqEarlierRequests(inbox, recordDecision)
+    expect(recordDecision).toHaveBeenCalledTimes(1)
+    finish()
+    await flush()
+    expect(inbox.pulseMarkInboxDone).toHaveBeenCalledTimes(1)
   })
 })
