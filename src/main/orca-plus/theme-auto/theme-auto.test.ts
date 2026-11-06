@@ -54,13 +54,14 @@ describe('parsePmsetOnBattery', () => {
 })
 
 describe('themeOnBrightness', () => {
-  it('Paper at 45% and below, dark from 55%, nothing in between (no flicker)', () => {
-    // 0.375: the owner's screen on 07.11 when «тема не работает» — the old 30/38 band kept it dark
-    expect(themeOnBrightness(0.375)).toBe('light')
-    expect(themeOnBrightness(0.45)).toBe('light')
+  it('Paper at 5 F1/F2 steps (0.3125) and below, dark from 6 steps (0.375), nothing in between', () => {
+    // the owner, 07.11: 0.375 should already be dark, one F1 press down Paper
+    expect(themeOnBrightness(0.3125)).toBe('light')
+    expect(themeOnBrightness(0.32)).toBe('light')
     expect(themeOnBrightness(0.1)).toBe('light')
-    expect(themeOnBrightness(0.5)).toBeNull()
-    expect(themeOnBrightness(0.55)).toBe('dark')
+    expect(themeOnBrightness(0.35)).toBeNull()
+    expect(themeOnBrightness(0.375)).toBe('dark')
+    expect(themeOnBrightness(0.37)).toBe('dark')
     expect(themeOnBrightness(1)).toBe('dark')
     expect(themeOnBrightness(null)).toBeNull()
   })
@@ -115,8 +116,8 @@ function harness(
 }
 
 describe('ThemeAuto', () => {
-  it('at low brightness: down past 45% → Paper, the band keeps it, up past 55% → dark', async () => {
-    const h = harness('brightness', [0.7, 0.375, 0.5, 0.6])
+  it('at low brightness: one F1 from 0.375 → Paper, the band keeps it, one F2 back → dark', async () => {
+    const h = harness('brightness', [0.375, 0.3125, 0.35, 0.375])
     h.auto.start()
     await vi.waitFor(() => expect(h.polling()).toBe(true))
     for (let i = 0; i < 3; i++) {
