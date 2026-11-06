@@ -1,37 +1,23 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import {
-  setOrcaPlusThemeMode,
-  startPowerTheme,
-  toggleOrcaPlusTheme,
-  type ThemeDeps
-} from './orca-plus-theme-actions'
-import { themeForMode, themeModeOf } from './orca-plus-theme-mode'
+import { setOrcaPlusThemeMode, toggleOrcaPlusTheme, type ThemeDeps } from './orca-plus-theme-actions'
+import { autoForMode, themeForMode, themeModeOf } from './orca-plus-theme-mode'
 import { hqPlusRootClass } from '../hq-plus/hq-plus-theme'
 
-function fakeDeps(state: { dark: boolean; follows: boolean; onBattery: boolean }) {
-  let power: ((change: { onBattery: boolean }) => void) | null = null
+function fakeDeps(state: { dark: boolean; auto: string }) {
   const applied: string[] = []
   const deps: ThemeDeps = {
     apply: (theme) => {
       applied.push(theme)
       state.dark = theme === 'dark'
     },
-    setFollowsBattery: (next) => {
-      state.follows = next
-    },
-    followsBattery: () => state.follows,
-    isOnBattery: () => Promise.resolve(state.onBattery),
-    onPowerChanged: (callback) => {
-      power = callback
-      return () => {
-        power = null
-      }
+    setAuto: (auto) => {
+      state.auto = auto
     },
     darkNow: () => state.dark
   }
-  return { deps, applied, emit: (onBattery: boolean) => power?.({ onBattery }) }
+  return { deps, applied }
 }
 
 describe('HQ+ root class', () => {
@@ -52,56 +38,34 @@ describe('HQ+ root class', () => {
 })
 
 describe('theme modes', () => {
-  it('maps the stock setting and the battery flag to the picked mode', () => {
-    expect(themeModeOf('dark', false)).toBe('dark')
-    expect(themeModeOf('light', false)).toBe('paper')
-    expect(themeModeOf('system', false)).toBe('auto-system')
-    expect(themeModeOf('light', true)).toBe('auto-battery')
-    expect(themeForMode('auto-system', true)).toBe('system')
+  it('maps the stock setting and main\'s Auto to the picked mode', () => {
+    expect(themeModeOf('dark', 'off')).toBe('dark')
+    expect(themeModeOf('light', 'off')).toBe('paper')
+    expect(themeModeOf('system', 'off')).toBe('auto-system')
+    expect(themeModeOf('light', 'battery')).toBe('auto-battery')
+    expect(themeModeOf('dark', 'brightness')).toBe('auto-brightness')
+    expect(autoForMode('auto-brightness')).toBe('brightness')
+    expect(themeForMode('auto-brightness')).toBeNull()
   })
 
   it('the sun/moon flips dark ↔ Paper and turns auto off', () => {
-    const state = { dark: true, follows: true, onBattery: true }
+    const state = { dark: true, auto: 'brightness' }
     const { deps, applied } = fakeDeps(state)
     toggleOrcaPlusTheme(deps)
     expect(applied).toEqual(['light'])
-    expect(state.follows).toBe(false)
+    expect(state.auto).toBe('off')
     toggleOrcaPlusTheme(deps)
     expect(applied).toEqual(['light', 'dark'])
   })
 
-  it('picking «Auto: Paper on battery» applies the current source at once', async () => {
-    const state = { dark: true, follows: false, onBattery: true }
+  it('an Auto mode hands the theme to main; a fixed one writes it and turns Auto off', () => {
+    const state = { dark: true, auto: 'off' }
     const { deps, applied } = fakeDeps(state)
-    await setOrcaPlusThemeMode('auto-battery', deps)
-    expect(state.follows).toBe(true)
-    expect(applied).toEqual(['light'])
-    await setOrcaPlusThemeMode('auto-system', deps)
-    expect(state.follows).toBe(false)
-    expect(applied).toEqual(['light', 'system'])
-  })
-})
-
-describe('startPowerTheme', () => {
-  it('in battery mode the charger picks: battery → Paper, charger → dark', async () => {
-    const state = { dark: true, follows: true, onBattery: false }
-    const { deps, applied, emit } = fakeDeps(state)
-    const stop = startPowerTheme(deps)
-    await vi.waitFor(() => expect(applied).toEqual(['dark']))
-    emit(true)
-    emit(false)
-    expect(applied).toEqual(['dark', 'light', 'dark'])
-    stop()
-    emit(true)
-    expect(applied).toEqual(['dark', 'light', 'dark'])
-  })
-
-  it('leaves the theme alone when the battery mode is off', async () => {
-    const state = { dark: true, follows: false, onBattery: true }
-    const { deps, applied, emit } = fakeDeps(state)
-    startPowerTheme(deps)
-    emit(true)
-    await Promise.resolve()
+    setOrcaPlusThemeMode('auto-brightness', deps)
+    expect(state.auto).toBe('brightness')
     expect(applied).toEqual([])
+    setOrcaPlusThemeMode('paper', deps)
+    expect(state.auto).toBe('off')
+    expect(applied).toEqual(['light'])
   })
 })
