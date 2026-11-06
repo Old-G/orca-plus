@@ -32,7 +32,7 @@ import { hqPlusClock as clock } from './HqPlusChatCard'
 import type { HqPlusLogContext } from './HqPlusLog'
 import { noteHqPlusTakeHint } from './hq-plus-take-hint'
 import { HqPlusInWorkButtons } from './HqPlusInWorkButtons'
-import { closeEarlierRequests } from './hq-plus-earlier-requests'
+import { useCloseEarlierRequests } from './hq-plus-earlier-requests'
 
 const SHOWN_MESSAGES = 3
 
@@ -279,6 +279,7 @@ export function HqPlusConversationCard({
 }): React.JSX.Element | null {
   const conversation = card.conversation
   const expanded = ctx.isExpanded(card.id)
+  useCloseEarlierRequests(conversation ?? null, ctx.onChanged)
   if (!conversation) {
     return null
   }
@@ -392,14 +393,10 @@ export function HqPlusConversationCard({
             onOpenLink={ctx.openLink}
             onOpenReport={ctx.onOpenReport}
             onNotNow={() => ctx.onNotNow(card.id)}
-            onChanged={() => {
-              // Why: deciding the newest request decides the talk; its earlier messages ask nothing more.
-              void closeEarlierRequests(conversation.earlierRequests).then(ctx.onChanged)
-            }}
+            onChanged={ctx.onChanged}
             expanded={false}
             onExpand={() => {}}
             onToWork={(inbox) => {
-              void closeEarlierRequests(conversation.earlierRequests)
               // Why: the conversation's project and chat are what its card shows; a folded part may know neither.
               noteHqPlusTakeHint(inbox.id, { project: part.project, sessionId: part.sessionId })
               // Custom build (hq-intake-decide): a chat the model proposed, when none holds it yet.
