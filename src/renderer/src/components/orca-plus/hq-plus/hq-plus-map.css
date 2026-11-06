@@ -23,7 +23,7 @@
   margin-left: 6px;
 }
 .hqm-you {
-  border: 1px solid rgba(255, 195, 90, 0.4);
+  border: 1px solid color-mix(in srgb, var(--hqp-amber) 40%, transparent);
   border-radius: 999px;
   background: none;
   color: var(--hqp-amber);
@@ -141,11 +141,11 @@
 }
 .hqm-box {
   fill: #0b1a26;
-  stroke: rgba(143, 233, 255, 0.18);
+  stroke: color-mix(in srgb, var(--hqp-ice) 18%, transparent);
   stroke-width: 1;
 }
 .hqm-node:hover .hqm-box {
-  stroke: rgba(143, 233, 255, 0.45);
+  stroke: color-mix(in srgb, var(--hqp-ice) 45%, transparent);
 }
 .hqm-node.hqm-sel .hqm-box {
   stroke: var(--hqp-ice);
@@ -219,12 +219,12 @@
   background: rgba(6, 15, 22, 0.97);
   border: 1px solid var(--hqp-line);
   border-radius: 14px;
-  box-shadow: -18px 0 50px rgba(0, 0, 0, 0.45);
+  box-shadow: -18px 0 50px color-mix(in srgb, var(--hqp-shade) 45%, transparent);
 }
 .hqm-sheet[data-float='true'] {
   right: auto;
   bottom: auto;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 24px 60px color-mix(in srgb, var(--hqp-shade) 55%, transparent);
 }
 .hqm-sheet[data-dragging='true'] {
   user-select: none;
@@ -289,7 +289,7 @@
 }
 .hqm-edge-w:hover,
 .hqm-edge-h:hover {
-  background: rgba(143, 233, 255, 0.18);
+  background: color-mix(in srgb, var(--hqp-ice) 18%, transparent);
   border-radius: 4px;
 }
 .hqm-unfold {
@@ -304,7 +304,7 @@
   background: rgba(6, 15, 22, 0.95);
   color: var(--hqp-fg);
   font-size: 12.5px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--hqp-shade) 40%, transparent);
 }
 .hqm-unfold:hover {
   background: var(--hqp-soft-2);
@@ -361,7 +361,7 @@
   color: var(--hqp-fg);
 }
 .hqm-pill.you {
-  border-color: rgba(255, 195, 90, 0.5);
+  border-color: color-mix(in srgb, var(--hqp-amber) 50%, transparent);
   color: var(--hqp-amber);
 }
 .hqm-h {

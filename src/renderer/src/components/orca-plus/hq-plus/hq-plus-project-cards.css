@@ -18,7 +18,7 @@
 }
 .hqpc[data-you='true'] {
   border-color: color-mix(in srgb, var(--hqpc-c) 75%, transparent);
-  background: linear-gradient(180deg, #132232, #0c1924);
+  background: var(--hqp-open-move);
 }
 .hqpc-head {
   display: flex;
@@ -63,9 +63,9 @@
   white-space: nowrap;
 }
 .hqpc-pill[data-you='true'] {
-  border-color: rgba(255, 195, 90, 0.5);
+  border-color: color-mix(in srgb, var(--hqp-amber) 50%, transparent);
   color: var(--hqp-amber);
-  background: rgba(255, 195, 90, 0.08);
+  background: color-mix(in srgb, var(--hqp-amber) 8%, transparent);
 }
 .hqpc-tm {
   margin-left: auto;
@@ -169,7 +169,7 @@
   box-shadow: inset 0 0 0 1px var(--hqp-line-2);
 }
 .hqpc-ln[data-flash='true'] > .hqpc-rowwrap > .hqpc-row {
-  box-shadow: 0 0 0 3px rgba(143, 233, 255, 0.35);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hqp-ice) 35%, transparent);
 }
 .hqpc-t {
   min-width: 0;
@@ -214,7 +214,7 @@
   color: var(--hqp-amber);
 }
 .hqpc-age[data-state='working'] {
-  color: #f2e15c;
+  color: var(--hqp-yellow);
 }
 .hqpc-dot {
   width: 8px;
@@ -226,7 +226,7 @@
   background: var(--hqp-amber);
 }
 .hqpc-dot[data-state='working'] {
-  background: #f2e15c;
+  background: var(--hqp-yellow);
 }
 .hqpc-dot[data-state='done'] {
   background: var(--hqp-green);
@@ -252,7 +252,7 @@
   background: var(--hqp-soft);
 }
 .hqpc-ln[data-open='true'][data-picked='true'] {
-  border-color: rgba(143, 233, 255, 0.45);
+  border-color: color-mix(in srgb, var(--hqp-ice) 45%, transparent);
 }
 .hqpc-ln[data-open='true'] > .hqpc-rowwrap > .hqpc-row,
 .hqpc-ln[data-open='true'] > .hqpc-row {
@@ -379,13 +379,13 @@ button.hqpc-sum:hover {
   font-size: 11px;
 }
 .hqp-chip-btn[data-move='true'] {
-  border-color: rgba(255, 195, 90, 0.5);
+  border-color: color-mix(in srgb, var(--hqp-amber) 50%, transparent);
   color: var(--hqp-amber);
 }
 .hqp-chip-btn[data-move='true'][aria-pressed='true'] {
   background: var(--hqp-amber);
   border-color: var(--hqp-amber);
-  color: #1d1300;
+  color: var(--hqp-amber-ink);
 }
 /* the Map's panel: the card fills it, no second frame */
 .hqm-pane > .hqpc {
@@ -400,26 +400,26 @@ button.hqpc-sum:hover {
     linear-gradient(180deg, #1a1a22, #0c1924) padding-box,
     var(--hqp-edge-ap) border-box;
   box-shadow:
-    0 0 0 1px rgba(255, 107, 98, 0.15),
-    0 0 28px rgba(255, 107, 98, 0.12);
+    0 0 0 1px color-mix(in srgb, var(--hqp-red) 15%, transparent),
+    0 0 28px color-mix(in srgb, var(--hqp-red) 12%, transparent);
 }
 .hqpc[data-flash='true'] {
   animation: hqpc-flash 1.2s ease-out;
 }
 @keyframes hqpc-flash {
   from {
-    box-shadow: 0 0 0 4px rgba(255, 107, 98, 0.55);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--hqp-red) 55%, transparent);
   }
 }
 .hqpc-pill[data-tone='ap'] {
-  border-color: rgba(255, 107, 98, 0.6);
+  border-color: color-mix(in srgb, var(--hqp-red) 60%, transparent);
   color: var(--hqp-red);
-  background: rgba(255, 107, 98, 0.1);
+  background: color-mix(in srgb, var(--hqp-red) 10%, transparent);
 }
 .hqpc-pill[data-tone='ask'] {
-  border-color: rgba(255, 195, 90, 0.5);
+  border-color: color-mix(in srgb, var(--hqp-amber) 50%, transparent);
   color: var(--hqp-amber);
-  background: rgba(255, 195, 90, 0.08);
+  background: color-mix(in srgb, var(--hqp-amber) 8%, transparent);
 }
 .hqpc-lab[data-tone='ap'] {
   color: var(--hqp-red);
@@ -588,7 +588,7 @@ button.hqpc-sum:hover {
   background:
     linear-gradient(180deg, #2a1416, #1a0f12) padding-box,
     var(--hqp-edge-ap) border-box;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--hqp-shade) 50%, transparent);
 }
 .hqpc-apbar .hqpc-lab {
   color: var(--hqp-red);
@@ -613,18 +613,18 @@ button.hqpc-sum:hover {
   border-radius: 9px;
   border: 1px solid var(--hqp-red);
   background: var(--hqp-red);
-  color: #2a0705;
+  color: var(--hqp-red-ink);
   font-size: 12.5px;
   font-weight: 600;
 }
 .hqp-chip-btn[data-ap='true'] {
-  border-color: rgba(255, 107, 98, 0.55);
+  border-color: color-mix(in srgb, var(--hqp-red) 55%, transparent);
   color: var(--hqp-red);
 }
 .hqp-chip-btn[data-ap='true'][aria-pressed='true'] {
   background: var(--hqp-red);
   border-color: var(--hqp-red);
-  color: #2a0705;
+  color: var(--hqp-red-ink);
 }
 /* the Approve card inside its project: no second head, the text readable, the decision as real buttons */
 .hqpc-ap .hqp-row-h,
@@ -658,7 +658,7 @@ button.hqpc-sum:hover {
 .hqpc-ap .hqp-approve-host .justify-end > button:first-child {
   border-color: var(--hqp-red);
   background: var(--hqp-red);
-  color: #2a0705;
+  color: var(--hqp-red-ink);
   font-weight: 600;
 }
 
