@@ -1,7 +1,7 @@
 // Custom build (hq-plus-work-view, owner 06.11): HQ+'s «Work» view — the «By work» tree on the whole
 // screen. On top, the tree's chats that wait on the owner; below, one block per lead (a chat that
-// started others) with its chats in tree order; at the bottom, the work's chats closed today. Built from
-// the same tree as «By work», so its links are the recorded facts, never names.
+// started others) with its chats in tree order; at the bottom, the work's closed chats active today.
+// Built from the same tree as «By work», so its links are the recorded facts, never names.
 import type { HqChatLinksResult } from '../../../../../shared/hq-chat-links'
 import type { HqLiveSession } from '../../../../../shared/hq-sessions'
 import type { HqChatItem } from '../hq/hq-chat-list'
@@ -22,9 +22,15 @@ export type HqPlusWorkModel = {
   /** The tree's chats that wait on the owner, in the blocks' order. */
   needsYou: HqChatItem[]
   runs: HqPlusWorkRun[]
-  /** Chats of the work (a recorded link names them) closed since `since`, newest first. */
-  closedToday: HqLiveSession[]
+  /**
+   * Closed chats of the work (a recorded link names them) whose last activity is since `since`, newest
+   * first. Why not «closed since»: nothing records when a tab was closed, only when the chat last spoke.
+   */
+  closedActiveToday: HqLiveSession[]
 }
+
+/** The heading of `closedActiveToday`: it says what the list filters on (codex review 07.11). */
+export const HQ_PLUS_WORK_CLOSED_HEADING = 'Closed · active today · {{count}}'
 
 function countsOf(rows: readonly HqPlusTreeRow[]): HqPlusWorkRun['counts'] {
   return {
@@ -57,7 +63,9 @@ export function hqPlusWorkView({
       current?.rows.push(row)
       continue
     }
-    if (row.children > 0 || !row.startedBy) {
+    // Why startedBy first: a chat a closed lead started stays in that lead's block even when it started
+    // chats of its own, so one recorded tree is one block (codex review 07.11).
+    if (!row.startedBy) {
       current = {
         key: row.item.key,
         lead: row.item,
@@ -98,7 +106,7 @@ export function hqPlusWorkView({
       run.rows.filter((row) => row.item.group === 'needs').map((row) => row.item)
     ),
     runs,
-    closedToday: sessions
+    closedActiveToday: sessions
       .filter(
         (session) =>
           !session.tabOpen &&

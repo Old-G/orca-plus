@@ -11,6 +11,7 @@ import type { HqChatItem } from '../hq/hq-chat-list'
 import { useHqChatTitle } from '../hq/HqChatAvatar'
 import type { HqPlusTreeRow } from './hq-plus-chat-tree'
 import {
+  HQ_PLUS_WORK_CLOSED_HEADING,
   hqPlusFirstLine,
   hqPlusMrOf,
   type HqPlusWorkModel,
@@ -239,7 +240,7 @@ export function HqPlusWork({
       {model.runs.map((run) => (
         <Run key={run.key} run={run} actions={actions} />
       ))}
-      {model.closedToday.length > 0 ? (
+      {model.closedActiveToday.length > 0 ? (
         <Collapsible open={showClosed} onOpenChange={setShowClosed}>
           <button
             type="button"
@@ -250,13 +251,13 @@ export function HqPlusWork({
             <span className="hqp-caret" data-open={showClosed} aria-hidden="true">
               ▸
             </span>
-            {translate('auto.hqPlus.work.closedToday', 'Closed today · {{count}}', {
-              count: model.closedToday.length
+            {translate('auto.hqPlus.work.closedActiveToday', HQ_PLUS_WORK_CLOSED_HEADING, {
+              count: model.closedActiveToday.length
             })}
           </button>
           <CollapsibleContent animation="height">
             <div className="hqw-closed">
-              {model.closedToday.map((session) => (
+              {model.closedActiveToday.map((session) => (
                 <button
                   key={session.sessionId}
                   type="button"

@@ -5,7 +5,12 @@ import { structuredAgentSessionTabId } from '../../../../../shared/structured-ag
 import type { Tab } from '../../../../../shared/tab-types'
 import type { HqChatItem } from '../hq/hq-chat-list'
 import { hqPlusChatTree } from './hq-plus-chat-tree'
-import { hqPlusFirstLine, hqPlusMrOf, hqPlusWorkView } from './hq-plus-work-view'
+import {
+  HQ_PLUS_WORK_CLOSED_HEADING,
+  hqPlusFirstLine,
+  hqPlusMrOf,
+  hqPlusWorkView
+} from './hq-plus-work-view'
 
 const chat = (
   sessionId: string,
@@ -131,8 +136,40 @@ describe('HQ+ «Work» view', () => {
     ])
   })
 
-  it('lists the work chats closed today, newest first', () => {
-    expect(view.closedToday.map((closed) => closed.sessionId)).toEqual(['closed-lead'])
+  it('lists the closed work chats active today, newest first', () => {
+    expect(view.closedActiveToday.map((closed) => closed.sessionId)).toEqual(['closed-lead'])
+  })
+
+  it('names that list by the activity it filters on, not by the closing time it does not know', () => {
+    expect(HQ_PLUS_WORK_CLOSED_HEADING).not.toMatch(/closed today/i)
+    expect(HQ_PLUS_WORK_CLOSED_HEADING).toMatch(/active today/i)
+  })
+
+  it('keeps every chat a closed lead started in its block, a chat that started others too', () => {
+    const tree = links([
+      ['worker', 'gone-lead'],
+      ['sub-lead', 'gone-lead'],
+      ['sub-kid', 'sub-lead']
+    ])
+    const work = hqPlusWorkView({
+      tree: hqPlusChatTree(
+        [
+          chat('worker', 'working', 10),
+          chat('sub-lead', 'done', 20),
+          chat('sub-kid', 'working', 30)
+        ],
+        tree
+      ),
+      links: tree,
+      sessions: [],
+      since: DAY
+    })
+    expect(
+      work.runs.map((run) => ({
+        lead: run.lead?.key ?? `closed:${run.leadSession}`,
+        rows: run.rows.map((row) => `${'  '.repeat(row.depth)}${row.item.key}`)
+      }))
+    ).toEqual([{ lead: 'closed:gone-lead', rows: ['sub-lead', '  sub-kid', 'worker'] }])
   })
 })
 
