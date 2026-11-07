@@ -9,6 +9,7 @@ vi.mock('electron', () => ({
 
 import {
   ThemeAuto,
+  onBatteryReader,
   parseBuiltInBrightness,
   parsePmsetOnBattery,
   themeOnBrightness,
@@ -176,5 +177,35 @@ describe('ThemeAuto', () => {
     expect(h.polling()).toBe(true)
     expect(h.deps.notify).toHaveBeenCalledWith('brightness')
     expect(h.deps.writeMode).not.toHaveBeenCalled()
+  })
+})
+
+describe('the battery reader per platform', () => {
+  const pmset = vi.fn(async () => true)
+
+  it('reads pmset on macOS, where powerMonitor lies', async () => {
+    const read = onBatteryReader('darwin', { pmset, isOnBatteryPower: () => false })
+    await expect(read()).resolves.toBe(true)
+  })
+
+  it('reads powerMonitor on Linux and Windows, where there is no pmset', async () => {
+    for (const platform of ['linux', 'win32'] as const) {
+      await expect(
+        onBatteryReader(platform, { pmset, isOnBatteryPower: () => true })()
+      ).resolves.toBe(true)
+      await expect(
+        onBatteryReader(platform, { pmset, isOnBatteryPower: () => false })()
+      ).resolves.toBe(false)
+    }
+  })
+
+  it('keeps the theme when powerMonitor throws', async () => {
+    const read = onBatteryReader('linux', {
+      pmset,
+      isOnBatteryPower: () => {
+        throw new Error('no power service')
+      }
+    })
+    await expect(read()).resolves.toBeNull()
   })
 })
