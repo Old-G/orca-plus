@@ -1,6 +1,7 @@
 // Custom build (paper-theme): Orca+'s theme modes on top of the stock `theme` setting — Dark (dark),
 // Paper (light), Auto: follow macOS (system), and two of ours that main runs (theme-auto.ts): Auto:
-// Paper on battery and Auto: Paper at low brightness. Main keeps which Auto is on; this mirrors it.
+// Paper on battery and Auto: Paper at low brightness (macOS only). Main keeps which Auto is on; this
+// mirrors it.
 import { useSyncExternalStore } from 'react'
 import type { GlobalSettings } from '../../../../../shared/global-settings-types'
 import type { OrcaPlusThemeAutoMode } from '../../../../../preload/api/orca-plus-theme-api'
@@ -21,6 +22,14 @@ export const ORCA_PLUS_THEME_MODES: readonly OrcaPlusThemeMode[] = [
   'auto-battery',
   'auto-system'
 ]
+
+/** The modes the menu offers here: low brightness reads the built-in Mac screen (corebrightnessdiag), so
+ *  it is macOS only; the battery mode reads powerMonitor elsewhere (codex review 07.11). */
+export function orcaPlusThemeModes(platform: NodeJS.Platform): readonly OrcaPlusThemeMode[] {
+  return platform === 'darwin'
+    ? ORCA_PLUS_THEME_MODES
+    : ORCA_PLUS_THEME_MODES.filter((mode) => mode !== 'auto-brightness')
+}
 
 /** What the menu shows as picked, from the stock setting and main's Auto. */
 export function themeModeOf(theme: AppTheme, auto: ThemeAuto): OrcaPlusThemeMode {

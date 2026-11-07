@@ -1,5 +1,5 @@
-// Custom build (paper-theme): HQ+'s theme menu next to Brain — Dark, Paper, Auto: Paper at low brightness (owner 07.11),
-// Auto: Paper on battery, Auto: follow macOS (owner, 06.11). The pill shows the icon of what is on screen now.
+// Custom build (paper-theme): HQ+'s theme menu next to Brain — Dark, Paper, Auto: Paper at low brightness (owner 07.11,
+// macOS only), Auto: Paper on battery, Auto: follow macOS (owner, 06.11; «follow system» elsewhere). The pill shows the icon of what is on screen now.
 import { Moon, Sun } from 'lucide-react'
 import {
   DropdownMenu,
@@ -10,10 +10,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useDocumentDarkTheme } from '@/hooks/use-document-dark-theme'
 import { translate } from '@/i18n/i18n'
+import { getShortcutPlatform } from '@/lib/keyboard/shortcut-platform'
 import { useAppStore } from '@/store'
 import { setOrcaPlusThemeMode } from './orca-plus-theme-actions'
 import {
-  ORCA_PLUS_THEME_MODES,
+  orcaPlusThemeModes,
   themeModeOf,
   useThemeAuto,
   type OrcaPlusThemeMode
@@ -30,7 +31,9 @@ export function orcaPlusThemeModeLabel(mode: OrcaPlusThemeMode): string {
     case 'auto-battery':
       return translate('auto.orcaPlus.theme.autoBattery', 'Auto: Paper on battery')
     case 'auto-system':
-      return translate('auto.orcaPlus.theme.autoSystem', 'Auto: follow macOS')
+      return getShortcutPlatform() === 'darwin'
+        ? translate('auto.orcaPlus.theme.autoSystem', 'Auto: follow macOS')
+        : translate('auto.orcaPlus.theme.autoSystemOther', 'Auto: follow system')
   }
 }
 
@@ -54,7 +57,7 @@ export function OrcaPlusThemeMenu(): React.JSX.Element {
           value={mode}
           onValueChange={(value) => setOrcaPlusThemeMode(value as OrcaPlusThemeMode)}
         >
-          {ORCA_PLUS_THEME_MODES.map((item) => (
+          {orcaPlusThemeModes(getShortcutPlatform()).map((item) => (
             <DropdownMenuRadioItem key={item} value={item}>
               {orcaPlusThemeModeLabel(item)}
             </DropdownMenuRadioItem>

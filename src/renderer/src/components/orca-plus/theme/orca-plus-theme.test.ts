@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { setOrcaPlusThemeMode, type ThemeDeps } from './orca-plus-theme-actions'
-import { autoForMode, themeForMode, themeModeOf } from './orca-plus-theme-mode'
+import { autoForMode, orcaPlusThemeModes, themeForMode, themeModeOf } from './orca-plus-theme-mode'
 import { hqPlusRootClass } from '../hq-plus/hq-plus-theme'
 
 function fakeDeps(state: { dark: boolean; auto: string }) {
@@ -56,5 +56,17 @@ describe('theme modes', () => {
     setOrcaPlusThemeMode('paper', deps)
     expect(state.auto).toBe('off')
     expect(applied).toEqual(['light'])
+  })
+})
+
+describe('theme modes per platform', () => {
+  it('offers low brightness only on macOS, the one place main can read the screen', () => {
+    expect(orcaPlusThemeModes('darwin')).toContain('auto-brightness')
+    expect(orcaPlusThemeModes('linux')).not.toContain('auto-brightness')
+    expect(orcaPlusThemeModes('win32')).not.toContain('auto-brightness')
+  })
+
+  it('keeps battery and the rest everywhere', () => {
+    expect(orcaPlusThemeModes('win32')).toEqual(['dark', 'paper', 'auto-battery', 'auto-system'])
   })
 })

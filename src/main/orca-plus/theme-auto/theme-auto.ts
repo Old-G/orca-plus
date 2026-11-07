@@ -178,10 +178,25 @@ export class ThemeAuto {
   }
 }
 
-function readOnBattery(): Promise<boolean | null> {
-  if (process.platform !== 'darwin') {
-    return Promise.resolve(null)
+/** On battery or not for this platform: pmset on macOS (powerMonitor lies there, see above), Electron's
+ *  powerMonitor on Linux and Windows, which have no pmset (codex review 07.11); null keeps the theme. */
+export function onBatteryReader(
+  platform: NodeJS.Platform,
+  sources: { pmset: () => Promise<boolean | null>; isOnBatteryPower: () => boolean }
+): () => Promise<boolean | null> {
+  if (platform === 'darwin') {
+    return sources.pmset
   }
+  return async () => {
+    try {
+      return sources.isOnBatteryPower()
+    } catch {
+      return null
+    }
+  }
+}
+
+function readPmsetOnBattery(): Promise<boolean | null> {
   return new Promise((resolve) => {
     execFile('/usr/bin/pmset', ['-g', 'batt'], { timeout: 2000 }, (error, stdout) =>
       resolve(error ? null : parsePmsetOnBattery(stdout))
@@ -208,7 +223,10 @@ export function registerThemeAuto(store: ThemeStore): () => void {
   const auto = new ThemeAuto({
     store,
     power: powerMonitor,
-    readOnBattery,
+    readOnBattery: onBatteryReader(process.platform, {
+      pmset: readPmsetOnBattery,
+      isOnBatteryPower: () => powerMonitor.isOnBatteryPower()
+    }),
     readBrightness: readBuiltInBrightness,
     readMode: () => {
       try {
