@@ -65,7 +65,12 @@ const withSummary = (summary: string | null): { summary?: string } => (summary ?
 
 function pageSummary(body: string): string | null {
   // Why no `m` flag: with it `$` ends the capture at the first line of a wrapped «Кратко».
-  const section = /(?:^|\n)## (?:Кратко|Summary)[ \t]*\n+([\s\S]*?)(?=\n## |$)/.exec(body)?.[1]
+  // Why \u escapes: this file lands in the orcad bundle, which must stay pure ASCII
+  // (orcad-entry-build rejects any char >= 0x80); the escapes spell «Кратко».
+  const section =
+    /(?:^|\n)## (?:\u041a\u0440\u0430\u0442\u043a\u043e|Summary)[ \t]*\n+([\s\S]*?)(?=\n## |$)/.exec(
+      body
+    )?.[1]
   const text = section?.replace(/\s+/g, ' ').trim()
   if (!text) {
     return null
