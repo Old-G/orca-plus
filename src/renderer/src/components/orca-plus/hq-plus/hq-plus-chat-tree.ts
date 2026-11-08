@@ -182,6 +182,11 @@ export function hqPlusChatTree(
         break
       }
       const up = lineOf(parent)
+      // Why: a top row's links reach an open chat only through a loop the tree broke; that row heads
+      // the loop itself, so it names no closed lead (codex review 08.11).
+      if (nodeOfLine.has(up)) {
+        return null
+      }
       if (seen.has(up)) {
         break
       }

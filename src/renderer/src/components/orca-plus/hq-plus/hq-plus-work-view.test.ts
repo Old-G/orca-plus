@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { HqChatLinksResult } from '../../../../../shared/hq-chat-links'
 import type { HqLiveSession } from '../../../../../shared/hq-sessions'
-import { structuredAgentSessionTabId } from '../../../../../shared/structured-agent-session-projection'
+import { structuredAgentSessionTabId } from '../../../../../shared/agent-session/view/structured-agent-session-projection'
 import type { Tab } from '../../../../../shared/tab-types'
 import type { HqChatItem } from '../hq/hq-chat-list'
 import { hqPlusChatTree } from './hq-plus-chat-tree'
@@ -174,6 +174,23 @@ describe('HQ+ «Work» view', () => {
 })
 
 describe('HQ+ «Work» last report', () => {
+  it('keeps the open root of a loop in the links as its lead (codex review 08.11)', () => {
+    const loop = [chat('a', 'working', 10), chat('b', 'working', 20)]
+    const loopLinks = links([
+      ['a', 'b'],
+      ['b', 'a']
+    ])
+    const view = hqPlusWorkView({
+      tree: hqPlusChatTree(loop, loopLinks),
+      links: loopLinks,
+      sessions: [],
+      since: 0
+    })
+    expect(view.runs).toHaveLength(1)
+    expect(view.runs[0].lead).not.toBeNull()
+    expect(view.runs[0].key.startsWith('closed:')).toBe(false)
+  })
+
   it('takes the first line with words, without markdown marks', () => {
     expect(hqPlusFirstLine('\n\n## **Done**: merged\nmore')).toBe('Done: merged')
     expect(hqPlusFirstLine('- `fix` shipped')).toBe('fix shipped')
