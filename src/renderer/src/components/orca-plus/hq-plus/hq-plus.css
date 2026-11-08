@@ -76,26 +76,26 @@
   z-index: -2;
   pointer-events: none;
   background:
-    radial-gradient(520px 520px at 18% 22%, color-mix(in srgb, var(--hqp-ice) 16%, transparent), transparent 70%),
-    radial-gradient(640px 640px at 78% 12%, color-mix(in srgb, var(--hqp-violet) 13%, transparent), transparent 70%),
-    radial-gradient(560px 560px at 62% 78%, color-mix(in srgb, var(--hqp-green) 8%, transparent), transparent 70%),
-    radial-gradient(700px 700px at 8% 92%, color-mix(in srgb, var(--hqp-blue) 10%, transparent), transparent 72%);
-}
-.hq-plus::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--hqp-ice) 11%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--hqp-ice) 11%, transparent) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image:
-    radial-gradient(560px 480px at 18% 22%, #000 0%, rgba(0, 0, 0, 0.25) 70%, transparent 100%),
-    radial-gradient(620px 520px at 78% 14%, #000 0%, rgba(0, 0, 0, 0.2) 70%, transparent 100%),
-    radial-gradient(520px 460px at 62% 80%, rgba(0, 0, 0, 0.8) 0%, transparent 100%),
-    linear-gradient(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.18));
+    radial-gradient(
+      520px 520px at 18% 22%,
+      color-mix(in srgb, var(--hqp-ice) 16%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      640px 640px at 78% 12%,
+      color-mix(in srgb, var(--hqp-violet) 13%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      560px 560px at 62% 78%,
+      color-mix(in srgb, var(--hqp-green) 8%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      700px 700px at 8% 92%,
+      color-mix(in srgb, var(--hqp-blue) 10%, transparent),
+      transparent 72%
+    );
 }
 .hq-plus button,
 .hq-plus input,
@@ -2178,15 +2178,11 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 .hqp-qi-row[data-live='true'] .ag {
   color: var(--hqp-yellow);
 }
-/* the chat on the right wears the feed's card, over the HQ+ grid */
+/* the chat on the right wears the feed's card */
 .hqp-pv > .hqp-chat {
   border-radius: 12px;
   border: 1px solid var(--hqp-line);
   background-color: var(--hqp-card);
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--hqp-ice) 5%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--hqp-ice) 5%, transparent) 1px, transparent 1px);
-  background-size: 44px 44px;
   overflow: hidden;
 }
 .hqp-pv > .hqp-chat .hqp-ses-h {
