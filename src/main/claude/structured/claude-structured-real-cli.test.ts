@@ -189,15 +189,24 @@ describe.skipIf(!realClaudeAvailable)(suiteTitle, () => {
           spawnToken: 'real-cli-effort'
         })
         await claudeStartupSettled(adapter, 'real-cli-handshake')
+        // Open settles before the startup get_settings read lands, so wait for its report.
+        await vi.waitFor(
+          async () => {
+            const options = await adapter.readOptions({
+              sessionId: 'real-cli-handshake',
+              fence: 1
+            })
+            expect(options.current.effort).toBe('low')
+          },
+          { timeout: 5_000, interval: 50 }
+        )
         const published = events.flatMap((event) =>
           event.type === 'message' ? [event.message] : []
         )
-        const options = await adapter.readOptions({ sessionId: 'real-cli-handshake', fence: 1 })
 
         expect(published.length).toBeGreaterThan(0)
         // Startup proof varies by host, so inspect every published frame.
         expect(published.filter((frame) => 'effortLevel' in frame)).toEqual([])
-        expect(options.current.effort).toBe('low')
       } finally {
         await adapter.closeAll()
         await rm(cwd, { recursive: true, force: true })
@@ -292,10 +301,11 @@ describe.skipIf(!realClaudeAvailable)(suiteTitle, () => {
         expect(frames).not.toHaveLength(0)
         expect(frames[0]?.model).toEqual(expect.any(String))
         expect(frames[0]?.model).toMatch(/^claude-haiku-/)
+        // The turn's init names the model that runs, so it replaces the alias that was set.
         await expect(
           adapter.readOptions({ sessionId: 'real-cli-handshake', fence: 1 })
         ).resolves.toMatchObject({
-          current: { model: 'haiku', confirmed: expect.arrayContaining(['model']) }
+          current: { model: frames[0]?.model, confirmed: expect.arrayContaining(['model']) }
         })
       } finally {
         await adapter.closeAll()
