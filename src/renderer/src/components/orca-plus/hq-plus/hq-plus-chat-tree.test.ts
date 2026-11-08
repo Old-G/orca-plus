@@ -140,6 +140,21 @@ describe('HQ+ «By work» tree', () => {
     expect(new Set(rows.map((row) => row.item.key)).size).toBe(rows.length)
   })
 
+  it('the open root of a loop names no closed lead (codex review 08.11)', () => {
+    const rows = hqPlusChatTree(
+      [chat('a', 'working', 10), chat('b', 'working', 20)],
+      links([
+        ['a', 'b'],
+        ['b', 'a']
+      ])
+    )
+    const roots = rows.filter((row) => row.depth === 0)
+    expect(roots.length).toBeGreaterThan(0)
+    for (const root of roots) {
+      expect(root.startedBy).toBeNull()
+    }
+  })
+
   it('counts the chats right under a chat and names the closed lead of a lone worker', () => {
     const rows = hqPlusChatTree(
       [
