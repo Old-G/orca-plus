@@ -58,14 +58,9 @@ html.light .hq-plus-pop {
   color-scheme: light;
 }
 
-/* the field: no coloured glows, a faint ink grid */
+/* the field: no coloured glows */
 html.light .hq-plus::before {
   display: none;
-}
-html.light .hq-plus::after {
-  background-image:
-    linear-gradient(rgba(16, 42, 56, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(16, 42, 56, 0.05) 1px, transparent 1px);
 }
 html.light .hq-plus .hqp-card {
   box-shadow: 0 1px 2px rgba(16, 42, 56, 0.08);
