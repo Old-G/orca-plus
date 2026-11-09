@@ -1,6 +1,7 @@
 // Custom build (hq-plus-person-replies): carries out `person.reply` in HQ/routing.yaml. A person's
 // answer that is clear, complete, said by the person asked where the question was asked goes to the
 // live chat that asked; anything else — a closed chat included — stays the owner's card, saying why. Each decision is a journal row, so it is made once and can be looked back on.
+/* eslint-disable max-lines -- Why: one routing service over the rule, the owner-talk sort and the bell hold; split when it next grows */
 import { HQ_GITLAB_AUTHOR_ID } from '../../shared/hq-mr-watch'
 import {
   HQ_JOURNAL_MAX_LIMIT,
@@ -48,6 +49,8 @@ export type HqReplyRoutingDeps = {
     replyTs: string,
     prompt: (waiting: PulseWaiting) => string
   ) => Promise<HqWaitingReplyPassResult>
+  /** Custom build (hq-reply-owner-talk, owner 09.11): the answer handled with no card — a thanks. */
+  skip: (waitingId: string, replyTs: string) => void
   /** The asking chat's thread, if it has one. */
   address: (sessionId: string) => string | null
   /** The person asked, by their Slack / ClickUp user ids. */
@@ -89,7 +92,7 @@ function pendingAnswer(waiting: PulseWaiting): boolean {
 export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
   const unread = new Map<string, { tries: number; at: number }>()
   /** Custom build (hq-reply-owner-talk): answers already sorted with the rule off, by key. */
-  const sorted = new Map<string, 'owner' | 'chat'>()
+  const sorted = new Map<string, 'owner' | 'chat' | 'noise'>()
   /** Card notes by decision key, from this run and the journal. */
   const notes = new Map<string, string>()
   let activeRule = false
@@ -263,8 +266,17 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
         }
         continue
       }
-      sorted.set(id, owner ? 'owner' : 'chat')
-      if (!owner) {
+      sorted.set(id, owner)
+      if (owner === 'chat') {
+        continue
+      }
+      if (owner === 'noise') {
+        // Why (owner 09.11): «спасибо, всё супер» made a card to pass on to the chat — thanks, praise
+        // and small talk are nobody's work. The waiting stays open for a real answer.
+        deps.skip(waiting.id, waiting.replyTs ?? '')
+        const done = action(waiting, 'wait', { note: 'thanks or small talk, no card' })
+        await record(waiting, done, `${done.author}: thanks or small talk — no card`, false)
+        actions.push(done)
         continue
       }
       // Why (owner 04.11): settled quietly, 76 answers since 28.10 reached nobody — a colleague's «merged,
