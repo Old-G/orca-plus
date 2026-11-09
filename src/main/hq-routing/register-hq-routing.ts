@@ -1,9 +1,9 @@
 // Custom build (hq-plus-routing): starts HQ+'s routing — HQ/routing.yaml read and carried out every
 // five minutes, and `orca hq route` for a look or a run by hand.
 import { readFile } from 'node:fs/promises'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import type { RateLimitService } from '../rate-limits/service'
+import type { RateLimitService } from '../rate-limits/service/rate-limit-service'
 import { gitExecFileAsync } from '../git/runner'
 import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
@@ -135,6 +135,8 @@ export function registerHqRouting(
         replyTs,
         prompt
       ),
+    // Custom build (hq-reply-owner-talk, owner 09.11): a thanks is handled as the card's Skip would.
+    skip: (waitingId, replyTs) => void runtime.pulseMarkWaitingReplyDelivered(waitingId, replyTs),
     address: (sessionId) => runtime.pulseGetSession(sessionId)?.address ?? null,
     asked: (personId) => {
       const person = runtime.pulseListPeople().find((entry) => entry.id === personId)
