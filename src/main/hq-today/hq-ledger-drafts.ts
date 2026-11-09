@@ -7,7 +7,9 @@ import type { HqLedgerCardRow } from '../orca-plus/pulse/pulse-ledger-cards'
 import type { HqLedgerDraft } from '../orca-plus/pulse/pulse-ledger-draft'
 import { hqPromptName } from './hq-ledger-guess'
 
-const POLL_MS = 2 * 60_000
+// Why 30 s (owner 09.11): a card now waits for this read before it shows, so a request must not wait
+// minutes; a pass with nothing new reads the database only.
+const POLL_MS = 30_000
 const FIRST_POLL_MS = 90_000
 /** Why a day: a talk older than that has had its card for a day; its draft is no longer news. */
 const WINDOW_MS = 24 * 60 * 60_000
