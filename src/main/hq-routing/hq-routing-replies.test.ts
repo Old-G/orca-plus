@@ -50,6 +50,7 @@ function routing() {
         replyTs,
         prompt
       ),
+    skip: (waitingId, replyTs) => void db.markWaitingReplyDelivered(waitingId, replyTs),
     address: (sessionId) => (sessionId === 'chat-1' ? 'acme-api/orders' : null),
     asked: (personId) => {
       const person = db.listPeople().find((entry) => entry.id === personId)
@@ -233,6 +234,26 @@ describe('with the rule off', () => {
     await service.route(null, { dryRun: false })
     expect(db.getWaiting(fact.id)?.replyDeliveredAt).toBeNull()
     expect(service.note(fact)).toEqual({ hold: false, why: null })
+    expect(delivered).toEqual([])
+  })
+
+  // 09.11: «спасибо, всё супер» became a «Pass to chat» card — a thanks is nobody's work.
+  it('handles a thanks with no card and keeps the waiting open for a real answer', async () => {
+    const service = routing()
+    const thanks = answered('Thank you so much, it all adds up! ❤️')
+    judge.mockResolvedValueOnce('NOISE')
+    expect(service.note(thanks)).toEqual({ hold: true, why: null })
+    await service.route(null, { dryRun: false })
+    const after = db.getWaiting(thanks.id)
+    expect(after?.replyDeliveredAt).not.toBeNull()
+    expect(after?.status).toBe('open')
+    expect(decisions()).toEqual([
+      expect.objectContaining({
+        needs: 'nobody',
+        status: 'done',
+        title: expect.stringContaining('thanks')
+      })
+    ])
     expect(delivered).toEqual([])
   })
 })

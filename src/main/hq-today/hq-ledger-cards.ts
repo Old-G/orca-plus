@@ -7,6 +7,23 @@ import type { HqLedgerDraft } from '../orca-plus/pulse/pulse-ledger-draft'
 
 const SLACK_KEY = /^slack:([A-Z0-9]+):(.+)$/
 
+/** Custom build (hq-ledger-quiet-thanks, owner 09.11): how long a person's newest message waits for
+ *  the model's read before its card shows anyway — a model down or the day's budget spent must not
+ *  hide a request for good. */
+export const HQ_LEDGER_CARD_HOLD_MS = 5 * 60_000
+
+/** Custom build (hq-ledger-quiet-thanks, owner 09.11: «спасибо, всё супер» made five cards in ten
+ *  minutes, each gone a minute later): a conversation's card shows once the model read its newest
+ *  message — a thanks or small talk is taken off the owner's move before it ever pops. */
+export function hqLedgerCardReady(
+  row: Pick<HqLedgerCardRow, 'messages'>,
+  draft: Pick<HqLedgerDraft, 'lastTs'> | null,
+  now: number
+): boolean {
+  const newest = row.messages.at(-1)
+  return !newest || draft?.lastTs === newest.ts || newest.at <= now - HQ_LEDGER_CARD_HOLD_MS
+}
+
 function threadOf(link: string | null): string | null {
   try {
     return link ? new URL(link).searchParams.get('thread_ts') : null
