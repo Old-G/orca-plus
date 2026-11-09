@@ -3,6 +3,7 @@ import {
   hqReplyCardNote,
   hqReplyPrechecks,
   hqReplyVerdictReasons,
+  parseHqReplyOwnerTalk,
   parseHqReplyVerdict,
   type HqReplyVerdict
 } from './hq-reply-routing'
@@ -157,5 +158,15 @@ describe('the model verdict', () => {
     expect(hqReplyCardNote(['partial', 'money'], '2 of 4')).toBe(
       'Not passed by itself: partial answer (2 of 4), money.'
     )
+  })
+})
+
+// 09.11: a thanks has its own word, so it makes no card at all.
+describe('parseHqReplyOwnerTalk', () => {
+  it('reads CHAT, OWNER and NOISE, and nothing else', () => {
+    expect(parseHqReplyOwnerTalk('CHAT')).toBe('chat')
+    expect(parseHqReplyOwnerTalk('owner')).toBe('owner')
+    expect(parseHqReplyOwnerTalk('NOISE.')).toBe('noise')
+    expect(parseHqReplyOwnerTalk('maybe')).toBeNull()
   })
 })

@@ -4,7 +4,7 @@ import { HQ_INTAKE_KIND, readHqIntake } from '../../shared/hq-slack-intake'
 import { HQ_JOURNAL_ALL_ROOMS } from '../../shared/hq-journal'
 import { hqJobRow } from '../hq-journal/hq-journal-jobs'
 import { parseSlackThreadRef } from '../../shared/hq-waiting-replies'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
@@ -22,7 +22,7 @@ import {
 import { guessHqIntake } from './hq-slack-intake-suggest'
 import { startHqSlackIntake } from './hq-slack-intake'
 import { generateHqText } from './hq-task-questions'
-import { hqIntakeOfConversation } from './hq-ledger-cards'
+import { hqIntakeOfConversation, hqLedgerCardReady } from './hq-ledger-cards'
 import { hqIntakeThreadOf } from './hq-intake-thread'
 import { createSlackLedgerApi } from '../slack/slack-ledger-api'
 import { hqLedgerReplacesScout } from './hq-ledger-cutover'
@@ -109,12 +109,13 @@ export function registerHqSlackIntake(
     // Custom build (hq-request-ledger): switched on, the ledger's conversations are the cards.
     ledgerCards: () =>
       hqLedgerReplacesScout(store.getSettings())
-        ? runtime
-            .pulseListLedgerCards(Date.now() - RAISED_LOOKBACK_MS)
-            .flatMap(
-              (row) =>
-                hqIntakeOfConversation(row, runtime.pulseAttribution().drafts.of(row.id)) ?? []
-            )
+        ? runtime.pulseListLedgerCards(Date.now() - RAISED_LOOKBACK_MS).flatMap((row) => {
+            const draft = runtime.pulseAttribution().drafts.of(row.id)
+            // Why (owner 09.11): a thanks must not pop as a card and vanish once the model reads it.
+            return hqLedgerCardReady(row, draft, Date.now())
+              ? (hqIntakeOfConversation(row, draft) ?? [])
+              : []
+          })
         : null,
     sync: (kind, items) => void runtime.pulseSyncInboxKind(kind, items),
     now: Date.now,
