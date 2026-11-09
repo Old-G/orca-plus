@@ -212,9 +212,10 @@ export function HqPlusCardShell({
 
 /**
  * One way a card runs what a button or the reply box asks: one action at a time, the pressed button
- * marked while it works, a failure shown on the card; `onDone` runs after a success.
+ * marked while it works, a failure shown on the card; `onDone` runs after a success, with the pressed
+ * button's key.
  */
-export function useHqPlusRun(onDone: () => void): {
+export function useHqPlusRun(onDone: (key: string | null) => void): {
   busy: boolean
   pending: string | null
   error: string | null
@@ -233,7 +234,7 @@ export function useHqPlusRun(onDone: () => void): {
     void action()
       .then((result) => {
         if (result.ok) {
-          onDone()
+          onDone(key)
         } else {
           setError(result.message)
         }

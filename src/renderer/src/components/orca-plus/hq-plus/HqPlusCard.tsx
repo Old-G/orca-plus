@@ -432,9 +432,13 @@ export function HqPlusCardView({
   const setExpanded = onExpand
   const [text, setText] = useState('')
   // Custom build (hq-plus-links): the pressed button, so a slow action (a new session) shows it works.
-  const { busy, pending, error, run } = useHqPlusRun(() => {
+  const { busy, pending, error, run } = useHqPlusRun((key) => {
     setText('')
-    setExpanded(false)
+    // Why: opening the chat on the right decides nothing, so the card stays open where it was
+    // (owner 09.11: the card folded and the feed jumped on «Open chat»).
+    if (!key || !OPEN_CHAT_ACTIONS.has(key)) {
+      setExpanded(false)
+    }
     onChanged()
   })
   // Custom build (hq-plus-clickup-reply): Reply on a ClickUp comment opens its reply box here.
