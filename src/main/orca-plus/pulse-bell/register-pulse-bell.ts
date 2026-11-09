@@ -1,12 +1,13 @@
 // Custom build (pulse-bell): the bell's IPC, its live refresh, and the producers main owns
 // (handoff offers, agents waiting on the user). The bell is the pulse database's first reader
 // that everyone sees, so from here on it creates the file.
+/* eslint-disable max-lines -- Why: the bell wires every producer main owns; split the producers out when it next grows */
 import { closeHqEarlierRequests } from './close-hq-earlier-requests'
 import { BrowserWindow, ipcMain } from 'electron'
-import type { Store } from '../../persistence'
+import type { Store } from '../../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
-import type { RateLimitService } from '../../rate-limits/service'
-import { agentHookServer } from '../../agent-hooks/server'
+import type { RateLimitService } from '../../rate-limits/service/rate-limit-service'
+import { agentHookServer } from '../../agent-hooks/server/agent-hook-server'
 import { hqCoveredSlackMessages } from '../../../shared/hq-covered-slack'
 import { HQ_INTAKE_KIND } from '../../../shared/hq-slack-intake'
 import { describeWorktree, onClaudeHandoffOffersChanged } from '../../ipc/claude-handoff'
@@ -308,8 +309,9 @@ export function registerPulseBell(
     onChanged: onPulseChanged,
     now: Date.now,
     // Custom build (hq-plus-person-replies): answers the routing rule is judging, or left with a reason.
-    // Why: the answer's card shows at once, as it always did; the rule only adds why it was left.
-    replyNote: (waiting) => ({ hold: false, why: getHqReplyRouting()?.note(waiting).why ?? null })
+    // Why (owner 09.11): an answer is held while it is sorted, at most HQ_REPLY_HOLD_MS — a thanks
+    // («спасибо, всё супер») popped as «Pass to chat» before the model read it as nobody's work.
+    replyNote: (waiting) => getHqReplyRouting()?.note(waiting) ?? { hold: false, why: null }
   })
   // Custom build (hq-clickup-waiting): answers to questions asked in ClickUp comments, the same way.
   const clickUpTaskIds = new Map<string, string>()
