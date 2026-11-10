@@ -26,7 +26,7 @@ export type HqPlusFeedKeyActions = {
   done: (item: HqPlusLogItem) => void
   setFilter: (filter: HqPlusFeedFilter) => void
   openSearch: () => void
-  /** Custom build (hq-plus-brain): ⌘K — the «Brain» screen, on its search box. */
+  /** Custom build (hq-plus-brain): ⌘⌥B — the «Brain» screen, on its search box. */
   openBrain: () => void
   /** Folds what is open first; false when there was nothing for Esc to do here. */
   escape: () => boolean

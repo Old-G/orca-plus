@@ -37,5 +37,5 @@ export const KEYBINDING_DEFINITIONS_HQ_PLUS: readonly KeybindingDefinition[] = [
   hqPlusKey('hqPlus.filterInbox', 'Show inbox', ['4'], ['filter', 'inbox']),
   hqPlusKey('hqPlus.escape', 'Collapse, clear the search', ['Escape'], ['escape', 'collapse']),
   // Custom build (hq-plus-brain): everything about a task, an MR, a person or a project.
-  hqPlusKey('hqPlus.brain', 'Open Brain', ['Mod+K'], ['brain', 'timeline', 'mentions'])
+  hqPlusKey('hqPlus.brain', 'Open Brain', ['Mod+Alt+B'], ['brain', 'timeline', 'mentions'])
 ]
