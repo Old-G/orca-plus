@@ -25,11 +25,11 @@ vi.mock('@/store', () => ({
     })
   }
 }))
-vi.mock('@/lib/running-agent-targets', () => ({
+vi.mock('@/lib/agent-session/messaging/running-agent-targets', () => ({
   deriveRunningAgentSendTargets: () => mocks.targets,
   deriveStatuslessStructuredAgentSendTargets: () => []
 }))
-vi.mock('@/lib/launch-agent-in-new-tab', () => ({ launchAgentInNewTab: mocks.launch }))
+vi.mock('@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab', () => ({ launchAgentInNewTab: mocks.launch }))
 vi.mock('./hq-today-actions', () => ({
   agentPaneKeys: () => new Set<string>(),
   sendHqAgentMessage: mocks.send,
