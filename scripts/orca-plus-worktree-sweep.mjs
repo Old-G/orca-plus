@@ -13,8 +13,8 @@
 //   - nothing happened in it for --idle-hours (Orca's activity stamp and git's own index/HEAD files);
 //   - `git status` is empty — no edits, no untracked files (ignored ones such as node_modules are fine);
 //   - every change on its branch is already in the project's base branch (see landedIn()).
-// Before a branch is deleted its tip is kept as refs/orca-plus-sweep/<YYYYMMDD>/<branch> for 30 days, so
-// `git worktree add <dir> refs/orca-plus-sweep/<date>/<branch>` brings it back. Remote branches are never
+// Before a branch is deleted its tip is kept as refs/orca-plus-sweep/<YYYYMMDD>/<branch>-<sha12> for 30 days,
+// so `git worktree add <dir> refs/orca-plus-sweep/<date>/<branch>-<sha12>` brings it back. Remote branches are never
 // touched. Folders under the root that git does not know as worktrees are listed, never deleted.
 import { execFileSync } from 'node:child_process'
 import {
@@ -113,6 +113,9 @@ export function keepReasons(ev) {
   if (ev.pinned) {
     reasons.push('pinned in Orca')
   }
+  if (ev.orcaUnread) {
+    reasons.push('Orca did not report its agents')
+  }
   if (ev.liveAgent) {
     reasons.push('an agent is still working')
   }
@@ -149,6 +152,14 @@ export function isBackupExpired(ref, now) {
   }
   const at = Date.UTC(Number(day.slice(0, 4)), Number(day.slice(4, 6)) - 1, Number(day.slice(6, 8)))
   return now - at > BACKUP_KEEP_DAYS * 24 * HOUR_MS
+}
+
+/**
+ * Where a removed worktree's tip is kept. The tip's sha in the name keeps two removals of one branch on
+ * the same day apart (Codex P2 10.11), and `a` next to `a/b` from clashing as a file and a folder.
+ */
+export function backupRefName(day, name, head) {
+  return `${BACKUP_REF_PREFIX}${day}/${name}-${String(head).slice(0, 12)}`
 }
 
 export function dayStamp(now) {
@@ -245,7 +256,7 @@ export function landedIn(wtPath, mainPath, branch) {
   if (!start || !git(wtPath, 'merge-base', '--is-ancestor', start, 'HEAD').ok) {
     return null
   }
-  const own = git(wtPath, 'log', '--format=%s', `${start}..HEAD`, '-n', '500')
+  const own = git(wtPath, 'log', '--format=%s', `${start}..HEAD`)
   const startSubject = git(wtPath, 'log', '-1', '--format=%s', start)
   if (!own.ok || !startSubject.ok) {
     return null
@@ -334,9 +345,10 @@ function orcaJson(args) {
 
 /** Orca's view: repos and, by real path, each worktree's id, pin, activity and live agents. */
 function readOrca() {
-  const list = orcaJson(['worktree', 'list'])
-  const ps = orcaJson(['worktree', 'ps', '--limit', '5000'])
-  if (!list || !ps) {
+  const list = orcaJson(['worktree', 'list', '--limit', '100000'])
+  const ps = orcaJson(['worktree', 'ps', '--limit', '100000'])
+  // Why: a cut page hides some worktrees' live agents; a worktree with no row would look idle (Codex P1 10.11).
+  if (!list || !ps || list.truncated || ps.truncated) {
     return null
   }
   const byPath = new Map()
@@ -363,6 +375,7 @@ function readOrca() {
       !!row.hasAttachedPty ||
       (row.unverifiableTerminalCount ?? 0) > 0
     entry.isActive = !!row.isActive
+    entry.psRead = true
   }
   const repos = [...byPath.entries()]
     .filter(([path, w]) => w.isMain && existsSync(path))
@@ -422,6 +435,8 @@ function gatherRepo(mainPath, orca, opts, now) {
       locked: wt.locked,
       pinned: known?.pinned ?? false,
       liveAgent: known?.liveAgent ?? false,
+      // An Orca worktree with no ps row: its agents are unread, so it is not touched.
+      orcaUnread: known ? !known.psRead : false,
       liveTerminal: (known?.liveTerminal ?? false) || (known?.isActive ?? false),
       minIdleMs: opts.idleHours * HOUR_MS,
       idleMs: null,
@@ -429,7 +444,14 @@ function gatherRepo(mainPath, orca, opts, now) {
       landedIn: null
     }
     // Why: the costly git checks are skipped once a cheap reason already keeps it.
-    if (underRoot && !ev.locked && !ev.pinned && !ev.liveAgent && !ev.liveTerminal) {
+    if (
+      underRoot &&
+      !ev.locked &&
+      !ev.pinned &&
+      !ev.orcaUnread &&
+      !ev.liveAgent &&
+      !ev.liveTerminal
+    ) {
       const touched = Math.max(known?.lastActivityAt ?? 0, gitTouchedAt(path))
       ev.idleMs = touched ? now - touched : null
       if (ev.idleMs === null || ev.idleMs >= ev.minIdleMs) {
@@ -484,9 +506,11 @@ function strayFolders(root, knownPaths) {
 }
 
 function removeOne(row, now, log) {
-  const backup = row.branch
-    ? `${BACKUP_REF_PREFIX}${dayStamp(now)}/${row.branch}`
-    : `${BACKUP_REF_PREFIX}${dayStamp(now)}/detached-${basename(row.path)}`
+  const backup = backupRefName(
+    dayStamp(now),
+    row.branch ?? `detached-${basename(row.path)}`,
+    row.head
+  )
   const saved = git(row.mainPath, 'update-ref', backup, row.head)
   if (!saved.ok) {
     return { ok: false, step: 'backup ref', err: saved.err }
@@ -579,7 +603,9 @@ function main() {
   const orca = readOrca()
   if (!orca) {
     // Why: without Orca's view a live chat in a worktree is invisible; better to skip a night than to cut one.
-    console.error('worktree-sweep: Orca is not answering (orca worktree list/ps) — nothing removed')
+    console.error(
+      'worktree-sweep: Orca is not answering or its worktree list is cut short (orca worktree list/ps) — nothing removed'
+    )
     process.exit(opts.apply ? 0 : 1)
   }
   // --repo narrows the sweep to the named main checkouts (a test repo, one project).

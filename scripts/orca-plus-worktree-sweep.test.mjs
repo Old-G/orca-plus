@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
   backupRefDay,
+  backupRefName,
   firstReflogCommit,
   isBackupExpired,
   keepReasons,
@@ -38,6 +39,7 @@ test('each guard alone keeps it', () => {
     [{ underRoot: false }, 'outside the workspace folder'],
     [{ locked: true }, 'locked'],
     [{ pinned: true }, 'pinned in Orca'],
+    [{ orcaUnread: true }, 'Orca did not report its agents'],
     [{ liveAgent: true }, 'an agent is still working'],
     [{ liveTerminal: true }, 'a terminal is live'],
     [{ idleMs: 3 * HOUR }, 'active 3 h ago'],
@@ -123,4 +125,13 @@ test('backup refs expire after 30 days', () => {
   assert.equal(isBackupExpired(ref, Date.UTC(2026, 9, 20)), false)
   assert.equal(isBackupExpired(ref, Date.UTC(2026, 10, 2)), true)
   assert.equal(isBackupExpired('refs/heads/main', Date.UTC(2030, 0, 1)), false)
+})
+
+test('backup ref names differ per tip and never clash as file and folder', () => {
+  const a = backupRefName('20261110', 'feat/x', 'a'.repeat(40))
+  const b = backupRefName('20261110', 'feat/x', 'b'.repeat(40))
+  assert.notEqual(a, b)
+  assert.equal(a, 'refs/orca-plus-sweep/20261110/feat/x-aaaaaaaaaaaa')
+  assert.equal(backupRefDay(a), '20261110')
+  assert.ok(!backupRefName('20261110', 'feat/x/y', 'c'.repeat(40)).startsWith(`${a}/`))
 })
