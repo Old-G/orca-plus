@@ -16,7 +16,12 @@ describe('HQ task questions', () => {
       throw new Error(planned.error)
     }
     const args = planned.plan.args
-    expect(args[args.indexOf('--tools') + 1]).toBe('')
+    // Text generation grants Read/Grep/Glob; the deny rule outranks that grant.
+    expect(args[args.lastIndexOf('--tools') + 1]).toBe('')
+    expect(args[args.lastIndexOf('--disallowedTools') + 1]?.split(',')).toEqual(
+      expect.arrayContaining(['Read', 'Grep', 'Glob'])
+    )
+    expect(args.lastIndexOf('--disallowedTools')).toBeGreaterThan(args.indexOf('--allowedTools'))
     expect(args).toContain('--strict-mcp-config')
   })
 
