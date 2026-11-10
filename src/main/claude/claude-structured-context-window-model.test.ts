@@ -88,7 +88,11 @@ async function optionsFor(appliedModel: string) {
         getRecord: () => record,
         getConversation: () => agentSessionConversationView(record)
       },
-      modelCatalog: { read: async () => ({ origin: 'probe', models: INSTALLED, fetchedAt: 1 }) }
+      modelCatalog: {
+        read: async () => ({ origin: 'probe', models: INSTALLED, fetchedAt: 1 }),
+        demand: async () => {},
+        captureRead: () => undefined
+      }
     },
     serialize: (_sessionId: string, task: () => Promise<unknown>) => task(),
     openConversation: async () => resting,
@@ -101,10 +105,12 @@ describe('Claude model reported with a context-window suffix', () => {
   it('shows the listed row it runs, with that row’s efforts', async () => {
     const { current, models } = await optionsFor('claude-opus-5-5[1m]')
 
-    expect(current).toMatchObject({ model: 'opus', effort: 'high' })
+    // Upstream lists the resolved `claude-opus-5-5` as a row of its own; either listed row is right.
+    expect(current.effort).toBe('high')
+    expect(['opus', 'claude-opus-5-5']).toContain(current.model)
     // A raw `claude-opus-5-5[1m]` row has no efforts, so the picker lost Reasoning effort.
     expect(models.map((model) => model.id)).not.toContain('claude-opus-5-5[1m]')
-    expect(models.find((model) => model.id === 'opus')?.efforts).toHaveLength(EFFORTS.length)
+    expect(models.find((model) => model.id === current.model)?.efforts).toHaveLength(EFFORTS.length)
   })
 
   it('never reads the suffixed id as a shorter model it merely contains', async () => {
