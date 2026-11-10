@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useAppStore } from '@/store'
 import { addAppKeyListener, removeAppKeyListener } from '@/lib/keyboard/app-keyboard-router'
 import { getShortcutPlatform } from '@/lib/keyboard/shortcut-platform'
-import { hasVisibleOverlay } from '@/lib/visible-overlay'
+import { hasVisibleOverlay } from '@/lib/overlay-interaction/visible-overlay'
 import {
   keybindingMatchesAction,
   type HqPlusKeybindingActionId
@@ -26,7 +26,7 @@ export type HqPlusFeedKeyActions = {
   done: (item: HqPlusLogItem) => void
   setFilter: (filter: HqPlusFeedFilter) => void
   openSearch: () => void
-  /** Custom build (hq-plus-brain): ⌘K — the «Brain» screen, on its search box. */
+  /** Custom build (hq-plus-brain): ⌘⌥B — the «Brain» screen, on its search box. */
   openBrain: () => void
   /** Folds what is open first; false when there was nothing for Esc to do here. */
   escape: () => boolean
