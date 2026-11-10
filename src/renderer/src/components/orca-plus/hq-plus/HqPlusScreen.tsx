@@ -1404,7 +1404,7 @@ export function HqPlusScreen(): React.JSX.Element {
         aria-pressed={brainStack ? 'true' : 'false'}
         title={translate(
           'auto.hqPlus.brain.button',
-          'Everything about a task, an MR, a person or a project (⌘K)'
+          'Everything about a task, an MR, a person or a project (⌘⌥B)'
         )}
         onClick={() => (brainStack ? setBrainStack(null) : openBrain(''))}
       >
