@@ -8,7 +8,7 @@ import type { HqPlusChatTarget } from './hq-plus-actions'
 const callRuntimeRpc = vi.fn()
 const hqPlusCall = vi.fn()
 
-vi.mock('@/runtime/runtime-rpc-client', async (importOriginal) => ({
+vi.mock('@/runtime/rpc/calls/runtime-rpc-call', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   callRuntimeRpc: (...args: unknown[]) => callRuntimeRpc(...args)
 }))
