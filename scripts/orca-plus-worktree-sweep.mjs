@@ -14,7 +14,8 @@
 //   - `git status` is empty — no edits, no untracked files (ignored ones such as node_modules are fine);
 //   - every change on its branch is already in the project's base branch (see landedIn()).
 // Before a branch is deleted its tip is kept as refs/orca-plus-sweep/<YYYYMMDD>/<branch>-<sha12> for 30 days,
-// so `git worktree add <dir> refs/orca-plus-sweep/<date>/<branch>-<sha12>` brings it back. Remote branches are never
+// `/` in the branch written as %2F, so `git worktree add <dir> refs/orca-plus-sweep/<date>/feat%2Fx-<sha12>`
+// brings `feat/x` back (`git for-each-ref refs/orca-plus-sweep` lists them). Remote branches are never
 // touched. Folders under the root that git does not know as worktrees are listed, never deleted.
 import { execFileSync } from 'node:child_process'
 import {
@@ -156,10 +157,12 @@ export function isBackupExpired(ref, now) {
 
 /**
  * Where a removed worktree's tip is kept. The tip's sha in the name keeps two removals of one branch on
- * the same day apart (Codex P2 10.11), and `a` next to `a/b` from clashing as a file and a folder.
+ * the same day apart (Codex P2 10.11). The branch is one path component (`/` → `%2F`, `%` → `%25`), so no
+ * backup ref is ever the folder of another — `feat/x` at `aaaa…` next to `feat/x-aaaa…/y` (Codex P2 10.11).
  */
 export function backupRefName(day, name, head) {
-  return `${BACKUP_REF_PREFIX}${day}/${name}-${String(head).slice(0, 12)}`
+  const flat = String(name).replaceAll('%', '%25').replaceAll('/', '%2F')
+  return `${BACKUP_REF_PREFIX}${day}/${flat}-${String(head).slice(0, 12)}`
 }
 
 export function dayStamp(now) {

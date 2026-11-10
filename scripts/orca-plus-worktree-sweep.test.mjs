@@ -131,7 +131,22 @@ test('backup ref names differ per tip and never clash as file and folder', () =>
   const a = backupRefName('20261110', 'feat/x', 'a'.repeat(40))
   const b = backupRefName('20261110', 'feat/x', 'b'.repeat(40))
   assert.notEqual(a, b)
-  assert.equal(a, 'refs/orca-plus-sweep/20261110/feat/x-aaaaaaaaaaaa')
+  assert.equal(a, 'refs/orca-plus-sweep/20261110/feat%2Fx-aaaaaaaaaaaa')
   assert.equal(backupRefDay(a), '20261110')
   assert.ok(!backupRefName('20261110', 'feat/x/y', 'c'.repeat(40)).startsWith(`${a}/`))
+})
+
+test('a branch whose name carries another backup name plus a slash cannot nest under it (Codex P2 10.11)', () => {
+  const first = backupRefName('20261110', 'feat/x', `aaaaaaaaaaaa${'0'.repeat(28)}`)
+  const second = backupRefName('20261110', 'feat/x-aaaaaaaaaaaa/y', 'b'.repeat(40))
+  assert.ok(!second.startsWith(`${first}/`))
+  // One component under the day: no backup ref can be the folder of another.
+  for (const ref of [first, second, backupRefName('20261110', 'a%2Fb', 'c'.repeat(40))]) {
+    assert.equal(ref.slice('refs/orca-plus-sweep/20261110/'.length).includes('/'), false)
+  }
+  // `%` is encoded too, so `a/b` and a branch literally named `a%2Fb` stay apart.
+  assert.notEqual(
+    backupRefName('20261110', 'a/b', 'c'.repeat(40)),
+    backupRefName('20261110', 'a%2Fb', 'c'.repeat(40))
+  )
 })
