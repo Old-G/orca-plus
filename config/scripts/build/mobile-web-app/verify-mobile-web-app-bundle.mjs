@@ -32,7 +32,9 @@ export const MOBILE_WEB_APP_BUNDLE_MAX_CATALOG_BYTES = 3 * 1024 * 1024
 
 // Our own fence on the page's code, well inside the phone contract (32 MiB total, 10 MiB per asset in
 // manifest-contract.ts); it fails the build before the code weighs more than any one asset may.
-export const MOBILE_WEB_APP_BUNDLE_MAX_TOTAL_BYTES = 9.5 * 1024 * 1024
+// Custom build (hq-mobile, hq-plus-phone, sync 11): HQ and HQ+ on the phone add ~80 KB above upstream's
+// 9.5 MiB; 9.75 MiB still stays under the 10 MiB per-asset contract this fence guards.
+export const MOBILE_WEB_APP_BUNDLE_MAX_TOTAL_BYTES = 9.75 * 1024 * 1024
 
 // Only this licensed desktop-identical asset has its own allowance; other fonts (KaTeX's) and code count.
 export const MOBILE_WEB_APP_TERMINAL_FONT_MAX_BYTES = 1200 * 1024
