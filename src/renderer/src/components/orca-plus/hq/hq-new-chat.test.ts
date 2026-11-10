@@ -9,8 +9,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('sonner', () => ({ toast: { error: mocks.error } }))
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
-vi.mock('@/lib/agent-launch-request-id', () => ({ newAgentLaunchRequestId: () => 'req-1' }))
-vi.mock('@/lib/launch-agent-in-new-tab', () => ({ launchAgentInNewTab: mocks.launch }))
+vi.mock('@/lib/agent-session/launch/routing/agent-launch-request-id', () => ({ newAgentLaunchRequestId: () => 'req-1' }))
+vi.mock('@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab', () => ({ launchAgentInNewTab: mocks.launch }))
 vi.mock('./hq-chat-open', () => ({ openChatInShownHq: mocks.open }))
 vi.mock('./hq-today-actions', () => ({
   agentPaneKeys: () => new Set(['tab-old:leaf-1']),
