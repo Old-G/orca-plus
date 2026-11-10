@@ -2,15 +2,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   launch: vi.fn((): object | null => ({ surface: { kind: 'host-published' } })),
-  newPane: vi.fn(async (): Promise<string | null> => 'tab-new:11111111-1111-4111-8111-111111111111'),
+  newPane: vi.fn(
+    async (): Promise<string | null> => 'tab-new:11111111-1111-4111-8111-111111111111'
+  ),
   open: vi.fn(),
   error: vi.fn()
 }))
 
 vi.mock('sonner', () => ({ toast: { error: mocks.error } }))
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
-vi.mock('@/lib/agent-launch-request-id', () => ({ newAgentLaunchRequestId: () => 'req-1' }))
-vi.mock('@/lib/launch-agent-in-new-tab', () => ({ launchAgentInNewTab: mocks.launch }))
+vi.mock('../../../../../shared/non-secure-context-uuid', () => ({
+  createNonSecureContextUuid: () => 'req-1'
+}))
+vi.mock('@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab', () => ({
+  launchAgentInNewTabWithOutcome: mocks.launch
+}))
 vi.mock('./hq-chat-open', () => ({ openChatInShownHq: mocks.open }))
 vi.mock('./hq-today-actions', () => ({
   agentPaneKeys: () => new Set(['tab-old:leaf-1']),
