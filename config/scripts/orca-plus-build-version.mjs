@@ -4,7 +4,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { resolveDevChannelBaseVersion } from './dev-channel-base-version.mjs'
+import { resolveDevChannelBaseVersion } from './release/versioning/dev-channel-base-version.mjs'
 
 /** `1.4.212-plus.202609251930`: after the newest shipped upstream release, below the next one. */
 export function createOrcaPlusBuildVersion(packageVersion, tags, date) {
