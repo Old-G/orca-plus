@@ -12,10 +12,13 @@ import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/
 import { resolveTextGenerationParams } from '../text-generation/commit-message-text-generation'
 import { spawnSourceControlAgent } from '../text-generation/source-control-agent-launch'
 import { runGenerationRequest } from '../text-generation/agent-generation-request'
+import { CLAUDE_TEXT_GENERATION_TOOLS } from '../../shared/claude-background-run-isolation'
 
 const FALLBACK_MODEL = 'sonnet'
-// Why: tools would let text in the task read files or reach the network on this Mac.
-const NO_TOOLS_ARGS = '--tools "" --strict-mcp-config'
+// Why: tools would let text in the task read files or reach the network on this Mac. Text
+// generation now grants Read/Grep/Glob itself, and repeated --tools add up, so the deny rule
+// (which outranks every allow) is what keeps the run tool-less.
+const NO_TOOLS_ARGS = `--tools "" --disallowedTools ${CLAUDE_TEXT_GENERATION_TOOLS.join(',')} --strict-mcp-config`
 
 /** Claude, with the model and command the user set for PR texts when that agent is Claude. */
 export function hqTaskQuestionsParams(
