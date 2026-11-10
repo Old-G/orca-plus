@@ -249,6 +249,8 @@ export function parseExtraAgentArgs(args: {
       if (value !== undefined) {
         return extraAgentArgsFailure('optionNotAllowed', { option: token, agent: label, allowed })
       }
+      // Why: only accepted tokens reach the CLI, so a dropped flag would silently widen the run.
+      accepted.push(...tokens.slice(index, index + match.consumed))
       index += match.consumed - 1
       continue
     }
