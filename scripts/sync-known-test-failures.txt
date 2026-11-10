@@ -83,3 +83,5 @@ src/main/text-generation/source-control-wsl-prompt.test.ts
 src/main/managed-server/host-state/orcad-state-mutation-fence-heartbeat.test.ts
 # 2026-11-10 (sync 11): fails on pure upstream main c2908a07b1 too — a remote pane read retires nothing after restart
 src/main/ipc/notifications-external-acknowledgement.test.ts
+# 2026-11-10 (sync 11): fails with upstream agent-hooks server files too («unable to open database file» on the restored status)
+src/main/agent-hooks/server/testing/interruptions/server-claude-helper-kill.test.ts
