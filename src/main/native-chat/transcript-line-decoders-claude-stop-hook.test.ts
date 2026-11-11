@@ -33,9 +33,15 @@ describe('a Claude turn its Stop hook sent back', () => {
   it.each([
     ['a JSON block decision', 'Verify your statement with evidence.'],
     ['an exit-2 hook', '[/tmp/hook.sh]: Verify your statement with evidence.\n']
-  ])('keeps the reply and the hook row visible once settled (%s)', (_, feedback) => {
+  ])('keeps the reply visible and hides the hook row once settled (%s)', (_, feedback) => {
     const messages = stopHookTurn(feedback).flatMap(
       (line) => decodeClaudeTranscriptLine(line, 'fallback') ?? []
+    )
+    expect(messages.map((message) => message.blocks[0])).toContainEqual(
+      expect.objectContaining({
+        text: 'Stop hook feedback: Verify your statement with evidence.',
+        tone: 'warning'
+      })
     )
     const turnKeys = nativeChatRowTurnKeys(messages)
     const { foldedRows } = nativeChatTurnFold({
@@ -52,13 +58,6 @@ describe('a Claude turn its Stop hook sent back', () => {
     ).toEqual([
       ['user', { type: 'text', text: 'Say: the sky is blue' }],
       ['assistant', { type: 'text', text: 'The sky is blue.' }],
-      [
-        'system',
-        expect.objectContaining({
-          text: 'Stop hook feedback: Verify your statement with evidence.',
-          tone: 'warning'
-        })
-      ],
       ['assistant', { type: 'text', text: 'Evidence: I checked.' }]
     ])
   })

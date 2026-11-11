@@ -85,7 +85,8 @@ describe('rendered plans in collapsed turns', () => {
         WORK,
         ANSWER
       ],
-      folded: [4],
+      // The hook row never draws; the work after it folds as usual.
+      folded: [3, 4],
       answers: [1, 5]
     }
   ])('keeps the plan and existing answers visible: $name', ({ messages, folded, answers }) => {
