@@ -14,10 +14,11 @@
 //   - `git status` is empty — no edits, no untracked files (ignored ones such as node_modules are fine);
 //   - every change on its branch is already in the project's base branch (see landedIn()).
 // Before a branch is deleted its tip is kept as refs/orca-plus-sweep/<YYYYMMDD>/<branch>-<sha12> for 30 days,
-// `/` in the branch written as %2F, so `git worktree add <dir> refs/orca-plus-sweep/<date>/feat%2Fx-<sha12>`
-// brings `feat/x` back (`git for-each-ref refs/orca-plus-sweep` lists them). Remote branches are never
-// touched. Folders under the root that git does not know as worktrees are listed, never deleted.
+// `/` in the branch written as %2F (a name over 200 bytes is cut and ends in %h<hash>; the log has the
+// branch), so `git worktree add <dir> refs/orca-plus-sweep/<date>/feat%2Fx-<sha12>` brings `feat/x` back
+// (`git for-each-ref refs/orca-plus-sweep` lists them). Remote branches are never touched. Folders under the root that git does not know as worktrees are listed, never deleted.
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import {
   appendFileSync,
   existsSync,
@@ -162,7 +163,35 @@ export function isBackupExpired(ref, now) {
  */
 export function backupRefName(day, name, head) {
   const flat = String(name).replaceAll('%', '%25').replaceAll('/', '%2F')
-  return `${BACKUP_REF_PREFIX}${day}/${flat}-${String(head).slice(0, 12)}`
+  return `${BACKUP_REF_PREFIX}${day}/${boundedComponent(flat)}-${String(head).slice(0, 12)}`
+}
+
+// Why: the flat branch is one file name; git adds `-<sha12>` and `.lock`, and file systems stop at 255
+// bytes, so a long nested branch would fail `update-ref` and its worktree would never go (Codex P2 11.11).
+const BACKUP_FLAT_MAX_BYTES = 200
+
+/**
+ * The flat branch, or its start plus `%h<hash of the whole name>` when it is too long. `%h` never occurs in
+ * a flat name (every `%` there is `%25` or `%2F`), so a shortened name cannot equal a short branch's backup.
+ * The cut falls on a whole character and never inside a `%XX` escape; the log keeps the full branch name.
+ */
+function boundedComponent(flat) {
+  if (Buffer.byteLength(flat) <= BACKUP_FLAT_MAX_BYTES) {
+    return flat
+  }
+  const tail = `%h${createHash('sha1').update(flat).digest('hex').slice(0, 12)}`
+  const budget = BACKUP_FLAT_MAX_BYTES - tail.length
+  let kept = ''
+  let bytes = 0
+  for (const piece of flat.match(/%[0-9A-F]{2}|[^]/gu)) {
+    const size = Buffer.byteLength(piece)
+    if (bytes + size > budget) {
+      break
+    }
+    kept += piece
+    bytes += size
+  }
+  return `${kept}${tail}`
 }
 
 export function dayStamp(now) {
