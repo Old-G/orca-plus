@@ -6,6 +6,7 @@ import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { hqLedgerErrorReporter } from './hq-ledger-errors'
 import { startHqLedgerDrafts } from './hq-ledger-drafts'
 import { generateHqText } from './hq-task-questions'
+import { getSlackReaderStatus } from '../slack/slack-reader'
 
 // Why sonnet: telling a request from a thanks in a long thread needs more than routing does.
 const MODEL = 'sonnet'
@@ -40,6 +41,7 @@ export function startHqLedgerDraftWriter(store: Store, runtime: OrcaRuntimeServi
       },
       save: (id, draft) => runtime.pulseAttribution().drafts.set(id, draft),
       quiet: (id, lastTs, why) => void runtime.pulseAttribution().drafts.quiet(id, lastTs, why),
+      ownerSlackId: () => getSlackReaderStatus().user?.id ?? null,
       now: Date.now
     },
     hqLedgerErrorReporter('hq-ledger-draft', 'Ledger card drafts not written', (rows) =>

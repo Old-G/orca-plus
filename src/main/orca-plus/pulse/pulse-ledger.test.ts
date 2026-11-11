@@ -113,6 +113,23 @@ describe('ledger ingest', () => {
     expect(db.listLedgerConversations()[0]?.state).toBe('wait')
   })
 
+  it('a colleague answering first in the thread does not take the ask off the owner (11.11)', () => {
+    const db = openDb()
+    db.ingestLedgerSignal(signal({ text: '@me @bob please look and prepare' }))
+    db.ingestLedgerSignal(
+      signal({ ts: '1700000002.000000', author: 'Bob', authorId: 'U_BOB', forOwner: false })
+    )
+    expect(db.listLedgerConversations()[0]?.state).toBe('you')
+    // his own line settles it
+    db.ingestLedgerSignal(signal({ ts: '1700000003.000000', fromOwner: true, authorId: 'U_ME' }))
+    expect(db.listLedgerConversations()[0]?.state).toBe('fyi')
+    // and a line not to him after that does not make it his again
+    db.ingestLedgerSignal(
+      signal({ ts: '1700000004.000000', author: 'Bob', authorId: 'U_BOB', forOwner: false })
+    )
+    expect(db.listLedgerConversations()[0]?.state).toBe('fyi')
+  })
+
   it('a DM answer goes to the one open request to its author; two requests ask which', () => {
     const db = openDb()
     const bob = db.upsertPerson({ name: 'Bob', slackUserId: 'U_BOB' })
