@@ -12,6 +12,7 @@ import type { PulseCore } from './pulse-core'
 import { closeWaiting } from './pulse-waitings'
 import { ledgerRuleOf } from './pulse-ledger-feed'
 import { conversationLastAt, noteSendingChat } from './pulse-ledger-chat'
+import { conversationIdByKey, incomingState, personOf } from './pulse-ledger-rows'
 import { linkWaitingAnswer, waitingsAnsweredBy } from './pulse-ledger-answer'
 import { linkedIn, namedIn, namesOtherTask } from './pulse-ledger-refs'
 import { noteConversationProjectGuess } from './pulse-attribution'
@@ -80,21 +81,6 @@ function openWaitings(core: PulseCore): OpenWaiting[] {
       project: row.project == null ? null : String(row.project),
       title: String(row.title)
     }))
-}
-
-function conversationIdByKey(core: PulseCore, key: string): string | null {
-  const row = core.db.prepare('SELECT id FROM conversations WHERE key = ?').get(key)
-  return row ? String(row.id) : null
-}
-
-function personOf(core: PulseCore, authorId: string | null): string | null {
-  if (!authorId) {
-    return null
-  }
-  const row = core.db
-    .prepare('SELECT id FROM people WHERE slack_user_id = ? OR clickup_user_id = ?')
-    .get(authorId, authorId)
-  return row ? String(row.id) : null
 }
 
 function createConversation(
@@ -234,7 +220,11 @@ export function ingestLedgerSignal(core: PulseCore, signal: HqLedgerSignal): HqL
         state = 'you'
         why = `which:${candidates.map((waiting) => waiting.id).join(',')}`
       } else {
-        state = asking.length > 0 || signal.forOwner ? 'you' : 'fyi'
+        ;({ state, why } = incomingState(
+          core,
+          conversationId,
+          asking.length > 0 || signal.forOwner
+        ))
       }
       core.db
         .prepare(
