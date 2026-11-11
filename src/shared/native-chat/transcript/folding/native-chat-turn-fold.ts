@@ -50,6 +50,8 @@ export type NativeChatTurnFoldRow = {
   replyEnd: 'words' | 'work' | undefined
   /** A hook failed; it reports on the turn without ending it. */
   failedHook: boolean
+  /** Custom build: a Stop hook's send-back row; it reaches the agent but never draws, so the fold hides it. */
+  sendsBack: boolean
 }
 
 const rowFacts = new WeakMap<NativeChatMessage, NativeChatTurnFoldRow>()
@@ -137,7 +139,11 @@ function deriveTurnFoldRow(
             block.presentation === AGENT_SESSION_GOAL_CHECK_PRESENTATION)
       ),
     failedHook: message.blocks.some(isFailedHookBlock),
-    asks: hasNativeChatAskCall(message.blocks)
+    asks: hasNativeChatAskCall(message.blocks),
+    sendsBack: message.blocks.some(
+      (block) =>
+        block.type === 'text' && block.presentation === AGENT_SESSION_HOOK_SENT_BACK_PRESENTATION
+    )
   }
   const speaks =
     message.role === 'assistant' &&
@@ -241,6 +247,11 @@ export function nativeChatTurnFold({
   const foldableTurnKeys = new Set<string>()
   for (const [index, row] of rows.entries()) {
     const { turnKey } = row
+    // Stop-hook feedback still reaches the agent but never draws: the owner reads the reply, not the nudge.
+    if (row.sendsBack) {
+      foldedRows.add(index)
+      continue
+    }
     // User anchors, durable task/roster reports and turn explanations remain outside the fold.
     if (
       turnKey === undefined ||
