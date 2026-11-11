@@ -1,6 +1,7 @@
 // Custom build (worktree-sweep): the pure rules of scripts/orca-plus-worktree-sweep.mjs.
 // Run: node --test scripts/orca-plus-worktree-sweep.test.mjs
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { test } from 'node:test'
 import {
   backupRefDay,
@@ -149,4 +150,36 @@ test('a branch whose name carries another backup name plus a slash cannot nest u
     backupRefName('20261110', 'a/b', 'c'.repeat(40)),
     backupRefName('20261110', 'a%2Fb', 'c'.repeat(40))
   )
+})
+
+test('a long branch keeps its backup ref component within the 255-byte file name limit (Codex P2 11.11)', () => {
+  const day = '20261110'
+  const head = 'a'.repeat(40)
+  const component = (ref) => ref.slice(`refs/orca-plus-sweep/${day}/`.length)
+  const long = `feature/${'x'.repeat(120)}/${'y'.repeat(120)}`
+  const ref = backupRefName(day, long, head)
+  // git writes `<component>.lock` next to the ref, so the component plus 5 bytes must fit in 255.
+  assert.ok(Buffer.byteLength(component(ref)) + '.lock'.length <= 255, component(ref))
+  assert.equal(component(ref).includes('/'), false)
+  assert.equal(backupRefDay(ref), day)
+  assert.ok(ref.endsWith(`-${head.slice(0, 12)}`))
+  // Two long names that share the kept prefix stay apart.
+  assert.notEqual(ref, backupRefName(day, `${long}z`, head))
+  // Multi-byte names are cut on a character boundary.
+  const cyr = backupRefName(day, `фича/${'я'.repeat(200)}`, head)
+  assert.ok(Buffer.byteLength(component(cyr)) + '.lock'.length <= 255)
+  assert.equal(Buffer.from(component(cyr)).toString('utf8'), component(cyr))
+  assert.equal(component(cyr).includes('�'), false)
+  // A shortened name never equals the backup of a different, short branch.
+  assert.ok(component(ref).includes('%h'))
+  assert.equal(component(backupRefName(day, 'feat/x', head)).includes('%h'), false)
+})
+
+test('a shortened backup ref is accepted by git', () => {
+  const ref = backupRefName(
+    '20261110',
+    `feature/${'x'.repeat(120)}/${'%'.repeat(80)}`,
+    'b'.repeat(40)
+  )
+  assert.doesNotThrow(() => execFileSync('git', ['check-ref-format', ref], { stdio: 'ignore' }))
 })
