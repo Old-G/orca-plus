@@ -116,6 +116,24 @@ describe('ledger card drafts', () => {
     expect(prompt).not.toContain('draft')
   })
 
+  it('names the owner’s mention, keeps the newest message whole and says the project (11.11)', () => {
+    const ask = 'the agent keeps this one for review'
+    const prompt = hqLedgerDraftPrompt(
+      [
+        { fromOwner: false, author: 'Ann', text: `<@U0OWN1> <@U0BOB1|bob> ${'x'.repeat(700)} old` },
+        { fromOwner: false, author: 'Ann', text: `<@U0OWN1> hi. ${'template '.repeat(200)}${ask}` }
+      ],
+      'a direct message',
+      null,
+      { owner: 'U0OWN1', project: 'support-agent' }
+    )
+    expect(prompt).toContain('Ann: @the user @someone else x')
+    expect(prompt).not.toContain('x old')
+    expect(prompt).toContain(ask)
+    expect(prompt).toContain('project "support-agent"')
+    expect(prompt).not.toContain('U0OWN1')
+  })
+
   it('reads the model’s answer, and nothing from a kind it does not know', () => {
     expect(
       parseHqLedgerDraft('```json\n{"kind": "fyi", "ask": "News", "draft": ""}\n```', '9.9')
