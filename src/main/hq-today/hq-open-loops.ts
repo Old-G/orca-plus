@@ -44,6 +44,17 @@ export type HqOpenLoopsDeps = {
   lastLineAt: () => number | null
   journal: (rows: HqJournalInput[]) => void
   now: () => number
+  /** Custom build (hq-open-loops-judge): the model's read of a reply the rules took for an answer —
+   *  true / false, or null when it could not say (no budget, an error): the close waits a pass. */
+  judge?: (ask: HqLoopAnswerAsk) => Promise<boolean | null>
+}
+
+export type HqLoopAnswerAsk = {
+  direction: 'on-me' | 'on-them'
+  asker: string
+  replier: string
+  ask: string
+  reply: string
 }
 
 export type HqOpenLoopsPass = { opened: number; closed: number; disputed: number; line: boolean }
@@ -121,7 +132,7 @@ function asLoop(
 }
 
 /** One pass over the window's timelines; what it recorded. */
-export function runHqOpenLoops(deps: HqOpenLoopsDeps): HqOpenLoopsPass {
+export async function runHqOpenLoops(deps: HqOpenLoopsDeps): Promise<HqOpenLoopsPass> {
   const pass: HqOpenLoopsPass = { opened: 0, closed: 0, disputed: 0, line: false }
   if (!deps.enabled()) {
     return pass
@@ -152,10 +163,32 @@ export function runHqOpenLoops(deps: HqOpenLoopsDeps): HqOpenLoopsPass {
       }
       const answer = hqLoopAnswer(asLoop(record), row.timeline, owner)
       if (answer?.kind === 'answer') {
+        const asked = row.timeline.messages.find(
+          (message) => message.key === record.askKey && message.ts === record.askTs
+        )
+        // Why a model on top: the rules alone close right in 87 of 100 on the owner's real threads;
+        // with the model's yes, 41 of 42 (labeled 12.11).
+        const judged = deps.judge
+          ? await deps.judge({
+              direction: record.direction,
+              asker:
+                record.direction === 'on-them' ? 'the owner' : (record.person ?? 'a colleague'),
+              replier:
+                record.direction === 'on-them'
+                  ? (record.person ?? 'the other person')
+                  : 'the owner',
+              ask: asked?.text ?? record.title,
+              reply: answer.message.text
+            })
+          : undefined
+        if (judged === null) {
+          continue
+        }
         const done = deps.record(HQ_OPEN_LOOP_EVENTS.close, record.id, {
           ts: answer.message.ts,
           link: answer.message.link,
-          byOwner: answer.message.fromOwner
+          byOwner: answer.message.fromOwner,
+          judge: judged === undefined ? null : judged
         })
         pass.closed += done ? 1 : 0
       } else if (

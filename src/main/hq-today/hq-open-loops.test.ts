@@ -65,50 +65,50 @@ function lines(db: PulseDb): string[] {
 }
 
 describe('runHqOpenLoops', () => {
-  it('reports a question unanswered for three days once, and touches no waiting', () => {
+  it('reports a question unanswered for three days once, and touches no waiting', async () => {
     const db = openDb()
     say(db, -5, { text: 'hi, a question about tokens' })
     say(db, 0, { ...owner, text: 'Can you rotate the token?' })
     tick = T0 + 71 * HOUR
-    expect(runHqOpenLoops(deps(db)).opened).toBe(0)
+    expect((await runHqOpenLoops(deps(db))).opened).toBe(0)
     tick = T0 + 73 * HOUR
-    expect(runHqOpenLoops(deps(db))).toMatchObject({ opened: 1, line: true })
+    expect(await runHqOpenLoops(deps(db))).toMatchObject({ opened: 1, line: true })
     tick = T0 + 75 * HOUR
-    expect(runHqOpenLoops(deps(db))).toMatchObject({ opened: 0, line: false })
+    expect(await runHqOpenLoops(deps(db))).toMatchObject({ opened: 0, line: false })
     expect(db.listWaitings({ status: 'open' })).toEqual([])
     expect(lines(db)).toHaveLength(1)
     expect(lines(db)[0]).toContain('open on-them · Ann Lee · asked 2026-11-02')
     expect(lines(db)[0]).not.toContain('rotate the token')
   })
 
-  it('closes it on her answer in the thread and lists that in the next hourly line', () => {
+  it('closes it on her answer in the thread and lists that in the next hourly line', async () => {
     const db = openDb()
     const thread = { key: 'slack:C0DEVOPS01:1793000000.000100' }
     say(db, -5, { ...thread, text: 'the token expired again' })
     say(db, 0, { ...thread, ...owner, text: '<@UANN> можешь перевыпустить токен?' })
     tick = T0 + 73 * HOUR
-    runHqOpenLoops(deps(db))
+    await runHqOpenLoops(deps(db))
     say(db, 73.5, { ...thread, text: 'сделаю сегодня' })
     tick = T0 + 73.6 * HOUR
-    expect(runHqOpenLoops(deps(db))).toMatchObject({ closed: 1, line: false })
+    expect(await runHqOpenLoops(deps(db))).toMatchObject({ closed: 1, line: false })
     tick = T0 + 75 * HOUR
-    expect(runHqOpenLoops(deps(db))).toMatchObject({ closed: 0, line: true })
+    expect(await runHqOpenLoops(deps(db))).toMatchObject({ closed: 0, line: true })
     expect(lines(db)[0]).toContain('close on-them · Ann Lee')
   })
 
-  it('does not list a verdict again in the next line when events are written after the pass began', () => {
+  it('does not list a verdict again in the next line when events are written after the pass began', async () => {
     const db = openDb()
     say(db, -5, { text: 'hi' })
     say(db, 0, { ...owner, text: 'Can you rotate the token?' })
     const late = (at: number): HqOpenLoopsDeps => ({ ...deps(db), now: () => at - 50 })
     tick = T0 + 73 * HOUR
-    runHqOpenLoops(late(tick))
+    await runHqOpenLoops(late(tick))
     tick = T0 + 75 * HOUR
-    expect(runHqOpenLoops(late(tick)).line).toBe(false)
+    expect((await runHqOpenLoops(late(tick))).line).toBe(false)
     expect(lines(db)).toHaveLength(1)
   })
 
-  it('closes a loop asked under a ClickUp raw id once the reader names the task by its custom id', () => {
+  it('closes a loop asked under a ClickUp raw id once the reader names the task by its custom id', async () => {
     const db = openDb()
     say(db, -5, { key: 'clickup:86abc12xy', ts: 'sent:0', reader: 'sent', text: 'hi', link: null })
     say(db, 0, {
@@ -120,7 +120,7 @@ describe('runHqOpenLoops', () => {
       link: null
     })
     tick = T0 + 73 * HOUR
-    expect(runHqOpenLoops(deps(db)).opened).toBe(1)
+    expect((await runHqOpenLoops(deps(db))).opened).toBe(1)
     say(db, 74, {
       key: 'clickup:DEV-7',
       ts: 'comment:2',
@@ -129,10 +129,34 @@ describe('runHqOpenLoops', () => {
       link: 'https://app.clickup.com/t/86abc12xy?comment=2'
     })
     tick = T0 + 75 * HOUR
-    expect(runHqOpenLoops(deps(db)).closed).toBe(1)
+    expect((await runHqOpenLoops(deps(db))).closed).toBe(1)
   })
 
-  it('notes a waiting an agent already recorded for the same talk', () => {
+  it('asks the model before a close: its no is recorded, its silence waits a pass', async () => {
+    const db = openDb()
+    const thread = { key: 'slack:C0DEVOPS01:1793000000.000100' }
+    say(db, -5, { ...thread, text: 'the token expired again' })
+    say(db, 0, { ...thread, ...owner, text: '<@UANN> можешь перевыпустить токен?' })
+    tick = T0 + 73 * HOUR
+    await runHqOpenLoops(deps(db))
+    say(db, 73.5, { ...thread, text: 'про другое: где лежит выгрузка за октябрь' })
+    tick = T0 + 74 * HOUR
+    const asked: string[] = []
+    const silent = { ...deps(db), judge: async () => null }
+    expect(await runHqOpenLoops(silent)).toMatchObject({ closed: 0 })
+    const no = {
+      ...deps(db),
+      judge: async (ask: { ask: string }) => {
+        asked.push(ask.ask)
+        return false
+      }
+    }
+    expect(await runHqOpenLoops(no)).toMatchObject({ closed: 1 })
+    expect(asked).toEqual(['<@UANN> можешь перевыпустить токен?'])
+    expect(db.attribution.openLoops.records(0)[0]?.closed).toMatchObject({ judge: false })
+  })
+
+  it('notes a waiting an agent already recorded for the same talk', async () => {
     const db = openDb()
     say(db, -5, { text: 'hi' })
     say(db, 0, { ...owner, text: 'Can you rotate the token?' })
@@ -143,11 +167,11 @@ describe('runHqOpenLoops', () => {
       sourceRef: `slack:D0ANNLEE:${(T0 - 5 * HOUR) / 1000}.000100`
     })
     tick = T0 + 73 * HOUR
-    runHqOpenLoops(deps(db))
+    await runHqOpenLoops(deps(db))
     expect(db.attribution.openLoops.records(0)).toMatchObject([{ covered: agent.id }])
   })
 
-  it('reads a ClickUp task named by its raw id in a send and by its custom id in the reader as one', () => {
+  it('reads a ClickUp task named by its raw id in a send and by its custom id in the reader as one', async () => {
     const db = openDb()
     say(db, 0, {
       key: 'clickup:DEV-7',
@@ -165,6 +189,6 @@ describe('runHqOpenLoops', () => {
       link: null
     })
     tick = T0 + 30 * HOUR
-    expect(runHqOpenLoops(deps(db)).opened).toBe(0)
+    expect((await runHqOpenLoops(deps(db))).opened).toBe(0)
   })
 })
