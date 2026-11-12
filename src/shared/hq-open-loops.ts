@@ -104,10 +104,13 @@ export function hqLoopTimelineOf(key: string): { id: string; kind: HqLoopTimelin
 type Side = { owner: HqLoopOwner; names: readonly string[]; kind: HqLoopTimeline['kind'] }
 
 function sideOf(timeline: HqLoopTimeline, owner: HqLoopOwner): Side {
+  // Why a set: one name per author, not per message — the ack check walks this list per message.
   const names = [
-    ...owner.names,
-    ...timeline.messages.flatMap((message) => (message.author ? [message.author] : []))
-  ]
+    ...new Set([
+      ...owner.names,
+      ...timeline.messages.flatMap((message) => (message.author ? [message.author] : []))
+    ])
+  ].sort((a, b) => b.length - a.length)
   return { owner, names, kind: timeline.kind }
 }
 
@@ -206,6 +209,7 @@ export function hqOpenLoop(timeline: HqLoopTimeline, owner: HqLoopOwner): HqOpen
     (message) =>
       message.at > (opening?.at ?? Infinity) &&
       message.fromOwner === last.fromOwner &&
+      (last.fromOwner || message.authorId === opening?.authorId) &&
       (hqLoopAck(message.text, side.names) || hqLoopWithdrawn(message.text))
   )
   if (!opening || thanked) {

@@ -136,6 +136,17 @@ describe('hqOpenLoop', () => {
     expect(loop).toMatchObject({ direction: 'on-me', disputed: 'time-bound' })
   })
 
+  it('keeps a wait on the owner when someone else in the thread says ok', () => {
+    const loop = hqOpenLoop(
+      timeline('slack:C1:1.1', [
+        [0, 'ann', '<@UOWNER> можешь глянуть логи?'],
+        [1, 'bob', 'ок']
+      ]),
+      owner
+    )
+    expect(loop).toMatchObject({ direction: 'on-me', personId: 'UANN' })
+  })
+
   it('waits on nobody after their thanks', () => {
     const loop = hqOpenLoop(
       timeline('slack:D1:1.1', [

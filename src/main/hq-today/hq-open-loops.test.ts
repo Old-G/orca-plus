@@ -96,6 +96,42 @@ describe('runHqOpenLoops', () => {
     expect(lines(db)[0]).toContain('close on-them · Ann Lee')
   })
 
+  it('does not list a verdict again in the next line when events are written after the pass began', () => {
+    const db = openDb()
+    say(db, -5, { text: 'hi' })
+    say(db, 0, { ...owner, text: 'Can you rotate the token?' })
+    const late = (at: number): HqOpenLoopsDeps => ({ ...deps(db), now: () => at - 50 })
+    tick = T0 + 73 * HOUR
+    runHqOpenLoops(late(tick))
+    tick = T0 + 75 * HOUR
+    expect(runHqOpenLoops(late(tick)).line).toBe(false)
+    expect(lines(db)).toHaveLength(1)
+  })
+
+  it('closes a loop asked under a ClickUp raw id once the reader names the task by its custom id', () => {
+    const db = openDb()
+    say(db, -5, { key: 'clickup:86abc12xy', ts: 'sent:0', reader: 'sent', text: 'hi', link: null })
+    say(db, 0, {
+      ...owner,
+      key: 'clickup:86abc12xy',
+      ts: 'sent:1',
+      reader: 'sent',
+      text: '@Ann Lee can you confirm the price list?',
+      link: null
+    })
+    tick = T0 + 73 * HOUR
+    expect(runHqOpenLoops(deps(db)).opened).toBe(1)
+    say(db, 74, {
+      key: 'clickup:DEV-7',
+      ts: 'comment:2',
+      reader: 'clickup-api',
+      text: 'Confirmed, it is final.',
+      link: 'https://app.clickup.com/t/86abc12xy?comment=2'
+    })
+    tick = T0 + 75 * HOUR
+    expect(runHqOpenLoops(deps(db)).closed).toBe(1)
+  })
+
   it('notes a waiting an agent already recorded for the same talk', () => {
     const db = openDb()
     say(db, -5, { text: 'hi' })
