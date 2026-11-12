@@ -77,7 +77,8 @@ describe('runHqOpenLoops', () => {
     expect(runHqOpenLoops(deps(db))).toMatchObject({ opened: 0, line: false })
     expect(db.listWaitings({ status: 'open' })).toEqual([])
     expect(lines(db)).toHaveLength(1)
-    expect(lines(db)[0]).toContain('open on-them · Ann Lee · «Can you rotate the token?»')
+    expect(lines(db)[0]).toContain('open on-them · Ann Lee · asked 2026-11-02')
+    expect(lines(db)[0]).not.toContain('rotate the token')
   })
 
   it('closes it on her answer in the thread and lists that in the next hourly line', () => {

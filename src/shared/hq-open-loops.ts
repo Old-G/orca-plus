@@ -4,7 +4,7 @@
 // nothing and waits on nobody; a second message of the same side (a bump) keeps the first one's clock.
 // What a rule cannot tell is marked disputed and left to the evening check by a model.
 import {
-  clickUpMentionNames,
+  clickUpTaggedNames,
   namesMatch,
   slackMentionIds,
   slackMessageForOwner
@@ -122,14 +122,14 @@ function isOwnerName(name: string, owner: HqLoopOwner): boolean {
 /** The people a message names, the owner left out: Slack ids, or ClickUp names as written. */
 function othersNamed(text: string, side: Side): string[] {
   if (side.kind === 'clickup') {
-    return clickUpMentionNames(text).filter((name) => !isOwnerName(name, side.owner))
+    return clickUpTaggedNames(text).filter((name) => !isOwnerName(name, side.owner))
   }
   return slackMentionIds(text).filter((id) => !side.owner.slackIds.includes(id))
 }
 
 function namesOwner(text: string, side: Side): boolean {
   if (side.kind === 'clickup') {
-    return clickUpMentionNames(text).some((name) => isOwnerName(name, side.owner))
+    return clickUpTaggedNames(text).some((name) => isOwnerName(name, side.owner))
   }
   return slackMentionIds(text).some((id) => side.owner.slackIds.includes(id))
 }
@@ -143,7 +143,7 @@ function speaksToOwner(message: HqLoopMessage, afterOwner: boolean, side: Side):
   }
   // Why: right after the owner, a message that names nobody else answers him.
   return side.kind === 'clickup'
-    ? clickUpMentionNames(message.text).length === 0
+    ? clickUpTaggedNames(message.text).length === 0
     : side.owner.slackIds.some((id) => slackMessageForOwner(message.text, id))
 }
 
