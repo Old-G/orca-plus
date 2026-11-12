@@ -125,6 +125,19 @@ export async function startHqReportDecisions(
   return started.ok ? { ok: true } : started
 }
 
+/** A chat's name from what the owner wrote: its first words, short enough for the chat list. */
+export function hqAskChatName(text: string): string {
+  const line = text.trim().replace(/\s+/g, ' ')
+  return line.length > 48 ? `${line.slice(0, 47).trimEnd()}…` : line
+}
+
+/** Custom build (hq-plus-ask-new-chat, owner 12.11): in HQ+ each thing typed or dictated into
+ *  «Ask HQ» opens its own new HQ chat with the owner's words as they are — not the standing chat. */
+export async function startHqAskSession(worktreeId: string, text: string): Promise<HqActionResult> {
+  const started = await startHqChatWithPrompt(worktreeId, text.trim(), hqAskChatName(text))
+  return started.ok ? { ok: true } : started
+}
+
 /** Sends the question to the standing chat, or starts it when it is gone. */
 export async function askHq(worktreeId: string, question: string): Promise<HqActionResult> {
   const sessionId = useAppStore.getState().settings?.hqAskSessionId

@@ -1738,7 +1738,7 @@ export function HqPlusScreen(): React.JSX.Element {
                   onSent={data.reload}
                 />
               ) : (
-                <HqCommandBox hqWorktreeId={hqWorktreeId} />
+                <HqCommandBox hqWorktreeId={hqWorktreeId} newChatEach />
               )}
             </div>
             {centerOverlay}
