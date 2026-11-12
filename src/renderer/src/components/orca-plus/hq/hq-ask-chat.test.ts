@@ -29,7 +29,9 @@ vi.mock('@/lib/agent-session/messaging/running-agent-targets', () => ({
   deriveRunningAgentSendTargets: () => mocks.targets,
   deriveStatuslessStructuredAgentSendTargets: () => []
 }))
-vi.mock('@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab', () => ({ launchAgentInNewTab: mocks.launch }))
+vi.mock('@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab', () => ({
+  launchAgentInNewTabWithOutcome: mocks.launch
+}))
 vi.mock('./hq-today-actions', () => ({
   agentPaneKeys: () => new Set<string>(),
   sendHqAgentMessage: mocks.send,
@@ -40,7 +42,13 @@ vi.mock('./hq-chat-open', () => ({
   openHqChat: mocks.openHqChat
 }))
 
-import { HQ_STATUS_UPDATE_PROMPT, askHq, startHqStatusUpdate } from './hq-ask-chat'
+import {
+  HQ_STATUS_UPDATE_PROMPT,
+  askHq,
+  hqAskChatName,
+  startHqAskSession,
+  startHqStatusUpdate
+} from './hq-ask-chat'
 
 const chat = (sessionId: string, paneKey: string, tabId: string) => ({
   kind: 'structured-session',
@@ -92,6 +100,32 @@ describe('askHq', () => {
     await askHq('wt-hq', 'кто ждёт от меня ответа?')
     expect(mocks.launch).toHaveBeenCalledOnce()
     expect(mocks.openHqChat).toHaveBeenCalledOnce()
+  })
+})
+
+describe('startHqAskSession (HQ+)', () => {
+  it('opens a new HQ chat for every send, with the words as they are, even beside the standing one', async () => {
+    mocks.settings.hqAskSessionId = 's-ask'
+    mocks.targets.push(
+      chat('s-ask', 'tab-a:leaf', 'tab-a'),
+      chat('s-new', 'tab-new:leaf', 'tab-new')
+    )
+    await expect(startHqAskSession('wt-hq', '  проверь ожидания по Пете ')).resolves.toEqual({
+      ok: true
+    })
+    expect(mocks.send).not.toHaveBeenCalled()
+    expect(mocks.launch).toHaveBeenCalledWith(
+      expect.objectContaining({ worktreeId: 'wt-hq', prompt: 'проверь ожидания по Пете' })
+    )
+    expect(mocks.updateSettings).not.toHaveBeenCalled()
+    expect(mocks.setTabCustomLabel).toHaveBeenCalledWith('tab-new', 'проверь ожидания по Пете', {
+      recordInteraction: false
+    })
+  })
+
+  it('names the chat after the first words, short', () => {
+    expect(hqAskChatName('a\n b')).toBe('a b')
+    expect(hqAskChatName('x'.repeat(60))).toBe(`${'x'.repeat(47)}…`)
   })
 })
 
