@@ -45,7 +45,14 @@ export type HqLoopRecord = {
   covered: string | null
   /** When the loop came due and was recorded. */
   at: number
-  closed: { ts: string; link: string | null; byOwner: boolean; at: number } | null
+  /** `judge`: the model's read of the answer; null when no model read it. */
+  closed: {
+    ts: string
+    link: string | null
+    byOwner: boolean
+    judge: boolean | null
+    at: number
+  } | null
   /** When a later reply made it disputed. */
   disputedAt: number | null
 }
@@ -243,6 +250,7 @@ export function loopRecords(core: PulseCore, since: number): HqLoopRecord[] {
         ts: text(value.ts) ?? '',
         link: text(value.link),
         byOwner: value.byOwner === true,
+        judge: typeof value.judge === 'boolean' ? value.judge : null,
         at
       }
     }
