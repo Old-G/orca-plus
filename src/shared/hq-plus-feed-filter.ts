@@ -33,6 +33,15 @@ export function hqPlusInFeedFilter(item: HqPlusLogItem, filter: HqPlusFeedFilter
   }
 }
 
+/** Whether a row shows in the room the owner picked (null: every room). Custom build
+ *  (hq-plus-room-approve, owner 12.11): a held Approve shows in every room — its call names a chat's
+ *  folder, not a room, so in a room it was in «All» and the bell only while its agent waited on it. */
+export function hqPlusInRoom(item: HqPlusLogItem, room: string | null): boolean {
+  return (
+    !room || item.room === room || (item.kind === 'card' && item.type === 'approve' && item.open)
+  )
+}
+
 export function isHqPlusFeedFilter(value: unknown): value is HqPlusFeedFilter {
   return HQ_PLUS_FEED_FILTERS.some((filter) => filter === value)
 }

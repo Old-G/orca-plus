@@ -18,6 +18,7 @@ import {
   hqPlusWithLiveChats
 } from '../../../../../shared/hq-plus-fold'
 import {
+  hqPlusInRoom,
   hqPlusMatchesSearch,
   type HqPlusFeedFilter
 } from '../../../../../shared/hq-plus-feed-filter'
@@ -401,8 +402,9 @@ export function HqPlusScreen(): React.JSX.Element {
       ),
     [data.feed, dayStart, roomOfProject, notNow, shownSessionId]
   )
-  // Why: what has no room (HQ's own rows, a bell item of an unknown project) shows in All only.
-  const roomItems = useMemo(() => all.filter((item) => !room || item.room === room), [all, room])
+  // Why: what has no room (HQ's own rows, a bell item of an unknown project) shows in All only — a
+  // held Approve excepted.
+  const roomItems = useMemo(() => all.filter((item) => hqPlusInRoom(item, room)), [all, room])
   // Why: what HQ+ has on screen is seen; the quiet count on its tab is for what came while away.
   useEffect(() => {
     const unreadIds = new Set(
