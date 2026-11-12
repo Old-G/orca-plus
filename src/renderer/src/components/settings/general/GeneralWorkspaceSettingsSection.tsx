@@ -13,6 +13,7 @@ import { HqJournalSetting } from './HqJournalSetting'
 import { HqSessionDispatcherSetting } from './HqSessionDispatcherSetting'
 import { HqHandoffAutoStartSetting } from './HqHandoffAutoStartSetting'
 import { HqLedgerSetting } from './HqLedgerSetting'
+import { HqOpenLoopsSetting } from './HqOpenLoopsSetting'
 import { HqPathSetting } from './HqPathSetting'
 import { useTranslate } from '@/i18n/use-translate'
 import { GlobalWorktreeVisibilitySourcesSetting } from './GlobalWorktreeVisibilitySourcesSetting'
@@ -51,6 +52,7 @@ export function GeneralWorkspaceSettingsSection({
           <HqSessionDispatcherSetting settings={settings} updateSettings={updateSettings} />
           <HqFeedPopupsSetting settings={settings} updateSettings={updateSettings} />
           <HqLedgerSetting settings={settings} updateSettings={updateSettings} />
+          <HqOpenLoopsSetting settings={settings} updateSettings={updateSettings} />
           <HqHandoffAutoStartSetting settings={settings} updateSettings={updateSettings} />
           <SearchableSetting
             id={GENERAL_SETTING_ANCHORS.nesting}
