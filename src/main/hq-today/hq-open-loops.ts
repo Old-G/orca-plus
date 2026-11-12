@@ -146,7 +146,8 @@ export function runHqOpenLoops(deps: HqOpenLoopsDeps): HqOpenLoopsPass {
       }
     }
     for (const record of records) {
-      if (record.timeline !== row.timeline.id || record.closed) {
+      // Why by the ask's conversation: a ClickUp alias learned later renames the timeline, not the talk.
+      if (!(record.askKey in row.projects) || record.closed) {
         continue
       }
       const answer = hqLoopAnswer(asLoop(record), row.timeline, owner)
@@ -157,7 +158,11 @@ export function runHqOpenLoops(deps: HqOpenLoopsDeps): HqOpenLoopsPass {
           byOwner: answer.message.fromOwner
         })
         pass.closed += done ? 1 : 0
-      } else if (answer?.kind === 'disputed' && record.disputedAt === null) {
+      } else if (
+        answer?.kind === 'disputed' &&
+        record.disputedAt === null &&
+        record.disputed !== answer.why
+      ) {
         const marked = deps.record(HQ_OPEN_LOOP_EVENTS.disputed, record.id, {
           disputed: answer.why,
           ts: answer.message.ts,
@@ -258,12 +263,20 @@ function writeLine(deps: HqOpenLoopsDeps, now: number): boolean {
     ...disputed.map((record) => `d:${record.id}`)
   ].toSorted()
   const key = createHash('sha256').update(ids.join('\n')).digest('hex').slice(0, 16)
+  // Why the newest verdict's time: events are stamped as written, after the pass began; the next
+  // line starts after the last one it listed, never before it.
+  const at = Math.max(
+    now,
+    ...opened.map((record) => record.at),
+    ...closed.map((record) => record.closed?.at ?? 0),
+    ...disputed.map((record) => record.disputedAt ?? 0)
+  )
   deps.journal([
     {
       ...hqJobRow(
         { job: HQ_OPEN_LOOPS_JOB, found },
         { room: HQ_JOURNAL_ALL_ROOMS, project: null, firm: false },
-        now
+        at
       ),
       title: hqJournalTitle(`${HQ_OPEN_LOOPS_JOB}: ${head}`),
       dedupeKey: `job:${HQ_OPEN_LOOPS_JOB}:${key}`

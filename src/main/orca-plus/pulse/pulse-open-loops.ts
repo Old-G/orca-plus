@@ -88,8 +88,7 @@ const squeeze = (text: string): string => text.replace(/\s+/g, ' ').trim()
 
 /** Why: the reply reader stores what it found as «Name: text» lines, sometimes hours later; lines
  *  the timeline already holds are a copy, not a new message. */
-function repeats(text: string, timeline: HqLoopTimeline): boolean {
-  const said = timeline.messages.map((message) => squeeze(message.text))
+function repeats(text: string, said: readonly string[]): boolean {
   const lines = text
     .split('\n')
     .map((line) => squeeze(line.replace(/^[^:\n]{1,60}:\s*/, '')))
@@ -128,11 +127,20 @@ export function loopTimelines(core: PulseCore, since: number): HqLoopTimelineRow
     row.projects[c.key] = c.project
     rows.set(c.timeline.id, row)
   }
+  const squeezed = new Map<HqLoopTimelineRow, string[]>()
+  const said = (row: HqLoopTimelineRow): string[] => {
+    const list = squeezed.get(row) ?? []
+    for (const message of row.timeline.messages.slice(list.length)) {
+      list.push(squeeze(message.text))
+    }
+    squeezed.set(row, list)
+    return list
+  }
   const messages = core.db.prepare(MESSAGES_SQL).all(JSON.stringify(read.map((c) => c.id)))
   for (const message of messages) {
     const key = String(message.key)
     const row = rows.get(byKey.get(key)?.timeline.id ?? '')
-    if (!row || (message.reader === 'reply' && repeats(String(message.text), row.timeline))) {
+    if (!row || (message.reader === 'reply' && repeats(String(message.text), said(row)))) {
       continue
     }
     ;(row.timeline.messages as HqLoopMessage[]).push({
