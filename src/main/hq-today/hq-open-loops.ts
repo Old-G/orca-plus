@@ -191,15 +191,28 @@ export function runHqOpenLoops(deps: HqOpenLoopsDeps): HqOpenLoopsPass {
   return pass
 }
 
+// Why only these hosts: the line names where to look; a link from anywhere else is not shown.
+const SOURCE_LINK = /^https:\/\/(?:[\w-]+\.)?slack\.com\/|^https:\/\/app\.clickup\.com\//
+
+/** One loop in the journal line: direction, person, when asked, where — never the message's words,
+ *  since the journal is read by agents in every room and the words are someone else's. */
 function item(
   record: HqLoopRecord,
   verb: string,
   extra: string | null,
   link: string | null
 ): string {
-  const who = record.person ?? 'someone'
-  const covered = record.covered ? ' \u00b7 already a waiting' : ''
-  return `\u2022 ${verb} ${record.direction} \u00b7 ${who} \u00b7 \u00ab${record.title}\u00bb${extra ? ` \u00b7 ${extra}` : ''}${covered}${link ? ` \u00b7 ${link}` : ''}`
+  const asked = new Date(record.askAt).toISOString().slice(0, 10)
+  return [
+    `\u2022 ${verb} ${record.direction}`,
+    record.person ?? 'someone',
+    `asked ${asked}`,
+    extra,
+    record.covered ? 'already a waiting' : null,
+    link && SOURCE_LINK.test(link) ? link : null
+  ]
+    .filter((part): part is string => part !== null)
+    .join(' \u00b7 ')
 }
 
 /** The verdicts since the last line, in one quiet line; keyed by the loops it lists, so a retry adds

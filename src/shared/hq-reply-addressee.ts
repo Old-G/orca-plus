@@ -31,6 +31,17 @@ export function clickUpMentionNames(text: string): string[] {
   return [...text.matchAll(CLICKUP_MENTION)].map((match) => match[1])
 }
 
+// ClickUp's own markup for a tag: «[@Ann Lee](#user_mention#42)».
+const CLICKUP_TAG = /\[@([^\]\n]{1,60})\]\(#user_mention#\d+\)/g
+
+/** Custom build (hq-open-loops): the names a ClickUp comment tags, in its tag markup or as «@Name». */
+export function clickUpTaggedNames(text: string): string[] {
+  return [
+    ...[...text.matchAll(CLICKUP_TAG)].map((match) => match[1]),
+    ...clickUpMentionNames(text.replace(CLICKUP_TAG, ' '))
+  ]
+}
+
 /** Custom build (hq-open-loops): the Slack user ids a message @mentions (`<@U…>` markup). */
 export function slackMentionIds(text: string): string[] {
   return [...text.matchAll(/<@([A-Z0-9]+)(?:\|[^>]*)?>/g)].map((match) => match[1])
