@@ -8,6 +8,7 @@ import { parseHqPlusReport, summarizeHqPlusReport } from './hq-plus-screen'
 import { hqPlusFoldChats, hqPlusLiftActiveChats, hqPlusWithLiveChats } from './hq-plus-fold'
 import {
   hqPlusInFeedFilter,
+  hqPlusInRoom,
   hqPlusMatchesSearch,
   type HqPlusFeedFilter
 } from './hq-plus-feed-filter'
@@ -884,6 +885,31 @@ describe('hqPlusInFeedFilter', () => {
     expect(log.filter((item) => !filtered.has(item.id)).map((item) => item.id)).toEqual([
       'inbox:limit'
     ])
+  })
+})
+
+describe('hqPlusInRoom', () => {
+  it('shows a held Approve in every room; other roomless rows in All only (12.11)', () => {
+    const items = hqPlusLog(
+      [],
+      [
+        bell({
+          id: 'a',
+          kind: 'outgoing-approval',
+          title: 'Approve an outgoing action',
+          body: 'Slack · send message → DM Bob · from «Chat» (HQ)\nhi',
+          refKind: 'draft',
+          refId: 'draft-1'
+        })
+      ],
+      DAY_START
+    )
+    const approve = items.find((item) => item.kind === 'card' && item.type === 'approve')
+    expect(approve).toBeDefined()
+    expect(hqPlusInRoom(approve!, 'acme')).toBe(true)
+    expect(hqPlusInRoom({ ...approve!, open: false }, 'acme')).toBe(false)
+    expect(hqPlusInRoom({ ...approve!, room: 'acme' }, 'acme')).toBe(true)
+    expect(hqPlusInRoom(approve!, null)).toBe(true)
   })
 })
 
