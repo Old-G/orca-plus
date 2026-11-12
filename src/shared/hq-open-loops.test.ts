@@ -225,6 +225,17 @@ describe('hqOpenLoop', () => {
     expect(loop).toMatchObject({ direction: 'on-me', person: 'Ann Lee' })
   })
 
+  it('reads a ClickUp tag in its markup as the person asked', () => {
+    const loop = hqOpenLoop(
+      timeline('clickup:abc1', [
+        [0, 'ann', 'The export is ready'],
+        [1, 'owner', '[@Bob Stone](#user_mention#42) can you confirm the price list?']
+      ]),
+      owner
+    )
+    expect(loop).toMatchObject({ direction: 'on-them', person: 'Bob Stone' })
+  })
+
   it('marks a long thread as disputed', () => {
     const lines: Line[] = Array.from({ length: 16 }, (_, index) => [
       index,
