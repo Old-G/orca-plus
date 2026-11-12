@@ -6,6 +6,7 @@ import {
   type GeneralSearchDescriptor
 } from './general-setting-anchors'
 import { translate } from '@/i18n/i18n'
+import { hqOpenLoopsSettingText } from './HqOpenLoopsSetting'
 
 /** Each lives on the Workspace page's folder sub-page, beside the HQ Folder. */
 export function getGeneralWorkspaceHqSearchDescriptors(): GeneralSearchDescriptor[] {
@@ -57,6 +58,11 @@ export function getGeneralWorkspaceHqSearchDescriptors(): GeneralSearchDescripto
         'Slack DMs, threads you take part in and mentions are read every half minute into conversations. On: one card per conversation that waits on you, updated in place. Shadow: conversations are kept beside the old cards, nothing shown changes.'
       ),
       keywords: ['hq', 'hq+', 'ledger', 'conversations', 'slack', 'cards']
+    }),
+    // Custom build (hq-open-loops)
+    generalSetting(GENERAL_SETTING_ANCHORS.folder, {
+      ...hqOpenLoopsSettingText(),
+      keywords: ['hq', 'hq+', 'waitings', 'open loops', 'slack', 'clickup', 'notes']
     })
   ]
 }
