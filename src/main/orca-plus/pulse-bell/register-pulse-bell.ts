@@ -49,6 +49,7 @@ import {
 import { listHqProjectPages } from '../../hq-project-pages/hq-project-pages'
 import { registerHqWaitingReplies } from '../../hq-today/register-hq-waiting-replies'
 import { startHqPromises } from '../../hq-today/register-hq-promises'
+import { startHqOpenLoops } from '../../hq-today/register-hq-open-loops'
 import { startHqFeed } from '../../hq-today/hq-feed-collector'
 import { HQ_FEED_COMMIT_LOG_ARGS, readHqFeedCommits } from '../../hq-today/hq-feed-work'
 import { startHqFeedPosts } from '../../hq-today/hq-feed-posts'
@@ -295,6 +296,8 @@ export function registerPulseBell(
   })
   // Custom build (hq-promises): the owner's promises into Notes — the ledger's or, until it is on, the scout's.
   startHqPromises(store, runtime)
+  // Custom build (hq-open-loops): who waits on whom in Slack and ClickUp, found without a model.
+  startHqOpenLoops(store, runtime)
   // Custom build (hq-people): pulse people get their Slack/ClickUp ids and role from HQ's org matrix.
   startHqPeopleSync({
     hqPath: () => store.getSettings().hqPath ?? null,
