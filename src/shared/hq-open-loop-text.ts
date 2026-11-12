@@ -95,9 +95,10 @@ const ASK_STEMS = [
 ]
 const ASK = new RegExp(`(?:^|[^a-z\u0430-\u044f])(?:${ASK_STEMS.join('|')})(?![a-z\u0430-\u044f])`)
 
+/** `names` longest first, so «@Ann Lee» goes before «@Ann». */
 function withoutMentions(text: string, names: readonly string[]): string {
   let plain = text.replace(SLACK_MARKUP, ' ')
-  for (const name of [...names].sort((a, b) => b.length - a.length)) {
+  for (const name of names) {
     plain = plain.split(`@${name}`).join(' ')
   }
   return plain.replace(/@\S+/g, ' ')
