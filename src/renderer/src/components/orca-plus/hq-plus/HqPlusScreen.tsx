@@ -3,7 +3,7 @@
 // on the right, rooms above and Orca's composer below. Every button goes through the paths agents use.
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { isWebClientLocation } from '@/lib/web-client-location'
+import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import {
   HQ_PLUS_ANY_ROOM,
   hqPlusDayStart,
@@ -1738,7 +1738,7 @@ export function HqPlusScreen(): React.JSX.Element {
                   onSent={data.reload}
                 />
               ) : (
-                <HqCommandBox hqWorktreeId={hqWorktreeId} />
+                <HqCommandBox hqWorktreeId={hqWorktreeId} newChatEach />
               )}
             </div>
             {centerOverlay}

@@ -6,8 +6,8 @@ import {
   type HqReport
 } from '../../../../../shared/hq-reports'
 import { translate } from '@/i18n/i18n'
-import { newAgentLaunchRequestId } from '@/lib/agent-session/launch/routing/agent-launch-request-id'
-import { launchAgentInNewTab } from '@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab'
+import { createNonSecureContextUuid } from '../../../../../shared/non-secure-context-uuid'
+import { launchAgentInNewTabWithOutcome } from '@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab'
 import {
   deriveRunningAgentSendTargets,
   deriveStatuslessStructuredAgentSendTargets,
@@ -61,8 +61,8 @@ export async function startHqChatWithPrompt(
   name: string
 ): Promise<{ ok: true; chat: StructuredAgentSendTarget | null } | { ok: false; message: string }> {
   const before = agentPaneKeys(worktreeId)
-  const launched = launchAgentInNewTab({
-    requestId: newAgentLaunchRequestId(),
+  const launched = launchAgentInNewTabWithOutcome({
+    requestId: createNonSecureContextUuid(),
     agent: 'claude',
     worktreeId,
     prompt,
@@ -122,6 +122,19 @@ export async function startHqReportDecisions(
     hqReportDecisionsPrompt(report, text),
     hqReportChatName(report.path)
   )
+  return started.ok ? { ok: true } : started
+}
+
+/** A chat's name from what the owner wrote: its first words, short enough for the chat list. */
+export function hqAskChatName(text: string): string {
+  const line = text.trim().replace(/\s+/g, ' ')
+  return line.length > 48 ? `${line.slice(0, 47).trimEnd()}…` : line
+}
+
+/** Custom build (hq-plus-ask-new-chat, owner 12.11): in HQ+ each thing typed or dictated into
+ *  «Ask HQ» opens its own new HQ chat with the owner's words as they are — not the standing chat. */
+export async function startHqAskSession(worktreeId: string, text: string): Promise<HqActionResult> {
+  const started = await startHqChatWithPrompt(worktreeId, text.trim(), hqAskChatName(text))
   return started.ok ? { ok: true } : started
 }
 

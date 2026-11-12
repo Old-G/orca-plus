@@ -1,27 +1,49 @@
 // Custom build (hq-ask): the «Ask HQ» command line on Today — typed or dictated, it goes to HQ's
 // standing «Ask HQ» chat.
-import { useId, useRef, useState } from 'react'
+import { useId, useLayoutEffect, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { translate } from '@/i18n/i18n'
 import { HqCommandDictation } from './HqCommandDictation'
-import { askHq } from './hq-ask-chat'
+import { askHq, startHqAskSession } from './hq-ask-chat'
+
+/** Why: the box grows with the text up to about ten lines, then scrolls. */
+const MAX_HEIGHT_PX = 240
 
 export function HqCommandBox({
   hqWorktreeId,
-  compact = false
+  compact = false,
+  newChatEach = false
 }: {
   hqWorktreeId: string | null
   /** Custom build (hq-today-inbox): a short hint for Today's narrow list column. */
   compact?: boolean
+  /** Custom build (hq-plus-ask-new-chat, owner 12.11): HQ+ — every send opens a new HQ chat and the
+   *  box grows as he writes; classic HQ keeps its one «Ask HQ» chat. */
+  newChatEach?: boolean
 }): React.JSX.Element {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const inputId = useId()
+  // Why: dictation inserts words without React's onChange, so the height follows the input event too.
+  useLayoutEffect(() => {
+    const box = textareaRef.current
+    if (!newChatEach || !box) {
+      return
+    }
+    const fit = (): void => {
+      box.style.height = 'auto'
+      box.style.height = `${Math.min(box.scrollHeight, MAX_HEIGHT_PX)}px`
+      box.style.overflowY = box.scrollHeight > MAX_HEIGHT_PX ? 'auto' : 'hidden'
+    }
+    fit()
+    box.addEventListener('input', fit)
+    return () => box.removeEventListener('input', fit)
+  }, [newChatEach, text])
   // Custom build (hq-ask): every question goes to the one standing «Ask HQ» chat.
   const submit = (): void => {
     const question = text
@@ -31,7 +53,7 @@ export function HqCommandBox({
     setBusy(true)
     setText('')
     setError(null)
-    void askHq(hqWorktreeId, question)
+    void (newChatEach ? startHqAskSession : askHq)(hqWorktreeId, question)
       .then((result) => {
         if (!result.ok) {
           setText(question)
