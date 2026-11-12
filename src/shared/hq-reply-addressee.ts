@@ -9,7 +9,7 @@ const CLICKUP_MENTION = /(?:^|[\s(])@([\p{L}][\p{L}'.-]*(?:[  ][\p{L}][\p{L}'.-
 // e.g. «[Slack Sync] 💬 @Alex Owner (Slack): text» — a bot copying a Slack message to a task.
 const SLACK_SYNC = /^\s*\[Slack Sync\][^@]*@([^(\n]+?)\s*\(Slack\):\s*/u
 
-function namesMatch(mention: string, owner: string): boolean {
+export function namesMatch(mention: string, owner: string): boolean {
   const said = norm(mention)
   const name = norm(owner)
   return said === name || name.startsWith(`${said} `) || said.startsWith(`${name} `)
@@ -22,12 +22,22 @@ export function clickUpCommentForOwner(body: string, ownerName: string): boolean
     return false
   }
   const text = synced ? body.slice(synced[0].length) : body
-  const mentions = [...text.matchAll(CLICKUP_MENTION)].map((match) => match[1])
+  const mentions = clickUpMentionNames(text)
   return mentions.length === 0 || mentions.some((mention) => namesMatch(mention, ownerName))
+}
+
+/** Custom build (hq-open-loops): the names a ClickUp comment @mentions, as written. */
+export function clickUpMentionNames(text: string): string[] {
+  return [...text.matchAll(CLICKUP_MENTION)].map((match) => match[1])
+}
+
+/** Custom build (hq-open-loops): the Slack user ids a message @mentions (`<@U…>` markup). */
+export function slackMentionIds(text: string): string[] {
+  return [...text.matchAll(/<@([A-Z0-9]+)(?:\|[^>]*)?>/g)].map((match) => match[1])
 }
 
 /** False for a Slack message that mentions people and not the owner (`<@U…>` markup). */
 export function slackMessageForOwner(text: string, ownerId: string): boolean {
-  const mentions = [...text.matchAll(/<@([A-Z0-9]+)(?:\|[^>]*)?>/g)].map((match) => match[1])
+  const mentions = slackMentionIds(text)
   return mentions.length === 0 || mentions.includes(ownerId)
 }

@@ -6,6 +6,7 @@ import type { HqProjectClickUpLists } from './hq-project-clickup'
 import type { TaskProviderRolloutFlags } from './work-items/task-providers'
 import type { HqTriageDecisions } from './hq-triage'
 import type { OrcaPlusQuietHours } from './orca-plus-quiet-hours'
+import type { HqOpenLoopsMode } from './hq-open-loops-mode'
 
 /** Custom build (claude-subscriptions): Claude sign-ins a session can run on. */
 export type CustomBuildSettings = ClaudeSubscriptionSettings &
@@ -55,6 +56,9 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
      *  conversations beside them, changes nothing shown) or on (one card per Slack conversation in
      *  place of the mention cards). Default on since 03.11 (hq-ledger-mode). */
     hqLedger?: 'off' | 'shadow' | 'on'
+    /** Custom build (hq-open-loops): the open-loop detector is off or reports what it finds
+     *  to the HQ+ journal; default report (hq-open-loops-mode). */
+    hqOpenLoops?: HqOpenLoopsMode
     /** Custom build (slack-notifications, owner 03.11): agent updates posted to Slack by the bot;
      *  off unless turned on. */
     slackAgentUpdates?: boolean

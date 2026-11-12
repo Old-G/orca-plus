@@ -244,6 +244,7 @@ src/renderer/src/components/settings/general/HqFeedPopupsSetting.tsx
 src/renderer/src/components/settings/general/HqHandoffAutoStartSetting.tsx
 src/renderer/src/components/settings/general/HqJournalSetting.tsx
 src/renderer/src/components/settings/general/HqLedgerSetting.tsx
+src/renderer/src/components/settings/general/HqOpenLoopsSetting.tsx
 src/renderer/src/components/settings/general/HqPathSetting.tsx
 src/renderer/src/components/settings/general/HqSessionDispatcherSetting.tsx
 src/renderer/src/components/settings/slack-agent-updates-row.tsx
