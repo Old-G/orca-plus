@@ -97,7 +97,8 @@ const ASK = new RegExp(`(?:^|[^a-z\u0430-\u044f])(?:${ASK_STEMS.join('|')})(?![a
 
 /** `names` longest first, so «@Ann Lee» goes before «@Ann». */
 function withoutMentions(text: string, names: readonly string[]): string {
-  let plain = text.replace(SLACK_MARKUP, ' ')
+  // Why: a ClickUp tag comes as `[@Ann Lee](#user_mention#42)`; its brackets are not words.
+  let plain = text.replace(SLACK_MARKUP, ' ').replace(/\[@[^\]]*\]\(#user_mention#\d+\)/g, ' ')
   for (const name of names) {
     plain = plain.split(`@${name}`).join(' ')
   }
