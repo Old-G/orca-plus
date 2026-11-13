@@ -1,6 +1,7 @@
 // Custom build (hq-plus-ui): one chat in HQ+'s Chats column — its project tile, state chip, title, age
 // and one line of what it waits for; in «By work» the project's name opens that line and a chat that
 // started others shows how many on its tile (hq-plus-work-view, owner 06.11).
+import { useEffect, useRef, useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import { formatRelativeTime } from '@/components/activity/activity-thread-presentation'
 import type { HqChatItem } from '../hq/hq-chat-list'
@@ -74,6 +75,34 @@ export function HqPlusChatRow({
   kids?: number
 }): React.JSX.Element {
   const title = useHqChatTitle(item)
+  const rowRef = useRef<HTMLButtonElement>(null)
+  const clicked = useRef(false)
+  const [flash, setFlash] = useState(false)
+  const mounted = useRef(false)
+  // Custom build (hq-plus-side-follow, owner 13.11): a chat opened on the right from elsewhere — a
+  // feed card's «To work» / «Send to chat», Brain, a bell — scrolls into view here and glows once, so
+  // the list shows which chat that is. A click on the row itself only marks it.
+  useEffect(() => {
+    const first = !mounted.current
+    mounted.current = true
+    if (!picked) {
+      return
+    }
+    // Why: a row drawn already picked (HQ+ opened, the list regrouped, a new chat appeared) is
+    // brought into view without the glow, which would replay on every regroup.
+    if (first) {
+      rowRef.current?.scrollIntoView({ block: 'nearest' })
+      return
+    }
+    if (clicked.current) {
+      clicked.current = false
+      return
+    }
+    rowRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    setFlash(true)
+    const timer = window.setTimeout(() => setFlash(false), 1600)
+    return () => window.clearTimeout(timer)
+  }, [picked])
   const { chip, waitingFor, live } = useHqPlusChatChip(item, now)
   const projectName = project ?? item.projectName
   const preview = draft
@@ -90,11 +119,16 @@ export function HqPlusChatRow({
     >
       <button
         type="button"
+        ref={rowRef}
         className="hqp-pc"
         title={lastWordOf(item)?.replace(/\s+/g, ' ').slice(0, 300)}
         aria-current={picked ? 'true' : undefined}
+        data-flash={flash ? 'true' : undefined}
         data-read={chip ? undefined : 'true'}
-        onClick={() => onPick(item)}
+        onClick={() => {
+          clicked.current = !picked
+          onPick(item)
+        }}
       >
         <span
           className="hqp-tile"
