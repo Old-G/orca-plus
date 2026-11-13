@@ -107,6 +107,7 @@ export function registerHqRouting(
   // Custom build (hq-plus-person-replies): `person.reply` — answers to the chat that asked, or a card.
   const replies = createHqReplyRouting({
     listWaitings: () => runtime.pulseListWaitings({ direction: 'on-them' }),
+    changed: emitPulseChanged,
     judge: async (prompt) => {
       const hq = hqPath()
       if (!hq) {
