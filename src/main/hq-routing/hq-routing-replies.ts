@@ -60,6 +60,8 @@ export type HqReplyRoutingDeps = {
   pulse: Pick<HqJournalPulse, 'list' | 'record'>
   now: () => number
   log: (message: string) => void
+  /** An answer's hold ended — sorted for the chat, or out of time: the bell reads its waitings again. */
+  changed?: () => void
 }
 
 export type HqReplyRouteOptions = { dryRun: boolean; since?: number }
@@ -241,6 +243,13 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
    */
   const sortOwnerTalk = async (): Promise<HqReplyRouteAction[]> => {
     const actions: HqReplyRouteAction[] = []
+    // Why: a verdict for the chat writes nothing to pulse, so the bell would keep the answer hidden
+    // until its next 30-minute look; the owner's and noise verdicts write a journal row instead.
+    let released = false
+    const release = (id: string): void => {
+      sorted.set(id, 'chat')
+      released = true
+    }
     for (const waiting of deps.listWaitings().filter(pendingAnswer)) {
       const id = key(waiting)
       if (sorted.has(id)) {
@@ -248,7 +257,7 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
       }
       // Why: GitLab's word that the MR is merged is always the chat's to act on.
       if (waiting.replyAuthorId === HQ_GITLAB_AUTHOR_ID) {
-        sorted.set(id, 'chat')
+        release(id)
         continue
       }
       const failed = unread.get(id)
@@ -262,14 +271,15 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
         const tries = (failed?.tries ?? 0) + 1
         unread.set(id, { tries, at: deps.now() })
         if (tries >= UNREAD_TRIES) {
-          sorted.set(id, 'chat')
+          release(id)
         }
         continue
       }
-      sorted.set(id, owner)
       if (owner === 'chat') {
+        release(id)
         continue
       }
+      sorted.set(id, owner)
       if (owner === 'noise') {
         // Why (owner 09.11): «спасибо, всё супер» made a card to pass on to the chat — thanks, praise
         // and small talk are nobody's work. The waiting stays open for a real answer.
@@ -287,7 +297,27 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
       await record(waiting, done, `${done.author} answered — yours to reply in Slack`, false)
       actions.push(done)
     }
+    if (released) {
+      deps.changed?.()
+    }
     return actions
+  }
+
+  /** One wake-up per held answer, when its hold runs out. */
+  const expiries = new Set<string>()
+  const refreshAt = (id: string, at: number): void => {
+    if (!deps.changed || expiries.has(id)) {
+      return
+    }
+    expiries.add(id)
+    const timer = setTimeout(
+      () => {
+        expiries.delete(id)
+        deps.changed?.()
+      },
+      Math.max(0, at - deps.now()) + 1_000
+    )
+    timer.unref?.()
   }
 
   return {
@@ -368,7 +398,11 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
       }
       const fresh = (waiting.repliedAt ?? 0) > deps.now() - HQ_REPLY_HOLD_MS
       // Why: with the rule off an answer waits only until it is sorted, so the owner's talk never pops.
-      return { hold: fresh && (activeRule || !sorted.has(key(waiting))), why: null }
+      const hold = fresh && (activeRule || !sorted.has(key(waiting)))
+      if (hold) {
+        refreshAt(key(waiting), (waiting.repliedAt ?? 0) + HQ_REPLY_HOLD_MS)
+      }
+      return { hold, why: null }
     }
   }
 }
