@@ -17,14 +17,14 @@ describe('useHqPlusRun (13.11: a card shown settled at once comes back on a fail
     await act(async () => {
       result.current.run(async () => ({ ok: false, message: 'no bell' }), 'got-it')
     })
-    expect(onFailed).toHaveBeenCalledWith('got-it')
+    expect(onFailed).toHaveBeenCalledWith('got-it', 'no bell')
     expect(result.current.error).toBe('no bell')
     await act(async () => {
       result.current.run(async () => {
         throw new Error('gone')
       }, 'skip')
     })
-    expect(onFailed).toHaveBeenLastCalledWith('skip')
+    expect(onFailed).toHaveBeenLastCalledWith('skip', 'gone')
     expect(result.current.error).toBe('gone')
   })
 })

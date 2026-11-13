@@ -218,7 +218,7 @@ export function HqPlusCardShell({
 export function useHqPlusRun(
   onDone: (key: string | null) => void,
   /** Custom build (hq-plus-instant): undoes what the card showed before the action came back. */
-  onFailed?: (key: string | null) => void
+  onFailed?: (key: string | null, message: string) => void
 ): {
   busy: boolean
   pending: string | null
@@ -240,13 +240,14 @@ export function useHqPlusRun(
         if (result.ok) {
           onDone(key)
         } else {
-          onFailed?.(key)
+          onFailed?.(key, result.message)
           setError(result.message)
         }
       })
       .catch((cause: unknown) => {
-        onFailed?.(key)
-        setError(cause instanceof Error ? cause.message : String(cause))
+        const message = cause instanceof Error ? cause.message : String(cause)
+        onFailed?.(key, message)
+        setError(message)
       })
       .finally(() => {
         setBusy(false)

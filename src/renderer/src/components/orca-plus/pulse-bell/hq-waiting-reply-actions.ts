@@ -115,12 +115,13 @@ export async function passHqWaitingReply(ref: HqWaitingReplyRef): Promise<boolea
   return reportPassed(ref, result)
 }
 
+/** False when Pass or Close did not go through (HQ+ brings back a card it closed on the click). */
 export async function runHqWaitingReplyAction(
   ref: HqWaitingReplyRef,
   actionId: string
-): Promise<void> {
+): Promise<boolean> {
   if (actionId === HQ_WAITING_REPLY_ACTION.deliver) {
-    await passHqWaitingReply(ref)
+    return passHqWaitingReply(ref)
   } else if (actionId === HQ_WAITING_REPLY_ACTION.open) {
     await openHqWaitingReplyChat(ref)
   } else if (actionId === HQ_WAITING_REPLY_ACTION.skip) {
@@ -133,8 +134,9 @@ export async function runHqWaitingReplyAction(
     })
     if (!closed.ok) {
       toast.error(translate('auto.hqWaitingReply.closeFailed', 'The waiting could not be closed'))
-      return
+      return false
     }
     await window.api.pulseBell.skipWaitingReply(ref.waitingId, ref.replyTs)
   }
+  return true
 }

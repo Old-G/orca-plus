@@ -2,7 +2,7 @@
 // person's answer, a wait on the owner or a new report. Open while it waits; once decided it folds to
 // two lines that say what was chosen, and opens again on a click.
 import { hqPlusStamp, slackTsAt } from '../../../../../shared/hq-plus-stamp'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   HQ_PLUS_DONE_HANDED_OFF,
   HQ_PLUS_DONE_IN_CHAT,
@@ -13,6 +13,7 @@ import {
 } from '../../../../../shared/hq-plus-log'
 import { HQ_JOB_UNDO } from '../../../../../shared/hq-journal'
 import { readPulseBellPaneRef } from '../../../../../shared/pulse-bell'
+import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { OutgoingApprovalDecision } from '../outgoing-approval/OutgoingApprovalCard'
 import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
@@ -446,8 +447,10 @@ export function HqPlusCardView({
   const setExpanded = onExpand
   const [text, setText] = useState('')
   // Custom build (hq-plus-links): the pressed button, so a slow action (a new session) shows it works.
+  const hidden = useRef(false)
   const { busy, pending, error, run } = useHqPlusRun(
     (key) => {
+      hidden.current = false
       setText('')
       // Why: opening the chat on the right decides nothing, so the card stays open where it was
       // (owner 09.11: the card folded and the feed jumped on «Open chat»).
@@ -456,7 +459,15 @@ export function HqPlusCardView({
       }
       onChanged()
     },
-    () => onSettling?.(null)
+    (_key, message) => {
+      // Why (Codex 14.11): a card the click took off the list is drawn anew when it comes back,
+      // without this hook's error — the toast says why it is back.
+      if (hidden.current) {
+        hidden.current = false
+        onSettling?.(null)
+        toast.error(message)
+      }
+    }
   )
   // Custom build (hq-plus-instant, owner 13.11: «нажимаешь — и не ждёшь»): an answer that closes the
   // card closes it on the click; the write goes on behind, and a failure brings the card back with it.
@@ -464,6 +475,7 @@ export function HqPlusCardView({
     if (busy) {
       return
     }
+    hidden.current = Boolean(onSettling)
     onSettling?.({ by: 'action', action: done, at: Date.now() })
     run(action, key)
   }
@@ -739,10 +751,17 @@ export function HqPlusCardView({
               }, action.id)
             } else if (INSTANT_BELL_ACTIONS.has(action.id)) {
               settle(
-                async () => {
-                  await runPulseBellAction(item, action.id)
-                  return { ok: true }
-                },
+                async () =>
+                  // Why (Codex 14.11): a Pass that could not deliver brings the card back.
+                  (await runPulseBellAction(item, action.id))
+                    ? { ok: true }
+                    : {
+                        ok: false,
+                        message: translate(
+                          'auto.hqPlus.notThrough',
+                          'It did not go through — the card is back.'
+                        )
+                      },
                 action.id,
                 action.id
               )
