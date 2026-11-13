@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest'
 import type { HqJournalEntry } from './hq-journal'
 import type { PulseInboxItem } from './pulse-types'
 import type { HqFeedResult } from './hq-plus-screen'
-import { hqPlusFeedLog } from './hq-plus-conversations'
+import { hqPlusFeedLog, hqPlusFeedRows, hqPlusFoldFeed } from './hq-plus-conversations'
+import { hqPlusWithSettled, type HqPlusSettled } from './hq-plus-settled'
 import { hqPlusLedgerOnly } from './hq-plus-ledger-cards'
 import { hqPlusTranscript, type HqFeedLedger } from './hq-feed-ledger'
 import { hqPlusIsFyi, hqPlusLook, hqPlusNeedsOwner } from './hq-plus-kinds'
 import { hqPlusInFeedFilter } from './hq-plus-feed-filter'
 import { hqPlusMapFeedPlace, hqPlusMapModel, hqPlusMapSourceOf } from './hq-plus-map'
-import { HQ_PLUS_ANY_ROOM } from './hq-plus-log'
+import { HQ_PLUS_ANY_ROOM, type HqPlusCard, type HqPlusLogItem } from './hq-plus-log'
 
 const NOW = Date.UTC(2026, 9, 30, 15)
 const MIN = 60_000
@@ -371,5 +372,58 @@ describe('one request per conversation (hq-plus-one-request)', () => {
       item.kind === 'card' && item.conversation ? [item.conversation] : []
     )
     expect(conversation.every((c) => c.earlierRequests === undefined)).toBe(true)
+  })
+})
+
+describe('cards settled on the click inside a conversation (hq-plus-instant, Codex 14.11)', () => {
+  const settled = (id: string): HqPlusSettled =>
+    new Map([[id, { done: { by: 'action' as const, action: 'dismiss', at: NOW } }]])
+  const intake = (n: number): PulseInboxItem => ({
+    ...mention,
+    id: `intake-${n}`,
+    createdAt: NOW - (10 - n) * MIN
+  })
+  const conversationOf = (items: readonly HqPlusLogItem[]): HqPlusCard | undefined =>
+    items.find((item): item is HqPlusCard => item.kind === 'card' && item.id === `conv:${THREAD}`)
+
+  it('drops the settled part and keeps the conversation open while another part waits', () => {
+    const data = feed([], [intake(1), intake(2)])
+    const rows = hqPlusFeedRows(data, DAY_START)
+    const conversation = conversationOf(
+      hqPlusFoldFeed(data, hqPlusWithSettled(rows, settled('inbox:intake-1')), DAY_START)
+    )
+    expect(conversation?.open).toBe(true)
+    expect(conversation?.conversation?.parts.map((part) => part.id)).toEqual(['inbox:intake-2'])
+  })
+
+  it('closes the conversation with its last part, saying what was chosen', () => {
+    const data = feed([], [intake(1)])
+    const rows = hqPlusFeedRows(data, DAY_START)
+    const conversation = conversationOf(
+      hqPlusFoldFeed(data, hqPlusWithSettled(rows, settled('inbox:intake-1')), DAY_START)
+    )
+    expect(conversation).toMatchObject({
+      open: false,
+      done: { by: 'action', action: 'dismiss', at: NOW }
+    })
+    expect(conversation?.conversation?.parts).toEqual([])
+  })
+
+  it('leaves the rows as they are with nothing settled, and a closed card as it was', () => {
+    const decided = { ...intake(1), doneAt: NOW - MIN, doneAction: 'intake-open' }
+    const rows = hqPlusFeedRows(feed([], [decided]), DAY_START)
+    expect(hqPlusWithSettled(rows, new Map())).toBe(rows)
+    const card = hqPlusWithSettled(rows, settled('inbox:intake-1')).find(
+      (row) => row.id === 'inbox:intake-1'
+    )
+    expect(card).toMatchObject({ open: false, done: { by: 'action', action: 'intake-open' } })
+  })
+
+  it('folds the same as hqPlusFeedLog when nothing is settled', () => {
+    const data = feed([row({})], [reply, intake(1), remind])
+    const rows = hqPlusFeedRows(data, DAY_START)
+    expect(hqPlusFoldFeed(data, hqPlusWithSettled(rows, new Map()), DAY_START)).toEqual(
+      hqPlusFeedLog(data, DAY_START)
+    )
   })
 })

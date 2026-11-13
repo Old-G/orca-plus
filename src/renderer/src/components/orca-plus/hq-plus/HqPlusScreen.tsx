@@ -12,7 +12,8 @@ import {
   type HqPlusDone,
   type HqPlusLogItem
 } from '../../../../../shared/hq-plus-log'
-import { hqPlusFeedLog } from '../../../../../shared/hq-plus-conversations'
+import { hqPlusFeedRows, hqPlusFoldFeed } from '../../../../../shared/hq-plus-conversations'
+import { hqPlusWithSettled } from '../../../../../shared/hq-plus-settled'
 import {
   hqPlusFoldChats,
   hqPlusLiftActiveChats,
@@ -370,12 +371,13 @@ export function HqPlusScreen(): React.JSX.Element {
   const shownSessionId = rightChat?.kind === 'chat' ? rightChat.tab.entityId : null
   // Why: a chat's question is a line under its project's «Your move», as on the Map and the phone.
   // Custom build (hq-plus-instant): built once per read, not again on every put-off or chat switch.
-  const feedLog = useMemo(
-    () => (data.feed ? hqPlusFeedLog(data.feed, dayStart, { chatQuestions: 'card' }) : []),
+  const feedRows = useMemo(
+    () => (data.feed ? hqPlusFeedRows(data.feed, dayStart, { chatQuestions: 'card' }) : []),
     [data.feed, dayStart]
   )
   // Custom build (hq-plus-instant, owner 13.11): cards the owner just settled, shown settled at once;
-  // a read that has them closed (or gone), a failure or a minute takes each off.
+  // a read that has them closed (or gone), a failure or a minute takes each off. Codex 14.11: held by
+  // the row's own id, a card folded into a conversation as well as one on its own.
   const [settling, setSettling] = useState<ReadonlyMap<string, { done: HqPlusDone; at: number }>>(
     () => new Map()
   )
@@ -385,7 +387,7 @@ export function HqPlusScreen(): React.JSX.Element {
         return prev
       }
       const open = new Set(
-        feedLog.flatMap((item) => (item.kind === 'card' && item.open ? [item.id] : []))
+        feedRows.flatMap((item) => (item.kind === 'card' && item.open ? [item.id] : []))
       )
       const at = Date.now()
       const next = new Map(
@@ -393,7 +395,13 @@ export function HqPlusScreen(): React.JSX.Element {
       )
       return next.size === prev.size ? prev : next
     })
-  }, [feedLog])
+  }, [feedRows])
+  // Why: settled before the fold, so a conversation drops the part and closes with its last one.
+  const feedLog = useMemo(
+    () =>
+      data.feed ? hqPlusFoldFeed(data.feed, hqPlusWithSettled(feedRows, settling), dayStart) : [],
+    [data.feed, feedRows, settling, dayStart]
+  )
   const markSettling = (id: string, done: HqPlusDone | null): void =>
     setSettling((prev) => {
       const next = new Map(prev)
@@ -432,15 +440,11 @@ export function HqPlusScreen(): React.JSX.Element {
             journalKind: entry?.kind ?? null
           }
         }
-        const held = settling.get(placed.id)
-        if (held) {
-          return { ...placed, open: false, done: held.done }
-        }
         return notNow.has(hqPlusNotNowKey(placed))
           ? { ...placed, open: false, done: { by: 'status' as const, status: 'not-now' } }
           : placed
       }),
-    [feedLog, roomOfProject, notNow, shownSessionId, settling]
+    [feedLog, roomOfProject, notNow, shownSessionId]
   )
   // Why: what has no room (HQ's own rows, a bell item of an unknown project) shows in All only — a
   // held Approve excepted.
