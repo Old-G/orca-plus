@@ -131,7 +131,9 @@ export const HqSessionsParams = z.object({
 // Custom build (hq-plus-ui): the owner's HQ+ screen reads every room's whole rows at once.
 export const HqFeedParams = z.object({
   since: OptionalFiniteNumber,
-  limit: OptionalPositiveInt
+  limit: OptionalPositiveInt,
+  // Custom build (hq-plus-feed-trim): leave out bell items raised and settled before this (the day's start).
+  settledSince: OptionalFiniteNumber
 })
 
 // Custom build (hq-ledger-feed): the owner fixes a conversation's project from its card's chip.
