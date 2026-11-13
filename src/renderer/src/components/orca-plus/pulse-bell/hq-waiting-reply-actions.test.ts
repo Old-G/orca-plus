@@ -114,8 +114,14 @@ describe('passHqWaitingReply', () => {
 
 describe('runHqWaitingReplyAction', () => {
   it('skips without passing anything on', async () => {
-    await runHqWaitingReplyAction(ref, 'reply-skip')
+    await expect(runHqWaitingReplyAction(ref, 'reply-skip')).resolves.toBe(true)
     expect(mocks.skip).toHaveBeenCalledWith('w1', '1.1')
     expect(mocks.pass).not.toHaveBeenCalled()
+  })
+
+  // 14.11: HQ+ closes the card on the click and brings it back when the answer did not go through.
+  it('says false when Pass could not deliver', async () => {
+    mocks.pass.mockResolvedValueOnce({ ok: false, reason: 'gone' })
+    await expect(runHqWaitingReplyAction(ref, 'reply-deliver')).resolves.toBe(false)
   })
 })

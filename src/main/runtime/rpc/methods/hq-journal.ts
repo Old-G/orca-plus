@@ -20,6 +20,7 @@ import {
   HqWhoamiParams,
   HqWorkspaceAddParams
 } from '../../../../shared/rpc-contract/hq-journal-params'
+import { hqPlusFeedInbox } from '../../../../shared/hq-plus-feed-inbox'
 import { HQ_JOURNAL_MAX_LIMIT } from '../../../../shared/hq-journal'
 import {
   HQ_FEED_DEFAULT_LIMIT,
@@ -326,7 +327,7 @@ export const HQ_JOURNAL_METHODS = [
       return {
         entries,
         sessions: addresses.flatMap((address) => runtime.pulseListSessionsByAddress(address)),
-        inbox: [...open, ...settled],
+        inbox: hqPlusFeedInbox([...open, ...settled], entries, params.settledSince),
         now: Date.now(),
         // Custom build (hq-ledger-feed): what folds the feed's cards by conversation.
         ledger: runtime.pulseListLedgerFeed(params.since ?? Date.now() - HQ_PLUS_FEED_WINDOW_MS)
