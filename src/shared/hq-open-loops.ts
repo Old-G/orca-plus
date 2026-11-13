@@ -202,8 +202,10 @@ export function hqOpenLoop(timeline: HqLoopTimeline, owner: HqLoopOwner): HqOpen
         othersNamed(message.text, side).length > 0 ||
         (before !== null && !before.fromOwner)
       : speaksToOwner(message, before?.fromOwner === true && !turnedAway(message), side)
-  const own = run.find((message) => asks(message) === 'own' && addressed(message))
-  const opening = own ?? run.find((message) => asks(message) === 'quoted' && addressed(message))
+  // Why: an ask taken back and then asked anew is a new ask; only lines after the withdrawal count.
+  const live = run.slice(run.findLastIndex((message) => hqLoopWithdrawn(message.text)) + 1)
+  const own = live.find((message) => asks(message) === 'own' && addressed(message))
+  const opening = own ?? live.find((message) => asks(message) === 'quoted' && addressed(message))
   // Why: whoever asked and then thanked, said «ok» or took the ask back — nobody waits.
   const thanked = timeline.messages.some(
     (message) =>
