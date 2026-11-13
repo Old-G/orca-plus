@@ -1171,6 +1171,16 @@
         0 0 22px color-mix(in srgb, var(--hqp-ice) 25%, transparent);
     }
   }
+  /* Custom build (hq-plus-side-follow): the row of a chat just opened on the right from elsewhere. */
+  .hqp-pc[data-flash='true'] {
+    animation: hqp-row-flash 1.5s ease-out;
+  }
+  @keyframes hqp-row-flash {
+    20% {
+      background: color-mix(in srgb, var(--hqp-ice) 18%, transparent);
+      box-shadow: inset 0 0 0 2px var(--hqp-ice);
+    }
+  }
   .hqp-log > * {
     animation: hqp-fade 0.3s ease;
   }
@@ -3157,7 +3167,8 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 }
 .hqp-pc[aria-current='true'] {
   background: var(--hqp-soft-2);
-  box-shadow: inset 0 0 0 1px var(--hqp-line-2);
+  /* Custom build (hq-plus-side-follow, owner 13.11): the chat open on the right reads at a glance. */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hqp-ice) 55%, transparent);
 }
 .hqp-pc .hqp-tile {
   grid-row: 1 / 3;
