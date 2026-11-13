@@ -33,7 +33,8 @@ import {
   skipHqPlusOwner,
   replyOnHqPlusCard,
   replyOnHqPlusJob,
-  tellHqPlusDraftingAgent
+  tellHqPlusDraftingAgent,
+  type HqPlusResult
 } from './hq-plus-actions'
 import { HqPlusReportCard } from './HqPlusReportBody'
 import type { HqPlusLook } from '../../../../../shared/hq-plus-kinds'
@@ -285,6 +286,16 @@ const OPEN_CHAT_ACTIONS: ReadonlySet<string> = new Set([
   PULSE_BELL_ACTION.open
 ])
 
+/** Custom build (hq-plus-instant): bell answers that only close the card — Dismiss, Skip, Close, Pass
+ *  to chat (its delivery may take a while: a closed chat is reopened first). A start, an account
+ *  switch or a handoff still waits for its result. */
+const INSTANT_BELL_ACTIONS: ReadonlySet<string> = new Set([
+  PULSE_BELL_ACTION.dismiss,
+  HQ_WAITING_REPLY_ACTION.skip,
+  HQ_WAITING_REPLY_ACTION.close,
+  HQ_WAITING_REPLY_ACTION.deliver
+])
+
 /** Custom build (claude-handoff-launch): HQ+'s own choice on a handoff — the old chat closes or stays. */
 const HANDOFF_KEEP = 'handoff-keep'
 
@@ -403,6 +414,7 @@ export function HqPlusCardView({
   expanded,
   onExpand,
   onToWork,
+  onSettling = null,
   bare = false
 }: {
   card: Card
@@ -428,19 +440,33 @@ export function HqPlusCardView({
   onToWork: ((item: PulseInboxItem) => void) | null
   /** Custom build (hq-ledger-feed): only the buttons — a card folded into a conversation's card. */
   bare?: boolean
+  /** Custom build (hq-plus-instant, owner 13.11): shows the card settled at once; null takes it back. */
+  onSettling?: ((done: HqPlusDone | null) => void) | null
 }): React.JSX.Element {
   const setExpanded = onExpand
   const [text, setText] = useState('')
   // Custom build (hq-plus-links): the pressed button, so a slow action (a new session) shows it works.
-  const { busy, pending, error, run } = useHqPlusRun((key) => {
-    setText('')
-    // Why: opening the chat on the right decides nothing, so the card stays open where it was
-    // (owner 09.11: the card folded and the feed jumped on «Open chat»).
-    if (!key || !OPEN_CHAT_ACTIONS.has(key)) {
-      setExpanded(false)
+  const { busy, pending, error, run } = useHqPlusRun(
+    (key) => {
+      setText('')
+      // Why: opening the chat on the right decides nothing, so the card stays open where it was
+      // (owner 09.11: the card folded and the feed jumped on «Open chat»).
+      if (!key || !OPEN_CHAT_ACTIONS.has(key)) {
+        setExpanded(false)
+      }
+      onChanged()
+    },
+    () => onSettling?.(null)
+  )
+  // Custom build (hq-plus-instant, owner 13.11: «нажимаешь — и не ждёшь»): an answer that closes the
+  // card closes it on the click; the write goes on behind, and a failure brings the card back with it.
+  const settle = (action: () => Promise<HqPlusResult>, key: string, done: string): void => {
+    if (busy) {
+      return
     }
-    onChanged()
-  })
+    onSettling?.({ by: 'action', action: done, at: Date.now() })
+    run(action, key)
+  }
   // Custom build (hq-plus-clickup-reply): Reply on a ClickUp comment opens its reply box here.
   const clickUpReply = useHqPlusClickUpReply(() => run(async () => ({ ok: true })))
   const open = card.open
@@ -636,7 +662,7 @@ export function HqPlusCardView({
                 label: translate('auto.hqPlus.gotIt', 'Got it'),
                 ghost: true,
                 disabled: busy,
-                onClick: () => run(() => markHqPlusDone(card, 'seen'))
+                onClick: () => settle(() => markHqPlusDone(card, 'seen'), 'got-it', 'seen')
               }
             ]
           : card.entry?.status === 'open'
@@ -646,7 +672,7 @@ export function HqPlusCardView({
                   label: translate('auto.hqPlus.skip', 'Skip'),
                   ghost: true,
                   disabled: busy,
-                  onClick: () => run(() => skipHqPlusOwner(card))
+                  onClick: () => settle(() => skipHqPlusOwner(card), 'skip', 'skipped')
                 }
               ]
             : [])
@@ -674,13 +700,13 @@ export function HqPlusCardView({
           label: translate('auto.hqPlus.waitDone', 'Done'),
           main: true,
           disabled: busy,
-          onClick: () => run(() => closeHqPlusWait(card, 'resolved'))
+          onClick: () => settle(() => closeHqPlusWait(card, 'resolved'), 'wait-done', 'done')
         },
         {
           id: 'wait-drop',
           label: translate('auto.hqPlus.waitDrop', 'Not needed'),
           disabled: busy,
-          onClick: () => run(() => closeHqPlusWait(card, 'cancelled'))
+          onClick: () => settle(() => closeHqPlusWait(card, 'cancelled'), 'wait-drop', 'skipped')
         },
         ...sourceButton
       ]
@@ -711,6 +737,15 @@ export function HqPlusCardView({
                 await launchClaudeHandoffOffer(offerId, true)
                 return { ok: true }
               }, action.id)
+            } else if (INSTANT_BELL_ACTIONS.has(action.id)) {
+              settle(
+                async () => {
+                  await runPulseBellAction(item, action.id)
+                  return { ok: true }
+                },
+                action.id,
+                action.id
+              )
             } else {
               run(async () => {
                 await runPulseBellAction(item, action.id)
@@ -726,7 +761,7 @@ export function HqPlusCardView({
                 id: 'queue-done',
                 label: translate('auto.hqPlus.queue.done', 'Done'),
                 disabled: busy,
-                onClick: () => run(() => markHqPlusDone(card, 'done'))
+                onClick: () => settle(() => markHqPlusDone(card, 'done'), 'queue-done', 'done')
               }
             ]
           : []),
@@ -760,7 +795,8 @@ export function HqPlusCardView({
           id: 'agent-drop',
           label: translate('auto.hqPlus.waitDrop', 'Not needed'),
           disabled: busy,
-          onClick: () => run(() => settleHqPlusAgentDraft(card, 'rejected'))
+          onClick: () =>
+            settle(() => settleHqPlusAgentDraft(card, 'rejected'), 'agent-drop', 'skipped')
         }
       ]
     }

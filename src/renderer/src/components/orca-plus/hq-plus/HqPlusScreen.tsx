@@ -9,6 +9,7 @@ import {
   hqPlusDayStart,
   hqPlusNotNowKey,
   type HqPlusCard,
+  type HqPlusDone,
   type HqPlusLogItem
 } from '../../../../../shared/hq-plus-log'
 import { hqPlusFeedLog } from '../../../../../shared/hq-plus-conversations'
@@ -144,6 +145,8 @@ import './hq-plus-paper.css'
 type HqPlusPanelCard = { label: string; active: boolean; body: React.ReactNode; onPick: () => void }
 
 const TICK_MS = 30_000
+/** Custom build (hq-plus-instant): how long a card shown settled waits for a read that confirms it. */
+const SETTLING_HOLD_MS = 60_000
 /** Custom build (hq-project-cards): the chat list's groups as a project card's chat states. */
 const CHAT_STATE: Record<string, HqPlusMapChatState> = {
   needs: 'asks',
@@ -365,42 +368,79 @@ export function HqPlusScreen(): React.JSX.Element {
   const rightChat =
     tab === 'session' && !chatFolded ? chatItems.find((c) => c.key === chatKey) : null
   const shownSessionId = rightChat?.kind === 'chat' ? rightChat.tab.entityId : null
+  // Why: a chat's question is a line under its project's «Your move», as on the Map and the phone.
+  // Custom build (hq-plus-instant): built once per read, not again on every put-off or chat switch.
+  const feedLog = useMemo(
+    () => (data.feed ? hqPlusFeedLog(data.feed, dayStart, { chatQuestions: 'card' }) : []),
+    [data.feed, dayStart]
+  )
+  // Custom build (hq-plus-instant, owner 13.11): cards the owner just settled, shown settled at once;
+  // a read that has them closed (or gone), a failure or a minute takes each off.
+  const [settling, setSettling] = useState<ReadonlyMap<string, { done: HqPlusDone; at: number }>>(
+    () => new Map()
+  )
+  useEffect(() => {
+    setSettling((prev) => {
+      if (prev.size === 0) {
+        return prev
+      }
+      const open = new Set(
+        feedLog.flatMap((item) => (item.kind === 'card' && item.open ? [item.id] : []))
+      )
+      const at = Date.now()
+      const next = new Map(
+        [...prev].filter(([id, held]) => open.has(id) && at - held.at < SETTLING_HOLD_MS)
+      )
+      return next.size === prev.size ? prev : next
+    })
+  }, [feedLog])
+  const markSettling = (id: string, done: HqPlusDone | null): void =>
+    setSettling((prev) => {
+      const next = new Map(prev)
+      if (done) {
+        next.set(id, { done, at: Date.now() })
+      } else {
+        next.delete(id)
+      }
+      return next
+    })
   const all = useMemo(
     () =>
-      // Why: a chat's question is a line under its project's «Your move», as on the Map and the phone.
-      (data.feed ? hqPlusFeedLog(data.feed, dayStart, { chatQuestions: 'card' }) : []).map(
-        (item): HqPlusLogItem => {
-          // Why: a bell item knows its project, not its room; HQ's rooms place it.
-          const placed =
-            item.room === HQ_PLUS_ANY_ROOM && item.project && roomOfProject.has(item.project)
-              ? { ...item, room: roomOfProject.get(item.project) ?? item.room }
-              : item
-          if (placed.kind !== 'card' || !placed.open) {
-            return placed
-          }
-          // Custom build (hq-closed-loop): the chat open on the right asks there, not twice.
-          if (placed.type === 'move' && placed.sessionId && placed.sessionId === shownSessionId) {
-            const { id, at, room, project, address, sessionId, title, body, entry } = placed
-            return {
-              kind: 'line',
-              id,
-              at,
-              room,
-              project,
-              address,
-              sessionId,
-              tone: 'agent',
-              title,
-              body,
-              journalKind: entry?.kind ?? null
-            }
-          }
-          return notNow.has(hqPlusNotNowKey(placed))
-            ? { ...placed, open: false, done: { by: 'status' as const, status: 'not-now' } }
-            : placed
+      feedLog.map((item): HqPlusLogItem => {
+        // Why: a bell item knows its project, not its room; HQ's rooms place it.
+        const placed =
+          item.room === HQ_PLUS_ANY_ROOM && item.project && roomOfProject.has(item.project)
+            ? { ...item, room: roomOfProject.get(item.project) ?? item.room }
+            : item
+        if (placed.kind !== 'card' || !placed.open) {
+          return placed
         }
-      ),
-    [data.feed, dayStart, roomOfProject, notNow, shownSessionId]
+        // Custom build (hq-closed-loop): the chat open on the right asks there, not twice.
+        if (placed.type === 'move' && placed.sessionId && placed.sessionId === shownSessionId) {
+          const { id, at, room, project, address, sessionId, title, body, entry } = placed
+          return {
+            kind: 'line',
+            id,
+            at,
+            room,
+            project,
+            address,
+            sessionId,
+            tone: 'agent',
+            title,
+            body,
+            journalKind: entry?.kind ?? null
+          }
+        }
+        const held = settling.get(placed.id)
+        if (held) {
+          return { ...placed, open: false, done: held.done }
+        }
+        return notNow.has(hqPlusNotNowKey(placed))
+          ? { ...placed, open: false, done: { by: 'status' as const, status: 'not-now' } }
+          : placed
+      }),
+    [feedLog, roomOfProject, notNow, shownSessionId, settling]
   )
   // Why: what has no room (HQ's own rows, a bell item of an unknown project) shows in All only — a
   // held Approve excepted.
@@ -971,6 +1011,7 @@ export function HqPlusScreen(): React.JSX.Element {
     onOpenReport: openReport,
     onNotNow: putOff,
     onChanged: data.reload,
+    onSettling: markSettling,
     chatStatus,
     chatWaitsOn,
     closeChat: (sessionId, fallback) => {

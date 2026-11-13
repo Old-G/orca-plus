@@ -215,7 +215,11 @@ export function HqPlusCardShell({
  * marked while it works, a failure shown on the card; `onDone` runs after a success, with the pressed
  * button's key.
  */
-export function useHqPlusRun(onDone: (key: string | null) => void): {
+export function useHqPlusRun(
+  onDone: (key: string | null) => void,
+  /** Custom build (hq-plus-instant): undoes what the card showed before the action came back. */
+  onFailed?: (key: string | null) => void
+): {
   busy: boolean
   pending: string | null
   error: string | null
@@ -236,10 +240,14 @@ export function useHqPlusRun(onDone: (key: string | null) => void): {
         if (result.ok) {
           onDone(key)
         } else {
+          onFailed?.(key)
           setError(result.message)
         }
       })
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .catch((cause: unknown) => {
+        onFailed?.(key)
+        setError(cause instanceof Error ? cause.message : String(cause))
+      })
       .finally(() => {
         setBusy(false)
         setPending(null)

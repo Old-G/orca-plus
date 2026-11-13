@@ -1,41 +1,30 @@
 // @vitest-environment happy-dom
 
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { act, cleanup, render } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
-vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
-
+import { act, renderHook } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import { useHqPlusRun } from './HqPlusCardShell'
 
-afterEach(() => cleanup())
-
-describe('useHqPlusRun', () => {
-  it('tells onDone which button ran, so a card can stay open after one that only opens a chat', async () => {
+describe('useHqPlusRun (13.11: a card shown settled at once comes back on a failure)', () => {
+  it('calls onDone on success and onFailed with the key on a refusal or a throw', async () => {
     const onDone = vi.fn()
-    let run: ReturnType<typeof useHqPlusRun>['run'] | null = null
-    function Probe(): null {
-      run = useHqPlusRun(onDone).run
-      return null
-    }
-    render(<Probe />)
+    const onFailed = vi.fn()
+    const { result } = renderHook(() => useHqPlusRun(onDone, onFailed))
     await act(async () => {
-      run!(async () => ({ ok: true }), 'open')
+      result.current.run(async () => ({ ok: true }), 'done')
     })
+    expect(onDone).toHaveBeenCalledWith('done')
+    expect(onFailed).not.toHaveBeenCalled()
     await act(async () => {
-      run!(async () => ({ ok: true }))
+      result.current.run(async () => ({ ok: false, message: 'no bell' }), 'got-it')
     })
-    expect(onDone.mock.calls).toEqual([['open'], [null]])
-  })
-
-  it('keeps the card open after its open-chat buttons and folds it after the rest (owner 09.11)', () => {
-    const source = readFileSync(
-      resolve('src/renderer/src/components/orca-plus/hq-plus/HqPlusCard.tsx'),
-      'utf8'
-    )
-    expect(source).toMatch(
-      /useHqPlusRun\(\(key\) => \{[\s\S]*?if \(!key \|\| !OPEN_CHAT_ACTIONS\.has\(key\)\) \{\s*setExpanded\(false\)/
-    )
+    expect(onFailed).toHaveBeenCalledWith('got-it')
+    expect(result.current.error).toBe('no bell')
+    await act(async () => {
+      result.current.run(async () => {
+        throw new Error('gone')
+      }, 'skip')
+    })
+    expect(onFailed).toHaveBeenLastCalledWith('skip')
+    expect(result.current.error).toBe('gone')
   })
 })
