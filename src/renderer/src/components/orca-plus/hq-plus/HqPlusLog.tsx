@@ -2,7 +2,11 @@
 // follows the bottom unless the owner scrolled up to read; then a «↓ new: N» button brings it back.
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { readHqPlusViewState, saveHqPlusViewState } from './hq-plus-view-state'
-import { hqPlusNotNowKey, type HqPlusLogItem } from '../../../../../shared/hq-plus-log'
+import {
+  hqPlusNotNowKey,
+  type HqPlusDone,
+  type HqPlusLogItem
+} from '../../../../../shared/hq-plus-log'
 import { hqPlusLook, type HqPlusBadge } from '../../../../../shared/hq-plus-kinds'
 import { translate } from '@/i18n/i18n'
 import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
@@ -35,6 +39,8 @@ export type HqPlusLogContext = {
   onOpenReport: (path: string) => void
   onNotNow: (id: string) => void
   onChanged: () => void
+  /** Custom build (hq-plus-instant): a card shown settled at once while its answer is written. */
+  onSettling?: (id: string, done: HqPlusDone | null) => void
   /** Custom build (hq-plus-links): the chat a row belongs to, for its name; null for none. */
   chatOf: (sessionId: string | null) => HqPlusChatRef | null
   /** Custom build (hq-plus-ui-v2): the live chat's state badge (working, waits for the owner, done). */
@@ -236,6 +242,7 @@ function LogItem({
           onOpenReport={ctx.onOpenReport}
           onNotNow={item.open ? () => ctx.onNotNow(hqPlusNotNowKey(item)) : null}
           onChanged={ctx.onChanged}
+          onSettling={ctx.onSettling ? (done) => ctx.onSettling?.(item.id, done) : null}
           expanded={ctx.isExpanded(item.id)}
           onExpand={(next) => ctx.setExpanded(item.id, next)}
           onToWork={(inbox) => {

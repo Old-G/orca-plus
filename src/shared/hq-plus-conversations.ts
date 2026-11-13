@@ -316,13 +316,30 @@ function oneRequest(cards: readonly HqPlusCard[]): { parts: HqPlusCard[]; earlie
   }
 }
 
+/** The day's rows of one `hq.feed` result, before they fold by conversation. */
+export function hqPlusFeedRows(
+  feed: HqFeedResult,
+  since: number,
+  options: Parameters<typeof hqPlusLog>[3] = {}
+): HqPlusLogItem[] {
+  return hqPlusLog(feed.entries, feed.inbox ?? [], since, options)
+}
+
+/** The day's rows folded by conversation, when the host sent its ledger. */
+export function hqPlusFoldFeed(
+  feed: HqFeedResult,
+  rows: readonly HqPlusLogItem[],
+  since: number
+): HqPlusLogItem[] {
+  const ledger = readHqFeedLedger(feed.ledger)
+  return ledger ? hqPlusFoldConversations(rows, feed.entries, ledger, since) : [...rows]
+}
+
 /** The day's log of one `hq.feed` result, folded by conversation when the host sent its ledger. */
 export function hqPlusFeedLog(
   feed: HqFeedResult,
   since: number,
   options: Parameters<typeof hqPlusLog>[3] = {}
 ): HqPlusLogItem[] {
-  const items = hqPlusLog(feed.entries, feed.inbox ?? [], since, options)
-  const ledger = readHqFeedLedger(feed.ledger)
-  return ledger ? hqPlusFoldConversations(items, feed.entries, ledger, since) : items
+  return hqPlusFoldFeed(feed, hqPlusFeedRows(feed, since, options), since)
 }
