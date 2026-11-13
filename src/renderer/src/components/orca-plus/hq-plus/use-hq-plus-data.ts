@@ -10,6 +10,7 @@ import {
   type HqFeedResult,
   type HqPlusScreenStats
 } from '../../../../../shared/hq-plus-screen'
+import { hqPlusDayStart } from '../../../../../shared/hq-plus-log'
 import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import {
   isHqFeed,
@@ -36,6 +37,27 @@ export type HqPlusData = {
   reload: () => void
 }
 
+/**
+ * Custom build (hq-plus-feed-trim, owner 13.11): the same answer again sets nothing, so the screen does
+ * not redraw a week of rows on every pulse write. `skip` names fields that change on every call.
+ */
+export function hqPlusSameAs(
+  last: { current: Map<string, string> },
+  key: string,
+  value: unknown,
+  skip?: string
+): boolean {
+  const text = JSON.stringify(
+    value,
+    skip ? (field, inner) => (field === skip ? undefined : inner) : undefined
+  )
+  if (last.current.get(key) === text) {
+    return true
+  }
+  last.current.set(key, text)
+  return false
+}
+
 async function call(method: string, params?: Record<string, unknown>): Promise<unknown> {
   const response = await window.api.runtime.call(params ? { method, params } : { method })
   if (!response.ok) {
@@ -54,52 +76,97 @@ export function useHqPlusData(): HqPlusData {
   const [chatLinks, setChatLinks] = useState<HqChatLinksResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const alive = useRef(true)
+  const seen = useRef(new Map<string, string>())
+  // Why: pulse writes come every few seconds and a read takes a while; overlapping reads only
+  // queued behind each other, so one runs at a time and a request during it runs once after.
+  const running = useRef(false)
+  const again = useRef(false)
+  const reloadRef = useRef<() => void>(() => {})
 
   const reload = useCallback(() => {
-    const since = Date.now() - HQ_PLUS_FEED_WINDOW_MS
+    if (running.current) {
+      again.current = true
+      return
+    }
+    running.current = true
+    const now = Date.now()
+    const since = now - HQ_PLUS_FEED_WINDOW_MS
     void Promise.allSettled([
-      call('hq.feed', { since }),
+      // Why: the feed draws no bell item raised and settled before the day began; those stay home.
+      call('hq.feed', { since, settledSince: hqPlusDayStart(now) }),
       call('pulse.listWaitings', { status: 'open' }),
       call('pulse.listPeople'),
       call('hq.sessions'),
       call('hq.screenStats', {}),
       call('automation.list', {}),
       call('hq.chatLinks', {})
-    ]).then(
-      ([nextFeed, nextWaits, nextPeople, nextSessions, nextStats, nextAutomations, nextLinks]) => {
-        if (!alive.current) {
-          return
+    ])
+      .then(
+        ([
+          nextFeed,
+          nextWaits,
+          nextPeople,
+          nextSessions,
+          nextStats,
+          nextAutomations,
+          nextLinks
+        ]) => {
+          if (!alive.current) {
+            return
+          }
+          const changed = (key: string, value: unknown, skip?: string): boolean =>
+            !hqPlusSameAs(seen, key, value, skip)
+          if (nextFeed.status === 'fulfilled') {
+            if (changed('feed', nextFeed.value, 'now')) {
+              setFeed(isHqFeed(nextFeed.value) ? nextFeed.value : null)
+            }
+            setError(null)
+          } else {
+            setError(
+              String(nextFeed.reason instanceof Error ? nextFeed.reason.message : nextFeed.reason)
+            )
+          }
+          if (nextWaits.status === 'fulfilled' && changed('waits', nextWaits.value)) {
+            setWaits(isPulseWaitings(nextWaits.value) ? nextWaits.value : [])
+          }
+          if (nextPeople.status === 'fulfilled' && changed('people', nextPeople.value)) {
+            setPeople(isPulsePeople(nextPeople.value) ? nextPeople.value : [])
+          }
+          if (nextSessions.status === 'fulfilled' && changed('sessions', nextSessions.value)) {
+            setSessions(isHqSessionsResult(nextSessions.value) ? nextSessions.value : null)
+          }
+          if (
+            nextStats.status === 'fulfilled' &&
+            isHqScreenStats(nextStats.value) &&
+            changed('stats', nextStats.value)
+          ) {
+            setStats(nextStats.value)
+          }
+          if (nextAutomations.status === 'fulfilled') {
+            const upcomingNext = readUpcomingAutomations(nextAutomations.value, Date.now())
+            if (changed('upcoming', upcomingNext)) {
+              setUpcoming(upcomingNext)
+            }
+          }
+          // Why: an older host has no links; the tree then lists every chat flat.
+          if (
+            nextLinks.status === 'fulfilled' &&
+            isHqChatLinksResult(nextLinks.value) &&
+            changed('chatLinks', nextLinks.value)
+          ) {
+            setChatLinks(nextLinks.value)
+          }
         }
-        if (nextFeed.status === 'fulfilled') {
-          setFeed(isHqFeed(nextFeed.value) ? nextFeed.value : null)
-          setError(null)
-        } else {
-          setError(
-            String(nextFeed.reason instanceof Error ? nextFeed.reason.message : nextFeed.reason)
-          )
+      )
+      .finally(() => {
+        running.current = false
+        if (again.current && alive.current) {
+          again.current = false
+          reloadRef.current()
         }
-        if (nextWaits.status === 'fulfilled') {
-          setWaits(isPulseWaitings(nextWaits.value) ? nextWaits.value : [])
-        }
-        if (nextPeople.status === 'fulfilled') {
-          setPeople(isPulsePeople(nextPeople.value) ? nextPeople.value : [])
-        }
-        if (nextSessions.status === 'fulfilled') {
-          setSessions(isHqSessionsResult(nextSessions.value) ? nextSessions.value : null)
-        }
-        if (nextStats.status === 'fulfilled' && isHqScreenStats(nextStats.value)) {
-          setStats(nextStats.value)
-        }
-        if (nextAutomations.status === 'fulfilled') {
-          setUpcoming(readUpcomingAutomations(nextAutomations.value, Date.now()))
-        }
-        // Why: an older host has no links; the tree then lists every chat flat.
-        if (nextLinks.status === 'fulfilled' && isHqChatLinksResult(nextLinks.value)) {
-          setChatLinks(nextLinks.value)
-        }
-      }
-    )
+      })
   }, [])
+  reloadRef.current = reload
 
   useEffect(() => {
     alive.current = true
@@ -109,6 +176,7 @@ export function useHqPlusData(): HqPlusData {
     const unsubscribe = isWebClientLocation() ? () => {} : window.api.pulseBell.onChanged(reload)
     return () => {
       alive.current = false
+      again.current = false
       clearInterval(timer)
       unsubscribe()
     }
