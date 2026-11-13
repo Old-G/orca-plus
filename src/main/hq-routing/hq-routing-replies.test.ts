@@ -31,7 +31,11 @@ let delivered: { sessionId: string | null; prompt: string }[]
 let judge: ReturnType<typeof vi.fn<(prompt: string) => Promise<string | null>>>
 
 function routing() {
-  return createHqReplyRouting({
+  return createHqReplyRouting(routingDeps())
+}
+
+function routingDeps(): Parameters<typeof createHqReplyRouting>[0] {
+  return {
     listWaitings: () => db.listWaitings({ direction: 'on-them' }),
     judge,
     pass: (waitingId, replyTs, prompt) =>
@@ -63,7 +67,7 @@ function routing() {
     pulse: { list: (query) => db.listJournal(query), record: (inputs) => db.recordJournal(inputs) },
     now: () => clock,
     log: () => undefined
-  })
+  }
 }
 
 let asked = 0
@@ -235,6 +239,17 @@ describe('with the rule off', () => {
     expect(db.getWaiting(fact.id)?.replyDeliveredAt).toBeNull()
     expect(service.note(fact)).toEqual({ hold: false, why: null })
     expect(delivered).toEqual([])
+  })
+
+  it('tells the bell to look again once a held answer is sorted for the chat', async () => {
+    const changed = vi.fn()
+    const service = createHqReplyRouting({ ...routingDeps(), changed })
+    const fact = answered('Postgres, the replica is read-only')
+    expect(service.note(fact)).toEqual({ hold: true, why: null })
+    judge.mockResolvedValueOnce('CHAT')
+    await service.route(null, { dryRun: false })
+    expect(changed).toHaveBeenCalled()
+    expect(service.note(fact)).toEqual({ hold: false, why: null })
   })
 
   // 09.11: «спасибо, всё супер» became a «Pass to chat» card — a thanks is nobody's work.
