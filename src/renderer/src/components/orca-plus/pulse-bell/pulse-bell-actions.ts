@@ -147,39 +147,41 @@ export async function closeFinishedPulseBellItemsForHqChat(
   )
 }
 
-/** Runs the button, then closes the item unless its producer closes it on its own. */
-export async function runPulseBellAction(item: PulseInboxItem, actionId: string): Promise<void> {
+/** Runs the button, then closes the item unless its producer closes it on its own. Custom build
+ *  (hq-plus-instant): false when Pass, Close or a reminder's start did not go through, so HQ+ brings
+ *  back a card it closed on the click. */
+export async function runPulseBellAction(item: PulseInboxItem, actionId: string): Promise<boolean> {
   const slackRequest =
     item.kind === HQ_SLACK_REQUEST_BELL_KIND ? readHqSlackRequestRef(item.refId) : null
   if (slackRequest) {
     await runHqSlackRequestAction(slackRequest.id, actionId)
     // Why: the item closes once HQ records the decision; Edit is not one, and a failure keeps it.
     await window.api.pulseBell.markRead([item.id])
-    return
+    return true
   }
   // Custom build (hq-slack-intake): the bell's «To work» brings the card back; it closes on a decision.
   if (item.kind === HQ_INTAKE_KIND) {
     showHqIntakeCard(item)
-    return
+    return true
   }
   // Custom build (hq-reply-approve): Pass and Skip close the item through main; Open only reads it.
   const waitingReply =
     item.kind === HQ_WAITING_REPLY_KIND ? readHqWaitingReplyRef(item.refId) : null
   if (waitingReply) {
-    await runHqWaitingReplyAction(waitingReply, actionId)
+    const went = await runHqWaitingReplyAction(waitingReply, actionId)
     await window.api.pulseBell.markRead([item.id])
-    return
+    return went
   }
   const handoffOfferId =
     item.kind === PULSE_BELL_KIND.handoff ? readHandoffBellOfferId(item.refId) : null
   if (handoffOfferId) {
     if (actionId === PULSE_BELL_ACTION.launch) {
       await launchClaudeHandoffOffer(handoffOfferId)
-      return
+      return true
     }
     if (actionId === PULSE_BELL_ACTION.dismiss) {
       await window.api.claudeHandoff.dismiss(handoffOfferId)
-      return
+      return true
     }
   }
   if (item.kind === PULSE_BELL_KIND.agentWaiting && actionId === PULSE_BELL_ACTION.open) {
@@ -189,7 +191,7 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
     }
     // Why: the item closes itself when the agent stops waiting; opening is not answering.
     await window.api.pulseBell.markRead([item.id])
-    return
+    return true
   }
   if (item.kind === HQ_BRIEFING_KIND && actionId === HQ_BRIEFING_OPEN_ACTION) {
     openHqScreen(HQ_BRIEFING_TAB)
@@ -208,7 +210,7 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
     const started = await startHqRemind(item.refId)
     if (!started.ok) {
       toast.error(started.message)
-      return
+      return false
     }
   }
   // Custom build (hq-scout-digest): the digest leads to HQ → Today, where the requests wait.
@@ -234,7 +236,7 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
         { description: moved.reason }
       )
       // Why: the stop stays recorded, so the item stays for another try.
-      return
+      return true
     }
   }
   if (item.kind === PULSE_BELL_KIND.claudeAuthStop && actionId === PULSE_BELL_ACTION.continue) {
@@ -253,4 +255,5 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
     await switchClaudeAccountTo(item.refId)
   }
   await window.api.pulseBell.markDone(item.id, actionId)
+  return true
 }
