@@ -121,6 +121,17 @@ describe('runHqOpenLoops', () => {
     })
     tick = T0 + 73 * HOUR
     expect(runHqOpenLoops(deps(db)).opened).toBe(1)
+    say(db, 73.5, {
+      ...owner,
+      key: 'clickup:DEV-7',
+      ts: 'comment:1',
+      reader: 'clickup-api',
+      text: '@Ann Lee bump',
+      link: 'https://app.clickup.com/t/86abc12xy?comment=1'
+    })
+    tick = T0 + 73.8 * HOUR
+    // Why: learning the alias moves the timeline's id; the same ask must not open a second time.
+    expect(runHqOpenLoops(deps(db)).opened).toBe(0)
     say(db, 74, {
       key: 'clickup:DEV-7',
       ts: 'comment:2',

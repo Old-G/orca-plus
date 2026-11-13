@@ -134,6 +134,11 @@ export function runHqOpenLoops(deps: HqOpenLoopsDeps): HqOpenLoopsPass {
   const since = now - HQ_OPEN_LOOPS_WINDOW_MS
   const records = deps.records(since - HQ_OPEN_LOOPS_WINDOW_MS)
   const recorded = new Set(records.map((record) => record.id))
+  // Why: a loop's id carries its timeline, which moves once a ClickUp raw id is learned as an alias;
+  // the message that asks stays the same.
+  const asked = new Set(
+    records.map((record) => `${record.askKey}#${record.askTs}#${record.direction}`)
+  )
   const waitings = deps.waitings()
   const people = deps.people()
   const names = new Map(
@@ -172,7 +177,13 @@ export function runHqOpenLoops(deps: HqOpenLoopsDeps): HqOpenLoopsPass {
       }
     }
     const loop = hqOpenLoop(row.timeline, owner)
-    if (!loop || now < loop.dueAt || loop.opening.at < since || recorded.has(loop.id)) {
+    if (
+      !loop ||
+      now < loop.dueAt ||
+      loop.opening.at < since ||
+      recorded.has(loop.id) ||
+      asked.has(`${loop.opening.key}#${loop.opening.ts}#${loop.direction}`)
+    ) {
       continue
     }
     const reply = hqLoopAnswer(loop, row.timeline, owner)

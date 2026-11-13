@@ -126,6 +126,38 @@ describe('hqOpenLoop', () => {
     ).toBeNull()
   })
 
+  it('opens again on an ask made after one was taken back', () => {
+    const loop = hqOpenLoop(
+      timeline('slack:C1:1.1', [
+        [0, 'ann', 'hi'],
+        [1, 'owner', '<@UANN> can you take this?'],
+        [
+          2,
+          'owner',
+          '\u0432\u043e\u043f\u0440\u043e\u0441 \u0441\u043d\u0438\u043c\u0430\u044e, \u0441\u0434\u0435\u043b\u0430\u043b \u0441\u0430\u043c'
+        ],
+        [3, 'owner', '<@UANN> can you check the import instead?']
+      ]),
+      owner
+    )
+    expect(loop).toMatchObject({
+      direction: 'on-them',
+      opening: { text: '<@UANN> can you check the import instead?' }
+    })
+  })
+
+  it('takes a thanks with a ClickUp tag in its markup for a thanks', () => {
+    const loop = hqOpenLoop(
+      timeline('clickup:abc1', [
+        [0, 'ann', '@Olga Owner could you send the price list?'],
+        [1, 'owner', 'Here it is, the final one'],
+        [2, 'ann', '[@Olga Owner](#user_mention#42) thank you!']
+      ]),
+      owner
+    )
+    expect(loop).toBeNull()
+  })
+
   it('leaves an ask tied to a time of today to the evening check', () => {
     const loop = hqOpenLoop(
       timeline('slack:C1:1.1', [
