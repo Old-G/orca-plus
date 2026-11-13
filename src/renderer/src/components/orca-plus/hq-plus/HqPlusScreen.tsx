@@ -1517,6 +1517,9 @@ export function HqPlusScreen(): React.JSX.Element {
             setScope(null)
             setSelectedId(item.id)
             goToFeedItem(item.id, item)
+            // Custom build (hq-plus-ticker-open, owner 14.11): a Live line opens its chat on the
+            // right too; a line with no chat (a request, a report) only finds its place in the feed.
+            openChat(item.sessionId)?.()
           }}
         />
       }
