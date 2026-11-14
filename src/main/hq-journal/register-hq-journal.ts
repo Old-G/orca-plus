@@ -9,13 +9,16 @@ import { createHqJournalService, provideHqJournalService } from './hq-journal-se
 import { effortJournal } from './hq-effort-journal'
 import { hqPlaceOf } from './hq-journal-rooms'
 import { provideAutoEffortLog } from '../native-chat/auto-effort/native-chat-auto-effort'
-import { createHqThreads, provideHqThreads } from './hq-journal-threads'
+import { createHqThreads, provideHqThreads, type HqThreadsDeps } from './hq-journal-threads'
+import { hqDeliverLeadBatch, hqLeadBatchGiveUp, hqLeadBatchSession } from './hq-journal-send'
+import { createHqLeadBatch, HQ_LEAD_BATCH_FILE, parseHqLeadHeld } from './hq-lead-batch'
 import { registerHqSessions } from '../hq-sessions/register-hq-sessions'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { provideNativeChatTabReveal } from '../orca-plus/waiting-replies/native-chat-tab-reveal'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/host/structured-agent-session-registry'
 import { runHqReopenChatOnDesktop } from '../hq-today/hq-request-on-desktop'
 import { existsSync } from 'node:fs'
+import { readFile, rename, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { app } from 'electron'
@@ -127,29 +130,63 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
   registerHqContext(store, runtime, service)
   // Custom build (hq-plus-brain): the «Brain» screen's host side.
   registerHqBrain(store, runtime)
+  const threadPulse = {
+    record: (inputs) => runtime.pulseRecordJournal(inputs),
+    list: (query) => runtime.pulseListJournal(query),
+    getSession: (sessionId) => runtime.pulseGetSession(sessionId),
+    noteSessions: (inputs) => runtime.pulseNoteSessions(inputs),
+    listSessionsByAddress: (address) => runtime.pulseListSessionsByAddress(address),
+    getEntry: (id) => runtime.pulseGetJournalEntry(id),
+    listPeople: () => runtime.pulseListPeople(),
+    upsertPerson: (input) => runtime.pulseUpsertPerson(input),
+    linkChat: (input) => runtime.pulseChats().link(input),
+    roleOf: (sessionId) => runtime.pulseChats().roleOf(sessionId),
+    setRole: (input) => runtime.pulseChats().setRole(input)
+  } satisfies HqThreadsDeps['pulse']
+  const delivery = {
+    pulse: threadPulse,
+    sessionWorkspace,
+    deliver: (sessionId: string, prompt: string) =>
+      deliverToNativeChat(sessionId, prompt, 'hq-chat-send'),
+    reopen: (sessionId: string, worktreeId: string) =>
+      runHqReopenChatOnDesktop(sessionId, worktreeId).ok,
+    wait: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+  }
+  // Custom build (hq-lead-batch): a Lead's messages from other chats wait here for one turn.
+  const leadBatchFile = join(app.getPath('userData'), HQ_LEAD_BATCH_FILE)
+  const leadBatch = createHqLeadBatch({
+    busy: (held) => {
+      const status = getStructuredAgentSessionHost()?.readStatusSummary(
+        hqLeadBatchSession(threadPulse, held)
+      )?.status
+      return status === 'working' || status === 'attention'
+    },
+    flush: (held, prompt) => hqDeliverLeadBatch(delivery, held, prompt),
+    giveUp: (held, prompt) =>
+      hqLeadBatchGiveUp({ pulse: threadPulse, now: Date.now }, held, prompt),
+    load: async () => parseHqLeadHeld(await readFile(leadBatchFile, 'utf8').catch(() => '[]')),
+    // Why: written aside and renamed, so a crash mid-write cannot leave a cut file that reads as none.
+    save: async (held) => {
+      await writeFile(`${leadBatchFile}.tmp`, JSON.stringify(held))
+      await rename(`${leadBatchFile}.tmp`, leadBatchFile)
+    },
+    now: Date.now,
+    schedule: (run, ms) => {
+      const timer = setTimeout(run, ms)
+      timer.unref?.()
+      return () => clearTimeout(timer)
+    },
+    log: (message) => console.warn('[hq-lead-batch]', message)
+  })
+  void leadBatch.start()
   provideHqThreads(
     createHqThreads({
+      ...delivery,
       enabled,
       scope: (caller) => service.scope(caller),
-      pulse: {
-        record: (inputs) => runtime.pulseRecordJournal(inputs),
-        list: (query) => runtime.pulseListJournal(query),
-        getSession: (sessionId) => runtime.pulseGetSession(sessionId),
-        noteSessions: (inputs) => runtime.pulseNoteSessions(inputs),
-        listSessionsByAddress: (address) => runtime.pulseListSessionsByAddress(address),
-        getEntry: (id) => runtime.pulseGetJournalEntry(id),
-        listPeople: () => runtime.pulseListPeople(),
-        upsertPerson: (input) => runtime.pulseUpsertPerson(input),
-        linkChat: (input) => runtime.pulseChats().link(input),
-        roleOf: (sessionId) => runtime.pulseChats().roleOf(sessionId),
-        setRole: (input) => runtime.pulseChats().setRole(input)
-      },
       sessionName: (sessionId) => record(sessionId)?.conversationName?.trim() || null,
-      sessionWorkspace,
-      deliver: (sessionId, prompt) => deliverToNativeChat(sessionId, prompt, 'hq-chat-send'),
-      reopen: (sessionId, worktreeId) => runHqReopenChatOnDesktop(sessionId, worktreeId).ok,
-      wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      now: Date.now
+      now: Date.now,
+      leadBatch
     })
   )
   registerHqSessions(store, runtime, service)
