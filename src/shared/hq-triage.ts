@@ -3,10 +3,6 @@
 import type { ClickUpComment, ClickUpStatus, ClickUpTaskSummary } from './clickup-types'
 import type { HqAutonomyLevel } from './hq-autonomy'
 import type { HqProjectClickUpLists } from './hq-project-clickup'
-import {
-  CLAUDE_NEW_CHAT_MODEL,
-  savedSelectionForNewChat
-} from './native-chat/input/claude-new-chat-model'
 import type { PersistedNativeChatSessionOptions } from './native-chat/input/native-chat-session-options'
 
 export type HqTriageDecision = {
@@ -105,9 +101,8 @@ export function withHqTakeEffort(
   persisted: PersistedNativeChatSessionOptions | undefined,
   effort: string = HQ_TAKE_EFFORT
 ): PersistedNativeChatSessionOptions {
-  // Custom build (chat-default-model): a taken task never runs on a saved Fable pick.
-  const claude = savedSelectionForNewChat(persisted)?.claude
-  const model = claude?.model?.trim() || CLAUDE_NEW_CHAT_MODEL
+  const claude = persisted?.claude
+  const model = claude?.model?.trim() || 'opus'
   return {
     ...persisted,
     claude: {
