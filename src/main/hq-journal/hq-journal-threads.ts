@@ -24,6 +24,7 @@ import { hqJournalLink, journalEntryAsInput } from './hq-journal-adapters'
 import type { HqJournalPulse } from './hq-journal-collect'
 import type { HqCaller, HqCallerScope } from './hq-journal-rooms'
 import { hqCarryChatRole, hqNewChatAddress } from './hq-journal-chat-role'
+import type { HqLeadBatch } from './hq-lead-batch'
 import { createHqSend, HQ_JOURNAL_OFF as JOURNAL_OFF, hqRoomOf as roomOf } from './hq-journal-send'
 
 export type HqThreadsDeps = {
@@ -54,6 +55,8 @@ export type HqThreadsDeps = {
   reopen: (sessionId: string, worktreeId: string) => boolean
   wait: (ms: number) => Promise<void>
   now: () => number
+  /** Custom build (hq-lead-batch): where a Lead's messages from other chats wait for one turn. */
+  leadBatch?: HqLeadBatch
 }
 
 export type HqThreads = {
