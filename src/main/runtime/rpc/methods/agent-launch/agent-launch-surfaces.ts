@@ -19,6 +19,7 @@ import { structuredCallerFor } from '../structured-sessions/creation/structured-
 import { createStructuredAgentSessionForWorktree } from '../structured-sessions/creation/structured-agent-session-create'
 import { supportedStructuredSeedOptions } from '../../../agent-session/installation/structured-agent-runtime-metadata'
 import { deliverTerminalAgentLaunchPrompt } from './agent-launch-terminal-prompt'
+import { agentLaunchClaudeSelection } from './agent-launch-claude-selection'
 import { AgentLaunchSessionAlreadyExistsError } from '../../../../../shared/agent-launch/contracts/agent-launch-session-already-exists'
 import { AGENT_SESSION_CREATE_MESSAGE_RUNTIME_CAPABILITY } from '../../../../../shared/agent-session/lifecycle/operations/agent-session-create-capabilities'
 import { createOrcaSessionId } from '../../../../../shared/agent-session/identity/orca-session-address'
@@ -119,7 +120,15 @@ export function agentLaunchSurfaceFactory(
         agent,
         narrowStructuredLaunchSeedOptions(options)
       )
-      const seeded = chatOptions ?? (Object.keys(supported).length > 0 ? supported : undefined)
+      // Custom build (chat-default-model): a launch no person made never takes the window's selection.
+      const launched = agentLaunchClaudeSelection({
+        agent,
+        caller: context.caller,
+        named: supported,
+        launchOptions: options
+      })
+      const seeded =
+        chatOptions ?? (Object.keys(launched.options).length > 0 ? launched.options : undefined)
       // A client that creates chats without starting them starts this one on its first message.
       const atRest =
         firstMessage !== undefined ||
@@ -145,7 +154,9 @@ export function agentLaunchSurfaceFactory(
         },
         worktree: `id:${worktreeId}`,
         agent,
-        ...(chatOptions?.model ? { optionsMode: 'replace-model-selection' as const } : {}),
+        ...(chatOptions?.model || (!chatOptions && launched.replacesSavedSelection)
+          ? { optionsMode: 'replace-model-selection' as const }
+          : {}),
         ...(seeded ? { options: seeded } : {}),
         ...(tabId ? { tabId } : {}),
         ...(atRest ? { atRest: true as const } : {}),
