@@ -58,13 +58,20 @@ describe('HQ lean background launch', () => {
     expect(verdict).toEqual({ ok: true, text: '{"answer": true}' })
     expect(runGenerationRequest.mock.calls[0][0].params.agentArgs).toContain(HQ_LEAN_ARGS)
     expect(runGenerationRequest.mock.calls[0][0].params.model).toBe('haiku')
+  })
 
-    await generateHqText(
-      'q',
-      { emptyResultName: 'ledger draft', operation: 'hq-ledger-draft' },
-      deps
-    )
-    expect(runGenerationRequest.mock.calls[1][0].params.agentArgs).not.toContain('--system-prompt')
+  it.each([
+    'hq-ledger-draft',
+    'hq-feed-posts',
+    'hq-task-questions',
+    'hq-clickup-reply',
+    'hq-voice-rewrite',
+    // Its answer carries the reply the owner posts in the task.
+    'hq-clickup-triage'
+  ] as const)('keeps the full launch for %s, whose answer people read', async (operation) => {
+    runGenerationRequest.mockResolvedValue({ success: true, rawOutput: 'text' })
+    await generateHqText('q', { emptyResultName: 'text', operation }, deps)
+    expect(runGenerationRequest.mock.calls[0][0].params.agentArgs).not.toContain('--system-prompt')
   })
 
   it('asks once more with the full launch when Claude refuses the lean one', async () => {
@@ -90,12 +97,14 @@ describe('HQ lean background launch', () => {
     expect(runGenerationRequest.mock.calls[1][0].params.agentArgs).not.toContain('--no-chrome')
   })
 
-  it('does not ask again when the run was stopped rather than refused', async () => {
+  it.each([
+    ['a stopped run', { exitCode: null, stderr: '' }],
+    ['a limit or sign-in failure', { exitCode: 1, stderr: 'Claude usage limit reached' }]
+  ])('does not ask again after %s', async (_name, exit) => {
     runGenerationRequest.mockResolvedValue({
       success: false,
-      error: 'canceled',
-      canceled: true,
-      failureOutput: { label: 'Claude', exitCode: null, stdout: '', stderr: '' }
+      error: 'failed',
+      failureOutput: { label: 'Claude', stdout: '', ...exit }
     })
     const verdict = await generateHqText(
       'q',
@@ -103,6 +112,16 @@ describe('HQ lean background launch', () => {
       deps
     )
     expect(verdict.ok).toBe(false)
+    expect(runGenerationRequest).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not ask again when the run never started', async () => {
+    runGenerationRequest.mockResolvedValue({ success: false, error: 'Could not start Claude' })
+    await generateHqText(
+      'q',
+      { emptyResultName: 'in-work check', operation: 'hq-in-work', model: 'haiku' },
+      deps
+    )
     expect(runGenerationRequest).toHaveBeenCalledTimes(1)
   })
 })
