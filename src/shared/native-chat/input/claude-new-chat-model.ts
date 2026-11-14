@@ -8,9 +8,10 @@ import type { PersistedNativeChatSessionOptions } from './native-chat-session-op
 /** What a saved Fable pick is read as: the CLI's Opus alias, listed on every host. */
 export const CLAUDE_NEW_CHAT_MODEL = 'opus'
 
-/** `fable`, `fable[1m]`, `claude-fable-5-2`, `claude-fable-5-2[1m]`; never a name that only contains it. */
+/** `fable`, `fable[1m]`, `claude-fable-5-2[1m]`, and the same behind a provider prefix
+ *  (`us.anthropic.claude-fable-5-2-v1:0`, `anthropic/claude-fable-5-2`); never a name that only contains it. */
 export function isFableModel(model: string | null | undefined): boolean {
-  return typeof model === 'string' && /^(claude-)?fable(?![a-z0-9])/iu.test(model.trim())
+  return typeof model === 'string' && /(^|[./:])(claude-)?fable(?![a-z0-9])/iu.test(model.trim())
 }
 
 /** The saved selection a new chat may start from: a saved Fable becomes Opus with Opus's own saved
