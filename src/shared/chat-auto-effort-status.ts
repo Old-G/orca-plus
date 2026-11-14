@@ -3,7 +3,9 @@ export type ChatAutoEffortOutcome = {
   at: number
   /** The effort the message went with: the pick, or the chat's own on a miss. */
   effort: string | null
-  result: 'picked' | 'no-key' | 'no-answer' | 'no-effort-control'
+  // Custom build (chat-auto-effort-roles): 'role' — the chat's role fixed it; 'relayed' — another
+  // chat or a lead sent it, the chat kept its effort.
+  result: 'picked' | 'no-key' | 'no-answer' | 'no-effort-control' | 'role' | 'relayed'
   message: string
 }
 

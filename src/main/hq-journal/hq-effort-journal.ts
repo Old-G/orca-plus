@@ -17,7 +17,9 @@ export function effortJournal(entry: AutoEffortLogEntry, place: HqJournalPlacer)
     address: null,
     sessionId: entry.sessionId,
     personId: null,
-    title: `${effort} · ${entry.result}: ${entry.message}`,
+    // Custom build (chat-auto-effort-roles): the chat's role, when it has one, so a lead's fixed medium
+    // and a relayed message read as such in the day review.
+    title: `${effort} · ${entry.result}${entry.role ? ` · ${entry.role}` : ''}: ${entry.message}`,
     body: null,
     needs: 'nobody',
     status: 'done',

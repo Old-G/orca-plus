@@ -23,17 +23,29 @@ function lastOutcomeLine(status: ChatAutoEffortStatus): string | null {
         when,
         effort: last.effort ?? ''
       })
-    : last.result === 'no-effort-control'
+    : last.result === 'role'
       ? translate(
-          'auto.chat.autoEffort.lastNoControl',
-          'Last message ({{when}}): its model has no effort control, nothing was changed.',
-          { when }
+          'auto.chat.autoEffort.lastRole',
+          "Last message ({{when}}): {{effort}}, fixed by the chat's role; Jev was not asked.",
+          { when, effort: last.effort ?? '' }
         )
-      : translate(
-          'auto.chat.autoEffort.lastMissed',
-          'Last message ({{when}}): no answer from Jev, the chat kept its effort.',
-          { when }
-        )
+      : last.result === 'relayed'
+        ? translate(
+            'auto.chat.autoEffort.lastRelayed',
+            'Last message ({{when}}): sent by another chat, the chat kept its effort.',
+            { when }
+          )
+        : last.result === 'no-effort-control'
+          ? translate(
+              'auto.chat.autoEffort.lastNoControl',
+              'Last message ({{when}}): its model has no effort control, nothing was changed.',
+              { when }
+            )
+          : translate(
+              'auto.chat.autoEffort.lastMissed',
+              'Last message ({{when}}): no answer from Jev, the chat kept its effort.',
+              { when }
+            )
 }
 
 export function ChatAutoEffortSetting({
