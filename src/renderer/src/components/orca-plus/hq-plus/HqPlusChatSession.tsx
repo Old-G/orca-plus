@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import type { HqChatItem } from '../hq/hq-chat-list'
 import { useHqChatTitle } from '../hq/HqChatAvatar'
+import { HqPlusRoleTag, hqPlusRoleTitle } from './HqPlusRoleTag'
+import type { HqChatRole } from '../../../../../shared/hq-chat-role'
 import { HqChatBody } from '../hq/HqChatPane'
 import { HqProjectHistoryList } from '../hq/HqProjectHistoryList'
 import { useHqProjectHistory } from '../hq/use-hq-project-history'
@@ -78,6 +80,7 @@ function History({
 
 export function HqPlusChatSession({
   item,
+  role = null,
   tile,
   status,
   color,
@@ -85,6 +88,8 @@ export function HqPlusChatSession({
   onPick
 }: {
   item: HqChatItem
+  /** Custom build (hq-chat-roles): the role it was launched with, before its title. */
+  role?: HqChatRole | null
   tile: HqPlusTile
   status: HqPlusBadge | null
   color: string | undefined
@@ -92,7 +97,7 @@ export function HqPlusChatSession({
   siblings: readonly HqChatItem[]
   onPick: (item: HqChatItem) => void
 }): React.JSX.Element {
-  const title = useHqChatTitle(item)
+  const title = hqPlusRoleTitle(useHqChatTitle(item), role)
   const [history, setHistory] = useState(false)
   // Custom build (hq-plus-ui-v3): «Project» stays in HQ+ — files, source control, checks here.
   const [project, setProject] = useState(false)
@@ -106,6 +111,7 @@ export function HqPlusChatSession({
           {tile.letters}
         </span>
         <span className="t" title={`${title} · ${item.projectName}`}>
+          <HqPlusRoleTag role={role} />
           {title}
           {/* Custom build (hq-plus-all-projects): whose chat this is, not only its tile (owner, 30.10). */}
           <small className="hqp-ses-proj">{item.projectName}</small>
