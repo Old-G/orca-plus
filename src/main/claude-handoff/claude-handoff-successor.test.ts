@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ClaudeHandoffOffer } from '../../shared/claude-handoff-file'
 import {
+  claudeHandoffSuccessorSessionOptions,
   claudeHandoffSuccessorWorktreeId,
   closeClaudeHandedOffChat
 } from './claude-handoff-successor'
@@ -63,5 +64,27 @@ describe('claude handoff successor', () => {
     expect(await closeClaudeHandedOffChat(deps, offer({ tabId: NEW_TAB }), NEW_TAB)).toBe(
       'not-a-chat'
     )
+  })
+})
+
+describe('claudeHandoffSuccessorSessionOptions', () => {
+  it("starts the successor on the old chat's model and effort, with its role", () => {
+    expect(
+      claudeHandoffSuccessorSessionOptions(
+        { model: 'opus', effort: 'high', permissionMode: 'auto', fastMode: 'false' },
+        'worker'
+      )
+    ).toEqual({ model: 'opus', effort: 'high', orcaChatRole: 'worker' })
+  })
+
+  it('carries what the record holds and nothing when it holds nothing', () => {
+    expect(claudeHandoffSuccessorSessionOptions({ model: 'claude-opus-5-5' }, null)).toEqual({
+      model: 'claude-opus-5-5'
+    })
+    expect(claudeHandoffSuccessorSessionOptions({ model: ' ', effort: '' }, null)).toBeUndefined()
+    expect(claudeHandoffSuccessorSessionOptions(undefined, null)).toBeUndefined()
+    expect(claudeHandoffSuccessorSessionOptions(undefined, 'lead')).toEqual({
+      orcaChatRole: 'lead'
+    })
   })
 })
