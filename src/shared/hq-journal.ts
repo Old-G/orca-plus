@@ -1,6 +1,7 @@
 // Custom build (hq-plus-journal): HQ+'s event journal — one record per thing that happened, each
 // saying which room (HQ space) it belongs to and whose move it is next (`needs`). Agents read it
 // through `orca hq events`; the stores it points at (waitings, drafts, decisions, inbox) stay as they are.
+import { hqChatRoleTask, hqUniqueAddress, type HqChatRole } from './hq-chat-role'
 
 /** Events of HQ+ itself, above the rooms. */
 export const HQ_JOURNAL_ALL_ROOMS = '_all'
@@ -292,18 +293,25 @@ export function hqThreadAddress(project: string | null, task: string): string | 
   return tail ? `${head}/${tail}` : null
 }
 
-/** Custom build (chat-send-anywhere): the address a chat gets before it names one — by its name, else its session id's tail. */
+/**
+ * Custom build (chat-send-anywhere): the address a chat gets before it names one — by its name, else
+ * its session id's tail. Custom build (hq-chat-roles, owner 14.11): a chat with a role is
+ * `<project>/<w|lead|sublead|review>-<task>`; an address `taken` by another chat gets `-2`, `-3`…
+ */
 export function hqChatAddress(
   project: string | null,
   name: string | null,
-  sessionId: string
+  sessionId: string,
+  extra: { role?: HqChatRole | null; taken?: (address: string) => boolean } = {}
 ): string {
+  const { role, taken } = extra
   const tail = sessionId.slice(-8).toLowerCase()
-  return (
-    (name ? hqThreadAddress(project, name) : null) ??
+  const base =
+    (name ? hqThreadAddress(project, role ? hqChatRoleTask(role, name) : name) : null) ??
+    (role ? hqThreadAddress(project, hqChatRoleTask(role, tail)) : null) ??
     hqThreadAddress(project, tail) ??
     `${hqSlug(project ?? 'chat') || 'chat'}/${tail}`
-  )
+  return taken ? hqUniqueAddress(base, taken) : base
 }
 
 const ADDRESS = /^[a-z0-9][a-z0-9_.-]{0,80}\/[a-z0-9][a-z0-9_.-]{0,80}$/

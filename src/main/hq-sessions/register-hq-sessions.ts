@@ -160,6 +160,7 @@ export function registerHqSessions(
         asking,
         contextPct,
         name: (sessionId) => record(sessionId)?.conversationName?.trim() || null,
+        role: (sessionId) => runtime.pulseChats().roleOf(sessionId),
         placeOfWorktree: (worktreeId) => {
           const place = hqPlaceOf(sources, { worktreeId })
           return { project: place.project, workspace: place.room }
@@ -172,7 +173,11 @@ export function registerHqSessions(
       const { live, notes } = hqAddressOpenChats(
         seen,
         (sessionId) => runtime.pulseGetSession(sessionId),
-        now
+        now,
+        (address, sessionId) =>
+          runtime
+            .pulseListSessionsByAddress(address)
+            .some((session) => session.sessionId !== sessionId)
       )
       if (notes.length > 0) {
         runtime.pulseNoteSessions(notes)

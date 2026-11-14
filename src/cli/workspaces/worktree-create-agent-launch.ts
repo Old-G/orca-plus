@@ -30,6 +30,7 @@ import { printHookWarning } from './worktree-removal-warnings'
 import { withSetupDecisionRecovery } from './worktree-setup-decision-recovery'
 import { withCliAgentLaunchRecovery } from '../agents/agent-launch-recovery'
 import { linkLaunchedChat } from '../hq-chat-link'
+import { HQ_CHAT_ROLE_SESSION_OPTION } from '../../shared/hq-chat-role'
 
 type WorktreeAgentLaunchResult = Pick<
   RuntimeWorktreeCreateResult,
@@ -68,6 +69,12 @@ export async function createWorktreeWithAgent(args: {
     }
     if (launch.surface) {
       throw new RuntimeClientError('incompatible_runtime', SURFACE_UNSUPPORTED_MESSAGE)
+    }
+    if (launch.sessionOptions?.[HQ_CHAT_ROLE_SESSION_OPTION]) {
+      throw new RuntimeClientError(
+        'incompatible_runtime',
+        'This Orca host cannot keep a chat role. Update Orca on the execution host, or omit --role.'
+      )
     }
     const params = {
       ...create,

@@ -6,7 +6,7 @@ export const AGENT_LAUNCH_COMMAND_SPECS: CommandSpec[] = [
     path: ['agent', 'launch'],
     summary: 'Start an agent in an existing workspace, as a chat or a terminal',
     usage:
-      'orca agent launch --agent <id> [--worktree <selector>] [--prompt <text>] [--model <id>] [--effort <level>] [--surface chat|terminal] [--focus] [--retry-launch <operationId>] [--subscription <id>] [--json]',
+      'orca agent launch --agent <id> [--worktree <selector>] [--prompt <text>] [--model <id>] [--effort <level>] [--surface chat|terminal] [--focus] [--retry-launch <operationId>] [--subscription <id>] [--role lead|sublead|worker|review] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'agent',
@@ -17,7 +17,8 @@ export const AGENT_LAUNCH_COMMAND_SPECS: CommandSpec[] = [
       'surface',
       'focus',
       'retry-launch',
-      'subscription'
+      'subscription',
+      'role'
     ],
     notes: [
       'Starts the agent the way a new agent tab does: as a chat when your Chat | CLI choice for the agent is Chat and the agent and host support it, otherwise as a terminal. The result says which (`outcome.kind`) and why (`receipt.detail`).',
@@ -26,6 +27,7 @@ export const AGENT_LAUNCH_COMMAND_SPECS: CommandSpec[] = [
       '--model takes a provider model id (OMP also takes its model roles and selectors) and --effort a reasoning effort for that model; --effort requires --model. Pi takes a `provider/id` model and maps --effort to `--thinking` (off, minimal, low, medium, high, xhigh, max). They apply to either surface.',
       'The tab opens without switching focus; pass --focus to switch to it.',
       '--subscription (Claude): the Claude subscription id from Settings → Accounts, or `base` for the main sign-in; absent = the default subscription.',
+      "--role lead|sublead|worker|review (chat only): the chat's role in a lead's work. Orca+ keeps it with the chat, gives the chat ORCA_CHAT_ROLE, names its address `<project>/<lead|sublead|w|review>-<task>` and shows it in HQ+; `orca hq sessions --json` lists it.",
       'If the launch reply is lost, re-issue the same command from the same directory on the same host with --retry-launch <operationId> from the error. Never retry as a fresh launch; older hosts require inspecting the workspace first.'
     ],
     examples: [

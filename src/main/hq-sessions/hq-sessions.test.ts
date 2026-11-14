@@ -19,6 +19,8 @@ let sent: { address: string; text: string }[]
 let sendFails: boolean
 let launched: string[]
 let delivered: { sessionId: string; prompt: string }[]
+// Custom build (hq-chat-roles): the thread a new chat already holds when its first turn goes in.
+let addressAtDelivery: (string | null)[]
 let handoffs: string[]
 let service: HqSessionsService
 
@@ -92,6 +94,7 @@ beforeEach(() => {
   sendFails = false
   launched = []
   delivered = []
+  addressAtDelivery = []
   handoffs = []
   service = createHqSessions({
     mode: () => mode,
@@ -125,6 +128,7 @@ beforeEach(() => {
     limit: async () => true,
     nameChat: async () => {},
     deliver: async (sessionId, prompt) => {
+      addressAtDelivery.push(db.getSession(sessionId)?.address ?? null)
       delivered.push({ sessionId, prompt })
       return true
     },
@@ -194,6 +198,7 @@ describe('HQ+ session dispatcher', () => {
     expect(launched).toEqual(['r-api::/w/api'])
     expect(delivered[0].prompt).toContain('Refund cap drafted')
     expect(delivered[0].prompt).toContain('orca hq thread acme-api/refunds')
+    expect(addressAtDelivery).toEqual(['acme-api/refunds'])
     expect(db.getSession('claude_new1')).toMatchObject({
       address: 'acme-api/refunds',
       parentSessionId: 'claude_old',

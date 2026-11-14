@@ -24,6 +24,8 @@ import { AGENT_HOOK_RUNTIME_ENV_KEYS } from '../../../ipc/pty/host-env/spawn-env
 import { REMOTE_RUNTIME_SELECTOR_ENV_KEYS } from '../../../ipc/pty/host-env/inherited-orca-identity-env'
 import { resolveStructuredWorkerIdentityForSession } from '../../orchestration/terminal-authority/structured-sessions/structured-worker-authority'
 import { outgoingGateChildEnv } from '../../../orca-plus/outgoing-approval/outgoing-gate-endpoint'
+import { chatRoleChildEnv } from '../../../orca-plus/chat-roles/chat-role-env'
+import { ORCA_CHAT_ROLE_ENV } from '../../../../shared/hq-chat-role'
 
 /** Remove inherited pane identity so hooks and the CLI cannot attribute the chat to the host's launching pane; the seal keeps a worker's own handle. */
 export const STRUCTURED_CHILD_ENV_TO_DELETE: readonly string[] = [
@@ -35,7 +37,9 @@ export const STRUCTURED_CHILD_ENV_TO_DELETE: readonly string[] = [
   'ORCA_AGENT_LAUNCH_TOKEN',
   ORCA_SCRUB_SAFE_PANE_ENV,
   ORCA_SCRUB_SAFE_LAUNCH_ENV,
-  ...AGENT_HOOK_RUNTIME_ENV_KEYS
+  ...AGENT_HOOK_RUNTIME_ENV_KEYS,
+  // Custom build (hq-chat-roles): a role is the chat's own, never inherited from the shell Orca ran in.
+  ORCA_CHAT_ROLE_ENV
 ]
 
 export type SealedStructuredSessionChild = {
@@ -77,7 +81,9 @@ function childIdentity(
     [ORCA_AGENT_SESSION_ID_ENV]: sessionId,
     [ORCA_STRUCTURED_SESSION_ENV]: '1',
     // Custom build (outgoing-approval): lets the gate hook reach this Orca from a pane-less chat.
-    ...outgoingGateChildEnv()
+    ...outgoingGateChildEnv(),
+    // Custom build (hq-chat-roles): the role the chat was launched with, for hooks.
+    ...chatRoleChildEnv(sessionId)
   }
   const env = { ...childEnv, ...named }
   return { env, commandEnv: { ...named, ...applyThisAppCli(env) } }
