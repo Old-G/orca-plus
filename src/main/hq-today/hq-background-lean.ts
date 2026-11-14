@@ -22,24 +22,35 @@ export const HQ_LEAN_ARGS = [
   `--settings '{"disableAllHooks":true,"autoMemoryEnabled":false}'`
 ].join(' ')
 
-/** Operations whose answer is a verdict the app reads, never text a person reads. */
+/**
+ * Operations whose answer is a verdict the app parses. Their one-line gists and summaries on the
+ * owner's cards are fine lean; ClickUp triage stays full, since its answer carries the reply the owner
+ * posts to a colleague, and texts people read keep the full launch.
+ */
 export const HQ_LEAN_OPERATIONS: ReadonlySet<string> = new Set([
   'hq-slack-intake',
   'hq-reply-routing',
   'hq-mr-watch',
-  'hq-clickup-triage',
   'hq-ledger-guess',
   'hq-in-work',
   'hq-ledger-promises'
 ])
 
+// Commander's refusal of a flag an older CLI does not know.
+const UNKNOWN_OPTION = /unknown option|error: option/i
+
 /**
- * A lean run that Claude itself refused — say an older CLI without one of the flags — is asked once
- * more with the full launch, so a classifier never goes silent because of the trim. A stopped run
- * (no exit code) is not asked again.
+ * A lean run Claude refused for one of its flags (an older CLI) is asked once more with the full
+ * launch, so a classifier never goes silent because of the trim. Any other failure (a limit, sign-in,
+ * a stopped run) would fail the same way again and is not repeated.
  */
 export function shouldRetryLeanRunInFull(
   failure: AgentGenerationFailureOutput | undefined
 ): boolean {
-  return !!failure && typeof failure.exitCode === 'number' && failure.exitCode !== 0
+  return (
+    !!failure &&
+    typeof failure.exitCode === 'number' &&
+    failure.exitCode !== 0 &&
+    UNKNOWN_OPTION.test(`${failure.stderr}\n${failure.stdout}`)
+  )
 }
