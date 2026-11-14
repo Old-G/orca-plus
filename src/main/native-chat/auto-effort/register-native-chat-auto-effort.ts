@@ -1,43 +1,35 @@
-// Custom build (chat-auto-effort): the setting, the OpenRouter key and the classifier, bound at startup.
+// Custom build (chat-auto-effort): the setting and the classifier, bound at startup.
+import { homedir } from 'node:os'
 import { ipcMain } from 'electron'
 import type { Store } from '../../persistence/loading-store/store'
-import { pickEffortWithJev } from './jev-effort-pick'
+import type { CommitMessageAgentEnvironmentResolvers } from '../../text-generation/execution/commit-message-agent-environment'
+import { generateHqText } from '../../hq-today/hq-task-questions'
+import { createHaikuEffortPick } from './haiku-effort-pick'
 import { createChatRoleOf } from './lead-plan-registry'
 import { provideNativeChatAutoEffort, recentAutoEffortOutcomes } from './native-chat-auto-effort'
 import type { ChatAutoEffortStatus } from '../../../shared/chat-auto-effort-status'
-import {
-  clearOpenRouterKey,
-  hasOpenRouterKey,
-  loadOpenRouterKey,
-  saveOpenRouterKey
-} from './openrouter-key-store'
 
-function keyStatus(): ChatAutoEffortStatus {
-  const configured = hasOpenRouterKey()
-  return {
-    configured,
-    readable: configured && loadOpenRouterKey() !== null,
-    recent: recentAutoEffortOutcomes()
-  }
-}
-
-export function registerNativeChatAutoEffort(store: Store): void {
+export function registerNativeChatAutoEffort(
+  store: Store,
+  getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined
+): void {
   provideNativeChatAutoEffort({
     enabled: () => store.getSettings().nativeChatAutoEffort === true,
-    key: loadOpenRouterKey,
-    pick: pickEffortWithJev,
+    pick: createHaikuEffortPick((prompt) =>
+      generateHqText(
+        prompt,
+        { emptyResultName: 'effort', operation: 'hq-effort-pick', model: 'haiku' },
+        {
+          settings: store.getSettings(),
+          cwd: store.getSettings().hqPath ?? homedir(),
+          getAgentEnvResolvers
+        }
+      )
+    ),
     roleOf: createChatRoleOf({ hqPath: () => store.getSettings().hqPath })
   })
-  ipcMain.handle('hqProjects:autoEffortKeyStatus', (): ChatAutoEffortStatus => keyStatus())
-  ipcMain.handle('hqProjects:saveAutoEffortKey', (_event, key: unknown): ChatAutoEffortStatus => {
-    if (typeof key !== 'string' || !key.trim()) {
-      throw new Error('OpenRouter key must be a non-empty string')
-    }
-    saveOpenRouterKey(key.trim())
-    return keyStatus()
-  })
-  ipcMain.handle('hqProjects:clearAutoEffortKey', (): ChatAutoEffortStatus => {
-    clearOpenRouterKey()
-    return keyStatus()
-  })
+  // Why the old name: the channel is what Settings asks for the recent picks.
+  ipcMain.handle('hqProjects:autoEffortKeyStatus', (): ChatAutoEffortStatus => ({
+    recent: recentAutoEffortOutcomes()
+  }))
 }
