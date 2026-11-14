@@ -24,6 +24,19 @@ export type ClaudeHandoffOfferDeps = {
    * into a worktree mid-session writes its handoff there, not where it started (28.10).
    */
   siblingWorktrees?: (worktreeId: string) => string[]
+  /**
+   * Custom build (claude-handoff-model, owner 14.11): whether the chat already started its successor
+   * itself (`orca agent launch` after writing the handoff). Then no offer: a second successor on the
+   * same handoff is a duplicate (14.11: one started by the chat, one by «New session» seconds later).
+   * `tabId` is the chat's tab — Orca's chat id, which the launch links by, is in it; the file is named
+   * by Claude's session id. False when this host cannot tell.
+   */
+  successorStarted?: (handoff: {
+    worktreeId: string
+    sessionId: string
+    tabId: string | undefined
+    created: string
+  }) => Promise<boolean>
 }
 
 export type ClaudeHandoffHandledStore = {
@@ -100,15 +113,29 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
   const contextFilled = async (worktreeId: string, sessionId: string): Promise<boolean> =>
     (await deps.contextGateFired?.(worktreeId, sessionId)) !== false
 
-  const raise = (
+  const startedItsOwn = async (
+    worktreeId: string,
+    sessionId: string,
+    file: ClaudeHandoffFile,
+    tabId: string | undefined
+  ): Promise<boolean> =>
+    (await deps
+      .successorStarted?.({ worktreeId, sessionId, tabId, created: file.created })
+      .catch(() => false)) === true
+
+  const raise = async (
     worktreeId: string,
     sessionId: string,
     file: ClaudeHandoffFile,
     tabId?: string,
     tabWorktreeId?: string
-  ): void => {
+  ): Promise<void> => {
     const key = offerKey(sessionId, file.created)
-    if (seen.has(key) || deps.handled?.has(key)) {
+    if (
+      seen.has(key) ||
+      deps.handled?.has(key) ||
+      (await startedItsOwn(worktreeId, sessionId, file, tabId))
+    ) {
       return
     }
     remember(key)
@@ -159,7 +186,7 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
           return
         }
         if (await contextFilled(worktreeId, sessionId)) {
-          raise(
+          await raise(
             worktreeId,
             sessionId,
             file,
@@ -204,7 +231,7 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
       if (!(await contextFilled(worktreeId, sessionId))) {
         return false
       }
-      raise(worktreeId, sessionId, file, tabId, stoppedIn)
+      await raise(worktreeId, sessionId, file, tabId, stoppedIn)
       return true
     }
   }
