@@ -160,12 +160,29 @@ export function chatRoleOf(core: PulseCore, sessionId: string): HqChatRole | nul
   return isHqChatRole(role) ? role : null
 }
 
+/** Custom build (claude-handoff-model, owner 14.11): the chats `parentSessionId` started with
+ *  `orca agent launch` at or after `since` (ms); a chat it only sent work to is not one of them. */
+export function chatsLaunchedSince(
+  core: PulseCore,
+  parentSessionId: string,
+  since: number
+): string[] {
+  return core.db
+    .prepare(
+      "SELECT session_id FROM chat_links WHERE parent_session_id = ? AND via = 'launch' AND at >= ?"
+    )
+    .all(parentSessionId, since)
+    .map((row) => String(row.session_id))
+}
+
 export function pulseChats(core: () => PulseCore) {
   return {
     liveSessionOf: (sessionId: string): string => liveSessionOf(core(), sessionId),
     link: (input: Parameters<typeof linkChat>[1]): boolean => linkChat(core(), input),
     list: (): HqChatLinksResult => listChatLinks(core()),
     setRole: (input: Parameters<typeof setChatRole>[1]): void => setChatRole(core(), input),
-    roleOf: (sessionId: string): HqChatRole | null => chatRoleOf(core(), sessionId)
+    roleOf: (sessionId: string): HqChatRole | null => chatRoleOf(core(), sessionId),
+    launchedSince: (parentSessionId: string, since: number): string[] =>
+      chatsLaunchedSince(core(), parentSessionId, since)
   }
 }
