@@ -7,8 +7,6 @@ export type IntegrationCredentialService =
   | 'Slack'
   // Custom build (hq-space-keys): a workspace's own token, of any kind.
   | 'Workspace'
-  // Custom build (chat-auto-effort): the OpenRouter key Jev picks a chat's effort with.
-  | 'OpenRouter'
   // Custom build (hq-mail-intake): the owner's Gmail OAuth client and refresh token.
   | 'Gmail'
 
