@@ -345,4 +345,10 @@ export type HqThreadResult = {
   sessions: HqSession[]
 }
 
-export type HqChatSendResult = { entry: HqJournalEntry; sessionId: string; reopened: boolean }
+export type HqChatSendResult = {
+  entry: HqJournalEntry
+  sessionId: string
+  reopened: boolean
+  /** Custom build (hq-lead-batch): held for the Lead's next batch, which goes by this time at the latest. */
+  heldUntil?: number
+}

@@ -54,6 +54,11 @@ function caller(): { callerSessionId?: string; callerWorktreeId?: string; caller
   }
 }
 
+function clockOf(at: number): string {
+  const date = new Date(at)
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
 export const HQ_HANDLERS: Record<string, CommandHandler> = {
   'hq events': async ({ flags, client, json }) => {
     const sinceFlag = getOptionalStringFlag(flags, 'since')
@@ -142,9 +147,11 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       replyTo: getOptionalStringFlag(flags, 'reply-to')
     })
     printResult(result, json, (r) =>
-      r.reopened
-        ? `Brought the closed chat back and handed it the message.  ${r.entry.id}`
-        : `Handed the message to the chat on ${r.entry.address}.  ${r.entry.id}`
+      r.heldUntil !== undefined
+        ? `Held for the Lead on ${r.entry.address}: it goes with the others by ${clockOf(r.heldUntil)}, or later if the Lead is still in a turn; a NEEDS DECISION or BLOCKED goes at once.  ${r.entry.id}`
+        : r.reopened
+          ? `Brought the closed chat back and handed it the message.  ${r.entry.id}`
+          : `Handed the message to the chat on ${r.entry.address}.  ${r.entry.id}`
     )
   },
 
