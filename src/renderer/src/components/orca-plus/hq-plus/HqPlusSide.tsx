@@ -4,6 +4,7 @@
 import { Fragment, useState } from 'react'
 import { readHqPlusViewState, saveHqPlusViewState } from './hq-plus-view-state'
 import type { HqChatLinksResult } from '../../../../../shared/hq-chat-links'
+import { hqChatRoleLabel, type HqChatRole } from '../../../../../shared/hq-chat-role'
 import { hqPlusChatTree } from './hq-plus-chat-tree'
 import { HqPlusChatsBySwitch, useHqPlusChatsBy } from './HqPlusChatsBy'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
@@ -25,6 +26,8 @@ export type { HqPlusTile }
 
 const NO_HIDDEN: readonly string[] = []
 
+const noRole = (): HqChatRole | null => null
+
 export function HqPlusSide({
   ticker,
   waitsOnThem,
@@ -42,8 +45,11 @@ export function HqPlusSide({
   onPickChat,
   openChats,
   chatLinks,
-  slugOf
+  slugOf,
+  roleOf = noRole
 }: {
+  /** Custom build (hq-chat-roles): the role a chat was launched with, shown in «By work». */
+  roleOf?: (item: HqChatItem) => HqChatRole | null
   /** Custom build (hq-plus-work-view): the project's HQ name for a chat, as its tile is built from. */
   slugOf: (item: HqChatItem) => string
   /** Custom build (hq-plus-chat-tree): which chat started which, for «By work». */
@@ -113,7 +119,10 @@ export function HqPlusSide({
   }
   const waitOf = (item: HqChatItem): HqPlusOtherWait | null =>
     item.kind === 'chat' ? (waitOfSession.get(item.tab.entityId) ?? null) : null
-  const row = (item: HqChatItem, tree?: { depth: number; kids: number }): React.JSX.Element => (
+  const row = (
+    item: HqChatItem,
+    tree?: { depth: number; kids: number; headed?: boolean }
+  ): React.JSX.Element => (
     <HqPlusChatRow
       key={item.key}
       item={item}
@@ -126,6 +135,7 @@ export function HqPlusSide({
       depth={tree?.depth}
       project={tree ? slugOf(item) : undefined}
       kids={tree?.kids}
+      role={tree && !tree.headed ? roleOf(item) : null}
     />
   )
   const byWork = chatsBy === 'work'
@@ -199,7 +209,9 @@ export function HqPlusSide({
             chats whose lead is closed gather under one line. */}
         {treeRows.map((entry, index) => {
           const top = entry.depth === 0 && !entry.earlier
-          const lead = top && entry.children > 0
+          // Custom build (hq-chat-roles): a chat launched as a lead heads its tree before it starts any.
+          const role = roleOf(entry.item)
+          const lead = top && (entry.children > 0 || role === 'lead' || role === 'sublead')
           const before = treeRows[index - 1]
           const loneStart =
             top && !lead && !(before?.depth === 0 && !before.earlier && before.children === 0)
@@ -207,7 +219,7 @@ export function HqPlusSide({
             <Fragment key={entry.item.key}>
               {lead ? (
                 <div className="hqp-side-sub hqp-lead-h">
-                  <span className="hqp-pc-lead">LEAD</span>
+                  <span className="hqp-pc-lead">{hqChatRoleLabel(role ?? 'lead')}</span>
                   {translate('auto.hqPlus.side.leadOf', '{{count}} started', {
                     count: entry.children
                   })}
@@ -217,7 +229,7 @@ export function HqPlusSide({
                   {translate('auto.hqPlus.side.leadClosed', 'Lead closed')}
                 </div>
               ) : null}
-              {row(entry.item, { depth: entry.depth, kids: entry.children })}
+              {row(entry.item, { depth: entry.depth, kids: entry.children, headed: lead })}
             </Fragment>
           )
         })}

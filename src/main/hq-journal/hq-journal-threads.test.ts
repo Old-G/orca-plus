@@ -26,6 +26,20 @@ const SCOPES: Record<string, HqCallerScope> = {
     sessionId: 'claude_web',
     worktreeId: 'r-web::/w/web'
   },
+  claude_api2: {
+    kind: 'room',
+    room: 'acme',
+    project: 'acme-api',
+    sessionId: 'claude_api2',
+    worktreeId: 'r-api::/w/api'
+  },
+  claude_w: {
+    kind: 'room',
+    room: 'acme',
+    project: 'acme-api',
+    sessionId: 'claude_w',
+    worktreeId: 'r-api::/w/api'
+  },
   claude_kite: {
     kind: 'room',
     room: 'hobby',
@@ -63,9 +77,19 @@ beforeEach(() => {
       getEntry: (id) => db.getJournalEntry(id),
       listPeople: () => db.listPeople(),
       upsertPerson: (input) => db.upsertPerson(input),
-      linkChat: (input) => db.chats.link(input)
+      linkChat: (input) => db.chats.link(input),
+      roleOf: (id) => db.chats.roleOf(id),
+      setRole: (input) => db.chats.setRole(input)
     },
-    sessionName: (id) => ({ claude_api: 'Refund limits', claude_web: 'Checkout page' })[id] ?? null,
+    sessionName: (id) =>
+      (
+        {
+          claude_api: 'Refund limits',
+          claude_api2: 'Refund limits',
+          claude_w: 'W · Payouts report. От лида',
+          claude_web: 'Checkout page'
+        } as Record<string, string>
+      )[id] ?? null,
     sessionWorkspace: () => null,
     deliver: async (sessionId, prompt) => {
       if (!open.has(sessionId)) {
@@ -343,5 +367,35 @@ describe('HQ+ threads: settling a handed row', () => {
       (await threads.settle({ sessionId: 'claude_api' }, { id: finding.id, status: 'done' }))
         .settled
     ).toBe(false)
+  })
+})
+
+describe('HQ+ threads: chat addresses and roles (hq-chat-roles)', () => {
+  it('gives a second chat with the same name its own address, and a send reaches that chat', async () => {
+    open.add('claude_api2')
+    const first = await threads.report({ sessionId: 'claude_api' }, { done: 'Read the limits' })
+    const second = await threads.report({ sessionId: 'claude_api2' }, { done: 'Read them too' })
+    expect(first.address).toBe('acme-api/refund-limits')
+    expect(second.address).toBe('acme-api/refund-limits-2')
+
+    await threads.send(
+      { sessionId: 'claude_kite' },
+      { address: second.address, text: 'Which cap?' }
+    )
+    await threads.send({ sessionId: 'claude_kite' }, { address: first.address, text: 'And yours?' })
+    expect(delivered.map((message) => message.sessionId)).toEqual(['claude_api2', 'claude_api'])
+  })
+
+  it("names a role chat's thread by its role and task", async () => {
+    db.chats.setRole({ sessionId: 'claude_w', role: 'worker', at: 1 })
+    const report = await threads.report({ sessionId: 'claude_w' }, { done: 'Started' })
+    expect(report.address).toBe('acme-api/w-payouts-report')
+  })
+
+  it('carries the role on to the chat that goes on after a handoff', async () => {
+    db.chats.setRole({ sessionId: 'claude_api', role: 'lead', at: 1 })
+    await threads.report({ sessionId: 'claude_api' }, { done: 'Plan written' })
+    threads.handoff('claude_api', 'claude_api_2')
+    expect(db.chats.roleOf('claude_api_2')).toBe('lead')
   })
 })

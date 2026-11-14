@@ -7,6 +7,7 @@ import type {
   HqChatLinksResult,
   HqChatLinkVia
 } from '../../../shared/hq-chat-links'
+import { isHqChatRole, type HqChatRole } from '../../../shared/hq-chat-role'
 import { liveSessionOf } from './pulse-chat-chain'
 import type { PulseCore } from './pulse-core'
 
@@ -137,10 +138,34 @@ function sentBefore(core: PulseCore, known: readonly HqChatLink[]): HqChatLink[]
 }
 
 /** The chats' links in one place: where a handed-off chat went on, and which chat started which. */
+/** Custom build (hq-chat-roles): the role `sessionId` was launched with; a relaunch with a role replaces it. */
+export function setChatRole(
+  core: PulseCore,
+  input: { sessionId: string; role: HqChatRole; at: number }
+): void {
+  if (!input.sessionId || !isHqChatRole(input.role)) {
+    return
+  }
+  core.db
+    .prepare(
+      'INSERT INTO chat_roles (session_id, role, at) VALUES (?, ?, ?) ' +
+        'ON CONFLICT(session_id) DO UPDATE SET role = excluded.role, at = excluded.at'
+    )
+    .run(input.sessionId, input.role, input.at)
+}
+
+export function chatRoleOf(core: PulseCore, sessionId: string): HqChatRole | null {
+  const row = core.db.prepare('SELECT role FROM chat_roles WHERE session_id = ?').get(sessionId)
+  const role = row?.role
+  return isHqChatRole(role) ? role : null
+}
+
 export function pulseChats(core: () => PulseCore) {
   return {
     liveSessionOf: (sessionId: string): string => liveSessionOf(core(), sessionId),
     link: (input: Parameters<typeof linkChat>[1]): boolean => linkChat(core(), input),
-    list: (): HqChatLinksResult => listChatLinks(core())
+    list: (): HqChatLinksResult => listChatLinks(core()),
+    setRole: (input: Parameters<typeof setChatRole>[1]): void => setChatRole(core(), input),
+    roleOf: (sessionId: string): HqChatRole | null => chatRoleOf(core(), sessionId)
   }
 }

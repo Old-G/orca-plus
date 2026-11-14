@@ -1,6 +1,7 @@
 // Custom build (hq-plus-sessions): HQ+'s session dispatcher — given work for a thread, it continues
 // the chat already on it, opens a new one seeded with the old one's last report, or queues the work;
 // it starts the successor a handoff asked for and closes chats only once their turn is in the journal.
+import type { HqChatRole } from './hq-chat-role'
 
 export const HQ_SESSION_DISPATCH_MODES = ['off', 'report', 'on'] as const
 export type HqSessionDispatchMode = (typeof HQ_SESSION_DISPATCH_MODES)[number]
@@ -47,6 +48,8 @@ export type HqLiveSession = {
   onScreen: boolean
   /** Its tab is open; a closed chat lives in History and is brought back to continue. */
   tabOpen: boolean
+  /** Custom build (hq-chat-roles): the role it was launched with; null for a chat launched without one. */
+  role: HqChatRole | null
 }
 
 export type HqDispatchDecision =

@@ -89,21 +89,8 @@ export async function carryOutHqDispatch(
   if (!launched.ok) {
     throw new Error(launched.error)
   }
-  // Why: work handed on may quote other people or other chats; full access would let it steer.
-  if (!(await deps.limit(launched.sessionId))) {
-    throw new Error('The new chat could not be switched to Auto, so no work went in.')
-  }
-  const task = decision.address.split('/')[1] ?? decision.address
-  await deps.nameChat(launched.sessionId, task)
-  const prompt = hqNewChatPrompt({
-    address: decision.address,
-    project,
-    lastReport: decision.seedFrom ? journal.lastReport(decision.seedFrom) : null,
-    work
-  })
-  if (!(await deps.deliver(launched.sessionId, prompt))) {
-    throw new Error('The new chat did not take the work.')
-  }
+  // Custom build (hq-chat-roles): the thread is the chat's before its first turn, so the sessions
+  // sweep does not give the open, unaddressed chat a fresh `-2` address meanwhile.
   const at = deps.now()
   deps.pulse.noteSessions([
     {
@@ -120,6 +107,21 @@ export async function carryOutHqDispatch(
       at
     }
   ])
+  // Why: work handed on may quote other people or other chats; full access would let it steer.
+  if (!(await deps.limit(launched.sessionId))) {
+    throw new Error('The new chat could not be switched to Auto, so no work went in.')
+  }
+  const task = decision.address.split('/')[1] ?? decision.address
+  await deps.nameChat(launched.sessionId, task)
+  const prompt = hqNewChatPrompt({
+    address: decision.address,
+    project,
+    lastReport: decision.seedFrom ? journal.lastReport(decision.seedFrom) : null,
+    work
+  })
+  if (!(await deps.deliver(launched.sessionId, prompt))) {
+    throw new Error('The new chat did not take the work.')
+  }
   const dedupeKey = `${HQ_JOURNAL_KIND.sessionOpen}:${launched.sessionId}`
   deps.pulse.record([
     journal.row({
