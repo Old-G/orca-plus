@@ -6,7 +6,6 @@ import {
   HQ_JOURNAL_KIND,
   HQ_JOURNAL_MAX_LIMIT,
   HQ_JOURNAL_REPORT_SOURCE,
-  hqChatAddress,
   hqJournalTitle,
   isHqThreadAddress,
   type HqChatSendResult,
@@ -18,11 +17,13 @@ import {
   type HqThreadResult
 } from '../../shared/hq-journal'
 import type { HqChatLinkVia } from '../../shared/hq-chat-links'
+import type { HqChatRole } from '../../shared/hq-chat-role'
 import { HQ_ROUTING_KIND, type HqSettleResult } from '../../shared/hq-routing'
 import type { PulsePerson, PulsePersonInput } from '../../shared/pulse-types'
 import { hqJournalLink, journalEntryAsInput } from './hq-journal-adapters'
 import type { HqJournalPulse } from './hq-journal-collect'
 import type { HqCaller, HqCallerScope } from './hq-journal-rooms'
+import { hqCarryChatRole, hqNewChatAddress } from './hq-journal-chat-role'
 import { createHqSend, HQ_JOURNAL_OFF as JOURNAL_OFF, hqRoomOf as roomOf } from './hq-journal-send'
 
 export type HqThreadsDeps = {
@@ -40,6 +41,9 @@ export type HqThreadsDeps = {
       via: HqChatLinkVia
       at: number
     }) => boolean
+    /** Custom build (hq-chat-roles): the role a chat was launched with; a handoff carries it on. */
+    roleOf?: (sessionId: string) => HqChatRole | null
+    setRole?: (input: { sessionId: string; role: HqChatRole; at: number }) => void
   }
   /** The chat's name, as its tab shows it. */
   sessionName: (sessionId: string) => string | null
@@ -107,7 +111,7 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
     const session = deps.pulse.getSession(sessionId)
     const known = session?.address
     const project = scope.kind === 'room' ? (scope.project ?? session?.project ?? null) : 'hq'
-    return known ?? hqChatAddress(project, deps.sessionName(sessionId), sessionId)
+    return known ?? hqNewChatAddress(deps, project, sessionId)
   }
 
   return {
@@ -285,6 +289,7 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
       deps.pulse.noteSessions([
         { ...from, sessionId: toSessionId, parentSessionId: fromSessionId, state: 'working', at }
       ])
+      hqCarryChatRole(deps.pulse, fromSessionId, toSessionId, at)
       // Why: the new chat carries the old one's open questions; they are no longer the owner's move there.
       const asked = deps.pulse
         .list({

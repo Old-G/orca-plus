@@ -1,6 +1,12 @@
 // agent.launch shares desktop/mobile policy; absent --surface uses the host's Chat | CLI choice for the agent.
 
 import { randomUUID } from 'node:crypto'
+import {
+  HQ_CHAT_ROLE_SESSION_OPTION,
+  HQ_CHAT_ROLES,
+  isHqChatRole,
+  type HqChatRole
+} from '../../shared/hq-chat-role'
 import type {
   AgentLaunchPrompt,
   AgentLaunchResult
@@ -93,6 +99,15 @@ export function readCliAgentLaunch(
     throw new RuntimeClientError('invalid_argument', 'Malformed --retry-launch operation ID')
   }
   const surface = readSurfaceFlag(flags)
+  const role = readRoleFlag(flags)
+  if (role && surface === 'terminal') {
+    // Why: a role is kept with a native chat and reaches it as ORCA_CHAT_ROLE; a terminal has neither.
+    throw new RuntimeClientError('invalid_argument', '--role needs a chat; drop --surface terminal')
+  }
+  const sessionOptions = {
+    ...checked.preferences,
+    ...(role ? { [HQ_CHAT_ROLE_SESSION_OPTION]: role } : {})
+  }
   return {
     agent,
     ...(surface ? { surface } : {}),
@@ -100,8 +115,23 @@ export function readCliAgentLaunch(
     ...(typeof prompt === 'string' && prompt.trim()
       ? { prompt: { text: prompt, delivery: 'submit' as const } }
       : {}),
-    ...(checked.preferences ? { sessionOptions: { ...checked.preferences } } : {})
+    ...(Object.keys(sessionOptions).length > 0 ? { sessionOptions } : {})
   }
+}
+
+/** Custom build (hq-chat-roles, owner 14.11): `--role lead|sublead|worker|review`, kept by Orca+. */
+function readRoleFlag(flags: Flags): HqChatRole | undefined {
+  if (!flags.has('role')) {
+    return undefined
+  }
+  const role = getRequiredStringFlag(flags, 'role')
+  if (!isHqChatRole(role)) {
+    throw new RuntimeClientError(
+      'invalid_argument',
+      `--role must be one of: ${HQ_CHAT_ROLES.join(', ')}`
+    )
+  }
+  return role
 }
 
 export function hasLaunchModelFlags(flags: Flags): boolean {

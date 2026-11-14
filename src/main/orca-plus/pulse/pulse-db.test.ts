@@ -289,4 +289,20 @@ describe('PulseDb events', () => {
     expect(db.listWaitings()).toHaveLength(2)
     expect(db.listEventsSince(0).map((e) => [e.seq, e.entityId])).toEqual([[2, next.id]])
   })
+
+  it('adds the chat roles table to a file at this version without bumping it (hq-chat-roles)', async () => {
+    const path = await tempPath()
+    openDb(path).close()
+    const raw = new Database(path)
+    // Why: the build before roles wrote the same version without the table; a rollback reads it again.
+    raw.exec('DROP TABLE chat_roles')
+    raw.close()
+    const reopened = new PulseDb(path)
+    reopened.chats.setRole({ sessionId: 'w1', role: 'worker', at: 1 })
+    expect(reopened.chats.roleOf('w1')).toBe('worker')
+    reopened.close()
+    const check = new Database(path)
+    expect(check.pragma('user_version', { simple: true })).toBe(PULSE_SCHEMA_VERSION)
+    check.close()
+  })
 })

@@ -220,23 +220,9 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
     if (!launched.ok) {
       return fail(launched.error)
     }
-    // Why: the findings quote code and commit text; full access would let them steer the chat.
-    if (!(await deps.limit(launched.sessionId))) {
-      return fail('the chat could not be switched to Auto')
-    }
-    await deps.nameChat(launched.sessionId, `${HQ_CODEX_FIX_CHAT_NAME} · ${workspace.name}`)
     const address = action.address ?? ''
-    const prompt = hqCodexFixPrompt({
-      projectName: workspace.name,
-      project: action.project,
-      address,
-      level: action.level ?? 1,
-      findings,
-      commits
-    })
-    if (!(await deps.deliver(launched.sessionId, prompt))) {
-      return fail('the chat did not take the findings')
-    }
+    // Custom build (hq-chat-roles): the thread is the chat's before its first turn, so the sessions
+    // sweep does not give the open, unaddressed chat a fresh `-2` address meanwhile.
     deps.pulse.noteSessions([
       {
         sessionId: launched.sessionId,
@@ -252,6 +238,22 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
         at: now
       }
     ])
+    // Why: the findings quote code and commit text; full access would let them steer the chat.
+    if (!(await deps.limit(launched.sessionId))) {
+      return fail('the chat could not be switched to Auto')
+    }
+    await deps.nameChat(launched.sessionId, `${HQ_CODEX_FIX_CHAT_NAME} · ${workspace.name}`)
+    const prompt = hqCodexFixPrompt({
+      projectName: workspace.name,
+      project: action.project,
+      address,
+      level: action.level ?? 1,
+      findings,
+      commits
+    })
+    if (!(await deps.deliver(launched.sessionId, prompt))) {
+      return fail('the chat did not take the findings')
+    }
     take(findings, address)
     const opened = { ...action, sessionId: launched.sessionId }
     deps.pulse.record([

@@ -67,3 +67,25 @@ describe('HqPlusChatRow follows the chat open on the right (13.11)', () => {
     expect(screen.getByRole('button', { current: true }).dataset.flash).toBeUndefined()
   })
 })
+
+describe('HqPlusChatRow shows the chat role in «By work» (hq-chat-roles)', () => {
+  it('puts the role tag before the title and no tag for a chat without a role', () => {
+    const { rerender, container } = render(
+      <HqPlusChatRow
+        item={item}
+        picked={false}
+        now={0}
+        tile={{ letters: 'AC', color: null }}
+        closer={null}
+        onPick={vi.fn()}
+        role="review"
+      />
+    )
+    const tag = container.querySelector('.hqp-role')
+    expect(tag?.textContent).toBe('REVIEW')
+    expect(tag?.getAttribute('data-role')).toBe('review')
+    expect(container.querySelector('.hqp-pc-tt')?.textContent).toBe('REVIEWFix the template')
+    rerender(row(false))
+    expect(container.querySelector('.hqp-role')).toBeNull()
+  })
+})

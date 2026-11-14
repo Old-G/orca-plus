@@ -103,3 +103,22 @@ describe('chat links', () => {
     ])
   })
 })
+
+describe('chat roles (hq-chat-roles)', () => {
+  it('keeps the role a chat was launched with; a relaunch with a role replaces it', () => {
+    const d = db()
+    expect(d.chats.roleOf('w1')).toBeNull()
+    d.chats.setRole({ sessionId: 'w1', role: 'worker', at: 1 })
+    d.chats.setRole({ sessionId: 'l1', role: 'lead', at: 1 })
+    expect(d.chats.roleOf('w1')).toBe('worker')
+    expect(d.chats.roleOf('l1')).toBe('lead')
+    d.chats.setRole({ sessionId: 'w1', role: 'review', at: 2 })
+    expect(d.chats.roleOf('w1')).toBe('review')
+  })
+
+  it('writes no role it does not know', () => {
+    const d = db()
+    d.chats.setRole({ sessionId: 'x', role: 'boss' as never, at: 1 })
+    expect(d.chats.roleOf('x')).toBeNull()
+  })
+})
