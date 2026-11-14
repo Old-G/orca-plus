@@ -329,3 +329,26 @@ button.hqw-tr:focus-visible,
 .hqw-closed-row:hover {
   background: var(--hqp-soft);
 }
+/* Custom build (hq-chat-roles, owner 14.11): a chat's role before its title — leads filled like LEAD,
+   workers and reviewers outlined. */
+.hqp-role {
+  flex: none;
+  display: inline-block;
+  margin-right: 5px;
+  font-family: var(--hqp-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 15px;
+  padding: 0 5px;
+  border-radius: 4px;
+  vertical-align: 1px;
+  color: var(--hqp-ice-ink);
+  background: var(--hqp-ice);
+}
+.hqp-role[data-role='worker'],
+.hqp-role[data-role='review'] {
+  color: var(--hqp-mute);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--hqp-line-2);
+}

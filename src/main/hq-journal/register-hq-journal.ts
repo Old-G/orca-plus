@@ -3,6 +3,7 @@
 import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { onPulseChanged } from '../orca-plus/pulse/pulse-change-events'
+import { bindChatRoleLookup } from '../orca-plus/chat-roles/chat-role-env'
 import { PULSE_BELL_KIND } from '../../shared/pulse-bell'
 import { createHqJournalService, provideHqJournalService } from './hq-journal-service'
 import { effortJournal } from './hq-effort-journal'
@@ -44,6 +45,8 @@ import { setHqSpaceLiveGroups } from '../hq-today/hq-spaces'
 const REREAD_EVERY_MS = 5 * 60_000
 
 export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): void {
+  // Custom build (hq-chat-roles): a native chat starts with ORCA_CHAT_ROLE from Orca+'s record of it.
+  bindChatRoleLookup((sessionId) => runtime.pulseChats().roleOf(sessionId))
   // Custom build (hq-rooms): rooms read the sidebar's groups live, not HQ's pages of a past sync.
   setHqSpaceLiveGroups(() => ({ repos: store.getRepos(), groups: store.getProjectGroups() }))
   const record = (sessionId: string) => {
@@ -137,7 +140,9 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
         getEntry: (id) => runtime.pulseGetJournalEntry(id),
         listPeople: () => runtime.pulseListPeople(),
         upsertPerson: (input) => runtime.pulseUpsertPerson(input),
-        linkChat: (input) => runtime.pulseChats().link(input)
+        linkChat: (input) => runtime.pulseChats().link(input),
+        roleOf: (sessionId) => runtime.pulseChats().roleOf(sessionId),
+        setRole: (input) => runtime.pulseChats().setRole(input)
       },
       sessionName: (sessionId) => record(sessionId)?.conversationName?.trim() || null,
       sessionWorkspace,
