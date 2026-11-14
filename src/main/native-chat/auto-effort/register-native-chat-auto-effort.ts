@@ -2,6 +2,7 @@
 import { ipcMain } from 'electron'
 import type { Store } from '../../persistence/loading-store/store'
 import { pickEffortWithJev } from './jev-effort-pick'
+import { createChatRoleOf } from './lead-plan-registry'
 import { provideNativeChatAutoEffort, recentAutoEffortOutcomes } from './native-chat-auto-effort'
 import type { ChatAutoEffortStatus } from '../../../shared/chat-auto-effort-status'
 import {
@@ -24,7 +25,8 @@ export function registerNativeChatAutoEffort(store: Store): void {
   provideNativeChatAutoEffort({
     enabled: () => store.getSettings().nativeChatAutoEffort === true,
     key: loadOpenRouterKey,
-    pick: pickEffortWithJev
+    pick: pickEffortWithJev,
+    roleOf: createChatRoleOf({ hqPath: () => store.getSettings().hqPath })
   })
   ipcMain.handle('hqProjects:autoEffortKeyStatus', (): ChatAutoEffortStatus => keyStatus())
   ipcMain.handle('hqProjects:saveAutoEffortKey', (_event, key: unknown): ChatAutoEffortStatus => {
