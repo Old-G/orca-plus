@@ -24,7 +24,9 @@ const FIRST_PASS_MS = 60_000
 const LOOKBACK_MS = 3 * 24 * 60 * 60_000
 const DECISIONS_PER_DAY = 150
 const MAX_REPORTS = 3
-const MODEL = 'sonnet'
+// Custom build (hq-background-lean): Haiku gave today's Sonnet answer on 98 of 100 saved checks, as
+// often as Sonnet agrees with itself on a rerun.
+const MODEL = 'haiku'
 
 export function startHqInWork(store: Store, runtime: OrcaRuntimeService): () => void {
   const budget = hqIntakeBudget(DECISIONS_PER_DAY, {
