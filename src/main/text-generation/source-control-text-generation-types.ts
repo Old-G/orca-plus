@@ -76,6 +76,8 @@ export type TextGenerationOperation =
   | 'hq-ledger-promises'
   // Custom build (hq-plus-person-replies): whether a person's answer may go to the asking chat by itself.
   | 'hq-reply-routing'
+  // Custom build (chat-auto-effort): which effort a message to a Claude chat goes with.
+  | 'hq-effort-pick'
 
 export type CommitMessageGenerationTarget =
   | { kind: 'local'; cwd: string; env?: NodeJS.ProcessEnv; wslDistro?: string; laneId?: string }
