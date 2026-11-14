@@ -4,7 +4,7 @@
 // question of a few hundred. The lean launch replaces the system prompt with one sentence and drops
 // the rest (about 7k tokens left). Settings files and CLAUDE.md still load: without them verdicts
 // drifted from today's.
-import type { AgentGenerationFailureOutput } from '../text-generation/agent-failure-output'
+import type { AgentGenerationFailureOutput } from '../text-generation/failures/agent-failure-output'
 
 /** The whole system prompt of a lean run: the task and its data come in the message. */
 export const HQ_LEAN_SYSTEM_PROMPT =
@@ -32,7 +32,9 @@ export const HQ_LEAN_OPERATIONS: ReadonlySet<string> = new Set([
   'hq-slack-intake',
   'hq-mr-watch',
   'hq-in-work',
-  'hq-ledger-promises'
+  'hq-ledger-promises',
+  // Custom build (chat-auto-effort): a message's effort, measured lean on 100 saved messages.
+  'hq-effort-pick'
 ])
 
 // Commander's refusal of a flag an older CLI does not know.

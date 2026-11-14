@@ -9,10 +9,10 @@ import {
 import type { ResolvedSourceControlAiGenerationParams } from '../../shared/source-control/ai/source-control-ai-operation-resolution'
 import { resolveGenerationTarget } from '../agent-hooks/first-work/first-work-generation-target'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/execution/commit-message-agent-environment'
-import { resolveTextGenerationParams } from '../text-generation/commit-message-text-generation'
+import { resolveCommitMessageSettings as resolveTextGenerationParams } from '../text-generation/commit-message-text-generation'
 import { spawnSourceControlAgent } from '../text-generation/execution/source-control-agent-launch'
 import { runGenerationRequest } from '../text-generation/agent-generation-request'
-import { CLAUDE_TEXT_GENERATION_TOOLS } from '../../shared/claude-background-run-isolation'
+import { CLAUDE_TEXT_GENERATION_TOOLS } from '../../shared/text-generation/launch/claude-background-run-isolation'
 import { HQ_LEAN_ARGS, HQ_LEAN_OPERATIONS, shouldRetryLeanRunInFull } from './hq-background-lean'
 
 const FALLBACK_MODEL = 'sonnet'
@@ -61,6 +61,7 @@ export async function generateHqText(
       | 'hq-in-work'
       | 'hq-ledger-draft'
       | 'hq-ledger-promises'
+      | 'hq-effort-pick'
     /** Custom build (hq-clickup-triage): a cheaper model than the one set for HQ text. */
     model?: string
   },
