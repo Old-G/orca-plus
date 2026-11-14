@@ -1,10 +1,9 @@
-// Custom build (hq-background-lean): HQ's background classifiers start Claude lean. A plain `claude -p`
+// Custom build (hq-background-lean): HQ's background checks start Claude lean. A plain `claude -p`
 // carries the whole agent setup into a one-line verdict — the default system prompt, the browser
 // tools, auto-memory, the skills list — about 24k tokens a call against the subscription, for a
 // question of a few hundred. The lean launch replaces the system prompt with one sentence and drops
-// the rest (about 5k tokens left). Settings files and CLAUDE.md still load: without them verdicts
-// drifted from today's (who acts on a reply: 78% the same instead of 89%; which project: 62% instead
-// of 67%). Texts people read (drafts, replies, feed posts) keep the full launch.
+// the rest (about 7k tokens left). Settings files and CLAUDE.md still load: without them verdicts
+// drifted from today's.
 import type { AgentGenerationFailureOutput } from '../text-generation/agent-failure-output'
 
 /** The whole system prompt of a lean run: the task and its data come in the message. */
@@ -23,15 +22,15 @@ export const HQ_LEAN_ARGS = [
 ].join(' ')
 
 /**
- * Operations whose answer is a verdict the app parses. Their one-line gists and summaries on the
- * owner's cards are fine lean; ClickUp triage stays full, since its answer carries the reply the owner
- * posts to a colleague, and texts people read keep the full launch.
+ * Checks whose verdicts lean gave as often as a rerun of today's launch agrees with itself (100 saved
+ * inputs each). Their one-line gists and summaries on the owner's cards are fine lean. Kept full:
+ * who acts on a person's reply (lean sent the reply to the owner more often than to the chat that
+ * asked), a new talk's project, chat and whose move (lean said «not waiting on you» more often),
+ * ClickUp triage (its answer carries the reply the owner posts in the task), and texts people read.
  */
 export const HQ_LEAN_OPERATIONS: ReadonlySet<string> = new Set([
   'hq-slack-intake',
-  'hq-reply-routing',
   'hq-mr-watch',
-  'hq-ledger-guess',
   'hq-in-work',
   'hq-ledger-promises'
 ])

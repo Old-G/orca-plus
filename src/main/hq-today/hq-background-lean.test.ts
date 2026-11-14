@@ -67,8 +67,11 @@ describe('HQ lean background launch', () => {
     'hq-clickup-reply',
     'hq-voice-rewrite',
     // Its answer carries the reply the owner posts in the task.
-    'hq-clickup-triage'
-  ] as const)('keeps the full launch for %s, whose answer people read', async (operation) => {
+    'hq-clickup-triage',
+    // Lean moved these verdicts away from today's on saved inputs.
+    'hq-reply-routing',
+    'hq-ledger-guess'
+  ] as const)('keeps the full launch for %s', async (operation) => {
     runGenerationRequest.mockResolvedValue({ success: true, rawOutput: 'text' })
     await generateHqText('q', { emptyResultName: 'text', operation }, deps)
     expect(runGenerationRequest.mock.calls[0][0].params.agentArgs).not.toContain('--system-prompt')
@@ -86,13 +89,13 @@ describe('HQ lean background launch', () => {
           stderr: "error: unknown option '--no-chrome'"
         }
       })
-      .mockResolvedValueOnce({ success: true, rawOutput: 'CHAT' })
+      .mockResolvedValueOnce({ success: true, rawOutput: 'acme/app' })
     const verdict = await generateHqText(
       'q',
-      { emptyResultName: 'reply verdict', operation: 'hq-reply-routing', model: 'haiku' },
+      { emptyResultName: 'MR repo', operation: 'hq-mr-watch', model: 'haiku' },
       deps
     )
-    expect(verdict).toEqual({ ok: true, text: 'CHAT' })
+    expect(verdict).toEqual({ ok: true, text: 'acme/app' })
     expect(runGenerationRequest).toHaveBeenCalledTimes(2)
     expect(runGenerationRequest.mock.calls[1][0].params.agentArgs).not.toContain('--no-chrome')
   })
