@@ -1,9 +1,7 @@
-// Custom build (chat-auto-effort): the switch for per-message effort and the OpenRouter key it needs.
+// Custom build (chat-auto-effort): the switch for per-message effort and what it did last.
 import React, { useEffect, useState } from 'react'
 import type { GlobalSettings } from '../../../../shared/settings/global-settings-types'
 import type { ChatAutoEffortStatus } from '../../../../shared/chat-auto-effort-status'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
 import { SettingsSwitchRow } from './form-controls/SettingsFormControls'
 import { translate } from '@/i18n/i18n'
 
@@ -26,7 +24,7 @@ function lastOutcomeLine(status: ChatAutoEffortStatus): string | null {
     : last.result === 'role'
       ? translate(
           'auto.chat.autoEffort.lastRole',
-          "Last message ({{when}}): {{effort}}, fixed by the chat's role; Jev was not asked.",
+          "Last message ({{when}}): {{effort}}, fixed by the chat's role; the classifier was not asked.",
           { when, effort: last.effort ?? '' }
         )
       : last.result === 'relayed'
@@ -43,7 +41,7 @@ function lastOutcomeLine(status: ChatAutoEffortStatus): string | null {
             )
           : translate(
               'auto.chat.autoEffort.lastMissed',
-              'Last message ({{when}}): no answer from Jev, the chat kept its effort.',
+              'Last message ({{when}}): no answer from the classifier, the chat kept its effort.',
               { when }
             )
 }
@@ -56,7 +54,6 @@ export function ChatAutoEffortSetting({
   // Why: absent on the paired web client and in tests that stub only part of the bridge.
   const api = window.api?.hqProjects
   const [status, setStatus] = useState<ChatAutoEffortStatus | null>(null)
-  const [draft, setDraft] = useState('')
 
   useEffect(() => {
     void api?.autoEffortKeyStatus?.().then(setStatus)
@@ -65,14 +62,6 @@ export function ChatAutoEffortSetting({
   if (!api?.autoEffortKeyStatus) {
     return null
   }
-  const save = async (): Promise<void> => {
-    setStatus((await api.saveAutoEffortKey?.(draft.trim())) ?? null)
-    setDraft('')
-  }
-  const clear = async (): Promise<void> => {
-    setStatus((await api.clearAutoEffortKey?.()) ?? null)
-  }
-  const needsKey = status !== null && (!status.configured || !status.readable)
   const lastLine = status ? lastOutcomeLine(status) : null
 
   return (
@@ -81,44 +70,12 @@ export function ChatAutoEffortSetting({
         label={translate('auto.chat.autoEffort.title', 'Effort per Message')}
         description={translate(
           'auto.chat.autoEffort.description',
-          'Each message to a Claude chat sets its effort: low for a trivial reply, medium for a quick step, high for ordinary work, extra high for hard or risky work. Picked by Jev on OpenRouter in about a second; Max picked by hand stays.'
+          'Each message to a Claude chat sets its effort: low for a trivial reply, medium for a quick step, high for ordinary work, extra high for hard or risky work. Picked by Claude Haiku on your Claude subscription in about two seconds; Max picked by hand stays.'
         )}
         checked={enabled}
         onChange={() => updateSettings({ nativeChatAutoEffort: !enabled })}
       />
-      {enabled && needsKey ? (
-        <div className="space-y-1">
-          {status.configured ? (
-            <p className="text-xs text-destructive">
-              {translate(
-                'auto.chat.autoEffort.keyUnreadable',
-                'The saved key cannot be read on this Mac (it was saved by another build). Paste it again.'
-              )}
-            </p>
-          ) : null}
-          <div className="flex gap-2">
-            <Input
-              type="password"
-              value={draft}
-              placeholder={translate('auto.chat.autoEffort.keyPlaceholder', 'OpenRouter API key')}
-              onChange={(event) => setDraft(event.target.value)}
-            />
-            <Button size="sm" disabled={!draft.trim()} onClick={() => void save()}>
-              {translate('auto.chat.autoEffort.saveKey', 'Save')}
-            </Button>
-          </div>
-        </div>
-      ) : null}
-      {enabled && status && !needsKey ? (
-        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>
-            {lastLine ?? translate('auto.chat.autoEffort.keySaved', 'OpenRouter key saved.')}
-          </span>
-          <Button size="sm" variant="ghost" onClick={() => void clear()}>
-            {translate('auto.chat.autoEffort.removeKey', 'Remove')}
-          </Button>
-        </div>
-      ) : null}
+      {enabled && lastLine ? <p className="text-xs text-muted-foreground">{lastLine}</p> : null}
     </div>
   )
 }

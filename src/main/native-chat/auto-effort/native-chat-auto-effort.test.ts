@@ -3,7 +3,7 @@ import type {
   AgentJournalItemBody,
   AgentJournalRenderItem
 } from '../../../shared/agent-session/journal/agent-session-journal-types'
-import { pickEffortWithJev } from './jev-effort-pick'
+import { createHaikuEffortPick, parseEffortAnswer } from './haiku-effort-pick'
 import {
   autoEffortMessageOptions,
   provideNativeChatAutoEffort,
@@ -28,14 +28,14 @@ const agentSaid = (text: string): AgentJournalRenderItem => ({
 
 function serve(over: Partial<NativeChatAutoEffortService> = {}) {
   const pick = vi.fn(async () => 'xhigh' as const)
-  provideNativeChatAutoEffort({ enabled: () => true, key: () => 'k', pick, ...over })
+  provideNativeChatAutoEffort({ enabled: () => true, pick, ...over })
   return pick
 }
 
 afterEach(() => provideNativeChatAutoEffort(null))
 
 describe('chat auto effort', () => {
-  it('sets the picked effort and shows Jev the agent message being answered', async () => {
+  it('sets the picked effort and shows the classifier the agent message being answered', async () => {
     const pick = serve()
     const options = await autoEffortMessageOptions({
       provider: 'claude',
@@ -45,7 +45,6 @@ describe('chat auto effort', () => {
     })
     expect(options).toEqual({ model: 'opus', effort: 'xhigh' })
     expect(pick).toHaveBeenCalledWith({
-      key: 'k',
       message: 'да',
       previousAgentMessage: 'План: переписать хранилище. Начинать?'
     })
@@ -95,13 +94,9 @@ describe('chat auto effort', () => {
     expect(modelEffortLevels(models, 'sonnet')).toBeNull()
   })
 
-  it('leaves the options alone when off, keyless, not Claude, hand-picked Max, or unanswered', async () => {
+  it('leaves the options alone when off, not Claude, hand-picked Max, or unanswered', async () => {
     const base = { provider: 'claude', body: user('go'), items: () => [] }
     serve({ enabled: () => false })
-    expect(await autoEffortMessageOptions({ ...base, options: { effort: 'high' } })).toEqual({
-      effort: 'high'
-    })
-    serve({ key: () => null })
     expect(await autoEffortMessageOptions({ ...base, options: { effort: 'high' } })).toEqual({
       effort: 'high'
     })
@@ -121,54 +116,59 @@ describe('chat auto effort', () => {
 })
 
 describe('chat auto effort outcomes', () => {
-  it('records the pick and a keyless miss, newest first, for Settings', async () => {
+  it('records the pick and a miss, newest first, for Settings', async () => {
     const base = { provider: 'claude', body: user('проверь'), items: () => [], options: {} }
-    serve({ key: () => null })
+    serve({ pick: async () => null })
     await autoEffortMessageOptions(base)
     serve()
     await autoEffortMessageOptions(base)
     expect(recentAutoEffortOutcomes().slice(0, 2)).toMatchObject([
       { result: 'picked', effort: 'xhigh', message: 'проверь' },
-      { result: 'no-key', effort: null }
+      { result: 'no-answer', effort: null }
     ])
   })
 })
 
-describe('Jev effort pick', () => {
-  it('reads the choice from the decisions answer', async () => {
-    const fetchImpl = vi.fn(
-      async () =>
-        new Response(
-          JSON.stringify({ answers: { effort: { type: 'choice', choice: 'medium' } } }),
-          { status: 200 }
-        )
-    )
-    expect(
-      await pickEffortWithJev({
-        key: 'k',
-        message: 'статус?',
-        previousAgentMessage: null,
-        fetchImpl
-      })
-    ).toBe('medium')
-    const sent: unknown = fetchImpl.mock.lastCall
-    expect(JSON.stringify(sent)).toContain('xhigh')
-    expect(JSON.stringify(sent)).toContain('Trivial')
+describe('Haiku effort pick', () => {
+  it('asks with the criteria and both messages as data, and reads the level from the JSON', async () => {
+    const generate = vi.fn(async (_prompt: string) => ({
+      ok: true as const,
+      text: '```json\n{"effort": "medium"}\n```'
+    }))
+    const pick = createHaikuEffortPick(generate)
+    expect(await pick({ message: 'статус?', previousAgentMessage: 'Готово.' })).toBe('medium')
+    const prompt = String(generate.mock.lastCall?.[0])
+    expect(prompt).toContain('xhigh: Hard or open-ended')
+    expect(prompt).toContain('low: Trivial')
+    expect(prompt).toContain('<previous_agent_message>\nГотово.\n</previous_agent_message>')
+    expect(prompt).toContain('<user_message>\nстатус?\n</user_message>')
+    expect(prompt).toContain('Answer with JSON only')
   })
 
-  it('answers null on an error status, an unknown level or a network failure', async () => {
-    const reply = (body: unknown, status = 200) =>
-      vi.fn(async () => new Response(JSON.stringify(body), { status }))
-    const ask = (fetchImpl: typeof fetch) =>
-      pickEffortWithJev({ key: 'k', message: 'x', previousAgentMessage: null, fetchImpl })
-    expect(await ask(reply({ error: {} }, 402))).toBeNull()
-    expect(await ask(reply({ answers: { effort: { choice: 'max' } } }))).toBeNull()
+  it('answers null on a failed run, an unknown level, no JSON or a thrown error', async () => {
+    const ask = (generate: Parameters<typeof createHaikuEffortPick>[0]) =>
+      createHaikuEffortPick(generate)({ message: 'x', previousAgentMessage: null })
+    expect(await ask(async () => ({ ok: false, error: 'limit' }))).toBeNull()
+    expect(await ask(async () => ({ ok: true, text: '{"effort": "max"}' }))).toBeNull()
+    expect(await ask(async () => ({ ok: true, text: 'high' }))).toBeNull()
     expect(
-      await ask(
-        vi.fn(async () => {
-          throw new Error('offline')
-        })
-      )
+      await ask(async () => {
+        throw new Error('spawn failed')
+      })
     ).toBeNull()
+    expect(parseEffortAnswer('{"effort": "xhigh"} trailing')).toBe('xhigh')
+    expect(parseEffortAnswer('{broken')).toBeNull()
+  })
+
+  it('gives up past the timeout so the chat keeps its effort', async () => {
+    vi.useFakeTimers()
+    try {
+      const pick = createHaikuEffortPick(() => new Promise(() => {}), 6000)
+      const answer = pick({ message: 'x', previousAgentMessage: null })
+      await vi.advanceTimersByTimeAsync(6000)
+      expect(await answer).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
