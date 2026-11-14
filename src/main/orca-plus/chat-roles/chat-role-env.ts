@@ -9,6 +9,16 @@ export function bindChatRoleLookup(read: ((sessionId: string) => HqChatRole | nu
   readRole = read
 }
 
+/** Custom build (chat-auto-effort-roles): the role the chat was launched with, for its effort. */
+export function chatRoleOfSession(sessionId: string): HqChatRole | null {
+  try {
+    return readRole?.(sessionId) ?? null
+  } catch (error) {
+    console.warn('[chat-roles] the chat role could not be read', error)
+    return null
+  }
+}
+
 export function chatRoleChildEnv(sessionId: string): Record<string, string> {
   try {
     const role = readRole?.(sessionId) ?? null
