@@ -1,6 +1,7 @@
 // Custom build (claude-handoff-launch): where a handoff's successor opens and how the chat that wrote
 // it is closed. Kept apart from the IPC module so both rules are testable without Electron.
 import type { ClaudeHandoffOffer } from '../../shared/claude-handoff-file'
+import { HQ_CHAT_ROLE_SESSION_OPTION, type HqChatRole } from '../../shared/hq-chat-role'
 
 const NATIVE_CHAT_TAB = 'structured-agent-session-'
 
@@ -12,6 +13,25 @@ const NATIVE_CHAT_TAB = 'structured-agent-session-'
  */
 export function claudeHandoffSuccessorWorktreeId(offer: ClaudeHandoffOffer): string {
   return offer.tabWorktreeId ?? offer.worktreeId
+}
+
+/**
+ * Custom build (claude-handoff-model, owner 14.11): what the successor starts with — the model and
+ * effort the chat that wrote the handoff runs on, and its role. Without the model the successor took
+ * the launch default, and a chat on Opus handed over to Fable. Only what the old chat's record holds.
+ */
+export function claudeHandoffSuccessorSessionOptions(
+  oldOptions: Readonly<Record<string, string>> | undefined,
+  role: HqChatRole | null
+): Record<string, string> | undefined {
+  const model = oldOptions?.model?.trim()
+  const effort = oldOptions?.effort?.trim()
+  const options = {
+    ...(model ? { model } : {}),
+    ...(effort ? { effort } : {}),
+    ...(role ? { [HQ_CHAT_ROLE_SESSION_OPTION]: role } : {})
+  }
+  return Object.keys(options).length > 0 ? options : undefined
 }
 
 export type ClaudeHandoffCloseDeps = {

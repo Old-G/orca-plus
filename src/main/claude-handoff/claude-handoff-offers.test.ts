@@ -99,6 +99,51 @@ describe('createClaudeHandoffOffers', () => {
     expect(await offers.resolve(SESSION)).not.toBeNull()
   })
 
+  it('offers nothing when the chat already started its own successor', async () => {
+    const successorStarted = vi.fn(async () => true)
+    const offers = createClaudeHandoffOffers({
+      readWorktreeFile: async (_worktreeId, relativePath) =>
+        relativePath === PATH ? fileText() : null,
+      describeWorktree: () => 'orca / custom',
+      onOffersChanged: vi.fn(),
+      now: () => NOW,
+      successorStarted
+    })
+    await offers.onStatus(
+      stop({ paneKey: 'structured-agent-session-claude_chat:2f6c1a3e-7d4b-4c5e-9a1f-3b2c4d5e6f70' })
+    )
+    expect(offers.list()).toEqual([])
+    expect(successorStarted).toHaveBeenCalledWith({
+      worktreeId: WORKTREE,
+      sessionId: SESSION,
+      tabId: 'structured-agent-session-claude_chat',
+      created: '2026-09-27T11:50:00+03:00'
+    })
+    // A turn cut off by a usage limit is still a handed-off chat, with no second successor offered.
+    expect(await offers.checkStoppedSession(WORKTREE, SESSION, NOW)).toBe(true)
+    expect(offers.list()).toEqual([])
+  })
+
+  it('still offers when the chat started no successor or the check fails', async () => {
+    for (const successorStarted of [
+      async () => false,
+      async () => {
+        throw new Error('pulse closed')
+      }
+    ]) {
+      const offers = createClaudeHandoffOffers({
+        readWorktreeFile: async (_worktreeId, relativePath) =>
+          relativePath === PATH ? fileText() : null,
+        describeWorktree: () => 'orca / custom',
+        onOffersChanged: vi.fn(),
+        now: () => NOW,
+        successorStarted
+      })
+      await offers.onStatus(stop())
+      expect(offers.list().map((offer) => offer.id)).toEqual([SESSION])
+    }
+  })
+
   it('does nothing when the session left no handoff', async () => {
     const { offers, onOffersChanged } = setup()
     await offers.onStatus(stop())
