@@ -39,7 +39,7 @@ export function registerHqProjectPagesHandlers(
   const service = createHqProjectPagesService(store, getAgentEnvResolvers)
   provideHqProjectPagesService(service)
   // Custom build (chat-auto-effort): a Claude chat's effort follows each message.
-  registerNativeChatAutoEffort(store)
+  registerNativeChatAutoEffort(store, getAgentEnvResolvers)
   // Custom build (hq-bundled-skills): the HQ skills and the HQ folder pointer their scripts read.
   registerHqBundledSkills(store)
   // Custom build (hq-reply-tone): a Slack message rewritten in Approve becomes a tone lesson.

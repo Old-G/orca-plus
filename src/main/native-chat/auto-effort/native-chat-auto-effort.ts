@@ -1,3 +1,4 @@
+import { journalSubmissionIsPersonal } from '../agent-session-journal/submissions/journal-submission-fold'
 // Custom build (chat-auto-effort): a Claude chat's effort follows each message the person sends —
 // low for a trivial reply, medium for a quick step, high for ordinary work, xhigh for hard or risky
 // work — picked by a small
@@ -27,9 +28,7 @@ type MessageOptions = AgentJournalSubmission['options']
 
 export type NativeChatAutoEffortService = {
   enabled: () => boolean
-  key: () => string | null
   pick: (input: {
-    key: string
     message: string
     previousAgentMessage: string | null
   }) => Promise<AutoEffortLevel | null>
@@ -104,6 +103,8 @@ export async function autoEffortMessageOptions(input: {
   options: MessageOptions
   body: AgentJournalItemBody | undefined
   items: () => readonly AgentJournalRenderItem[]
+  /** The agent's last answer before this message, when the caller reads it some other way than items. */
+  previousAgentMessage?: () => Promise<string | null>
   /** Levels the message's model offers; null when the model list does not say. */
   effortLevels?: () => ReadonlySet<string> | null
   sessionId?: string | null
@@ -164,15 +165,11 @@ export async function autoEffortMessageOptions(input: {
     note('role', route.effort)
     return { ...input.options, effort: route.effort }
   }
-  const key = current.key()
-  if (!key) {
-    note('no-key', handPicked ?? null)
-    return input.options
-  }
   const level = await current.pick({
-    key,
     message,
-    previousAgentMessage: lastAgentMessage(input.items())
+    previousAgentMessage: input.previousAgentMessage
+      ? await input.previousAgentMessage()
+      : lastAgentMessage(input.items())
   })
   const usable = level && (!levels || levels.has(level)) ? level : null
   note(usable ? 'picked' : 'no-answer', usable ?? handPicked ?? null)
@@ -200,24 +197,28 @@ export function withAutoEffort(
     return known
   }
   const roleOf = service.roleOf
-  const pending = (
+  const key = agentJournalSubmissionKey(id)
+  const pending = Promise.all([
     roleOf
       ? roleOf(record).catch((error: unknown) => {
           console.warn('[chat-auto-effort] the chat role could not be read', error)
           return null
         })
-      : Promise.resolve(null)
-  ).then((role) =>
+      : Promise.resolve(null),
+    journal.reads.itemBody(key).catch(() => null),
+    submissionFromPerson(journal, submission).catch(() => true)
+  ]).then(([role, body, fromPerson]) =>
     autoEffortMessageOptions({
       provider,
       options,
-      body: journal.itemBody(agentJournalSubmissionKey(id)) ?? undefined,
-      items: () => journal.snapshot().items,
+      body: body ?? undefined,
+      items: () => [],
+      previousAgentMessage: () => previousAgentReply(journal, key),
       effortLevels: () => chatModelEffortLevels(record, options?.model),
       sessionId: record.sessionId,
       messageId: id,
       role,
-      fromPerson: journal.inputOrder.personalSubmission(submission)
+      fromPerson
     })
   )
   picked.set(id, pending)
@@ -225,4 +226,34 @@ export function withAutoEffort(
     picked.delete(picked.keys().next().value ?? id)
   }
   return pending
+}
+
+// The journal lives in SQLite now: the last agent reply comes from the conversation outline.
+const OUTLINE_BUDGET_BYTES = 64 * 1024
+
+async function previousAgentReply(journal: AgentSessionJournal, key: string): Promise<string | null> {
+  const outline = await journal.reads.conversationOutline(OUTLINE_BUDGET_BYTES).catch(() => null)
+  const entries = outline?.entries ?? []
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index]
+    if (entry && entry.itemId !== key && entry.reply) {
+      return entry.reply
+    }
+  }
+  return null
+}
+
+/** Whether a person typed the message (not another chat, Orca's mail or an unattended run). */
+async function submissionFromPerson(
+  journal: AgentSessionJournal,
+  submission: AgentJournalSubmission
+): Promise<boolean> {
+  const card =
+    submission.queuedMessageId !== undefined
+      ? await journal.queuedMessages.get(submission.queuedMessageId)
+      : null
+  return journalSubmissionIsPersonal(
+    { queue: { cards: new Map(card ? [[card.messageId, card]] : []) } },
+    submission
+  )
 }
