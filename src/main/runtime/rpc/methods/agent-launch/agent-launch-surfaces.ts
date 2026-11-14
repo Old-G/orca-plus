@@ -40,6 +40,7 @@ import {
 } from '../../../../../shared/claude-subscriptions'
 import { readClaudeSubscriptionSettings } from '../../../../claude-subscriptions/claude-subscription-settings-source'
 import { assignClaudeSubscriptionToSession } from '../../../../claude-subscriptions/claude-subscription-session-assignments'
+import { HQ_CHAT_ROLE_SESSION_OPTION, isHqChatRole } from '../../../../../shared/hq-chat-role'
 
 /** `--subscription` for a Claude launch; an id this host has no subscription for is refused, not
  *  silently run on the base sign-in. */
@@ -62,6 +63,24 @@ function readClaudeSubscriptionOption(
     throw new Error(`Unknown Claude subscription: ${id}`)
   }
   return id
+}
+
+/** Custom build (hq-chat-roles, owner 14.11): `--role` of a chat launch, kept by Orca+ with the chat.
+ *  Bookkeeping only: a pulse store that cannot be written never fails the launch. */
+function recordChatRole(
+  context: RpcContext,
+  sessionId: string,
+  options: Readonly<Record<string, unknown>> | undefined
+): void {
+  const role = options?.[HQ_CHAT_ROLE_SESSION_OPTION]
+  if (!isHqChatRole(role)) {
+    return
+  }
+  try {
+    context.runtime.pulseChats().setRole({ sessionId, role, at: Date.now() })
+  } catch (error) {
+    console.warn('[hq-chat-roles] could not keep the chat role:', error)
+  }
 }
 
 /** Replay-safe launches keep the nested attach in the same stable caller namespace as the launch. */
@@ -94,6 +113,8 @@ export function agentLaunchSurfaceFactory(
       if (subscriptionId) {
         assignClaudeSubscriptionToSession(sessionId, subscriptionId)
       }
+      // Custom build (hq-chat-roles): kept before the process starts, so its env carries ORCA_CHAT_ROLE.
+      recordChatRole(context, sessionId, options)
       const supported = supportedStructuredSeedOptions(
         agent,
         narrowStructuredLaunchSeedOptions(options)

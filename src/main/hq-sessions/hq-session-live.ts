@@ -2,6 +2,7 @@
 // sessions, the agents' live status, the open tabs and what the owner last looked at.
 import { hqChatAddress, type HqSession, type HqSessionInput } from '../../shared/hq-journal'
 import type { HqLiveSession } from '../../shared/hq-sessions'
+import type { HqChatRole } from '../../shared/hq-chat-role'
 
 const NATIVE_CHAT_TAB = 'structured-agent-session-'
 
@@ -37,6 +38,8 @@ export type HqLiveInputs = {
   asking: ReadonlySet<string>
   contextPct: ReadonlyMap<string, number>
   name: (sessionId: string) => string | null
+  /** Custom build (hq-chat-roles): the role the chat was launched with. */
+  role?: (sessionId: string) => HqChatRole | null
   /** For a chat the journal has not seen yet: its project and room, by workspace. */
   placeOfWorktree: (worktreeId: string) => { project: string | null; workspace: string }
   /** Orca's window has focus; a shown tab in a window behind another app is not in front of him. */
@@ -78,7 +81,8 @@ export function hqLiveSessions(inputs: HqLiveInputs): HqLiveSession[] {
       contextPct: inputs.contextPct.get(sessionId) ?? session?.contextPct ?? null,
       ownerAt: tab ? (tab.focused ? inputs.now : tab.lastFocusedAt) : null,
       onScreen: tab?.focused === true && inputs.windowFocused,
-      tabOpen: tab !== null
+      tabOpen: tab !== null,
+      role: inputs.role?.(sessionId) ?? null
     })
   }
   return live.sort((a, b) => b.lastActivityAt - a.lastActivityAt)
@@ -88,13 +92,17 @@ export function hqLiveSessions(inputs: HqLiveInputs): HqLiveSession[] {
  * Custom build (chat-send-anywhere): an open, named chat with no thread gets its address at first
  * sight, not at its first report — a chat in one long first turn can be found and written to.
  * A stored address wins; a nameless chat waits for its name (its session id still reaches it).
+ * Custom build (hq-chat-roles, owner 14.11): a new address is one no other chat holds — `held` says
+ * whether one does — so two chats named alike get `-2`, `-3`, and a role chat's carries its role.
  */
 export function hqAddressOpenChats(
   live: readonly HqLiveSession[],
   stored: (sessionId: string) => HqSession | null,
-  now: number
+  now: number,
+  held: (address: string, sessionId: string) => boolean = () => false
 ): { live: HqLiveSession[]; notes: HqSessionInput[] } {
   const notes: HqSessionInput[] = []
+  const given = new Set(live.flatMap((chat) => (chat.address ? [chat.address] : [])))
   const addressed = live.map((chat) => {
     if (chat.address || !chat.tabOpen || chat.state === 'closed' || !chat.name) {
       return chat
@@ -103,7 +111,11 @@ export function hqAddressOpenChats(
     if (known?.address) {
       return { ...chat, address: known.address }
     }
-    const address = hqChatAddress(chat.project, chat.name, chat.sessionId)
+    const address = hqChatAddress(chat.project, chat.name, chat.sessionId, {
+      role: chat.role,
+      taken: (candidate) => given.has(candidate) || held(candidate, chat.sessionId)
+    })
+    given.add(address)
     notes.push(
       known
         ? { ...known, address, at: known.lastActivityAt }
