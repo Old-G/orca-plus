@@ -10,7 +10,7 @@ import {
   resolveNativeChatSessionOptionDefaults,
   resolveStructuredLaunchSeedOptions,
   structuredLaunchSeedOptions
-} from './native-chat-session-option-defaults'
+} from './session-options/native-chat-session-option-defaults'
 import type { PersistedNativeChatSessionOptions } from './native-chat-session-options'
 
 /** The saved selection the owner's profile held on 14.11: Fable at xhigh picked last. */
@@ -29,7 +29,15 @@ const SAVED_FABLE: PersistedNativeChatSessionOptions = {
 
 describe('a new Claude chat with no model named (chat-default-model)', () => {
   it('knows Fable by alias, by full id and with a window suffix, and nothing else', () => {
-    for (const model of ['fable', 'Fable', 'fable[1m]', 'claude-fable-5-2', 'claude-fable-5[1m]']) {
+    for (const model of [
+      'fable',
+      'Fable',
+      'fable[1m]',
+      'claude-fable-5-2',
+      'claude-fable-5[1m]',
+      'us.anthropic.claude-fable-5-2-v1:0',
+      'anthropic/claude-fable-5-2'
+    ]) {
       expect(isFableModel(model), model).toBe(true)
     }
     for (const model of ['opus', 'claude-opus-5-5[1m]', 'sonnet', 'fabled', 'my-fable', '', null]) {
