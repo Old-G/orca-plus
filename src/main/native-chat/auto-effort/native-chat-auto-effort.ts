@@ -2,6 +2,8 @@
 // low for a trivial reply, medium for a quick step, high for ordinary work, xhigh for hard or risky
 // work — picked by a small
 // classifier as the message is handed over. Any miss keeps the effort the chat already has.
+// Custom build (chat-auto-effort-roles): a head or review chat is always medium and a relayed message
+// keeps the chat's effort; neither asks the classifier (chat-role-effort.ts).
 import type {
   AgentJournalItemBody,
   AgentJournalRenderItem,
@@ -12,6 +14,7 @@ import type { AgentSessionJournal } from '../agent-session-journal/journal-store
 import type { ChatAutoEffortOutcome } from '../../../shared/chat-auto-effort-status'
 import type { AgentSessionRecord } from '../../../shared/agent-session/lifecycle/agent-session-record'
 import { chatModelEffortLevels } from './chat-model-effort-levels'
+import { effortRoute, type ChatRole } from './chat-role-effort'
 
 export const AUTO_EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh'] as const
 export type AutoEffortLevel = (typeof AUTO_EFFORT_LEVELS)[number]
@@ -30,6 +33,8 @@ export type NativeChatAutoEffortService = {
     message: string
     previousAgentMessage: string | null
   }) => Promise<AutoEffortLevel | null>
+  /** The chat's role (lead, sub-lead, worker, review); null when it has none. */
+  roleOf?: (record: AgentSessionRecord) => Promise<ChatRole | null>
 }
 
 let service: NativeChatAutoEffortService | null = null
@@ -53,6 +58,8 @@ export type AutoEffortLogEntry = {
   at: number
   effort: string | null
   result: AutoEffortOutcome['result'] | 'hand-picked'
+  /** The chat's role when the pick was made; null for a chat with none. */
+  role: ChatRole | null
   message: string
 }
 
@@ -101,6 +108,9 @@ export async function autoEffortMessageOptions(input: {
   effortLevels?: () => ReadonlySet<string> | null
   sessionId?: string | null
   messageId?: string | null
+  role?: ChatRole | null
+  /** False when the journal knows another chat or Orca sent it; absent counts as the person's. */
+  fromPerson?: boolean
 }): Promise<MessageOptions> {
   const current = service
   if (!current || input.provider !== 'claude' || !current.enabled()) {
@@ -118,9 +128,15 @@ export async function autoEffortMessageOptions(input: {
       at: Date.now(),
       effort,
       result,
+      role: input.role ?? null,
       message: message.slice(0, 80)
     })
-  if (!message || (handPicked && HAND_PICKED_EFFORTS.has(handPicked))) {
+  const route = effortRoute({
+    role: input.role ?? null,
+    fromPerson: input.fromPerson !== false,
+    text: message
+  })
+  if (!message || (route.kind !== 'fixed' && handPicked && HAND_PICKED_EFFORTS.has(handPicked))) {
     if (message && handPicked) {
       logged('hand-picked', handPicked)
     }
@@ -135,6 +151,18 @@ export async function autoEffortMessageOptions(input: {
   if (levels && !AUTO_EFFORT_LEVELS.some((level) => levels.has(level))) {
     note('no-effort-control', handPicked ?? null)
     return input.options
+  }
+  if (route.kind === 'relayed') {
+    note('relayed', handPicked ?? null)
+    return input.options
+  }
+  if (route.kind === 'fixed') {
+    if (levels && !levels.has(route.effort)) {
+      note('no-effort-control', handPicked ?? null)
+      return input.options
+    }
+    note('role', route.effort)
+    return { ...input.options, effort: route.effort }
   }
   const key = current.key()
   if (!key) {
@@ -162,24 +190,36 @@ export function withAutoEffort(
   journal: AgentSessionJournal | undefined
 ): Promise<MessageOptions> {
   const options = submission.options
-  const provider = record?.provider
-  if (!journal || !provider || !service?.enabled()) {
+  if (!journal || !record?.provider || !service?.enabled()) {
     return Promise.resolve(options)
   }
+  const provider = record.provider
   const id = submission.clientMessageId
   const known = picked.get(id)
   if (known) {
     return known
   }
-  const pending = autoEffortMessageOptions({
-    provider,
-    options,
-    body: journal.itemBody(agentJournalSubmissionKey(id)) ?? undefined,
-    items: () => journal.snapshot().items,
-    effortLevels: () => chatModelEffortLevels(record, options?.model),
-    sessionId: record?.sessionId ?? null,
-    messageId: id
-  })
+  const roleOf = service.roleOf
+  const pending = (
+    roleOf
+      ? roleOf(record).catch((error: unknown) => {
+          console.warn('[chat-auto-effort] the chat role could not be read', error)
+          return null
+        })
+      : Promise.resolve(null)
+  ).then((role) =>
+    autoEffortMessageOptions({
+      provider,
+      options,
+      body: journal.itemBody(agentJournalSubmissionKey(id)) ?? undefined,
+      items: () => journal.snapshot().items,
+      effortLevels: () => chatModelEffortLevels(record, options?.model),
+      sessionId: record.sessionId,
+      messageId: id,
+      role,
+      fromPerson: journal.inputOrder.personalSubmission(submission)
+    })
+  )
   picked.set(id, pending)
   if (picked.size > PICKED_KEPT) {
     picked.delete(picked.keys().next().value ?? id)
