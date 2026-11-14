@@ -1,7 +1,9 @@
 name: Clean obsolete PR work
 
 on:
-  pull_request_target:
+  # pull_request, not pull_request_target: GitHub blocks pull_request_target in
+  # public repositories by default from 2026-12-02.
+  pull_request:
     types: [closed, synchronize]
 
 permissions:
@@ -10,6 +12,8 @@ permissions:
 
 jobs:
   clean:
+    # Fork PRs get a read-only token here, so cancelling runs and deleting caches would fail.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
@@ -122,7 +126,7 @@ jobs:
                 }
               }
             }
-      # No checkout: this runs trusted default-branch code, including for fork PRs.
+      # No checkout: the scripts only call the GitHub API.
       - uses: actions/github-script@v8
         if: ${{ !cancelled() && github.event.action == 'closed' }}
         with:
