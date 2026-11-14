@@ -13,6 +13,7 @@ import { resolveTextGenerationParams } from '../text-generation/commit-message-t
 import { spawnSourceControlAgent } from '../text-generation/execution/source-control-agent-launch'
 import { runGenerationRequest } from '../text-generation/agent-generation-request'
 import { CLAUDE_TEXT_GENERATION_TOOLS } from '../../shared/claude-background-run-isolation'
+import { HQ_LEAN_ARGS, HQ_LEAN_OPERATIONS, shouldRetryLeanRunInFull } from './hq-background-lean'
 
 const FALLBACK_MODEL = 'sonnet'
 // Why: tools would let text in the task read files or reach the network on this Mac. Text
@@ -71,13 +72,25 @@ export async function generateHqText(
   if (!target) {
     return { ok: false, error: 'Could not prepare the Claude environment.' }
   }
-  const result = await runGenerationRequest({
-    params,
-    prompt,
-    target,
-    operation: what.operation,
-    spawnAgent: spawnSourceControlAgent
-  })
+  const run = (agentArgs: string | undefined) =>
+    runGenerationRequest({
+      params: { ...params, agentArgs },
+      prompt,
+      target,
+      operation: what.operation,
+      spawnAgent: spawnSourceControlAgent
+    })
+  // Custom build (hq-background-lean): a classifier starts bare; texts people read keep the full launch.
+  const lean = HQ_LEAN_OPERATIONS.has(what.operation)
+  let result = await run(lean ? `${params.agentArgs} ${HQ_LEAN_ARGS}` : params.agentArgs)
+  if (lean && !result.success && shouldRetryLeanRunInFull(result.failureOutput)) {
+    const reason = (result.failureOutput?.stderr || result.failureOutput?.stdout || '').trim()
+    console.warn(
+      `[hq-lean] ${what.operation}: lean run refused, full launch once:`,
+      reason.slice(0, 200)
+    )
+    result = await run(params.agentArgs)
+  }
   return result.success
     ? { ok: true, text: result.rawOutput.trim() }
     : { ok: false, error: result.error }
