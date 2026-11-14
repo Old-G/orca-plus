@@ -95,6 +95,7 @@ function open(sessionId: string, over: Partial<HqLiveSession> = {}): HqLiveSessi
     ownerAt: null,
     onScreen: false,
     tabOpen: true,
+    role: null,
     ...over
   }
 }
@@ -137,5 +138,69 @@ describe('HQ+ session dispatcher: a chat gets its address at first sight', () =>
       // Why: only the address is filled; the stored state and activity stay as they were.
       { sessionId: 'quiet', address: 'kite/refunds', state: 'waiting', at: NOW - 7_000 }
     ])
+  })
+})
+
+describe('HQ+ session dispatcher: every chat has its own address (hq-chat-roles)', () => {
+  const lead = 'От лида (Lead · Лид, модели и лимиты, chat/lead-x). Задача: T4'
+
+  it('gives two chats launched with the same prompt start different addresses', () => {
+    const { live, notes } = hqAddressOpenChats(
+      [open('first', { name: lead }), open('second', { name: lead })],
+      () => null,
+      NOW
+    )
+    const [first, second] = live.map((chat) => chat.address)
+    expect(first).toMatch(/^kite\/ot-lida-lead-/)
+    expect(second).toBe(`${first}-2`)
+    expect(notes.map((note) => note.address)).toEqual([first, second])
+  })
+
+  it('does not take an address another chat already holds, closed ones included', () => {
+    const { live } = hqAddressOpenChats(
+      [open('new', { name: 'Refunds' })],
+      () => null,
+      NOW,
+      (address, sessionId) =>
+        sessionId !== 'old' && (address === 'kite/refunds' || address === 'kite/refunds-2')
+    )
+    expect(live[0].address).toBe('kite/refunds-3')
+  })
+
+  it('names a role chat by its role and task, without the label or the rest of the brief', () => {
+    const { live } = hqAddressOpenChats(
+      [
+        open('w', { name: 'W · T4 адрес и роль чата в Orca+. От лида (Lead', role: 'worker' }),
+        open('lead', { name: 'LEAD · Модели и лимиты', role: 'lead' }),
+        open('sub', { name: 'Хуки лида', role: 'sublead' }),
+        open('rev', { name: 'REVIEW · T4 diff. Критерии', role: 'review' })
+      ],
+      () => null,
+      NOW
+    )
+    expect(live.map((chat) => chat.address)).toEqual([
+      'kite/w-t4-adres-i-rol-chata-v-orca',
+      'kite/lead-modeli-i-limity',
+      'kite/sublead-huki-lida',
+      'kite/review-t4-diff'
+    ])
+  })
+
+  it('hands each chat its role from the record, null when it was launched without one', () => {
+    const live = hqLiveSessions({
+      sessions: [known('a'), known('b')],
+      agents: [],
+      tabs: [],
+      asking: new Set(),
+      contextPct: new Map(),
+      name: () => null,
+      role: (sessionId) => (sessionId === 'a' ? 'worker' : null),
+      placeOfWorktree: () => ({ project: null, workspace: 'acme' }),
+      windowFocused: true,
+      now: NOW
+    })
+    const by = new Map(live.map((session) => [session.sessionId, session.role]))
+    expect(by.get('a')).toBe('worker')
+    expect(by.get('b')).toBeNull()
   })
 })

@@ -10,6 +10,8 @@ import { useHqPlusChatChip } from './use-hq-plus-chat-chip'
 import { tileStyle } from './HqPlusSideProjects'
 import { HqPlusCloseChat, type HqPlusChatCloser } from './HqPlusCloseChat'
 import type { HqPlusOtherWait } from './HqPlusSideQueues'
+import { HqPlusRoleTag, hqPlusRoleTitle } from './HqPlusRoleTag'
+import type { HqChatRole } from '../../../../../shared/hq-chat-role'
 
 export type HqPlusTile = { letters: string; color: string | null }
 
@@ -55,7 +57,8 @@ export function HqPlusChatRow({
   waitsOn = null,
   depth,
   project,
-  kids = 0
+  kids = 0,
+  role = null
 }: {
   item: HqChatItem
   picked: boolean
@@ -73,8 +76,10 @@ export function HqPlusChatRow({
   project?: string
   /** Custom build (hq-plus-work-view): the open chats this one started, in «By work». */
   kids?: number
+  /** Custom build (hq-chat-roles): the role it was launched with, before its title in «By work». */
+  role?: HqChatRole | null
 }): React.JSX.Element {
-  const title = useHqChatTitle(item)
+  const title = hqPlusRoleTitle(useHqChatTitle(item), role)
   const rowRef = useRef<HTMLButtonElement>(null)
   const clicked = useRef(false)
   const [flash, setFlash] = useState(false)
@@ -154,7 +159,10 @@ export function HqPlusChatRow({
               {chip.label}
             </span>
           ) : null}
-          <span className="hqp-pc-tt">{title}</span>
+          <span className="hqp-pc-tt">
+            <HqPlusRoleTag role={role} />
+            {title}
+          </span>
         </span>
         <span className="w">{item.sortAt ? formatRelativeTime(item.sortAt, now) : ''}</span>
         <span className="s">

@@ -296,6 +296,18 @@ CREATE INDEX IF NOT EXISTS journal_by_ref ON journal(kind, ref_id);
 CREATE INDEX IF NOT EXISTS events_by_entity ON events(kind, entity_id, seq);
 `
 
+// Custom build (hq-chat-roles, owner 14.11): the role a chat was launched with (`orca agent launch
+// --role`). Its own table: the role is written before the chat is first seen, when its room is unknown.
+// Why outside STEPS: an added table needs no version bump, so the build before this one still opens
+// the file (a newer user_version is refused) and a rollback keeps HQ+ working.
+const SIDE_TABLES = `
+CREATE TABLE IF NOT EXISTS chat_roles (
+  session_id TEXT PRIMARY KEY,
+  role TEXT NOT NULL CHECK (role IN ('lead', 'sublead', 'worker', 'review')),
+  at INTEGER NOT NULL
+);
+`
+
 const STEPS: readonly string[] = [
   V1,
   V2,
@@ -327,6 +339,7 @@ export function migratePulseSchema(db: Database.Database): void {
     )
   }
   if (stored === PULSE_SCHEMA_VERSION) {
+    db.exec(SIDE_TABLES)
     return
   }
   db.exec('BEGIN IMMEDIATE')
@@ -335,6 +348,7 @@ export function migratePulseSchema(db: Database.Database): void {
       db.exec(step)
     }
     db.pragma(`user_version = ${PULSE_SCHEMA_VERSION}`)
+    db.exec(SIDE_TABLES)
     db.exec('COMMIT')
   } catch (error) {
     db.exec('ROLLBACK')
