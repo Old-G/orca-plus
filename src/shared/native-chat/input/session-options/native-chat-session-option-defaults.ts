@@ -13,7 +13,6 @@ import {
   getAgentSessionOptionCatalog,
   sessionOptionValueIsValid
 } from '../../../agent-session/options/agent-session-option-catalog'
-import { savedSelectionForNewChat } from '../claude-new-chat-model'
 import type {
   NativeChatSessionOptionSettingsMutation,
   PersistedNativeChatSessionOptions,
@@ -28,8 +27,7 @@ export function resolveNativeChatSessionOptionDefaults(
   persisted: PersistedNativeChatSessionOptions | null | undefined,
   agent: AgentType
 ): Record<string, SessionOptionValue> | undefined {
-  // Custom build (chat-default-model): a saved Fable pick never seeds a new chat.
-  const entry = savedSelectionForNewChat(persisted)?.[agent]
+  const entry = persisted?.[agent]
   // Preserve CLI-configured defaults until the user explicitly selects a model that authorizes launch flags.
   const modelId = typeof entry?.model === 'string' && entry.model.trim() ? entry.model : undefined
   if (!modelId) {
