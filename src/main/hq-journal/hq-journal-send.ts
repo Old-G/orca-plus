@@ -1,6 +1,7 @@
 // Custom build (chat-send-anywhere): `orca chat send` — a message into a chat of any room, by its
 // thread's `<project>/<task>` or its session id, with the quote of what it answers. A chat in the
 // middle of its turn gets it queued for when the turn ends; a closed chat is brought back first.
+// A Lead's messages from other chats are held and go in one turn (hq-lead-batch).
 import {
   HQ_JOURNAL_ALL_ROOMS,
   HQ_JOURNAL_KIND,
@@ -10,8 +11,10 @@ import {
 import { journalEntryAsInput } from './hq-journal-adapters'
 import type { HqCallerScope } from './hq-journal-rooms'
 import type { HqThreads, HqThreadsDeps } from './hq-journal-threads'
+import { hqLeadBatchPrompt, hqLeadUrgent, type HqLeadHeld } from './hq-lead-batch'
 
 const SEND_SOURCE = 'chat-send'
+const LEAD_BATCH_SOURCE = 'lead-batch'
 // Why: a reopened chat takes a moment to attach its session before it can take a turn.
 const REOPEN_TRIES = 15
 const REOPEN_STEP_MS = 1_000
@@ -28,6 +31,79 @@ function stamp(at: number): string {
   return `${pad(date.getDate())}.${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
+type HqDeliverDeps = Pick<HqThreadsDeps, 'deliver' | 'reopen' | 'wait' | 'sessionWorkspace'>
+
+/** Hands the chat a prompt, bringing it back once when it is closed. */
+async function deliverOrReopen(
+  deps: HqDeliverDeps,
+  target: { sessionId: string; worktreeId: string | null },
+  prompt: string
+): Promise<{ taken: boolean; reopened: boolean; worktreeId: string | null }> {
+  let reopened = false
+  let taken = await deps.deliver(target.sessionId, prompt)
+  const worktreeId = target.worktreeId ?? deps.sessionWorkspace(target.sessionId)
+  if (!taken && worktreeId && deps.reopen(target.sessionId, worktreeId)) {
+    reopened = true
+    for (let tries = 0; tries < REOPEN_TRIES && !taken; tries += 1) {
+      await deps.wait(REOPEN_STEP_MS)
+      taken = await deps.deliver(target.sessionId, prompt)
+    }
+  }
+  return { taken, reopened, worktreeId }
+}
+
+type HqLeadPulse = Pick<HqThreadsDeps['pulse'], 'getSession' | 'listSessionsByAddress'>
+
+/** Custom build (hq-lead-batch): the chat on the Lead's thread now — a handoff's new chat takes it over. */
+export function hqLeadBatchSession(pulse: HqLeadPulse, held: HqLeadHeld): string {
+  return pulse.listSessionsByAddress(held.address)[0]?.sessionId ?? held.sessionId
+}
+
+/** Custom build (hq-lead-batch): a held batch goes to the chat on the Lead's thread now. */
+export async function hqDeliverLeadBatch(
+  deps: HqDeliverDeps & { pulse: HqLeadPulse },
+  held: HqLeadHeld,
+  prompt: string
+): Promise<boolean> {
+  const sessionId = hqLeadBatchSession(deps.pulse, held)
+  const worktreeId = deps.pulse.getSession(sessionId)?.worktreeId ?? null
+  return (await deliverOrReopen(deps, { sessionId, worktreeId }, prompt)).taken
+}
+
+/** Custom build (hq-lead-batch): a batch no Lead took becomes the owner's card, with every message. */
+export function hqLeadBatchGiveUp(
+  deps: { pulse: HqLeadPulse & Pick<HqThreadsDeps['pulse'], 'record'>; now: () => number },
+  held: HqLeadHeld,
+  prompt: string
+): void {
+  const sessionId = hqLeadBatchSession(deps.pulse, held)
+  const session = deps.pulse.getSession(sessionId)
+  deps.pulse.record([
+    {
+      workspace: session?.workspace ?? HQ_JOURNAL_ALL_ROOMS,
+      // Why: a chat.message row is the chats' own talk and stays out of the feed; a report with the
+      // owner's move is a card.
+      kind: HQ_JOURNAL_KIND.chatReport,
+      at: deps.now(),
+      project: session?.project ?? 'hq',
+      address: held.address,
+      sessionId,
+      personId: null,
+      title: hqJournalTitle(
+        `The Lead on ${held.address} took none of ${held.prompts.length} held messages; open it and send them again`
+      ),
+      body: prompt,
+      needs: 'owner:reply',
+      status: 'open',
+      replyTo: null,
+      refKind: 'session',
+      refId: sessionId,
+      source: LEAD_BATCH_SOURCE,
+      dedupeKey: `${LEAD_BATCH_SOURCE}:${held.address}:${held.since}`
+    }
+  ])
+}
+
 export function createHqSend(
   deps: HqThreadsDeps,
   /** The thread a chat works on: its stored address, else one made from its project and name. */
@@ -35,6 +111,16 @@ export function createHqSend(
 ): HqThreads['send'] {
   const latest = (query: { address: string; source: string }) =>
     deps.pulse.list({ ...query, limit: 1 })[0] ?? null
+
+  const isLead = (sessionId: string): boolean => {
+    try {
+      return deps.pulse.roleOf?.(sessionId) === 'lead'
+    } catch (error) {
+      // Why: a role that cannot be read must not stop a send; the message goes as before.
+      console.warn('[hq-lead-batch] role lookup failed:', error)
+      return false
+    }
+  }
 
   return async (caller, message) => {
     if (!deps.enabled()) {
@@ -77,22 +163,42 @@ export function createHqSend(
       ? `Orca+ · a message from thread ${from}${fromRoom}, in reply to «${quoted.title}» (${stamp(quoted.at)}):`
       : `Orca+ · a message from thread ${from}${fromRoom}:`
     const prompt = [head, '"""', message.text, '"""'].join('\n')
+    // Custom build (hq-lead-batch): a Lead takes other chats' messages in one turn; the owner's
+    // own message from HQ+ and an urgent report go at once, with what was held.
+    const batch = deps.leadBatch && isLead(target.sessionId) ? deps.leadBatch : null
+    await batch?.ready
+    const ownerTyping = scope.kind === 'overview' && !scope.sessionId
+    const hold =
+      batch !== null &&
+      !ownerTyping &&
+      scope.sessionId !== target.sessionId &&
+      !hqLeadUrgent(message.text)
     let reopened = false
-    let taken = await deps.deliver(target.sessionId, prompt)
-    const worktreeId = target.worktreeId ?? deps.sessionWorkspace(target.sessionId)
-    if (!taken && worktreeId && deps.reopen(target.sessionId, worktreeId)) {
-      reopened = true
-      for (let tries = 0; tries < REOPEN_TRIES && !taken; tries += 1) {
-        await deps.wait(REOPEN_STEP_MS)
-        taken = await deps.deliver(target.sessionId, prompt)
+    let held: { dueAt: number } | undefined
+    let worktreeId = target.worktreeId ?? deps.sessionWorkspace(target.sessionId)
+    if (batch && hold) {
+      held = batch.hold(address, target.sessionId, prompt)
+    } else {
+      const prior = batch?.take(address) ?? null
+      const outgoing = prior ? hqLeadBatchPrompt([...prior.prompts, prompt], prior.since) : prompt
+      const sent = await deliverOrReopen(deps, target, outgoing).catch((error: unknown) => {
+        if (prior) {
+          batch?.restore(prior)
+        }
+        throw error
+      })
+      reopened = sent.reopened
+      worktreeId = sent.worktreeId
+      if (!sent.taken) {
+        if (prior) {
+          batch?.restore(prior)
+        }
+        throw new Error(
+          byId && !known && !worktreeId
+            ? `No open chat ${to}; \`orca hq sessions --json\` lists the chats.`
+            : `The chat on ${address} is closed and Orca+ could not bring it back; open it from History and send again.`
+        )
       }
-    }
-    if (!taken) {
-      throw new Error(
-        byId && !known && !worktreeId
-          ? `No open chat ${to}; \`orca hq sessions --json\` lists the chats.`
-          : `The chat on ${address} is closed and Orca+ could not bring it back; open it from History and send again.`
-      )
     }
     if (byId && !known?.address) {
       // Why: the chat keeps this address; its first report and later messages find the same thread.
@@ -155,6 +261,8 @@ export function createHqSend(
     if (!entry) {
       throw new Error('The message was delivered but not recorded.')
     }
-    return { entry, sessionId: target.sessionId, reopened }
+    return held
+      ? { entry, sessionId: target.sessionId, reopened, heldUntil: held.dueAt }
+      : { entry, sessionId: target.sessionId, reopened }
   }
 }
