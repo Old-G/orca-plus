@@ -59,6 +59,7 @@ let launched: { repoId: string; name: string; baseBranch?: string }[]
 let delivered: { sessionId: string; prompt: string }[]
 let launchError: string | null
 let free: number | null
+let limitFails: boolean
 
 beforeEach(() => {
   db = new PulseDb(':memory:')
@@ -67,6 +68,7 @@ beforeEach(() => {
   delivered = []
   launchError = null
   free = 80
+  limitFails = false
   const rooms: Record<string, string> = { 'Acme API': 'acme-api', Kite: 'kite' }
   db.recordJournal(
     codexReviewJournal(REPORT_NAME, REPORT, ({ project }) => ({
@@ -88,7 +90,8 @@ beforeEach(() => {
     pulse: {
       list: (query) => db.listJournal(query),
       record: (inputs) => db.recordJournal(inputs),
-      noteSessions: (inputs) => db.noteSessions(inputs)
+      noteSessions: (inputs) => db.noteSessions(inputs),
+      releaseAddress: (sessionId, address, at) => db.releaseSessionAddress(sessionId, address, at)
     },
     workspaceFor: async (project) =>
       project === 'acme-api' ? { repoId: 'r-api', repoPath: '/w/api', name: 'Acme API' } : null,
@@ -105,7 +108,7 @@ beforeEach(() => {
         worktreeId: 'r-api::/w/api-fix'
       }
     },
-    limit: async () => true,
+    limit: async () => !limitFails,
     nameChat: async () => {},
     deliver: async (sessionId, prompt) => {
       delivered.push({ sessionId, prompt })
@@ -153,6 +156,21 @@ describe('HQ+ routing: Codex findings to a fixing chat', () => {
     expect(again.actions.map((action) => action.kind)).toEqual(['suggest'])
     expect(launched).toHaveLength(1)
     expect(db.listJournal({ kind: 'routing.action', needs: 'owner' })).toHaveLength(1)
+  })
+
+  // Custom build (hq-chat-roles): an empty chat left on the thread would be continued with full access.
+  it('gives the thread back when the fixing chat cannot be switched to Auto', async () => {
+    clock = at(21, 40)
+    limitFails = true
+    const result = await routing.run()
+    expect(result.actions[0]).toMatchObject({
+      project: 'acme-api',
+      note: 'the chat could not be switched to Auto'
+    })
+    expect(delivered).toEqual([])
+    expect(db.getSession('claude_fix1')).toMatchObject({ address: null, state: 'closed' })
+    expect(db.listSessionsByAddress('acme-api/codex-fix-2026-10-24')).toEqual([])
+    expect(findings()[0]).toMatchObject({ address: null, status: 'open' })
   })
 
   it('takes nothing older than the rule, and waits while the Claude limit is low', async () => {
