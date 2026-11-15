@@ -83,7 +83,7 @@ export function useStructuredNativeChatPaneCommands({
     // A chat in a terminal pane already hands off through that pane's own menu row.
     handOffDisabled: handOff.preparing || handOff.dialog !== null,
     onHandOff: terminalPaneActions === undefined && handOff.available ? handOff.open : undefined,
-    onContinueNew: continueNew ? continueNew.start : undefined,
+    onContinueNew: continueNew ? () => void continueNew.start() : undefined,
     continueNewDisabled: continueNew?.starting === true,
     actions: terminalPaneActions,
     resolveOrcaSessionId,

@@ -138,9 +138,7 @@ export function NativeChatContextUsageRing({
             data-native-chat-context-usage={usage.percentage}
             data-native-chat-context-usage-estimated={usage.estimated ? 'true' : undefined}
             className={cn(
-              'flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:size-11',
-              critical && 'text-destructive',
-              continueNew && !critical && 'text-amber-500'
+              'flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:size-11'
             )}
             data-native-chat-continue-new={continueNew ? 'true' : undefined}
             // A read-only readout: clicking it must not pull focus out of the composer.
@@ -156,7 +154,12 @@ export function NativeChatContextUsageRing({
               height={RING_SIZE}
               viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
               aria-hidden="true"
-              className="-rotate-90"
+              // Custom build: the tint sits on the svg, since HQ+ sets `button { color: inherit }`.
+              className={cn(
+                '-rotate-90',
+                critical && 'text-destructive',
+                continueNew && !critical && 'text-amber-500'
+              )}
             >
               <circle
                 cx={RING_SIZE / 2}
