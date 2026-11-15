@@ -147,12 +147,15 @@ export function closeLedgerConversation(core: PulseCore, key: string): boolean {
 }
 
 /** Custom build (hq-ledger-sources): the places of one reader's conversations that still show — the
- *  owner's move or for his information — so the reader can close those its source no longer lists. */
+ *  owner's move or for his information — so the reader can close those its source no longer lists.
+ *  Custom build (hq-mr-comments, T14): only those whose newest person's message is this reader's — a
+ *  reviewer's comment read after a to-do keeps its MR's card when the to-do is finished. */
 export function listLedgerOpenKeys(core: PulseCore, reader: string): string[] {
   return core.db
     .prepare(
-      `SELECT DISTINCT c.key FROM conversations c JOIN conversation_messages m ON m.conversation_id = c.id
-        WHERE m.reader = ? AND c.state IN ('you', 'fyi') ORDER BY c.key`
+      `SELECT c.key FROM conversations c WHERE c.state IN ('you', 'fyi') AND (
+         SELECT m.reader FROM conversation_messages m WHERE m.conversation_id = c.id AND m.direction = 'in'
+          ORDER BY m.at DESC, m.ts DESC LIMIT 1) = ? ORDER BY c.key`
     )
     .all(reader)
     .map((row) => String(row.key))
