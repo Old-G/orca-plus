@@ -17,6 +17,7 @@ let live: HqLiveSession[]
 let offers: HqHandoffOfferRef[]
 let sent: { address: string; text: string }[]
 let sendFails: boolean
+let limitFails: boolean
 let launched: string[]
 let delivered: { sessionId: string; prompt: string }[]
 // Custom build (hq-chat-roles): the thread a new chat already holds when its first turn goes in.
@@ -39,6 +40,7 @@ function chat(over: Partial<HqLiveSession> = {}): HqLiveSession {
     ownerAt: null,
     onScreen: false,
     tabOpen: true,
+    role: null,
     ...over
   }
 }
@@ -92,6 +94,7 @@ beforeEach(() => {
   offers = []
   sent = []
   sendFails = false
+  limitFails = false
   launched = []
   delivered = []
   addressAtDelivery = []
@@ -106,7 +109,8 @@ beforeEach(() => {
       list: (query) => db.listJournal(query),
       record: (inputs) => db.recordJournal(inputs),
       noteSessions: (inputs) => db.noteSessions(inputs),
-      getSession: (sessionId) => db.getSession(sessionId)
+      getSession: (sessionId) => db.getSession(sessionId),
+      releaseAddress: (sessionId, address, at) => db.releaseSessionAddress(sessionId, address, at)
     },
     live: async () => live,
     send: async (_caller, message) => {
@@ -125,7 +129,7 @@ beforeEach(() => {
       launched.push(worktreeId)
       return { ok: true, sessionId: `claude_new${launched.length}`, worktreeId }
     },
-    limit: async () => true,
+    limit: async () => !limitFails,
     nameChat: async () => {},
     deliver: async (sessionId, prompt) => {
       addressAtDelivery.push(db.getSession(sessionId)?.address ?? null)
@@ -205,6 +209,27 @@ describe('HQ+ session dispatcher', () => {
       state: 'working'
     })
     expect(rows(HQ_JOURNAL_KIND.sessionOpen)).toHaveLength(1)
+  })
+
+  // Custom build (hq-chat-roles): an empty chat left on the thread would be continued with full access.
+  it('gives the thread back when the new chat cannot be switched to Auto', async () => {
+    limitFails = true
+    await expect(
+      service.dispatch({ cwd: '/w/api' }, { address: 'acme-api/refunds', prompt: 'Ship it' })
+    ).rejects.toThrow('could not be switched to Auto')
+    expect(delivered).toEqual([])
+    expect(db.getSession('claude_new1')).toMatchObject({ address: null, state: 'closed' })
+    expect(db.listSessionsByAddress('acme-api/refunds')).toEqual([])
+
+    limitFails = false
+    const next = await service.dispatch(
+      { cwd: '/w/api' },
+      { address: 'acme-api/refunds', prompt: 'Ship it' }
+    )
+    expect(next).toMatchObject({ acted: true, sessionId: 'claude_new2' })
+    expect(db.listSessionsByAddress('acme-api/refunds').map((s) => s.sessionId)).toEqual([
+      'claude_new2'
+    ])
   })
 
   it('queues work while the thread’s chat is mid-turn, and the sweep starts it afterwards', async () => {
