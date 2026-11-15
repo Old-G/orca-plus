@@ -109,6 +109,8 @@ export async function carryOutHqDispatch(
   ])
   // Why: work handed on may quote other people or other chats; full access would let it steer.
   if (!(await deps.limit(launched.sessionId))) {
+    // Why: left on the thread, the empty chat would be continued next time with full access.
+    deps.pulse.releaseAddress(launched.sessionId, decision.address, deps.now())
     throw new Error('The new chat could not be switched to Auto, so no work went in.')
   }
   const task = decision.address.split('/')[1] ?? decision.address

@@ -72,7 +72,9 @@ export function registerHqRouting(
     pulse: {
       list: (query) => runtime.pulseListJournal(query),
       record: (inputs) => runtime.pulseRecordJournal(inputs),
-      noteSessions: (inputs) => runtime.pulseNoteSessions(inputs)
+      noteSessions: (inputs) => runtime.pulseNoteSessions(inputs),
+      releaseAddress: (sessionId, address, at) =>
+        runtime.pulseReleaseSessionAddress(sessionId, address, at)
     },
     workspaceFor: async (project) => {
       const hq = hqPath()
