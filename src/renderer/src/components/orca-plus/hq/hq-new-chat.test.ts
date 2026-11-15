@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('sonner', () => ({ toast: { error: mocks.error } }))
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
-vi.mock('../../../../../shared/non-secure-context-uuid', () => ({
+vi.mock('../../../../../shared/identifiers/non-secure-context-uuid', () => ({
   createNonSecureContextUuid: () => 'req-1'
 }))
 vi.mock('@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab', () => ({
@@ -41,6 +41,14 @@ describe('startHqChat', () => {
     mocks.launch.mockReturnValueOnce(null)
     await startHqChat('wt-1')
     expect(mocks.error).toHaveBeenCalled()
+    expect(mocks.open).not.toHaveBeenCalled()
+  })
+
+  it('says so when the launch was refused, without waiting for a pane', async () => {
+    mocks.launch.mockReturnValueOnce({ refused: { ok: false, reason: 'not-ready' } })
+    await startHqChat('wt-1')
+    expect(mocks.error).toHaveBeenCalled()
+    expect(mocks.newPane).not.toHaveBeenCalled()
     expect(mocks.open).not.toHaveBeenCalled()
   })
 })
