@@ -214,7 +214,7 @@ describe('NativeChatContextUsageRing', () => {
 })
 
 // Custom build (chat-continue-new, T6): a big idle chat tints the ring and offers a fresh chat.
-const START = vi.fn()
+const START = vi.fn(async () => true)
 const OFFER = { usedTokens: 420_000, idleMs: 3 * 60 * 60_000, starting: false, start: START }
 
 describe('NativeChatContextUsageRing continue in new chat', () => {
@@ -250,6 +250,8 @@ describe('NativeChatContextUsageRing continue in new chat', () => {
     START.mockClear()
     const trigger = await renderWithOffer()
     expect(trigger.dataset.nativeChatContinueNew).toBe('true')
+    // On the svg: HQ+ styles `button { color: inherit }`, which would beat a class on the button.
+    expect(trigger.querySelector('svg')?.classList.contains('text-amber-500')).toBe(true)
     await click(trigger)
     const offer = card()?.querySelector('[data-native-chat-continue-new]')
     expect(offer?.textContent).toContain('Idle 3 h')
