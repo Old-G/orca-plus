@@ -163,6 +163,16 @@ function personNamed(
   return { person: author?.author ?? null, personId: name }
 }
 
+function sameAuthor(a: HqLoopMessage, b: HqLoopMessage): boolean {
+  if (a.fromOwner || b.fromOwner) {
+    return a.fromOwner === b.fromOwner
+  }
+  if (a.authorId && b.authorId) {
+    return a.authorId === b.authorId
+  }
+  return !!a.author && !!b.author && namesMatch(a.author, b.author)
+}
+
 function lastOtherAuthor(messages: readonly HqLoopMessage[]): HqLoopMessage | null {
   return messages.findLast((m) => !m.fromOwner && (m.authorId || m.author)) ?? null
 }
@@ -203,7 +213,14 @@ export function hqOpenLoop(timeline: HqLoopTimeline, owner: HqLoopOwner): HqOpen
         (before !== null && !before.fromOwner)
       : speaksToOwner(message, before?.fromOwner === true && !turnedAway(message), side)
   // Why: an ask taken back and then asked anew is a new ask; only lines after the withdrawal count.
-  const live = run.slice(run.findLastIndex((message) => hqLoopWithdrawn(message.text)) + 1)
+  // A withdrawal takes back its own author's asks: in a thread, Bob's «never mind» leaves Ann's open.
+  const live = run.filter(
+    (message, index) =>
+      !hqLoopWithdrawn(message.text) &&
+      !run
+        .slice(index + 1)
+        .some((later) => sameAuthor(later, message) && hqLoopWithdrawn(later.text))
+  )
   const own = live.find((message) => asks(message) === 'own' && addressed(message))
   const opening = own ?? live.find((message) => asks(message) === 'quoted' && addressed(message))
   // Why: whoever asked and then thanked, said «ok» or took the ask back — nobody waits.
