@@ -40,7 +40,9 @@ export type HqPlusLogContext = {
   onNotNow: (id: string) => void
   onChanged: () => void
   /** Custom build (hq-plus-instant): a card shown settled at once while its answer is written. */
-  onSettling?: (id: string, done: HqPlusDone | null) => void
+  onSettling?: (id: string, done: HqPlusDone | null, failure?: string) => void
+  /** Custom build (hq-plus-instant, Codex 15.11): why a card settled on the click came back; null if not. */
+  settleErrorOf?: (id: string) => string | null
   /** Custom build (hq-plus-links): the chat a row belongs to, for its name; null for none. */
   chatOf: (sessionId: string | null) => HqPlusChatRef | null
   /** Custom build (hq-plus-ui-v2): the live chat's state badge (working, waits for the owner, done). */
@@ -242,7 +244,10 @@ function LogItem({
           onOpenReport={ctx.onOpenReport}
           onNotNow={item.open ? () => ctx.onNotNow(hqPlusNotNowKey(item)) : null}
           onChanged={ctx.onChanged}
-          onSettling={ctx.onSettling ? (done) => ctx.onSettling?.(item.id, done) : null}
+          onSettling={
+            ctx.onSettling ? (done, failure) => ctx.onSettling?.(item.id, done, failure) : null
+          }
+          settleError={ctx.settleErrorOf?.(item.id) ?? null}
           expanded={ctx.isExpanded(item.id)}
           onExpand={(next) => ctx.setExpanded(item.id, next)}
           onToWork={(inbox) => {
