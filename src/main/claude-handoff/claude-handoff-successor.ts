@@ -52,7 +52,7 @@ export type ClaudeHandoffCloseOutcome = 'not-a-chat' | 'runtime' | 'window' | 'f
  */
 export async function closeClaudeHandedOffChat(
   deps: ClaudeHandoffCloseDeps,
-  offer: ClaudeHandoffOffer,
+  offer: Pick<ClaudeHandoffOffer, 'worktreeId' | 'tabId' | 'tabWorktreeId'>,
   launchedTabId: string | undefined
 ): Promise<ClaudeHandoffCloseOutcome> {
   if (!offer.tabId?.startsWith(NATIVE_CHAT_TAB) || offer.tabId === launchedTabId) {
