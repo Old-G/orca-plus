@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/store', () => ({ useAppStore: { getState: () => ({}) } }))
+const store = vi.hoisted(() => ({ state: {} as Record<string, unknown> }))
+const launch = vi.hoisted(() => vi.fn((): unknown => null))
+vi.mock('@/store', () => ({ useAppStore: { getState: () => store.state } }))
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 vi.mock('@/lib/agent-session/messaging/agent-message-send', () => ({ sendMessageToAgent: vi.fn() }))
 vi.mock('@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab', () => ({
-  launchAgentInNewTabWithOutcome: vi.fn()
+  launchAgentInNewTabWithOutcome: launch
 }))
 vi.mock('@/lib/agent-session/messaging/running-agent-targets', () => ({
   deriveRunningAgentSendTargets: vi.fn(() => []),
@@ -14,7 +16,7 @@ vi.mock('@/lib/workspace/ownership/worktree-runtime-owner', () => ({
   getExecutionHostIdForWorktree: vi.fn()
 }))
 
-import { findHqWorktreeId } from './hq-today-actions'
+import { findHqWorktreeId, launchHqCommand } from './hq-today-actions'
 
 function repo(id: string, path: string) {
   return { id, path }
@@ -39,5 +41,15 @@ describe('findHqWorktreeId', () => {
     expect(findHqWorktreeId(null, repos, {})).toBeNull()
     expect(findHqWorktreeId('/p/other', repos, {})).toBeNull()
     expect(findHqWorktreeId('/p/HQ', repos, { hq: [worktree('old', true, true)] })).toBeNull()
+  })
+})
+
+describe('launchHqCommand', () => {
+  it('reports a launch the new-tab path refused as a failure (Codex 15.11)', () => {
+    store.state = { getKnownWorktreeById: () => ({ id: 'wt-hq' }), setActiveWorktree: vi.fn() }
+    launch.mockReturnValueOnce({ refused: { ok: false, reason: 'not-ready' } })
+    expect(launchHqCommand('wt-hq', 'go')).toMatchObject({ ok: false })
+    launch.mockReturnValueOnce({ surface: { kind: 'host-published' } })
+    expect(launchHqCommand('wt-hq', 'go')).toEqual({ ok: true })
   })
 })
