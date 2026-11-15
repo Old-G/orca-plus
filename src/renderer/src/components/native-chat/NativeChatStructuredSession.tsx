@@ -6,6 +6,7 @@ import {
 import { NativeChatUsageLimitActionsProvider } from './usage/NativeChatUsageLimitActions'
 import { useNativeChatHandOff } from './pane/actions/use-native-chat-hand-off'
 import { useNativeChatStructuredPaneNotices } from '@/components/native-chat/messages/notices/use-native-chat-structured-pane-notices'
+import { NativeChatContinueNewContext } from './usage/native-chat-continue-new-context'
 import { useRef, useState } from 'react'
 import { structuredAgentSessionPaneKey } from '../../../../shared/agent-session/view/structured-agent-session-projection'
 import { useStructuredChatLiveSession } from './session/structured/use-structured-chat-live-session'
@@ -167,6 +168,7 @@ export function NativeChatStructuredSession(props: Omit<NativeChatStructuredView
     sessionContext: controller,
     ownerWorktreeId,
     composerRef,
+    fileLinkContext,
     rewind: controller.rewind.surface
   })
   const prompt = useBotLinkPrompt(props.sessionId, controller.prompts)
@@ -207,7 +209,8 @@ export function NativeChatStructuredSession(props: Omit<NativeChatStructuredView
     composerReady: composerShown && install.slot.kind !== 'install',
     surfaceReady: !composerShown || install.slot.kind === 'install',
     conversationShown: viewState.kind === 'ready',
-    ...paneCommands,
+    menu: paneCommands.menu,
+    onSplit: paneCommands.onSplit,
     onKeyDown: subagents.onKeyDown
   })
   const forks = useNativeChatPaneFork(props, controller, ownerWorktreeId)
@@ -389,22 +392,24 @@ export function NativeChatStructuredSession(props: Omit<NativeChatStructuredView
               )}
               {subagents.statusBar}
               {composerShown ? (
-                <NativeChatComposer
-                  ref={composerRef}
-                  terminalTabId={props.tabId}
-                  paneKey={paneKey}
-                  draftScopeKey={structuredAgentSessionDraftScopeKey(props.sessionId)}
-                  targetPtyId={null}
-                  agent={props.agent}
-                  {...bot.stopControls.composer}
-                  unavailableHint={install.unavailableHint}
-                  steerHead={
-                    bot.stopControls.stopping ? undefined : submits.queuedMessages.steerHead
-                  }
-                  structuredTransport={transport}
-                  notices={notices}
-                  recallSource={{ messages: session.messages, withoutImageMarkers: true }}
-                />
+                <NativeChatContinueNewContext.Provider value={paneCommands.continueNew}>
+                  <NativeChatComposer
+                    ref={composerRef}
+                    terminalTabId={props.tabId}
+                    paneKey={paneKey}
+                    draftScopeKey={structuredAgentSessionDraftScopeKey(props.sessionId)}
+                    targetPtyId={null}
+                    agent={props.agent}
+                    {...bot.stopControls.composer}
+                    unavailableHint={install.unavailableHint}
+                    steerHead={
+                      bot.stopControls.stopping ? undefined : submits.queuedMessages.steerHead
+                    }
+                    structuredTransport={transport}
+                    notices={notices}
+                    recallSource={{ messages: session.messages, withoutImageMarkers: true }}
+                  />
+                </NativeChatContinueNewContext.Provider>
               ) : null}
             </NativeChatDock>
             {handOff.dialog}
