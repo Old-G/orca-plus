@@ -22738,6 +22738,11 @@
         "unresolved": "Couldn't resolve {{value0}} in this workspace",
         "folderUnavailable": "This computer can't open the folder {{value0}}"
       },
+      "continueNew": {
+        "action": "Continue in new chat",
+        "moved": "The chat moved on; it stays where it is.",
+        "note": "Idle {{idle}}. The next message here re-reads all {{tokens}} tokens from your limit."
+      },
       "contextUsage": {
         "label": "Context {{used}} of {{window}} tokens, {{percent}}% used",
         "title": "Context",
