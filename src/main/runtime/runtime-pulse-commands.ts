@@ -203,6 +203,10 @@ export class RuntimePulseCommands {
     this.db().setConversationChat(key, sessionId)
   }
 
+  pulseSetConversationChatIfNone(key: string, sessionId: string): void {
+    this.db().setConversationChatIfNone(key, sessionId)
+  }
+
   /** Custom build (hq-request-ledger): one message into its conversation. */
   pulseIngestLedger(signal: HqLedgerSignal): HqLedgerResult {
     return this.db().ingestLedgerSignal(signal)

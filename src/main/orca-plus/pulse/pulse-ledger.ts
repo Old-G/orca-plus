@@ -1,6 +1,7 @@
 // Custom build (hq-request-ledger): the one way in for every reader. A message lands in its
 // conversation by the ladder — same place, else the one open request to its author, else «which?» to
 // the owner, else a new conversation — and one row per conversation says whose move it is.
+import { HQ_SENT_TO_CHAT_READER } from '../../../shared/hq-conversation-chat-prompt'
 import {
   hqPlaceKey,
   type HqConversationState,
@@ -208,9 +209,14 @@ export function ingestLedgerSignal(core: PulseCore, signal: HqLedgerSignal): HqL
       let state: HqConversationState
       let why: string | null = null
       if (signal.fromOwner) {
-        // Why: the owner wrote in the thread after it waited on him — that settles his move.
+        // Why: the owner wrote in the thread after it waited on him — that settles his move. Not his
+        // «Send to chat» line (T14): he passed the comments on, he did not answer there.
         for (const row of linked) {
-          if (row.direction === 'on-me' && Number(row.created_at) <= signal.at) {
+          if (
+            signal.reader !== HQ_SENT_TO_CHAT_READER &&
+            row.direction === 'on-me' &&
+            Number(row.created_at) <= signal.at
+          ) {
             promises.push(String(row.id))
           }
         }
