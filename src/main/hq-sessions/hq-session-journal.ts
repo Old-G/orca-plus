@@ -47,6 +47,8 @@ export type HqSessionsDeps = {
     record: (inputs: readonly HqJournalInput[]) => HqJournalRecordResult
     noteSessions: (inputs: readonly HqSessionInput[]) => number
     getSession: (sessionId: string) => HqSession | null
+    /** Custom build (hq-chat-roles): a chat that could not be prepared gives its thread back. */
+    releaseAddress: (sessionId: string, address: string, at: number) => boolean
   }
   /** Every chat now; the context share is read only for chats on `addresses`. */
   live: (addresses?: readonly string[]) => Promise<HqLiveSession[]>

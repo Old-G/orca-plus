@@ -92,6 +92,26 @@ export function noteSessions(core: PulseCore, inputs: readonly HqSessionInput[])
   })
 }
 
+/**
+ * Custom build (hq-chat-roles): a new chat that could not be prepared gives its thread back — the
+ * address it was given before its first turn is cleared and the chat goes to History, so the next
+ * dispatch neither continues it nor hands it a fresh address. Only while it still holds `address`.
+ */
+export function releaseSessionAddress(
+  core: PulseCore,
+  sessionId: string,
+  address: string,
+  at: number
+): boolean {
+  const result = core.db
+    .prepare(
+      "UPDATE sessions SET address = NULL, state = 'closed', closed_at = COALESCE(closed_at, ?) " +
+        'WHERE session_id = ? AND address = ?'
+    )
+    .run(at, sessionId, address)
+  return Number(result.changes) > 0
+}
+
 /** Custom build (hq-plus-reports): the sessions that worked on one thread, latest activity first. */
 export function listSessionsByAddress(core: PulseCore, address: string): HqSession[] {
   return core.db
