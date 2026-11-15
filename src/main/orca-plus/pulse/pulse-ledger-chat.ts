@@ -8,6 +8,14 @@ export function setConversationChat(core: PulseCore, key: string, sessionId: str
   core.db.prepare('UPDATE conversations SET session_id = ? WHERE key = ?').run(sessionId, key)
 }
 
+/** Custom build (hq-mr-comments, T14): the chat a conversation goes with, only when none holds it yet —
+ *  a ClickUp task named in an MR's title keeps the chat that last wrote in it or the owner chose. */
+export function setConversationChatIfNone(core: PulseCore, key: string, sessionId: string): void {
+  core.db
+    .prepare('UPDATE conversations SET session_id = ? WHERE key = ? AND session_id IS NULL')
+    .run(sessionId, key)
+}
+
 /** Call inside the ingest, for a message an agent sent: the message keeps its chat and approval and
  *  an empty conversation project takes the sender's — also when a reader had put the same message
  *  in first. The chat holds the conversation only when this is its newest owner message, so a late

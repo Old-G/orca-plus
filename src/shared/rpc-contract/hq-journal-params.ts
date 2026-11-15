@@ -149,7 +149,17 @@ export const HqSkipOwnerParams = z.object({
 
 // Custom build (hq-ledger-sources): «Done» on the card of an MR or a mail thread.
 export const HqConversationDoneParams = z.object({
-  key: requiredString('A conversation key is required')
+  key: requiredString('A conversation key is required'),
+  // Custom build (hq-mr-comments, T14): «Send to chat» — the chat it went to, so the conversation
+  // records the send and the next send carries only what came after.
+  sentTo: z
+    .object({
+      sessionId: z.string().min(1).max(200),
+      chat: z.string().max(200),
+      /** When the newest comment sent was written (epoch ms). */
+      upTo: z.number().int().nonnegative()
+    })
+    .optional()
 })
 
 // Custom build (hq-ledger-cutover): «To work» on a conversation card — its «To work» card, made if none.
