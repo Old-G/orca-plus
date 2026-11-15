@@ -38,6 +38,7 @@ import { NativeChatPaneMenuItems } from './NativeChatPaneMenuItems'
 import { NativeChatStructuredPaneMenuItems } from './NativeChatStructuredPaneMenuItems'
 import type { NativeChatComposerHandle } from '../../composer/native-chat-composer-types'
 import { AgentSessionContinuationMenuItem } from '@/components/agent-session-continuation/AgentSessionContinuationMenuItem'
+import { NativeChatContinueNewMenuItem } from '../../usage/NativeChatContinueNew'
 import { AgentSessionContextCopyMenuItem } from '@/components/terminal-pane/clipboard/AgentSessionContextCopyMenuItem'
 import {
   noNativeChatContextMenuTarget,
@@ -74,6 +75,9 @@ export type UseNativeChatContextMenuArgs = {
   /** Hand off a standalone structured chat; terminal panes supply their own action. */
   onHandOff?: () => void
   handOffDisabled?: boolean
+  /** Custom build (chat-continue-new): a big idle chat moves on to a fresh one. */
+  onContinueNew?: () => void
+  continueNewDisabled?: boolean
   actions: NativeChatContextMenuActions
   showTerminalPaneActions?: boolean
   splitShortcutLabels?: { right: string; down: string }
@@ -143,6 +147,8 @@ export function useNativeChatContextMenu({
   onSwitchToTerminal,
   onHandOff,
   handOffDisabled,
+  onContinueNew,
+  continueNewDisabled,
   actions,
   showTerminalPaneActions = true,
   splitShortcutLabels,
@@ -179,7 +185,11 @@ export function useNativeChatContextMenu({
     Boolean(target.quoteText ?? target.link ?? target.codeText ?? target.messageText) ||
     (target.rewindItemId !== null && rewind !== undefined) ||
     target.slackPostedItemId !== null
-  const hasSessionItems = onFind !== undefined || onHandOff !== undefined || showTerminalPaneActions
+  const hasSessionItems =
+    onFind !== undefined ||
+    onHandOff !== undefined ||
+    onContinueNew !== undefined ||
+    showTerminalPaneActions
   const hasItems =
     hasEditItems || hasSessionItems || chatPane !== undefined || resolveOrcaSessionId !== undefined
 
@@ -311,6 +321,12 @@ export function useNativeChatContextMenu({
           {hasEditItems && hasSessionItems ? <DropdownMenuSeparator /> : null}
           {onFind ? <NativeChatFindMenuItem onSelect={() => onFind(state.returnFocusTo)} /> : null}
           {standaloneMenu.quickCommands}
+          {onContinueNew ? (
+            <NativeChatContinueNewMenuItem
+              disabled={continueNewDisabled}
+              onSelect={onContinueNew}
+            />
+          ) : null}
           {onHandOff ? (
             <AgentSessionContinuationMenuItem disabled={handOffDisabled} onSelect={onHandOff} />
           ) : null}

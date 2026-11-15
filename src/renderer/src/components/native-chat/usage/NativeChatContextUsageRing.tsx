@@ -3,6 +3,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Progress } from '@/components/ui/progress'
 import { useTranslate } from '@/i18n/use-translate'
 import { cn } from '@/lib/class-names'
+import { useNativeChatContinueNewOffer } from './native-chat-continue-new-context'
+import { NativeChatContinueNewOffer } from './NativeChatContinueNew'
 import {
   contextUsageRingReadout,
   formatContextTokenCount,
@@ -106,6 +108,8 @@ export function NativeChatContextUsageRing({
     { used, window, percent: String(usage.percentage) }
   )
   const { open, setOpen, setOpenAfterHover } = useContextCardOpen()
+  // Custom build (chat-continue-new): a big idle chat tints the ring and offers a fresh chat in its card.
+  const continueNew = useNativeChatContinueNewOffer()
   const rows = keyContextUsageRows(usage.rows)
   const counted = rows.filter(({ row }) => !row.deferred)
   const deferred = rows.filter(({ row }) => row.deferred)
@@ -135,8 +139,10 @@ export function NativeChatContextUsageRing({
             data-native-chat-context-usage-estimated={usage.estimated ? 'true' : undefined}
             className={cn(
               'flex size-7 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:size-11',
-              critical && 'text-destructive'
+              critical && 'text-destructive',
+              continueNew && !critical && 'text-amber-500'
             )}
+            data-native-chat-continue-new={continueNew ? 'true' : undefined}
             // A read-only readout: clicking it must not pull focus out of the composer.
             onMouseDown={(event) => event.preventDefault()}
             onClick={(event) => {
@@ -215,6 +221,7 @@ export function NativeChatContextUsageRing({
                 )}
               </p>
             ) : null}
+            {continueNew ? <NativeChatContinueNewOffer offer={continueNew} /> : null}
           </div>
         </PopoverContent>
       </Popover>
