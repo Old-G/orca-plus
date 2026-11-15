@@ -20920,6 +20920,50 @@
         "keyword-hooks": "hooks"
       },
       "task-page": {
+        "clickup": {
+          "Content": {
+            "connectTitle": "Connect ClickUp",
+            "connectBody": "Browse your ClickUp tasks and start a workspace from any of them.",
+            "connect": "Connect ClickUp",
+            "hide": "Hide ClickUp",
+            "shown": "{{count}} shown",
+            "empty": "No ClickUp tasks found",
+            "emptySearch": "Title search covers the 500 most recently updated tasks in this view.",
+            "emptyFilter": "No open tasks match these filters."
+          },
+          "Filters": {
+            "mine": "Assigned to me",
+            "all": "Everyone",
+            "includeDone": "Include done",
+            "space": "Space",
+            "allSpaces": "All spaces",
+            "list": "List",
+            "allLists": "All lists",
+            "refresh": "Refresh ClickUp tasks",
+            "searchPlaceholder": "Search by title, DEV-123 or a ClickUp link, then press Enter",
+            "search": "Search tasks"
+          },
+          "TaskList": {
+            "unassigned": "Unassigned",
+            "startWorkspace": "Start workspace"
+          },
+          "TaskSheet": {
+            "title": "ClickUp task",
+            "description": "Preview the task, change its status, comment, and start work from it.",
+            "start": "Start workspace",
+            "open": "Open in ClickUp",
+            "close": "Close",
+            "status": "Status",
+            "unassigned": "Unassigned",
+            "due": "Due {{date}}",
+            "noDescription": "No description provided.",
+            "loading": "Loading task…",
+            "comments": "Comments",
+            "noComments": "No comments yet.",
+            "commentPlaceholder": "Add a comment to this task",
+            "comment": "Comment"
+          }
+        },
         "checksPill": {
           "pipelinePassed": "Pipeline passed",
           "pipelineFailed": "Pipeline failed",
@@ -22962,6 +23006,10 @@
       },
       "continueNew": {
         "action": "Continue in new chat",
+        "askHere": "Send here",
+        "askLead": "Idle {{idle}} · {{tokens}} context.",
+        "askNew": "New chat with this message",
+        "askNote": "Sending here re-reads the whole chat from your limit.",
         "moved": "The chat moved on; it stays where it is.",
         "note": "Idle {{idle}}. The next message here re-reads all {{tokens}} tokens from your limit."
       },
