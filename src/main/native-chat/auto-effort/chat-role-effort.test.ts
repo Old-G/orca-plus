@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentJournalItemBody } from '../../../shared/agent-session/journal/agent-session-journal-types'
 import type { AgentJournalSubmission } from '../../../shared/agent-session/journal/agent-session-journal-types'
@@ -23,7 +24,7 @@ const user = (text: string): AgentJournalItemBody => ({
 
 function serve(over: Partial<NativeChatAutoEffortService> = {}) {
   const pick = vi.fn(async () => 'low' as const)
-  provideNativeChatAutoEffort({ enabled: () => true, key: () => 'k', pick, ...over })
+  provideNativeChatAutoEffort({ enabled: () => true, pick, ...over })
   return pick
 }
 
@@ -103,7 +104,8 @@ describe('lead plan registry', () => {
     expect(await roleOf(record('claude_aaaa_3333'))).toBe('worker')
     expect(await roleOf(record('claude_other'))).toBeNull()
     expect(readText).toHaveBeenCalledOnce()
-    expect(readText).toHaveBeenCalledWith('/hq/runs/plan.md')
+    // Why: the registry builds the path with node:path, so on Windows it reads \hq\runs\plan.md.
+    expect(readText).toHaveBeenCalledWith(join('/hq', 'runs', 'plan.md'))
     launched.claude_aaaa_1111 = 'worker'
     expect(await roleOf(record('claude_aaaa_1111'))).toBe('worker')
     clock = 61_000
@@ -138,7 +140,7 @@ describe('chat auto effort by role', () => {
   })
 
   it('works without a key for a lead, and keeps a model that has no medium as it is', async () => {
-    serve({ key: () => null })
+    serve()
     expect(await autoEffortMessageOptions({ ...base, role: 'lead', options: {} })).toEqual({
       effort: 'medium'
     })
@@ -206,13 +208,20 @@ describe('auto effort at delivery', () => {
     location: {},
     options: { effort: 'high' }
   } as unknown as AgentSessionRecord
-  const submission = (id: string): AgentJournalSubmission =>
-    ({ clientMessageId: id, options: { effort: 'high' } }) as AgentJournalSubmission
-  const journal = (personal: boolean, text = 'go') =>
+  const submission = (id: string, personal = true): AgentJournalSubmission =>
     ({
-      itemBody: () => user(text),
-      snapshot: () => ({ items: [] }),
-      inputOrder: { personalSubmission: () => personal }
+      clientMessageId: id,
+      options: { effort: 'high' },
+      source: { kind: personal ? 'user' : 'automation' }
+    }) as unknown as AgentJournalSubmission
+  // The SQL journal: a person's message is a user-sourced submission with no queued card.
+  const journal = (_personal: boolean, text = 'go') =>
+    ({
+      reads: {
+        itemBody: async () => user(text),
+        conversationOutline: async () => ({ entries: [] })
+      },
+      queuedMessages: { get: async () => null }
     }) as unknown as AgentSessionJournal
 
   it('reads the chat’s role and the journal’s sender before it asks Jev', async () => {
@@ -221,7 +230,7 @@ describe('auto effort at delivery', () => {
       effort: 'medium'
     })
     serve({ pick, roleOf: async () => 'worker' })
-    expect(await withAutoEffort(submission('d2'), record, journal(false))).toEqual({
+    expect(await withAutoEffort(submission('d2', false), record, journal(false))).toEqual({
       effort: 'high'
     })
     expect(pick).not.toHaveBeenCalled()
