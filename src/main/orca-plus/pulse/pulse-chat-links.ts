@@ -154,6 +154,11 @@ export function setChatRole(
     .run(input.sessionId, input.role, input.at)
 }
 
+/** Custom build (hq-chat-roles, Codex 15.11): a refused launch takes back the role it wrote. */
+export function clearChatRole(core: PulseCore, sessionId: string): void {
+  core.db.prepare('DELETE FROM chat_roles WHERE session_id = ?').run(sessionId)
+}
+
 export function chatRoleOf(core: PulseCore, sessionId: string): HqChatRole | null {
   const row = core.db.prepare('SELECT role FROM chat_roles WHERE session_id = ?').get(sessionId)
   const role = row?.role
@@ -182,6 +187,7 @@ export function pulseChats(core: () => PulseCore) {
     list: (): HqChatLinksResult => listChatLinks(core()),
     setRole: (input: Parameters<typeof setChatRole>[1]): void => setChatRole(core(), input),
     roleOf: (sessionId: string): HqChatRole | null => chatRoleOf(core(), sessionId),
+    clearRole: (sessionId: string): void => clearChatRole(core(), sessionId),
     launchedSince: (parentSessionId: string, since: number): string[] =>
       chatsLaunchedSince(core(), parentSessionId, since)
   }
