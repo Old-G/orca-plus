@@ -151,6 +151,29 @@ describe('closing a conversation (hq-ledger-sources)', () => {
   })
 })
 
+describe('MR comments beside to-dos (T14)', () => {
+  const MR = 'gitlab:acme/app!7'
+  it('keeps an MR open for its comment when the to-do reader would close it', () => {
+    const db = openDb()
+    db.ingestLedgerSignal(signal({ key: MR, ts: 'todo:1', reader: 'gitlab-todos', at: tick + 1 }))
+    expect(db.listLedgerOpenKeys('gitlab-todos')).toEqual([MR])
+    db.ingestLedgerSignal(
+      signal({ key: MR, ts: 'note:9', reader: 'gitlab-mr-notes', at: tick + 2 })
+    )
+    expect(db.listLedgerOpenKeys('gitlab-todos')).toEqual([])
+    expect(db.listLedgerOpenKeys('gitlab-mr-notes')).toEqual([MR])
+  })
+
+  it('gives a conversation a chat only when none holds it', () => {
+    const db = openDb()
+    db.ingestLedgerSignal(signal({ key: 'clickup:DEV-1', ts: 'comment:1', reader: 'clickup-api' }))
+    db.setConversationChatIfNone('clickup:DEV-1', 'chat-a')
+    db.setConversationChatIfNone('clickup:DEV-1', 'chat-b')
+    const row = db.listLedgerFeed(0).conversations.find((c) => c.key === 'clickup:DEV-1')
+    expect(row?.sessionId).toBe('chat-a')
+  })
+})
+
 describe('ledger states the feed relies on (Codex, 30.10)', () => {
   const stateOf = (db: PulseDb, key = THREAD): string | undefined =>
     db.listLedgerConversations().find((row) => row.key === key)?.state
@@ -239,5 +262,63 @@ describe('ledger states the feed relies on (Codex, 30.10)', () => {
     }
     expect(hqLedgerSignalOfCard(card, lookups)?.forOwner).toBe(true)
     expect(hqLedgerSignalOfCard({ ...card, doneAt: tick }, lookups)?.forOwner).toBe(false)
+  })
+})
+
+describe('«Send to chat» leaves its line (T14)', () => {
+  it('records the send as the owner’s side, so the next send carries only what came after', () => {
+    const db = openDb()
+    const MR = 'gitlab:acme/app!9'
+    db.ingestLedgerSignal(signal({ key: MR, ts: 'note:1', reader: 'gitlab-mr-notes', text: 'A' }))
+    db.ingestLedgerSignal(
+      signal({
+        key: MR,
+        ts: 'sent:1',
+        reader: 'hq-send-to-chat',
+        fromOwner: true,
+        forOwner: false,
+        author: null,
+        authorId: null,
+        text: 'Sent to chat «W · x»',
+        at: tick + 2,
+        sessionId: 'chat-1'
+      })
+    )
+    expect(db.closeLedgerConversation(MR)).toBe(true)
+    db.ingestLedgerSignal(
+      signal({ key: MR, ts: 'note:2', reader: 'gitlab-mr-notes', text: 'B', at: tick + 3 })
+    )
+    const row = db.listLedgerFeed(0).conversations.find((c) => c.key === MR)
+    expect(row?.state).toBe('you')
+    expect(row?.sessionId).toBe('chat-1')
+    expect(row?.messages.map((m) => [m.direction, m.text])).toEqual([
+      ['in', 'A'],
+      ['out', 'Sent to chat «W · x»'],
+      ['in', 'B']
+    ])
+  })
+
+  it('brings the card back for a comment read late with a time before the send', () => {
+    const db = openDb()
+    const MR = 'gitlab:acme/app!10'
+    db.ingestLedgerSignal(signal({ key: MR, ts: 'note:1', reader: 'gitlab-mr-notes', at: 100 }))
+    // Why 101: the RPC stamps the line just after the newest comment sent.
+    db.ingestLedgerSignal(
+      signal({
+        key: MR,
+        ts: 'sent:1',
+        reader: 'hq-send-to-chat',
+        fromOwner: true,
+        forOwner: false,
+        text: 'Sent to chat «W · x»',
+        at: 101,
+        sessionId: 'chat-1'
+      })
+    )
+    expect(db.closeLedgerConversation(MR)).toBe(true)
+    db.ingestLedgerSignal(signal({ key: MR, ts: 'note:2', reader: 'gitlab-mr-notes', at: 150 }))
+    const row = db.listLedgerFeed(0).conversations.find((c) => c.key === MR)
+    expect(row?.state).toBe('you')
+    expect(row?.messages.at(-1)?.text).toBe('hi')
   })
 })
