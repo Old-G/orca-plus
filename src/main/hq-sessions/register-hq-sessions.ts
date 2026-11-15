@@ -124,7 +124,9 @@ export function registerHqSessions(
       list: (query) => runtime.pulseListJournal(query),
       record: (inputs) => runtime.pulseRecordJournal(inputs),
       noteSessions: (inputs) => runtime.pulseNoteSessions(inputs),
-      getSession: (sessionId) => runtime.pulseGetSession(sessionId)
+      getSession: (sessionId) => runtime.pulseGetSession(sessionId),
+      releaseAddress: (sessionId, address, at) =>
+        runtime.pulseReleaseSessionAddress(sessionId, address, at)
     },
     live: async (addresses = []) => {
       const now = Date.now()
