@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => {
     targets,
     updateSettings: vi.fn(async () => undefined),
     setTabCustomLabel: vi.fn(),
-    launch: vi.fn(() => true),
+    launch: vi.fn((): unknown => ({ surface: { kind: 'host-published' } })),
     send: vi.fn(async () => ({ ok: true }) as const),
     waitForPane: vi.fn(async () => 'tab-new:leaf'),
     openShown: vi.fn(() => true),
@@ -142,5 +142,14 @@ describe('startHqStatusUpdate', () => {
       recordInteraction: false
     })
     expect(mocks.openShown).toHaveBeenCalledWith('wt-hq', 'tab-new')
+  })
+})
+
+describe('a launch the new-tab path refused (Codex 15.11)', () => {
+  it('fails at once instead of waiting for a pane that never comes', async () => {
+    mocks.launch.mockReturnValueOnce({ refused: { ok: false, reason: 'not-ready' } })
+    const started = await startHqStatusUpdate('wt-hq')
+    expect(started).toMatchObject({ ok: false })
+    expect(mocks.waitForPane).not.toHaveBeenCalled()
   })
 })

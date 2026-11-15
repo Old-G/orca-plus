@@ -7,7 +7,7 @@ import { translate } from '@/i18n/i18n'
 import { activeAgentNotesSendFailureMessage } from '@/lib/agent-session/messaging/terminal/active-agent-note-send-result'
 import { sendMessageToAgent } from '@/lib/agent-session/messaging/agent-message-send'
 import { launchAgentInNewTabWithOutcome } from '@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab'
-import { createNonSecureContextUuid } from '../../../../../shared/non-secure-context-uuid'
+import { createNonSecureContextUuid } from '../../../../../shared/identifiers/non-secure-context-uuid'
 import {
   deriveRunningAgentSendTargets,
   deriveStatuslessStructuredAgentSendTargets,
@@ -98,7 +98,7 @@ export function launchHqCommand(worktreeId: string, prompt: string): HqActionRes
     promptDelivery: 'submit-after-ready',
     launchSource: 'unknown'
   })
-  return launched
+  return launched && !('refused' in launched)
     ? { ok: true }
     : {
         ok: false,
