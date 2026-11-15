@@ -12,8 +12,6 @@ import type { HqPlusLogContext } from './HqPlusLog'
 
 const bellAction = vi.hoisted(() => vi.fn(async (_item: unknown, _action: string) => true))
 vi.mock('../pulse-bell/pulse-bell-actions', () => ({ runPulseBellAction: bellAction }))
-const toastError = vi.hoisted(() => vi.fn())
-vi.mock('sonner', () => ({ toast: { error: toastError } }))
 
 import { HqPlusConversationCard } from './HqPlusConversationCard'
 
@@ -84,8 +82,12 @@ function conversation(): HqPlusCard {
   return card
 }
 
-function ctx(onSettling: HqPlusLogContext['onSettling']): HqPlusLogContext {
+function ctx(
+  onSettling: HqPlusLogContext['onSettling'],
+  settleErrorOf: HqPlusLogContext['settleErrorOf'] = () => null
+): HqPlusLogContext {
   return {
+    settleErrorOf,
     hqPath: null,
     hqWorktreeId: null,
     isExpanded: () => false,
@@ -104,7 +106,6 @@ function ctx(onSettling: HqPlusLogContext['onSettling']): HqPlusLogContext {
 afterEach(() => {
   cleanup()
   bellAction.mockReset()
-  toastError.mockReset()
 })
 
 describe('a card folded into a conversation closes on the click (hq-plus-instant, Codex 14.11)', () => {
@@ -125,32 +126,43 @@ describe('a card folded into a conversation closes on the click (hq-plus-instant
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss 1' }))
     expect(onSettling).toHaveBeenCalledWith(
       'inbox:intake-1',
-      expect.objectContaining({ by: 'action', action: 'dismiss' })
+      expect.objectContaining({ by: 'action', action: 'dismiss' }),
+      undefined
     )
     expect(bellAction).toHaveBeenCalledWith(expect.objectContaining({ id: 'intake-1' }), 'dismiss')
     await act(async () => answer(true))
     expect(onSettling).toHaveBeenCalledTimes(1)
-    expect(toastError).not.toHaveBeenCalled()
   })
 
-  it('brings the part back with a toast when the bell could not do it', async () => {
+  it('brings the part back with its error held by the screen when the bell could not do it', async () => {
     bellAction.mockResolvedValue(false)
     const onSettling = vi.fn()
     const card = conversation()
-    render(
+    const view = (errorOf: HqPlusLogContext['settleErrorOf']) => (
       <HqPlusConversationCard
         card={card}
         look={hqPlusLook(card)}
         flash={false}
         openChat={null}
-        ctx={ctx(onSettling)}
+        ctx={ctx(onSettling, errorOf)}
       />
     )
+    const { unmount } = render(view(() => null))
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Dismiss 2' }))
     })
-    expect(onSettling).toHaveBeenNthCalledWith(1, 'inbox:intake-2', expect.anything())
-    expect(onSettling).toHaveBeenNthCalledWith(2, 'inbox:intake-2', null)
-    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/did not go through/))
+    expect(onSettling).toHaveBeenNthCalledWith(1, 'inbox:intake-2', expect.anything(), undefined)
+    expect(onSettling).toHaveBeenNthCalledWith(
+      2,
+      'inbox:intake-2',
+      null,
+      expect.stringMatching(/did not go through/)
+    )
+    // Why (Codex 15.11): the card the click took off is mounted anew; its error comes from the screen.
+    unmount()
+    render(
+      view((id) => (id === 'inbox:intake-2' ? 'It did not go through — the card is back.' : null))
+    )
+    expect(screen.getByText(/did not go through/)).toBeTruthy()
   })
 })

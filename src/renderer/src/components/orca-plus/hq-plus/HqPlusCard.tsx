@@ -13,7 +13,6 @@ import {
 } from '../../../../../shared/hq-plus-log'
 import { HQ_JOB_UNDO } from '../../../../../shared/hq-journal'
 import { readPulseBellPaneRef } from '../../../../../shared/pulse-bell'
-import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { OutgoingApprovalDecision } from '../outgoing-approval/OutgoingApprovalCard'
 import { runPulseBellAction } from '../pulse-bell/pulse-bell-actions'
@@ -416,6 +415,7 @@ export function HqPlusCardView({
   onExpand,
   onToWork,
   onSettling = null,
+  settleError = null,
   bare = false
 }: {
   card: Card
@@ -441,8 +441,12 @@ export function HqPlusCardView({
   onToWork: ((item: PulseInboxItem) => void) | null
   /** Custom build (hq-ledger-feed): only the buttons — a card folded into a conversation's card. */
   bare?: boolean
-  /** Custom build (hq-plus-instant, owner 13.11): shows the card settled at once; null takes it back. */
-  onSettling?: ((done: HqPlusDone | null) => void) | null
+  /** Custom build (hq-plus-instant, owner 13.11): shows the card settled at once; null takes it back,
+   *  with the failure that brought it back. */
+  onSettling?: ((done: HqPlusDone | null, failure?: string) => void) | null
+  /** Custom build (hq-plus-instant, Codex 15.11): the failure that brought this card back, held by the
+   *  screen — the card the click took off is mounted anew, without its old run's error. */
+  settleError?: string | null
 }): React.JSX.Element {
   const setExpanded = onExpand
   const [text, setText] = useState('')
@@ -451,6 +455,9 @@ export function HqPlusCardView({
   const { busy, pending, error, run } = useHqPlusRun(
     (key) => {
       hidden.current = false
+      if (settleError) {
+        onSettling?.(null)
+      }
       setText('')
       // Why: opening the chat on the right decides nothing, so the card stays open where it was
       // (owner 09.11: the card folded and the feed jumped on «Open chat»).
@@ -460,12 +467,11 @@ export function HqPlusCardView({
       onChanged()
     },
     (_key, message) => {
-      // Why (Codex 14.11): a card the click took off the list is drawn anew when it comes back,
-      // without this hook's error — the toast says why it is back.
+      // Why (Codex 14.11, 15.11): a card the click took off the list is drawn anew when it comes
+      // back, without this hook's error — the screen holds it, so the card says why it is back.
       if (hidden.current) {
         hidden.current = false
-        onSettling?.(null)
-        toast.error(message)
+        onSettling?.(null, message)
       }
     }
   )
@@ -879,7 +885,7 @@ export function HqPlusCardView({
       buttons={buttons}
       composer={clickUpReply.composer ?? composer}
       trailing={trailing}
-      error={error}
+      error={error ?? settleError}
       footer={{ onCollapse: collapse }}
     >
       {bare ? null : (
