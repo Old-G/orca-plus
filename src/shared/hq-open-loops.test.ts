@@ -146,6 +146,21 @@ describe('hqOpenLoop', () => {
     })
   })
 
+  it('keeps one person’s ask open when another person in the thread takes theirs back', () => {
+    const loop = hqOpenLoop(
+      timeline('slack:C1:1.1', [
+        [0, 'ann', '<@UOWNER> can you send the export?'],
+        [1, 'bob', '<@UOWNER> never mind my question from yesterday']
+      ]),
+      owner
+    )
+    expect(loop).toMatchObject({
+      direction: 'on-me',
+      personId: 'UANN',
+      opening: { text: '<@UOWNER> can you send the export?' }
+    })
+  })
+
   it('takes a thanks with a ClickUp tag in its markup for a thanks', () => {
     const loop = hqOpenLoop(
       timeline('clickup:abc1', [
