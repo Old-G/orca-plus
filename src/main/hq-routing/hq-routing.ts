@@ -1,6 +1,7 @@
 // Custom build (hq-plus-routing): carries out HQ/routing.yaml. For the evening Codex review it opens
 // one «Codex: починить» chat per project in a fresh worktree, hands it the findings, and gives the
 // findings that chat's thread address — so a finding with an address is taken, one without is not.
+/* eslint-disable max-lines -- Why: one routing service over the Codex fix, the rule and the journal rows; split when it next grows */
 import { join } from 'node:path'
 import { HQ_AUTONOMY_FILE, parseHqAutonomy } from '../../shared/hq-autonomy'
 import {
@@ -44,7 +45,10 @@ export type HqRoutingDeps = {
   enabled: () => boolean
   hqPath: () => string | null
   readText: (path: string) => Promise<string | null>
-  pulse: Pick<HqJournalPulse, 'list' | 'record' | 'noteSessions'>
+  pulse: Pick<HqJournalPulse, 'list' | 'record' | 'noteSessions'> & {
+    /** Custom build (hq-chat-roles): a chat that could not be prepared gives its thread back. */
+    releaseAddress: (sessionId: string, address: string, at: number) => boolean
+  }
   /** The project's repo in Orca; null when none is open. */
   workspaceFor: (
     project: string
@@ -240,6 +244,8 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
     ])
     // Why: the findings quote code and commit text; full access would let them steer the chat.
     if (!(await deps.limit(launched.sessionId))) {
+      // Why: left on the thread, the empty chat would be continued next time with full access.
+      deps.pulse.releaseAddress(launched.sessionId, address, now)
       return fail('the chat could not be switched to Auto')
     }
     await deps.nameChat(launched.sessionId, `${HQ_CODEX_FIX_CHAT_NAME} · ${workspace.name}`)
