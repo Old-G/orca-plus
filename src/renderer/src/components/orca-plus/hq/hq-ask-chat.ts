@@ -71,7 +71,8 @@ export async function startHqChatWithPrompt(
     promptDelivery: 'submit-after-ready',
     launchSource: 'unknown'
   })
-  if (!launched) {
+  // Why (Codex 15.11): a refused launch comes back as a truthy `{ refused }`; no pane will appear.
+  if (!launched || 'refused' in launched) {
     return {
       ok: false,
       message: translate('auto.hq.today.launchFailed', "Couldn't start Claude in HQ.")
