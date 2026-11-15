@@ -1,5 +1,6 @@
 // Custom build (pulse): the runtime face of orca-plus-pulse.db for the pulse.* RPC. The database
 // opens on first use, so a user who never touches these features never gets the file.
+/* eslint-disable max-lines -- Why: the runtime face of every pulse method, one line each; split when it next grows */
 import type { HqLedgerAnswer, HqLedgerResult, HqLedgerSignal } from '../../shared/hq-ledger'
 import type { HqConversationRow, HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import type { HqLedgerCardRow } from '../orca-plus/pulse/pulse-ledger-cards'
@@ -376,6 +377,11 @@ export class RuntimePulseCommands {
 
   pulseNoteSessions(inputs: readonly HqSessionInput[]): number {
     return this.db().noteSessions(inputs)
+  }
+
+  /** Custom build (hq-chat-roles): see releaseSessionAddress. */
+  pulseReleaseSessionAddress(sessionId: string, address: string, at: number): boolean {
+    return this.db().releaseSessionAddress(sessionId, address, at)
   }
 
   pulseGetSession(sessionId: string): HqSession | null {
