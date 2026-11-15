@@ -71,12 +71,12 @@ export function useNativeChatContinueNew({
     workingRef.current = isWorking
   }, [isWorking])
 
-  const start = useCallback(() => {
-    if (starting || !directory || !epoch) {
-      return
-    }
-    setStarting(true)
-    void (async () => {
+  const start = useCallback(
+    async (message?: string): Promise<boolean> => {
+      if (starting || !directory || !epoch) {
+        return false
+      }
+      setStarting(true)
       try {
         const context = await withTimeout(
           (async () =>
@@ -101,7 +101,7 @@ export function useNativeChatContinueNew({
               'The chat moved on; it stays where it is.'
             )
           )
-          return
+          return false
         }
         const saved = context?.status === 'current' && typeof context.capturedText === 'string'
         const prompt = buildAgentSessionContinuationPrompt(
@@ -123,31 +123,35 @@ export function useNativeChatContinueNew({
               'No session context is available to continue in a new session.'
             )
           )
-          return
+          return false
         }
         if (workingRef.current) {
-          return
+          return false
         }
         const result = await window.api.claudeHandoff.continueChat(
           directory.worktreeId,
           structuredAgentSessionTabId(pane.sessionId),
-          prompt
+          message?.trim()
+            ? `${prompt}\n\nMy new message, sent after the context above:\n\n${message}`
+            : prompt
         )
         if (!result.ok) {
           toast.error(
             translate('auto.claudeHandoff.offer.launchFailed', 'Could not start the new session'),
             { description: result.error }
           )
-          return
+          return false
         }
         if (!openChatInShownHq(result.worktreeId, result.tabId)) {
           activateAndRevealWorktree(result.worktreeId)
         }
+        return true
       } finally {
         setStarting(false)
       }
-    })()
-  }, [starting, directory, epoch, pane.target, pane.sessionId, messages])
+    },
+    [starting, directory, epoch, pane.target, pane.sessionId, messages]
+  )
 
   return due && usedTokens !== null && lastActivityAt !== null
     ? { usedTokens, idleMs: now - lastActivityAt, starting, start }

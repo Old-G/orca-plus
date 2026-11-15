@@ -22723,6 +22723,10 @@
       },
       "continueNew": {
         "action": "Continue in new chat",
+        "askHere": "Send here",
+        "askLead": "Idle {{idle}} · {{tokens}} context.",
+        "askNew": "New chat with this message",
+        "askNote": "Sending here re-reads the whole chat from your limit.",
         "moved": "The chat moved on; it stays where it is.",
         "note": "Idle {{idle}}. The next message here re-reads all {{tokens}} tokens from your limit."
       },

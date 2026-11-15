@@ -6,7 +6,8 @@ export type NativeChatContinueNew = {
   usedTokens: number
   idleMs: number
   starting: boolean
-  start: () => void
+  /** Resolves true once the new chat is up; `message` goes to it first, after the saved context. */
+  start: (message?: string) => Promise<boolean>
 }
 
 /** Null unless this chat is due; the composer's context ring reads it. */
