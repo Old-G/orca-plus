@@ -300,7 +300,10 @@ export function HqPlusConversationCard({
             onChanged={ctx.onChanged}
             // Custom build (hq-plus-instant, Codex 14.11): a part closes on the click as a card does;
             // the screen holds it by its own id, and the conversation folds once none is left.
-            onSettling={ctx.onSettling ? (done) => ctx.onSettling?.(part.id, done) : null}
+            onSettling={
+              ctx.onSettling ? (done, failure) => ctx.onSettling?.(part.id, done, failure) : null
+            }
+            settleError={ctx.settleErrorOf?.(part.id) ?? null}
             expanded={false}
             onExpand={() => {}}
             onToWork={(inbox) => {
