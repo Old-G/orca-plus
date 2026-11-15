@@ -2,7 +2,7 @@
 // HQ as soon as its tab appears, so starting one never leaves HQ.
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
-import { createNonSecureContextUuid } from '../../../../../shared/non-secure-context-uuid'
+import { createNonSecureContextUuid } from '../../../../../shared/identifiers/non-secure-context-uuid'
 import { launchAgentInNewTabWithOutcome } from '@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab'
 import { parsePaneKey } from '../../../../../shared/workspace-layout/stable-pane-id'
 import { openChatInShownHq } from './hq-chat-open'
@@ -16,7 +16,7 @@ export async function startHqChat(worktreeId: string): Promise<void> {
     worktreeId,
     launchSource: 'unknown'
   })
-  if (!launched) {
+  if (!launched || 'refused' in launched) {
     toast.error(translate('auto.hq.chats.newChatFailed', "Couldn't start a new chat here."))
     return
   }
