@@ -36,6 +36,7 @@ import { guessHqLedger, type HqLedgerGuessInput } from './hq-ledger-guess'
 import { hqLedgerErrorReporter } from './hq-ledger-errors'
 import { HQ_GITLAB_TODO_READER, startHqGitLabTodoReader } from './hq-gitlab-todo-reader'
 import { hqMrChatOfBranch } from './hq-mr-chat'
+import { registerHqGitLabMrNotes } from './register-hq-gitlab-mr-notes'
 import { startHqMailLedgerReader } from './hq-mail-ledger-reader'
 import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import { noteHqClickUpWatchedTask } from './hq-clickup-ledger-reader'
@@ -271,6 +272,7 @@ export function registerHqMailIntake(store: Store, runtime: OrcaRuntimeService):
   setTimeout(kickMrWatch, 60_000)
   setInterval(kickMrWatch, HQ_MR_WATCH_EVERY_MS)
   registerGitLabTodos(store, runtime, readConfig)
+  registerHqGitLabMrNotes(store, runtime, readConfig, glabJson)
   startHqMailIntake({
     hqPath: () => store.getSettings().hqPath ?? null,
     enabled: () => store.getSettings().hqChatsView !== false && gmailAccount() !== null,
