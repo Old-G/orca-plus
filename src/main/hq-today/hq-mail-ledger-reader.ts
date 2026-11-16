@@ -6,6 +6,7 @@ import type { HqLedgerResult, HqLedgerSignal } from '../../shared/hq-ledger'
 import { HQ_MAIL_SENDERS, hqMailAddress, type HqLetter } from '../../shared/hq-mail-events'
 import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 /** The `reader` of the ledger messages this reader writes. */
 export const HQ_MAIL_LEDGER_READER = 'gmail-letters'
@@ -267,7 +268,7 @@ export function startHqMailLedgerReader(
   let state: HqMailLedgerState = { cursor: 0, seen: [] }
   const flight = createDebouncedSingleFlight(
     async () => {
-      if (deps.enabled()) {
+      if (deps.enabled() && claudeBackgroundAllows('mail ledger')) {
         state = await runHqMailLedgerReader(deps, state)
       }
     },

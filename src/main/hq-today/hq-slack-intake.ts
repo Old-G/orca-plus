@@ -13,6 +13,7 @@ import {
 import type { PulseBellInput } from '../../shared/pulse-bell'
 import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
 import type { HqIntakeDraft, HqIntakeGuess } from './hq-slack-intake-suggest'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 // Why: a mark older than this is an old reaction found on the first run, not a new request.
 export const HQ_INTAKE_WINDOW_MS = 7 * 24 * 60 * 60_000
@@ -181,7 +182,9 @@ export function startHqSlackIntake(
 ): () => void {
   const flight = createDebouncedSingleFlight(
     async () => {
-      await pollHqSlackIntake(deps)
+      if (claudeBackgroundAllows('Slack intake')) {
+        await pollHqSlackIntake(deps)
+      }
     },
     (error) => {
       console.warn('[hq-slack-intake] poll failed:', error)

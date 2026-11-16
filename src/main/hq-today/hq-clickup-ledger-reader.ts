@@ -7,6 +7,7 @@
 import type { ClickUpComment, ClickUpTask, ClickUpTaskSummary } from '../../shared/clickup-types'
 import type { HqLedgerResult, HqLedgerSignal } from '../../shared/hq-ledger'
 import { ORCA_FOOTER, clickUpCommentsOldestFirst } from './hq-clickup-requests'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 /** The `reader` of the ledger messages this reader writes. */
 export const HQ_CLICKUP_LEDGER_READER = 'clickup-api'
@@ -246,7 +247,7 @@ export function startHqClickUpLedgerReader(
   let state: HqClickUpLedgerState = { lastLookAt: null }
   let running = false
   const tick = (): void => {
-    if (running || !deps.enabled()) {
+    if (running || !deps.enabled() || !claudeBackgroundAllows('ClickUp ledger')) {
       return
     }
     running = true
