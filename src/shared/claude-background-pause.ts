@@ -40,26 +40,34 @@ export function claudeBackgroundPauseFromReading(
     : null
 }
 
-/**
- * The selected account's pause. Background jobs run on the account Orca+ selected, so the reading
- * must be that account's: the main reading when it names it (or names no account), else that
- * account's inactive-account reading. No reading of it → no pause: an unknown limit never stops work.
- */
-export function claudeBackgroundPause(input: {
+type ClaudeSelectedReadingInput = {
   reading: ProviderRateLimits | null | undefined
   inactive: readonly InactiveAccountUsage[] | undefined
   activeAccountId: string | null
-  now: number
-}): ClaudeBackgroundPause | null {
+}
+
+/**
+ * The selected account's reading. Background jobs run on the account Orca+ selected, so it is the main
+ * reading when that names the account (or names none), else that account's inactive-account reading.
+ */
+export function claudeSelectedAccountReading(
+  input: ClaudeSelectedReadingInput
+): ProviderRateLimits | null {
   const readingAccount = input.reading ? claudeLimitsAccountId(input.reading) : undefined
-  const own =
-    input.reading && (readingAccount === undefined || readingAccount === input.activeAccountId)
-      ? input.reading
-      : input.activeAccountId === null
-        ? null
-        : (input.inactive?.find((entry) => entry.accountId === input.activeAccountId)?.rateLimits ??
-          null)
-  const pause = claudeBackgroundPauseFromReading(own, input.now)
+  if (input.reading && (readingAccount === undefined || readingAccount === input.activeAccountId)) {
+    return input.reading
+  }
+  return input.activeAccountId === null
+    ? null
+    : (input.inactive?.find((entry) => entry.accountId === input.activeAccountId)?.rateLimits ??
+        null)
+}
+
+/** The selected account's pause. No reading of it → no pause: an unknown limit never stops work. */
+export function claudeBackgroundPause(
+  input: ClaudeSelectedReadingInput & { now: number }
+): ClaudeBackgroundPause | null {
+  const pause = claudeBackgroundPauseFromReading(claudeSelectedAccountReading(input), input.now)
   return pause ? { ...pause, accountId: input.activeAccountId } : null
 }
 

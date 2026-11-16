@@ -45,7 +45,8 @@ describe('skipForClaudeBackgroundPause', () => {
       await skipForClaudeBackgroundPause({
         runs: writer as unknown as AutomationRunWriter,
         automation,
-        scheduledFor: 1
+        scheduledFor: 1,
+        isActive: () => true
       })
     ).toBe(false)
     expect(writer.createRun).not.toHaveBeenCalled()
@@ -58,7 +59,8 @@ describe('skipForClaudeBackgroundPause', () => {
       await skipForClaudeBackgroundPause({
         runs: writer as unknown as AutomationRunWriter,
         automation,
-        scheduledFor: 1
+        scheduledFor: 1,
+        isActive: () => true
       })
     ).toBe(true)
     expect(writer.updateRun).toHaveBeenCalledWith({
@@ -75,7 +77,8 @@ describe('skipForClaudeBackgroundPause', () => {
     await skipForClaudeBackgroundPause({
       runs: writer as unknown as AutomationRunWriter,
       automation,
-      scheduledFor: 2
+      scheduledFor: 2,
+      isActive: () => true
     })
     expect(writer.createRun).not.toHaveBeenCalled()
   })
@@ -87,8 +90,23 @@ describe('skipForClaudeBackgroundPause', () => {
       await skipForClaudeBackgroundPause({
         runs: writer as unknown as AutomationRunWriter,
         automation: { ...automation, agentId: 'codex' } as Automation,
-        scheduledFor: 1
+        scheduledFor: 1,
+        isActive: () => true
       })
     ).toBe(false)
+  })
+
+  it('gives up without writing when the scheduler stopped while the gate waited', async () => {
+    provideClaudeBackgroundGate(gate(true))
+    const writer = runs(false)
+    await expect(
+      skipForClaudeBackgroundPause({
+        runs: writer as unknown as AutomationRunWriter,
+        automation,
+        scheduledFor: 1,
+        isActive: () => false
+      })
+    ).rejects.toThrow()
+    expect(writer.createRun).not.toHaveBeenCalled()
   })
 })
