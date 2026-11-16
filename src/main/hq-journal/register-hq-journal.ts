@@ -13,6 +13,9 @@ import { createHqThreads, provideHqThreads, type HqThreadsDeps } from './hq-jour
 import { hqDeliverLeadBatch, hqLeadBatchGiveUp, hqLeadBatchSession } from './hq-journal-send'
 import { createHqLeadBatch, HQ_LEAD_BATCH_FILE, parseHqLeadHeld } from './hq-lead-batch'
 import { registerHqSessions } from '../hq-sessions/register-hq-sessions'
+import { getHqSessions } from '../hq-sessions/hq-sessions'
+import { createHqLeadReassign, provideHqLeadReassign } from './hq-lead-reassign'
+import { hqRewritePlanLeads } from './hq-lead-plan-line'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { provideNativeChatTabReveal } from '../orca-plus/waiting-replies/native-chat-tab-reveal'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/host/structured-agent-session-registry'
@@ -141,7 +144,8 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
     upsertPerson: (input) => runtime.pulseUpsertPerson(input),
     linkChat: (input) => runtime.pulseChats().link(input),
     roleOf: (sessionId) => runtime.pulseChats().roleOf(sessionId),
-    setRole: (input) => runtime.pulseChats().setRole(input)
+    setRole: (input) => runtime.pulseChats().setRole(input),
+    leadMoveOf: (chat, lead) => runtime.pulseChats().leadMoveOf(chat, lead)
   } satisfies HqThreadsDeps['pulse']
   const delivery = {
     pulse: threadPulse,
@@ -190,6 +194,32 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
     })
   )
   registerHqSessions(store, runtime, service)
+  // Custom build (hq-lead-reassign): `orca hq reassign` hands a Lead's chats to another chat.
+  provideHqLeadReassign(
+    createHqLeadReassign({
+      enabled,
+      scope: (caller) => service.scope(caller),
+      pulse: {
+        getSession: (sessionId) => runtime.pulseGetSession(sessionId),
+        listSessionsByAddress: (address) => runtime.pulseListSessionsByAddress(address),
+        record: (inputs) => runtime.pulseRecordJournal(inputs),
+        roleOf: (sessionId) => runtime.pulseChats().roleOf(sessionId),
+        setRole: (input) => runtime.pulseChats().setRole(input)
+      },
+      chats: {
+        links: () => runtime.pulseChats().list(),
+        moveLead: (input) => runtime.pulseChats().moveLead(input)
+      },
+      live: async () => (await getHqSessions()?.live()) ?? [],
+      deliver: delivery.deliver,
+      leadBatch,
+      rewritePlans: async (from, to, at, dryRun) => {
+        const hqPath = store.getSettings().hqPath
+        return hqPath ? hqRewritePlanLeads(hqPath, from, to, at, dryRun) : []
+      },
+      now: Date.now
+    })
+  )
   provideHqPlusStats(
     createHqPlusStats({
       hqPath: () => store.getSettings().hqPath ?? null,
