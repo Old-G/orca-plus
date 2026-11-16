@@ -134,6 +134,7 @@ src/renderer/src/components/orca-plus/hq-plus/use-hq-plus-slack-text.ts
 src/renderer/src/components/orca-plus/hq/HqAgentMap.tsx
 src/renderer/src/components/orca-plus/hq/HqAgentsTab.tsx
 src/renderer/src/components/orca-plus/hq/HqAutonomyBadge.tsx
+src/renderer/src/components/orca-plus/hq/HqBackgroundPauseBadge.tsx
 src/renderer/src/components/orca-plus/hq/HqChatAvatar.tsx
 src/renderer/src/components/orca-plus/hq/HqChatCleanup.tsx
 src/renderer/src/components/orca-plus/hq/HqChatList.tsx

@@ -41,6 +41,7 @@ import { startHqMailLedgerReader } from './hq-mail-ledger-reader'
 import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import { noteHqClickUpWatchedTask } from './hq-clickup-ledger-reader'
 import { registerHqClickUpLedger } from './register-hq-clickup-ledger'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 async function glabJson(host: string, path: string): Promise<unknown> {
   const { stdout } = await glabExecFileAsync(['api', '--hostname', host, path])
@@ -255,7 +256,12 @@ export function registerHqMailIntake(store: Store, runtime: OrcaRuntimeService):
   })
   let running = false
   const kickMrWatch = (): void => {
-    if (running || !hqPath() || store.getSettings().hqChatsView === false) {
+    if (
+      running ||
+      !hqPath() ||
+      store.getSettings().hqChatsView === false ||
+      !claudeBackgroundAllows('MR watch')
+    ) {
       return
     }
     running = true
