@@ -10,6 +10,7 @@ import type {
 } from '../../shared/agent-usage/rate-limits/rate-limit-types'
 import {
   claudeBackgroundPause,
+  claudeSelectedAccountReading,
   describeClaudeBackgroundPause,
   type ClaudeBackgroundPause
 } from '../../shared/claude-background-pause'
@@ -99,17 +100,24 @@ function samePause(a: ClaudeBackgroundPause | null, b: ClaudeBackgroundPause | n
   )
 }
 
-function waitForReading(deps: ClaudeBackgroundGateDeps): Promise<void> {
+/** Waits for the reading that `startedAfter` predates — not the «fetching» update the request sends first. */
+function waitForReading(
+  deps: ClaudeBackgroundGateDeps,
+  startedAfter: number | null
+): Promise<void> {
   return new Promise((resolve) => {
     let release: () => void = () => {}
-    const timer = setTimeout(() => {
-      release()
-      resolve()
-    }, READING_WAIT_MS)
-    release = deps.onReadingChange(() => {
+    const done = (): void => {
       clearTimeout(timer)
       release()
       resolve()
+    }
+    const timer = setTimeout(done, READING_WAIT_MS)
+    release = deps.onReadingChange(() => {
+      const reading = deps.reading()
+      if (reading && reading.status !== 'fetching' && reading.updatedAt !== startedAfter) {
+        done()
+      }
     })
   })
 }
@@ -206,10 +214,13 @@ export function createClaudeBackgroundGate(deps: ClaudeBackgroundGateDeps): Clau
     return pause
   }
 
-  const readingIsStale = (): boolean => {
-    const reading = deps.reading()
-    return !reading || deps.now() - reading.updatedAt > CLAUDE_BACKGROUND_READING_MAX_AGE_MS
-  }
+  /** The selected account's reading time, or null when there is none. */
+  const selectedReadingAt = (): number | null =>
+    claudeSelectedAccountReading({
+      reading: deps.reading(),
+      inactive: deps.inactive(),
+      activeAccountId: deps.activeAccountId()
+    })?.updatedAt ?? null
 
   const allows = (job: string): boolean => {
     const pause = evaluate()
@@ -231,12 +242,16 @@ export function createClaudeBackgroundGate(deps: ClaudeBackgroundGateDeps): Clau
     evaluate,
     allows,
     admits: async (job) => {
+      const readAt = selectedReadingAt()
+      const stale = readAt === null || deps.now() - readAt > CLAUDE_BACKGROUND_READING_MAX_AGE_MS
+      // Why: a request refused (a fetch already running, Retry-After) decides on the reading at hand —
+      // the reset time still ends an old pause, so this can only let one run through, never hold one.
       if (
         !readTestReading(deps.testReadingPath) &&
-        readingIsStale() &&
+        stale &&
         deps.requestReading(CLAUDE_BACKGROUND_READING_MAX_AGE_MS)
       ) {
-        await waitForReading(deps)
+        await waitForReading(deps, deps.reading()?.updatedAt ?? null)
       }
       return allows(job)
     },
