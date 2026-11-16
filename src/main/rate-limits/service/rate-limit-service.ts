@@ -225,6 +225,13 @@ export class RateLimitService extends RateLimitServiceAccountRefresh {
     this.mainWindow = null
   }
 
+  /** Custom build (claude-background-pause): the inactive Claude accounts' readings without the
+   *  awaited key checks getState now does, for the background gate's synchronous evaluation. */
+  inactiveClaudeAccountsNow(): RateLimitState['inactiveClaudeAccounts'] {
+    this.pruneInactiveClaudeState()
+    return this.buildInactiveArray(this.inactiveClaudeCache, this.inactiveClaudeFetching)
+  }
+
   async getState(): Promise<RateLimitState> {
     const [minimaxCookieConfigured, minimaxApiKeyConfigured, zcodePlanApiKeyConfigured] =
       await Promise.all([hasMiniMaxSessionCookie(), hasMiniMaxApiKey(), hasZcodePlanApiKey()])
