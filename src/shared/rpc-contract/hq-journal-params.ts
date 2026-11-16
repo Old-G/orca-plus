@@ -238,6 +238,14 @@ export const HqLinkChatParams = z.object({
   sessionId: requiredString('The started chat’s session id is required')
 })
 export const HqChatLinksParams = z.object({})
+// Custom build (hq-lead-reassign): a Lead's chats go to another chat.
+export const HqReassignParams = z.object({
+  ...CallerFields,
+  from: requiredString('The old Lead (--from <project>/<task>|<session id>) is required'),
+  to: OptionalString,
+  chats: z.array(z.string()).optional(),
+  dryRun: z.boolean().optional()
+})
 
 // Custom build (hq-plus-brain): a task, an MR, a person, a project or words for HQ+'s «Brain».
 export const HqBrainParams = z.object({

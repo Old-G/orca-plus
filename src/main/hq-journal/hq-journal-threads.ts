@@ -30,7 +30,7 @@ import { createHqSend, HQ_JOURNAL_OFF as JOURNAL_OFF, hqRoomOf as roomOf } from 
 export type HqThreadsDeps = {
   enabled: () => boolean
   scope: (caller: HqCaller) => Promise<HqCallerScope>
-  pulse: Pick<HqJournalPulse, 'record' | 'list' | 'getSession' | 'noteSessions'> & {
+  pulse: Pick<HqJournalPulse, 'record' | 'list' | 'getSession' | 'noteSessions' | 'leadMoveOf'> & {
     listSessionsByAddress: (address: string) => HqSession[]
     getEntry: (id: string) => HqJournalEntry | null
     listPeople: () => PulsePerson[]

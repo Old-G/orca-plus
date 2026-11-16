@@ -47,6 +47,8 @@ export type HqJournalPulse = {
   noteSessions: (inputs: readonly HqSessionInput[]) => number
   getSession: (sessionId: string) => HqSession | null
   list: (query: HqJournalQuery) => HqJournalEntry[]
+  /** Custom build (hq-lead-reassign): where `chat`'s message to a Lead it had before goes now. */
+  leadMoveOf?: (chat: string, lead: string) => string | null
 }
 
 // Why: the finish notice can land a moment before the report the turn wrote last.

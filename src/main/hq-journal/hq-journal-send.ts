@@ -122,12 +122,8 @@ export function createHqSend(
     }
   }
 
-  return async (caller, message) => {
-    if (!deps.enabled()) {
-      throw new Error(HQ_JOURNAL_OFF)
-    }
-    const scope = await deps.scope(caller)
-    const to = message.address.trim()
+  /** The chat `to` names: a thread's newest chat, or a session id (a chat with no thread yet too). */
+  const locate = async (to: string) => {
     const byId = !to.includes('/')
     // Why: a chat in one long first turn has no address yet; its session id still reaches it.
     const known = byId ? deps.pulse.getSession(to) : null
@@ -146,6 +142,27 @@ export function createHqSend(
         `No chat works on ${to}; \`orca hq sessions --json\` lists the chats — send to its sessionId.`
       )
     }
+    // Why: a Lead is named by its thread when it has one, as `orca hq reassign` wrote it.
+    return { to, byId, known, placed, target, key: (byId ? known?.address : to) ?? to }
+  }
+
+  return async (caller, message) => {
+    if (!deps.enabled()) {
+      throw new Error(HQ_JOURNAL_OFF)
+    }
+    const scope = await deps.scope(caller)
+    const asked = message.address.trim()
+    let spot = await locate(asked)
+    // Custom build (hq-lead-reassign): a chat moved to another Lead reaches that Lead when it writes
+    // to one it had before — a brief or a plan read before the change still names the old one.
+    const callerKey = scope.sessionId
+      ? (deps.pulse.getSession(scope.sessionId)?.address ?? scope.sessionId)
+      : null
+    const movedTo = callerKey ? (deps.pulse.leadMoveOf?.(callerKey, spot.key) ?? null) : null
+    if (movedTo) {
+      spot = await locate(movedTo)
+    }
+    const { to, byId, known, placed, target } = spot
     const address =
       (byId ? known?.address : to) ??
       addressFor(placed ?? { kind: 'overview', sessionId: to, worktreeId: null }, to)
@@ -264,8 +281,9 @@ export function createHqSend(
     if (!entry) {
       throw new Error('The message was delivered but not recorded.')
     }
+    const forwarded = movedTo ? { forwardedFrom: asked } : {}
     return held
-      ? { entry, sessionId: target.sessionId, reopened, heldUntil: held.dueAt }
-      : { entry, sessionId: target.sessionId, reopened }
+      ? { entry, sessionId: target.sessionId, reopened, heldUntil: held.dueAt, ...forwarded }
+      : { entry, sessionId: target.sessionId, reopened, ...forwarded }
   }
 }
