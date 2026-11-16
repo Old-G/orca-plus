@@ -10,7 +10,7 @@ for v in $(env | sed -n -E 's/^((ORCA|CLAUDE)[A-Z0-9_]*)=.*/\1/p'); do unset "$v
 HQ=$(python3 "$DIR/../hq-setup/hq_location.py" 2>>"$LOG") || exit 1
 cd "$HQ" || exit 1
 # Why: Orca+ holds background work at 95% of the weekly Claude limit; it starts again after the reset.
-python3 -I "$DIR/../hq-setup/claude_background_pause.py" --job triage-rollup --log "$LOG" >/dev/null
+python3 -I "$DIR/../hq-setup/claude_background_pause.py" --job triage-rollup --launchd-label com.orca-plus.triage-rollup --log "$LOG" >/dev/null
 [ $? -eq 75 ] && exit 0
 count=$(python3 "$DIR/triage.py" pending | sed -n 's/^pending: //p')
 # Why: one decision rarely shows a rule; wait for two before spending a model run.

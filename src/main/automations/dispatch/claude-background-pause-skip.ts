@@ -46,11 +46,22 @@ export async function skipForClaudeBackgroundPause(input: {
   return true
 }
 
+// A run that started (or tried to), so the debt is paid; a failed launch counts, or a broken target
+// would retry on every tick.
+const SETTLES_CATCH_UP: ReadonlySet<AutomationRun['status']> = new Set([
+  'pending',
+  'dispatching',
+  'dispatched',
+  'completed',
+  'skipped_precheck',
+  'dispatch_failed'
+])
+
 // Why: an automation due again this soon runs on its own schedule; a catch-up would run it twice.
 export const CLAUDE_BACKGROUND_CATCH_UP_UNLESS_DUE_WITHIN_MS = 15 * 60_000
 
 /**
- * Whether `automation` owes the one catch-up run: no run came after its pause skip. Several skipped
+ * Whether `automation` owes the one catch-up run: no run started after its pause skip. Several skipped
  * occurrences fold into that one row; any run after it (the catch-up, a scheduled or a manual run)
  * settles the debt, so it is paid once.
  */
@@ -78,8 +89,13 @@ export function owesClaudeBackgroundCatchUp(
       (latest, run) => (!latest || run.createdAt > latest.createdAt ? run : latest),
       undefined
     )
-  // Why: a run made in the same millisecond as the skip (a manual run right after it) also settles it.
+  // Why: a run made in the same millisecond as the skip (a manual run right after it) also settles it;
+  // a row that started nothing (a missed slot while the Mac slept, a refusal) does not.
   return (
-    skip !== undefined && !all.some((run) => run.id !== skip.id && run.createdAt >= skip.createdAt)
+    skip !== undefined &&
+    !all.some(
+      (run) =>
+        run.id !== skip.id && run.createdAt >= skip.createdAt && SETTLES_CATCH_UP.has(run.status)
+    )
   )
 }
