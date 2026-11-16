@@ -16,7 +16,8 @@ function gate(paused: boolean): ClaudeBackgroundGate {
     evaluate: () => null,
     allows: () => !paused,
     admits: async () => !paused,
-    refresh: () => {}
+    refresh: () => {},
+    note: () => {}
   }
 }
 

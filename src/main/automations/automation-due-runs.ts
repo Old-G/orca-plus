@@ -12,6 +12,8 @@ export async function runDueAutomations(input: {
   /** False once the service stops or restarts; nothing more starts. */
   isActive: () => boolean
   captureTarget: (listed: Automation) => Automation
+  /** Custom build (claude-background-pause): an enabled schedule whose time has not come yet. */
+  onNotDue?: (automation: Automation) => Promise<void>
 }): Promise<void> {
   const { ctx, now } = input
   for (const automation of ctx.store.listAutomations()) {
@@ -22,6 +24,9 @@ export async function runDueAutomations(input: {
       continue
     }
     if (!automation.enabled || (onceDueAt(automation) ?? automation.nextRunAt) > now) {
+      if (automation.enabled && !automation.once) {
+        await input.onNotDue?.(automation)
+      }
       continue
     }
     try {
