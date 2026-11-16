@@ -54,9 +54,12 @@ export function formatBackgroundResume(resumesAt: number | null): string {
 }
 
 export function HqBackgroundPauseBadge({
-  className
+  className,
+  compact = false
 }: {
   className?: string
+  /** A narrow header: «Paused · Mon 13:41», the rest in the tooltip. */
+  compact?: boolean
 }): React.JSX.Element | null {
   const pause = useClaudeBackgroundPause()
   if (!pause) {
