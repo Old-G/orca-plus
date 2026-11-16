@@ -351,4 +351,6 @@ export type HqChatSendResult = {
   reopened: boolean
   /** Custom build (hq-lead-batch): held for the Lead's next batch, which goes by this time at the latest. */
   heldUntil?: number
+  /** Custom build (hq-lead-reassign): the old Lead it was sent to; it went to the chat's Lead now. */
+  forwardedFrom?: string
 }
