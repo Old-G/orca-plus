@@ -196,6 +196,10 @@ export type HqGitLabMrNotesDeps = {
   chatOfBranch?: HqMrChatDeps['chatOfBranch']
   /** Gives a conversation its chat only when it has none: the MR's own, a ClickUp task its title names. */
   setChatIfNone?: (key: string, sessionId: string) => void
+  /** The places of this reader's conversations that still show. */
+  openKeys?: () => string[]
+  /** Its MR is no longer open (merged or closed): the conversation is done. */
+  close?: (key: string) => void
   /** One MR's comments could not be read; the others went on. */
   warn?: (message: string, detail: string) => void
   now: () => number
@@ -206,6 +210,8 @@ export type HqGitLabMrNotesState = {
   cursor: number
   /** The chat of an MR's branch, with when it was looked up. */
   chats?: Map<string, { chat: string | null; at: number }>
+  /** An MR whose comments could not be read, with the time its unread comments start from. */
+  retry?: Map<string, number>
 }
 
 /** Why half an hour: finding a branch's chat lists every worktree; a chat rarely changes sooner. */
@@ -245,12 +251,22 @@ export async function runHqGitLabMrNotes(
     return chat
   }
   const failed: string[] = []
-  for (const mr of parseHqGitLabOpenMrs(rows)) {
+  const retry = new Map<string, number>()
+  const open = new Set<string>()
+  const mrs = parseHqGitLabOpenMrs(rows)
+  for (const mr of mrs) {
     const project = hqMrProjectOfRepo(mr.repo, projects)
+    const mrKey = hqPlaceKey(mr.url)
+    if (mrKey) {
+      open.add(mrKey)
+    }
+    // Why: an MR that failed keeps its own start, so the pass cursor moving on skips none of its comments.
+    const owed = mrKey ? state.retry?.get(mrKey) : undefined
+    const from = owed === undefined ? since : Math.min(owed, since)
     let notes: HqGitLabMrNote[] = []
     try {
       notes =
-        mr.updatedAt >= since
+        owed !== undefined || mr.updatedAt >= from
           ? parseHqGitLabMrNotes(await deps.listNotes(mr.projectId, mr.iid, NOTES_PER_MR))
           : []
     } catch (error) {
@@ -258,10 +274,13 @@ export async function runHqGitLabMrNotes(
       failed.push(
         `${mr.repo}!${String(mr.iid)}: ${error instanceof Error ? error.message : String(error)}`
       )
+      if (mrKey) {
+        retry.set(mrKey, from)
+      }
     }
     // Why oldest first: the ledger's state follows the newest message it was given.
     for (const note of notes.toSorted((a, b) => a.createdAt - b.createdAt)) {
-      if (note.createdAt < since) {
+      if (note.createdAt < from) {
         continue
       }
       const signal = hqLedgerSignalOfMrNote(mr, note, { owner, bots: botSet, project })
@@ -284,6 +303,15 @@ export async function runHqGitLabMrNotes(
       deps.setChatIfNone?.(`clickup:${task}`, chat)
     }
   }
+  // Why: a merged or closed MR leaves the open list; its comment card has nothing left to act on.
+  // The list is whole here — a failed read of it threw above.
+  if (deps.close) {
+    for (const key of deps.openKeys?.() ?? []) {
+      if (!open.has(key)) {
+        deps.close(key)
+      }
+    }
+  }
   if (failed.length > 0) {
     deps.warn?.(`GitLab MR comments not read for ${String(failed.length)} MR(s)`, failed.join('\n'))
   }
@@ -292,7 +320,7 @@ export async function runHqGitLabMrNotes(
       chats.delete(cacheKey)
     }
   }
-  return { cursor: now, chats }
+  return { cursor: now, chats, retry }
 }
 
 export function startHqGitLabMrNotes(
