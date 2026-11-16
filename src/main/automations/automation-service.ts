@@ -269,6 +269,7 @@ export class AutomationService {
       runs: this.runs,
       tickMs: this.tickMs,
       wakeGate: this.wakeGate,
+      isActive: () => !this.stopped && generation === this.dispatchGeneration,
       inLane: (automationId, operation) => this.runInAutomationLane(automationId, operation),
       describeRefusal: (target) => {
         const canDispatch = canDispatchTo(

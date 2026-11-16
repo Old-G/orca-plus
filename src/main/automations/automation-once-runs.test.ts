@@ -223,6 +223,7 @@ describe('waits: automations that run once', () => {
             runs: createAutomationRunWriter(store, null),
             tickMs: 60_000,
             wakeGate: service.wakeGate,
+            isActive: () => true,
             inLane,
             describeRefusal: () => checked,
             resolveTarget: (current) => resolveAutomationRunTarget(store, current),

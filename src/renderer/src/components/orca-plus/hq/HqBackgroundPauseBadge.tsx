@@ -70,7 +70,7 @@ export function HqBackgroundPauseBadge({
       data-testid="hq-background-pause"
       title={`Weekly Claude limit ${pause.weeklyPercent}% (pause from ${CLAUDE_BACKGROUND_PAUSE_PERCENT}%). Automations, Slack, ClickUp and GitLab reading and the nightly jobs start again by themselves after the reset.`}
     >
-      Background paused until {until}
+      {compact ? `Paused · ${until}` : `Background paused until ${until}`}
     </span>
   )
 }
