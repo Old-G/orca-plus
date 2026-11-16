@@ -106,7 +106,9 @@ describe('claude background gate', () => {
   it('asks for a new reading when the one at hand is old and decides on it', async () => {
     const t = setup(reading(50, NOW - 3 * 60 * MIN))
     t.requestReading.mockImplementation(() => {
-      setTimeout(() => t.setReading(reading(98)), 0)
+      // The service first republishes the old numbers as «fetching», then the new reading.
+      setTimeout(() => t.setReading({ ...reading(50, NOW - 3 * 60 * MIN), status: 'fetching' }), 0)
+      setTimeout(() => t.setReading(reading(98)), 5)
       return true
     })
     expect(await t.gate.admits('automation «Кого ждём 18:00»')).toBe(false)
