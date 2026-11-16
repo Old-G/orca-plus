@@ -6,8 +6,8 @@ export const claudeHandoffApi = {
   list: () => ipcRenderer.invoke('claudeHandoff:list'),
   launch: (id, keepOld) => ipcRenderer.invoke('claudeHandoff:launch', id, keepOld === true),
   dismiss: (id) => ipcRenderer.invoke('claudeHandoff:dismiss', id),
-  continueChat: (worktreeId, tabId, prompt) =>
-    ipcRenderer.invoke('claudeHandoff:continueChat', worktreeId, tabId, prompt),
+  continueChat: (worktreeId, tabId, prompt, options) =>
+    ipcRenderer.invoke('claudeHandoff:continueChat', worktreeId, tabId, prompt, options),
   onOffersChanged: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, offers: ClaudeHandoffOffer[]): void =>
       callback(offers)
