@@ -23,6 +23,8 @@ export type AutomationTriggerRunContext = {
   runs: AutomationRunWriter
   /** The wait the wake gate imposed before this scheduler pass. */
   wakeGateDelayMs: number
+  /** False once the scheduler stopped or changed; a wait started before that writes nothing. */
+  isActive(): boolean
   /** The automation's dispatch lane; the operation must not dispatch itself. */
   inLane<T>(automationId: string, operation: () => Promise<T>): Promise<T>
   describeRefusal(target: AutomationRunTargetResult): Promise<AutomationRunFailure | null>
@@ -58,7 +60,14 @@ export async function runScheduledOccurrence(
     return
   }
   // Custom build (claude-background-pause): at 95% of the weekly Claude limit the run is skipped.
-  if (await skipForClaudeBackgroundPause({ runs: ctx.runs, automation, scheduledFor })) {
+  if (
+    await skipForClaudeBackgroundPause({
+      runs: ctx.runs,
+      automation,
+      scheduledFor,
+      isActive: () => ctx.isActive()
+    })
+  ) {
     await ctx.runs.advanceNextRun(automation.id, now)
     return
   }

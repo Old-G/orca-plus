@@ -26,7 +26,8 @@ def user_data_dir() -> str:
 
 
 def iso(ms) -> str:
-    return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    stamp = datetime.fromtimestamp(ms / 1000, timezone.utc).isoformat(timespec="milliseconds")
+    return stamp.replace("+00:00", "Z")
 
 
 def read_pause(path: str, now_ms: float):
