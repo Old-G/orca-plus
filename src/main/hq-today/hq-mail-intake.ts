@@ -31,6 +31,7 @@ import {
   hqClickUpRequestFrom,
   ORCA_FOOTER
 } from './hq-clickup-requests'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 // Why: the first look goes back a day, like the ClickUp and Slack collectors.
 const FIRST_LOOK_MS = 24 * 60 * 60_000
@@ -323,7 +324,7 @@ export function startHqMailIntake(deps: {
   let running = false
   const look = async (): Promise<void> => {
     const hq = deps.hqPath()
-    if (running || !hq || !deps.enabled()) {
+    if (running || !hq || !deps.enabled() || !claudeBackgroundAllows('mail intake')) {
       return
     }
     running = true

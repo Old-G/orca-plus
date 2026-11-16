@@ -11,6 +11,7 @@ import {
 import type { PulseWaiting, PulseWaitingReply } from '../../shared/pulse-types'
 import { clickUpCommentForOwner } from '../../shared/hq-reply-addressee'
 import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 // Why: ClickUp has no push for comments here; three minutes keeps two calls per question cheap.
 const POLL_MS = 3 * 60_000
@@ -168,7 +169,9 @@ export function startHqClickUpWaitingReplies(deps: HqClickUpWaitingDeps): () => 
   const parents = new Map<string, string | null>()
   const flight = createDebouncedSingleFlight(
     async () => {
-      await pollHqClickUpWaitingReplies(deps, parents)
+      if (claudeBackgroundAllows('ClickUp waiting replies')) {
+        await pollHqClickUpWaitingReplies(deps, parents)
+      }
     },
     (error) => console.warn('[hq-clickup-waiting] poll failed:', error),
     FIRST_POLL_MS

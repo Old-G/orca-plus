@@ -35,6 +35,7 @@ import {
   parseHqSlackScoutTuning,
   type HqSlackScoutDraft
 } from '../../shared/hq-slack-scout'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 const FIRST_LOOK_MS = 24 * 60 * 60_000
 // Why: a task edited while the last pass ran is read again rather than missed.
@@ -286,7 +287,7 @@ export function startHqClickUpTriage(deps: {
   let running = false
   const look = async (): Promise<void> => {
     const hq = deps.hqPath()
-    if (running || !hq || !deps.enabled()) {
+    if (running || !hq || !deps.enabled() || !claudeBackgroundAllows('ClickUp triage')) {
       return
     }
     running = true
