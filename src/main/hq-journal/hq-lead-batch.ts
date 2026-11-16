@@ -73,8 +73,13 @@ export type HqLeadBatch = {
   ready: Promise<void>
   /** Holds one message for the Lead's thread; returns when its batch goes at the latest. */
   hold: (address: string, sessionId: string, prompt: string) => { dueAt: number }
-  /** Takes the thread's held messages out to go now with an urgent one; null when none. */
+  /**
+   * Takes the thread's held messages out to go now with an urgent one; null when none. They stay
+   * in the saved file until `delivered` or `restore`, so a restart mid-delivery keeps them.
+   */
   take: (address: string) => HqLeadHeld | null
+  /** The taken messages reached the Lead: they leave the saved file. */
+  delivered: (held: HqLeadHeld) => void
   /** Puts taken messages back in front of newer ones when their delivery failed. */
   restore: (held: HqLeadHeld) => void
   /** Picks up the batches saved before a restart; call once, right after creating — `ready` waits for it. */
@@ -110,6 +115,9 @@ export function parseHqLeadHeld(text: string): HqLeadHeld[] {
 export function createHqLeadBatch(deps: HqLeadBatchDeps): HqLeadBatch {
   const windowMs = deps.windowMs ?? HQ_LEAD_BATCH_WINDOW_MS
   const held = new Map<string, HqLeadHeld>()
+  // Why: a delivery can wait 15 s on a closed Lead coming back; until it lands, a restart must
+  // still find these messages in the file (they come back as a held batch of their thread).
+  const inFlight = new Set<HqLeadHeld>()
   const timers = new Map<string, () => void>()
   let started: (() => void) | null = null
   const ready = new Promise<void>((resolve) => {
@@ -118,7 +126,7 @@ export function createHqLeadBatch(deps: HqLeadBatchDeps): HqLeadBatch {
 
   let writes = Promise.resolve()
   const save = (): void => {
-    const snapshot = structuredClone([...held.values()])
+    const snapshot = structuredClone([...held.values(), ...inFlight])
     writes = writes
       .then(() => deps.save(snapshot))
       .catch((error: unknown) => deps.log(`could not save held messages: ${String(error)}`))
@@ -148,13 +156,15 @@ export function createHqLeadBatch(deps: HqLeadBatchDeps): HqLeadBatch {
       return
     }
     held.delete(address)
-    save()
+    inFlight.add(batch)
     const prompt = hqLeadBatchPrompt(batch.prompts, batch.since)
     const delivered = await deps.flush(batch, prompt).catch((error: unknown) => {
       deps.log(`batch for ${address} failed: ${String(error)}`)
       return false
     })
+    inFlight.delete(batch)
     if (delivered) {
+      save()
       return
     }
     const tries = batch.tries + 1
@@ -162,6 +172,7 @@ export function createHqLeadBatch(deps: HqLeadBatchDeps): HqLeadBatch {
       try {
         deps.giveUp({ ...batch, tries }, prompt)
         deps.log(`batch for ${address} not taken ${tries} times; handed to the owner`)
+        save()
         return
       } catch (error) {
         // Why: the batch is the only copy of the joined messages; it stays until someone sees it.
@@ -173,6 +184,7 @@ export function createHqLeadBatch(deps: HqLeadBatchDeps): HqLeadBatch {
   }
 
   const restore = (batch: HqLeadHeld): void => {
+    inFlight.delete(batch)
     const later = held.get(batch.address)
     const merged: HqLeadHeld = later
       ? {
@@ -218,10 +230,15 @@ export function createHqLeadBatch(deps: HqLeadBatchDeps): HqLeadBatch {
       const batch = held.get(address) ?? null
       if (batch) {
         held.delete(address)
+        inFlight.add(batch)
         disarm(address)
-        save()
       }
       return batch
+    },
+    delivered(batch) {
+      if (inFlight.delete(batch)) {
+        save()
+      }
     },
     restore,
     async start() {

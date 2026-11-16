@@ -189,6 +189,9 @@ export function createHqSend(
       })
       reopened = sent.reopened
       worktreeId = sent.worktreeId
+      if (sent.taken && prior) {
+        batch?.delivered(prior)
+      }
       if (!sent.taken) {
         if (prior) {
           batch?.restore(prior)
