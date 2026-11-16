@@ -208,4 +208,38 @@ describe('pieces', () => {
     expect(hqLedgerSignalOfMrNote(mr, { ...base, body: 'x@owner.io' }, ctx)).not.toBeNull()
     expect(hqLedgerSignalOfMrNote(mr, { ...base, body: 'cc @Owner.' }, ctx)).toBeNull()
   })
+
+  it('reads a failed MR’s comments from where it failed once GitLab shows it again', async () => {
+    let down = true
+    const run = deps({
+      listNotes: async () => {
+        if (down) {
+          throw new Error('502 Bad Gateway')
+        }
+        return [note({ id: 9, created_at: iso(2) })]
+      },
+      warn: () => {}
+    })
+    let state = await runHqGitLabMrNotes(run.deps, { cursor: 0 })
+    expect(run.ingested).toEqual([])
+    // Why: an hour of failed passes, then GitLab comes back; MR and comment are both older than the
+    // ten-minute overlap of the last pass.
+    for (const hour of [0.5, 1]) {
+      state = await runHqGitLabMrNotes({ ...run.deps, now: () => NOW + hour * 60 * 60_000 }, state)
+    }
+    down = false
+    await runHqGitLabMrNotes({ ...run.deps, now: () => NOW + 90 * 60_000 }, state)
+    expect(run.ingested.map((signal) => signal.ts)).toEqual(['note:9'])
+  })
+
+  it('closes the comment card of an MR that is no longer open', async () => {
+    const closed: string[] = []
+    const run = deps({
+      listOpenMrs: async () => [MR_ROW],
+      openKeys: () => ['gitlab:acme/app!7', 'gitlab:acme/app!5'],
+      close: (key) => closed.push(key)
+    })
+    await runHqGitLabMrNotes(run.deps, { cursor: 0 })
+    expect(closed).toEqual(['gitlab:acme/app!5'])
+  })
 })
