@@ -34,6 +34,11 @@ import {
 } from './dispatch/dispatch-refusal'
 import type { RunTerminalRetention } from './terminal-retention/run-terminal-retention'
 import { AutomationWakeGate } from './dispatch/automation-wake-settle'
+import { owesClaudeBackgroundCatchUp } from './dispatch/claude-background-pause-skip'
+import {
+  claudeBackgroundAdmits,
+  claudeBackgroundNote
+} from '../claude-limit-guard/claude-background-gate'
 import type {
   AutomationsChangedPayload,
   PublishAutomationsChanged
@@ -256,7 +261,23 @@ export class AutomationService {
         now,
         isActive: () => !this.stopped && generation === this.dispatchGeneration,
         captureTarget: (listed) =>
-          captureLegacyRunTarget(this.store, listed, this.allowRemoteHostScheduling)
+          captureLegacyRunTarget(this.store, listed, this.allowRemoteHostScheduling),
+        // Custom build (claude-background-pause): one run for what the pause skipped.
+        onNotDue: async (automation) => {
+          if (
+            owesClaudeBackgroundCatchUp(
+              automation,
+              () => this.store.listAutomationRuns(automation.id),
+              now
+            )
+          ) {
+            try {
+              await this.catchUpAfterClaudeBackgroundPause(automation, now)
+            } catch (error) {
+              console.warn('[automations] catch-up after the background pause failed:', error)
+            }
+          }
+        }
       })
     } finally {
       this.evaluating = false
@@ -286,6 +307,32 @@ export class AutomationService {
         this.launchInLane(automation, run, target, generation, afterCreate),
       once: this.once
     }
+  }
+
+  /** Custom build (claude-background-pause): the one run an automation skipped in the pause is owed. */
+  private async catchUpAfterClaudeBackgroundPause(listed: Automation, now: number): Promise<void> {
+    const generation = this.dispatchGeneration
+    const job = `automation «${listed.name}»`
+    if (!(await claudeBackgroundAdmits(job))) {
+      return
+    }
+    if (this.stopped || generation !== this.dispatchGeneration) {
+      return
+    }
+    const automation = captureLegacyRunTarget(this.store, listed, this.allowRemoteHostScheduling)
+    const target = this.resolveTarget(automation)
+    // Why: an automation that cannot start now stays owed; a refusal row would erase the debt.
+    if (
+      await describeScheduledTickRefusal(this.store, {
+        target,
+        canDispatch: Boolean(this.availableLauncher())
+      })
+    ) {
+      return
+    }
+    claudeBackgroundNote(`catch up ${job}: one run for what the pause skipped`)
+    const run = await this.runs.createRun(automation, now)
+    this.launchInLane(automation, run, target, generation)
   }
 
   private resolveTarget(automation: Automation): AutomationRunTargetResult {
