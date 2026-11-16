@@ -242,6 +242,24 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     examples: ['orca hq dispatch acme-api/refunds --prompt "Add the partial-refund cap" --dry-run']
   },
   {
+    // Custom build (hq-lead-reassign)
+    path: ['hq', 'reassign'],
+    summary: "Hand a Lead's chats to another chat: they report there, and the plan names it",
+    usage:
+      'orca hq reassign --from <project>/<task>|<session id> [--to <project>/<task>|<session id>] [--chats <a,b>] [--dry-run] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'from', 'to', 'chats', 'dry-run'],
+    notes: [
+      '--to defaults to the chat that runs the command; --chats moves only those (thread addresses or session ids), otherwise every open chat under the old Lead.',
+      'The chats hang under the new Lead in HQ+, and what they send to the old Lead goes to the new one. The new Lead gets the Lead role, the messages held for the old one and a list of its chats; the moved chats and the old Lead are told.',
+      'Without --chats the «Lead chat:» line of each plan in HQ/runs naming the old Lead names the new one, with «(was: …)».',
+      "A handoff needs none of this: the new chat keeps the Lead's thread. Undo: the same command with --from and --to swapped and --chats of what moved."
+    ],
+    examples: [
+      'orca hq reassign --from hq/lead-refunds --dry-run',
+      'orca hq reassign --from hq/lead-refunds --to hq/lead-billing --chats acme-api/w-refund-cap'
+    ]
+  },
+  {
     path: ['hq', 'sessions'],
     summary:
       'The chats now — thread, state, context, the owner in it — and what the dispatcher would do',

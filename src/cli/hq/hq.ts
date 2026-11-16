@@ -10,6 +10,8 @@ import {
 import type { HqMergeSlotResult, HqRouteResult, HqSettleResult } from '../../shared/hq-routing'
 import type { HqLadderReport } from '../../shared/hq-ladder'
 import type { HqDispatchResult, HqSessionsResult } from '../../shared/hq-sessions'
+import type { HqLeadReassignResult } from '../../shared/hq-chat-links'
+import { formatHqReassign } from '../hq-reassign-format'
 import type {
   HqContextResult,
   HqRoomAddResult,
@@ -146,12 +148,18 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       text: getRequiredStringFlag(flags, 'text'),
       replyTo: getOptionalStringFlag(flags, 'reply-to')
     })
-    printResult(result, json, (r) =>
-      r.heldUntil !== undefined
-        ? `Held for the Lead on ${r.entry.address}: it goes with the others by ${clockOf(r.heldUntil)}, or later if the Lead is still in a turn; a NEEDS DECISION or BLOCKED goes at once.  ${r.entry.id}`
-        : r.reopened
-          ? `Brought the closed chat back and handed it the message.  ${r.entry.id}`
-          : `Handed the message to the chat on ${r.entry.address}.  ${r.entry.id}`
+    printResult(
+      result,
+      json,
+      (r) =>
+        (r.forwardedFrom
+          ? `${r.forwardedFrom} is not this chat's Lead any more; the message went to its Lead now, ${r.entry.address}. `
+          : '') +
+        (r.heldUntil !== undefined
+          ? `Held for the Lead on ${r.entry.address}: it goes with the others by ${clockOf(r.heldUntil)}, or later if the Lead is still in a turn; a NEEDS DECISION or BLOCKED goes at once.  ${r.entry.id}`
+          : r.reopened
+            ? `Brought the closed chat back and handed it the message.  ${r.entry.id}`
+            : `Handed the message to the chat on ${r.entry.address}.  ${r.entry.id}`)
     )
   },
 
@@ -286,6 +294,22 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       dryRun: flags.get('dry-run') === true
     })
     printResult(result, json, formatHqDispatch)
+  },
+
+  // Custom build (hq-lead-reassign)
+  'hq reassign': async ({ flags, client, json }) => {
+    const chats = getOptionalStringFlag(flags, 'chats')
+      ?.split(',')
+      .map((chat) => chat.trim())
+      .filter(Boolean)
+    const result = await client.call<HqLeadReassignResult>('hq.reassign', {
+      ...caller(),
+      from: getRequiredStringFlag(flags, 'from'),
+      to: getOptionalStringFlag(flags, 'to'),
+      chats: chats?.length ? chats : undefined,
+      dryRun: flags.get('dry-run') === true
+    })
+    printResult(result, json, formatHqReassign)
   },
 
   'hq sessions': async ({ flags, client, json }) => {

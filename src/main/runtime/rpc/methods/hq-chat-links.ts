@@ -3,8 +3,10 @@
 import { defineMethod } from '../core'
 import {
   HqChatLinksParams,
-  HqLinkChatParams
+  HqLinkChatParams,
+  HqReassignParams
 } from '../../../../shared/rpc-contract/hq-journal-params'
+import { getHqLeadReassign } from '../../../hq-journal/hq-lead-reassign'
 
 export const HQ_CHAT_LINK_METHODS = [
   defineMethod({
@@ -29,5 +31,22 @@ export const HQ_CHAT_LINK_METHODS = [
     permission: 'workspace',
     params: HqChatLinksParams,
     handler: async (_params, { runtime }) => runtime.pulseChats().list()
+  }),
+  // Custom build (hq-lead-reassign): `orca hq reassign` — a Lead's chats go to another chat.
+  defineMethod({
+    name: 'hq.reassign',
+
+    permission: 'workspace',
+    params: HqReassignParams,
+    handler: async ({ callerSessionId, callerWorktreeId, callerCwd, ...request }) => {
+      const service = getHqLeadReassign()
+      if (!service) {
+        throw new Error('Lead changes are not available on this host.')
+      }
+      return service.reassign(
+        { sessionId: callerSessionId, worktreeId: callerWorktreeId, cwd: callerCwd },
+        request
+      )
+    }
   })
 ]

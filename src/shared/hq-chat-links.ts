@@ -42,3 +42,28 @@ export function isHqChatLinksResult(value: unknown): value is HqChatLinksResult 
     )
   )
 }
+
+// Custom build (hq-lead-reassign, owner 16.11): `orca hq reassign` — a Lead's chats go to another Lead.
+
+/** A chat as `orca hq reassign` names it: its thread address when it has one, and its session now. */
+export type HqLeadReassignChat = {
+  address: string | null
+  sessionId: string
+  name: string | null
+}
+
+export type HqLeadReassignResult = {
+  dryRun: boolean
+  from: HqLeadReassignChat
+  to: HqLeadReassignChat
+  /** Moved under the new Lead (or, in a dry run, would be); `told` — the chat got the notice. */
+  moved: (HqLeadReassignChat & { told: boolean })[]
+  /** Under the old Lead and left there, with why. */
+  kept: (HqLeadReassignChat & { why: string })[]
+  /** Plan files whose `Lead chat:` line now names the new Lead. */
+  plans: string[]
+  /** Messages held for the old Lead that went to the new one with its notice. */
+  heldHandedOver: number
+  toldNewLead: boolean
+  toldOldLead: boolean
+}
