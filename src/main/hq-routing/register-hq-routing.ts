@@ -23,6 +23,7 @@ import { generateHqText } from '../hq-today/hq-task-questions'
 import { getHqJournalService } from '../hq-journal/hq-journal-service'
 import { hqPlaceOf } from '../hq-journal/hq-journal-rooms'
 import { hqLadderReport, provideHqLadderReport } from './hq-ladder-report'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 const EVERY_MS = 5 * 60_000
 const SENDER = 'hq-routing'
@@ -212,6 +213,9 @@ export function registerHqRouting(
     }
   })
   const tick = (): void => {
+    if (!claudeBackgroundAllows('HQ routing')) {
+      return
+    }
     void routing.run().catch((error: unknown) => console.warn('[hq-routing] run failed:', error))
     replyPass()
   }
@@ -224,7 +228,9 @@ export function registerHqRouting(
     }
     soon = setTimeout(() => {
       soon = null
-      replyPass()
+      if (claudeBackgroundAllows('HQ routing')) {
+        replyPass()
+      }
     }, REPLY_DEBOUNCE_MS)
     soon.unref?.()
   })

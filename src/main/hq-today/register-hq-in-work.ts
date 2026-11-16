@@ -17,6 +17,7 @@ import {
 } from './hq-in-work'
 import { hqIntakeBudget } from './hq-intake-decide'
 import { generateHqText } from './hq-task-questions'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 const PASS_MS = 5 * 60_000
 const FIRST_PASS_MS = 60_000
@@ -138,7 +139,7 @@ export function startHqInWork(store: Store, runtime: OrcaRuntimeService): () => 
 
   let running = false
   const tick = (): void => {
-    if (running) {
+    if (running || !claudeBackgroundAllows('in-work check')) {
       return
     }
     running = true

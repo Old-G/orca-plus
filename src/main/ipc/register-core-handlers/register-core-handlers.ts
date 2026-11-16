@@ -27,6 +27,7 @@ import { registerFeedbackHandlers } from '../feedback/feedback'
 import { registerSlackHandlers } from '../slack'
 import { registerClaudeHandoffHandlers } from '../claude-handoff'
 import { registerClaudeLimitGuardHandlers } from '../claude-limit-guard'
+import { registerClaudeBackgroundPause } from '../claude-background-pause'
 import { registerClaudeSubscriptionHandlers } from '../claude-subscriptions'
 import { registerStrataHandlers } from '../strata'
 import { registerHqRosterSync } from '../../hq-roster-sync/register-hq-roster-sync'
@@ -192,6 +193,8 @@ export async function registerCoreHandlers(
       rateLimits,
       registerClaudeHandoffHandlers(store, runtime)
     )
+    // Custom build (claude-background-pause): background work holds off at 95% of the weekly limit.
+    registerClaudeBackgroundPause(store, rateLimits)
     registerClaudeSubscriptionHandlers(store)
     registerStrataHandlers(store, runtime)
     registerHqGroupChatHandlers(store, registerHqRosterSync(store))
