@@ -6,6 +6,7 @@ import { hqPromiseDueAt, HQ_PROMISE_SOURCE } from '../../shared/hq-promises'
 import type { PulseWaiting, PulseWaitingInput } from '../../shared/pulse-types'
 import type { HqLedgerOwnLine } from '../orca-plus/pulse/pulse-ledger-promises'
 import { hqPromptName } from './hq-ledger-guess'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 const POLL_MS = 3 * 60_000
 const FIRST_POLL_MS = 2 * 60_000
@@ -156,7 +157,7 @@ export function startHqLedgerPromises(
 ): () => void {
   let running = false
   const tick = (): void => {
-    if (running || !deps.enabled()) {
+    if (running || !deps.enabled() || !claudeBackgroundAllows('ledger promises')) {
       return
     }
     running = true

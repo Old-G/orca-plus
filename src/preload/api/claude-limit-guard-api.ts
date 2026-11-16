@@ -1,4 +1,5 @@
 import type { ClaudeLimitStoppedAgent } from '../../shared/claude-limit-guard'
+import type { ClaudeBackgroundPause } from '../../shared/claude-background-pause'
 
 export type ClaudeLimitGuardApi = {
   list: () => Promise<ClaudeLimitStoppedAgent[]>
@@ -10,4 +11,7 @@ export type ClaudeLimitGuardApi = {
     sessionId: string
     subscriptionId: string
   }) => Promise<{ ok: true } | { ok: false; reason: string }>
+  /** Custom build (claude-background-pause): background work held off at 95% of the weekly limit. */
+  backgroundPause: () => Promise<ClaudeBackgroundPause | null>
+  onBackgroundPauseChanged: (callback: (pause: ClaudeBackgroundPause | null) => void) => () => void
 }

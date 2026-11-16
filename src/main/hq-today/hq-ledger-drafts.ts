@@ -6,6 +6,7 @@ import { HQ_ATTRIBUTION_KINDS, type HqAttributionKind } from '../../shared/hq-at
 import type { HqLedgerCardRow } from '../orca-plus/pulse/pulse-ledger-cards'
 import type { HqLedgerDraft } from '../orca-plus/pulse/pulse-ledger-draft'
 import { hqPromptName } from './hq-ledger-guess'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 // Why 30 s (owner 09.11): a card now waits for this read before it shows, so a request must not wait
 // minutes; a pass with nothing new reads the database only.
@@ -184,7 +185,7 @@ export function startHqLedgerDrafts(
   const tried = new Map<string, number>()
   let running = false
   const tick = (): void => {
-    if (running || !deps.enabled()) {
+    if (running || !deps.enabled() || !claudeBackgroundAllows('ledger drafts')) {
       return
     }
     running = true

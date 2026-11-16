@@ -1,6 +1,7 @@
 // Custom build (hq-feed-posts): the feed's «done» rows — commits, finished sessions, messages sent —
 // rewritten by one short Claude run (no tools) into short Russian posts the owner can skim.
 import type { HqFeedItem } from '../../shared/hq-feed'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 export const HQ_FEED_POST_MAX = 200
 const BATCH = 40
@@ -88,7 +89,7 @@ export function startHqFeedPosts(deps: HqFeedPostsDeps & { now: () => number }):
   let running = false
   let pausedUntil = 0
   const tick = async (): Promise<void> => {
-    if (running || deps.now() < pausedUntil) {
+    if (running || deps.now() < pausedUntil || !claudeBackgroundAllows('feed posts')) {
       return
     }
     running = true
