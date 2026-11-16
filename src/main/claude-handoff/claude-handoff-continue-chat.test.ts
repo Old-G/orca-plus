@@ -47,4 +47,13 @@ describe('createClaudeContinueChat', () => {
     void run('w1', TAB, 'p')
     expect(start).toHaveBeenCalledTimes(2)
   })
+
+  it('carries the model and effort the chat’s own runtime reported, and drops what is not one', async () => {
+    const start = vi.fn().mockResolvedValue({ ok: true, worktreeId: 'w1' })
+    const run = createClaudeContinueChat(start)
+    await run('w1', TAB, 'p', { model: 'opus', effort: 'high', extra: 'x' })
+    expect(start.mock.calls[0][0].options).toEqual({ model: 'opus', effort: 'high' })
+    await run('w1', TAB, 'p', { model: 7, effort: '' })
+    expect(start.mock.calls[1][0].options).toBeUndefined()
+  })
 })
