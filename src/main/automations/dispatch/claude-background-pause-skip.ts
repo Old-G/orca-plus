@@ -4,6 +4,7 @@
 import type { Automation } from '../../../shared/automations/automation-definition'
 import type { AutomationRunWriter } from '../run-history/run-writer'
 import { claudeBackgroundAdmits } from '../../claude-limit-guard/claude-background-gate'
+import { AutomationDispatchCancelledError } from './automation-dispatch-cancelled-error'
 
 // Why: one wording for every skip, so repeated skips of a job fold into one history row.
 export const CLAUDE_BACKGROUND_PAUSE_SKIP =
@@ -14,13 +15,20 @@ export async function skipForClaudeBackgroundPause(input: {
   runs: AutomationRunWriter
   automation: Automation
   scheduledFor: number
+  /** False once the scheduler stopped or its automations changed while the gate waited. */
+  isActive: () => boolean
 }): Promise<boolean> {
   const { automation, runs, scheduledFor } = input
   // Why: the pause is about the Claude subscription; other agents have limits of their own.
   if (automation.agentId !== 'claude') {
     return false
   }
-  if (await claudeBackgroundAdmits(`automation «${automation.name}»`)) {
+  const admitted = await claudeBackgroundAdmits(`automation «${automation.name}»`)
+  // Why: the gate may wait up to 20 s for a reading; the tick's view of the schedule may be gone by then.
+  if (!input.isActive()) {
+    throw new AutomationDispatchCancelledError()
+  }
+  if (admitted) {
     return false
   }
   if (!(await runs.repeatSkip(automation.id, CLAUDE_BACKGROUND_PAUSE_SKIP, scheduledFor))) {
