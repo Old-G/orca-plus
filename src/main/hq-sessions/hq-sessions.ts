@@ -11,6 +11,7 @@ import {
 import type {
   HqDispatchDecision,
   HqDispatchResult,
+  HqLiveSession,
   HqMayCloseResult,
   HqSessionsResult
 } from '../../shared/hq-sessions'
@@ -38,6 +39,8 @@ export type HqSessionsService = {
   /** The chats and what the dispatcher would do now; `run` carries it out (mode on). */
   sweep: (options?: { run?: boolean }) => Promise<HqSessionsResult>
   mayClose: (sessionId: string, reason: 'cleanup' | 'handoff') => Promise<HqMayCloseResult>
+  /** Custom build (hq-lead-reassign): the chats now, nothing carried out. */
+  live: () => Promise<HqLiveSession[]>
 }
 
 export function createHqSessions(deps: HqSessionsDeps): HqSessionsService {
@@ -45,6 +48,8 @@ export function createHqSessions(deps: HqSessionsDeps): HqSessionsService {
   let sweeping: Promise<HqSessionsResult> | null = null
 
   return {
+    live: () => deps.live(),
+
     async dispatch(caller, request) {
       const address = request.address.trim()
       if (!isHqThreadAddress(address)) {

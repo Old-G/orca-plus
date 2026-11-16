@@ -9,6 +9,12 @@ import type {
 } from '../../../shared/hq-chat-links'
 import { isHqChatRole, type HqChatRole } from '../../../shared/hq-chat-role'
 import { liveSessionOf } from './pulse-chat-chain'
+import {
+  leadMoveOf,
+  moveChatLead,
+  withLeadMoves,
+  type HqLeadMoveInput
+} from './pulse-chat-lead-moves'
 import type { PulseCore } from './pulse-core'
 
 const MAX_HOPS = 64
@@ -86,7 +92,7 @@ export function listChatLinks(core: PulseCore): HqChatLinksResult {
       sessionId: String(row.session_id),
       fromSessionId: String(row.parent_session_id)
     }))
-  return { links: [...links, ...sentBefore(core, links)], continues }
+  return { links: withLeadMoves(core, [...links, ...sentBefore(core, links)]), continues }
 }
 
 // Why: the journal's `orca chat send` rows name the sending chat's thread in their title — written by
@@ -189,6 +195,8 @@ export function pulseChats(core: () => PulseCore) {
     roleOf: (sessionId: string): HqChatRole | null => chatRoleOf(core(), sessionId),
     clearRole: (sessionId: string): void => clearChatRole(core(), sessionId),
     launchedSince: (parentSessionId: string, since: number): string[] =>
-      chatsLaunchedSince(core(), parentSessionId, since)
+      chatsLaunchedSince(core(), parentSessionId, since),
+    moveLead: (input: HqLeadMoveInput): void => moveChatLead(core(), input),
+    leadMoveOf: (chat: string, lead: string): string | null => leadMoveOf(core(), chat, lead)
   }
 }
