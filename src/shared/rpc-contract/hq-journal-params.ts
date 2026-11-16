@@ -162,6 +162,11 @@ export const HqConversationDoneParams = z.object({
     .optional()
 })
 
+// Custom build (hq-mr-comments, T14): the comments «Send to chat» owes the chat — all unsent, not the card's preview.
+export const HqConversationUnsentParams = z.object({
+  key: requiredString('A conversation key is required')
+})
+
 // Custom build (hq-ledger-cutover): «To work» on a conversation card — its «To work» card, made if none.
 export const HqConversationToWorkParams = z.object({
   key: requiredString('A conversation key is required')

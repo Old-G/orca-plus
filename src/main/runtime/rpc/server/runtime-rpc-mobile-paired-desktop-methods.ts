@@ -37,6 +37,7 @@ export const PAIRED_DESKTOP_METHODS = [
   'hq.jobReply',
   // Custom build (hq-ledger-sources): «Done» on the card of an MR or a mail thread.
   'hq.conversationDone',
+  'hq.conversationUnsent',
   'hq.conversationNotInWork',
   'hq.conversationToWork',
   // Custom build (hq-project-cards): the phone's project chip on a conversation and «Skip» on a chat's

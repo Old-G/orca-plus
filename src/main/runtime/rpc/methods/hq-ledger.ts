@@ -7,11 +7,12 @@ import {
   HqAttributionTakeParams,
   HqConversationDoneParams,
   HqConversationNotInWorkParams,
-  HqConversationToWorkParams
+  HqConversationToWorkParams,
+  HqConversationUnsentParams
 } from '../../../../shared/rpc-contract/hq-journal-params'
 import { hqIntakeBellItem } from '../../../../shared/hq-slack-intake'
 import { hqIntakeOfConversation } from '../../../hq-today/hq-ledger-cards'
-import { HQ_SENT_TO_CHAT_READER } from '../../../../shared/hq-conversation-chat-prompt'
+import { HQ_SEND_TO_CHAT_MAX, hqRecordSentToChat } from '../../../hq-today/hq-ledger-sent-to-chat'
 
 export const HQ_LEDGER_METHODS = [
   defineMethod({
@@ -25,26 +26,31 @@ export const HQ_LEDGER_METHODS = [
         throw new Error('Only the owner closes a conversation, from HQ+ on the Mac or the phone.')
       }
       if (params.sentTo) {
-        // Why just after the newest comment sent, not now: a comment GitLab shows on a later pass
-        // with an older time lands after this line, brings the card back and goes with the next send.
-        const at = Math.min(Date.now(), params.sentTo.upTo + 1)
-        runtime.pulseIngestLedger({
-          key: params.key,
-          ts: `sent:${String(at)}`,
-          at,
-          author: null,
-          authorId: null,
-          fromOwner: true,
-          text: `Sent to chat «${params.sentTo.chat}»`,
-          link: null,
-          reader: HQ_SENT_TO_CHAT_READER,
-          forOwner: false,
-          project: null,
-          title: 'Sent to chat',
-          sessionId: params.sentTo.sessionId
-        })
+        return hqRecordSentToChat(
+          {
+            ingest: (signal) => runtime.pulseIngestLedger(signal),
+            lastDirection: (key) => runtime.pulseLastLedgerDirection(key),
+            close: (key) => runtime.pulseCloseLedgerConversation(key),
+            now: Date.now
+          },
+          params.key,
+          params.sentTo
+        )
       }
       return { closed: runtime.pulseCloseLedgerConversation(params.key) }
+    }
+  }),
+  defineMethod({
+    name: 'hq.conversationUnsent',
+
+    permission: 'workspace',
+    params: HqConversationUnsentParams,
+    handler: (params, { runtime, caller }) => {
+      // Why owner only: the people's words go on from here into a chat, and only his click sends them.
+      if (caller?.kind !== 'desktop' && caller?.kind !== 'paired-device') {
+        throw new Error('Only the owner sends comments to a chat, from HQ+.')
+      }
+      return { messages: runtime.pulseListLedgerUnsent(params.key, HQ_SEND_TO_CHAT_MAX) }
     }
   }),
   // Custom build (hq-ledger-cutover, owner 03.11): a Slack conversation with no card of its own still
