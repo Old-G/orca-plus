@@ -208,10 +208,13 @@ export function createClaudeBackgroundGate(deps: ClaudeBackgroundGateDeps): Clau
           : 'background on: weekly limit under 95% or reset'
       )
       last = pause
-      deps.onChanged?.(pause)
     }
+    // Why: the file first — a launchd job started on the change must read the new answer.
     if (changed || lastWritten === '') {
       writeState(pause)
+    }
+    if (changed) {
+      deps.onChanged?.(pause)
     }
     return pause
   }
