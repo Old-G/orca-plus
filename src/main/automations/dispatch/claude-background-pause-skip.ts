@@ -1,7 +1,8 @@
 // Custom build (claude-background-pause): a scheduled Claude automation that comes due while the week's
-// limit is at 95% is skipped, not queued — the schedule moves on, and after the reset its next
-// occurrence runs as usual, so nothing missed is caught up in a batch.
+// limit is at 95% is skipped, not queued — the schedule moves on. After the pause it is caught up once:
+// however many of its occurrences were skipped, one run, and none for an automation that was not skipped.
 import type { Automation } from '../../../shared/automations/automation-definition'
+import type { AutomationRun } from '../../../shared/automations/history/automation-run'
 import type { AutomationRunWriter } from '../run-history/run-writer'
 import { claudeBackgroundAdmits } from '../../claude-limit-guard/claude-background-gate'
 import { AutomationDispatchCancelledError } from './automation-dispatch-cancelled-error'
@@ -43,4 +44,42 @@ export async function skipForClaudeBackgroundPause(input: {
     }
   }
   return true
+}
+
+// Why: an automation due again this soon runs on its own schedule; a catch-up would run it twice.
+export const CLAUDE_BACKGROUND_CATCH_UP_UNLESS_DUE_WITHIN_MS = 15 * 60_000
+
+/**
+ * Whether `automation` owes the one catch-up run: no run came after its pause skip. Several skipped
+ * occurrences fold into that one row; any run after it (the catch-up, a scheduled or a manual run)
+ * settles the debt, so it is paid once.
+ */
+export function owesClaudeBackgroundCatchUp(
+  automation: Automation,
+  runs: () => readonly AutomationRun[],
+  now: number
+): boolean {
+  if (
+    !automation.enabled ||
+    automation.agentId !== 'claude' ||
+    automation.nextRunAt - now <= CLAUDE_BACKGROUND_CATCH_UP_UNLESS_DUE_WITHIN_MS
+  ) {
+    return false
+  }
+  const all = runs()
+  const skip = all
+    .filter(
+      (run) =>
+        run.status === 'skipped_unavailable' &&
+        run.trigger === 'scheduled' &&
+        run.error === CLAUDE_BACKGROUND_PAUSE_SKIP
+    )
+    .reduce<AutomationRun | undefined>(
+      (latest, run) => (!latest || run.createdAt > latest.createdAt ? run : latest),
+      undefined
+    )
+  // Why: a run made in the same millisecond as the skip (a manual run right after it) also settles it.
+  return (
+    skip !== undefined && !all.some((run) => run.id !== skip.id && run.createdAt >= skip.createdAt)
+  )
 }

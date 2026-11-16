@@ -55,6 +55,8 @@ export type ClaudeBackgroundGate = {
   /** After a fresh reading when the one at hand is old — for runs that come once a day. */
   admits: (job: string) => Promise<boolean>
   refresh: () => void
+  /** One line in the gate's log, for what happens around a pause (a catch-up run). */
+  note: (line: string) => void
 }
 
 type TestReading = { weeklyPercent: number; resetsAt: number | null }
@@ -240,6 +242,7 @@ export function createClaudeBackgroundGate(deps: ClaudeBackgroundGateDeps): Clau
   return {
     current: () => last,
     evaluate,
+    note: log,
     allows,
     admits: async (job) => {
       const readAt = selectedReadingAt()
@@ -290,6 +293,11 @@ export async function claudeBackgroundAdmits(job: string): Promise<boolean> {
     console.warn('[claude-background-pause] gate failed, letting the job run:', error)
     return true
   }
+}
+
+/** A line in the gate's log; nothing before the gate is set up. */
+export function claudeBackgroundNote(line: string): void {
+  provided?.note(line)
 }
 
 /** The same answer without waiting for a reading: HQ's pollers ask this on every tick. */
