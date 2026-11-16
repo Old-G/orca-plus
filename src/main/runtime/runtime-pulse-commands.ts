@@ -6,7 +6,7 @@ import type { HqConversationRow, HqLedgerGuess } from '../orca-plus/pulse/pulse-
 import type { HqLedgerCardRow } from '../orca-plus/pulse/pulse-ledger-cards'
 import type { HqInWorkCandidate, HqInWorkRow } from '../orca-plus/pulse/pulse-ledger-in-work'
 import type { HqOpenConversation } from '../orca-plus/pulse/pulse-ledger-open'
-import type { HqFeedLedger } from '../../shared/hq-feed-ledger'
+import type { HqFeedLedger, HqFeedMessage } from '../../shared/hq-feed-ledger'
 import type { HqAttributionAccuracy } from '../../shared/hq-attribution'
 import type { HqAttributionTake } from '../orca-plus/pulse/pulse-attribution'
 import type { HqLedgerDecision } from '../orca-plus/pulse/pulse-ledger-decision'
@@ -293,6 +293,11 @@ export class RuntimePulseCommands {
   /** Custom build (hq-ledger-sources): one reader's conversations that still show, by place. */
   pulseListLedgerOpenKeys(reader: string): string[] {
     return this.db().listLedgerOpenKeys(reader)
+  }
+
+  /** Custom build (hq-mr-comments, T14): the people's messages «Send to chat» still owes a chat. */
+  pulseListLedgerUnsent(key: string, limit: number): HqFeedMessage[] {
+    return this.db().listLedgerUnsent(key, limit)
   }
 
   /** Custom build (hq-ledger-sources): the owner is done with a conversation (its card, or its source). */
