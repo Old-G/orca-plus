@@ -316,10 +316,17 @@ export class AutomationService {
     if (!(await claudeBackgroundAdmits(job))) {
       return
     }
-    if (this.stopped || generation !== this.dispatchGeneration) {
+    // Why: the gate may wait for a reading; a run, an edit or a removal in that time decides anew.
+    const current = this.store.listAutomations().find((entry) => entry.id === listed.id)
+    if (
+      this.stopped ||
+      generation !== this.dispatchGeneration ||
+      !current ||
+      !owesClaudeBackgroundCatchUp(current, () => this.store.listAutomationRuns(current.id), now)
+    ) {
       return
     }
-    const automation = captureLegacyRunTarget(this.store, listed, this.allowRemoteHostScheduling)
+    const automation = captureLegacyRunTarget(this.store, current, this.allowRemoteHostScheduling)
     const target = this.resolveTarget(automation)
     // Why: an automation that cannot start now stays owed; a refusal row would erase the debt.
     if (
