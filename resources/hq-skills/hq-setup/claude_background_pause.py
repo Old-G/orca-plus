@@ -3,7 +3,10 @@
 account has used 95% of its weekly limit, and writes that answer to claude-background-pause.json in
 its data folder. Exit 0 = run, 75 = paused (one «paused 95%» line on stdout and in the logs).
 No file, or one that cannot be read, means run: an unknown limit never stops work. The pause lasts only
-until the reset time the file names, so the job starts again by itself after the reset."""
+until the reset time the file names, so the job starts again by itself after the reset.
+A job held back under launchd leaves its label in claude-background-pause.held/<job>; once the pause
+ends, Orca+ starts that job once (launchctl kickstart), so a daily job skipped in the pause is not
+lost until the next day."""
 import argparse
 import json
 import os
@@ -50,6 +53,15 @@ def read_pause(path: str, now_ms: float):
     return None
 
 
+def launchd_label():
+    """The launchd job running this script, or None when it was started by hand or by cron."""
+    label = os.environ.get("XPC_SERVICE_NAME", "")
+    # Why: an app's terminal carries «application.<bundle id>…», Terminal.app «0»: not jobs to restart.
+    if not label or label == "0" or label.startswith("application.") or "." not in label:
+        return None
+    return label
+
+
 def append(path: str, line: str) -> None:
     try:
         with open(path, "a", encoding="utf-8") as fh:
@@ -78,7 +90,11 @@ def main() -> int:
             append(log, f"{stamp} skip {args.job}: {line}")
         try:
             os.makedirs(os.path.dirname(held), exist_ok=True)
-            open(held, "w").close()
+            label = launchd_label()
+            # Why: a run by hand in the pause must not erase the label an earlier launchd run left.
+            if label or not os.path.exists(held):
+                with open(held, "w", encoding="utf-8") as fh:
+                    json.dump({"label": label}, fh)
         except OSError:
             pass
         return PAUSED_EXIT
