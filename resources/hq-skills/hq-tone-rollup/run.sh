@@ -9,6 +9,9 @@ LOG="$LOG_DIR/orca-plus-tone-rollup.log"
 for v in $(env | sed -n -E 's/^((ORCA|CLAUDE)[A-Z0-9_]*)=.*/\1/p'); do unset "$v"; done
 HQ=$(python3 "$DIR/../hq-setup/hq_location.py" 2>>"$LOG") || exit 1
 cd "$HQ" || exit 1
+# Why: Orca+ holds background work at 95% of the weekly Claude limit; it starts again after the reset.
+python3 -I "$DIR/../hq-setup/claude_background_pause.py" --job tone-rollup --log "$LOG" >/dev/null
+[ $? -eq 75 ] && exit 0
 count=$(python3 "$DIR/tone.py" pending | sed -n 's/^pending: //p')
 # Why: one edit rarely shows a habit; wait for two before spending a model run.
 if [ "${count:-0}" -lt 2 ]; then echo "[$(date '+%F %T')] skip: $count new" >>"$LOG"; exit 0; fi

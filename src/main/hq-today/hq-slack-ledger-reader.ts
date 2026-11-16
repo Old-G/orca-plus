@@ -12,6 +12,7 @@ import {
   type HqSlackLedgerContextLine,
   type HqSlackThreadQueue
 } from './hq-slack-ledger-context'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 export type { HqSlackLedgerContextLine } from './hq-slack-ledger-context'
 
@@ -281,7 +282,7 @@ export function startHqSlackLedgerReader(
   let state: HqSlackLedgerState = { cursor: 0, delays: [] }
   const flight = createDebouncedSingleFlight(
     async () => {
-      if (deps.enabled()) {
+      if (deps.enabled() && claudeBackgroundAllows('Slack ledger')) {
         state = await runHqSlackLedgerReader(deps, state)
         // Why after the pass: a burst is judged on what this pass read. A failure is the shadow's own,
         // not «Slack not read», and keeps the reader going.

@@ -8,6 +8,7 @@ import { hqPlaceKey, type HqLedgerResult, type HqLedgerSignal } from '../../shar
 import { hqMrProjectOfRepo } from '../../shared/hq-mr-watch'
 import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 /** The `reader` of the ledger messages this reader writes. */
 export const HQ_GITLAB_TODO_READER = 'gitlab-todos'
@@ -355,7 +356,7 @@ export function startHqGitLabTodoReader(
   let state: HqGitLabTodoState = { cursor: 0 }
   const flight = createDebouncedSingleFlight(
     async () => {
-      if (deps.enabled()) {
+      if (deps.enabled() && claudeBackgroundAllows('GitLab todos')) {
         state = await runHqGitLabTodoReader(deps, state)
       }
     },

@@ -14,6 +14,7 @@ import {
   parseHqSlackScoutTuning,
   type HqSlackScoutDraft
 } from '../../shared/hq-slack-scout'
+import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 // Why: the first look goes back a day, like the Slack scout's first run.
 const FIRST_LOOK_MS = 24 * 60 * 60_000
@@ -256,7 +257,7 @@ export function startHqClickUpRequests(deps: {
   let running = false
   const look = async (): Promise<void> => {
     const hq = deps.hqPath()
-    if (running || !hq || !deps.enabled()) {
+    if (running || !hq || !deps.enabled() || !claudeBackgroundAllows('ClickUp requests')) {
       return
     }
     running = true

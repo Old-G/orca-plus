@@ -5,6 +5,7 @@ import type { Store } from '../persistence/loading-store/store'
 import type { AutomationRunWriter } from './run-history/run-writer'
 import type { AutomationRunTargetResult } from './ownership/run-target-resolution'
 import { missedBeyondGrace, recordMissedRun } from './dispatch/dispatch-refusal'
+import { skipForClaudeBackgroundPause } from './dispatch/claude-background-pause-skip'
 import type { AutomationRunFailure } from '../../shared/automations/history/automation-run-failure-copy'
 import { onceClaimed } from '../../shared/automation-once'
 
@@ -53,6 +54,11 @@ export async function runScheduledOccurrence(
   }
   if (missedBeyondGrace({ automation, scheduledFor, now, wakeGateDelayMs: ctx.wakeGateDelayMs })) {
     await recordMissedRun({ runs: ctx.runs, automation, scheduledFor })
+    await ctx.runs.advanceNextRun(automation.id, now)
+    return
+  }
+  // Custom build (claude-background-pause): at 95% of the weekly Claude limit the run is skipped.
+  if (await skipForClaudeBackgroundPause({ runs: ctx.runs, automation, scheduledFor })) {
     await ctx.runs.advanceNextRun(automation.id, now)
     return
   }
