@@ -7,7 +7,7 @@ import { parseHqScoutConfigValues } from '../../shared/hq-slack-scout'
 import { listHqProjectPages } from '../hq-project-pages/hq-project-pages'
 import { hqLedgerErrorReporter } from './hq-ledger-errors'
 import { hqMrChatOfBranch } from './hq-mr-chat'
-import { startHqGitLabMrNotes } from './hq-gitlab-mr-notes'
+import { HQ_GITLAB_MR_NOTES_READER, startHqGitLabMrNotes } from './hq-gitlab-mr-notes'
 
 function usernameOf(user: unknown): string | null {
   const name = user && typeof user === 'object' ? Reflect.get(user, 'username') : null
@@ -22,6 +22,8 @@ export function registerHqGitLabMrNotes(
   glabJson: (host: string, path: string) => Promise<unknown>
 ): void {
   let owner: string | null = null
+  // Why: a full page may have more MRs behind it; their cards must not close as if merged.
+  let listCut = false
   const configList = async (name: string): Promise<string[]> =>
     [...(parseHqScoutConfigValues(await readConfig()).get(name) ?? '').matchAll(/[\w./-]+/g)].map(
       (match) => match[0]
@@ -38,6 +40,7 @@ export function registerHqGitLabMrNotes(
             )
           )
         )
+        listCut = lists.some((list) => Array.isArray(list) && list.length >= 100)
         return lists.flatMap((list) => (Array.isArray(list) ? list : []))
       },
       listNotes: (projectId, iid, perPage) =>
@@ -61,6 +64,8 @@ export function registerHqGitLabMrNotes(
         return hq ? (await listHqProjectPages(hq)).map((page) => page.slug) : []
       },
       ingest: (signal) => runtime.pulseIngestLedger(signal),
+      openKeys: () => (listCut ? [] : runtime.pulseListLedgerOpenKeys(HQ_GITLAB_MR_NOTES_READER)),
+      close: (key) => void runtime.pulseCloseLedgerConversation(key),
       chatOfBranch: hqMrChatOfBranch(store, runtime),
       setChatIfNone: (key, sessionId) => runtime.pulseSetConversationChatIfNone(key, sessionId),
       warn: (message, detail) => console.warn(`[hq-gitlab-mr-notes] ${message}\n${detail}`),
