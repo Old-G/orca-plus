@@ -11,6 +11,7 @@ import { callStructuredAgentSession } from '@/runtime/native-chat/requests/struc
 import { supportsStructuredAgentSessionContinuationContext } from '@/runtime/native-chat/host-capabilities/structured-agent-session-host-support'
 import { buildAgentSessionHandoffContext } from '../../../../../../shared/native-chat/transcript/agent-session-handoff-context'
 import type { AgentSessionContinuationContext } from '../../../../../../shared/agent-session/agent-session-wire'
+import type { AgentSessionOptionsResult } from '../../../../../../shared/agent-session/options/protocol/agent-session-options-result'
 import type { NativeChatMessage } from '../../../../../../shared/native-chat/native-chat-types'
 import { structuredAgentSessionTabId } from '../../../../../../shared/agent-session/view/structured-agent-session-projection'
 import {
@@ -128,12 +129,28 @@ export function useNativeChatContinueNew({
         if (workingRef.current) {
           return false
         }
+        // Why from the chat's own runtime: on a paired runtime its record lives there, so main alone
+        // would start the new chat on the default model and effort.
+        const current = await withTimeout(
+          callStructuredAgentSession<AgentSessionOptionsResult>(
+            pane.target,
+            'agentSession.options',
+            {
+              sessionId: pane.sessionId
+            }
+          )
+            .then((options) => options.current)
+            .catch(() => null),
+          10_000,
+          null
+        )
         const result = await window.api.claudeHandoff.continueChat(
           directory.worktreeId,
           structuredAgentSessionTabId(pane.sessionId),
           message?.trim()
             ? `${prompt}\n\nMy new message, sent after the context above:\n\n${message}`
-            : prompt
+            : prompt,
+          current ? { model: current.model, effort: current.effort } : undefined
         )
         if (!result.ok) {
           toast.error(
