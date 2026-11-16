@@ -350,3 +350,62 @@ describe('Lead batch', () => {
     expect(taken?.prompts[0]).toContain('DONE · T1')
   })
 })
+
+describe('a batch on its way to the Lead', () => {
+  function pendingBatch(flush: HqLeadBatchFlush): { lead: HqLeadBatch; file: () => HqLeadHeld[] } {
+    let file: HqLeadHeld[] = []
+    const lead = createHqLeadBatch({
+      busy: () => false,
+      flush,
+      giveUp: () => {},
+      load: async () => [],
+      save: async (held) => {
+        file = held
+      },
+      now: () => clock,
+      schedule: (run, ms) => {
+        const timer = { at: clock + ms, run, cancelled: false }
+        timers.push(timer)
+        return () => {
+          timer.cancelled = true
+        }
+      },
+      log: () => {}
+    })
+    return { lead, file: () => file }
+  }
+  type HqLeadBatchFlush = Parameters<typeof createHqLeadBatch>[0]['flush']
+  const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
+
+  it('stays in the saved file while a due batch is still being delivered', async () => {
+    let land: (ok: boolean) => void = () => {}
+    const { lead, file } = pendingBatch(
+      () =>
+        new Promise<boolean>((resolve) => {
+          land = resolve
+        })
+    )
+    await lead.start()
+    lead.hold('acme/lead', 'claude_lead', 'DONE · T1')
+    await advance(HQ_LEAD_BATCH_WINDOW_MS)
+    await settle()
+    expect(file().map((held) => held.prompts)).toEqual([['DONE · T1']])
+    land(true)
+    await settle()
+    await settle()
+    expect(file()).toEqual([])
+  })
+
+  it('keeps taken messages saved until the urgent delivery lands', async () => {
+    const { lead, file } = pendingBatch(async () => true)
+    await lead.start()
+    lead.hold('acme/lead', 'claude_lead', 'DONE · T1')
+    await settle()
+    const taken = lead.take('acme/lead')
+    await settle()
+    expect(file().map((held) => held.prompts)).toEqual([['DONE · T1']])
+    lead.delivered(taken!)
+    await settle()
+    expect(file()).toEqual([])
+  })
+})
