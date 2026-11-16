@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   CLAUDE_BACKGROUND_PAUSE_SKIP,
+  owesClaudeBackgroundCatchUp,
   skipForClaudeBackgroundPause
 } from './claude-background-pause-skip'
 import {
@@ -9,6 +10,7 @@ import {
 } from '../../claude-limit-guard/claude-background-gate'
 import type { Automation } from '../../../shared/automations/automation-definition'
 import type { AutomationRunWriter } from '../run-history/run-writer'
+import type { AutomationRun } from '../../../shared/automations/history/automation-run'
 
 function gate(paused: boolean): ClaudeBackgroundGate {
   return {
@@ -109,5 +111,40 @@ describe('skipForClaudeBackgroundPause', () => {
       })
     ).rejects.toThrow()
     expect(writer.createRun).not.toHaveBeenCalled()
+  })
+})
+
+describe('owesClaudeBackgroundCatchUp', () => {
+  const due = { ...automation, enabled: true, nextRunAt: 10 * 60 * 60_000 } as Automation
+  const row = (status: AutomationRun['status'], createdAt: number, error: string | null = null) =>
+    ({
+      id: `${status}-${createdAt}`,
+      status,
+      trigger: 'scheduled',
+      createdAt,
+      error
+    }) as AutomationRun
+  const skip = row('skipped_unavailable', 100, CLAUDE_BACKGROUND_PAUSE_SKIP)
+
+  it('owes one run after the pause skip, still after a missed slot or a refusal', () => {
+    expect(owesClaudeBackgroundCatchUp(due, () => [skip], 0)).toBe(true)
+    expect(
+      owesClaudeBackgroundCatchUp(
+        due,
+        () => [skip, row('skipped_missed', 200), row('skipped_unavailable', 300, 'No window')],
+        0
+      )
+    ).toBe(true)
+  })
+
+  it('is settled by any run that started after the skip, also in the same millisecond', () => {
+    expect(owesClaudeBackgroundCatchUp(due, () => [skip, row('dispatched', 100)], 0)).toBe(false)
+    expect(owesClaudeBackgroundCatchUp(due, () => [skip, row('dispatch_failed', 200)], 0)).toBe(
+      false
+    )
+  })
+
+  it('leaves it to the own schedule when that is within 15 minutes', () => {
+    expect(owesClaudeBackgroundCatchUp(due, () => [skip], due.nextRunAt - 10 * 60_000)).toBe(false)
   })
 })
