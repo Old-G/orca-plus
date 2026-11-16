@@ -84,6 +84,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
       'hq workspace add',
       'hq dispatch',
       'hq sessions',
+      'hq reassign',
       'chat send'
     ],
     load: async () => (await import('../hq/hq.js')).HQ_HANDLERS
