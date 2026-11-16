@@ -5,7 +5,8 @@ import type { HqPlusCard } from '../../../../../shared/hq-plus-log'
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 import {
   hqConversationChatPrompt,
-  hqConversationNewSaid
+  hqConversationNewSaid,
+  hqUnsentMessagesOf
 } from '../../../../../shared/hq-conversation-chat-prompt'
 import { HqPlusCardButtons, useHqPlusRun, type HqPlusCardButton } from './HqPlusCardShell'
 import type { HqPlusChatRef } from './HqPlusChatName'
@@ -59,6 +60,15 @@ export function HqPlusLedgerOnlyButtons({
             pending: pending === 'to-chat',
             onClick: () =>
               run(async () => {
+                // Why from the main side: the card holds only the newest few; each one sent is
+                // marked sent, so the chat gets every comment still owed (an older one too).
+                const owed = await hqPlusCall('hq.conversationUnsent', { key })
+                if (!owed.ok) {
+                  return owed
+                }
+                const unsent = hqUnsentMessagesOf(owed.result)
+                const said =
+                  unsent.length > 0 ? unsent : hqConversationNewSaid(toChat.conversation.messages)
                 const sent = await sendHqRoutePrompt(
                   {
                     kind: 'chat',
@@ -71,7 +81,7 @@ export function HqPlusLedgerOnlyButtons({
                   hqConversationChatPrompt({
                     title: toChat.conversation.title,
                     link,
-                    messages: toChat.conversation.messages
+                    messages: said
                   })
                 )
                 if (!sent) {
@@ -82,10 +92,7 @@ export function HqPlusLedgerOnlyButtons({
                   sentTo: {
                     sessionId: toChat.sessionId,
                     chat: (chat?.name ?? toChat.item.worktreeName).slice(0, 200),
-                    upTo: Math.max(
-                      0,
-                      ...hqConversationNewSaid(toChat.conversation.messages).map((m) => m.at)
-                    )
+                    upTo: Math.max(0, ...said.map((m) => m.at))
                   }
                 })
                 return done.ok ? { ok: true as const } : done
