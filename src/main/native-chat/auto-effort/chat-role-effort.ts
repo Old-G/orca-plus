@@ -19,12 +19,13 @@ export function fixedRoleEffort(role: ChatRole | null): AutoEffortLevel | null {
 }
 
 // Why: `orca chat send` wraps what it hands over in this head; a lead's brief opens with its marker
-// or the chat's role label, and it reaches a new chat through the composer as if typed.
+// or the chat's role label, and it reaches a new chat through the composer as if typed. Escaped:
+// orcad's bundle must stay ASCII (« · », «От лида»).
 const RELAYED_HEADS = [
-  /^Orca\+ · a message from thread /,
-  /^От лида(?!\p{L})/u,
+  /^Orca\+ \u00b7 a message from thread /,
+  /^\u041e\u0442 \u043b\u0438\u0434\u0430(?!\p{L})/u,
   /^Lead:/,
-  /^(?:LEAD|Lead|SUB-LEAD|W|REVIEW) · /
+  /^(?:LEAD|Lead|SUB-LEAD|W|REVIEW) \u00b7 /
 ]
 
 /** True for text another chat or a lead wrote, whoever typed it in. */
