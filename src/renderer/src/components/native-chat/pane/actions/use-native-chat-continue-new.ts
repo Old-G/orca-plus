@@ -144,6 +144,11 @@ export function useNativeChatContinueNew({
           10_000,
           null
         )
+        // Why again: the options read can wait ten seconds, and a message sent meanwhile is not in
+        // the captured context.
+        if (workingRef.current) {
+          return false
+        }
         const result = await window.api.claudeHandoff.continueChat(
           directory.worktreeId,
           structuredAgentSessionTabId(pane.sessionId),
