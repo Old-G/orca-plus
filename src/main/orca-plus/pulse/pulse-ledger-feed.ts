@@ -151,19 +151,24 @@ export function closeLedgerConversation(core: PulseCore, key: string): boolean {
 }
 
 /** Custom build (hq-mr-comments, T14): the people's messages after the owner's side last wrote, oldest
- *  first and all of them up to `limit` — what «Send to chat» owes the chat, where the feed keeps only
+ *  first and all of them up to `limit` (and the ones sharing the time of the last) — what «Send to chat» owes the chat, where the feed keeps only
  *  the newest few for the card. */
 export function listLedgerUnsent(core: PulseCore, key: string, limit: number): HqFeedMessage[] {
-  return core.db
-    .prepare(
-      `SELECT m.author, m.text, m.link, m.at FROM conversation_messages m
+  const unsent = `FROM conversation_messages m
          JOIN conversations c ON c.id = m.conversation_id
         WHERE c.key = ? AND m.direction = 'in' AND m.ts NOT LIKE 'req:%'
           AND m.at > COALESCE((SELECT MAX(o.at) FROM conversation_messages o
-                WHERE o.conversation_id = c.id AND o.direction = 'out'), -1)
-        ORDER BY m.at ASC, m.ts ASC LIMIT ?`
+                WHERE o.conversation_id = c.id AND o.direction = 'out'), -1)`
+  // Why the batch ends at a time, not a count: the send is recorded just after the newest time sent,
+  // so a comment sharing that time but left past the cap would never be owed again.
+  const edge = core.db
+    .prepare(`SELECT m.at ${unsent} ORDER BY m.at ASC, m.ts ASC LIMIT 1 OFFSET ?`)
+    .get(key, Math.max(0, limit - 1))
+  return core.db
+    .prepare(
+      `SELECT m.author, m.text, m.link, m.at ${unsent} AND m.at <= ? ORDER BY m.at ASC, m.ts ASC`
     )
-    .all(key, limit)
+    .all(key, edge ? Number(edge.at) : Number.MAX_SAFE_INTEGER)
     .map((m) => ({
       direction: 'in' as const,
       author: str(m.author),
