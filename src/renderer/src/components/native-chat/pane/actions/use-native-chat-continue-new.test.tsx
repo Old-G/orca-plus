@@ -93,4 +93,36 @@ describe('Continue in new chat', () => {
     expect(await started).toBe(false)
     expect(continueChat).not.toHaveBeenCalled()
   })
+
+  it('stays put when a short turn starts and ends while its context is read', async () => {
+    let resolveContext: (value: unknown) => void = () => {}
+    calls.call.mockImplementation(async (_target, method) =>
+      method === 'agentSession.continuationContext'
+        ? new Promise((resolve) => {
+            resolveContext = resolve
+          })
+        : { current: { model: 'opus', effort: 'medium' } }
+    )
+    render(false)
+    const start = offer!.start
+    let started: Promise<boolean> = Promise.resolve(true)
+    act(() => {
+      started = start()
+    })
+    await vi.waitFor(() =>
+      expect(calls.call).toHaveBeenCalledWith(
+        expect.anything(),
+        'agentSession.continuationContext',
+        expect.anything()
+      )
+    )
+    render(true)
+    render(false)
+    await act(async () => {
+      resolveContext({ status: 'current', capturedText: 'context', transcriptPath: '/t.jsonl' })
+      await started
+    })
+    expect(await started).toBe(false)
+    expect(continueChat).not.toHaveBeenCalled()
+  })
 })
