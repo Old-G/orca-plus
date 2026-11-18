@@ -244,6 +244,7 @@ export const HqReassignParams = z.object({
   from: requiredString('The old Lead (--from <project>/<task>|<session id>) is required'),
   to: OptionalString,
   chats: z.array(z.string()).optional(),
+  plans: z.array(z.string()).optional(),
   dryRun: z.boolean().optional()
 })
 
