@@ -9,6 +9,7 @@ import { createHqThreads, type HqThreads } from './hq-journal-threads'
 import { createHqLeadBatch, type HqLeadBatch, type HqLeadHeld } from './hq-lead-batch'
 import { hqRewritePlanLeads } from './hq-lead-plan-line'
 import { createHqLeadReassign, type HqLeadReassign } from './hq-lead-reassign'
+import { formatHqReassign } from '../../cli/hq-reassign-format'
 
 let db: PulseDb
 let threads: HqThreads
@@ -169,7 +170,8 @@ beforeEach(async () => {
     live: async () => live(),
     deliver,
     leadBatch: batch,
-    rewritePlans: (from, next, at, dryRun) => hqRewritePlanLeads(hq, from, next, at, dryRun),
+    rewritePlans: (from, next, at, dryRun, only) =>
+      hqRewritePlanLeads(hq, from, next, at, dryRun, only),
     now: () => (clock += 1_000)
   })
 })
@@ -339,5 +341,38 @@ describe('orca hq reassign', () => {
     )
     expect(stale.sessionId).toBe('claude_l1')
     expect(parentOf('claude_w1')).toBe('claude_l1')
+  })
+
+  it('the printed undo puts the chats and the plan back and leaves the new Lead its own', async () => {
+    const billing = [
+      '# LEAD · Billing',
+      'Lead chat: `hq/lead-billing` (claude_l2) · started 10.11'
+    ].join('\n')
+    writeFileSync(join(hq, 'runs', '2026-11-10-billing.md'), billing)
+    db.chats.link({ sessionId: 'claude_hq', parentSessionId: 'claude_l2', via: 'launch', at: 2 })
+    const moved = await reassign.reassign({}, { from: 'hq/lead-payouts', to: 'hq/lead-billing' })
+    const undo = formatHqReassign(moved)
+      .split('\n')
+      .find((line) => line.startsWith('Undo: '))
+    expect(undo).toBeDefined()
+    const flags = new Map(
+      [...(undo ?? '').matchAll(/--([a-z-]+) (\S+)/g)].map((match) => [match[1], match[2]])
+    )
+    await reassign.reassign(
+      {},
+      {
+        from: flags.get('from') ?? '',
+        to: flags.get('to'),
+        chats: flags.get('chats')?.split(','),
+        plans: flags.get('plans')?.split(',')
+      }
+    )
+    expect(parentOf('claude_w1')).toBe('claude_l1')
+    expect(parentOf('claude_w2')).toBe('claude_l1')
+    expect(parentOf('claude_hq')).toBe('claude_l2')
+    expect(readFileSync(join(hq, 'runs', '2026-11-16-payouts.md'), 'utf8')).toContain(
+      'Lead chat: `hq/lead-payouts` (claude_l1) (was: `hq/lead-billing`, '
+    )
+    expect(readFileSync(join(hq, 'runs', '2026-11-10-billing.md'), 'utf8')).toBe(billing)
   })
 })

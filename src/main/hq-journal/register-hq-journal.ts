@@ -210,9 +210,9 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
       live: async () => (await getHqSessions()?.live()) ?? [],
       deliver: delivery.deliver,
       leadBatch,
-      rewritePlans: async (from, to, at, dryRun) => {
+      rewritePlans: async (from, to, at, dryRun, only) => {
         const hqPath = store.getSettings().hqPath
-        return hqPath ? hqRewritePlanLeads(hqPath, from, to, at, dryRun) : []
+        return hqPath ? hqRewritePlanLeads(hqPath, from, to, at, dryRun, only) : []
       },
       now: Date.now
     })
