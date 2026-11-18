@@ -9,6 +9,14 @@ export function bindChatRoleLookup(read: ((sessionId: string) => HqChatRole | nu
   readRole = read
 }
 
+/** Binds the lookup to this host's own record of the chats. Called from the host-common startup, so a
+ *  headless orcad (which never registers HQ's journal) hands a remote `agent.launch --role` its role. */
+export function bindChatRoleLookupToRuntime(runtime: {
+  pulseChats: () => { roleOf: (sessionId: string) => HqChatRole | null }
+}): void {
+  bindChatRoleLookup((sessionId) => runtime.pulseChats().roleOf(sessionId))
+}
+
 /** Custom build (chat-auto-effort-roles): the role the chat was launched with, for its effort. */
 export function chatRoleOfSession(sessionId: string): HqChatRole | null {
   try {
