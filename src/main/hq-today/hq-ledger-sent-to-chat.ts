@@ -11,7 +11,8 @@ export type HqSentToChat = { sessionId: string; chat: string; upTo: number }
 
 export type HqSentToChatDeps = {
   ingest: (signal: HqLedgerSignal) => HqLedgerResult
-  lastDirection: (key: string) => 'in' | 'out' | null
+  /** True while a person's comment newer than the owner's side's last message is there. */
+  owesMore: (key: string) => boolean
   close: (key: string) => boolean
   now: () => number
 }
@@ -22,9 +23,9 @@ export function hqRecordSentToChat(
   key: string,
   sentTo: HqSentToChat
 ): { closed: boolean } {
-  // Why just after the newest comment sent, not now: a comment GitLab shows on a later pass
-  // with an older time lands after this line, brings the card back and goes with the next send.
-  const at = Math.min(deps.now(), sentTo.upTo + 1)
+  // Why at the newest comment sent, not now and not past it: the batch holds every comment up to
+  // that time, and one a millisecond later was not sent, so the line must not pass over it.
+  const at = Math.min(deps.now(), sentTo.upTo)
   deps.ingest({
     key,
     ts: `sent:${String(at)}`,
@@ -42,7 +43,7 @@ export function hqRecordSentToChat(
   })
   // Why: a comment that came in while the send was on its way, or one past the cap, was not sent;
   // the card stays so it goes with the next send.
-  if (deps.lastDirection(key) === 'in') {
+  if (deps.owesMore(key)) {
     return { closed: false }
   }
   return { closed: deps.close(key) }
