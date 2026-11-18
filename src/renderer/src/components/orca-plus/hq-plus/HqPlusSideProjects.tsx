@@ -9,7 +9,7 @@ import { translate } from '@/i18n/i18n'
 import type { HqChatItem } from '../hq/hq-chat-list'
 import type { HqPlusProjectChats } from './hq-plus-chats'
 import { HqPlusProjectChatList, type HqPlusProjectTarget } from './HqPlusProjectChatList'
-import { startHqChat } from '../hq/hq-new-chat'
+import { HqPlusNewChatMenu } from './HqPlusNewChatMenu'
 
 export function tileStyle(
   color: string | null
@@ -55,15 +55,12 @@ export function ProjectHeader({
       <span className="hqp-pgrp-name">{project.projectName}</span>
       <span className="hqp-pgrp-n">{project.items.length}</span>
       {worktreeId ? (
-        <button
-          type="button"
-          className="hqp-pgrp-btn"
-          aria-label={newLabel}
-          title={newLabel}
-          onClick={() => void startHqChat(worktreeId)}
-        >
-          <Plus aria-hidden="true" />
-        </button>
+        // Custom build (hq-plus-new-chat-menu): «+» offers every agent and a terminal, as in Orca.
+        <HqPlusNewChatMenu worktreeId={worktreeId}>
+          <button type="button" className="hqp-pgrp-btn" aria-label={newLabel} title={newLabel}>
+            <Plus aria-hidden="true" />
+          </button>
+        </HqPlusNewChatMenu>
       ) : null}
       {target ? (
         <button

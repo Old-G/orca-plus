@@ -31,8 +31,9 @@ export type HqPlusProjectCardContext = {
   chatItem: (key: string) => HqChatItem | null
   closerOf: (item: HqChatItem) => HqPlusChatCloser | null
   showChat: (key: string) => void
-  /** A new chat in the project; null when HQ+ knows no workspace of it. */
-  newChat: (slug: string) => (() => void) | null
+  /** The workspace a new chat of the project starts in; null when HQ+ knows none.
+   *  Custom build (hq-plus-new-chat-menu): its «+ New chat» menu picks the agent. */
+  newChat: (slug: string) => string | null
   openInOrca: (slug: string) => (() => void) | null
   personName: (personId: string) => string | null
   /** The «We wait» rows of these waitings, with their buttons (ask, re-check, snooze, close). */
