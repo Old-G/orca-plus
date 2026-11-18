@@ -41,7 +41,7 @@ function setup(): {
     hqRecordSentToChat(
       {
         ingest: (signal) => db.ingestLedgerSignal(signal),
-        lastDirection: (key) => db.lastLedgerDirection(key),
+        owesMore: (key) => db.listLedgerUnsent(key, 1).length > 0,
         close: (key) => db.closeLedgerConversation(key),
         now: () => T0 + 10_000
       },
@@ -86,5 +86,19 @@ describe('Send to chat on an MR card', () => {
     ])
     expect(send(Math.max(...unsent.map((m) => m.at)))).toBe(true)
     expect(db.listLedgerUnsent(MR, HQ_SEND_TO_CHAT_MAX)).toEqual([])
+  })
+
+  it('still owes a comment one millisecond past a full batch', () => {
+    const { db, comment, send } = setup()
+    for (let n = 1; n <= HQ_SEND_TO_CHAT_MAX + 1; n++) {
+      comment(n)
+    }
+    const unsent = db.listLedgerUnsent(MR, HQ_SEND_TO_CHAT_MAX)
+    expect(unsent).toHaveLength(HQ_SEND_TO_CHAT_MAX)
+    expect(send(Math.max(...unsent.map((m) => m.at)))).toBe(false)
+    expect(db.listLedgerUnsent(MR, HQ_SEND_TO_CHAT_MAX).map((m) => m.text)).toEqual([
+      `comment ${HQ_SEND_TO_CHAT_MAX + 1}`
+    ])
+    expect(db.listLedgerOpenKeys('gitlab-mr-notes')).toEqual([MR])
   })
 })
