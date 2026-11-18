@@ -135,7 +135,6 @@ import { HqPlusLayoutSwitch } from './HqPlusLayoutSwitch'
 import { HqPlusWork, type HqPlusWorkActions } from './HqPlusWork'
 import { hqPlusWorkView } from './hq-plus-work-view'
 import { hqPlusChatTree } from './hq-plus-chat-tree'
-import { startHqChat } from '../hq/hq-new-chat'
 import { activateAndRevealWorktree } from '@/lib/workspace/activation/worktree-activation'
 import { useHqPlusRootClass } from './hq-plus-theme'
 import { OrcaPlusThemeMenu } from '../theme/OrcaPlusThemeMenu'
@@ -1129,10 +1128,7 @@ export function HqPlusScreen(): React.JSX.Element {
     chatItem: (key) => chatItems.find((item) => item.key === key) ?? null,
     closerOf,
     showChat,
-    newChat: (slug) => {
-      const worktreeId = worktreeOfProject(slug)
-      return worktreeId ? () => void startHqChat(worktreeId) : null
-    },
+    newChat: (slug) => worktreeOfProject(slug),
     openInOrca: (slug) => {
       const worktreeId = worktreeOfProject(slug)
       return worktreeId ? () => void activateAndRevealWorktree(worktreeId) : null
