@@ -54,6 +54,7 @@ import { recordDurableCrashBreadcrumb } from '../../crash-reporting/breadcrumbs/
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../shared/workspace-layout/layout-owner-switch'
 import { openOffscreenBrowserPageLink } from '../../runtime/browser/commands/offscreen-browser-page-link'
 import { providePairedDesktopComputerName } from '../../ipc/runtime-environments/connections/paired-desktop-account-declaration'
+import { bindChatRoleLookupToRuntime } from '../../orca-plus/chat-roles/chat-role-env'
 
 export function getDesktopWindowStatus(): RuntimeDesktopWindowStatus {
   const activation = state.desktopActivationGate
@@ -144,6 +145,9 @@ export function initializeMainProcessRuntime(): OrcaRuntimeService {
   const disposeIssueLinkTitleFill = wireGitHubIssueLinkTitleFill(store, runtime)
   app.once('will-quit', disposeIssueLinkTitleFill)
   bindTerminalPaneStatusLifecycle(runtime, store)
+  // Custom build (hq-chat-roles): a native chat starts with ORCA_CHAT_ROLE from Orca+'s record of it,
+  // on the desktop and on a headless host alike.
+  bindChatRoleLookupToRuntime(runtime)
   state.runtime = runtime
   providePairedDesktopComputerName(() => runtime.readMachineName())
   installDesktopWorkspaceVmWaker(runtime, () => app.getPath('userData'))
