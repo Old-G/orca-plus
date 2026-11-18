@@ -5,8 +5,8 @@ import { translate } from '@/i18n/i18n'
 import type { HqChatItem } from '../hq/hq-chat-list'
 import { useHqChatTitle } from '../hq/HqChatAvatar'
 import { HqProjectHistoryList } from '../hq/HqProjectHistoryList'
-import { startHqChat } from '../hq/hq-new-chat'
 import { useHqProjectHistory } from '../hq/use-hq-project-history'
+import { HqPlusNewChatMenu } from './HqPlusNewChatMenu'
 
 export type HqPlusProjectTarget = { repoId: string; name: string; worktreeId: string }
 
@@ -45,16 +45,12 @@ export function HqPlusProjectChatList({
   const past = useHqProjectHistory(target.worktreeId, target.repoId)
   return (
     <div className="hqp-projchats">
-      <button
-        type="button"
-        className="hqp-pill hqp-projchats-new"
-        onClick={() => {
-          onDone?.()
-          void startHqChat(target.worktreeId)
-        }}
-      >
-        {translate('auto.hqPlus.side.newChatHere', '+ New chat')}
-      </button>
+      {/* Custom build (hq-plus-new-chat-menu): every agent and a terminal, as Orca's «+» offers. */}
+      <HqPlusNewChatMenu worktreeId={target.worktreeId} onPicked={onDone}>
+        <button type="button" className="hqp-pill hqp-projchats-new">
+          {translate('auto.hqPlus.side.newChatHere', '+ New chat')}
+        </button>
+      </HqPlusNewChatMenu>
       {open.length > 0 ? (
         <>
           <div className="hqp-newchat-h">{translate('auto.hqPlus.side.openChats', 'Open')}</div>
