@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { bindChatRoleLookup, chatRoleChildEnv } from './chat-role-env'
+import { bindChatRoleLookup, bindChatRoleLookupToRuntime, chatRoleChildEnv } from './chat-role-env'
 
 afterEach(() => bindChatRoleLookup(null))
 
@@ -16,5 +16,14 @@ describe('ORCA_CHAT_ROLE in a native chat process (hq-chat-roles)', () => {
       throw new Error('pulse closed')
     })
     expect(chatRoleChildEnv('w1')).toEqual({})
+  })
+})
+
+describe('the role lookup of a host (hq-chat-roles, Codex 18.11)', () => {
+  it('reads the role from the runtime it is bound to, on a headless host too', () => {
+    const roles: Record<string, 'lead' | 'worker'> = { l1: 'lead' }
+    bindChatRoleLookupToRuntime({ pulseChats: () => ({ roleOf: (id) => roles[id] ?? null }) })
+    expect(chatRoleChildEnv('l1')).toEqual({ ORCA_CHAT_ROLE: 'lead' })
+    expect(chatRoleChildEnv('w9')).toEqual({})
   })
 })
