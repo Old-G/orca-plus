@@ -59,19 +59,25 @@ export function hqRewriteLeadLines(
   return changed ? lines.join('\n') : null
 }
 
-/** Rewrites the Lead line in every plan of `<hq>/runs` that names `from`; returns the files changed. */
+/** Rewrites the Lead line in every plan of `<hq>/runs` that names `from` — only in `only` (file names or
+ *  paths) when given; returns the files changed. */
 export async function hqRewritePlanLeads(
   hqPath: string,
   from: HqPlanLead,
   to: { address: string | null; sessionId: string },
   at: number,
-  dryRun: boolean
+  dryRun: boolean,
+  only?: readonly string[]
 ): Promise<string[]> {
   const runs = join(hqPath, 'runs')
   const names = await readdir(runs).catch(() => [] as string[])
   const changed: string[] = []
   for (const name of names.filter((entry) => entry.endsWith('.md')).sort()) {
     const path = join(runs, name)
+    // Why matched against the listing: a name from the command line never reaches past HQ/runs.
+    if (only && !only.some((wanted) => wanted === name || wanted === path)) {
+      continue
+    }
     const text = await readFile(path, 'utf8').catch(() => null)
     const next = text === null ? null : hqRewriteLeadLines(text, from, to, at)
     if (next === null) {

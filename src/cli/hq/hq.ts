@@ -302,11 +302,16 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       ?.split(',')
       .map((chat) => chat.trim())
       .filter(Boolean)
+    const plans = getOptionalStringFlag(flags, 'plans')
+      ?.split(',')
+      .map((plan) => plan.trim())
+      .filter(Boolean)
     const result = await client.call<HqLeadReassignResult>('hq.reassign', {
       ...caller(),
       from: getRequiredStringFlag(flags, 'from'),
       to: getOptionalStringFlag(flags, 'to'),
       chats: chats?.length ? chats : undefined,
+      plans: plans?.length ? plans : undefined,
       dryRun: flags.get('dry-run') === true
     })
     printResult(result, json, formatHqReassign)
