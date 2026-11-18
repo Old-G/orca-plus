@@ -42,12 +42,14 @@ export type HqLeadReassignDeps = {
   /** True once the chat took the prompt, sent or queued. */
   deliver: (sessionId: string, prompt: string) => Promise<boolean>
   leadBatch?: HqLeadBatch
-  /** Rewrites the `Lead chat:` lines naming `from`; returns the plan files changed. */
+  /** Rewrites the `Lead chat:` lines naming `from` (in `only` of the plan files, when given);
+   *  returns the plan files changed. */
   rewritePlans: (
     from: HqPlanLead,
     to: { address: string | null; sessionId: string },
     at: number,
-    dryRun: boolean
+    dryRun: boolean,
+    only?: readonly string[]
   ) => Promise<string[]>
   now: () => number
 }
@@ -58,6 +60,9 @@ export type HqLeadReassignRequest = {
   to?: string
   /** Absent: every open chat under the old Lead. */
   chats?: readonly string[]
+  /** Plan files (names in HQ/runs) whose Lead line moves even with `chats` — what an undo of a whole
+   *  team's move gives back, so the plans the new Lead led before stay its own. */
+  plans?: readonly string[]
   dryRun?: boolean
 }
 
@@ -193,6 +198,13 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
         : null
       const { moved, kept } = sort(from, to, asked, live)
       const whole = asked === null
+      const only = !whole && request.plans?.length ? request.plans : null
+      const rewrite = (dryRun: boolean): Promise<string[]> =>
+        whole
+          ? deps.rewritePlans(fromLead, to, at, dryRun)
+          : only
+            ? deps.rewritePlans(fromLead, to, at, dryRun, only)
+            : Promise.resolve([])
       const at = deps.now()
       const fromLead: HqPlanLead = {
         address: from.address,
@@ -220,7 +232,7 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
         return result({})
       }
       if (request.dryRun) {
-        return result({ plans: whole ? await deps.rewritePlans(fromLead, to, at, true) : [] })
+        return result({ plans: await rewrite(true) })
       }
 
       for (const chat of moved) {
@@ -239,7 +251,7 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
         deps.pulse.setRole({ sessionId: to.sessionId, role, at })
       }
       // Why: a team moved in part leaves the plan with the old Lead; the forward catches strays.
-      const plans = whole ? await deps.rewritePlans(fromLead, to, at, false) : []
+      const plans = await rewrite(false)
       await deps.leadBatch?.ready
       // Why: what the old Lead had not read yet came from the chats that moved — the whole team.
       const held = whole && from.address ? (deps.leadBatch?.take(from.address) ?? null) : null
