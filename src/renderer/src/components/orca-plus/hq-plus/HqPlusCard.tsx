@@ -942,7 +942,9 @@ export function HqPlusCardView({
           ) : null}
           {card.type === 'approve' && open && card.inbox ? (
             <div className="hqp-approve-host">
-              <OutgoingApprovalDecision item={card.inbox} />
+              {/* Custom build (hq-plus-approve-to-chat): the head is hidden in «waiting on you», so
+                  the way to the asking chat sits with the decision's buttons. */}
+              <OutgoingApprovalDecision item={card.inbox} onOpenChat={onOpenChat} />
             </div>
           ) : null}
           {card.type === 'approve' && card.body && !(open && card.inbox) ? (
