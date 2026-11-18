@@ -66,9 +66,12 @@ export function HqPlusLedgerOnlyButtons({
                 if (!owed.ok) {
                   return owed
                 }
-                const unsent = hqUnsentMessagesOf(owed.result)
-                const said =
-                  unsent.length > 0 ? unsent : hqConversationNewSaid(toChat.conversation.messages)
+                const said = hqUnsentMessagesOf(owed.result)
+                // Why no fallback to the card's preview: another window or the phone may have sent
+                // them already; the refresh after this takes the stale card away.
+                if (said.length === 0) {
+                  return { ok: true as const }
+                }
                 const sent = await sendHqRoutePrompt(
                   {
                     kind: 'chat',
