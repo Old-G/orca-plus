@@ -67,10 +67,24 @@ export function useNativeChatContinueNew({
   }, [dueAt, pastDue])
   const due = pane.agent === 'claude' && available && nativeChatContinueNewDue({ ...facts, now })
   // Why: the prompt takes up to 30 s to build; a message sent meanwhile must not be cut off by the close.
+  // A short turn can start and end inside that wait, so the attempt remembers any activity it saw,
+  // not only whether the chat works at the last check.
   const workingRef = useRef(isWorking)
+  const movedRef = useRef(false)
+  const activityRef = useRef(lastActivityAt)
   useEffect(() => {
     workingRef.current = isWorking
+    if (isWorking) {
+      movedRef.current = true
+    }
   }, [isWorking])
+  useEffect(() => {
+    if (activityRef.current !== lastActivityAt) {
+      movedRef.current = true
+    }
+    activityRef.current = lastActivityAt
+  }, [lastActivityAt])
+  const movedOn = (): boolean => movedRef.current || workingRef.current
 
   const start = useCallback(
     async (message?: string): Promise<boolean> => {
@@ -78,6 +92,7 @@ export function useNativeChatContinueNew({
         return false
       }
       setStarting(true)
+      movedRef.current = workingRef.current
       try {
         const context = await withTimeout(
           (async () =>
@@ -95,7 +110,7 @@ export function useNativeChatContinueNew({
           30_000,
           null
         )
-        if (context?.status === 'superseded' || workingRef.current) {
+        if (context?.status === 'superseded' || movedOn()) {
           toast.info(
             translate(
               'components.native-chat.continueNew.moved',
@@ -126,7 +141,7 @@ export function useNativeChatContinueNew({
           )
           return false
         }
-        if (workingRef.current) {
+        if (movedOn()) {
           return false
         }
         // Why from the chat's own runtime: on a paired runtime its record lives there, so main alone
@@ -146,7 +161,7 @@ export function useNativeChatContinueNew({
         )
         // Why again: the options read can wait ten seconds, and a message sent meanwhile is not in
         // the captured context.
-        if (workingRef.current) {
+        if (movedOn()) {
           return false
         }
         const result = await window.api.claudeHandoff.continueChat(
