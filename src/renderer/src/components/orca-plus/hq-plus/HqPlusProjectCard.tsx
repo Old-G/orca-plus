@@ -15,6 +15,7 @@ import { HqPlusText } from './HqPlusText'
 import { hqPlusClock } from './HqPlusChatCard'
 import { HqPlusChatName } from './HqPlusChatName'
 import { HqPlusLogCards } from './HqPlusLog'
+import { HqPlusNewChatMenu } from './HqPlusNewChatMenu'
 import { ChatRow, Fold, Lines, Person, type HqPlusProjectCardContext } from './HqPlusProjectParts'
 import './hq-plus-project-cards.css'
 
@@ -89,7 +90,7 @@ export function HqPlusProjectCard({
       </article>
     )
   }
-  const startChat = card.unsorted ? null : ctx.newChat(card.slug)
+  const newChatIn = card.unsorted ? null : ctx.newChat(card.slug)
   const leave = card.unsorted ? null : ctx.openInOrca(card.slug)
   const room = card.unsorted ? null : ctx.roomName(card.slug)
   const openWaits = waitOpen || compactOpen
@@ -163,17 +164,20 @@ export function HqPlusProjectCard({
           ))}
         </>
       ) : null}
-      {shown.chats && (card.chats.length > 0 || startChat) ? (
+      {shown.chats && (card.chats.length > 0 || newChatIn) ? (
         <>
           <Fold
             label={`Chats · ${card.chats.length}`}
             open={null}
             extra={
               <>
-                {startChat ? (
-                  <button type="button" className="hqpc-fold" onClick={startChat}>
-                    + New chat
-                  </button>
+                {newChatIn ? (
+                  // Custom build (hq-plus-new-chat-menu): every agent and a terminal, as in Orca.
+                  <HqPlusNewChatMenu worktreeId={newChatIn} align="end">
+                    <button type="button" className="hqpc-fold">
+                      + New chat
+                    </button>
+                  </HqPlusNewChatMenu>
                 ) : null}
                 {leave ? (
                   <button
