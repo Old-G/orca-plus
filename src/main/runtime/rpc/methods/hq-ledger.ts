@@ -29,7 +29,7 @@ export const HQ_LEDGER_METHODS = [
         return hqRecordSentToChat(
           {
             ingest: (signal) => runtime.pulseIngestLedger(signal),
-            lastDirection: (key) => runtime.pulseLastLedgerDirection(key),
+            owesMore: (key) => runtime.pulseListLedgerUnsent(key, 1).length > 0,
             close: (key) => runtime.pulseCloseLedgerConversation(key),
             now: Date.now
           },
