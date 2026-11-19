@@ -19,7 +19,7 @@ import {
 import { useNewTabAgentMenuRows } from '@/components/agent/launch-menu/use-new-tab-agent-menu-rows'
 import { useAgentDetectionTargetForWorktree } from '@/lib/agent-session/launch/inventory/useAgentDetectionTarget'
 import { createNewTerminalTab } from '@/components/terminal/tab-lifecycle/terminal-tab-create'
-import { activateAndRevealWorktree } from '@/lib/workspace/activation/worktree-activation'
+import { activateAndRevealWorkspaceWithOutcome } from '@/lib/workspace/activation/worktree-activation'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { parsePaneKey } from '../../../../../shared/workspace-layout/stable-pane-id'
@@ -30,7 +30,17 @@ import { agentPaneKeys, waitForNewAgentPane } from '../hq/hq-today-actions'
 
 /** New Terminal: in the project in Orca, where a terminal is seen. */
 export function openHqPlusNewTerminal(worktreeId: string): void {
-  activateAndRevealWorktree(worktreeId)
+  // Why: the workspace-aware entry refuses a folder workspace whose path is missing or offline;
+  // a terminal there would start in a folder that is not there (AGENTS.md: folder workspaces).
+  const outcome = activateAndRevealWorkspaceWithOutcome(worktreeId)
+  if ('refused' in outcome) {
+    if (!outcome.refused.failureNotified) {
+      toast.error(
+        translate('auto.hqPlus.newChatMenu.terminalFailed', "Couldn't open a terminal here.")
+      )
+    }
+    return
+  }
   createNewTerminalTab(worktreeId, undefined, {
     onSettled: (started) => {
       if (!started) {
