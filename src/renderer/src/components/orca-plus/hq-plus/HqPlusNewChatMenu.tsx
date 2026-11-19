@@ -24,6 +24,8 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { parsePaneKey } from '../../../../../shared/workspace-layout/stable-pane-id'
 import { openChatInShownHq } from '../hq/hq-chat-open'
+import { showHqProjectIfHidden } from '../hq/hq-chat-actions'
+import { getRepoIdFromWorktreeId } from '../../../../../shared/worktree/id'
 import { agentPaneKeys, waitForNewAgentPane } from '../hq/hq-today-actions'
 
 /** New Terminal: in the project in Orca, where a terminal is seen. */
@@ -70,6 +72,7 @@ function HqPlusNewChatItems({
     before.current = agentPaneKeys(worktreeId)
     const launched = launch(...args)
     if (launched !== false) {
+      showHqProjectIfHidden(getRepoIdFromWorktreeId(worktreeId))
       onPicked?.()
     }
     return launched
