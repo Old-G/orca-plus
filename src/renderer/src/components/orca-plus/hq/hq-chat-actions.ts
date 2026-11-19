@@ -5,6 +5,8 @@ import { detectLanguage } from '../../../../../shared/editor-language/editor-lan
 import { joinPath } from '@/lib/path'
 import { activateStructuredAgentSessionTab } from '@/lib/agent-session/structured-agent-session-tab-activation'
 import { activateAndRevealWorkspace } from '@/lib/workspace/activation/worktree-activation'
+import { toast } from 'sonner'
+import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { revealDashboardAgent } from '../../dashboard/navigation/reveal-dashboard-agent'
 import { hqChatTabId, type HqChatItem } from './hq-chat-list'
@@ -131,6 +133,31 @@ export function setHqProjectHidden(repoId: string, hidden: boolean): void {
   updateHqList('hqHiddenProjectIds', (current) =>
     hidden ? [...new Set([...current, repoId])] : current.filter((id) => id !== repoId)
   )
+}
+
+/** Custom build (hq-plus-hide-undo): hides a project with an «Undo» toast — the eye sits next to the
+ *  pin, so a stray click took a project and its chats out of view with no way back in sight. */
+export function hideHqProjectWithUndo(repoId: string, projectName: string): void {
+  setHqProjectHidden(repoId, true)
+  toast(
+    translate('auto.hqPlus.side.projectHidden', '{{project}} hidden — find it in All projects', {
+      project: projectName
+    }),
+    {
+      action: {
+        label: translate('auto.hqPlus.side.undoHide', 'Undo'),
+        onClick: () => setHqProjectHidden(repoId, false)
+      }
+    }
+  )
+}
+
+/** Custom build (hq-plus-hide-undo): a chat started in a hidden project brings the project back, or
+ *  the new chat is nowhere in the list (owner 19.11). */
+export function showHqProjectIfHidden(repoId: string): void {
+  if (useAppStore.getState().settings?.hqHiddenProjectIds?.includes(repoId)) {
+    setHqProjectHidden(repoId, false)
+  }
 }
 
 /** Custom build (hq-marked-chats): marks a chat to come back to, or takes the mark off. */

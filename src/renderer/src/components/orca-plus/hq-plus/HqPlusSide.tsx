@@ -16,7 +16,7 @@ import { HqPlusNewChat, useHqPlusNewChatTargets } from './HqPlusNewChat'
 import { AllProjects, ProjectHeader } from './HqPlusSideProjects'
 import { HqPlusChatRow, type HqPlusTile } from './HqPlusChatRow'
 import { useAppStore } from '@/store'
-import { setHqProjectHidden } from '../hq/hq-chat-actions'
+import { hideHqProjectWithUndo, setHqProjectHidden } from '../hq/hq-chat-actions'
 import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusSideBlock } from './HqPlusSideBlock'
 import type { HqPlusDraftChat } from './use-hq-plus-drafts'
@@ -247,7 +247,11 @@ export function HqPlusSide({
               project={project}
               color={colorFor(project.repoId)}
               onKeep={onKeepProject}
-              onHide={setHqProjectHidden}
+              onHide={(repoId, hidden) =>
+                hidden
+                  ? hideHqProjectWithUndo(repoId, project.projectName)
+                  : setHqProjectHidden(repoId, false)
+              }
               target={targetOf.get(project.repoId) ?? null}
               onPickChat={onPickChat}
             />
