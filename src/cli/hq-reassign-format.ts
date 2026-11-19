@@ -1,5 +1,6 @@
 // Custom build (hq-lead-reassign): what `orca hq reassign` moved, kept, rewrote and told.
 import { basename } from 'node:path'
+import { quoteCliCommandArgument } from './arguments/shell-command-quote'
 import type { HqLeadReassignChat, HqLeadReassignResult } from '../shared/hq-chat-links'
 
 function ref(chat: HqLeadReassignChat): string {
@@ -44,10 +45,11 @@ export function formatHqReassign(result: HqLeadReassignResult): string {
     const newLead = result.toldNewLead ? 'told' : 'NOT told (send it the list yourself)'
     const oldLead = result.toldOldLead ? 'told' : 'not told (closed)'
     out.push(`New Lead ${newLead}${held}; old Lead ${oldLead}.`)
+    // Why quoted: a plan named «2026-11-19 Billing.md» would split into two arguments when pasted.
     // Why --plans: --chats alone leaves the plan lines a whole team's move rewrote with the new Lead.
     const plans =
       result.plans.length > 0
-        ? ` --plans ${result.plans.map((plan) => basename(plan)).join(',')}`
+        ? ` --plans ${quoteCliCommandArgument(result.plans.map((plan) => basename(plan)).join(','))}`
         : ''
     out.push(
       `Undo: orca hq reassign --from ${to} --to ${from} --chats ${result.moved.map(ref).join(',')}${plans}`
