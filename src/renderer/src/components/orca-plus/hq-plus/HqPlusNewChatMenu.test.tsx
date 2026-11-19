@@ -9,7 +9,7 @@ const h = vi.hoisted(() => ({
   launchOptions: null as null | Record<string, unknown>,
   launch: vi.fn(),
   createNewTerminalTab: vi.fn(),
-  activateAndRevealWorktree: vi.fn(),
+  activateAndRevealWorkspaceWithOutcome: vi.fn((): unknown => ({ opened: { primaryTabId: null } })),
   openChatInShownHq: vi.fn(),
   showHqProjectIfHidden: vi.fn(),
   waitForNewAgentPane: vi.fn(() => Promise.resolve(null))
@@ -41,7 +41,7 @@ vi.mock('@/components/terminal/tab-lifecycle/terminal-tab-create', () => ({
   createNewTerminalTab: h.createNewTerminalTab
 }))
 vi.mock('@/lib/workspace/activation/worktree-activation', () => ({
-  activateAndRevealWorktree: h.activateAndRevealWorktree
+  activateAndRevealWorkspaceWithOutcome: h.activateAndRevealWorkspaceWithOutcome
 }))
 vi.mock('@/store', () => ({
   useAppStore: (select: (state: unknown) => unknown) =>
@@ -120,9 +120,19 @@ it('keeps the popover open when the launch is refused', () => {
 it('opens New Terminal in the project in Orca', () => {
   openMenu()
   fireEvent.click(screen.getByRole('menuitem', { name: 'New Terminal' }))
-  expect(h.activateAndRevealWorktree).toHaveBeenCalledWith('wt-acme')
+  expect(h.activateAndRevealWorkspaceWithOutcome).toHaveBeenCalledWith('wt-acme')
   expect(h.createNewTerminalTab).toHaveBeenCalledWith('wt-acme', undefined, {
     onSettled: expect.any(Function)
   })
   expect(onPicked).toHaveBeenCalledTimes(1)
+})
+
+it('opens no terminal in a folder workspace Orca refuses to open', () => {
+  h.activateAndRevealWorkspaceWithOutcome.mockReturnValue({
+    refused: { reason: 'path-blocked', failureNotified: true }
+  })
+  openMenu()
+  fireEvent.click(screen.getByRole('menuitem', { name: 'New Terminal' }))
+  expect(h.activateAndRevealWorkspaceWithOutcome).toHaveBeenCalledWith('wt-acme')
+  expect(h.createNewTerminalTab).not.toHaveBeenCalled()
 })
