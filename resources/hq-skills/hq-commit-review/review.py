@@ -26,7 +26,7 @@ from hq_location import hq_dir  # noqa: E402
 HQ = Path(hq_dir())
 STATE = HQ / "codex-review" / "state.json"
 UPDATES = HQ / "updates"
-MODEL = os.environ.get("CODEX_REVIEW_MODEL", "gpt-6-sol")
+MODEL = os.environ.get("CODEX_REVIEW_MODEL", "gpt-6.2-sol")
 WINDOW_DAYS = 3
 PER_BRANCH = 40
 REVIEW_TIMEOUT = 600
