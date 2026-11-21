@@ -137,8 +137,8 @@ const LEVEL_SCOPE: Record<HqAutonomyLevel, string> = {
   3: 'Уровень автономии проекта 3: сделай задачу, открой PR/MR и смержи его, когда проверки зелёные.'
 }
 
-/** Owner's pick (05.10) for the second model that reviews an executor's work. */
-export const HQ_REVIEW_MODEL = 'gpt-6-sol'
+/** Owner's pick for the second model that reviews an executor's work (05.10 gpt-6-sol, 22.11 gpt-6.2-sol). */
+export const HQ_REVIEW_MODEL = 'gpt-6.2-sol'
 
 /** Cross-review by Codex before the work reaches the owner; levels 1–3 only, level 0 writes no code. */
 const REVIEW_STEP = [
