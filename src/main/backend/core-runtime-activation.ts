@@ -31,6 +31,7 @@ import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../shared/workspace-layout/layout-
 import { restoreOrcadTerminalAuthority } from '../orcad/host-runtime/orcad-restored-terminal-authority'
 import { installOrcadFeatureReadiness } from '../runtime/rpc/startup/orcad-readiness'
 import { isAgentStatusHooksEnabled } from '../../shared/agent-hook-listener/configuration/agent-status-hooks-setting'
+import { installOrcadOrcaPlusHost } from '../orcad/host-runtime/orcad-orca-plus-host'
 import { installOrcadConnectorHost, installOrcadRelayAndAccount } from '../orcad/orcad-orca-account'
 
 export async function activateBackendRuntime(
@@ -225,6 +226,13 @@ export async function activateBackendRuntime(
   const { restoreOrcadHostAccountLaunchEnv } =
     await import('../orcad/account-launch/orcad-host-account-launch-env-store')
   restoreOrcadHostAccountLaunchEnv(runtime, runtimeUserDataPath)
+  // Custom build (hq-chat-roles, claude-background-pause): chat roles and the background gate here too.
+  installOrcadOrcaPlusHost(
+    runtime,
+    profileStore,
+    accountLaunch?.rateLimits ?? null,
+    registerCleanup
+  )
   featureReadiness.open('accounts')
 
   const { installOrcadSessionSearchService } =
