@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Scheduled entry point (launchd, daily): every SYNC_EVERY_DAYS days (default 3) runs
-# `sync-upstream.sh --unattended --publish --full-tests` when nobody is working in the repo, then
-# posts one macOS notification. A stop (conflict, failed checks, our changes missing) leaves the
-# stack untouched and hands the sync to a Claude agent in Orca+ (SYNC_AGENT=0: notify only).
+# `sync-upstream.sh --unattended --ci-verify` when nobody is working in the repo: the rebase and the
+# guard run here, typecheck / build / tests run in the fork's Sync verify workflow, which promotes
+# the stack to custom when green. The wrapper waits for that run (`gh run watch`, no local load),
+# then posts one macOS notification. A stop (conflict, red checks, our changes missing) leaves
+# custom untouched and hands the sync to a Claude agent in Orca+ (SYNC_AGENT=0: notify only).
+# Why not local checks: the full suite took 55 minutes and froze the owner's laptop (22.11).
 # Skips try again the next day. Must stay bash 3.2 compatible.
 set -uo pipefail
 
@@ -97,14 +100,31 @@ hand_to_agent() { # exit code
 }
 
 log "start"
-"$ROOT/scripts/sync-upstream.sh" --unattended --publish --full-tests "$@"
+"$ROOT/scripts/sync-upstream.sh" --unattended --ci-verify "$@"
 code=$?
 report="$STATE_DIR/last-report.md"
 log "exit $code ($(sed -n 's/^## //p' "$report" 2>/dev/null | tail -1))"
 
+CI_RESULT=""
+if [ "$code" = 0 ] && [ -f "$STATE_DIR/ci-run" ]; then
+  read -r ci_repo ci_run <"$STATE_DIR/ci-run"
+  log "waiting for GitHub run $ci_run"
+  if gh run watch "$ci_run" -R "$ci_repo" --exit-status --interval 60 >/dev/null 2>&1; then
+    CI_RESULT=green
+  else
+    CI_RESULT=red
+    code=2
+    printf '\n## ПРОВЕРКИ НА GITHUB УПАЛИ — custom не тронут\nПрогон: https://github.com/%s/actions/runs/%s (gh run view %s -R %s --log-failed)\n' \
+      "$ci_repo" "$ci_run" "$ci_run" "$ci_repo" >>"$report"
+  fi
+  log "GitHub run $ci_run: $CI_RESULT"
+fi
+
 case "$code" in
   0)
-    if grep -q '^## OK — custom пересобран' "$report" 2>/dev/null; then
+    if [ "$CI_RESULT" = green ]; then
+      notify "orca-custom sync" "Стек пересобран, проверен на GitHub и опубликован в custom. Перезапусти dev-сборку."
+    elif grep -q '^## OK — custom пересобран' "$report" 2>/dev/null; then
       notify "orca-custom sync" "Стек пересобран на свежем upstream. Перезапусти dev-сборку."
     fi
     ;;
