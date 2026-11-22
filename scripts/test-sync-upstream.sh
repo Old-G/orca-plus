@@ -16,6 +16,9 @@
 #   T18 --publish when that remote moved → exit 4, the foreign commit survives, custom intact
 #   T19 a resolution that drops our line → exit 5, guard names it, publish blocked until
 #       SYNC_GUARD_ACCEPT explains it; --unattended rolls back instead
+#   T23 --ci-verify                      → no local checks, stack pushed to sync/<ts>, workflow
+#       dispatched with the fork's old custom as the lease; custom itself not pushed;
+#       --ci-verify with --publish refused
 #   T20–T22 scheduled wrapper: runs only every SYNC_EVERY_DAYS, hands a stop to an agent via the
 #       orca-plus CLI (not with SYNC_AGENT=0), skips while an agent works in the checkout
 set -euo pipefail
@@ -251,7 +254,7 @@ check "T15b sync in progress (state file) → skip" '[ "$RC" = 0 ] && printf "%s
 rm -f "$S/.git/custom-sync/state"
 SYNC_AGENT=0 STUB_CODE=2 sched_run
 check "T16 clean → runs --unattended, returns its code" '[ "$RC" = 2 ] && printf "%s" "$OUT" | grep -q "stub sync --unattended"'
-check "T16 scheduled run publishes with the full suite" 'printf "%s" "$OUT" | grep -q "stub sync --unattended --publish --full-tests"'
+check "T16 scheduled run hands the checks to GitHub" 'printf "%s" "$OUT" | grep -q "stub sync --unattended --ci-verify"'
 check "T16 lock released" '[ ! -d "$S/.git/custom-sync/scheduled.lock" ]'
 check "T16 SYNC_AGENT=0 → no agent" '! grep -q "agent launch" "$WORK/orca-plus.log" 2>/dev/null'
 
@@ -318,6 +321,35 @@ BEFORE=$(cd "$WORK/fork" && git rev-parse custom)
 SYNC_CHECKS_CMD=true sync_run --unattended
 check "T19 --unattended: a silently dropped feature → exit 5" '[ "$RC" = 5 ] && printf "%s" "$OUT" | grep -q "demo-c"'
 check "T19 --unattended: rolled back" '[ "$(cd "$WORK/fork" && git rev-parse custom)" = "$BEFORE" ]'
+
+echo "T23 --ci-verify hands the checks to GitHub"
+mkdir -p "$WORK/gh-bin"
+cat >"$WORK/gh-bin/gh" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$GH_LOG"
+case "$1 $2" in "run list") echo 4242 ;; esac
+exit 0
+STUB
+chmod +x "$WORK/gh-bin/gh"
+export GH_LOG="$WORK/gh.log"
+: >"$GH_LOG"
+(cd "$WORK/fork" && git fetch -q origin)
+OLD_PUB=$(git --git-dir="$WORK/published.git" rev-parse custom)
+printf "demo-c: upstream took it and dropped it (test)\n" >>"$WORK/accept.md"
+upstream_commit other.txt "ci-1" "upstream: before ci verify"
+set +e
+OUT=$(cd "$WORK/fork" && PATH="$WORK/gh-bin:$PATH" SYNC_CHECKS_CMD=false SYNC_GUARD_ACCEPT="$WORK/accept.md" "$SYNC" --ci-verify 2>&1)
+RC=$?
+set -e
+NEW_CUSTOM=$(cd "$WORK/fork" && git rev-parse custom)
+check "T23 exit 0 although local checks would fail" '[ "$RC" = 0 ]'
+check "T23 stack pushed to sync/<ts>" '[ "$(git --git-dir="$WORK/published.git" for-each-ref --format="%(objectname)" "refs/heads/sync/*")" = "$NEW_CUSTOM" ]'
+check "T23 fork custom untouched" '[ "$(git --git-dir="$WORK/published.git" rev-parse custom)" = "$OLD_PUB" ]'
+check "T23 workflow dispatched with the lease" 'grep -q "workflow run sync-verify.yml .*-f expect_target=$OLD_PUB -f target=custom -f promote=true" "$GH_LOG"'
+check "T23 run recorded for the wrapper" 'grep -q " 4242$" "$WORK/fork/.git/custom-sync/ci-run"'
+check "T23 report links the run" 'printf "%s" "$OUT" | grep -q "actions/runs/4242"'
+sync_run --ci-verify --publish
+check "T23 --ci-verify --publish refused" '[ "$RC" = 3 ]'
 
 echo
 echo "passed: $PASS  failed: $FAIL"

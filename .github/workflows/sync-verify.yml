@@ -1,0 +1,166 @@
+name: Sync verify
+
+# Verifies a rebased feature stack before it replaces the published branch.
+# scripts/sync-upstream.sh --ci-verify rebases on the owner's machine, pushes the stack to
+# sync/<timestamp> and dispatches this workflow, so the heavy checks (typecheck, build, full Vitest)
+# run here instead of on that machine. When every check passes and `promote` is on, the workflow
+# keeps the old branch head as sync-backup/<timestamp>, moves the target branch to the tested commit
+# (lease-protected) and deletes the sync branch. A failed run leaves the target branch untouched.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch holding the rebased stack (sync/...).
+        required: true
+        type: string
+      expect_target:
+        description: Commit the target branch must still be on for the promotion (lease).
+        required: true
+        type: string
+      target:
+        description: Branch to promote the stack to.
+        required: false
+        default: custom
+        type: string
+      promote:
+        description: Move the target branch to the stack when every check passes.
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-verify
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: resolve stack
+    # Only the repository owner may move the published branch.
+    if: github.actor == github.repository_owner && startsWith(inputs.branch, 'sync/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Resolve the stack commit once
+        id: resolve
+        env:
+          BRANCH: ${{ inputs.branch }}
+          EXPECT: ${{ inputs.expect_target }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$EXPECT" =~ ^[0-9a-f]{40}$ ]] || { echo "expect_target must be a full commit sha"; exit 1; }
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$BRANCH" --jq .sha)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Stack \`$BRANCH\` = \`$sha\`" >> "$GITHUB_STEP_SUMMARY"
+
+  typecheck:
+    needs: [resolve]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/install-node-dependencies
+        with:
+          native-runtime: node
+          node-version: '24'
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: config/.bun-version
+          no-cache: true
+      - name: Typecheck
+        run: pnpm run typecheck:ci
+
+  build:
+    needs: [resolve]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/install-node-dependencies
+        with:
+          native-runtime: node
+      - name: Build
+        run: pnpm run build:electron-vite
+
+  tests:
+    needs: [resolve]
+    name: tests ${{ matrix.shard }}/6
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/install-node-dependencies
+        with:
+          native-runtime: node
+          cache-electron-package: 'true'
+      - name: Install Electron package binary for tests
+        run: node config/scripts/electron-installation/platform-layout/install-electron-package-binary.mjs
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: config/.bun-version
+          no-cache: true
+      # Same runner as the local sync: retries failed files once, then accepts only the files
+      # listed in scripts/sync-known-test-failures.txt.
+      - name: Vitest shard
+        run: |
+          set -o pipefail
+          bash scripts/sync-upstream-tests.sh "$RUNNER_TEMP/sync" full \
+            --shard=${{ matrix.shard }}/6 --maxWorkers=4 2>&1 | tee "$RUNNER_TEMP/tests.log"
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### tests ${{ matrix.shard }}/6"
+            sed -n 's/^NOTE: /- /p' "$RUNNER_TEMP/tests.log" 2>/dev/null || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    needs: [resolve, typecheck, build, tests]
+    if: inputs.promote
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # The token needs Contents and Workflows write: upstream syncs change .github/workflows,
+      # and GitHub refuses those commits from tokens without the Workflows permission.
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          fetch-depth: 1
+          token: ${{ secrets.SYNC_PROMOTE_TOKEN }}
+      - name: Promote
+        env:
+          SHA: ${{ needs.resolve.outputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          TARGET: ${{ inputs.target }}
+          EXPECT: ${{ inputs.expect_target }}
+        run: |
+          set -euo pipefail
+          backup="sync-backup/${BRANCH#sync/}"
+          git fetch --no-tags --depth=1 origin "$EXPECT"
+          git push origin "$EXPECT:refs/heads/$backup"
+          git push --force-with-lease="refs/heads/$TARGET:$EXPECT" origin "$SHA:refs/heads/$TARGET"
+          git push origin --delete "$BRANCH" || true
+          {
+            echo "### Promoted"
+            echo "- \`$TARGET\`: \`$EXPECT\` → \`$SHA\`"
+            echo "- old head kept as \`$backup\`"
+            echo "- undo: \`git push --force-with-lease=$TARGET:$SHA origin $EXPECT:$TARGET\`"
+          } >> "$GITHUB_STEP_SUMMARY"
