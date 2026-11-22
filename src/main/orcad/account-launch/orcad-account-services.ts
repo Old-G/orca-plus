@@ -20,6 +20,8 @@ import { resolveHostAgentBaseEnvironment } from '../../runtime/agent-session/env
 import { isWslHostOrcadProcess } from '../../wsl/filesystem/wsl-guest-windows-drive-path'
 import type { BackendServiceCleanup } from '../../backend/service-composition'
 
+type ProviderAccountRateLimits = ReturnType<typeof createProviderAccountServices>['rateLimits']
+
 type StructuredLaunchInput = { launchEnv: NodeJS.ProcessEnv }
 
 type OrcadAccountServices = {
@@ -36,6 +38,8 @@ type OrcadAccountServices = {
     ) => Promise<AiVaultPrepareSessionResumeResult>
   }
   listCodexSessionHomes: () => string[]
+  /** Custom build (claude-background-pause): the host's own readings, for the background gate. */
+  rateLimits: ProviderAccountRateLimits
   attachToRuntime: (
     runtime: Pick<
       OrcaRuntimeService,
@@ -108,6 +112,7 @@ export function createOrcadAccountServices(args: {
         })
     },
     listCodexSessionHomes: () => codexRuntimeHome.getHostCodexHomePathsForSessionDiscovery(),
+    rateLimits: services.rateLimits,
     attachToRuntime: (runtime) => {
       runtime.setAccountServices({
         claudeAccounts: services.claudeAccounts,
