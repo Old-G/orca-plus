@@ -3,7 +3,7 @@
 # passes if every file still failing is listed in scripts/sync-known-test-failures.txt.
 #
 #   sync-upstream-tests.sh <report-prefix> related <base-ref>   tests related to src/ changes since base
-#   sync-upstream-tests.sh <report-prefix> full                 whole suite
+#   sync-upstream-tests.sh <report-prefix> full [vitest args]   whole suite (CI adds --shard=i/n)
 #
 # Lines starting with "NOTE:" are copied into the sync report. Must stay bash 3.2 compatible.
 set -euo pipefail
@@ -46,7 +46,10 @@ case "$MODE" in
     # shellcheck disable=SC2086
     set -- related --run --passWithNoTests --exclude 'config/scripts/**' $files $ratchets
     ;;
-  full) set -- run ;;
+  full)
+    shift 2
+    set -- run "$@"
+    ;;
   *) echo "sync-upstream-tests: unknown mode: $MODE" >&2; exit 3 ;;
 esac
 
