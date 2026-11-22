@@ -4,6 +4,8 @@
 #   fetch upstream → fast-forward the `main` mirror → rebase `custom` onto it
 #   → guard: nothing of ours went missing → install / typecheck / build / tests → report
 #   → (--publish) push `custom` to our fork
+#   → (--ci-verify) instead of local checks: push the stack to sync/<ts> on the fork and let the
+#     `Sync verify` workflow check it there and promote it to `custom` when green
 #
 # Every commit on `custom` is one feature and carries a `Custom-Feature: <name>` trailer, so a
 # conflict can be reported per feature. git rerere replays conflict resolutions it has seen before;
@@ -23,13 +25,18 @@ Usage: scripts/sync-upstream.sh [options]
   --skip-checks   rebase only; no install / typecheck / build / tests
   --publish       after a verified sync, force-push custom to the fork (lease-protected) and
                   fast-forward the fork's mirror branch to upstream
+  --ci-verify     no local install / typecheck / build / tests: push the rebased stack to
+                  sync/<timestamp> on the fork and dispatch the `Sync verify` workflow, which runs
+                  them on GitHub and promotes the stack to custom when green (default path:
+                  the full suite froze the owner's laptop; local checks only when asked)
   -h, --help      this help
 
 Env overrides: SYNC_REMOTE (upstream), SYNC_REMOTE_BRANCH (main), SYNC_MIRROR (main),
                SYNC_CUSTOM (custom), SYNC_CHECKS_CMD (replace all checks with one shell command),
                SYNC_GUARD_ACCEPT (a file explaining every line the guard reports; accepts them),
                SYNC_PUBLISH_REMOTE (origin), SYNC_PUBLISH_BRANCH (custom),
-               SYNC_PUBLISH_MIRROR (main; empty = don't push the mirror)
+               SYNC_PUBLISH_MIRROR (main; empty = don't push the mirror),
+               SYNC_CI_WORKFLOW (sync-verify.yml), SYNC_CI_PROMOTE (1; 0 = check only, no promotion)
 
 Exit codes: 0 ok · 1 conflict needs a human · 2 checks failed · 3 precondition / git failure
             4 synced and verified, but the push to the fork was refused
@@ -45,6 +52,8 @@ UPSTREAM_REF="refs/remotes/$REMOTE/$REMOTE_BRANCH"
 PUBLISH_REMOTE=${SYNC_PUBLISH_REMOTE:-origin}
 PUBLISH_BRANCH=${SYNC_PUBLISH_BRANCH:-custom}
 PUBLISH_MIRROR=${SYNC_PUBLISH_MIRROR-main}
+CI_WORKFLOW=${SYNC_CI_WORKFLOW:-sync-verify.yml}
+CI_PROMOTE=${SYNC_CI_PROMOTE:-1}
 
 MODE=start
 MANUAL_PENDING=0
@@ -53,6 +62,7 @@ UNATTENDED=0
 FULL_TESTS=0
 SKIP_CHECKS=0
 PUBLISH=0
+CI_VERIFY=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --continue) MODE=continue ;;
@@ -60,11 +70,17 @@ while [ $# -gt 0 ]; do
     --full-tests) FULL_TESTS=1 ;;
     --skip-checks) SKIP_CHECKS=1 ;;
     --publish) PUBLISH=1 ;;
+    --ci-verify) CI_VERIFY=1 ;;
     -h | --help) usage; exit 0 ;;
     *) echo "sync-upstream: unknown option: $1" >&2; usage >&2; exit 3 ;;
   esac
   shift
 done
+
+if [ "$CI_VERIFY" = 1 ] && { [ "$PUBLISH" = 1 ] || [ "$SKIP_CHECKS" = 1 ]; }; then
+  echo "sync-upstream: --ci-verify replaces --publish and the local checks; drop the other flag" >&2
+  exit 3
+fi
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(git rev-parse --show-toplevel)
@@ -373,6 +389,57 @@ publish() {
   fi
 }
 
+# The fork's Sync verify workflow checks the stack on GitHub and, when green, moves PUBLISH_BRANCH
+# to it with a lease on the head we last saw there — the same lease `publish` uses.
+ci_verify() {
+  [ "$CI_VERIFY" = 1 ] || return 0
+  local head expect branch repo promote run_id run_url
+  # The scheduled wrapper waits on the run named here; no file means nothing was sent.
+  rm -f "$STATE_DIR/ci-run"
+  say ""
+  if [ "$PUBLISH_BLOCKED" = 0 ] && [ -f "$GUARD_BLOCK" ]; then
+    say "Сверка прошлой синхронизации не принята ($(cat "$GUARD_BLOCK"))."
+    guard_accepted || PUBLISH_BLOCKED=1
+  fi
+  if [ "$PUBLISH_BLOCKED" = 1 ]; then
+    say "## Не отправлено на проверку: сверка нашла пропавшие изменения — объясни их в файле и запусти с SYNC_GUARD_ACCEPT=<файл>"
+    return 0
+  fi
+  publish_mirror
+  head=$(git rev-parse "refs/heads/$CUSTOM")
+  expect=$(git rev-parse -q --verify "refs/remotes/$PUBLISH_REMOTE/$PUBLISH_BRANCH" || true)
+  [ -n "$expect" ] || fail 3 "нет $PUBLISH_REMOTE/$PUBLISH_BRANCH — нечего защищать lease'ом (git fetch $PUBLISH_REMOTE)"
+  if [ "$expect" = "$head" ]; then
+    say "## Проверка не нужна: $PUBLISH_REMOTE/$PUBLISH_BRANCH уже $(short "$head")"
+    return 0
+  fi
+  branch="sync/$TS"
+  repo=$(git remote get-url "$PUBLISH_REMOTE" | sed -e 's#^.*github\.com[:/]##' -e 's#\.git$##')
+  git push --quiet "$PUBLISH_REMOTE" "$head:refs/heads/$branch" >>"$GIT_LOG" 2>&1 \
+    || fail 3 "push $branch в $PUBLISH_REMOTE не удался (лог: $GIT_LOG)"
+  promote=true
+  [ "$CI_PROMOTE" = 1 ] || promote=false
+  gh workflow run "$CI_WORKFLOW" -R "$repo" --ref "$PUBLISH_BRANCH" -f branch="$branch" \
+    -f expect_target="$expect" -f target="$PUBLISH_BRANCH" -f promote="$promote" >>"$GIT_LOG" 2>&1 \
+    || fail 3 "не удалось запустить $CI_WORKFLOW в $repo (ветка $branch уже на GitHub; лог: $GIT_LOG)"
+  sleep 5
+  run_id=$(gh run list -R "$repo" --workflow "$CI_WORKFLOW" --event workflow_dispatch -L 1 \
+    --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
+  run_url=""
+  if [ -n "$run_id" ]; then
+    run_url="https://github.com/$repo/actions/runs/$run_id"
+    printf '%s %s\n' "$repo" "$run_id" >"$STATE_DIR/ci-run"
+  fi
+  say "## Отправлено на проверку в GitHub: $branch ($(short "$head"))"
+  say "Прогон: ${run_url:-gh run list -R $repo --workflow $CI_WORKFLOW}"
+  if [ "$promote" = true ]; then
+    say "После зелёного прогона workflow сам переведёт $PUBLISH_BRANCH $(short "$expect") → $(short "$head");"
+    say "прежняя вершина останется веткой sync-backup/$TS. Красный прогон $PUBLISH_BRANCH не трогает."
+  else
+    say "Только проверка (SYNC_CI_PROMOTE=0): $PUBLISH_BRANCH не переводится."
+  fi
+}
+
 # --- main --------------------------------------------------------------------------------------
 
 say "# sync-upstream $TS"
@@ -420,6 +487,7 @@ if [ "$MODE" = start ]; then
     say ""
     say "## OK — $CUSTOM уже стоит на свежем upstream, делать нечего"
     publish
+    ci_verify
     [ "$PUBLISH_BLOCKED" = 1 ] && finish 5
     finish 0
   fi
@@ -462,6 +530,9 @@ fi
 if [ "$SKIP_CHECKS" = 1 ]; then
   say ""
   say "## Проверки пропущены (--skip-checks)"
+elif [ "$CI_VERIFY" = 1 ]; then
+  say ""
+  say "## Проверки — на GitHub (--ci-verify), локально не гоняются"
 elif ! run_checks; then
   if [ "$UNATTENDED" = 1 ]; then
     git checkout -q "$CUSTOM"
@@ -498,5 +569,6 @@ if [ -n "$DROPPED" ]; then
 fi
 say "Бэкап прежнего $CUSTOM: $BACKUP_REF ($(short "$OLD_CUSTOM"))"
 publish
+ci_verify
 [ "$PUBLISH_BLOCKED" = 1 ] && finish 5
 finish 0
