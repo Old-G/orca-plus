@@ -37,6 +37,8 @@
     "../src/cli/bot-orchestration-eval/bot-orchestration-eval-workers.ts",
     "../src/cli/bot-orchestration-eval/bot-orchestration-eval-worker-control.ts",
     "../src/cli/orchestration/workers/worker-view-results.ts",
+    "../src/cli/hq-reassign-format.ts",
+    "../src/cli/arguments/shell-command-quote.ts",
     "../src/renderer/src/store/slices/worktrees/create/worktree-create-payload.ts",
     "../src/renderer/src/runtime/repo-hooks/orca-hook-trust.ts",
     "../src/renderer/src/runtime/agent-status/renderer-status-sender.ts",
