@@ -1,13 +1,11 @@
 // Custom build (hq-plus-ui): HQ+'s left column — what waits on the owner (with the same badge as its card
 // in the feed), what we wait for from people, the FYI pile to clear in one go, the live chats (the same
 // list the classic HQ shows, so a chat started a second ago is there), and three plain numbers.
-import { Fragment, useState } from 'react'
-import { readHqPlusViewState, saveHqPlusViewState } from './hq-plus-view-state'
+import { Fragment } from 'react'
 import type { HqChatLinksResult } from '../../../../../shared/hq-chat-links'
 import { hqChatRoleLabel, type HqChatRole } from '../../../../../shared/hq-chat-role'
 import { hqPlusChatTree } from './hq-plus-chat-tree'
 import { HqPlusChatsBySwitch, useHqPlusChatsBy } from './HqPlusChatsBy'
-import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import type { HqPlusScreenStats } from '../../../../../shared/hq-plus-screen'
 import { translate } from '@/i18n/i18n'
 import type { HqChatItem } from '../hq/hq-chat-list'
@@ -15,16 +13,12 @@ import type { HqPlusProjectChats } from './hq-plus-chats'
 import { HqPlusNewChat, useHqPlusNewChatTargets } from './HqPlusNewChat'
 import { AllProjects, ProjectHeader } from './HqPlusSideProjects'
 import { HqPlusChatRow, type HqPlusTile } from './HqPlusChatRow'
-import { useAppStore } from '@/store'
-import { hideHqProjectWithUndo, setHqProjectHidden } from '../hq/hq-chat-actions'
 import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusSideBlock } from './HqPlusSideBlock'
 import type { HqPlusDraftChat } from './use-hq-plus-drafts'
 import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
 
 export type { HqPlusTile }
-
-const NO_HIDDEN: readonly string[] = []
 
 const noRole = (): HqChatRole | null => null
 
@@ -76,29 +70,18 @@ export function HqPlusSide({
   queue: HqPlusQueueActions
   onPickChat: (item: HqChatItem) => void
 }): React.JSX.Element {
-  // Custom build (hq-plus-ui-v5): the Idle fold stays as the owner left it.
-  const [showIdle, setShowIdleState] = useState(() => readHqPlusViewState().showIdle)
-  const setShowIdle = (next: boolean): void => {
-    setShowIdleState(next)
-    saveHqPlusViewState({ showIdle: next })
-  }
   // Custom build (hq-plus-chat-tree): By status (by project, as before) or By work (the tree).
   const [chatsBy, setChatsBy] = useHqPlusChatsBy()
   const now = queue.now
   const targets = useHqPlusNewChatTargets([])
   const targetOf = new Map(targets.map((target) => [target.repoId, target]))
-  // Custom build (hq-plus-hide-project): a hidden project leaves the column with its chats and drafts;
-  // «All projects» shows it again.
-  const hiddenIds = useAppStore((state) => state.settings?.hqHiddenProjectIds) ?? NO_HIDDEN
-  const shownDrafts = drafts.filter((draft) => !hiddenIds.includes(draft.item.repoId))
+  // Why every chat is listed: the owner closes chats with ✕; nothing in the column hides them (owner 23.11).
+  const shownDrafts = drafts
   // Custom build (hq-plus-drafts): a chat with unsent words shows once, in Drafts.
   const drafted = new Set(shownDrafts.map((draft) => draft.item.key))
   const chats = {
-    marked: allChats.marked.filter(
-      (item) => !drafted.has(item.key) && !hiddenIds.includes(item.repoId)
-    ),
+    marked: allChats.marked.filter((item) => !drafted.has(item.key)),
     projects: allChats.projects
-      .filter((project) => !hiddenIds.includes(project.repoId))
       .map((project) => ({
         ...project,
         items: project.items.filter((item) => !drafted.has(item.key))
@@ -247,11 +230,6 @@ export function HqPlusSide({
               project={project}
               color={colorFor(project.repoId)}
               onKeep={onKeepProject}
-              onHide={(repoId, hidden) =>
-                hidden
-                  ? hideHqProjectWithUndo(repoId, project.projectName)
-                  : setHqProjectHidden(repoId, false)
-              }
               target={targetOf.get(project.repoId) ?? null}
               onPickChat={onPickChat}
             />
@@ -259,24 +237,15 @@ export function HqPlusSide({
           </div>
         ))}
         {chats.quiet.length > 0 ? (
-          <Collapsible open={showIdle} onOpenChange={setShowIdle}>
-            <button
-              type="button"
-              className="hqp-idle-h"
-              aria-expanded={showIdle}
-              onClick={() => setShowIdle(!showIdle)}
-            >
-              <span className="hqp-caret" data-open={showIdle} aria-hidden="true">
-                {'\u25B8'}
-              </span>
+          // Why open, not a fold: a folded Quiet read as chats gone missing (owner 23.11).
+          <>
+            <div className="hqp-side-sub">
               {translate('auto.hqPlus.side.quietCount', 'Quiet · {{count}}', {
                 count: chats.quiet.length
               })}
-            </button>
-            <CollapsibleContent animation="height">
-              <div className="hqp-side-sec">{chats.quiet.map((item) => row(item))}</div>
-            </CollapsibleContent>
-          </Collapsible>
+            </div>
+            <div className="hqp-side-sec">{chats.quiet.map((item) => row(item))}</div>
+          </>
         ) : null}
         <AllProjects
           targets={targets.filter(
@@ -286,8 +255,6 @@ export function HqPlusSide({
           )}
           colorFor={colorFor}
           onPickChat={onPickChat}
-          hiddenIds={hiddenIds}
-          onHide={setHqProjectHidden}
         />
       </HqPlusSideBlock>
       <div className="hqp-stats">

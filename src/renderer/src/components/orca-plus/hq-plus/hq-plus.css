@@ -1702,7 +1702,6 @@ button.hqp-allproj {
   width: 100%;
   text-align: left;
 }
-/* Custom build (hq-plus-hide-project): a hidden project's row carries Show beside it. */
 .hqp-allproj-row {
   display: flex;
   align-items: center;
