@@ -1494,22 +1494,20 @@ export function HqPlusScreen(): React.JSX.Element {
     </div>
   )
   // Custom build (hq-plus-work-view, owner 06.11): the Work view — the same tree as «By work», on the
-  // whole screen; hidden projects stay out, as in the column.
-  const hiddenProjectIds = useAppStore((state) => state.settings?.hqHiddenProjectIds) ?? NO_IDS
+  // whole screen, every chat in it.
   const workModel = useMemo(() => {
     if (layout !== 'work') {
       return null
     }
-    const items = roomChats.filter((item) => !hiddenProjectIds.includes(item.repoId))
     return hqPlusWorkView({
-      tree: hqPlusChatTree(items, data.chatLinks),
+      tree: hqPlusChatTree(roomChats, data.chatLinks),
       links: data.chatLinks,
       sessions: (data.sessions?.sessions ?? []).filter(
         (session) => !room || session.workspace === room
       ),
       since: dayStart
     })
-  }, [layout, roomChats, hiddenProjectIds, data.chatLinks, data.sessions, room, dayStart])
+  }, [layout, roomChats, data.chatLinks, data.sessions, room, dayStart])
   const workActions: HqPlusWorkActions = {
     now,
     picked: tab === 'session' ? chatKey : null,
