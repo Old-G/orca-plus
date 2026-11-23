@@ -11,7 +11,6 @@ const h = vi.hoisted(() => ({
   createNewTerminalTab: vi.fn(),
   activateAndRevealWorkspaceWithOutcome: vi.fn((): unknown => ({ opened: { primaryTabId: null } })),
   openChatInShownHq: vi.fn(),
-  showHqProjectIfHidden: vi.fn(),
   waitForNewAgentPane: vi.fn(() => Promise.resolve(null))
 }))
 
@@ -48,7 +47,6 @@ vi.mock('@/store', () => ({
     select({ activeGroupIdByWorktree: { 'wt-acme': 'group-7' } })
 }))
 vi.mock('../hq/hq-chat-open', () => ({ openChatInShownHq: h.openChatInShownHq }))
-vi.mock('../hq/hq-chat-actions', () => ({ showHqProjectIfHidden: h.showHqProjectIfHidden }))
 vi.mock('../hq/hq-today-actions', () => ({
   agentPaneKeys: () => new Set(['tab-old:1']),
   waitForNewAgentPane: h.waitForNewAgentPane
@@ -103,8 +101,6 @@ it('starts the picked agent in the project and opens its chat in HQ+', async () 
   expect(h.launch).toHaveBeenCalledWith({ kind: 'chat', agent: 'codex', executionHostId: 'local' })
   expect(h.waitForNewAgentPane).toHaveBeenCalledWith('wt-acme', new Set(['tab-old:1']))
   expect(onPicked).toHaveBeenCalledTimes(1)
-  // A chat started in a hidden project brings the project back into the list.
-  expect(h.showHqProjectIfHidden).toHaveBeenCalledWith('wt-acme')
   await act(async () => {})
   expect(h.openChatInShownHq).toHaveBeenCalledWith('wt-acme', 'tab-new')
 })

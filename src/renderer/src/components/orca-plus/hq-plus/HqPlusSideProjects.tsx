@@ -1,8 +1,8 @@
-// Custom build (hq-plus-chats-by-project, hq-plus-all-projects, hq-plus-hide-project): a project's row in
-// HQ+'s left column — New chat, its past chats, Keep and Hide — and «All projects», where every project
-// with no chat listed (a hidden one among them) is found again.
+// Custom build (hq-plus-chats-by-project, hq-plus-all-projects): a project's row in HQ+'s left column —
+// New chat, its past chats and Keep — and «All projects», where every project with no chat listed is found.
+// No Hide: the owner closes chats himself with ✕ (owner 23.11, hidden projects took whole lists of chats).
 import { useState } from 'react'
-import { Eye, EyeOff, History, Pin, PinOff, Plus } from 'lucide-react'
+import { History, Pin, PinOff, Plus } from 'lucide-react'
 import { readHqPlusViewState, saveHqPlusViewState } from './hq-plus-view-state'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import { translate } from '@/i18n/i18n'
@@ -21,15 +21,12 @@ export function ProjectHeader({
   project,
   color,
   onKeep,
-  onHide,
   target,
   onPickChat
 }: {
   project: HqPlusProjectChats
   color: string
   onKeep: (repoId: string, kept: boolean) => void
-  /** Custom build (hq-plus-hide-project): out of the column with its chats; «All projects» shows it. */
-  onHide: (repoId: string, hidden: boolean) => void
   /** Custom build (hq-plus-all-projects): the project's main checkout, for New chat and History. */
   target: HqPlusProjectTarget | null
   onPickChat: (item: HqChatItem) => void
@@ -45,10 +42,6 @@ export function ProjectHeader({
   const newLabel = translate('auto.hq.chats.newChat', 'New chat in {{value0}}', {
     value0: project.projectName
   })
-  const hideLabel = translate(
-    'auto.hqPlus.side.hideProject',
-    'Hide project (its chats stay open; find it in All projects)'
-  )
   return (
     <div className="hqp-pgrp">
       <span className="hqp-pgrp-dot" style={tileStyle(color)} aria-hidden="true" />
@@ -84,15 +77,6 @@ export function ProjectHeader({
       >
         {project.kept ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
       </button>
-      <button
-        type="button"
-        className="hqp-pgrp-btn"
-        aria-label={hideLabel}
-        title={hideLabel}
-        onClick={() => onHide(project.repoId, true)}
-      >
-        <EyeOff aria-hidden="true" />
-      </button>
       {history && target ? (
         <div className="hqp-pgrp-hist">
           <HqPlusProjectChatList
@@ -116,16 +100,11 @@ export function ProjectHeader({
 export function AllProjects({
   targets,
   colorFor,
-  onPickChat,
-  hiddenIds,
-  onHide
+  onPickChat
 }: {
   targets: readonly HqPlusProjectTarget[]
   colorFor: (repoId: string) => string
   onPickChat: (item: HqChatItem) => void
-  /** Custom build (hq-plus-hide-project): hidden projects are found here and shown again. */
-  hiddenIds: readonly string[]
-  onHide: (repoId: string, hidden: boolean) => void
 }): React.JSX.Element | null {
   const [show, setShowState] = useState(() => readHqPlusViewState().showAllProjects)
   const setShow = (next: boolean): void => {
@@ -180,23 +159,7 @@ export function AllProjects({
                     aria-hidden="true"
                   />
                   <span className="hqp-pgrp-name">{target.name}</span>
-                  {hiddenIds.includes(target.repoId) ? (
-                    <span className="hqp-pgrp-n">
-                      {translate('auto.hqPlus.side.hiddenProject', 'hidden')}
-                    </span>
-                  ) : null}
                 </button>
-                {hiddenIds.includes(target.repoId) ? (
-                  <button
-                    type="button"
-                    className="hqp-pgrp-btn"
-                    aria-label={translate('auto.hqPlus.side.showProject', 'Show in the list')}
-                    title={translate('auto.hqPlus.side.showProject', 'Show in the list')}
-                    onClick={() => onHide(target.repoId, false)}
-                  >
-                    <Eye aria-hidden="true" />
-                  </button>
-                ) : null}
               </div>
               {openRepo === target.repoId ? (
                 <div className="hqp-pgrp-hist">
