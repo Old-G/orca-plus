@@ -56,7 +56,7 @@ export const AGENT_LAUNCH_HANDLERS: Record<string, CommandHandler> = {
     }
     const startedByOrca = await handoffStartedByOrca(client, launch.prompt?.text)
     if (startedByOrca) {
-      console.log(startedByOrca)
+      console.log(json ? JSON.stringify({ started: false, message: startedByOrca }) : startedByOrca)
       return
     }
     const result = await callAgentLaunch(
