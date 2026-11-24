@@ -12,6 +12,9 @@ describe('createClaudeHandoffClaims', () => {
       successorSessionId: 'claude_b'
     })
     expect(claims.claimForOrca('claude_a')).toBe(false)
+    // The old chat stays open; its next handoff is its own again.
+    clock += 6 * 60_000
+    expect(claims.claimForAgent('claude_a')).toEqual({ taken: false })
 
     expect(claims.claimForAgent('claude_c')).toEqual({ taken: false })
     expect(claims.claimForOrca('claude_c')).toBe(false)

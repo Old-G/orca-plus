@@ -3,7 +3,7 @@
 import { readInjectedAgentSessionId } from '../shared/agent-session/lifecycle/launch/agent-session-caller-env'
 import type { RuntimeClient } from './runtime/client'
 
-const HANDOFF_PROMPT = /^\s*Continue from \S*handoff-[^\s/\\]+\.md/
+const HANDOFF_PROMPT = /^\s*Continue from .*?handoff-[^\s/\\]+\.md/
 
 /** The line to print instead of a second start, or null to launch as asked. */
 export async function handoffStartedByOrca(
