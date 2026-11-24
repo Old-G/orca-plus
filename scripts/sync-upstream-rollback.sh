@@ -20,6 +20,9 @@ rollback_branch() {
   [ "$here" = "$branch" ] || return 0
   # Checked out here: the files follow with the same two-tree switch `git checkout` does, which
   # refuses to overwrite local edits; if it refuses, the ref goes back.
+  # Why the refresh: read-tree takes a file whose timestamps changed (an unchanged re-save) for an
+  # edit, as `git checkout` does not.
+  git update-index -q --refresh >/dev/null 2>&1 || true
   if git read-tree -m -u "$expected" "$target" 2>/dev/null; then
     return 0
   fi
