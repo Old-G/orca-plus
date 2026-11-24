@@ -21028,7 +21028,8 @@
       "intoThread": "Into a thread:",
       "moveToTask": "Ask in {{value0}} instead",
       "moveToSlack": "Send in Slack instead",
-      "wrongChannel": "{{space}} does not use {{channel}} — this goes out from the {{channel}} connected to Orca+."
+      "wrongChannel": "{{space}} does not use {{channel}} — this goes out from the {{channel}} connected to Orca+.",
+      "movedUnderPointer": "The card moved under the pointer — nothing was sent. Click again."
     },
     "pulseBell": {
       "title": "Inbox",

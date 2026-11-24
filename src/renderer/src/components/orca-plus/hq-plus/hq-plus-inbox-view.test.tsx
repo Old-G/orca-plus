@@ -155,5 +155,24 @@ describe('HQ+ Inbox (Codex 02.11)', () => {
       target.remove()
       expect(follow).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' })
     })
+
+    // Custom build (hq-approve-steady, owner 24.11): a scroll under a pointer aiming at a button
+    // brought another button under it; the feed waits until the pointer leaves.
+    it('a new Approve waits while the pointer is over the feed', () => {
+      const { view, follow } = mount()
+      follow.mockClear()
+      const feed = document.createElement('div')
+      feed.className = 'hqp-log'
+      vi.spyOn(feed, 'matches').mockImplementation((selector) => selector === ':hover')
+      const target = document.createElement('div')
+      target.id = 'hqp-ap-1'
+      feed.append(target)
+      document.body.append(feed)
+      view.rerender(<HqPlusInbox feed={feedOf(1, ['ap-1'])} filter="all" emptyText="" ctx={ctx} />)
+      expect(follow).not.toHaveBeenCalled()
+      feed.dispatchEvent(new Event('pointerleave'))
+      expect(follow).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' })
+      feed.remove()
+    })
   })
 })

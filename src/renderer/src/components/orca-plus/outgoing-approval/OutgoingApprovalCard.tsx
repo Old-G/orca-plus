@@ -17,6 +17,7 @@ import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/class-names'
 import { useOutgoingApprovalOptions } from './use-outgoing-approval-options'
 import { OutgoingApprovalVenue } from './OutgoingApprovalVenue'
+import { useSteadyClick } from './use-steady-click'
 import type { OutgoingApprovalChoice } from '../../../../../shared/outgoing-approval/outgoing-approval-options'
 import { hqSpaceStripeStyle, useHqSpaces } from '../hq/use-hq-spaces'
 
@@ -45,6 +46,7 @@ export function OutgoingApprovalDecision({
   const [withFooter, setWithFooter] = useState(true)
   const [threadTs, setThreadTs] = useState<string | null>(null)
   const options = useOutgoingApprovalOptions(item.refId)
+  const steady = useSteadyClick()
   const { head, text } = splitOutgoingApprovalBody(item.body)
   // Custom build (hq-spaces): a message about to leave through another workspace's messenger.
   const { spaces } = useHqSpaces()
@@ -73,7 +75,8 @@ export function OutgoingApprovalDecision({
   }
 
   return (
-    <>
+    // Custom build (hq-approve-steady): a button takes a click only where the pointer saw it.
+    <div ref={steady.ref} className="contents" onClickCapture={steady.onClickCapture}>
       <div className="flex items-start gap-2">
         <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-hidden="true" />
         <div className="min-w-0 flex-1">
@@ -116,8 +119,10 @@ export function OutgoingApprovalDecision({
         />
       )}
       {/* Custom build (hq-approve-steady): the buttons sit right under the text; what loads later
-          (footer, another venue) appears below them, so Approve never moves under the pointer. */}
-      <div className="flex justify-end gap-1">
+          (footer, another venue) appears below them, so Approve never moves under the pointer. The
+          mark lets HQ+ style this row alone — its rule on any .justify-end also painted «Ask in … instead»
+          as Approve, right under it. */}
+      <div className="flex justify-end gap-1" data-approval-decide="true">
         {editing === null ? (
           <>
             <Button
@@ -201,7 +206,16 @@ export function OutgoingApprovalDecision({
           decide(editing === null ? 'approved' : 'edited', editing ?? undefined, { moveTo })
         }
       />
-    </>
+      {/* Why last: a note that appears must not move the buttons above it. */}
+      {steady.held ? (
+        <p role="status" className="text-xs text-muted-foreground">
+          {translate(
+            'auto.outgoingApproval.movedUnderPointer',
+            'The card moved under the pointer — nothing was sent. Click again.'
+          )}
+        </p>
+      ) : null}
+    </div>
   )
 }
 

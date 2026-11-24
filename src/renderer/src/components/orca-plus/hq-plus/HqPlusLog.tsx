@@ -25,6 +25,7 @@ import type { HqPlusLinkClick } from './hq-plus-link-open'
 import type { HqPlusChatRef } from './HqPlusChatName'
 import { noteHqPlusTakeHint } from './hq-plus-take-hint'
 import { hqPlusTileOf } from '../../../../../shared/hq-plus-tile'
+import { hqPlusPointerOver } from './hq-plus-pointer-hold'
 
 const BOTTOM_SLACK_PX = 40
 
@@ -312,7 +313,8 @@ export function HqPlusLog({
       restore.current = null
       return
     }
-    if (atBottom.current) {
+    // Custom build (hq-approve-steady): not under a pointer that may be aiming at a button.
+    if (atBottom.current && !hqPlusPointerOver(element)) {
       element.scrollTop = element.scrollHeight
     } else {
       setUnseen((count) => count + added)
