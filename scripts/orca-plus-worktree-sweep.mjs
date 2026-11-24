@@ -89,8 +89,7 @@ import {
   landedIn,
   real,
   repoBusy,
-  run,
-  verified
+  run
 } from './orca-plus-worktree-sweep-git.mjs'
 
 // ---- side effects below ----
@@ -263,13 +262,19 @@ function strayFolders(root, knownPaths) {
 }
 
 /**
- * Reads the worktree again right before it goes (Codex P1 24.11). With `live`, first no process in it and
- * Orca's view unchanged; then, last so the removal follows at once, the same HEAD and branch, nothing
- * uncommitted or hidden, the ignored files still copyable — and with `sig`, the very ones just copied.
- * Returns `{ manifest }`, or `{ why }` when it must stay.
+ * Reads the worktree again right before it goes (Codex P1 24.11). With `live`, first no checkout in the
+ * caches (a find that can take two minutes, so before the rest: Codex P1 24.11, third review), no process
+ * in it and Orca's view unchanged; then, last so the removal follows at once, the same HEAD and branch,
+ * nothing uncommitted or hidden, the ignored files still copyable — and with `sig`, the very ones just
+ * copied. Returns `{ manifest }`, or `{ why }` when it must stay.
  */
 function recheck(row, ctx, { live, sig }) {
   if (live) {
+    const seen = readStatus(row.path)
+    const deep = seen && inspectIgnored(row.path, seen, ctx.opts.maxCopyBytes, { deep: true })
+    if (!deep || deep.over || deep.nested || deep.unreadable) {
+      return { why: 'its ignored files changed: too big, unreadable or a checkout inside' }
+    }
     const procs = readProcesses()
     const proc = procs ? processInside(procs, row.path) : 'running processes unread (lsof)'
     if (proc) {
@@ -316,7 +321,7 @@ function recheck(row, ctx, { live, sig }) {
   if (!hidden || hidden.length > 0) {
     return { why: 'tracked files hidden from git status' }
   }
-  const manifest = inspectIgnored(row.path, status, ctx.opts.maxCopyBytes, { deep: live })
+  const manifest = inspectIgnored(row.path, status, ctx.opts.maxCopyBytes, { deep: false })
   if (manifest.over || manifest.nested || manifest.unreadable) {
     return { why: 'its ignored files changed: too big, unreadable or a checkout inside' }
   }
@@ -344,21 +349,20 @@ function removeLocked(row, ctx) {
   if (before.why) {
     return { ok: false, step: 'check before removal', err: before.why }
   }
-  const backup = backupRefName(
+  const name = backupRefName(
     dayStamp(now),
     row.branch ?? `detached-${basename(row.path)}`,
     row.head
   )
-  // Why: a backup ref another removal already wrote is that removal's; a failure here never drops it.
-  const ownBackup = !verified(row.mainPath, backup)
-  const saved = git(row.mainPath, 'update-ref', backup, row.head)
-  if (!saved.ok) {
-    return { ok: false, step: 'backup ref', err: saved.err }
+  // Why created, never moved (`''` = must not exist): a backup ref already there is another removal's, so
+  // this one takes its own name and a failure here drops only its own (Codex P1 24.11, third review).
+  const create = (ref) => (git(row.mainPath, 'update-ref', ref, row.head, '').ok ? ref : null)
+  const backup = create(name) ?? create(`${name}-${now}-${process.pid}`)
+  if (!backup) {
+    return { ok: false, step: 'backup ref', err: `git update-ref ${name} failed` }
   }
   const undo = (copy) => {
-    if (ownBackup) {
-      git(row.mainPath, 'update-ref', '-d', backup, row.head)
-    }
+    git(row.mainPath, 'update-ref', '-d', backup, row.head)
     if (copy) {
       rmSync(copy, { force: true })
     }
