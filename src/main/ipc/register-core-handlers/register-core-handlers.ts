@@ -38,6 +38,7 @@ import { registerHqPulseMirror } from '../../hq-pulse-mirror/register-hq-pulse-m
 import { registerPulseBell } from '../../orca-plus/pulse-bell/register-pulse-bell'
 import { registerThemeAuto } from '../../orca-plus/theme-auto/theme-auto'
 import { registerHqJournal } from '../../hq-journal/register-hq-journal'
+import { registerChatCloseWorktreeSweep } from '../../orca-plus/worktree-sweep/register-chat-close-worktree-sweep'
 import { registerHqRouting } from '../../hq-routing/register-hq-routing'
 import { registerOutgoingApproval } from '../../orca-plus/outgoing-approval/register-outgoing-approval'
 import { registerWebPush } from '../../orca-plus/web-push/register-web-push'
@@ -204,6 +205,8 @@ export async function registerCoreHandlers(
     // Custom build (paper-theme): the theme's Auto modes — on battery, at low brightness.
     registerThemeAuto(store)
     registerHqJournal(store, runtime)
+    // Custom build (worktree-sweep): a closed chat's merged worktree is removed with it.
+    registerChatCloseWorktreeSweep(store)
     registerHqRouting(store, runtime, rateLimits)
     startHqMorningBriefing({
       now: Date.now,

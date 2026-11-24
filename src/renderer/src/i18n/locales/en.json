@@ -21633,7 +21633,8 @@
         "empty": "No reports yet. The week review, meeting follow-ups and status updates land here.",
         "list": "Reports",
         "updates": "Updates",
-        "daily": "Day review"
+        "daily": "Day review",
+        "worktrees": "Worktrees"
       },
       "remind": {
         "noHq": "Add the HQ folder as a project first.",

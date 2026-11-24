@@ -161,6 +161,12 @@ const hqSkillsResource = {
   to: 'hq-skills',
   filter: ['**/*', '!**/__pycache__/**', '!**/*.pyc']
 }
+// Custom build (worktree-sweep): the sweep a closed chat runs on its worktree, run by Electron as Node.
+const orcaPlusWorktreeSweepResource = {
+  from: 'scripts',
+  to: 'orca-plus',
+  filter: ['orca-plus-worktree-sweep*.mjs', '!*.test.mjs']
+}
 // SSH deploy resolves process.resourcesPath/relay; extraResources keeps bundles on real disk.
 const relayExtraResource = {
   from: 'out/relay',
@@ -200,7 +206,7 @@ const commonExtraResources = [
   skillFreshnessResources,
   ...agentBrowserSkillResources,
   nativeChatVisualsResource,
-  ...(orcaPlusPackaging ? [hqSkillsResource] : []),
+  ...(orcaPlusPackaging ? [hqSkillsResource, orcaPlusWorktreeSweepResource] : []),
   emojiShortcodeDatasetResource
 ]
 // electron-builder replaces these defaults when `depends` is configured; retain
