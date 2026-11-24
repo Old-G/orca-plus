@@ -16,9 +16,15 @@
 #   T18 --publish when that remote moved → exit 4, the foreign commit survives, custom intact
 #   T19 a resolution that drops our line → exit 5, guard names it, publish blocked until
 #       SYNC_GUARD_ACCEPT explains it; --unattended rolls back instead
-#   T23 --ci-verify                      → no local checks, stack pushed to sync/<ts>, workflow
+#   T23 --ci-verify                      → no local checks, stack pushed to sync/<ts>, the sync
+#       branch's own workflow dispatched and its run id taken from the answer, workflow
 #       dispatched with the fork's old custom as the lease; custom itself not pushed;
 #       --ci-verify with --publish refused
+#   T24 a dispatch answer without a run id → exit 3, no run recorded
+#   T25 a promotion the workflow made refreshes the lease; an unrelated remote move does not
+#   T26 a resent stack (nothing new upstream) runs the guard against the published one first
+#   T27–T29 wrapper: a red run rolls local custom back (not if it moved), a check-only green run
+#       does not claim publication
 #   T20–T22 scheduled wrapper: runs only every SYNC_EVERY_DAYS, hands a stop to an agent via the
 #       orca-plus CLI (not with SYNC_AGENT=0), skips while an agent works in the checkout
 set -euo pipefail
@@ -139,7 +145,8 @@ check "report lists the stray commit" 'printf "%s" "$OUT" | grep -q "oops on mai
 echo "T8–T11 test triage (fake vitest)"
 TESTS="$(cd "$(dirname "$SYNC")" && pwd)/sync-upstream-tests.sh"
 REPO_ROOT=$(cd "$(dirname "$SYNC")" && git rev-parse --show-toplevel)
-KNOWN_FILE=src/main/ipc/pty-runtime-hidden-at-spawn-mark.test.ts
+# Why from the list: a hardcoded path went stale when the file moved (T9 failed on a correct runner).
+KNOWN_FILE=$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$(dirname "$SYNC")/sync-known-test-failures.txt" | head -1)
 # Fake vitest: FAKE_FIRST / FAKE_RETRY are the files failing on the first run / on the retry.
 cat >"$WORK/fake-vitest.sh" <<'FAKE'
 #!/usr/bin/env bash
@@ -327,7 +334,8 @@ mkdir -p "$WORK/gh-bin"
 cat >"$WORK/gh-bin/gh" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$GH_LOG"
-case "$1 $2" in "run list") echo 4242 ;; esac
+# Why: the dispatch answers with the run it created; STUB_RUN_ID= stands for an answer without one.
+case "$1" in api) printf '%s\n' "${STUB_RUN_ID-4242}" ;; esac
 exit 0
 STUB
 chmod +x "$WORK/gh-bin/gh"
@@ -337,6 +345,7 @@ export GH_LOG="$WORK/gh.log"
 OLD_PUB=$(git --git-dir="$WORK/published.git" rev-parse custom)
 printf "demo-c: upstream took it and dropped it (test)\n" >>"$WORK/accept.md"
 upstream_commit other.txt "ci-1" "upstream: before ci verify"
+OLD_LOCAL=$(cd "$WORK/fork" && git rev-parse custom)
 set +e
 OUT=$(cd "$WORK/fork" && PATH="$WORK/gh-bin:$PATH" SYNC_CHECKS_CMD=false SYNC_GUARD_ACCEPT="$WORK/accept.md" "$SYNC" --ci-verify 2>&1)
 RC=$?
@@ -345,11 +354,88 @@ NEW_CUSTOM=$(cd "$WORK/fork" && git rev-parse custom)
 check "T23 exit 0 although local checks would fail" '[ "$RC" = 0 ]'
 check "T23 stack pushed to sync/<ts>" '[ "$(git --git-dir="$WORK/published.git" for-each-ref --format="%(objectname)" "refs/heads/sync/*")" = "$NEW_CUSTOM" ]'
 check "T23 fork custom untouched" '[ "$(git --git-dir="$WORK/published.git" rev-parse custom)" = "$OLD_PUB" ]'
-check "T23 workflow dispatched with the lease" 'grep -q "workflow run sync-verify.yml .*-f expect_target=$OLD_PUB -f target=custom -f promote=true" "$GH_LOG"'
-check "T23 run recorded for the wrapper" 'grep -q " 4242$" "$WORK/fork/.git/custom-sync/ci-run"'
+check "T23 workflow dispatched with the lease" 'grep -q "actions/workflows/sync-verify.yml/dispatches .*inputs\[expect_target\]=$OLD_PUB -f inputs\[target\]=custom -f inputs\[promote\]=true" "$GH_LOG"'
+check "T23 the candidate's own workflow definition runs (ref = sync branch)" 'grep -q "dispatches -f ref=sync/" "$GH_LOG"'
+check "T23 run id taken from the dispatch answer, no run listing" '! grep -q "^run list" "$GH_LOG"'
+check "T23 run recorded for the wrapper" '[ "$(cut -d" " -f2-6 "$WORK/fork/.git/custom-sync/ci-run")" = "4242 $NEW_CUSTOM $OLD_PUB true $OLD_LOCAL" ]'
 check "T23 report links the run" 'printf "%s" "$OUT" | grep -q "actions/runs/4242"'
 sync_run --ci-verify --publish
 check "T23 --ci-verify --publish refused" '[ "$RC" = 3 ]'
+
+ci_run() { # extra env assignments, then sync args
+  set +e
+  OUT=$(cd "$WORK/fork" && env PATH="$WORK/gh-bin:$PATH" SYNC_CHECKS_CMD=false "$@" 2>&1)
+  RC=$?
+  set -e
+}
+dispatches() { grep -c "dispatches" "$GH_LOG" || true; }
+
+echo "T24 a dispatch answer without a run id is not guessed"
+(cd "$WORK/fork" && git checkout -q custom && printf 'extra\n' >t24.txt && git add t24.txt \
+  && g commit -qm "custom(demo-d): t24" -m "Custom-Feature: demo-d" && git checkout -q main)
+ci_run STUB_RUN_ID= "$SYNC" --ci-verify
+check "T24 exit 3" '[ "$RC" = 3 ]'
+check "T24 no run recorded" '[ ! -f "$WORK/fork/.git/custom-sync/ci-run" ]'
+
+echo "T25 a confirmed promotion refreshes the lease"
+ci_run "$SYNC" --ci-verify
+PROMOTED=$(cd "$WORK/fork" && git rev-parse custom)
+check "T25 dispatched" '[ "$RC" = 0 ] && grep -q "^[^ ]* 4242 $PROMOTED " "$WORK/fork/.git/custom-sync/ci-run"'
+# The workflow moves the fork's custom; the local tracking ref still shows the old head.
+git --git-dir="$WORK/published.git" update-ref refs/heads/custom "$PROMOTED"
+BEFORE_DISPATCHES=$(dispatches)
+ci_run "$SYNC" --ci-verify
+check "T25 next run sees the promoted head: nothing to check" '[ "$RC" = 0 ] && printf "%s" "$OUT" | grep -q "Проверка не нужна" && [ "$(dispatches)" = "$BEFORE_DISPATCHES" ]'
+check "T25 tracking ref = promoted head" '[ "$(cd "$WORK/fork" && git rev-parse origin/custom)" = "$PROMOTED" ]'
+FOREIGN_PUB=$(cd "$WORK/fork" && git commit-tree -p "$PROMOTED" -m foreign "$PROMOTED^{tree}")
+(cd "$WORK/fork" && git push -q origin "$FOREIGN_PUB:refs/heads/custom" && git update-ref refs/remotes/origin/custom "$PROMOTED")
+printf '%s 4242 %s %s true %s\n' x "$FOREIGN_PUB" "$PROMOTED" "$PROMOTED" >"$WORK/fork/.git/custom-sync/ci-run.keep"
+printf '%s 4242 %s %s true %s\n' x "$PROMOTED" "$OLD_PUB" "$OLD_PUB" >"$WORK/fork/.git/custom-sync/ci-run"
+ci_run "$SYNC" --ci-verify
+check "T25 an unrelated remote change is not taken into the lease" '[ "$(cd "$WORK/fork" && git rev-parse origin/custom)" = "$PROMOTED" ]'
+git --git-dir="$WORK/published.git" update-ref refs/heads/custom "$PROMOTED"
+
+echo "T26 the guard runs on a resent stack before it goes to promotion"
+(cd "$WORK/fork" && git checkout -q custom && git rm -q t24.txt && g commit -qm "fixup! custom(demo-d): t24" \
+  && git checkout -q main)
+BEFORE_DISPATCHES=$(dispatches)
+ci_run "$SYNC" --ci-verify
+check "T26 a fixup that drops our feature → exit 5, not dispatched" '[ "$RC" = 5 ] && printf "%s" "$OUT" | grep -q "demo-d" && [ "$(dispatches)" = "$BEFORE_DISPATCHES" ]'
+printf 'demo-d: t24 removed on purpose (test)\n' >"$WORK/accept-d.md"
+ci_run SYNC_GUARD_ACCEPT="$WORK/accept-d.md" "$SYNC" --ci-verify
+check "T26 explained → dispatched" '[ "$RC" = 0 ] && [ "$(dispatches)" -gt "$BEFORE_DISPATCHES" ]'
+
+echo "T27–T29 scheduled wrapper after the GitHub run"
+mkdir -p "$WORK/gh-sched"
+printf '#!/usr/bin/env bash\nexit ${STUB_WATCH_RC:-0}\n' >"$WORK/gh-sched/gh"
+chmod +x "$WORK/gh-sched/gh"
+# The stub sync records a dispatch the way sync-upstream.sh does.
+printf '#!/usr/bin/env bash\necho "stub sync $*"; mkdir -p .git/custom-sync; echo "## OK — stub" >.git/custom-sync/last-report.md; printf "%%s\\n" "$STUB_CI_RUN" >.git/custom-sync/ci-run; exit 0\n' \
+  >"$S/scripts/sync-upstream.sh"
+(cd "$S" && git checkout -q custom && g commit -qam "stub sync records a dispatch" \
+  && printf 'c\n' >f.txt && g commit -qam candidate)
+S_OLD=$(cd "$S" && git rev-parse custom~1)
+S_NEW=$(cd "$S" && git rev-parse custom)
+wrap_run() {
+  set +e
+  OUT=$(cd "$S" && PATH="$WORK/gh-sched:$WORK/bin:$PATH" SYNC_AGENT=0 SYNC_NO_NOTIFY=1 SYNC_UPSTREAM_CHECK= \
+    SYNC_EVERY_DAYS=0 bash scripts/sync-upstream-scheduled.sh 2>&1)
+  RC=$?
+  set -e
+}
+STUB_WATCH_RC=1 STUB_CI_RUN="o/r 77 $S_NEW $S_OLD true $S_OLD" wrap_run
+check "T27 red run → exit 2" '[ "$RC" = 2 ]'
+check "T27 red run → local custom back on the pre-sync head" '[ "$(cd "$S" && git rev-parse custom)" = "$S_OLD" ]'
+check "T27 the failed candidate is kept" '[ "$(cd "$S" && git rev-parse refs/custom-sync/failed/77)" = "$S_NEW" ]'
+check "T27 report names the rollback" 'grep -q "откатан" "$S/.git/custom-sync/last-report.md"'
+(cd "$S" && git reset -q --hard "$S_NEW")
+MOVED=$(cd "$S" && printf 'd\n' >f.txt && g commit -qam "someone moved custom" && git rev-parse HEAD)
+STUB_WATCH_RC=1 STUB_CI_RUN="o/r 78 $S_NEW $S_OLD true $S_OLD" wrap_run
+check "T28 custom moved since the dispatch → left as is" '[ "$RC" = 2 ] && [ "$(cd "$S" && git rev-parse custom)" = "$MOVED" ]'
+STUB_WATCH_RC=0 STUB_CI_RUN="o/r 79 $MOVED $S_OLD false $S_OLD" wrap_run
+check "T29 green check-only run → no claim of publication" '[ "$RC" = 0 ] && ! tail -1 "$S/.git/custom-sync/scheduled.log" | grep -q "опубликован" && tail -1 "$S/.git/custom-sync/scheduled.log" | grep -q "только проверка"'
+STUB_WATCH_RC=0 STUB_CI_RUN="o/r 80 $MOVED $S_OLD true $S_OLD" wrap_run
+check "T29 green promoting run → published" 'tail -1 "$S/.git/custom-sync/scheduled.log" | grep -q "опубликован в custom"'
 
 echo
 echo "passed: $PASS  failed: $FAIL"
