@@ -206,6 +206,12 @@
   color: var(--hqp-faint);
   white-space: nowrap;
 }
+/* A row with both a chat and a project has five parts in four columns, so its age wraps to a second
+   line under the badge. Without a span it sized the badge's column: a wide «replied · 14 min» pushed
+   the title away from REPLY, while «2 h» under NOTES fit. */
+.hqpc-holder + .hqpc-proj + .hqpc-age {
+  grid-column: 1 / -1;
+}
 .hqpc-age[data-got='true'],
 .hqpc-age[data-state='done'] {
   color: var(--hqp-green);
