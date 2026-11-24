@@ -138,14 +138,18 @@ if [ "$code" = 0 ] && [ -f "$STATE_DIR/ci-run" ]; then
   log "waiting for GitHub run $ci_run"
   if gh run watch "$ci_run" -R "$ci_repo" --exit-status --interval 60 >/dev/null 2>&1; then
     CI_RESULT=green
-  elif [ "$(gh run view "$ci_run" -R "$ci_repo" --json status --jq .status 2>/dev/null)" != completed ]; then
-    # Why: watch also fails when it cannot reach the run; the run may still go green and promote.
-    CI_RESULT=unknown
+  else
+    # Why: watch also fails when it cannot reach the run, which may still go (or have gone) green.
+    CI_RESULT=$(gh run view "$ci_run" -R "$ci_repo" --json status,conclusion \
+      --jq 'if .status != "completed" then "unknown" elif .conclusion == "success" then "green" else "red" end' \
+      2>/dev/null || echo unknown)
+    case "$CI_RESULT" in green | red) ;; *) CI_RESULT=unknown ;; esac
+  fi
+  if [ "$CI_RESULT" = unknown ]; then
     code=6
     printf '\n## НЕ ДОЖДАЛСЯ ПРОГОНА — результат неизвестен, custom не тронут\nПрогон: https://github.com/%s/actions/runs/%s\n' \
       "$ci_repo" "$ci_run" >>"$report"
-  else
-    CI_RESULT=red
+  elif [ "$CI_RESULT" = red ]; then
     code=2
     printf '\n## ПРОВЕРКИ НА GITHUB УПАЛИ — custom не тронут\nПрогон: https://github.com/%s/actions/runs/%s (gh run view %s -R %s --log-failed)\n' \
       "$ci_repo" "$ci_run" "$ci_run" "$ci_repo" >>"$report"

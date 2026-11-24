@@ -145,10 +145,15 @@ check "report lists the stray commit" 'printf "%s" "$OUT" | grep -q "oops on mai
 
 echo "T8–T11 test triage (fake vitest)"
 TESTS="$(cd "$(dirname "$SYNC")" && pwd)/sync-upstream-tests.sh"
-REPO_ROOT=$(cd "$(dirname "$SYNC")" && git rev-parse --show-toplevel)
-# Why a fixture list: the live one changes with the repo (a moved file once failed T9 on a good runner).
+# Why a throwaway checkout with a fixture list: the live list changes with the repo (a moved file
+# once failed T9 on a good runner), and the runner has no override that could reach a real sync.
 KNOWN_FILE=src/known/fixture.test.ts
-printf '# fixture\n%s\n' "$KNOWN_FILE" >"$WORK/known-failures.txt"
+g init -q "$WORK/triage-repo"
+REPO_ROOT=$(cd "$WORK/triage-repo" && pwd -P)
+mkdir -p "$REPO_ROOT/scripts"
+cp "$TESTS" "$(dirname "$TESTS")/sync-upstream-test-triage.mjs" "$REPO_ROOT/scripts/"
+printf '# fixture\n%s\n' "$KNOWN_FILE" >"$REPO_ROOT/scripts/sync-known-test-failures.txt"
+TESTS="$REPO_ROOT/scripts/sync-upstream-tests.sh"
 # Fake vitest: FAKE_FIRST / FAKE_RETRY are the files failing on the first run / on the retry.
 cat >"$WORK/fake-vitest.sh" <<'FAKE'
 #!/usr/bin/env bash
@@ -176,7 +181,7 @@ failing=$FAKE_FIRST
 FAKE
 triage_run() {
   set +e
-  OUT=$(cd "$REPO_ROOT" && REPO_ROOT="$REPO_ROOT" SYNC_VITEST_CMD="bash $WORK/fake-vitest.sh" SYNC_KNOWN_FAILURES="$WORK/known-failures.txt" \
+  OUT=$(cd "$REPO_ROOT" && REPO_ROOT="$REPO_ROOT" SYNC_VITEST_CMD="bash $WORK/fake-vitest.sh" \
     bash "$TESTS" "$WORK/triage" full 2>&1)
   RC=$?
   set -e
@@ -421,7 +426,7 @@ rm -f "$WORK/fork/.git/custom-sync/guard-blocked"
 
 echo "T27–T29 scheduled wrapper after the GitHub run"
 mkdir -p "$WORK/gh-sched"
-printf '#!/usr/bin/env bash\n[ "$2" = view ] && echo "${STUB_STATUS:-completed}"\nexit ${STUB_WATCH_RC:-0}\n' >"$WORK/gh-sched/gh"
+printf '#!/usr/bin/env bash\n[ "$2" = view ] && { echo "${STUB_RESULT:-red}"; exit 0; }\nexit ${STUB_WATCH_RC:-0}\n' >"$WORK/gh-sched/gh"
 chmod +x "$WORK/gh-sched/gh"
 # The stub sync records a dispatch the way sync-upstream.sh does.
 printf '#!/usr/bin/env bash\necho "stub sync $*"; mkdir -p .git/custom-sync; echo "## OK — stub" >.git/custom-sync/last-report.md; printf "%%s\\n" "$STUB_CI_RUN" >.git/custom-sync/ci-run; exit 0\n' \
@@ -446,7 +451,9 @@ check "T27 report names the rollback" 'grep -q "откатан" "$S/.git/custom-
 MOVED=$(cd "$S" && printf 'd\n' >f.txt && g commit -qam "someone moved custom" && git rev-parse HEAD)
 STUB_WATCH_RC=1 STUB_CI_RUN="o/r 78 $S_NEW $S_OLD true $S_OLD" wrap_run
 check "T28 custom moved since the dispatch → left as is" '[ "$RC" = 2 ] && [ "$(cd "$S" && git rev-parse custom)" = "$MOVED" ]'
-STUB_WATCH_RC=1 STUB_STATUS=in_progress STUB_CI_RUN="o/r 81 $MOVED $S_OLD true $S_OLD" wrap_run
+STUB_WATCH_RC=1 STUB_RESULT=green STUB_CI_RUN="o/r 83 $MOVED $S_OLD true $S_OLD" wrap_run
+check "T30 watch failed but the run went green → green, no rollback" '[ "$RC" = 0 ] && [ "$(cd "$S" && git rev-parse custom)" = "$MOVED" ]'
+STUB_WATCH_RC=1 STUB_RESULT=unknown STUB_CI_RUN="o/r 81 $MOVED $S_OLD true $S_OLD" wrap_run
 check "T30 watch lost the run → exit 6, no rollback, no agent" '[ "$RC" = 6 ] && [ "$(cd "$S" && git rev-parse custom)" = "$MOVED" ] && grep -q "НЕ ДОЖДАЛСЯ" "$S/.git/custom-sync/last-report.md"'
 # The wrapper runs on main here while custom is open in a linked worktree.
 (cd "$S" && git checkout -q -B main && git worktree add -q "$WORK/sched-wt" custom)

@@ -398,13 +398,17 @@ publish_repo() { git remote get-url "$PUBLISH_REMOTE" | sed -e 's#^.*github\.com
 # on it: any other move stays unseen, so the lease still refuses it.
 reconcile_promoted_lease() {
   local tracking="refs/remotes/$PUBLISH_REMOTE/$PUBLISH_BRANCH" file="$STATE_DIR/ci-promotions"
-  local repo seen remote_head r_repo r_branch r_run r_head r_expect
+  local repo seen remote_head candidates r_repo r_branch r_run r_head r_expect
   [ -s "$file" ] || return 0
   seen=$(git rev-parse -q --verify "$tracking" || true)
   [ -n "$seen" ] || return 0
-  remote_head=$(git ls-remote "$PUBLISH_REMOTE" "refs/heads/$PUBLISH_BRANCH" 2>>"$GIT_LOG" | cut -f1)
-  [ -n "$remote_head" ] && [ "$remote_head" != "$seen" ] || return 0
   repo=$(publish_repo)
+  # Why first: ask the fork only when a recorded dispatch could have moved it from the lease we hold.
+  candidates=$(awk -v repo="$repo" -v branch="$PUBLISH_BRANCH" -v seen="$seen" \
+    '$1 == repo && $2 == branch && $5 == seen' "$file")
+  [ -n "$candidates" ] || return 0
+  remote_head=$(git ls-remote "$PUBLISH_REMOTE" "refs/heads/$PUBLISH_BRANCH" 2>>"$GIT_LOG" | cut -f1 || true)
+  [ -n "$remote_head" ] && [ "$remote_head" != "$seen" ] || return 0
   while read -r r_repo r_branch r_run r_head r_expect; do
     if [ "$r_repo" = "$repo" ] && [ "$r_branch" = "$PUBLISH_BRANCH" ] && [ "$r_head" = "$remote_head" ] \
       && [ "$r_expect" = "$seen" ]; then
@@ -412,7 +416,9 @@ reconcile_promoted_lease() {
       say "$PUBLISH_REMOTE/$PUBLISH_BRANCH: прогон $r_run перевёл его на $(short "$remote_head") — lease обновлён"
       return 0
     fi
-  done <"$file"
+  done <<CANDIDATES
+$candidates
+CANDIDATES
 }
 
 record_promotion() { # repo run head expect
@@ -436,7 +442,8 @@ guard_against_published() {
   run_guard "refs/heads/$CUSTOM" || PUBLISH_BLOCKED=1
   OLD_BASE=$keep_base
   OLD_CUSTOM=$keep_custom
-  if [ -n "$pending" ] && [ -z "${SYNC_GUARD_ACCEPT:-}" ]; then
+  # ci_verify then clears it only through guard_accepted, i.e. a real explanation file.
+  if [ -n "$pending" ]; then
     { cat "$GUARD_BLOCK" 2>/dev/null || true; printf '%s\n' "$pending"; } | sort -u >"$GUARD_BLOCK.tmp"
     mv "$GUARD_BLOCK.tmp" "$GUARD_BLOCK"
   fi
