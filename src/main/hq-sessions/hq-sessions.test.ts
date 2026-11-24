@@ -213,13 +213,26 @@ describe('HQ+ session dispatcher', () => {
 
   // Custom build (hq-chat-roles): an empty chat left on the thread would be continued with full access.
   it('gives the thread back when the new chat cannot be switched to Auto', async () => {
+    // Why seeded: a chat the old one cannot take is started from it, with its parent link.
+    db.recordJournal([report('claude_old', clock - 2 * HOUR, 'Refund cap drafted')])
+    live = [chat()]
+    noteOld(clock - 2 * HOUR)
+    sendFails = true
     limitFails = true
     await expect(
       service.dispatch({ cwd: '/w/api' }, { address: 'acme-api/refunds', prompt: 'Ship it' })
     ).rejects.toThrow('could not be switched to Auto')
     expect(delivered).toEqual([])
-    expect(db.getSession('claude_new1')).toMatchObject({ address: null, state: 'closed' })
-    expect(db.listSessionsByAddress('acme-api/refunds')).toEqual([])
+    expect(db.getSession('claude_new1')).toMatchObject({
+      address: null,
+      parentSessionId: null,
+      state: 'closed'
+    })
+    expect(db.listSessionsByAddress('acme-api/refunds').map((row) => row.sessionId)).toEqual([
+      'claude_old'
+    ])
+    // Custom build (hq-handoff-parked, T7): the chat it was seeded from is not parked on it.
+    expect(db.chats.liveSessionOf('claude_old')).toBe('claude_old')
 
     limitFails = false
     const next = await service.dispatch(
@@ -228,8 +241,10 @@ describe('HQ+ session dispatcher', () => {
     )
     expect(next).toMatchObject({ acted: true, sessionId: 'claude_new2' })
     expect(db.listSessionsByAddress('acme-api/refunds').map((s) => s.sessionId)).toEqual([
-      'claude_new2'
+      'claude_new2',
+      'claude_old'
     ])
+    expect(db.chats.liveSessionOf('claude_old')).toBe('claude_new2')
   })
 
   it('queues work while the thread’s chat is mid-turn, and the sweep starts it afterwards', async () => {
