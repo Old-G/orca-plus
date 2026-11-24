@@ -7,6 +7,7 @@ import {
   HQ_REPORT_BELL_KIND,
   HQ_REPORT_FOLDERS,
   HQ_REPORT_OPEN_ACTION,
+  HQ_REPORT_QUIET_FOLDERS,
   type HqReport
 } from '../../shared/hq-reports'
 import { PULSE_BELL_ACTION, type PulseBellInput } from '../../shared/pulse-bell'
@@ -108,7 +109,9 @@ export async function refreshHqReportBell(
 ): Promise<Set<string>> {
   const hq = deps.hqPath()
   const since = deps.now() - HQ_REPORT_BELL_DAYS * 24 * 60 * 60_000
-  const recent = (hq ? await listHqReports(hq) : []).filter((report) => report.at >= since)
+  const recent = (hq ? await listHqReports(hq) : []).filter(
+    (report) => report.at >= since && !HQ_REPORT_QUIET_FOLDERS.has(report.folder)
+  )
   const raised = deps.sync(HQ_REPORT_BELL_KIND, recent.map(hqReportBellItem))
   // Why: on the first pass after a start every recent report is «new»; that is not news.
   const fresh = known ? recent.filter((report) => !known.has(report.path)) : []
