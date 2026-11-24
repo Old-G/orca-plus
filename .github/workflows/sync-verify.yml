@@ -2,7 +2,8 @@ name: Sync verify
 
 # Verifies a rebased feature stack before it replaces the published branch.
 # scripts/sync-upstream.sh --ci-verify rebases on the owner's machine, pushes the stack to
-# sync/<timestamp> and dispatches this workflow, so the heavy checks (typecheck, build, full Vitest)
+# sync/<timestamp> and dispatches this workflow from that branch (the stack runs its own verifier;
+# GitHub lists the workflow from the default branch), so the heavy checks (typecheck, build, full Vitest)
 # run here instead of on that machine. When every check passes and `promote` is on, the workflow
 # keeps the old branch head as sync-backup/<timestamp>, moves the target branch to the tested commit
 # (lease-protected) and deletes the sync branch. A failed run leaves the target branch untouched.
