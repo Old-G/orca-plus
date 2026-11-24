@@ -11,6 +11,8 @@ set -uo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT" || exit 3
+# shellcheck source=scripts/sync-upstream-rollback.sh
+. "$ROOT/scripts/sync-upstream-rollback.sh" || exit 3
 GIT_DIR=$(git rev-parse --absolute-git-dir) || exit 3
 STATE_DIR="$GIT_DIR/custom-sync"
 LOG="$STATE_DIR/scheduled.log"
@@ -104,23 +106,12 @@ hand_to_agent() { # exit code
 # verification either (a dev build restarted from it would run it). Rolled back only while it is
 # still on the stack that was sent; the candidate stays under refs/custom-sync/failed/<run>.
 rollback_local() { # run, stack sent, local head before the sync
-  local custom=${SYNC_CUSTOM:-custom} run=$1 sent=$2 old=$3
+  local custom=${SYNC_CUSTOM:-custom} run=$1 sent=$2 old=$3 why
   [ -n "$old" ] && [ "$old" != "$sent" ] || return 0
-  # Why: moving a branch another worktree has checked out turns its files into stray local edits.
-  if git worktree list --porcelain | grep -qx "branch refs/heads/$custom" \
-    && [ "$(git symbolic-ref --quiet --short HEAD || true)" != "$custom" ]; then
-    printf 'Локальный %s не откатан: он открыт в другом worktree.\n' "$custom" >>"$report"
-    return 0
-  fi
-  if [ "$(git rev-parse -q --verify "refs/heads/$custom" || true)" != "$sent" ]; then
-    printf 'Локальный %s сдвинулся после отправки — не откатан.\n' "$custom" >>"$report"
-    return 0
-  fi
   git update-ref "refs/custom-sync/failed/$run" "$sent"
-  if [ "$(git symbolic-ref --quiet --short HEAD || true)" = "$custom" ]; then
-    git reset -q --keep "$old" || { printf 'Локальный %s не откатан: в дереве правки.\n' "$custom" >>"$report"; return 0; }
-  else
-    git update-ref "refs/heads/$custom" "$old" "$sent" || return 0
+  if ! why=$(rollback_branch "$custom" "$sent" "$old"); then
+    printf 'Локальный %s не откатан: %s.\n' "$custom" "$why" >>"$report"
+    return 0
   fi
   printf 'Локальный %s откатан на %s; проверенный кандидат — refs/custom-sync/failed/%s.\n' \
     "$custom" "$(git rev-parse --short "$old")" "$run" >>"$report"
@@ -149,6 +140,22 @@ if [ "$code" = 0 ] && [ -f "$STATE_DIR/ci-run" ]; then
     code=6
     printf '\n## НЕ ДОЖДАЛСЯ ПРОГОНА — результат неизвестен, custom не тронут\nПрогон: https://github.com/%s/actions/runs/%s\n' \
       "$ci_repo" "$ci_run" >>"$report"
+  elif [ "$CI_RESULT" = red ] && [ "${ci_promote:-true}" = true ]; then
+    # Why: a run cancelled after its promotion push is "failed" with the stack already published.
+    fork_head=$(git ls-remote "${SYNC_PUBLISH_REMOTE:-origin}" "refs/heads/${SYNC_PUBLISH_BRANCH:-custom}" 2>/dev/null | cut -f1)
+    if [ -z "$fork_head" ]; then
+      CI_RESULT=red-unverified
+    elif [ "$fork_head" = "${ci_head:-}" ]; then
+      CI_RESULT=promoted
+    fi
+  fi
+  if [ "$CI_RESULT" = promoted ]; then
+    printf '\n## Прогон завершился неуспешно, но %s в форке уже на проверенном стеке — локальный не тронут\nПрогон: https://github.com/%s/actions/runs/%s\n' \
+      "${SYNC_PUBLISH_BRANCH:-custom}" "$ci_repo" "$ci_run" >>"$report"
+  elif [ "$CI_RESULT" = red-unverified ]; then
+    code=2
+    printf '\n## ПРОВЕРКИ НА GITHUB УПАЛИ; форк проверить не удалось — локальный custom не тронут\nПрогон: https://github.com/%s/actions/runs/%s (gh run view %s -R %s --log-failed)\n' \
+      "$ci_repo" "$ci_run" "$ci_run" "$ci_repo" >>"$report"
   elif [ "$CI_RESULT" = red ]; then
     code=2
     printf '\n## ПРОВЕРКИ НА GITHUB УПАЛИ — custom не тронут\nПрогон: https://github.com/%s/actions/runs/%s (gh run view %s -R %s --log-failed)\n' \
@@ -162,6 +169,8 @@ case "$code" in
   0)
     if [ "$CI_RESULT" = green ] && [ "${ci_promote:-true}" != true ]; then
       notify "orca-custom sync" "Стек пересобран и проверен на GitHub (только проверка): custom не переведён."
+    elif [ "$CI_RESULT" = promoted ]; then
+      notify "orca-custom sync" "custom переведён на проверенный стек, но прогон на GitHub завершился неуспешно после этого. Посмотри прогон."
     elif [ "$CI_RESULT" = green ]; then
       notify "orca-custom sync" "Стек пересобран, проверен на GitHub и опубликован в custom. Перезапусти dev-сборку."
     elif grep -q '^## OK — custom пересобран' "$report" 2>/dev/null; then
@@ -176,7 +185,7 @@ case "$code" in
       notify "orca-custom sync" "Синхронизация остановилась (код $code), стек не тронут. Запусти scripts/sync-upstream.sh вручную. Отчёт: .git/custom-sync/last-report.md"
     fi
     ;;
-  6) notify "orca-custom sync" "Не дождался прогона на GitHub, результат неизвестен. Проверь: https://github.com/$ci_repo/actions/runs/$ci_run" ;;
+  6) notify "orca-custom sync" "Исход прогона на GitHub неизвестен, custom не откатан. Отчёт: .git/custom-sync/last-report.md" ;;
   4) notify "orca-custom sync" "Стек пересобран, но push в форк отклонён — там чужие коммиты? Отчёт: .git/custom-sync/last-report.md" ;;
   *) notify "orca-custom sync" "Синхронизация не запустилась (код $code). Отчёт: .git/custom-sync/last-report.md" ;;
 esac
