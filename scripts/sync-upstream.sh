@@ -42,6 +42,7 @@ Env overrides: SYNC_REMOTE (upstream), SYNC_REMOTE_BRANCH (main), SYNC_MIRROR (m
 Exit codes: 0 ok · 1 conflict needs a human · 2 checks failed · 3 precondition / git failure
             4 synced and verified, but the push to the fork was refused
             5 the guard found our changes missing after the rebase (not published)
+            6 the stack is on GitHub, but whether a Sync verify run started is unknown
 EOF
 }
 
@@ -84,6 +85,8 @@ if [ "$CI_VERIFY" = 1 ] && { [ "$PUBLISH" = 1 ] || [ "$SKIP_CHECKS" = 1 ]; }; th
 fi
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=scripts/sync-upstream-rollback.sh
+. "$SCRIPT_DIR/sync-upstream-rollback.sh"
 ROOT=$(git rev-parse --show-toplevel)
 cd "$ROOT"
 GIT_DIR=$(git rev-parse --absolute-git-dir)
@@ -477,16 +480,29 @@ guard_against_published() {
 # Why: under --unattended a stack that never reached GitHub must not stay on local custom either; it
 # goes back to the pre-sync head while custom still points at that stack.
 ci_fail() { # message
-  local head
-  head=$(git rev-parse "refs/heads/$CUSTOM")
-  if [ "$UNATTENDED" = 1 ] && [ "$head" != "$OLD_CUSTOM" ]; then
-    if [ "$(git symbolic-ref --quiet --short HEAD || true)" = "$CUSTOM" ]; then
-      git reset -q --keep "$OLD_CUSTOM" && say "Режим --unattended: $CUSTOM откатан на $(short "$OLD_CUSTOM")."
-    elif git update-ref "refs/heads/$CUSTOM" "$OLD_CUSTOM" "$head"; then
+  local why
+  if [ "$UNATTENDED" = 1 ] && [ -n "${CI_SENT:-}" ] && [ "$CI_SENT" != "$OLD_CUSTOM" ]; then
+    if why=$(rollback_branch "$CUSTOM" "$CI_SENT" "$OLD_CUSTOM"); then
       say "Режим --unattended: $CUSTOM откатан на $(short "$OLD_CUSTOM")."
+    else
+      say "Режим --unattended: $CUSTOM не откатан — $why."
     fi
   fi
   fail 3 "$1"
+}
+
+# Why not a rollback: once the stack is on GitHub, a lost or odd answer does not mean the dispatch
+# was refused; a run may still promote it. The candidate stays, the promotion is recorded so the
+# lease can follow it, and the sync stops with exit 6 until someone finds the run.
+dispatch_unknown() { # repo, message
+  if [ "$promote" = true ]; then
+    record_promotion "$1" "?" "$head" "$expect"
+  fi
+  say ""
+  say "## ИСХОД ЗАПУСКА НЕИЗВЕСТЕН — стек $(short "$head") в $branch, $CUSTOM не откатан"
+  say "$2"
+  say "Найди прогон: gh run list -R $1 --workflow $CI_WORKFLOW --branch $branch"
+  finish 6
 }
 
 # The fork's Sync verify workflow checks the stack on GitHub and, when green, moves PUBLISH_BRANCH
@@ -508,7 +524,8 @@ ci_verify() {
   publish_mirror
   head=$(git rev-parse "refs/heads/$CUSTOM")
   expect=$(git rev-parse -q --verify "refs/remotes/$PUBLISH_REMOTE/$PUBLISH_BRANCH" || true)
-  [ -n "$expect" ] || fail 3 "нет $PUBLISH_REMOTE/$PUBLISH_BRANCH — нечего защищать lease'ом (git fetch $PUBLISH_REMOTE)"
+  CI_SENT=$head
+  [ -n "$expect" ] || ci_fail "нет $PUBLISH_REMOTE/$PUBLISH_BRANCH — нечего защищать lease'ом (git fetch $PUBLISH_REMOTE)"
   if [ "$expect" = "$head" ]; then
     say "## Проверка не нужна: $PUBLISH_REMOTE/$PUBLISH_BRANCH уже $(short "$head")"
     return 0
@@ -527,9 +544,9 @@ ci_verify() {
     "repos/$repo/actions/workflows/$CI_WORKFLOW/dispatches" -f ref="$branch" -f "inputs[branch]=$branch" \
     -f "inputs[expect_target]=$expect" -f "inputs[target]=$PUBLISH_BRANCH" -f "inputs[promote]=$promote" \
     --jq '.workflow_run_id' 2>>"$GIT_LOG") \
-    || ci_fail "не удалось запустить $CI_WORKFLOW в $repo (ветка $branch уже на GitHub; workflow должен лежать и в ветке по умолчанию; лог: $GIT_LOG)"
+    || dispatch_unknown "$repo" "Запуск $CI_WORKFLOW не подтверждён (workflow должен лежать и в ветке по умолчанию; лог: $GIT_LOG)."
   case "$run_id" in
-    '' | *[!0-9]*) ci_fail "GitHub запустил $CI_WORKFLOW, но не назвал прогон (ответ: '$run_id'); найди его: gh run list -R $repo --workflow $CI_WORKFLOW" ;;
+    '' | *[!0-9]*) dispatch_unknown "$repo" "GitHub не назвал прогон (ответ: '$run_id')." ;;
   esac
   run_url="https://github.com/$repo/actions/runs/$run_id"
   # repo, run, the stack sent, the lease, promotion on/off, the local head before this sync
@@ -630,8 +647,11 @@ fi
 
 say "  ✓ rebase завершён"
 
+PRE_BLOCK=$(cat "$GUARD_BLOCK" 2>/dev/null || true)
 if ! run_guard; then
   if [ "$UNATTENDED" = 1 ]; then
+    # Why: the stack this report is about is thrown away below; only what blocked before stays.
+    if [ -n "$PRE_BLOCK" ]; then printf '%s\n' "$PRE_BLOCK" >"$GUARD_BLOCK"; else rm -f "$GUARD_BLOCK"; fi
     git checkout -q "$CUSTOM"
     git reset -q --hard "$OLD_CUSTOM"
     restore_orig_branch
@@ -684,5 +704,16 @@ fi
 say "Бэкап прежнего $CUSTOM: $BACKUP_REF ($(short "$OLD_CUSTOM"))"
 publish
 ci_verify
-[ "$PUBLISH_BLOCKED" = 1 ] && finish 5
+if [ "$PUBLISH_BLOCKED" = 1 ]; then
+  # Why: an earlier unaccepted report kept this rebased stack from being sent; unattended, it must
+  # not stay on local custom either.
+  if [ "$UNATTENDED" = 1 ] && [ "$(git rev-parse "refs/heads/$CUSTOM")" != "$OLD_CUSTOM" ]; then
+    if why=$(rollback_branch "$CUSTOM" "$(git rev-parse "refs/heads/$CUSTOM")" "$OLD_CUSTOM"); then
+      say "Режим --unattended: $CUSTOM откатан на $(short "$OLD_CUSTOM")."
+    else
+      say "Режим --unattended: $CUSTOM не откатан — $why."
+    fi
+  fi
+  finish 5
+fi
 finish 0
