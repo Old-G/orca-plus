@@ -70,12 +70,16 @@ afterEach(() => {
   tops.clear()
 })
 
-function setup(): { approve: HTMLElement; move: HTMLElement } {
+/** Renders the card; `settled`: it has been on screen for the settle time, as one he has read. */
+function setup(settled = true): { approve: HTMLElement; move: HTMLElement } {
   render(<OutgoingApprovalDecision item={item} />)
   const approve = screen.getByRole('button', { name: 'Approve' })
   const move = screen.getByRole('button', { name: /Ask in TASK-1 instead/ })
   tops.set(approve, 300)
   tops.set(move, 360)
+  if (settled) {
+    now += STEADY_SETTLE_MS
+  }
   return { approve, move }
 }
 
@@ -251,6 +255,97 @@ it('takes a click on a card that appeared under a resting pointer once the point
   fireEvent.pointerMove(approve)
   mouseClick(approve)
   expect(decide).toHaveBeenCalledTimes(1)
+})
+
+// Third review 24.11: a jitter onto the slid-in button made it «the one he went for».
+it('holds «Click again» after a jitter onto the button that slid under the pointer', () => {
+  const { approve, move } = setup()
+  fireEvent.pointerMove(approve)
+  tops.set(approve, 240)
+  tops.set(move, 300)
+  now += 50
+  fireEvent.pointerMove(move)
+  now += 100
+  mouseClick(move)
+  now += STEADY_SETTLE_MS
+  mouseClick(move)
+  expect(decide).not.toHaveBeenCalled()
+
+  fireEvent.pointerMove(approve)
+  mouseClick(approve)
+  expect(decide).toHaveBeenCalledTimes(1)
+  expect(decide.mock.calls[0]?.[3]).not.toHaveProperty('moveTo')
+})
+
+// Third review 24.11: the Inbox centring a new Approve while the pointer was away held the first
+// click after he came for it.
+it('takes a click on a card the feed scrolled while the pointer was away', () => {
+  const { approve, move } = setup()
+  fireEvent.pointerMove(document.body)
+  now += 5000
+  tops.set(approve, 240)
+  tops.set(move, 300)
+  fireEvent.scroll(document)
+  now += 2000
+  fireEvent.pointerMove(document.body)
+  now += 100
+  fireEvent.pointerMove(approve)
+  now += 200
+  mouseClick(approve)
+  expect(decide).toHaveBeenCalledTimes(1)
+})
+
+it('takes a click on a card that moved while the pointer idled away from it', () => {
+  const { approve, move } = setup()
+  fireEvent.pointerMove(document.body)
+  now += 5000
+  tops.set(approve, 240)
+  tops.set(move, 300)
+  fireEvent.pointerMove(document.body)
+  now += 100
+  fireEvent.pointerMove(approve)
+  now += 200
+  mouseClick(approve)
+  expect(decide).toHaveBeenCalledTimes(1)
+})
+
+it('holds a click on a button reached right after a scroll he did not make', () => {
+  const { approve, move } = setup()
+  fireEvent.pointerMove(screen.getByText('Hello Ann'))
+  tops.set(approve, 240)
+  tops.set(move, 300)
+  fireEvent.scroll(document)
+  now += 100
+  fireEvent.pointerMove(move)
+  now += 100
+  mouseClick(move)
+  expect(decide).not.toHaveBeenCalled()
+})
+
+// A page-down while the pointer rests on the card is a scroll he did not make with the wheel; he
+// reads the card where it came to, so a move to Approve well after it is aimed.
+it('takes a click well after a scroll that moved the card under a resting pointer', () => {
+  const { approve, move } = setup()
+  const text = screen.getByText('Hello Ann')
+  fireEvent.pointerMove(text)
+  tops.set(approve, 240)
+  tops.set(move, 300)
+  fireEvent.scroll(document)
+  now += 2000
+  fireEvent.pointerMove(text)
+  now += 100
+  fireEvent.pointerMove(approve)
+  now += 200
+  mouseClick(approve)
+  expect(decide).toHaveBeenCalledTimes(1)
+})
+
+it('holds a click right after the card appeared, even after a move onto the button', () => {
+  const { approve } = setup(false)
+  fireEvent.pointerMove(approve)
+  now += 100
+  mouseClick(approve)
+  expect(decide).not.toHaveBeenCalled()
 })
 
 // Second review 24.11: any scroll in the window right after a wheel counted as the owner's own.
