@@ -326,6 +326,8 @@ sync_run --publish
 check "T19 a rerun with nothing new still refuses to publish" '[ "$RC" = 5 ] && printf "%s" "$OUT" | grep -q "не принята"'
 printf 'demo-b: upstream took over other.txt on purpose (test)\n' >"$WORK/accept.md"
 accept_lines >>"$WORK/accept.md"
+# Why CRLF: a file saved with Windows line endings must still accept.
+awk '{ printf "%s\r\n", $0 }' "$WORK/accept.md" >"$WORK/accept.tmp" && mv "$WORK/accept.tmp" "$WORK/accept.md"
 (cd "$WORK/fork" && git fetch -q origin)
 SYNC_GUARD_ACCEPT="$WORK/accept.md" sync_run --publish
 check "T19 explained → exit 0" '[ "$RC" = 0 ]'
@@ -441,6 +443,26 @@ printf '%s\n' "$WORK/earlier-guard.md" >"$WORK/fork/.git/custom-sync/guard-block
 BEFORE_DISPATCHES=$(dispatches)
 ci_run "$SYNC" --ci-verify
 check "T26 an earlier unexplained guard finding still blocks a clean resend" '[ "$RC" = 5 ] && [ "$(dispatches)" = "$BEFORE_DISPATCHES" ]'
+rm -f "$WORK/fork/.git/custom-sync/guard-blocked"
+
+echo "T32–T33 guard fingerprints"
+GUARD="$(cd "$(dirname "$SYNC")" && pwd)/sync-upstream-guard.mjs"
+GR="$WORK/guard-repo"
+g init -q -b main "$GR"
+LONG=$(printf 'x%.0s' $(seq 1 170))
+(cd "$GR" && printf 'base\n' >a.txt && g add . && g commit -qm base \
+  && git checkout -q -b custom && printf '%s-one\n%s-two\n' "$LONG" "$LONG" >>a.txt \
+  && g commit -qam "custom(long): two long lines" -m "Custom-Feature: long" \
+  && git checkout -q -b tip1 main && printf 'base\n%s-two\n' "$LONG" >a.txt && g commit -qam "custom(long): two long lines" -m "Custom-Feature: long" \
+  && git checkout -q -b tip2 main && printf 'base\n%s-one\n' "$LONG" >a.txt && g commit -qam "custom(long): two long lines" -m "Custom-Feature: long")
+FP1=$(cd "$GR" && node "$GUARD" main custom main tip1 | sed -n 's/^Fingerprint: //p' || true)
+FP2=$(cd "$GR" && node "$GUARD" main custom main tip2 | sed -n 's/^Fingerprint: //p' || true)
+check "T32 two losses that read the same in the cut report get different fingerprints" '[ -n "$FP1" ] && [ -n "$FP2" ] && [ "$FP1" != "$FP2" ]'
+printf 'no fingerprint here\n' >"$WORK/broken-guard.md"
+printf '%s\n' "$WORK/broken-guard.md" >"$WORK/fork/.git/custom-sync/guard-blocked"
+BEFORE_DISPATCHES=$(dispatches)
+ci_run SYNC_GUARD_ACCEPT="$WORK/accept.md" "$SYNC" --ci-verify
+check "T33 a pending guard log without a fingerprint is never accepted" '[ "$RC" = 5 ] && [ "$(dispatches)" = "$BEFORE_DISPATCHES" ] && printf "%s" "$OUT" | grep -q "нет отпечатка"'
 rm -f "$WORK/fork/.git/custom-sync/guard-blocked"
 
 echo "T27–T29 scheduled wrapper after the GitHub run"

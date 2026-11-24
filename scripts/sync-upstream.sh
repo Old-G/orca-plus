@@ -301,7 +301,6 @@ run_guard() { # [new head, default HEAD]
   fi
   grep -E '^(### |- [0-9a-f]{10} |## (Explain|Commits))' "$log" | sed 's/^/  /' | tee -a "$REPORT"
   say "  полный список: $log"
-  say "  отпечаток находок: $(guard_digest "$log")"
   if [ "$code" = 1 ] && guard_accepted "$log"; then
     return 0
   fi
@@ -309,9 +308,9 @@ run_guard() { # [new head, default HEAD]
   return 1
 }
 
-# The findings of one guard log, without its header (the tips change with every fixup): a new or
-# different loss gives a new fingerprint.
-guard_digest() { grep -E '^(### |- )' "$1" 2>/dev/null | shasum -a 256 | cut -c1-12; }
+# The fingerprint sync-upstream-guard.mjs computed from its full findings; empty when the log is
+# gone or holds no findings (a guard error), which nothing can accept.
+guard_digest() { sed -n 's/^Fingerprint: \([0-9a-f][0-9a-f]*\)$/\1/p' "$1" 2>/dev/null | tail -1; }
 
 # Why fingerprints: an explanation file left from an earlier run must not accept a loss nobody has
 # looked at. Each guard log listed (one path per line) needs a `guard-accept <fingerprint>` line.
@@ -320,7 +319,13 @@ guard_accepted() { # guard logs
   while IFS= read -r log; do
     [ -n "$log" ] || continue
     digest=$(guard_digest "$log")
-    if [ -z "${SYNC_GUARD_ACCEPT:-}" ] || ! grep -Eq "^guard-accept $digest( |$)" "$SYNC_GUARD_ACCEPT" 2>/dev/null; then
+    if [ -z "$digest" ]; then
+      say "  не принято: в $log нет отпечатка находок — запусти синк заново, чтобы сверка прошла ещё раз"
+      return 1
+    fi
+    # Why tr: a file saved with Windows line endings still counts.
+    if [ -z "${SYNC_GUARD_ACCEPT:-}" ] \
+      || ! tr -d '\r' <"$SYNC_GUARD_ACCEPT" 2>/dev/null | grep -Eq "^guard-accept $digest( |$)"; then
       missing="$missing $digest"
     fi
   done <<LOGS
