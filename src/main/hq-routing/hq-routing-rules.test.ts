@@ -76,3 +76,18 @@ ci.failed:
     expect(parseHqRouting('min_free: 10\n').replies).toBeNull()
   })
 })
+
+describe('routing.yaml intake.project (hq-dm-default-project)', () => {
+  it('reads whose DMs belong to a project, and flags a rule without people or project', () => {
+    const routing = parseHqRouting(`
+intake.project:
+  - when: {dm: [Ann, U_BOB]}
+    project: HQ
+    since: 2026-11-24
+  - when: {dm: []}
+    project: hub
+`)
+    expect(routing.dmProjects).toEqual([{ people: ['Ann', 'U_BOB'], project: 'HQ' }])
+    expect(routing.problems).toEqual(['intake.project[1]: takes when.dm (people) and a project'])
+  })
+})
