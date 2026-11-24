@@ -46,6 +46,7 @@ import {
   type HqPersonResult,
   type HqWhoResult
 } from '../hq-people-format'
+import { hqSendForwardLine } from './hq-send-forward-line'
 
 /** Who is asking, as the agent's environment says; the host turns it into a room. */
 function caller(): { callerSessionId?: string; callerWorktreeId?: string; callerCwd: string } {
@@ -152,9 +153,7 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       result,
       json,
       (r) =>
-        (r.forwardedFrom
-          ? `${r.forwardedFrom} is not this chat's Lead any more; the message went to its Lead now, ${r.entry.address}. `
-          : '') +
+        hqSendForwardLine(r) +
         (r.heldUntil !== undefined
           ? `Held for the Lead on ${r.entry.address}: it goes with the others by ${clockOf(r.heldUntil)}, or later if the Lead is still in a turn; a NEEDS DECISION or BLOCKED goes at once.  ${r.entry.id}`
           : r.reopened

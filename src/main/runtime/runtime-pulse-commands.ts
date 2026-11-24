@@ -199,6 +199,11 @@ export class RuntimePulseCommands {
     return this.db().chats.liveSessionOf(sessionId)
   }
 
+  /** Custom build (hq-handoff-parked, T7): a chat's open waitings go to the chat that continues it. */
+  pulseMoveOpenWaitingsToChat(fromSessionId: string, toSessionId: string): void {
+    this.db().moveOpenWaitingsToChat(fromSessionId, toSessionId)
+  }
+
   /** Custom build (hq-request-ledger): the chat a conversation was taken into. */
   pulseSetConversationChat(key: string, sessionId: string): void {
     this.db().setConversationChat(key, sessionId)

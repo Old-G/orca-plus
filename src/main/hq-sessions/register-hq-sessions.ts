@@ -163,6 +163,10 @@ export function registerHqSessions(
         contextPct,
         name: (sessionId) => record(sessionId)?.conversationName?.trim() || null,
         role: (sessionId) => runtime.pulseChats().roleOf(sessionId),
+        successor: (sessionId) => {
+          const live = runtime.pulseLiveSessionOf(sessionId)
+          return live === sessionId ? null : live
+        },
         placeOfWorktree: (worktreeId) => {
           const place = hqPlaceOf(sources, { worktreeId })
           return { project: place.project, workspace: place.room }

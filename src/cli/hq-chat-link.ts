@@ -7,7 +7,9 @@ import type { RuntimeClient } from './runtime/client'
 
 export async function linkLaunchedChat(
   client: Pick<RuntimeClient, 'call' | 'isRemote'>,
-  result: Pick<AgentLaunchResult, 'outcome'>
+  result: Pick<AgentLaunchResult, 'outcome'>,
+  /** Custom build (hq-handoff-parked, T7): the new chat continues the caller's own handoff. */
+  handoff = false
 ): Promise<void> {
   const parent = readInjectedAgentSessionId()
   if (!parent || client.isRemote || result.outcome.kind !== 'structured') {
@@ -16,7 +18,8 @@ export async function linkLaunchedChat(
   try {
     await client.call('hq.linkChat', {
       callerSessionId: parent,
-      sessionId: result.outcome.sessionId
+      sessionId: result.outcome.sessionId,
+      ...(handoff ? { handoff: true } : {})
     })
   } catch {
     // Why: the tree loses one line; the chat the owner asked for is already running.
