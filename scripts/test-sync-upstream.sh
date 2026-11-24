@@ -383,6 +383,10 @@ echo "T24 a dispatch answer without a run id is not guessed"
 ci_run STUB_RUN_ID= "$SYNC" --ci-verify
 check "T24 exit 3" '[ "$RC" = 3 ]'
 check "T24 no run recorded" '[ ! -f "$WORK/fork/.git/custom-sync/ci-run" ]'
+BEFORE=$(cd "$WORK/fork" && git rev-parse custom)
+upstream_commit other.txt "ci-2" "upstream: before an unsent stack"
+ci_run STUB_RUN_ID= "$SYNC" --ci-verify --unattended
+check "T24 --unattended: a stack GitHub never took leaves local custom on its old head" '[ "$RC" = 3 ] && [ "$(cd "$WORK/fork" && git rev-parse custom)" = "$BEFORE" ]'
 
 echo "T25 a confirmed promotion refreshes the lease"
 ci_run "$SYNC" --ci-verify
@@ -426,7 +430,16 @@ rm -f "$WORK/fork/.git/custom-sync/guard-blocked"
 
 echo "T27–T29 scheduled wrapper after the GitHub run"
 mkdir -p "$WORK/gh-sched"
-printf '#!/usr/bin/env bash\n[ "$2" = view ] && { echo "${STUB_RESULT:-red}"; exit 0; }\nexit ${STUB_WATCH_RC:-0}\n' >"$WORK/gh-sched/gh"
+cat >"$WORK/gh-sched/gh" <<'STUB'
+#!/usr/bin/env bash
+# `run view`: GitHub's raw fields through the caller's own --jq filter; `run watch`: STUB_WATCH_RC.
+if [ "$2" = view ]; then
+  while [ $# -gt 0 ] && [ "$1" != --jq ]; do shift; done
+  printf '%s' "${STUB_RUN_JSON:-{\"status\":\"completed\",\"conclusion\":\"failure\"}}" | jq -r "$2"
+  exit 0
+fi
+exit ${STUB_WATCH_RC:-0}
+STUB
 chmod +x "$WORK/gh-sched/gh"
 # The stub sync records a dispatch the way sync-upstream.sh does.
 printf '#!/usr/bin/env bash\necho "stub sync $*"; mkdir -p .git/custom-sync; echo "## OK — stub" >.git/custom-sync/last-report.md; printf "%%s\\n" "$STUB_CI_RUN" >.git/custom-sync/ci-run; exit 0\n' \
@@ -451,9 +464,9 @@ check "T27 report names the rollback" 'grep -q "откатан" "$S/.git/custom-
 MOVED=$(cd "$S" && printf 'd\n' >f.txt && g commit -qam "someone moved custom" && git rev-parse HEAD)
 STUB_WATCH_RC=1 STUB_CI_RUN="o/r 78 $S_NEW $S_OLD true $S_OLD" wrap_run
 check "T28 custom moved since the dispatch → left as is" '[ "$RC" = 2 ] && [ "$(cd "$S" && git rev-parse custom)" = "$MOVED" ]'
-STUB_WATCH_RC=1 STUB_RESULT=green STUB_CI_RUN="o/r 83 $MOVED $S_OLD true $S_OLD" wrap_run
+STUB_WATCH_RC=1 STUB_RUN_JSON='{"status":"completed","conclusion":"success"}' STUB_CI_RUN="o/r 83 $MOVED $S_OLD true $S_OLD" wrap_run
 check "T30 watch failed but the run went green → green, no rollback" '[ "$RC" = 0 ] && [ "$(cd "$S" && git rev-parse custom)" = "$MOVED" ]'
-STUB_WATCH_RC=1 STUB_RESULT=unknown STUB_CI_RUN="o/r 81 $MOVED $S_OLD true $S_OLD" wrap_run
+STUB_WATCH_RC=1 STUB_RUN_JSON='{"status":"in_progress","conclusion":""}' STUB_CI_RUN="o/r 81 $MOVED $S_OLD true $S_OLD" wrap_run
 check "T30 watch lost the run → exit 6, no rollback, no agent" '[ "$RC" = 6 ] && [ "$(cd "$S" && git rev-parse custom)" = "$MOVED" ] && grep -q "НЕ ДОЖДАЛСЯ" "$S/.git/custom-sync/last-report.md"'
 # The wrapper runs on main here while custom is open in a linked worktree.
 (cd "$S" && git checkout -q -B main && git worktree add -q "$WORK/sched-wt" custom)
