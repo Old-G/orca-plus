@@ -24,7 +24,8 @@ import {
   type ClaudeChildEnvSources,
   type ClaudeEnvDeps
 } from './claude-structured-child-env'
-import { withClaudeArtifactDefault } from './claude-artifact-env'
+import { claudeArtifactSettingsForRole, withClaudeArtifactDefault } from './claude-artifact-env'
+import { chatRoleOfSession } from '../../../orca-plus/chat-roles/chat-role-env'
 import { CLAUDE_DEFAULT_SETTING_SOURCES, claudeDiscoveryOptions } from './claude-discovery-options'
 import { claudeInChromeDefaultArgs } from '../../configuration/claude-in-chrome-default'
 import { claudeConfigDirEnvPatch } from './claude-config-dir-pin'
@@ -285,6 +286,16 @@ export function claudeStructuredLaunchPart(
     )
     const resumesTranscript = resumedWithoutRouter ?? (await resumes(launchHome))
     const disallowedTools = await deniedTools
+    const extraArgs = {
+      ...discovery.extraArgs,
+      ...CLAUDE_STRUCTURED_BASE_OPTIONS.extraArgs,
+      ...permission.extraArgs,
+      ...thinkingDisplayArgs,
+      ...chromeArgs
+    }
+    // Custom build (context-diet T1): no Artifact tool for worker, review and sub-lead chats. An agent
+    // argument that already carries --settings stays intact, as for Fast mode.
+    const artifactSettings = claudeArtifactSettingsForRole(chatRoleOfSession(record.sessionId))
     if (fork?.throughEntryId && !resumesTranscript) {
       // Fork sources must pass the same account-history check as resumes.
       await claudeLaunchResumesTranscript({
@@ -310,13 +321,10 @@ export function claudeStructuredLaunchPart(
           ...(await claudeBotSessionOptions(basis, linked.projects, tools, refused)),
           ...(promptSuggestions ? { promptSuggestions } : {}),
           ...(disallowedTools.length ? { disallowedTools } : {}),
-          extraArgs: {
-            ...discovery.extraArgs,
-            ...CLAUDE_STRUCTURED_BASE_OPTIONS.extraArgs,
-            ...permission.extraArgs,
-            ...thinkingDisplayArgs,
-            ...chromeArgs
-          },
+          ...(artifactSettings && !Object.hasOwn(extraArgs, 'settings')
+            ? { settings: artifactSettings }
+            : {}),
+          extraArgs,
           // Claude owns where a resumed conversation continues; the stored leaf is Orca's bookkeeping.
           ...(resumesTranscript
             ? { resume: providerSessionId }
