@@ -174,5 +174,45 @@ describe('HQ+ Inbox (Codex 02.11)', () => {
       expect(follow).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' })
       feed.remove()
     })
+
+    // Review 24.11: the effect's cleanup dropped the wait whenever the list of Approves changed.
+    it('the wait outlives another Approve being decided meanwhile', () => {
+      const { view, follow } = mount()
+      view.rerender(<HqPlusInbox feed={feedOf(1, ['ap-0'])} filter="all" emptyText="" ctx={ctx} />)
+      follow.mockClear()
+      const feed = document.createElement('div')
+      feed.className = 'hqp-log'
+      vi.spyOn(feed, 'matches').mockImplementation((selector) => selector === ':hover')
+      const target = document.createElement('div')
+      target.id = 'hqp-ap-1'
+      feed.append(target)
+      document.body.append(feed)
+      view.rerender(
+        <HqPlusInbox feed={feedOf(1, ['ap-0', 'ap-1'])} filter="all" emptyText="" ctx={ctx} />
+      )
+      view.rerender(<HqPlusInbox feed={feedOf(1, ['ap-1'])} filter="all" emptyText="" ctx={ctx} />)
+      expect(follow).not.toHaveBeenCalled()
+      feed.dispatchEvent(new Event('pointerleave'))
+      expect(follow).toHaveBeenCalledTimes(1)
+      expect(follow).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' })
+      feed.remove()
+    })
+
+    it('a wait is dropped when the feed goes away', () => {
+      const { view, follow } = mount()
+      follow.mockClear()
+      const feed = document.createElement('div')
+      feed.className = 'hqp-log'
+      vi.spyOn(feed, 'matches').mockImplementation((selector) => selector === ':hover')
+      const target = document.createElement('div')
+      target.id = 'hqp-ap-1'
+      feed.append(target)
+      document.body.append(feed)
+      view.rerender(<HqPlusInbox feed={feedOf(1, ['ap-1'])} filter="all" emptyText="" ctx={ctx} />)
+      view.unmount()
+      feed.dispatchEvent(new Event('pointerleave'))
+      expect(follow).not.toHaveBeenCalled()
+      feed.remove()
+    })
   })
 })

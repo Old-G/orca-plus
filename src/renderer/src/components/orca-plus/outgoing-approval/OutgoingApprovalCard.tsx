@@ -34,11 +34,15 @@ export function splitOutgoingApprovalBody(body: string | null): { head: string; 
  *  bell's card and the toast that pops for it. */
 export function OutgoingApprovalDecision({
   item,
-  onOpenChat = null
+  onOpenChat = null,
+  growsUp = false
 }: {
   item: PulseInboxItem
   /** Custom build (hq-plus-approve-to-chat): opens the chat that asked; decides nothing. */
   onOpenChat?: (() => void) | null
+  /** Custom build (hq-approve-steady): the box is pinned at its bottom (a toast), so a line added
+   *  below the buttons lifts them. */
+  growsUp?: boolean
 }): React.JSX.Element {
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
@@ -53,6 +57,15 @@ export function OutgoingApprovalDecision({
   const channel = outgoingApprovalHeadChannel(head)
   const wrongSpace = hqSpaceWrongChannel(spaces, outgoingApprovalHeadProject(head), channel)
   const canEdit = item.actions.some((action) => action.id === OUTGOING_APPROVAL_ACTION.edit)
+  // Why above the buttons in a toast and last elsewhere: a note that appears must not move them.
+  const heldNote = steady.held ? (
+    <p role="status" className="text-xs text-muted-foreground">
+      {translate(
+        'auto.outgoingApproval.movedUnderPointer',
+        'The card moved under the pointer — nothing was sent. Click again.'
+      )}
+    </p>
+  ) : null
 
   const decide = (
     outcome: PulseApprovalOutcome,
@@ -122,6 +135,7 @@ export function OutgoingApprovalDecision({
           (footer, another venue) appears below them, so Approve never moves under the pointer. The
           mark lets HQ+ style this row alone — its rule on any .justify-end also painted «Ask in … instead»
           as Approve, right under it. */}
+      {growsUp ? heldNote : null}
       <div className="flex justify-end gap-1" data-approval-decide="true">
         {editing === null ? (
           <>
@@ -206,15 +220,7 @@ export function OutgoingApprovalDecision({
           decide(editing === null ? 'approved' : 'edited', editing ?? undefined, { moveTo })
         }
       />
-      {/* Why last: a note that appears must not move the buttons above it. */}
-      {steady.held ? (
-        <p role="status" className="text-xs text-muted-foreground">
-          {translate(
-            'auto.outgoingApproval.movedUnderPointer',
-            'The card moved under the pointer — nothing was sent. Click again.'
-          )}
-        </p>
-      ) : null}
+      {growsUp ? null : heldNote}
     </div>
   )
 }
@@ -245,7 +251,8 @@ export function OutgoingApprovalToast({ item }: { item: PulseInboxItem }): React
       aria-label={translate(`auto.pulseBell.kind.${item.kind}.${item.urgency}`, item.title)}
       className="flex w-[var(--width)] max-w-[calc(100vw-32px)] flex-col gap-1.5 rounded-lg border border-destructive/50 bg-popover p-3 text-popover-foreground shadow-xs"
     >
-      <OutgoingApprovalDecision item={item} />
+      {/* Custom build (hq-approve-steady): sonner pins a bottom-right toast at its bottom edge. */}
+      <OutgoingApprovalDecision item={item} growsUp />
     </div>
   )
 }
