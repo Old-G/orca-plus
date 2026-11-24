@@ -37,7 +37,17 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+# Why: a path with `&`, `<` or `>` (`HQ & Notes/worktrees`) would make the plist invalid XML.
+xml() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+
 plist() {
+  local node root report home log path
+  node=$(xml "$NODE")
+  root=$(xml "$ROOT")
+  report=$(xml "$REPORT_DIR")
+  home=$(xml "$HOME")
+  log=$(xml "$LOG")
+  path=$(xml "$ORCA_BIN_DIR:$(dirname "$NODE"):/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin")
   cat <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -46,18 +56,18 @@ plist() {
   <key>Label</key><string>$LABEL</string>
   <key>ProgramArguments</key>
   <array>
-    <string>$NODE</string>
-    <string>$ROOT/scripts/orca-plus-worktree-sweep.mjs</string>
+    <string>$node</string>
+    <string>$root/scripts/orca-plus-worktree-sweep.mjs</string>
     <string>--apply</string>
     <string>--fetch</string>${REPORT_DIR:+
     <string>--report-dir</string>
-    <string>$REPORT_DIR</string>}
+    <string>$report</string>}
   </array>
-  <key>WorkingDirectory</key><string>$ROOT</string>
+  <key>WorkingDirectory</key><string>$root</string>
   <key>EnvironmentVariables</key>
   <dict>
-    <key>PATH</key><string>$ORCA_BIN_DIR:$(dirname "$NODE"):/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin</string>
-    <key>HOME</key><string>$HOME</string>
+    <key>PATH</key><string>$path</string>
+    <key>HOME</key><string>$home</string>
   </dict>
   <key>StartCalendarInterval</key>
   <dict>
@@ -67,8 +77,8 @@ plist() {
   <key>ProcessType</key><string>Background</string>
   <key>LowPriorityIO</key><true/>
   <key>Nice</key><integer>10</integer>
-  <key>StandardOutPath</key><string>$LOG</string>
-  <key>StandardErrorPath</key><string>$LOG</string>
+  <key>StandardOutPath</key><string>$log</string>
+  <key>StandardErrorPath</key><string>$log</string>
 </dict>
 </plist>
 PLIST
@@ -79,8 +89,15 @@ case "$cmd" in
   install)
     [ -n "$NODE" ] || { echo "worktree-sweep-launchd: node not found on PATH" >&2; exit 1; }
     mkdir -p "$(dirname "$PLIST")" "$(dirname "$LOG")"
-    plist > "$PLIST"
+    # Why staged: the running job is replaced only by a plist that parses (Codex P2 24.11).
+    plist > "$PLIST.new"
+    if ! plutil -lint -s "$PLIST.new"; then
+      rm -f "$PLIST.new"
+      echo "worktree-sweep-launchd: the new plist does not parse — the installed job is left as it was" >&2
+      exit 1
+    fi
     launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+    mv "$PLIST.new" "$PLIST"
     launchctl bootstrap "$DOMAIN" "$PLIST"
     echo "installed $LABEL — every day at $(printf '%02d:%02d' "$HOUR" "$MINUTE"), log $LOG"
     ;;
