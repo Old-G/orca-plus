@@ -13,6 +13,7 @@ import type { HqPlusProjectCardContext } from './HqPlusProjectParts'
 import { observeHqPlusNewRows } from './use-hq-plus-new-marks'
 import { HqPlusInbox } from './HqPlusInbox'
 import { hqPlusInboxQueue } from './hq-plus-inbox'
+import { hqPlusPointerOver } from './hq-plus-pointer-hold'
 
 type FeedTab = 'inbox' | 'projects'
 const TAB_KEY = 'orca-plus.hq-plus-feed-tab'
@@ -84,7 +85,9 @@ export function HqPlusProjectFeed({
     }
     const first = seenArrival.current === null
     seenArrival.current = arrival
-    if (first || atBottom.current) {
+    // Custom build (hq-approve-steady): a pointer over the feed may be aiming at a button — the new
+    // card waits under «↓ new» instead of the feed scrolling under it.
+    if (first || (atBottom.current && !hqPlusPointerOver(element))) {
       element.scrollTop = element.scrollHeight
     } else if (last) {
       setUnseen(last.unsorted ? 'Unsorted' : last.slug)
