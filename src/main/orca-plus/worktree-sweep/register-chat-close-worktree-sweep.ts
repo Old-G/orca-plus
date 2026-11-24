@@ -1,6 +1,7 @@
 // Custom build (worktree-sweep): Orca+'s half of the sweep after a chat close — the settings switch, the
 // open tabs, and running scripts/orca-plus-worktree-sweep.mjs with Orca+'s own Electron as Node.
 import { execFile } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from 'electron'
 import type { Store } from '../../persistence/loading-store/store'
@@ -30,14 +31,21 @@ function sweepScriptPath(): string {
 /** The child's environment: Electron as Node, this app's bundled `orca` and profile, no routing to elsewhere. */
 function sweepEnv(): NodeJS.ProcessEnv {
   const bin = join(process.resourcesPath, 'bin')
+  const profile = app.getPath('userData')
+  // The macOS bundle names its CLI `orca`, the Linux one `orca-ide`.
+  const cli = ['orca', 'orca-ide'].map((name) => join(bin, name)).find((path) => existsSync(path))
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     ELECTRON_RUN_AS_NODE: '1',
     PATH: [bin, process.env.PATH ?? '', '/usr/bin', '/bin', '/usr/sbin', '/sbin']
       .filter(Boolean)
       .join(':'),
-    ORCA_PLUS_SWEEP_ORCA: join(bin, 'orca'),
-    ORCA_USER_DATA_PATH: app.getPath('userData')
+    // Why both: the bundled launcher sets ORCA_USER_DATA_PATH from ORCA_PLUS_USER_DATA_PATH (Codex P1 24.11).
+    ORCA_USER_DATA_PATH: profile,
+    ORCA_PLUS_USER_DATA_PATH: profile
+  }
+  if (cli) {
+    env.ORCA_PLUS_SWEEP_ORCA = cli
   }
   for (const name of ROUTING_ENV) {
     delete env[name]

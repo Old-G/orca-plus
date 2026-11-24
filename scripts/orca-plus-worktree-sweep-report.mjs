@@ -137,10 +137,10 @@ export function mergeWeekReport(existing, now, night) {
 /**
  * What chat closes removed and kept since the last report, from the log. The last `run` line says how far
  * that report read (`readTo`, a byte offset); everything after it counts, whatever its time stamp, so a
- * close that finished while the night ran is in the next report (Codex P3 24.11). With no run yet: the
- * entries after `fallbackSince`. `readTo` of the result is where this read stopped.
+ * close that finished while the night ran is in the next report (Codex P3 24.11). With no run yet: every
+ * close in the log, so none is lost before the first report. `readTo` of the result is where this read stopped.
  */
-export function closesSince(logFile, fallbackSince) {
+export function closesSince(logFile) {
   const removed = []
   const kept = []
   let text = ''
@@ -168,9 +168,6 @@ export function closesSince(logFile, fallbackSince) {
       : lastRun.at + 1
   for (const { at, entry } of entries) {
     if (at < from || entry.trigger !== 'chat-close') {
-      continue
-    }
-    if (!lastRun && !(Date.parse(entry.at) > fallbackSince)) {
       continue
     }
     const name = `${entry.repo} · ${basename(entry.path ?? '')}`

@@ -49,7 +49,6 @@ import { homedir } from 'node:os'
 import { basename, dirname, join, relative, sep } from 'node:path'
 import {
   BACKUP_REF_PREFIX,
-  DAY_MS,
   HOUR_MS,
   OUTSIDE_ROOT,
   backupRefName,
@@ -65,7 +64,8 @@ import {
   MAX_COPY_FILES,
   archiveManifest,
   hiddenTracked,
-  ignoredManifest,
+  inspectIgnored,
+  lockCheckout,
   readStatus
 } from './orca-plus-worktree-sweep-files.mjs'
 import {
@@ -81,6 +81,7 @@ import {
   readProcesses
 } from './orca-plus-worktree-sweep-orca.mjs'
 import {
+  deleteBranch,
   fetchOrigin,
   git,
   gitTouchedAt,
@@ -127,13 +128,14 @@ function gitEvidence(ev, path, mainPath, branch, ctx) {
     return
   }
   ev.landedIn = landedIn(path, mainPath, branch)
-  if (!ev.landedIn && ctx.opts.fetch) {
+  // Why only with --apply: a dry run changes no ref, remote-tracking ones included (Codex P2 24.11).
+  if (!ev.landedIn && ctx.opts.fetch && ctx.opts.apply) {
     fetchOnce(mainPath, ctx.fetched)
     ev.landedIn = landedIn(path, mainPath, branch)
   }
   if (ev.landedIn) {
     const max = ctx.opts.maxCopyBytes
-    const manifest = ignoredManifest(path, status.ignored, max)
+    const manifest = inspectIgnored(path, status, max, { deep: true })
     ev.nestedCheckout = manifest.nested
     ev.ignoredUnreadable = manifest.unreadable
     ev.copyTooBig = !manifest.over
@@ -215,6 +217,7 @@ function gatherRepo(mainPath, ctx) {
       head: wt.head,
       orcaId: known?.id ?? null,
       orcaActivityAt: known?.lastActivityAt ?? 0,
+      orcaOpenTab: known?.openTab ?? false,
       landedIn: ev.landedIn,
       reasons,
       remove: reasons.length === 0
@@ -280,6 +283,10 @@ function recheck(row, ctx, { live, sig }) {
     if ((known?.lastActivityAt ?? 0) > row.orcaActivityAt) {
       return { why: 'active in Orca since the check' }
     }
+    // Why: a chat close does not count the tabs (Orca+ did), but one opened since then keeps it (Codex P2 24.11).
+    if (known?.openTab && !row.orcaOpenTab) {
+      return { why: 'a tab opened in it in Orca since the check' }
+    }
     const reasons = keepReasons({
       ...orcaEvidence(known, ctx.opts),
       underRoot: true,
@@ -309,7 +316,7 @@ function recheck(row, ctx, { live, sig }) {
   if (!hidden || hidden.length > 0) {
     return { why: 'tracked files hidden from git status' }
   }
-  const manifest = ignoredManifest(row.path, status.ignored, ctx.opts.maxCopyBytes)
+  const manifest = inspectIgnored(row.path, status, ctx.opts.maxCopyBytes, { deep: live })
   if (manifest.over || manifest.nested || manifest.unreadable) {
     return { why: 'its ignored files changed: too big, unreadable or a checkout inside' }
   }
@@ -320,6 +327,18 @@ function recheck(row, ctx, { live, sig }) {
 }
 
 function removeOne(row, ctx) {
+  const release = lockCheckout(ctx.opts.attic, row.path)
+  if (!release) {
+    return { ok: false, step: 'lock', err: 'another sweep is removing it' }
+  }
+  try {
+    return removeLocked(row, ctx)
+  } finally {
+    release()
+  }
+}
+
+function removeLocked(row, ctx) {
   const { now, log, opts } = ctx
   const before = recheck(row, ctx, { live: false })
   if (before.why) {
@@ -330,9 +349,19 @@ function removeOne(row, ctx) {
     row.branch ?? `detached-${basename(row.path)}`,
     row.head
   )
+  // Why: a backup ref another removal already wrote is that removal's; a failure here never drops it.
+  const ownBackup = !verified(row.mainPath, backup)
   const saved = git(row.mainPath, 'update-ref', backup, row.head)
   if (!saved.ok) {
     return { ok: false, step: 'backup ref', err: saved.err }
+  }
+  const undo = (copy) => {
+    if (ownBackup) {
+      git(row.mainPath, 'update-ref', '-d', backup, row.head)
+    }
+    if (copy) {
+      rmSync(copy, { force: true })
+    }
   }
   const copied = archiveManifest({
     repo: row.repo,
@@ -343,34 +372,26 @@ function removeOne(row, ctx) {
     attic: opts.attic
   })
   if (!copied.ok) {
-    git(row.mainPath, 'update-ref', '-d', backup, row.head)
+    undo(null)
     return { ok: false, step: 'copy of ignored files', err: copied.err }
   }
   // Why again after the copy: an agent may have committed, a tab opened or a process written meanwhile.
   const after = recheck(row, ctx, { live: true, sig: before.manifest.sig })
   if (after.why) {
-    git(row.mainPath, 'update-ref', '-d', backup, row.head)
-    if (copied.copy) {
-      rmSync(copied.copy, { force: true })
-    }
+    undo(copied.copy)
     return { ok: false, step: 'check before removal', err: after.why }
   }
+  // Why no --delete-branch: Orca would delete the branch wherever it points by then; deleteBranch() checks.
   const removed = row.orcaId
-    ? run(
-        ORCA_CLI,
-        ['worktree', 'rm', '--worktree', `id:${row.orcaId}`, '--delete-branch', '--json'],
-        { timeout: 180_000 }
-      )
+    ? run(ORCA_CLI, ['worktree', 'rm', '--worktree', `id:${row.orcaId}`, '--json'], {
+        timeout: 180_000
+      })
     : git(row.mainPath, 'worktree', 'remove', row.path)
   if (!removed.ok || existsSync(row.path)) {
     return { ok: false, step: 'remove', err: removed.err || removed.out || 'folder still there' }
   }
-  // Why: landedIn() proved the work is in the base; Orca keeps a branch it cannot prove merged (a rebased
-  // base). Only at the backed-up tip: a branch that moved meanwhile stays (Codex P1 24.11).
-  const branchDeleted =
-    !row.branch ||
-    !verified(row.mainPath, `refs/heads/${row.branch}`) ||
-    git(row.mainPath, 'update-ref', '-d', `refs/heads/${row.branch}`, row.head).ok
+  // Why: landedIn() proved the work is in the base; Orca keeps a branch it cannot prove merged (a rebased base).
+  const branchDeleted = deleteBranch(row)
   log({
     event: 'removed',
     repo: row.repo,
@@ -495,7 +516,7 @@ function writeReport(opts, now, rows, results, logFile) {
       reasons: [`removal failed at ${r.result.step}${r.result.err ? `: ${r.result.err}` : ''}`]
     }))
   ]
-  const onClose = closesSince(logFile, now - DAY_MS)
+  const onClose = closesSince(logFile)
   const night = renderNight({
     now,
     removed: removed.map((r) => ({ repo: r.repo, name: displayName(r) })),
