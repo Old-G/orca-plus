@@ -4,11 +4,11 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
-import { OutgoingApprovalDecision } from './OutgoingApprovalCard'
+import { OutgoingApprovalDecision, OutgoingApprovalToast } from './OutgoingApprovalCard'
 import { STEADY_SETTLE_MS } from './use-steady-click'
 
 vi.mock('../hq/use-hq-spaces', () => ({
-  useHqSpaces: () => ({ spaces: [] }),
+  useHqSpaces: () => ({ spaces: [], stripeOf: () => null }),
   hqSpaceStripeStyle: () => undefined
 }))
 // The venue loaded at once, so the card has the button that took the misclick (owner, 24.11).
@@ -135,6 +135,66 @@ it('holds a click on a card that appeared under a pointer that never moved', () 
   const { approve } = setup()
   mouseClick(approve)
   expect(decide).not.toHaveBeenCalled()
+})
+
+// Review 24.11: the jump was seen only by a move that landed on a button.
+it('holds a click after the card jumped while the pointer crossed its text', () => {
+  const { move } = setup()
+  const text = screen.getByText('Hello Ann')
+  fireEvent.pointerMove(text)
+  now += 50
+  tops.set(screen.getByRole('button', { name: 'Approve' }), 240)
+  tops.set(move, 300)
+  fireEvent.pointerMove(text)
+  now += 100
+  fireEvent.pointerMove(move)
+  now += 100
+  mouseClick(move)
+  expect(decide).not.toHaveBeenCalled()
+})
+
+// Review 24.11: «Click again» was not taken until the mouse moved, and then only after the settle time.
+it('takes «Click again» on the same unmoved button without a pointer move, once the note was up', () => {
+  const { approve } = setup()
+  mouseClick(approve)
+  expect(screen.getByRole('status')).toHaveTextContent('Click again')
+  now += 100
+  mouseClick(approve)
+  expect(decide).not.toHaveBeenCalled()
+
+  now += STEADY_SETTLE_MS
+  mouseClick(approve)
+  expect(decide).toHaveBeenCalledTimes(1)
+  expect(decide.mock.calls[0]?.[1]).toBe('approved')
+})
+
+it('holds «Click again» if the button moved once more after the held click', () => {
+  const { approve } = setup()
+  mouseClick(approve)
+  tops.set(approve, 200)
+  now += STEADY_SETTLE_MS
+  mouseClick(approve)
+  expect(decide).not.toHaveBeenCalled()
+})
+
+const isBefore = (a: Element, b: Element): boolean =>
+  Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+it('puts the held note under the buttons in the feed and the bell', () => {
+  const { approve, move } = setup()
+  mouseClick(approve)
+  const note = screen.getByRole('status')
+  expect(isBefore(approve, note)).toBe(true)
+  expect(isBefore(move, note)).toBe(true)
+})
+
+// Review 24.11: a toast is pinned at its bottom, so a note under the buttons lifted them by a line.
+it('puts the held note above the buttons in a toast', () => {
+  render(<OutgoingApprovalToast item={item} />)
+  const approve = screen.getByRole('button', { name: 'Approve' })
+  mouseClick(approve)
+  expect(decide).not.toHaveBeenCalled()
+  expect(isBefore(screen.getByRole('status'), approve)).toBe(true)
 })
 
 it('takes a key press on a focused button whatever moved', () => {
