@@ -1,8 +1,17 @@
 // Custom build (worktree-sweep): the pure rules and the report of scripts/orca-plus-worktree-sweep.mjs.
 // Run: node --test scripts/orca-plus-worktree-sweep.test.mjs
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import {
+  appendFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -33,7 +42,11 @@ import {
   reasonGroup,
   renderNight
 } from './orca-plus-worktree-sweep-report.mjs'
-import { archiveManifest, ignoredManifest } from './orca-plus-worktree-sweep-files.mjs'
+import {
+  archiveManifest,
+  ignoredManifest,
+  lockCheckout
+} from './orca-plus-worktree-sweep-files.mjs'
 
 const HOUR = 3_600_000
 const finished = {
@@ -480,7 +493,39 @@ test('the manifest keeps a file git lists under a cache-named folder; caches bel
   assert.deepEqual(missingFromListing(manifest.paths, listing), [])
   assert.ok(!listing.includes('node_modules'))
   assert.ok(listing.includes('build/customer-export.csv'))
+  // A third copy finds both names taken and fails; neither earlier copy is replaced (Codex P1 24.11).
+  const inodes = [one.copy, two.copy].map((path) => statSync(path).ino)
+  assert.equal(archiveManifest(args).ok, false)
+  assert.deepEqual(
+    [one.copy, two.copy].map((path) => statSync(path).ino),
+    inodes
+  )
   // A manifest path tar cannot read fails the copy rather than passing short.
   assert.equal(archiveManifest({ ...args, paths: ['gone.txt'] }).ok, false)
   rmSync(dir, { recursive: true, force: true })
+})
+
+test("a checkout lock has one holder; a gone holder's lock is taken over, a live one is not (Codex P1 24.11)", () => {
+  const attic = mkdtempSync(join(tmpdir(), 'sweep-lock-'))
+  const locks = join(attic, 'locks')
+  const release = lockCheckout(attic, '/wt/acme')
+  assert.ok(release)
+  const [file] = readdirSync(locks)
+  assert.match(file, /^[0-9a-f]{16}\.lock$/)
+  assert.equal(lockCheckout(attic, '/wt/acme'), null)
+  assert.ok(lockCheckout(attic, '/wt/other'), 'another checkout has a lock of its own')
+  release()
+  writeFileSync(join(locks, file), `${spawnSync('true').pid}\n`)
+  const taken = lockCheckout(attic, '/wt/acme')
+  assert.ok(taken, 'the lock of a process that is gone')
+  assert.equal(readFileSync(join(locks, file), 'utf8'), `${process.pid}\n`)
+  taken()
+  writeFileSync(join(locks, file), `${process.ppid}\n`)
+  assert.equal(lockCheckout(attic, '/wt/acme'), null)
+  assert.equal(readFileSync(join(locks, file), 'utf8'), `${process.ppid}\n`)
+  assert.ok(
+    readdirSync(locks).every((name) => name.endsWith('.lock')),
+    'no own or set-aside files left'
+  )
+  rmSync(attic, { recursive: true, force: true })
 })

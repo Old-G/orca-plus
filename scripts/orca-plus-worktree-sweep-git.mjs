@@ -63,11 +63,24 @@ export function fetchOrigin(mainPath) {
         SSH_ASKPASS: 'false',
         SSH_ASKPASS_REQUIRE: 'never',
         GCM_INTERACTIVE: 'never',
-        // Why not an inherited one: it may ask for a passphrase; ~/.ssh/config still applies.
-        GIT_SSH_COMMAND: 'ssh -o BatchMode=yes -o ConnectTimeout=20'
+        ...batchSsh(mainPath)
       }
     }
   )
+}
+
+/**
+ * The repo's own ssh command (inherited GIT_SSH_COMMAND, else core.sshCommand, else plain ssh) told to run
+ * in batch mode, so a repo-specific identity still applies and a passphrase is never asked for (Codex P2
+ * 24.11, third review). A GIT_SSH program takes no options; it is left as it is.
+ */
+function batchSsh(mainPath) {
+  const own =
+    process.env.GIT_SSH_COMMAND || git(mainPath, 'config', '--get', 'core.sshCommand').out || ''
+  if (!own && process.env.GIT_SSH) {
+    return {}
+  }
+  return { GIT_SSH_COMMAND: `${own || 'ssh'} -o BatchMode=yes -o ConnectTimeout=20` }
 }
 
 /**
@@ -231,7 +244,9 @@ export function repoBusy(mainPath) {
 /**
  * Deletes the removed worktree's branch, only at the tip that was backed up (one that moved meanwhile
  * stays) and only when no other checkout has it out — a forced second checkout or the main one would be
- * left on an unborn HEAD (Codex P1 24.11). True when no such branch is left.
+ * left on an unborn HEAD (Codex P1 24.11), and a rebase under way shows a detached HEAD in place of the
+ * branch it rewrites (third review). Its config (upstream, pushRemote) goes with it, as `git branch -D`
+ * does, so a later branch of the same name does not push where this one did. True when none is left.
  */
 export function deleteBranch(row) {
   if (!row.branch || !verified(row.mainPath, `refs/heads/${row.branch}`)) {
@@ -240,10 +255,16 @@ export function deleteBranch(row) {
   const listed = git(row.mainPath, 'worktree', 'list', '--porcelain')
   const usedElsewhere =
     !listed.ok ||
+    repoBusy(row.mainPath) ||
     parseWorktreePorcelain(listed.out).some(
       (wt) => real(wt.path) !== row.path && wt.branch === row.branch
     )
-  return (
-    !usedElsewhere && git(row.mainPath, 'update-ref', '-d', `refs/heads/${row.branch}`, row.head).ok
-  )
+  if (
+    usedElsewhere ||
+    !git(row.mainPath, 'update-ref', '-d', `refs/heads/${row.branch}`, row.head).ok
+  ) {
+    return false
+  }
+  git(row.mainPath, 'config', '--remove-section', `branch.${row.branch}`)
+  return true
 }
