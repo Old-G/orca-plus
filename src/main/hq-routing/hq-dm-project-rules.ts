@@ -19,10 +19,12 @@ export function resolveHqDmProjectRules(
         (candidate) =>
           candidate.slackUserId === named || candidate.name.toLocaleLowerCase() === wanted
       )
-      if (!person?.slackUserId) {
+      // Why: a Slack id names the DM by itself, known to people or not.
+      const slackUserId = person?.slackUserId ?? (/^[UW][A-Z0-9]+$/.test(named) ? named : null)
+      if (!slackUserId) {
         unknown.push(named)
-      } else if (!resolved.has(person.slackUserId)) {
-        resolved.set(person.slackUserId, rule.project)
+      } else if (!resolved.has(slackUserId)) {
+        resolved.set(slackUserId, rule.project)
       }
     }
   }
