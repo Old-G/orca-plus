@@ -4,6 +4,7 @@ import { parse } from 'yaml'
 import {
   HQ_ROUTING_DEFAULT_MIN_FREE,
   HQ_ROUTING_DO,
+  type HqDmProjectRule,
   type HqFindingRule,
   type HqRouting
 } from '../../shared/hq-routing'
@@ -12,7 +13,8 @@ import type { HqLadder } from '../../shared/hq-ladder'
 
 const FINDING_KIND = 'review.finding'
 const REPLY_KIND = 'person.reply'
-const KNOWN_KEYS = new Set([FINDING_KIND, REPLY_KIND, 'min_free', 'ladder'])
+const INTAKE_PROJECT_KIND = 'intake.project'
+const KNOWN_KEYS = new Set([FINDING_KIND, REPLY_KIND, INTAKE_PROJECT_KIND, 'min_free', 'ladder'])
 
 function field(value: unknown, key: string): unknown {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -94,6 +96,31 @@ function readReplyRule(raw: unknown, problems: string[]): HqReplyRule | null {
   return null
 }
 
+// Custom build (hq-dm-default-project, owner 24.11): `- when: {dm: [Ann, Bob]}  project: HQ`.
+function readDmProjectRules(raw: unknown, problems: string[]): HqDmProjectRule[] {
+  if (raw === undefined || raw === null) {
+    return []
+  }
+  if (!Array.isArray(raw)) {
+    problems.push(`${INTAKE_PROJECT_KIND} must be a list of rules`)
+    return []
+  }
+  const rules: HqDmProjectRule[] = []
+  for (const [index, rule] of raw.entries()) {
+    const dm = field(field(rule, 'when'), 'dm')
+    const people = (Array.isArray(dm) ? dm : [dm])
+      .map((person) => (typeof person === 'string' ? person.trim() : ''))
+      .filter(Boolean)
+    const project = field(rule, 'project')
+    if (people.length === 0 || typeof project !== 'string' || !project.trim()) {
+      problems.push(`${INTAKE_PROJECT_KIND}[${index}]: takes when.dm (people) and a project`)
+      continue
+    }
+    rules.push({ people, project: project.trim() })
+  }
+  return rules
+}
+
 const LADDER_KEY = 'ladder'
 const STEPS = [0, 1, 2, 3] as const
 
@@ -124,6 +151,7 @@ function readLadder(raw: unknown, problems: string[]): HqLadder {
 export function parseHqRouting(text: string | null): HqRouting {
   const routing: HqRouting = {
     findings: [],
+    dmProjects: [],
     replies: null,
     minFreePercent: HQ_ROUTING_DEFAULT_MIN_FREE,
     ladder: {},
@@ -173,6 +201,7 @@ export function parseHqRouting(text: string | null): HqRouting {
   if (replies !== undefined && replies !== null) {
     routing.replies = readReplyRule(replies, routing.problems)
   }
+  routing.dmProjects = readDmProjectRules(field(doc, INTAKE_PROJECT_KIND), routing.problems)
   routing.ladder = readLadder(field(doc, LADDER_KEY), routing.problems)
   return routing
 }
