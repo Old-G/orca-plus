@@ -199,10 +199,7 @@ test('the night: what goes, what stays and why, on a real repo', async () => {
     // Its tip is kept, its branch gone; the Orca-known one went through `orca worktree rm`.
     assert.equal(git(main, 'rev-parse', doneResult.backup), git(main, 'rev-parse', 'main'))
     assert.equal(git(main, 'branch', '--list', 'done'), '')
-    assert.match(
-      readFileSync(orca.calls, 'utf8'),
-      /^worktree rm --worktree id:id-known --delete-branch$/m
-    )
+    assert.match(readFileSync(orca.calls, 'utf8'), /^worktree rm --worktree id:id-known$/m)
     assert.ok(existsSync(join(dir, 'reports')))
     const log = readFileSync(join(dir, 'sweep.log'), 'utf8')
     assert.match(log, /"event":"run".*"readTo":\d+/)

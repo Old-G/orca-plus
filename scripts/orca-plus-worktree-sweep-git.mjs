@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import {
   firstReflogCommit,
   lastReflogAt,
+  parseWorktreePorcelain,
   subjectsLanded
 } from './orca-plus-worktree-sweep-rules.mjs'
 
@@ -62,20 +63,26 @@ export function fetchOrigin(mainPath) {
         SSH_ASKPASS: 'false',
         SSH_ASKPASS_REQUIRE: 'never',
         GCM_INTERACTIVE: 'never',
-        GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND ?? 'ssh -o BatchMode=yes -o ConnectTimeout=20'
+        // Why not an inherited one: it may ask for a passphrase; ~/.ssh/config still applies.
+        GIT_SSH_COMMAND: 'ssh -o BatchMode=yes -o ConnectTimeout=20'
       }
     }
   )
 }
 
 /**
- * The folder is the main checkout of its own repo: git run there finds this folder as the top and its
- * `.git` as the common dir. A folder project inside another repo (`/src/acme/docs`) is not (Codex P1 24.11).
+ * The folder is the main checkout of its own repo: git run there finds this folder as the top, and its git
+ * dir is the repo's common dir (a linked worktree's is `.git/worktrees/<name>`; `--separate-git-dir` keeps
+ * it elsewhere, which is fine). A folder project inside another repo (`/src/acme/docs`) is not (Codex P1 24.11).
  */
 export function isMainCheckout(path) {
   const top = git(path, 'rev-parse', '--show-toplevel')
-  const common = git(path, 'rev-parse', '--path-format=absolute', '--git-common-dir')
-  return top.ok && common.ok && real(top.out) === path && real(common.out) === join(path, '.git')
+  const dirs = git(path, 'rev-parse', '--path-format=absolute', '--git-dir', '--git-common-dir')
+  if (!top.ok || !dirs.ok) {
+    return false
+  }
+  const [gitDir, commonDir] = dirs.out.split('\n')
+  return real(top.out) === path && !!gitDir && real(gitDir) === real(commonDir)
 }
 export const gitRaw = (cwd, ...args) => run('git', ['-C', cwd, ...args], { raw: true })
 export const verified = (cwd, ref) => git(cwd, 'rev-parse', '--verify', '-q', `${ref}^{commit}`).ok
@@ -219,4 +226,24 @@ export function repoBusy(mainPath) {
     dirs.push(...readdirSync(wtDir).map((d) => join(wtDir, d)))
   }
   return dirs.some((dir) => marks.some((mark) => existsSync(join(dir, mark))))
+}
+
+/**
+ * Deletes the removed worktree's branch, only at the tip that was backed up (one that moved meanwhile
+ * stays) and only when no other checkout has it out — a forced second checkout or the main one would be
+ * left on an unborn HEAD (Codex P1 24.11). True when no such branch is left.
+ */
+export function deleteBranch(row) {
+  if (!row.branch || !verified(row.mainPath, `refs/heads/${row.branch}`)) {
+    return true
+  }
+  const listed = git(row.mainPath, 'worktree', 'list', '--porcelain')
+  const usedElsewhere =
+    !listed.ok ||
+    parseWorktreePorcelain(listed.out).some(
+      (wt) => real(wt.path) !== row.path && wt.branch === row.branch
+    )
+  return (
+    !usedElsewhere && git(row.mainPath, 'update-ref', '-d', `refs/heads/${row.branch}`, row.head).ok
+  )
 }
