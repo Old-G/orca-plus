@@ -15,7 +15,8 @@
 #   T17 --publish after a verified sync  → exit 0, fork's custom equals custom, its main mirrors upstream
 #   T18 --publish when that remote moved → exit 4, the foreign commit survives, custom intact
 #   T19 a resolution that drops our line → exit 5, guard names it, publish blocked until
-#       SYNC_GUARD_ACCEPT explains it; --unattended rolls back instead
+#       SYNC_GUARD_ACCEPT explains it with the fingerprint of these findings (an older acceptance
+#       file covers none of a new loss); --unattended rolls back instead
 #   T23 --ci-verify                      → no local checks, stack pushed to sync/<ts>, the sync
 #       branch's own workflow dispatched and its run id taken from the answer, workflow
 #       dispatched with the fork's old custom as the lease; custom itself not pushed;
@@ -53,6 +54,9 @@ sync_run() {
   RC=$?
   set -e
 }
+
+# The `guard-accept <fingerprint>` lines the last run asked for.
+accept_lines() { printf '%s\n' "$OUT" | sed -n 's/^ *\(guard-accept [0-9a-f][0-9a-f]*\)$/\1/p' | sort -u; }
 
 upstream_commit() { # file content message
   (cd "$WORK/up-work" && printf '%s\n' "$2" >"$1" && g add "$1" && g commit -qm "$3" && g push -q origin main)
@@ -102,7 +106,8 @@ echo "T3 manual resolve + --continue"
 printf 'demo-feature: line2 merged with upstream on purpose (test)\n' >"$WORK/accept-line2.md"
 export SYNC_GUARD_ACCEPT="$WORK/accept-line2.md"
 sync_run --continue --skip-checks
-check "exit 0" '[ "$RC" = 0 ]'
+check "an explanation without the fingerprint accepts nothing → exit 5" '[ "$RC" = 5 ] && printf "%s" "$OUT" | grep -q "guard-accept "'
+accept_lines >>"$WORK/accept-line2.md"
 check "resolution committed" '(cd "$WORK/fork" && git show custom:app.txt | grep -qx "line2 UPSTREAM+FEATURE")'
 check "rerere cache has an entry" '[ -n "$(ls "$WORK/fork/.git/rr-cache" 2>/dev/null)" ]'
 
@@ -320,6 +325,7 @@ check "T19 not published" '[ "$(git --git-dir="$WORK/published.git" rev-parse cu
 sync_run --publish
 check "T19 a rerun with nothing new still refuses to publish" '[ "$RC" = 5 ] && printf "%s" "$OUT" | grep -q "не принята"'
 printf 'demo-b: upstream took over other.txt on purpose (test)\n' >"$WORK/accept.md"
+accept_lines >>"$WORK/accept.md"
 (cd "$WORK/fork" && git fetch -q origin)
 SYNC_GUARD_ACCEPT="$WORK/accept.md" sync_run --publish
 check "T19 explained → exit 0" '[ "$RC" = 0 ]'
@@ -353,10 +359,18 @@ OLD_PUB=$(git --git-dir="$WORK/published.git" rev-parse custom)
 printf "demo-c: upstream took it and dropped it (test)\n" >>"$WORK/accept.md"
 upstream_commit other.txt "ci-1" "upstream: before ci verify"
 OLD_LOCAL=$(cd "$WORK/fork" && git rev-parse custom)
-set +e
-OUT=$(cd "$WORK/fork" && PATH="$WORK/gh-bin:$PATH" SYNC_CHECKS_CMD=false SYNC_GUARD_ACCEPT="$WORK/accept.md" "$SYNC" --ci-verify 2>&1)
-RC=$?
-set -e
+t23_run() {
+  set +e
+  OUT=$(cd "$WORK/fork" && PATH="$WORK/gh-bin:$PATH" SYNC_CHECKS_CMD=false SYNC_GUARD_ACCEPT="$WORK/accept.md" "$SYNC" --ci-verify 2>&1)
+  RC=$?
+  set -e
+}
+# First without the new loss's fingerprint: blocked, nothing sent. Then the same sync again, accepted.
+t23_run
+check "T23 an older acceptance does not cover a new loss → exit 5, nothing sent" '[ "$RC" = 5 ] && [ ! -s "$GH_LOG" ]'
+accept_lines >>"$WORK/accept.md"
+(cd "$WORK/fork" && git update-ref refs/heads/custom "$OLD_LOCAL" && rm -f .git/custom-sync/guard-blocked)
+t23_run
 NEW_CUSTOM=$(cd "$WORK/fork" && git rev-parse custom)
 check "T23 exit 0 although local checks would fail" '[ "$RC" = 0 ]'
 check "T23 stack pushed to sync/<ts>" '[ "$(git --git-dir="$WORK/published.git" for-each-ref --format="%(objectname)" "refs/heads/sync/*")" = "$NEW_CUSTOM" ]'
@@ -411,9 +425,10 @@ echo "T26 the guard runs on a resent stack before it goes to promotion"
 (cd "$WORK/fork" && git checkout -q custom && git rm -q t24.txt && g commit -qm "fixup! custom(demo-d): t24" \
   && git checkout -q main)
 BEFORE_DISPATCHES=$(dispatches)
-ci_run "$SYNC" --ci-verify
-check "T26 a fixup that drops our feature → exit 5, not dispatched" '[ "$RC" = 5 ] && printf "%s" "$OUT" | grep -q "demo-d" && [ "$(dispatches)" = "$BEFORE_DISPATCHES" ]'
+ci_run SYNC_GUARD_ACCEPT="$WORK/accept.md" "$SYNC" --ci-verify
+check "T26 a fixup that drops our feature → exit 5, not dispatched, the earlier acceptance file does not cover it" '[ "$RC" = 5 ] && printf "%s" "$OUT" | grep -q "demo-d" && [ "$(dispatches)" = "$BEFORE_DISPATCHES" ]'
 printf 'demo-d: t24 removed on purpose (test)\n' >"$WORK/accept-d.md"
+accept_lines >>"$WORK/accept-d.md"
 ci_run SYNC_GUARD_ACCEPT="$WORK/accept-d.md" "$SYNC" --ci-verify
 check "T26 explained → dispatched" '[ "$RC" = 0 ] && [ "$(dispatches)" -gt "$BEFORE_DISPATCHES" ]'
 check "T26 the rollback target is the local head, not the published one" '[ "$(cut -d" " -f6 "$WORK/fork/.git/custom-sync/ci-run")" = "$(cd "$WORK/fork" && git rev-parse custom)" ]'
