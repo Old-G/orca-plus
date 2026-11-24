@@ -16,7 +16,7 @@ const HELD_MS = 4000
 
 type Spot = { top: number; left: number }
 type Seen = {
-  /** The button the pointer went for (null: none of these, or one it reached as the card moved). */
+  /** The button the pointer is on (null: none of these). */
   button: HTMLElement | null
   spot: Spot | null
   /** Where the card was. */
@@ -24,6 +24,9 @@ type Seen = {
   /** The pointer was over the card, its text or its buttons. */
   over: boolean
   at: number
+  /** When the button counts as the one it went for: a button reached just as the card moved only
+   *  once it has sat still under the pointer for the settle time. */
+  trustedFrom: number
 }
 
 function spotOf(element: Element | null | undefined): Spot | null {
@@ -70,9 +73,10 @@ export function useSteadyClick(): {
     button: HTMLElement | null,
     over: boolean,
     at: number,
-    where: Spot | null = anchor()
+    where: Spot | null = anchor(),
+    trustedFrom = Number.NEGATIVE_INFINITY
   ): void => {
-    seen.current = { button, spot: spotOf(button), anchor: where, over, at }
+    seen.current = { button, spot: spotOf(button), anchor: where, over, at, trustedFrom }
   }
 
   useEffect(() => {
@@ -98,14 +102,18 @@ export function useSteadyClick(): {
           shiftAt.current = now
         }
       }
-      let button = buttonAt(event.target)
+      const button = buttonAt(event.target)
       // Why: a pointer that reaches a button this soon after the card moved may have been sent for
-      // the one that was there; the button counts once a move finds it after the settle time.
-      if (button !== null && button !== last?.button && now - shiftAt.current < STEADY_SETTLE_MS) {
-        button = null
+      // the one that was there; that button counts once it has sat still under the pointer for the
+      // settle time — a still click after reading is taken, a quick one or «Click again» is not.
+      let trustedFrom = Number.NEGATIVE_INFINITY
+      if (button !== null && last !== null && button === last.button) {
+        trustedFrom = last.trustedFrom
+      } else if (button !== null && now - shiftAt.current < STEADY_SETTLE_MS) {
+        trustedFrom = now + STEADY_SETTLE_MS
       }
       point = { x: event.clientX, y: event.clientY }
-      look(button, inCard(event.target), now, where)
+      look(button, inCard(event.target), now, where, trustedFrom)
     }
     const onDown = (event: PointerEvent): void => {
       // Why: a finger or a pen has no hover to aim with — it lands on what the owner sees there now.
@@ -179,7 +187,7 @@ export function useSteadyClick(): {
     const last = seen.current
     // Why: a jitter back onto the button that slid in, right after the note came up, is not a read.
     const slidHere = slid.current?.button === button && now - slid.current.at < STEADY_SETTLE_MS
-    const wentFor = last !== null && last.button === button && !slidHere
+    const wentFor = last !== null && last.button === button && now >= last.trustedFrom && !slidHere
     const aimed =
       wentFor &&
       last !== null &&
