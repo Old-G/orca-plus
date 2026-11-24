@@ -12,6 +12,7 @@ import {
 import type { PulseCore } from './pulse-core'
 import { closeWaiting } from './pulse-waitings'
 import { ledgerRuleOf } from './pulse-ledger-feed'
+import { ledgerDmRuleIn } from './pulse-ledger-dm-rules'
 import { conversationLastAt, noteSendingChat } from './pulse-ledger-chat'
 import { conversationIdByKey, incomingState, personOf } from './pulse-ledger-rows'
 import { linkWaitingAnswer, waitingsAnsweredBy } from './pulse-ledger-answer'
@@ -150,10 +151,12 @@ export function ingestLedgerSignal(core: PulseCore, signal: HqLedgerSignal): HqL
         step = 'which'
       }
     }
+    // Custom build (hq-dm-default-project): a DM's routing.yaml project beats every guess below.
+    const dmRule = ledgerDmRuleIn(core, signal, conversationId)
     if (!conversationId) {
       const replied = atPlace.find((waiting) => waiting.project)?.project ?? null
       // Custom build (hq-ledger-feed): the channel's rule the owner set in HQ+, after the reader's own.
-      const ruled = signal.project ?? (replied ? null : ledgerRuleOf(core, signal.key))
+      const ruled = dmRule ?? signal.project ?? (replied ? null : ledgerRuleOf(core, signal.key))
       conversationId = createConversation(
         core,
         signal.key,

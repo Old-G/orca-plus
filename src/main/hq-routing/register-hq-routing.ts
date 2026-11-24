@@ -13,6 +13,7 @@ import { createHqRouting, provideHqRouting } from './hq-routing'
 import { createHqMergeSlots, provideHqMergeSlots } from './hq-merge-slot'
 import { createHqReplyRouting, HQ_REPLY_HOLD_MS, provideHqReplyRouting } from './hq-routing-replies'
 import { parseHqRouting } from './hq-routing-rules'
+import { resolveHqDmProjectRules } from './hq-dm-project-rules'
 import { join } from 'node:path'
 import { HQ_ROUTING_FILE } from '../../shared/hq-routing'
 import { HQ_JOURNAL_UNASSIGNED } from '../../shared/hq-journal'
@@ -212,7 +213,26 @@ export function registerHqRouting(
       }
     }
   })
+  // Custom build (hq-dm-default-project): routing.yaml's DM projects, in the ledger before its next read.
+  const syncDmRules = async (): Promise<void> => {
+    const hq = hqPath()
+    if (!hq || store.getSettings().hqPlusJournalEnabled === false) {
+      return
+    }
+    const routing = parseHqRouting(await readText(join(hq, HQ_ROUTING_FILE)))
+    const { rules, unknown } = resolveHqDmProjectRules(
+      routing.dmProjects,
+      runtime.pulseListPeople()
+    )
+    if (runtime.pulseReplaceLedgerDmRules(rules) && unknown.length > 0) {
+      console.warn(`[hq-routing] intake.project: no Slack id for ${unknown.join(', ')}`)
+    }
+  }
+  void syncDmRules().catch((error: unknown) => console.warn('[hq-routing] DM rules failed:', error))
   const tick = (): void => {
+    void syncDmRules().catch((error: unknown) =>
+      console.warn('[hq-routing] DM rules failed:', error)
+    )
     if (!claudeBackgroundAllows('HQ routing')) {
       return
     }
