@@ -220,6 +220,10 @@ export function registerHqRouting(
       return
     }
     const routing = parseHqRouting(await readText(join(hq, HQ_ROUTING_FILE)))
+    // Why: a file caught half-saved would wipe every DM rule until the next pass.
+    if (routing.problems.some((problem) => problem.startsWith('routing.yaml'))) {
+      return
+    }
     const { rules, unknown } = resolveHqDmProjectRules(
       routing.dmProjects,
       runtime.pulseListPeople()

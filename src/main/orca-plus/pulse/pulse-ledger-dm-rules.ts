@@ -90,4 +90,5 @@ function applyLedgerDmRule(core: PulseCore, conversationId: string, project: str
     .prepare(`UPDATE conversations SET project = ?, project_how = 'rule' WHERE id = ?`)
     .run(project, conversationId)
   noteConversationProjectGuess(core, conversationId)
+  core.emit('conversation.updated', 'conversation', conversationId, { project })
 }
