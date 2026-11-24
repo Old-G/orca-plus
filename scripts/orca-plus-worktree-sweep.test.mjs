@@ -1,19 +1,35 @@
-// Custom build (worktree-sweep): the pure rules of scripts/orca-plus-worktree-sweep.mjs.
+// Custom build (worktree-sweep): the pure rules and the report of scripts/orca-plus-worktree-sweep.mjs.
 // Run: node --test scripts/orca-plus-worktree-sweep.test.mjs
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { test } from 'node:test'
 import {
   backupRefDay,
   backupRefName,
+  copyFileName,
   firstReflogCommit,
+  formatBytes,
   isBackupExpired,
+  isCacheName,
   keepReasons,
   lastReflogAt,
   normalizeSubject,
+  parseLsofCwd,
+  parseStatusZ,
   parseWorktreePorcelain,
+  processInside,
   subjectsLanded
-} from './orca-plus-worktree-sweep.mjs'
+} from './orca-plus-worktree-sweep-rules.mjs'
+import {
+  closesSince,
+  isoWeek,
+  mergeWeekReport,
+  reasonGroup,
+  renderNight
+} from './orca-plus-worktree-sweep-report.mjs'
 
 const HOUR = 3_600_000
 const finished = {
@@ -37,16 +53,23 @@ test('a finished worktree goes', () => {
 test('each guard alone keeps it', () => {
   const cases = [
     [{ isMain: true }, 'main checkout'],
-    [{ underRoot: false }, 'outside the workspace folder'],
+    [{ underRoot: false }, 'outside --root'],
     [{ locked: true }, 'locked'],
     [{ pinned: true }, 'pinned in Orca'],
     [{ orcaUnread: true }, 'Orca did not report its agents'],
     [{ liveAgent: true }, 'an agent is still working'],
     [{ liveTerminal: true }, 'a terminal is live'],
+    [{ onScreen: true }, 'open on screen in Orca'],
+    [{ liveProcess: 'zsh (pid 7)' }, 'a process works in it: zsh (pid 7)'],
+    [{ processesUnread: true }, 'running processes unread (lsof)'],
     [{ idleMs: 3 * HOUR }, 'active 3 h ago'],
     [{ dirtyCount: 2 }, '2 uncommitted file(s)'],
     [{ dirtyCount: null }, 'git status unreadable'],
-    [{ landedIn: null }, 'has work not in the base branch']
+    [{ landedIn: null }, 'has work not in the base branch'],
+    [
+      { copyTooBig: 'over 1.0 GB' },
+      'over 1.0 GB of ignored files beyond caches — too big to keep a copy'
+    ]
   ]
   for (const [patch, reason] of cases) {
     assert.deepEqual(keepReasons({ ...finished, ...patch }), [reason], JSON.stringify(patch))
@@ -182,4 +205,143 @@ test('a shortened backup ref is accepted by git', () => {
     'b'.repeat(40)
   )
   assert.doesNotThrow(() => execFileSync('git', ['check-ref-format', ref], { stdio: 'ignore' }))
+})
+
+test('status -z: edits keep it, ignored caches are not copied, other ignored files are', () => {
+  const text = [
+    ' M src/a.ts',
+    'R  new.ts',
+    'old.ts',
+    '?? notes.md',
+    '!! node_modules/',
+    '!! src/x/__pycache__/',
+    '!! state/',
+    '!! .env',
+    '!! with space/out.json',
+    '!! lib/a.pyc',
+    ''
+  ].join('\0')
+  const { dirty, ignored } = parseStatusZ(text)
+  assert.deepEqual(dirty, ['src/a.ts', 'new.ts', 'notes.md'])
+  assert.deepEqual(ignored, ['state/', '.env', 'with space/out.json'])
+  assert.deepEqual(parseStatusZ(''), { dirty: [], ignored: [] })
+  assert.equal(isCacheName('node_modules'), true)
+  assert.equal(isCacheName('pkg.egg-info'), true)
+  assert.equal(isCacheName('state'), false)
+})
+
+test('lsof: a process whose working folder is the worktree or inside it keeps it; git passes', () => {
+  const text = [
+    'p11',
+    'czsh',
+    'fcwd',
+    'n/ws/a',
+    'p12',
+    'cgit',
+    'fcwd',
+    'n/ws/b',
+    'p13',
+    'cclaude',
+    'fcwd',
+    'n/ws/c/sub',
+    'p14',
+    'cnode',
+    'fcwd',
+    'n/ws/cc',
+    ''
+  ].join('\n')
+  const procs = parseLsofCwd(text)
+  assert.equal(procs.length, 4)
+  assert.equal(processInside(procs, '/ws/a', 1), 'zsh (pid 11)')
+  assert.equal(processInside(procs, '/ws/b', 1), null)
+  assert.equal(processInside(procs, '/ws/c', 1), 'claude (pid 13)')
+  // `/ws/cc` is not inside `/ws/c`.
+  assert.equal(processInside([procs[3]], '/ws/c', 1), null)
+  // The sweep's own process does not count.
+  assert.equal(processInside(procs, '/ws/a', 11), null)
+})
+
+test('copy names and sizes', () => {
+  assert.equal(
+    copyFileName('lh agents', '/x/.claude/worktrees/hub qa', 'a'.repeat(40)),
+    'lh_agents--hub_qa-aaaaaaaaaaaa.tar.gz'
+  )
+  assert.equal(formatBytes(5 * 1024 ** 2), '5 MB')
+  assert.equal(formatBytes(1.5 * 1024 ** 3), '1.5 GB')
+})
+
+test('ISO weeks start on Monday', () => {
+  assert.equal(isoWeek(new Date(2026, 10, 24, 4).getTime()), '2026-W48')
+  assert.equal(isoWeek(new Date(2026, 10, 29, 23).getTime()), '2026-W48')
+  assert.equal(isoWeek(new Date(2026, 10, 30, 1).getTime()), '2026-W49')
+  assert.equal(isoWeek(new Date(2027, 0, 1, 12).getTime()), '2026-W53')
+})
+
+test('report: removed by repo, kept by reason, the newest run on top', () => {
+  assert.equal(reasonGroup('active 3 h ago'), 'active in the last day')
+  assert.equal(reasonGroup('2 uncommitted file(s)'), 'uncommitted files')
+  assert.equal(reasonGroup('locked'), 'locked')
+  const night = (day, removed) =>
+    renderNight({
+      now: new Date(2026, 10, day, 4, 0).getTime(),
+      removed,
+      kept: [
+        { repo: 'acme', name: 'feat-a', reason: 'active 3 h ago' },
+        { repo: 'acme', name: 'feat-b', reason: 'has work not in the base branch' },
+        { repo: 'acme', name: 'feat-c', reason: 'a process works in it: zsh (pid 7)' }
+      ],
+      onClose: { removed: ['acme · chat-1'], kept: ['acme · chat-2: locked'] },
+      copies: 1,
+      attic: '~/copies'
+    })
+  const first = night(24, [
+    { repo: 'acme', name: 'one' },
+    { repo: 'acme', name: 'two' },
+    { repo: 'tools', name: 'three' }
+  ])
+  assert.match(first, /^## 24\.11 04:00 — removed 3, kept 3$/m)
+  assert.match(first, /^- acme \(2\): one, two$/m)
+  assert.match(first, /^- active in the last day \(1\): acme · feat-a \(active 3 h ago\)$/m)
+  assert.match(first, /^- has work not in the base branch \(1\): acme · feat-b$/m)
+  assert.match(first, /removed 1 \(acme · chat-1\), kept 1 \(acme · chat-2: locked\)/)
+  assert.match(first, /^- a process works in it \(1\): acme · feat-c \(zsh \(pid 7\)\)$/m)
+  const week = mergeWeekReport(null, new Date(2026, 10, 24, 4).getTime(), first)
+  assert.match(week, /^# Worktree cleanup · 2026-W48\n/)
+  const next = mergeWeekReport(
+    week,
+    new Date(2026, 10, 25, 4).getTime(),
+    night(25, [{ repo: 'acme', name: 'four' }])
+  )
+  assert.ok(next.indexOf('## 25.11') < next.indexOf('## 24.11'))
+  assert.equal(next.match(/^---$/gm).length, 1)
+  const rerun = mergeWeekReport(next, new Date(2026, 10, 25, 9).getTime(), night(25, []))
+  // A second run the same day adds its own section; the first one's removals stay in the report.
+  assert.equal(rerun.match(/^## 25\.11/gm).length, 2)
+  assert.match(rerun, /^- acme \(1\): four$/m)
+  assert.equal(rerun.match(/^## 24\.11/gm).length, 1)
+  assert.equal(rerun.match(/^---$/gm).length, 1)
+})
+
+test('chat closes are reported once: since the last sweep run, not the last 24 h', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sweep-log-'))
+  const log = join(dir, 'log.jsonl')
+  const at = (h) => new Date(Date.UTC(2026, 10, 24, h)).toISOString()
+  const lines = [
+    { at: at(1), event: 'removed', trigger: 'chat-close', repo: 'acme', path: '/w/old' },
+    { at: at(2), event: 'run', trigger: 'sweep' },
+    { at: at(3), event: 'removed', trigger: 'chat-close', repo: 'acme', path: '/w/new' },
+    {
+      at: at(4),
+      event: 'kept',
+      trigger: 'chat-close',
+      repo: 'acme',
+      path: '/w/k',
+      reasons: ['locked']
+    },
+    { at: at(5), event: 'removed', trigger: 'sweep', repo: 'acme', path: '/w/night' }
+  ].map((entry) => JSON.stringify(entry))
+  writeFileSync(log, `${lines.join('\n')}\nnot json\n`)
+  assert.deepEqual(closesSince(log, 0), { removed: ['acme · new'], kept: ['acme · k: locked'] })
+  assert.deepEqual(closesSince(join(dir, 'missing'), 0), { removed: [], kept: [] })
+  rmSync(dir, { recursive: true, force: true })
 })

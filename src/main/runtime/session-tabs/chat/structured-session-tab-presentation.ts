@@ -10,6 +10,7 @@ import {
   type StructuredSessionSurfaceRuntime
 } from '../../agent-session/lifecycle/structured-agent-session-close'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/host/structured-agent-session-registry'
+import { sweepWorktreeAfterChatClose } from '../../../orca-plus/worktree-sweep/chat-close-worktree-sweep'
 import { structuredAgentSessionTabCloseCause } from './structured-agent-session-tab-close-cause'
 import { isReopenedChatTabId } from '../../../../shared/agent-session/view/structured-agent-session-host-tab-id'
 import type { WorkspaceSessionState } from '../../../../shared/workspace-session/workspace-session-state-types'
@@ -124,13 +125,20 @@ export async function closeMobileStructuredSessionPresentation(input: {
   if (getStructuredAgentSessionHost() !== host) {
     return false
   }
-  return host
-    ? closeCapturedStructuredSession(
-        host,
-        input.tab.sessionId,
-        structuredAgentSessionTabCloseCause(input.reason),
-        surface,
-        input.runtime
-      )
-    : false
+  if (!host) {
+    return false
+  }
+  const cause = structuredAgentSessionTabCloseCause(input.reason)
+  const closed = await closeCapturedStructuredSession(
+    host,
+    input.tab.sessionId,
+    cause,
+    surface,
+    input.runtime
+  )
+  // Custom build (worktree-sweep): a chat tab the owner closed takes its merged worktree too.
+  if (closed && cause === 'user-close') {
+    sweepWorktreeAfterChatClose(input.tab.sessionId, surface)
+  }
+  return closed
 }
