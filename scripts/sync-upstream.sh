@@ -449,6 +449,21 @@ guard_against_published() {
   fi
 }
 
+# Why: under --unattended a stack that never reached GitHub must not stay on local custom either; it
+# goes back to the pre-sync head while custom still points at that stack.
+ci_fail() { # message
+  local head
+  head=$(git rev-parse "refs/heads/$CUSTOM")
+  if [ "$UNATTENDED" = 1 ] && [ "$head" != "$OLD_CUSTOM" ]; then
+    if [ "$(git symbolic-ref --quiet --short HEAD || true)" = "$CUSTOM" ]; then
+      git reset -q --keep "$OLD_CUSTOM" && say "Режим --unattended: $CUSTOM откатан на $(short "$OLD_CUSTOM")."
+    elif git update-ref "refs/heads/$CUSTOM" "$OLD_CUSTOM" "$head"; then
+      say "Режим --unattended: $CUSTOM откатан на $(short "$OLD_CUSTOM")."
+    fi
+  fi
+  fail 3 "$1"
+}
+
 # The fork's Sync verify workflow checks the stack on GitHub and, when green, moves PUBLISH_BRANCH
 # to it with a lease on the head we last saw there — the same lease `publish` uses.
 ci_verify() {
@@ -476,7 +491,7 @@ ci_verify() {
   branch="sync/$TS"
   repo=$(publish_repo)
   git push --quiet "$PUBLISH_REMOTE" "$head:refs/heads/$branch" >>"$GIT_LOG" 2>&1 \
-    || fail 3 "push $branch в $PUBLISH_REMOTE не удался (лог: $GIT_LOG)"
+    || ci_fail "push $branch в $PUBLISH_REMOTE не удался (лог: $GIT_LOG)"
   promote=true
   [ "$CI_PROMOTE" = 1 ] || promote=false
   # Why ref = the sync branch: the stack runs its own verifier, so a fix to the workflow travels with
@@ -487,9 +502,9 @@ ci_verify() {
     "repos/$repo/actions/workflows/$CI_WORKFLOW/dispatches" -f ref="$branch" -f "inputs[branch]=$branch" \
     -f "inputs[expect_target]=$expect" -f "inputs[target]=$PUBLISH_BRANCH" -f "inputs[promote]=$promote" \
     --jq '.workflow_run_id' 2>>"$GIT_LOG") \
-    || fail 3 "не удалось запустить $CI_WORKFLOW в $repo (ветка $branch уже на GitHub; workflow должен лежать и в ветке по умолчанию; лог: $GIT_LOG)"
+    || ci_fail "не удалось запустить $CI_WORKFLOW в $repo (ветка $branch уже на GitHub; workflow должен лежать и в ветке по умолчанию; лог: $GIT_LOG)"
   case "$run_id" in
-    '' | *[!0-9]*) fail 3 "GitHub запустил $CI_WORKFLOW, но не назвал прогон (ответ: '$run_id'); найди его: gh run list -R $repo --workflow $CI_WORKFLOW" ;;
+    '' | *[!0-9]*) ci_fail "GitHub запустил $CI_WORKFLOW, но не назвал прогон (ответ: '$run_id'); найди его: gh run list -R $repo --workflow $CI_WORKFLOW" ;;
   esac
   run_url="https://github.com/$repo/actions/runs/$run_id"
   # repo, run, the stack sent, the lease, promotion on/off, the local head before this sync
