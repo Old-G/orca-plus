@@ -132,6 +132,7 @@ const psRow = (id, path, extra = {}) => ({ worktreeId: id, path, hostId: 'local'
 test('the night: what goes, what stays and why, on a real repo', async () => {
   const { dir, main, add } = scratch()
   const done = add('done')
+  git(main, 'config', 'branch.done.pushRemote', 'old-fork')
   write(join(done, 'build', 'customer-export.csv'), 'ann,1\n')
   write(join(done, 'state', 'run.json'), '{"step":3}\n')
   write(join(done, 'state', 'node_modules', 'dep', 'index.js'), 'cache\n')
@@ -199,6 +200,8 @@ test('the night: what goes, what stays and why, on a real repo', async () => {
     // Its tip is kept, its branch gone; the Orca-known one went through `orca worktree rm`.
     assert.equal(git(main, 'rev-parse', doneResult.backup), git(main, 'rev-parse', 'main'))
     assert.equal(git(main, 'branch', '--list', 'done'), '')
+    // Its config goes with it, so a later `done` does not push to the old fork (Codex P2 24.11).
+    assert.doesNotMatch(git(main, 'config', '--list', '--local'), /^branch\.done\./m)
     assert.match(readFileSync(orca.calls, 'utf8'), /^worktree rm --worktree id:id-known$/m)
     assert.ok(existsSync(join(dir, 'reports')))
     const log = readFileSync(join(dir, 'sweep.log'), 'utf8')
