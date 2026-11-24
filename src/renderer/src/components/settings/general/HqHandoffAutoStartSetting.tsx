@@ -21,7 +21,7 @@ export function HqHandoffAutoStartSetting({
   const title = translate('auto.hq.handoffAutoStart.settingTitle', 'New chat after a handoff')
   const description = translate(
     'auto.hq.handoffAutoStart.settingDescription',
-    'When a chat runs out of context and saves a handoff, a new chat in the same project starts from it in the background about 20 seconds later and the old one closes to History. A chat on your screen is left for your own click; a chat stopped on a limit waits until it lifts. Works whatever the session dispatcher is set to.'
+    'When a chat runs out of context and saves a handoff, a new chat in the same project starts from it in the background as soon as the file is written, also for a chat on your screen. One handoff gets one new chat, even if the old chat starts one itself. The old chat stays open with a link to the new one; close it when you like. A chat stopped on a limit waits until it lifts. Works whatever the session dispatcher is set to.'
   )
   return (
     <SearchableSetting

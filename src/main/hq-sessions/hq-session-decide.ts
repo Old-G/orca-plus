@@ -83,6 +83,11 @@ export type HqHandoffInput = {
   limitStopped: boolean
   /** How long the owner gets to take the offer up himself. */
   graceMs: number
+  /**
+   * Custom build (hq-handoff-auto, owner 24.11): «New chat after a handoff» is on — the new chat
+   * starts even beside a chat on his screen; the old one stays open for him to close.
+   */
+  auto?: boolean
   now: number
 }
 
@@ -94,7 +99,7 @@ export type HqHandoffInput = {
 export function decideHqHandoff(
   input: HqHandoffInput
 ): { start: true; why: string } | { start: false; why: string } {
-  if (input.session?.onScreen) {
+  if (input.session?.onScreen && !input.auto) {
     return { start: false, why: `the owner is looking at ${label(input.session)}` }
   }
   // Why: a new chat would stop on the same limit; the limit guard leaves a handed-off chat alone, and
