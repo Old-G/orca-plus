@@ -18,8 +18,9 @@ export type ClaudeHandoffClaims = {
 
 // Why: the chat's own launch takes seconds; a launch that failed must not hold Orca+ off for long.
 const AGENT_CLAIM_MS = 2 * 60_000
-// Why: as long as a handoff file counts as fresh; a later handoff of the same chat is a new one.
-const ORCA_CLAIM_MS = 30 * 60_000
+// Why: the chat runs its own launch within a minute of writing the file, so a few minutes cover it;
+// keyed by the chat, a longer hold would turn away the chat's next handoff, its old chat staying open.
+const ORCA_CLAIM_MS = 5 * 60_000
 
 export function createClaudeHandoffClaims(now: () => number = Date.now): ClaudeHandoffClaims {
   const claims = new Map<string, Claim>()

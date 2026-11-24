@@ -37,6 +37,9 @@ HANDOFF_FILE = re.compile(r"handoff-[A-Za-z0-9_-]+\.md")
 # Why: a chat that writes its handoff and then runs `orca agent launch` starts its own successor, even
 # when the command only names the file in a variable set by an earlier call.
 OWN_LAUNCH_SECS = 15 * 60
+# What `orca agent launch` prints when Orca+ had already started that handoff's chat (hq-handoff-auto):
+# the chat's launch started nothing.
+LAUNCH_TURNED_AWAY = "Orca+ already started this handoff's new chat"
 
 NOTE = re.compile(r"\bзапиш|в заметк|в ноутс|\bв notes\b|сохрани (это )?в замет|добавь (это )?в замет", re.I)
 RELAY = re.compile(
@@ -160,11 +163,14 @@ def owner_counts(cut, end, started_by_orca=frozenset()):
         if collect.SANDBOX_PROJECT.search(project):
             continue
         prev, first = None, True
-        written = {}
+        written, last_launch = {}, []
         with open(path, encoding="utf-8", errors="ignore") as handle:
             for line in handle:
                 if '"isSidechain":true' in line:
                     continue
+                if LAUNCH_TURNED_AWAY in line and '"tool_result"' in line:
+                    launched_by_agent.subtract(last_launch)
+                    last_launch = []
                 is_user = '"type":"user"' in line
                 if not is_user and '"type":"assistant"' not in line:
                     continue
@@ -175,13 +181,14 @@ def owner_counts(cut, end, started_by_orca=frozenset()):
                 if entry.get("type") == "assistant":
                     at = _at(entry.get("timestamp"))
                     named = _launched_handoffs(entry)
-                    launched_by_agent.update(named)
                     for name in _written_handoffs(entry):
                         written.setdefault(name, at)
                     if not named and _launches(entry):
-                        launched_by_agent.update(
-                            name for name, wrote in written.items() if 0 <= at - wrote < OWN_LAUNCH_SECS)
+                        named = [name for name, wrote in written.items() if 0 <= at - wrote < OWN_LAUNCH_SECS]
                         written.clear()
+                    if named:
+                        launched_by_agent.update(named)
+                        last_launch = named
                     if entry.get("isApiErrorMessage"):
                         prev = ("stop:" + collect.stop_kind(entry), "")
                     else:
@@ -211,7 +218,7 @@ def owner_counts(cut, end, started_by_orca=frozenset()):
     # each start by the chat or by Orca+ takes one of its pickups off, the rest are the owner's hand.
     by_agent = by_orca = 0
     for name, starts in pickups.items():
-        agent = min(launched_by_agent[name], len(starts)) if name else 0
+        agent = min(max(launched_by_agent[name], 0), len(starts)) if name else 0
         orca = min(1 if name in started_by_orca else 0, len(starts) - agent)
         by_agent += agent
         by_orca += orca
