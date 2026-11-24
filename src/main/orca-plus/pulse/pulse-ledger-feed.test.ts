@@ -322,3 +322,63 @@ describe('«Send to chat» leaves its line (T14)', () => {
     expect(row?.messages.at(-1)?.text).toBe('hi')
   })
 })
+
+describe('a DM’s project from routing.yaml (hq-dm-default-project)', () => {
+  const rows = (db: PulseDb) =>
+    db.listLedgerFeed(0).conversations.map((row) => [row.key, row.project, row.projectHow])
+  const later = (n: number) => tick + n * 1e9
+
+  it('beats the sending chat’s project and a waiting’s; the owner’s pick and other places stay', () => {
+    const db = openDb()
+    expect(db.replaceLedgerDmRules([{ slackUserId: 'U_ANN', project: 'HQ' }])).toBe(true)
+    expect(db.replaceLedgerDmRules([{ slackUserId: 'U_ANN', project: 'HQ' }])).toBe(false)
+    // Ann writes first; later a chat of «hub» writes to her; a question asked in her DM is answered.
+    db.ingestLedgerSignal(signal({ key: 'slack:D0ANN:1.1', ts: '1.1' }))
+    db.ingestLedgerSignal(
+      signal({
+        key: 'slack:D0ANN:2.1',
+        ts: '2.1',
+        at: later(1),
+        fromOwner: true,
+        authorId: 'U_OWNER',
+        project: 'hub'
+      })
+    )
+    const ann = db.upsertPerson({ name: 'Ann', slackUserId: 'U_ANN' })
+    db.addWaiting({
+      direction: 'on-them',
+      title: 'Mark 37 pairs',
+      personId: ann.id,
+      source: 'slack',
+      sourceRef: 'slack:D0ANN:3.1',
+      project: 'hub'
+    })
+    db.ingestLedgerSignal(signal({ key: 'slack:D0ANN:3.1', ts: '3.2', at: later(2) }))
+    // Bob has no rule; Ann in a channel neither.
+    db.ingestLedgerSignal(
+      signal({ key: 'slack:D0BOB:4.1', ts: '4.1', authorId: 'U_BOB', project: 'hub' })
+    )
+    db.ingestLedgerSignal(signal({ key: THREAD, ts: '5.1' }))
+    // The owner moves Ann's first talk; her next line there keeps his pick.
+    db.setLedgerProject('slack:D0ANN:1.1', 'hub')
+    db.ingestLedgerSignal(signal({ key: 'slack:D0ANN:1.1', ts: '1.2', at: tick + 2 }))
+
+    expect(rows(db)).toEqual(
+      expect.arrayContaining([
+        ['slack:D0ANN:1.1', 'hub', 'owner'],
+        ['slack:D0ANN:2.1', 'HQ', 'rule'],
+        ['slack:D0ANN:3.1', 'HQ', 'rule'],
+        ['slack:D0BOB:4.1', 'hub', 'rule'],
+        [THREAD, null, null]
+      ])
+    )
+  })
+
+  it('moves a DM talk that started before the rule on its next line', () => {
+    const db = openDb()
+    db.ingestLedgerSignal(signal({ key: 'slack:D0ANN:1.1', ts: '1.1', project: 'hub' }))
+    db.replaceLedgerDmRules([{ slackUserId: 'U_ANN', project: 'HQ' }])
+    db.ingestLedgerSignal(signal({ key: 'slack:D0ANN:1.1', ts: '1.2', at: tick + 2 }))
+    expect(rows(db)).toEqual([['slack:D0ANN:1.1', 'HQ', 'rule']])
+  })
+})

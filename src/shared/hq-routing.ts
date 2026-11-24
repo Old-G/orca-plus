@@ -26,8 +26,16 @@ export type HqFindingRule = {
   since: number | null
 }
 
+/** Custom build (hq-dm-default-project): `intake.project` — a person's DM with the owner belongs here. */
+export type HqDmProjectRule = {
+  /** People as HQ names them: a name, a Slack user id. */
+  people: string[]
+  project: string
+}
+
 export type HqRouting = {
   findings: HqFindingRule[]
+  dmProjects: HqDmProjectRule[]
   /** Custom build (hq-plus-person-replies): what a person's answer does; null leaves every answer a card. */
   replies: HqReplyRule | null
   /** The share of the Claude limit that must stay free before a chat is started by itself. */
