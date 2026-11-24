@@ -11,7 +11,7 @@ describe('resolveHqDmProjectRules', () => {
     expect(
       resolveHqDmProjectRules(
         [
-          { people: ['ann lee', 'U_BOB', 'Cid', 'Dee'], project: 'HQ' },
+          { people: ['ann lee', 'U_BOB', 'Cid', 'Dee', 'U0NEW'], project: 'HQ' },
           { people: ['Bob'], project: 'hub' }
         ],
         people
@@ -19,7 +19,8 @@ describe('resolveHqDmProjectRules', () => {
     ).toEqual({
       rules: [
         { slackUserId: 'U_ANN', project: 'HQ' },
-        { slackUserId: 'U_BOB', project: 'HQ' }
+        { slackUserId: 'U_BOB', project: 'HQ' },
+        { slackUserId: 'U0NEW', project: 'HQ' }
       ],
       unknown: ['Cid', 'Dee']
     })
