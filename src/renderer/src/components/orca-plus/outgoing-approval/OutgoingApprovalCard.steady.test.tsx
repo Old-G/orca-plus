@@ -348,6 +348,31 @@ it('holds a click right after the card appeared, even after a move onto the butt
   expect(decide).not.toHaveBeenCalled()
 })
 
+// Fourth review 24.11: a button reached just after the bell opened stayed unseen until a move.
+it('takes a still click on a button reached just after the card appeared, once he read it', () => {
+  const { approve } = setup(false)
+  fireEvent.pointerMove(approve)
+  now += 3000
+  mouseClick(approve)
+  expect(decide).toHaveBeenCalledTimes(1)
+})
+
+it('holds a click just past the settle time on a button reached late in it', () => {
+  const { approve, move } = setup()
+  const text = screen.getByText('Hello Ann')
+  fireEvent.pointerMove(text)
+  tops.set(approve, 240)
+  tops.set(move, 300)
+  fireEvent.pointerMove(text)
+  now += 690
+  fireEvent.pointerMove(move)
+  now += 20
+  mouseClick(move)
+  now += STEADY_SETTLE_MS
+  mouseClick(move)
+  expect(decide).not.toHaveBeenCalled()
+})
+
 // Second review 24.11: any scroll in the window right after a wheel counted as the owner's own.
 it('does not take what another scroller moved right after a wheel as seen', () => {
   const { approve, move } = setup()
