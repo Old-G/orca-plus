@@ -23,8 +23,9 @@
 #   T24 a dispatch answer without a run id → exit 3, no run recorded
 #   T25 a promotion the workflow made refreshes the lease; an unrelated remote move does not
 #   T26 a resent stack (nothing new upstream) runs the guard against the published one first
-#   T27–T29 wrapper: a red run rolls local custom back (not if it moved), a check-only green run
-#       does not claim publication
+#       and an earlier unexplained guard finding still blocks it
+#   T27–T31 wrapper: a red run rolls local custom back (not if it moved or is open in another
+#       worktree), a lost run is not taken for red, a check-only green run does not claim publication
 #   T20–T22 scheduled wrapper: runs only every SYNC_EVERY_DAYS, hands a stop to an agent via the
 #       orca-plus CLI (not with SYNC_AGENT=0), skips while an agent works in the checkout
 set -euo pipefail
@@ -145,8 +146,9 @@ check "report lists the stray commit" 'printf "%s" "$OUT" | grep -q "oops on mai
 echo "T8–T11 test triage (fake vitest)"
 TESTS="$(cd "$(dirname "$SYNC")" && pwd)/sync-upstream-tests.sh"
 REPO_ROOT=$(cd "$(dirname "$SYNC")" && git rev-parse --show-toplevel)
-# Why from the list: a hardcoded path went stale when the file moved (T9 failed on a correct runner).
-KNOWN_FILE=$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$(dirname "$SYNC")/sync-known-test-failures.txt" | head -1)
+# Why a fixture list: the live one changes with the repo (a moved file once failed T9 on a good runner).
+KNOWN_FILE=src/known/fixture.test.ts
+printf '# fixture\n%s\n' "$KNOWN_FILE" >"$WORK/known-failures.txt"
 # Fake vitest: FAKE_FIRST / FAKE_RETRY are the files failing on the first run / on the retry.
 cat >"$WORK/fake-vitest.sh" <<'FAKE'
 #!/usr/bin/env bash
@@ -174,7 +176,7 @@ failing=$FAKE_FIRST
 FAKE
 triage_run() {
   set +e
-  OUT=$(cd "$REPO_ROOT" && REPO_ROOT="$REPO_ROOT" SYNC_VITEST_CMD="bash $WORK/fake-vitest.sh" \
+  OUT=$(cd "$REPO_ROOT" && REPO_ROOT="$REPO_ROOT" SYNC_VITEST_CMD="bash $WORK/fake-vitest.sh" SYNC_KNOWN_FAILURES="$WORK/known-failures.txt" \
     bash "$TESTS" "$WORK/triage" full 2>&1)
   RC=$?
   set -e
@@ -389,8 +391,9 @@ check "T25 next run sees the promoted head: nothing to check" '[ "$RC" = 0 ] && 
 check "T25 tracking ref = promoted head" '[ "$(cd "$WORK/fork" && git rev-parse origin/custom)" = "$PROMOTED" ]'
 FOREIGN_PUB=$(cd "$WORK/fork" && git commit-tree -p "$PROMOTED" -m foreign "$PROMOTED^{tree}")
 (cd "$WORK/fork" && git push -q origin "$FOREIGN_PUB:refs/heads/custom" && git update-ref refs/remotes/origin/custom "$PROMOTED")
-printf '%s 4242 %s %s true %s\n' x "$FOREIGN_PUB" "$PROMOTED" "$PROMOTED" >"$WORK/fork/.git/custom-sync/ci-run.keep"
-printf '%s 4242 %s %s true %s\n' x "$PROMOTED" "$OLD_PUB" "$OLD_PUB" >"$WORK/fork/.git/custom-sync/ci-run"
+# Recorded: we sent SENT over the lease PROMOTED; the fork moved to FOREIGN_PUB instead.
+SENT=$(cd "$WORK/fork" && git commit-tree -p "$PROMOTED" -m sent "$PROMOTED^{tree}")
+printf '%s custom 4243 %s %s\n' "$WORK/published.git" "$SENT" "$PROMOTED" >"$WORK/fork/.git/custom-sync/ci-promotions"
 ci_run "$SYNC" --ci-verify
 check "T25 an unrelated remote change is not taken into the lease" '[ "$(cd "$WORK/fork" && git rev-parse origin/custom)" = "$PROMOTED" ]'
 git --git-dir="$WORK/published.git" update-ref refs/heads/custom "$PROMOTED"
@@ -404,10 +407,21 @@ check "T26 a fixup that drops our feature → exit 5, not dispatched" '[ "$RC" =
 printf 'demo-d: t24 removed on purpose (test)\n' >"$WORK/accept-d.md"
 ci_run SYNC_GUARD_ACCEPT="$WORK/accept-d.md" "$SYNC" --ci-verify
 check "T26 explained → dispatched" '[ "$RC" = 0 ] && [ "$(dispatches)" -gt "$BEFORE_DISPATCHES" ]'
+check "T26 the rollback target is the local head, not the published one" '[ "$(cut -d" " -f6 "$WORK/fork/.git/custom-sync/ci-run")" = "$(cd "$WORK/fork" && git rev-parse custom)" ]'
+CUR=$(cd "$WORK/fork" && git rev-parse custom)
+git --git-dir="$WORK/published.git" update-ref refs/heads/custom "$CUR"
+(cd "$WORK/fork" && git update-ref refs/remotes/origin/custom "$CUR" && git checkout -q custom \
+  && printf 'e\n' >t26.txt && git add t26.txt && g commit -qm "custom(demo-e): t26" -m "Custom-Feature: demo-e" \
+  && git checkout -q main)
+printf '%s\n' "$WORK/earlier-guard.md" >"$WORK/fork/.git/custom-sync/guard-blocked"
+BEFORE_DISPATCHES=$(dispatches)
+ci_run "$SYNC" --ci-verify
+check "T26 an earlier unexplained guard finding still blocks a clean resend" '[ "$RC" = 5 ] && [ "$(dispatches)" = "$BEFORE_DISPATCHES" ]'
+rm -f "$WORK/fork/.git/custom-sync/guard-blocked"
 
 echo "T27–T29 scheduled wrapper after the GitHub run"
 mkdir -p "$WORK/gh-sched"
-printf '#!/usr/bin/env bash\nexit ${STUB_WATCH_RC:-0}\n' >"$WORK/gh-sched/gh"
+printf '#!/usr/bin/env bash\n[ "$2" = view ] && echo "${STUB_STATUS:-completed}"\nexit ${STUB_WATCH_RC:-0}\n' >"$WORK/gh-sched/gh"
 chmod +x "$WORK/gh-sched/gh"
 # The stub sync records a dispatch the way sync-upstream.sh does.
 printf '#!/usr/bin/env bash\necho "stub sync $*"; mkdir -p .git/custom-sync; echo "## OK — stub" >.git/custom-sync/last-report.md; printf "%%s\\n" "$STUB_CI_RUN" >.git/custom-sync/ci-run; exit 0\n' \
@@ -432,6 +446,13 @@ check "T27 report names the rollback" 'grep -q "откатан" "$S/.git/custom-
 MOVED=$(cd "$S" && printf 'd\n' >f.txt && g commit -qam "someone moved custom" && git rev-parse HEAD)
 STUB_WATCH_RC=1 STUB_CI_RUN="o/r 78 $S_NEW $S_OLD true $S_OLD" wrap_run
 check "T28 custom moved since the dispatch → left as is" '[ "$RC" = 2 ] && [ "$(cd "$S" && git rev-parse custom)" = "$MOVED" ]'
+STUB_WATCH_RC=1 STUB_STATUS=in_progress STUB_CI_RUN="o/r 81 $MOVED $S_OLD true $S_OLD" wrap_run
+check "T30 watch lost the run → exit 6, no rollback, no agent" '[ "$RC" = 6 ] && [ "$(cd "$S" && git rev-parse custom)" = "$MOVED" ] && grep -q "НЕ ДОЖДАЛСЯ" "$S/.git/custom-sync/last-report.md"'
+# The wrapper runs on main here while custom is open in a linked worktree.
+(cd "$S" && git checkout -q -B main && git worktree add -q "$WORK/sched-wt" custom)
+STUB_WATCH_RC=1 STUB_CI_RUN="o/r 82 $MOVED $S_OLD true $S_OLD" wrap_run
+check "T31 custom open in another worktree → not moved" '[ "$(cd "$S" && git rev-parse custom)" = "$MOVED" ] && grep -q "другом worktree" "$S/.git/custom-sync/last-report.md"'
+git -C "$S" worktree remove "$WORK/sched-wt" && git -C "$S" checkout -q custom
 STUB_WATCH_RC=0 STUB_CI_RUN="o/r 79 $MOVED $S_OLD false $S_OLD" wrap_run
 check "T29 green check-only run → no claim of publication" '[ "$RC" = 0 ] && ! tail -1 "$S/.git/custom-sync/scheduled.log" | grep -q "опубликован" && tail -1 "$S/.git/custom-sync/scheduled.log" | grep -q "только проверка"'
 STUB_WATCH_RC=0 STUB_CI_RUN="o/r 80 $MOVED $S_OLD true $S_OLD" wrap_run
