@@ -632,7 +632,8 @@ button.hqpc-sum:hover {
   border-color: var(--hqp-red);
   color: var(--hqp-red-ink);
 }
-/* the Approve card inside its project: no second head, the text readable, the decision as real buttons */
+/* the Approve card inside its project: no second head, the text readable, the decision as real buttons.
+   Only the decision's own row: «Ask in … instead» below it stays a quiet link, not a second red Approve. */
 .hqpc-ap .hqp-row-h,
 .hqpc-ap .hqp-new {
   display: none;
@@ -646,12 +647,12 @@ button.hqpc-sum:hover {
   font-size: 13px;
   line-height: 1.5;
 }
-.hqpc-ap .hqp-approve-host .justify-end {
+.hqpc-ap .hqp-approve-host [data-approval-decide='true'] {
   justify-content: flex-start;
   gap: 6px;
   margin-top: 4px;
 }
-.hqpc-ap .hqp-approve-host .justify-end > button {
+.hqpc-ap .hqp-approve-host [data-approval-decide='true'] > button {
   height: 32px;
   padding: 0 14px;
   border-radius: 9px;
@@ -661,7 +662,7 @@ button.hqpc-sum:hover {
   font-size: 13px;
   font-weight: 500;
 }
-.hqpc-ap .hqp-approve-host .justify-end > button:first-child {
+.hqpc-ap .hqp-approve-host [data-approval-decide='true'] > button:first-child {
   border-color: var(--hqp-red);
   background: var(--hqp-red);
   color: var(--hqp-red-ink);
