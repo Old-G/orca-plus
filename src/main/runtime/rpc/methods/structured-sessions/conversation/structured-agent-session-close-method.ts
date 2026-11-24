@@ -15,6 +15,7 @@ import {
   captureStructuredSessionSurface,
   retireCapturedStructuredSessionSurface
 } from '../../../../agent-session/lifecycle/structured-agent-session-close'
+import { sweepWorktreeAfterChatClose } from '../../../../../orca-plus/worktree-sweep/chat-close-worktree-sweep'
 
 export const STRUCTURED_AGENT_SESSION_CLOSE_METHOD = defineMethod({
   // Close only provider/in-memory state, preserving record/journal for future attachment.
@@ -49,6 +50,8 @@ export const STRUCTURED_AGENT_SESSION_CLOSE_METHOD = defineMethod({
     } finally {
       if (!keepRunning) {
         await host.close(params.sessionId, 'user-close')
+        // Custom build (worktree-sweep): the chat's worktree goes too once its work is merged.
+        sweepWorktreeAfterChatClose(params.sessionId, surface)
       }
     }
     return { ok: true as const }
