@@ -176,6 +176,32 @@ describe('a chat that handed off is parked (hq-handoff-parked)', () => {
     expect(hqLeadBatchSession(pulse, held)).toBe('claude_new')
   })
 
+  it('keeps the worktree and project of a new chat Orca+ already knows', async () => {
+    await threads.report({ sessionId: 'claude_old' }, { done: 'Half done' })
+    db.noteSessions([
+      {
+        sessionId: 'claude_new',
+        address: null,
+        agent: 'claude',
+        worktreeId: 'r-web::/w/web',
+        workspace: 'acme',
+        project: 'acme-web',
+        state: 'working',
+        contextPct: null,
+        parentSessionId: null,
+        taskRef: null,
+        at: clock
+      }
+    ])
+    threads.handoff('claude_old', 'claude_new')
+    expect(db.getSession('claude_new')).toMatchObject({
+      address: db.getSession('claude_old')?.address,
+      worktreeId: 'r-web::/w/web',
+      project: 'acme-web',
+      parentSessionId: 'claude_old'
+    })
+  })
+
   it('leaves a chat no one continued as it was', async () => {
     const { address } = await threads.report({ sessionId: 'claude_old' }, { done: 'Working' })
     const sent = await threads.send({ sessionId: 'claude_lead' }, { address, text: 'ok' })
