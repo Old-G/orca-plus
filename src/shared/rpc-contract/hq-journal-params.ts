@@ -238,6 +238,9 @@ export const HqLinkChatParams = z.object({
   sessionId: requiredString('The started chat’s session id is required')
 })
 export const HqChatLinksParams = z.object({})
+// Custom build (hq-handoff-auto): the chat that runs `orca agent launch` for its handoff asks first
+// whether Orca+ already started that handoff's new chat.
+export const HqHandoffClaimParams = z.object(CallerFields)
 // Custom build (hq-lead-reassign): a Lead's chats go to another chat.
 export const HqReassignParams = z.object({
   ...CallerFields,

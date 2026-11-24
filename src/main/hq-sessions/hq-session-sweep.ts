@@ -52,6 +52,7 @@ export async function sweepHqSessions(
       session,
       limitStopped: offer.limitStopped,
       graceMs: auto ? HQ_SESSION_HANDOFF_AUTO_GRACE_MS : HQ_SESSION_HANDOFF_GRACE_MS,
+      auto,
       now
     })
     if (verdict.start && offer.sessionId) {
