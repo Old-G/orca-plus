@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  countOpenTabs,
   provideChatCloseWorktreeSweep,
   readSweepOutcome,
   sweepClosedChatWorktree,
@@ -28,12 +29,12 @@ function deps(patch: Partial<ChatCloseSweepDeps> = {}): ChatCloseSweepDeps {
   }
 }
 
-function surface(worktreeId: string | null): StructuredSessionSurface {
+function surface(worktreeId: string | null, tabId = 'tab-1'): StructuredSessionSurface {
   return {
-    tableId: 'tab-1',
+    tableId: tabId,
     presentation: {
-      raw: worktreeId ? { worktreeId, tabId: 'tab-1' } : null,
-      saved: []
+      raw: worktreeId ? { worktreeId, tabId } : null,
+      saved: worktreeId ? [{ worktreeId, tabId: `${tabId}-saved` }] : []
     }
   } as unknown as StructuredSessionSurface
 }
@@ -104,15 +105,37 @@ describe('worktree sweep after a chat close', () => {
 
   it('waits before sweeping, once per worktree however many closes come in', async () => {
     vi.useFakeTimers()
-    const d = deps()
+    const openTabs = vi.fn(() => 0)
+    const d = deps({ openTabs })
     provideChatCloseWorktreeSweep(d)
-    sweepWorktreeAfterChatClose('s1', surface(WT))
-    sweepWorktreeAfterChatClose('s1', surface(WT))
+    sweepWorktreeAfterChatClose('s1', surface(WT, 'tab-1'))
+    sweepWorktreeAfterChatClose('s2', surface(WT, 'tab-2'))
     await vi.advanceTimersByTimeAsync(999)
     expect(d.runSweep).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(1)
     expect(d.runSweep).toHaveBeenCalledTimes(1)
+    // Both closed chats' tabs — on screen and saved — are left out of the count, nothing else.
+    expect(openTabs).toHaveBeenCalledWith(
+      WT,
+      new Set(['tab-1', 'tab-1-saved', 'tab-2', 'tab-2-saved'])
+    )
     await vi.waitFor(() => expect(d.log).toHaveBeenCalledWith('removed', expect.anything()))
+  })
+
+  it('counts tabs under every key that names the worktree, the closed ones left out (Codex P2 24.11)', () => {
+    const session = {
+      unifiedTabs: {
+        [WT]: [{ id: 'closed-chat' }],
+        // The same checkout under a host-qualified key and with a trailing slash.
+        'local|repo-1::/work/acme-feat/': [{ id: 'terminal-1' }],
+        'repo-1::/work/acme-feat-2': [{ id: 'elsewhere' }]
+      },
+      browserTabsByWorktree: { [WT]: [{ id: 'browser-1' }] }
+    } as never
+    expect(countOpenTabs(session, WT, new Set(['closed-chat']))).toBe(2)
+    expect(countOpenTabs(session, WT, new Set(['closed-chat', 'terminal-1', 'browser-1']))).toBe(0)
+    expect(countOpenTabs({} as never, WT, new Set())).toBe(0)
+    expect(countOpenTabs(session, 'no-separator', new Set())).toBe(0)
   })
 
   it('does nothing when switched off, unprovided or the chat had no worktree', async () => {
