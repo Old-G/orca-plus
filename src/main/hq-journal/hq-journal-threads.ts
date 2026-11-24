@@ -21,7 +21,7 @@ import type { HqChatRole } from '../../shared/hq-chat-role'
 import { HQ_ROUTING_KIND, type HqSettleResult } from '../../shared/hq-routing'
 import type { PulsePerson, PulsePersonInput } from '../../shared/pulse-types'
 import { hqJournalLink, journalEntryAsInput } from './hq-journal-adapters'
-import type { HqJournalPulse } from './hq-journal-collect'
+import type { HqThreadsPulseBase } from './hq-journal-collect'
 import type { HqCaller, HqCallerScope } from './hq-journal-rooms'
 import { hqCarryChatRole, hqNewChatAddress } from './hq-journal-chat-role'
 import type { HqLeadBatch } from './hq-lead-batch'
@@ -30,7 +30,7 @@ import { createHqSend, HQ_JOURNAL_OFF as JOURNAL_OFF, hqRoomOf as roomOf } from 
 export type HqThreadsDeps = {
   enabled: () => boolean
   scope: (caller: HqCaller) => Promise<HqCallerScope>
-  pulse: Pick<HqJournalPulse, 'record' | 'list' | 'getSession' | 'noteSessions' | 'leadMoveOf'> & {
+  pulse: HqThreadsPulseBase & {
     listSessionsByAddress: (address: string) => HqSession[]
     getEntry: (id: string) => HqJournalEntry | null
     listPeople: () => PulsePerson[]

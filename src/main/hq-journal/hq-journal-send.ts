@@ -162,6 +162,17 @@ export function createHqSend(
     if (movedTo) {
       spot = await locate(movedTo)
     }
+    // Custom build (hq-handoff-parked, T7 25.11): a chat that handed off is parked — what is sent to it
+    // goes to the chat that continues it, the end of its handoff chain. A brief, a plan or a Lead's
+    // relay still names the old chat by its session id, and a closed one was even brought back for it.
+    const live = deps.pulse.liveSessionOf?.(spot.target.sessionId) ?? spot.target.sessionId
+    const successor =
+      live !== spot.target.sessionId &&
+      live !== scope.sessionId &&
+      spot.target.sessionId !== scope.sessionId
+    if (successor) {
+      spot = await locate(live)
+    }
     const { to, byId, known, placed, target } = spot
     const address =
       (byId ? known?.address : to) ??
@@ -281,7 +292,11 @@ export function createHqSend(
     if (!entry) {
       throw new Error('The message was delivered but not recorded.')
     }
-    const forwarded = movedTo ? { forwardedFrom: asked } : {}
+    const forwarded = successor
+      ? { forwardedFrom: asked, handedOff: true as const }
+      : movedTo
+        ? { forwardedFrom: asked }
+        : {}
     return held
       ? { entry, sessionId: target.sessionId, reopened, heldUntil: held.dueAt, ...forwarded }
       : { entry, sessionId: target.sessionId, reopened, ...forwarded }

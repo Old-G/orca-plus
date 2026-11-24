@@ -9,6 +9,7 @@ import {
 } from '../../../../shared/rpc-contract/hq-journal-params'
 import { getHqLeadReassign } from '../../../hq-journal/hq-lead-reassign'
 import { getClaudeHandoffClaims } from '../../../claude-handoff/claude-handoff-claims'
+import { getHqThreads } from '../../../hq-journal/hq-journal-threads'
 
 export const HQ_CHAT_LINK_METHODS = [
   defineMethod({
@@ -16,16 +17,31 @@ export const HQ_CHAT_LINK_METHODS = [
 
     permission: 'workspace',
     params: HqLinkChatParams,
-    handler: async (params, { runtime }) => ({
-      linked: params.callerSessionId
-        ? runtime.pulseChats().link({
-            sessionId: params.sessionId,
-            parentSessionId: params.callerSessionId,
-            via: 'launch',
-            at: Date.now()
-          })
-        : false
-    })
+    handler: async (params, { runtime }) => {
+      const caller = params.callerSessionId
+      if (!caller) {
+        return { linked: false }
+      }
+      // Custom build (hq-handoff-parked, T7 25.11): a chat that started its own handoff's successor hands
+      // it its thread, as Orca+'s own start does — the address, role, open questions and waitings — so
+      // what is sent to the old chat reaches the new one and the old one is parked.
+      if (params.handoff === true && params.sessionId !== caller) {
+        getHqThreads()?.handoff(caller, params.sessionId)
+        try {
+          runtime.pulseMoveOpenWaitingsToChat(caller, params.sessionId)
+        } catch (error) {
+          console.warn('[hq-chat-links] moving waitings to the new chat failed:', error)
+        }
+      }
+      return {
+        linked: runtime.pulseChats().link({
+          sessionId: params.sessionId,
+          parentSessionId: caller,
+          via: 'launch',
+          at: Date.now()
+        })
+      }
+    }
   }),
   defineMethod({
     name: 'hq.chatLinks',

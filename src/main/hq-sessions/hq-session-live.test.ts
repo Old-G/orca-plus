@@ -204,3 +204,22 @@ describe('HQ+ session dispatcher: every chat has its own address (hq-chat-roles)
     expect(by.get('b')).toBeNull()
   })
 })
+
+describe('HQ+ session dispatcher: a parked chat (hq-handoff-parked)', () => {
+  it('names the chat that continues a handed-off one, and nothing for the others', () => {
+    const live = hqLiveSessions({
+      sessions: [known('old'), known('new')],
+      agents: [],
+      tabs: [],
+      asking: new Set(),
+      contextPct: new Map(),
+      name: () => null,
+      successor: (sessionId) => (sessionId === 'old' ? 'new' : null),
+      placeOfWorktree: () => ({ project: null, workspace: '_unassigned' }),
+      windowFocused: false,
+      now: NOW
+    })
+    expect(live.find((chat) => chat.sessionId === 'old')?.handedOffTo).toBe('new')
+    expect(live.find((chat) => chat.sessionId === 'new')).not.toHaveProperty('handedOffTo')
+  })
+})

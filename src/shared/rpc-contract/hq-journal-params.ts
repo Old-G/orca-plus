@@ -235,7 +235,9 @@ export const HqWhoParams = z.object({ project: z.string().trim().min(1).max(200)
 // caller's own session is the parent. HQ+ reads every link to draw its «By work» tree.
 export const HqLinkChatParams = z.object({
   ...CallerFields,
-  sessionId: requiredString('The started chat’s session id is required')
+  sessionId: requiredString('The started chat’s session id is required'),
+  // Custom build (hq-handoff-parked, T7): the started chat continues the caller's own handoff.
+  handoff: z.boolean().optional()
 })
 export const HqChatLinksParams = z.object({})
 // Custom build (hq-handoff-auto): the chat that runs `orca agent launch` for its handoff asks first

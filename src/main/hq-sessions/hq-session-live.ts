@@ -40,6 +40,8 @@ export type HqLiveInputs = {
   name: (sessionId: string) => string | null
   /** Custom build (hq-chat-roles): the role the chat was launched with. */
   role?: (sessionId: string) => HqChatRole | null
+  /** Custom build (hq-handoff-parked, T7): the chat that continues it after a handoff; null for none. */
+  successor?: (sessionId: string) => string | null
   /** For a chat the journal has not seen yet: its project and room, by workspace. */
   placeOfWorktree: (worktreeId: string) => { project: string | null; workspace: string }
   /** Orca's window has focus; a shown tab in a window behind another app is not in front of him. */
@@ -67,6 +69,7 @@ export function hqLiveSessions(inputs: HqLiveInputs): HqLiveSession[] {
           : !tab || session?.state === 'closed'
             ? 'closed'
             : 'done'
+    const successor = inputs.successor?.(sessionId) ?? null
     live.push({
       sessionId,
       address: session?.address ?? null,
@@ -82,7 +85,8 @@ export function hqLiveSessions(inputs: HqLiveInputs): HqLiveSession[] {
       ownerAt: tab ? (tab.focused ? inputs.now : tab.lastFocusedAt) : null,
       onScreen: tab?.focused === true && inputs.windowFocused,
       tabOpen: tab !== null,
-      role: inputs.role?.(sessionId) ?? null
+      role: inputs.role?.(sessionId) ?? null,
+      ...(successor && successor !== sessionId ? { handedOffTo: successor } : {})
     })
   }
   return live.sort((a, b) => b.lastActivityAt - a.lastActivityAt)

@@ -353,4 +353,6 @@ export type HqChatSendResult = {
   heldUntil?: number
   /** Custom build (hq-lead-reassign): the old Lead it was sent to; it went to the chat's Lead now. */
   forwardedFrom?: string
+  /** Custom build (hq-handoff-parked, T7): `forwardedFrom` handed off; the chat that continues it took it. */
+  handedOff?: true
 }

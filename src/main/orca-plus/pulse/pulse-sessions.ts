@@ -112,10 +112,27 @@ export function releaseSessionAddress(
   return Number(result.changes) > 0
 }
 
-/** Custom build (hq-plus-reports): the sessions that worked on one thread, latest activity first. */
+/**
+ * Custom build (hq-handoff-parked, T7 25.11): a session another chat continued — a `session.handoff`
+ * row names it as the old chat, or a session's parent link does. The same facts `liveSessionOf` follows.
+ */
+const HANDED_OFF_SQL =
+  "(EXISTS (SELECT 1 FROM journal j WHERE j.kind = 'session.handoff' AND j.ref_id = s.session_id " +
+  'AND j.session_id IS NOT NULL AND j.session_id <> s.session_id) OR EXISTS (SELECT 1 FROM sessions c ' +
+  'WHERE c.parent_session_id = s.session_id AND c.session_id <> s.session_id))'
+
+/**
+ * Custom build (hq-plus-reports): the sessions that worked on one thread, latest activity first.
+ * Custom build (hq-handoff-parked, T7 25.11): a chat that handed off goes after the ones that did not.
+ * Its successor takes the same address, while the old chat still finishes its turn and stays open, so
+ * by activity alone it was «the thread's chat» and took relays, a Lead's batch and `orca hq reassign`
+ * meant for the new one (17–24.11: 66 messages to 11 such chats).
+ */
 export function listSessionsByAddress(core: PulseCore, address: string): HqSession[] {
   return core.db
-    .prepare('SELECT * FROM sessions WHERE address = ? ORDER BY last_activity_at DESC')
+    .prepare(
+      `SELECT * FROM sessions s WHERE s.address = ? ORDER BY ${HANDED_OFF_SQL} ASC, s.last_activity_at DESC`
+    )
     .all(address)
     .map(toSession)
 }
