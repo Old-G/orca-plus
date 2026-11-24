@@ -515,6 +515,7 @@ if [ "$2" = view ]; then
   printf '%s' "${STUB_RUN_JSON:-$failed}" | jq -r "$2"
   exit $?
 fi
+[ -n "${STUB_TOUCH:-}" ] && sleep 1 && touch "$STUB_TOUCH"
 exit ${STUB_WATCH_RC:-0}
 STUB
 chmod +x "$WORK/gh-sched/gh"
@@ -535,7 +536,8 @@ wrap_run() {
   RC=$?
   set -e
 }
-STUB_WATCH_RC=1 STUB_CI_RUN="o/r 77 $S_NEW $S_OLD true $S_OLD" wrap_run
+# An unchanged file re-saved while the run is watched is not an edit.
+STUB_TOUCH="$S/f.txt" STUB_WATCH_RC=1 STUB_CI_RUN="o/r 77 $S_NEW $S_OLD true $S_OLD" wrap_run
 check "T27 red run → exit 2" '[ "$RC" = 2 ]'
 check "T27 red run → local custom back on the pre-sync head" '[ "$(cd "$S" && git rev-parse custom)" = "$S_OLD" ]'
 check "T27 the failed candidate is kept" '[ "$(cd "$S" && git rev-parse refs/custom-sync/failed/77)" = "$S_NEW" ]'
