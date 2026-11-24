@@ -8,6 +8,7 @@
 // feature that added it. Commits whose subject vanished are reported too (upstream may have
 // merged them — check). Exit 0 clean · 1 something to explain · 2 bad input.
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 
 const [oldBase, oldTip, newBase, newTip] = process.argv.slice(2)
 if (!newTip) {
@@ -176,5 +177,22 @@ out.push(
     ? `## Explain or restore: ${total} lines, ${vanished.length} commits`
     : '## OK — nothing of ours is missing'
 )
+// Why from the full findings, not the report: the report shows 40 lines per commit, cut to 160
+// characters, and a different loss behind the cut must not keep an approved fingerprint. The tips
+// stay out, so a fixup that loses nothing new keeps it.
+if (vanished.length || total) {
+  const findings = {
+    vanished: vanished.map(([sha, m]) => [sha, m.subject]),
+    lost: [...lost.entries()].map(([sha, items]) => [
+      sha,
+      items.map(({ file, line }) => [file, line])
+    ])
+  }
+  const fingerprint = createHash('sha256')
+    .update(JSON.stringify(findings))
+    .digest('hex')
+    .slice(0, 16)
+  out.push('', `Fingerprint: ${fingerprint}`)
+}
 console.log(out.join('\n'))
 process.exit(vanished.length || total ? 1 : 0)
