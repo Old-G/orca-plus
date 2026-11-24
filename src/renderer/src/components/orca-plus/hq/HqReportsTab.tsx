@@ -29,6 +29,8 @@ export function folderLabel(folder: HqReportFolder): string {
       return translate('auto.hq.reports.updates', 'Updates')
     case 'daily':
       return translate('auto.hq.reports.daily', 'Day review')
+    case 'worktrees':
+      return translate('auto.hq.reports.worktrees', 'Worktrees')
   }
 }
 

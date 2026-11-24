@@ -2,13 +2,16 @@
 # Custom build (worktree-sweep): runs scripts/orca-plus-worktree-sweep.mjs --apply every night as a
 # per-user launchd agent (macOS). A missed time (asleep) runs once on wake.
 #
-#   orca-plus-worktree-sweep-launchd.sh install [--hour H] [--minute M]   write the plist and load it
+#   orca-plus-worktree-sweep-launchd.sh install [--hour H] [--minute M] [--report-dir DIR]
+#                                                                         write the plist and load it
 #   orca-plus-worktree-sweep-launchd.sh uninstall                         unload and remove it
 #   orca-plus-worktree-sweep-launchd.sh status                            show whether it is loaded
 #   orca-plus-worktree-sweep-launchd.sh print [--hour H] [--minute M]     print the plist, change nothing
 #
 # What it removed: ~/Library/Logs/orca-plus-worktree-sweep.log (one JSON line per worktree, with the
-# backup ref that brings it back).
+# backup ref that brings it back). --report-dir (HQ's `worktrees` folder) also gets the week's report,
+# which HQ → Reports lists. A repo whose worktree is not yet proven merged is fetched once (--fetch), so a
+# merge request merged on the server an hour ago reads as merged.
 set -euo pipefail
 
 LABEL=local.orca-plus.worktree-sweep
@@ -18,6 +21,7 @@ LOG="$HOME/Library/Logs/orca-plus-worktree-sweep.launchd.log"
 DOMAIN="gui/$(id -u)"
 HOUR=4
 MINUTE=0
+REPORT_DIR=
 NODE=$(command -v node || true)
 ORCA_BIN_DIR=$(dirname "$(command -v orca || echo /usr/local/bin/orca)")
 
@@ -27,6 +31,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --hour) HOUR=$2; shift ;;
     --minute) MINUTE=$2; shift ;;
+    --report-dir) REPORT_DIR=$2; shift ;;
     *) echo "worktree-sweep-launchd: unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -44,6 +49,9 @@ plist() {
     <string>$NODE</string>
     <string>$ROOT/scripts/orca-plus-worktree-sweep.mjs</string>
     <string>--apply</string>
+    <string>--fetch</string>${REPORT_DIR:+
+    <string>--report-dir</string>
+    <string>$REPORT_DIR</string>}
   </array>
   <key>WorkingDirectory</key><string>$ROOT</string>
   <key>EnvironmentVariables</key>
@@ -85,7 +93,7 @@ case "$cmd" in
     if launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; then echo "loaded: $PLIST"; else echo "not loaded"; fi
     ;;
   *)
-    sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
     exit 2
     ;;
 esac

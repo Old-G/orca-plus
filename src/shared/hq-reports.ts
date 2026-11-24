@@ -10,7 +10,9 @@ export const HQ_REPORT_FOLDERS = [
   'status-update',
   'updates',
   // Custom build (hq-daily-review): the day's review from the work journal.
-  'daily'
+  'daily',
+  // Custom build (worktree-sweep): the nightly worktree cleanup — removed, kept and why; one file a week.
+  'worktrees'
 ] as const
 export type HqReportFolder = (typeof HQ_REPORT_FOLDERS)[number]
 
@@ -28,7 +30,7 @@ export type HqReport = z.infer<typeof HqReportSchema>
 
 /** `improvements/x.md` or `workspaces/<slug>/improvements/x.md`: what the decisions RPC accepts. */
 export const HQ_REPORT_PATH =
-  /^(?:workspaces\/[a-z0-9][a-z0-9-]{0,62}\/)?(?:improvements|meetings|status-update|updates|daily)\/[^/\\]+\.md$/
+  /^(?:workspaces\/[a-z0-9][a-z0-9-]{0,62}\/)?(?:improvements|meetings|status-update|updates|daily|worktrees)\/[^/\\]+\.md$/
 
 export type HqReportsResult = { ok: true; reports: HqReport[] } | { ok: false; error: string }
 
@@ -36,6 +38,8 @@ export const HQ_REPORT_BELL_KIND = 'hq-report'
 export const HQ_REPORT_OPEN_ACTION = 'open-report'
 // Why: a report older than this is history, not something waiting for a decision.
 export const HQ_REPORT_BELL_DAYS = 3
+/** Custom build (worktree-sweep): folders listed in Reports with no bell — a nightly log asks nothing. */
+export const HQ_REPORT_QUIET_FOLDERS: ReadonlySet<HqReportFolder> = new Set(['worktrees'])
 
 export const HQ_REPORT_DECISIONS_MAX = 8000
 
@@ -57,7 +61,9 @@ export function hqReportDecisionsPrompt(
         ? 'Примени по скиллу upstream-updates: по одному, с проверкой и откатом, итог допиши в отчёт.'
         : report.folder === 'daily'
           ? 'Примени по скиллу daily-review, шаг «Применение»: только то, на что я сказал «да», и отметь в отчёте «Применено».'
-          : 'Прочитай отчёт и выполни решения. Сообщения людям — только через Approve.'
+          : report.folder === 'worktrees'
+            ? 'Это отчёт ночной чистки worktree (scripts/orca-plus-worktree-sweep.mjs в orca-custom). Удаляй только названные мной worktree: сначала сохрани вершину ветки ref-ом refs/orca-plus-sweep/<YYYYMMDD>/… и игнорируемые файлы архивом, как делает скрипт; невлитую работу — только после моего явного «удали». Итог допиши в отчёт.'
+            : 'Прочитай отчёт и выполни решения. Сообщения людям — только через Approve.'
   return `Решения по отчёту ${report.path}:\n${decisions}\n\n${how}`
 }
 

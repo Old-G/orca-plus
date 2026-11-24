@@ -35,6 +35,7 @@ import {
   closeCapturedStructuredSession,
   type StructuredSessionSurface
 } from '../../agent-session/lifecycle/structured-agent-session-close'
+import { sweepWorktreeAfterChatClose } from '../../../orca-plus/worktree-sweep/chat-close-worktree-sweep'
 
 export abstract class OrcaRuntimeWithCloseStructuredAgentSessionTab extends OrcaRuntimeWithStructuredSessionTabProjection {
   protected abstract isHeadlessOwnedMobileBrowserTab(
@@ -72,7 +73,12 @@ export abstract class OrcaRuntimeWithCloseStructuredAgentSessionTab extends Orca
     if (!host) {
       return false
     }
-    return closeCapturedStructuredSession(host, tab.sessionId, cause, surface, this)
+    const closed = await closeCapturedStructuredSession(host, tab.sessionId, cause, surface, this)
+    // Custom build (worktree-sweep): a chat closed from the phone takes its merged worktree too.
+    if (closed && cause === 'user-close') {
+      sweepWorktreeAfterChatClose(tab.sessionId, surface)
+    }
+    return closed
   }
 
   // Refused echo closes need a newer snapshot so clients restore the still-live mirror they already pruned.
