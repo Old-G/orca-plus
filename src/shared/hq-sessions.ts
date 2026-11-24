@@ -20,9 +20,10 @@ export const HQ_SESSION_OWNER_IN_MS = 30 * 60_000
 export const HQ_SESSION_HANDOFF_GRACE_MS = 3 * 60_000
 /**
  * Custom build (hq-handoff-auto): with «New chat after a handoff» on, the successor starts this soon,
- * whatever the dispatcher's mode; the moment is left for the owner's own click on the offer.
+ * whatever the dispatcher's mode. Why none (owner 24.11): a wait for his click only made him click —
+ * the chat on his screen and the 20 s grace left him every start Orca+ was to make by itself.
  */
-export const HQ_SESSION_HANDOFF_AUTO_GRACE_MS = 20_000
+export const HQ_SESSION_HANDOFF_AUTO_GRACE_MS = 0
 
 /** queued → working → waiting (on the owner) → done → closed (in History). */
 export const HQ_SESSION_LIFECYCLE = ['queued', 'working', 'waiting', 'done', 'closed'] as const
