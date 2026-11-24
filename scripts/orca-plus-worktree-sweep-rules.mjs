@@ -88,6 +88,12 @@ export function keepReasons(ev) {
   if (ev.pinned) {
     reasons.push('pinned in Orca')
   }
+  if (ev.orcaUnknown) {
+    reasons.push('Orca does not know it')
+  }
+  if (ev.orcaTwice) {
+    reasons.push('Orca lists it more than once')
+  }
   if (ev.orcaUnread) {
     reasons.push('Orca did not report its agents')
   }
@@ -99,6 +105,12 @@ export function keepReasons(ev) {
   }
   if (ev.onScreen) {
     reasons.push('open on screen in Orca')
+  }
+  if (ev.openTab) {
+    reasons.push('a tab is open in it in Orca')
+  }
+  if (ev.holdsCheckout) {
+    reasons.push(`holds another checkout: ${ev.holdsCheckout}`)
   }
   if (ev.liveProcess) {
     reasons.push(`a process works in it: ${ev.liveProcess}`)
@@ -117,8 +129,18 @@ export function keepReasons(ev) {
     reasons.push('git status unreadable')
   } else if (ev.dirtyCount > 0) {
     reasons.push(`${ev.dirtyCount} uncommitted file(s)`)
+  } else if (ev.hiddenCount === null) {
+    reasons.push('git index unreadable')
+  } else if (ev.hiddenCount > 0) {
+    reasons.push(
+      `${ev.hiddenCount} tracked file(s) hidden from git status (assume-unchanged, skip-worktree)`
+    )
   } else if (!ev.landedIn) {
     reasons.push('has work not in the base branch')
+  } else if (ev.nestedCheckout) {
+    reasons.push(`holds another checkout: ${ev.nestedCheckout}`)
+  } else if (ev.ignoredUnreadable) {
+    reasons.push(`ignored files unreadable: ${ev.ignoredUnreadable}`)
   } else if (ev.copyTooBig) {
     reasons.push(`${ev.copyTooBig} of ignored files beyond caches — too big to keep a copy`)
   }
@@ -274,10 +296,44 @@ export function processInside(procs, path, selfPid = process.pid) {
   return hit ? `${hit.cmd} (pid ${hit.pid})` : null
 }
 
-/** One file name for a worktree's copy of ignored files: `<repo>--<folder>-<sha12>.tar.gz`. */
+/**
+ * One file name for a worktree's copy of ignored files: `<repo>--<folder>-<sha12>-<path hash>.tar.gz`. The
+ * hash of the full path keeps two `qa` checkouts at one tip (in .claude/worktrees and ~/.hc-work) apart.
+ */
 export function copyFileName(repo, path, head) {
   const safe = (text) => String(text).replace(/[^A-Za-z0-9._-]+/g, '_')
-  return `${safe(repo)}--${safe(basename(path))}-${String(head).slice(0, 12)}.tar.gz`
+  const where = createHash('sha1').update(String(path)).digest('hex').slice(0, 8)
+  return `${safe(repo)}--${safe(basename(path))}-${String(head).slice(0, 12)}-${where}.tar.gz`
+}
+
+/** Manifest paths a `tar -t` listing lacks (tar writes a folder as `dir/`). */
+export function missingFromListing(paths, listing) {
+  const listed = new Set(
+    listing
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => line.replace(/^\.\//, '').replace(/\/+$/, ''))
+  )
+  return paths.filter((path) => !listed.has(path))
+}
+
+/** `git ls-files -v -z`: tracked paths marked assume-unchanged (a lowercase tag) or skip-worktree (`S`). */
+export function parseHiddenTracked(text) {
+  return text
+    .split('\0')
+    .filter((entry) => entry.length > 2 && entry[1] === ' ')
+    .filter((entry) => entry[0] === 'S' || (entry[0] >= 'a' && entry[0] <= 'z'))
+    .map((entry) => entry.slice(2))
+}
+
+/** The first other checkout inside `path` (a nested worktree, a clone in an ignored folder), or null. */
+export function checkoutInside(checkouts, path) {
+  for (const other of checkouts) {
+    if (other !== path && other.startsWith(path + sep)) {
+      return other.slice(path.length + 1)
+    }
+  }
+  return null
 }
 
 export function formatBytes(bytes) {

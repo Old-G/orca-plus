@@ -106,9 +106,14 @@ describe('HQ reports', () => {
     report('worktrees/2026-W43.md', '# Worktree cleanup · 2026-W43', NOW)
     await refreshHqReportBell(deps, known)
     expect(notify).not.toHaveBeenCalled()
-    expect(
-      hqReportDecisionsPrompt({ path: 'worktrees/2026-W42.md', folder: 'worktrees' }, 'удали x')
-    ).toContain('Удаляй только названные мной worktree')
+    const prompt = hqReportDecisionsPrompt(
+      { path: 'worktrees/2026-W42.md', folder: 'worktrees' },
+      'удали x'
+    )
+    expect(prompt).toContain('Удаляй только названные мной worktree')
+    // The nightly sweep rewrites the week's file, so the outcome goes to the chat, not into the report.
+    expect(prompt).toContain('отчёт не правь')
+    expect(prompt).not.toContain('допиши в отчёт')
   })
 
   it('tells the chat how to carry out the decisions for each kind of report', () => {
