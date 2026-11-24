@@ -287,24 +287,28 @@ tests_step() { bash "$ROOT/scripts/sync-upstream-tests.sh" "$STATE_DIR/logs/$TS"
 
 # Compares the old stack with the rebased one: every line a feature added must still be there.
 # Returns 1 when something is missing and no SYNC_GUARD_ACCEPT file explains it.
+# Why the pending block: a guard report nobody accepted stays blocking until it is accepted, even
+# when a later comparison is clean (its old side may already lack the lost feature).
 run_guard() { # [new head, default HEAD]
-  local log="$STATE_DIR/logs/$TS-guard.md" code=0 new_head=${1:-HEAD}
+  local log="$STATE_DIR/logs/$TS-guard.md" code=0 new_head=${1:-HEAD} pending=""
+  [ -f "$GUARD_BLOCK" ] && pending=$(cat "$GUARD_BLOCK")
   say ""
   say "## Сверка: наши изменения после rebase"
   ensure_toolchain
   node "$SCRIPT_DIR/sync-upstream-guard.mjs" "$OLD_BASE" "$OLD_CUSTOM" "refs/heads/$MIRROR" "$new_head" \
     >"$log" 2>&1 || code=$?
   if [ "$code" = 0 ]; then
-    rm -f "$GUARD_BLOCK"
     say "  ✓ ничего нашего не пропало"
+    # publish / ci_verify still ask guard_accepted for the pending reports.
+    [ -n "$pending" ] || rm -f "$GUARD_BLOCK"
     return 0
   fi
   grep -E '^(### |- [0-9a-f]{10} |## (Explain|Commits))' "$log" | sed 's/^/  /' | tee -a "$REPORT"
   say "  полный список: $log"
-  if [ "$code" = 1 ] && guard_accepted "$log"; then
+  if [ "$code" = 1 ] && guard_accepted "$(printf '%s\n%s' "$log" "$pending")"; then
     return 0
   fi
-  printf '%s\n' "$log" >"$GUARD_BLOCK"
+  printf '%s\n%s\n' "$log" "$pending" | sed '/^$/d' | sort -u >"$GUARD_BLOCK"
   return 1
 }
 
@@ -320,7 +324,7 @@ guard_accepted() { # guard logs
     [ -n "$log" ] || continue
     digest=$(guard_digest "$log")
     if [ -z "$digest" ]; then
-      say "  не принято: в $log нет отпечатка находок — запусти синк заново, чтобы сверка прошла ещё раз"
+      say "  не принято: в $log нет отпечатка находок (сверка упала или лог из старой версии). Прочитай его, восстанови или объясни потери, затем убери эту строку из $GUARD_BLOCK"
       return 1
     fi
     # Why tr: a file saved with Windows line endings still counts.
@@ -460,20 +464,14 @@ record_promotion() { # repo run head expect
 # Findings left from the sync's own guard stay blocked even when this comparison is clean: the
 # published stack may never have had the feature that went missing.
 guard_against_published() {
-  local published pending="" keep_base=$OLD_BASE keep_custom=$OLD_CUSTOM
+  local published keep_base=$OLD_BASE keep_custom=$OLD_CUSTOM
   published=$(git rev-parse -q --verify "refs/remotes/$PUBLISH_REMOTE/$PUBLISH_BRANCH" || true)
   [ -n "$published" ] && [ "$published" != "$(git rev-parse "refs/heads/$CUSTOM")" ] || return 0
-  [ -f "$GUARD_BLOCK" ] && pending=$(cat "$GUARD_BLOCK")
   OLD_BASE=$(git merge-base "$published" "refs/heads/$MIRROR")
   OLD_CUSTOM=$published
   run_guard "refs/heads/$CUSTOM" || PUBLISH_BLOCKED=1
   OLD_BASE=$keep_base
   OLD_CUSTOM=$keep_custom
-  # ci_verify then clears it only through guard_accepted, i.e. a real explanation file.
-  if [ -n "$pending" ]; then
-    { cat "$GUARD_BLOCK" 2>/dev/null || true; printf '%s\n' "$pending"; } | sort -u >"$GUARD_BLOCK.tmp"
-    mv "$GUARD_BLOCK.tmp" "$GUARD_BLOCK"
-  fi
 }
 
 # Why: under --unattended a stack that never reached GitHub must not stay on local custom either; it
