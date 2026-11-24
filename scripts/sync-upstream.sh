@@ -33,7 +33,8 @@ Usage: scripts/sync-upstream.sh [options]
 
 Env overrides: SYNC_REMOTE (upstream), SYNC_REMOTE_BRANCH (main), SYNC_MIRROR (main),
                SYNC_CUSTOM (custom), SYNC_CHECKS_CMD (replace all checks with one shell command),
-               SYNC_GUARD_ACCEPT (a file explaining every line the guard reports; accepts them),
+               SYNC_GUARD_ACCEPT (a file explaining every line the guard reports, plus one
+               `guard-accept <fingerprint>` line per guard report it accepts),
                SYNC_PUBLISH_REMOTE (origin), SYNC_PUBLISH_BRANCH (custom),
                SYNC_PUBLISH_MIRROR (main; empty = don't push the mirror),
                SYNC_CI_WORKFLOW (sync-verify.yml), SYNC_CI_PROMOTE (1; 0 = check only, no promotion)
@@ -300,15 +301,36 @@ run_guard() { # [new head, default HEAD]
   fi
   grep -E '^(### |- [0-9a-f]{10} |## (Explain|Commits))' "$log" | sed 's/^/  /' | tee -a "$REPORT"
   say "  полный список: $log"
-  if [ "$code" = 1 ] && guard_accepted; then
+  say "  отпечаток находок: $(guard_digest "$log")"
+  if [ "$code" = 1 ] && guard_accepted "$log"; then
     return 0
   fi
   printf '%s\n' "$log" >"$GUARD_BLOCK"
   return 1
 }
 
-guard_accepted() {
-  [ -n "${SYNC_GUARD_ACCEPT:-}" ] && [ -s "$SYNC_GUARD_ACCEPT" ] || return 1
+# The findings of one guard log, without its header (the tips change with every fixup): a new or
+# different loss gives a new fingerprint.
+guard_digest() { grep -E '^(### |- )' "$1" 2>/dev/null | shasum -a 256 | cut -c1-12; }
+
+# Why fingerprints: an explanation file left from an earlier run must not accept a loss nobody has
+# looked at. Each guard log listed (one path per line) needs a `guard-accept <fingerprint>` line.
+guard_accepted() { # guard logs
+  local log digest missing=""
+  while IFS= read -r log; do
+    [ -n "$log" ] || continue
+    digest=$(guard_digest "$log")
+    if [ -z "${SYNC_GUARD_ACCEPT:-}" ] || ! grep -Eq "^guard-accept $digest( |$)" "$SYNC_GUARD_ACCEPT" 2>/dev/null; then
+      missing="$missing $digest"
+    fi
+  done <<LOGS
+$1
+LOGS
+  if [ -n "$missing" ]; then
+    say "  не принято: объясни каждую находку в файле SYNC_GUARD_ACCEPT и добавь строки:"
+    for digest in $missing; do say "    guard-accept $digest"; done
+    return 1
+  fi
   say "  принято с объяснением ($SYNC_GUARD_ACCEPT):"
   sed 's/^/    /' "$SYNC_GUARD_ACCEPT" | tee -a "$REPORT"
   rm -f "$GUARD_BLOCK"
@@ -369,7 +391,7 @@ publish() {
   fi
   if [ "$PUBLISH_BLOCKED" = 0 ] && [ -f "$GUARD_BLOCK" ]; then
     say "Сверка прошлой синхронизации не принята ($(cat "$GUARD_BLOCK"))."
-    guard_accepted || PUBLISH_BLOCKED=1
+    guard_accepted "$(cat "$GUARD_BLOCK")" || PUBLISH_BLOCKED=1
   fi
   if [ "$PUBLISH_BLOCKED" = 1 ]; then
     say "## Не опубликовано: сверка нашла пропавшие изменения — объясни их в файле и запусти с SYNC_GUARD_ACCEPT=<файл>"
@@ -474,7 +496,7 @@ ci_verify() {
   say ""
   if [ "$PUBLISH_BLOCKED" = 0 ] && [ -f "$GUARD_BLOCK" ]; then
     say "Сверка прошлой синхронизации не принята ($(cat "$GUARD_BLOCK"))."
-    guard_accepted || PUBLISH_BLOCKED=1
+    guard_accepted "$(cat "$GUARD_BLOCK")" || PUBLISH_BLOCKED=1
   fi
   if [ "$PUBLISH_BLOCKED" = 1 ]; then
     say "## Не отправлено на проверку: сверка нашла пропавшие изменения — объясни их в файле и запусти с SYNC_GUARD_ACCEPT=<файл>"
