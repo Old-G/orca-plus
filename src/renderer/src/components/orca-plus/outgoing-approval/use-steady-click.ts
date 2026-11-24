@@ -8,8 +8,9 @@ import { useEffect, useRef, useState } from 'react'
 export const STEADY_SETTLE_MS = 700
 /** A pointer that moved this recently was on its way; the card moving then may have redirected it. */
 const TRAVEL_MS = 1500
-/** A scroll this soon after a wheel or a touch is the owner's own, and what it brings is seen. */
-const OWN_SCROLL_MS = 200
+/** A scroll this soon after a wheel or a touch is the owner's own, and what it brings is seen. Long
+ *  enough for the smooth scroll a wheel tick starts to finish. */
+const OWN_SCROLL_MS = 400
 const HELD_MS = 4000
 
 type Spot = { top: number; left: number }
@@ -51,6 +52,9 @@ export function useSteadyClick(): {
     return button && root.contains(button) ? button : null
   }
   const anchor = (): Spot | null => spotOf(ref.current?.querySelector('button'))
+  const look = (button: HTMLElement | null, at: number, where: Spot | null = anchor()): void => {
+    seen.current = { button, spot: spotOf(button), anchor: where, at }
+  }
 
   useEffect(() => {
     const doc = ref.current?.ownerDocument
@@ -59,24 +63,22 @@ export function useSteadyClick(): {
     }
     let point: { x: number; y: number } | null = null
     let ownScrollAt = Number.NEGATIVE_INFINITY
-    const look = (button: HTMLElement | null, at: number): void => {
-      seen.current = { button, spot: spotOf(button), anchor: anchor(), at }
-    }
     const onMove = (event: PointerEvent): void => {
       const now = performance.now()
       const last = seen.current
-      const button = buttonAt(event.target)
-      // Why: only a pointer arriving on one of these buttons can be sent to the wrong one.
-      if (button && last) {
+      const where = anchor()
+      // Why every move, wherever it lands: the card can jump while the pointer crosses its text on
+      // the way to Approve, and the next move would take the new place as the one it saw.
+      if (last) {
         const restedOnMoved =
           last.button !== null && last.button.isConnected && moved(last.spot, spotOf(last.button))
-        const travelledOnMoved = now - last.at < TRAVEL_MS && moved(last.anchor, anchor())
+        const travelledOnMoved = now - last.at < TRAVEL_MS && moved(last.anchor, where)
         if (restedOnMoved || travelledOnMoved) {
           shiftAt.current = now
         }
       }
       point = { x: event.clientX, y: event.clientY }
-      look(button, now)
+      look(buttonAt(event.target), now, where)
     }
     const onDown = (event: PointerEvent): void => {
       // Why: a finger or a pen has no hover to aim with — it lands on what the owner sees there now.
@@ -128,18 +130,23 @@ export function useSteadyClick(): {
     if (!button || event.detail === 0) {
       return
     }
+    const now = performance.now()
     const last = seen.current
     const aimed =
       last !== null &&
       last.button === button &&
       !moved(last.spot, spotOf(button)) &&
-      performance.now() - shiftAt.current >= STEADY_SETTLE_MS
+      now - shiftAt.current >= STEADY_SETTLE_MS
     if (aimed) {
       setHeld(false)
       return
     }
     event.preventDefault()
     event.stopPropagation()
+    // Why: the note tells him what is under the pointer now, so «Click again» on the same button,
+    // still where it is, is aimed — once the note has been up for the settle time, without a move.
+    look(button, now)
+    shiftAt.current = now
     setHeld(true)
   }
 
