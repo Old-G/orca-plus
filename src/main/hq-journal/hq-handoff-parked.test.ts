@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { PulseDb } from '../orca-plus/pulse/pulse-db'
 import type { HqCallerScope } from './hq-journal-rooms'
+import { hqLeadBatchSession } from './hq-journal-send'
 import { createHqThreads, type HqThreads } from './hq-journal-threads'
 
 let db: PulseDb
@@ -132,6 +133,47 @@ describe('a chat that handed off is parked (hq-handoff-parked)', () => {
     )
     expect(sent.sessionId).toBe('claude_old')
     expect(delivered).toEqual(['claude_old'])
+  })
+
+  it('parks an old chat that had no address, and reports an unknown one', async () => {
+    db.noteSessions([
+      {
+        sessionId: 'claude_bare',
+        address: null,
+        agent: 'claude',
+        worktreeId: 'r-api::/w/api',
+        workspace: 'acme',
+        project: 'acme-api',
+        state: 'working',
+        contextPct: null,
+        parentSessionId: null,
+        taskRef: null,
+        at: clock
+      }
+    ])
+    expect(threads.handoff('claude_bare', 'claude_new')).toBe(true)
+    expect(db.getSession('claude_new')?.parentSessionId).toBe('claude_bare')
+    const sent = await threads.send(
+      { sessionId: 'claude_lead' },
+      { address: 'claude_bare', text: 'status?' }
+    )
+    expect(sent).toMatchObject({ sessionId: 'claude_new', forwardedFrom: 'claude_bare' })
+    expect(threads.handoff('claude_nobody', 'claude_new')).toBe(false)
+  })
+
+  it("gives a Lead's held batch to the chat that continued the Lead, whatever its address", async () => {
+    const address = await handedOff()
+    db.noteSessions([{ ...db.getSession('claude_new')!, address: 'acme-api/other', at: clock }])
+    const pulse = {
+      getSession: (id: string) => db.getSession(id),
+      listSessionsByAddress: (addr: string) => db.listSessionsByAddress(addr),
+      liveSessionOf: (id: string) => db.chats.liveSessionOf(id)
+    }
+    const held = { address, sessionId: 'claude_old' } as Parameters<typeof hqLeadBatchSession>[1]
+    expect(db.listSessionsByAddress(address).map((session) => session.sessionId)).toEqual([
+      'claude_old'
+    ])
+    expect(hqLeadBatchSession(pulse, held)).toBe('claude_new')
   })
 
   it('leaves a chat no one continued as it was', async () => {

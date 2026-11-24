@@ -162,7 +162,7 @@ beforeEach(async () => {
   reassign = createHqLeadReassign({
     enabled: () => true,
     scope: async (caller) => scopeOf(caller.sessionId),
-    pulse,
+    pulse: { ...pulse, liveSessionOf: (id: string) => db.chats.liveSessionOf(id) },
     chats: {
       links: () => db.chats.list(),
       moveLead: (input) => db.chats.moveLead(input)
@@ -215,6 +215,32 @@ describe('orca hq reassign', () => {
     expect(rows.map((row) => row.title)).toEqual([
       'Lead change: hq/lead-billing leads this chat now, not hq/lead-payouts'
     ])
+  })
+
+  it('tells the chat that continued the new Lead, though it got another address', async () => {
+    db.noteSessions([
+      {
+        sessionId: 'claude_l2b',
+        address: 'hq/lead-billing-2',
+        agent: 'claude',
+        worktreeId: 'w',
+        workspace: 'acme',
+        project: 'hq',
+        state: 'working',
+        contextPct: null,
+        parentSessionId: 'claude_l2',
+        taskRef: null,
+        at: 3
+      }
+    ])
+    const result = await reassign.reassign(
+      { sessionId: 'claude_hq' },
+      { from: 'hq/lead-payouts', to: 'hq/lead-billing' }
+    )
+    expect(result.moved).toHaveLength(2)
+    expect(result.to.sessionId).toBe('claude_l2b')
+    expect(to('claude_l2')).toEqual([])
+    expect(to('claude_l2b')[0]?.prompt).toContain('you lead 2 more chats now')
   })
 
   it('forwards what a moved chat sends the old Lead; other chats still reach the old Lead', async () => {
