@@ -51,6 +51,11 @@ export type HqLiveSession = {
   tabOpen: boolean
   /** Custom build (hq-chat-roles): the role it was launched with; null for a chat launched without one. */
   role: HqChatRole | null
+  /**
+   * Custom build (hq-handoff-parked, T7): the chat that continues this one after its handoff, the end of
+   * the chain. Orca+ sends it nothing more: messages and work for it go there. Absent when none did.
+   */
+  handedOffTo?: string
 }
 
 export type HqDispatchDecision =
