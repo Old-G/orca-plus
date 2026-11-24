@@ -4,7 +4,7 @@
 # guard run here, typecheck / build / tests run in the fork's Sync verify workflow, which promotes
 # the stack to custom when green. The wrapper waits for that run (`gh run watch`, no local load),
 # then posts one macOS notification. A stop (conflict, red checks, our changes missing) leaves
-# custom untouched and hands the sync to a Claude agent in Orca+ (SYNC_AGENT=0: notify only).
+# custom untouched (local custom goes back to its pre-sync head) and hands the sync to a Claude agent in Orca+ (SYNC_AGENT=0: notify only).
 # Why not local checks: the full suite took 55 minutes and froze the owner's laptop (22.11).
 # Skips try again the next day. Must stay bash 3.2 compatible.
 set -uo pipefail
@@ -22,6 +22,7 @@ mkdir -p "$STATE_DIR"
 log() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$LOG"; }
 
 notify() { # title, message
+  log "notify: $2"
   [ "${SYNC_NO_NOTIFY:-0}" = 1 ] && return 0
   osascript -e "display notification \"$2\" with title \"$1\"" >/dev/null 2>&1 || true
 }
@@ -99,6 +100,26 @@ hand_to_agent() { # exit code
     >>"$LOG" 2>&1
 }
 
+# Why: a red run leaves the fork's custom alone, and local custom must not keep code that failed
+# verification either (a dev build restarted from it would run it). Rolled back only while it is
+# still on the stack that was sent; the candidate stays under refs/custom-sync/failed/<run>.
+rollback_local() { # run, stack sent, local head before the sync
+  local custom=${SYNC_CUSTOM:-custom} run=$1 sent=$2 old=$3
+  [ -n "$old" ] && [ "$old" != "$sent" ] || return 0
+  if [ "$(git rev-parse -q --verify "refs/heads/$custom" || true)" != "$sent" ]; then
+    printf 'Локальный %s сдвинулся после отправки — не откатан.\n' "$custom" >>"$report"
+    return 0
+  fi
+  git update-ref "refs/custom-sync/failed/$run" "$sent"
+  if [ "$(git symbolic-ref --quiet --short HEAD || true)" = "$custom" ]; then
+    git reset -q --keep "$old" || { printf 'Локальный %s не откатан: в дереве правки.\n' "$custom" >>"$report"; return 0; }
+  else
+    git update-ref "refs/heads/$custom" "$old" "$sent" || return 0
+  fi
+  printf 'Локальный %s откатан на %s; проверенный кандидат — refs/custom-sync/failed/%s.\n' \
+    "$custom" "$(git rev-parse --short "$old")" "$run" >>"$report"
+}
+
 log "start"
 "$ROOT/scripts/sync-upstream.sh" --unattended --ci-verify "$@"
 code=$?
@@ -107,7 +128,7 @@ log "exit $code ($(sed -n 's/^## //p' "$report" 2>/dev/null | tail -1))"
 
 CI_RESULT=""
 if [ "$code" = 0 ] && [ -f "$STATE_DIR/ci-run" ]; then
-  read -r ci_repo ci_run <"$STATE_DIR/ci-run"
+  read -r ci_repo ci_run ci_head _ ci_promote ci_old <"$STATE_DIR/ci-run"
   log "waiting for GitHub run $ci_run"
   if gh run watch "$ci_run" -R "$ci_repo" --exit-status --interval 60 >/dev/null 2>&1; then
     CI_RESULT=green
@@ -116,13 +137,16 @@ if [ "$code" = 0 ] && [ -f "$STATE_DIR/ci-run" ]; then
     code=2
     printf '\n## ПРОВЕРКИ НА GITHUB УПАЛИ — custom не тронут\nПрогон: https://github.com/%s/actions/runs/%s (gh run view %s -R %s --log-failed)\n' \
       "$ci_repo" "$ci_run" "$ci_run" "$ci_repo" >>"$report"
+    rollback_local "$ci_run" "${ci_head:-}" "${ci_old:-}"
   fi
   log "GitHub run $ci_run: $CI_RESULT"
 fi
 
 case "$code" in
   0)
-    if [ "$CI_RESULT" = green ]; then
+    if [ "$CI_RESULT" = green ] && [ "${ci_promote:-true}" != true ]; then
+      notify "orca-custom sync" "Стек пересобран и проверен на GitHub (только проверка): custom не переведён."
+    elif [ "$CI_RESULT" = green ]; then
       notify "orca-custom sync" "Стек пересобран, проверен на GitHub и опубликован в custom. Перезапусти dev-сборку."
     elif grep -q '^## OK — custom пересобран' "$report" 2>/dev/null; then
       notify "orca-custom sync" "Стек пересобран на свежем upstream. Перезапусти dev-сборку."
