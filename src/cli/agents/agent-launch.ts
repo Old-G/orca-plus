@@ -15,6 +15,7 @@ import {
 } from '../workspace-selection/workspace-selector'
 import { CLAUDE_SUBSCRIPTION_SESSION_OPTION } from '../../shared/claude-subscriptions'
 import { linkLaunchedChat } from '../hq-chat-link'
+import { handoffStartedByOrca } from '../hq-handoff-claim'
 
 export const AGENT_LAUNCH_HANDLERS: Record<string, CommandHandler> = {
   'agent launch': async ({ flags, client, cwd, json, rawArgs }) => {
@@ -52,6 +53,11 @@ export const AGENT_LAUNCH_HANDLERS: Record<string, CommandHandler> = {
         'incompatible_runtime',
         'This Orca host cannot start agents from the CLI. Update Orca on the execution host.'
       )
+    }
+    const startedByOrca = await handoffStartedByOrca(client, launch.prompt?.text)
+    if (startedByOrca) {
+      console.log(startedByOrca)
+      return
     }
     const result = await callAgentLaunch(
       client,

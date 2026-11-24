@@ -2,6 +2,7 @@
 // it is closed. Kept apart from the IPC module so both rules are testable without Electron.
 import type { ClaudeHandoffOffer } from '../../shared/claude-handoff-file'
 import { HQ_CHAT_ROLE_SESSION_OPTION, type HqChatRole } from '../../shared/hq-chat-role'
+import { parsePaneKey } from '../../shared/workspace-layout/stable-pane-id'
 
 const NATIVE_CHAT_TAB = 'structured-agent-session-'
 
@@ -70,4 +71,19 @@ export async function closeClaudeHandedOffChat(
     deps.log(`closing the handed-off chat failed: ${why}`)
     return 'failed'
   }
+}
+
+/** The tab the launch opened, so HQ can show the new chat in place; absent from older hosts. */
+export function readLaunchedTabId(result: unknown): string | undefined {
+  const outcome: unknown =
+    result && typeof result === 'object' ? Reflect.get(result, 'outcome') : null
+  if (!outcome || typeof outcome !== 'object') {
+    return undefined
+  }
+  const tabId: unknown = Reflect.get(outcome, 'tabId')
+  if (typeof tabId === 'string') {
+    return tabId
+  }
+  const paneKey: unknown = Reflect.get(outcome, 'paneKey')
+  return typeof paneKey === 'string' ? parsePaneKey(paneKey)?.tabId : undefined
 }

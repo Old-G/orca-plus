@@ -3,10 +3,12 @@
 import { defineMethod } from '../core'
 import {
   HqChatLinksParams,
+  HqHandoffClaimParams,
   HqLinkChatParams,
   HqReassignParams
 } from '../../../../shared/rpc-contract/hq-journal-params'
 import { getHqLeadReassign } from '../../../hq-journal/hq-lead-reassign'
+import { getClaudeHandoffClaims } from '../../../claude-handoff/claude-handoff-claims'
 
 export const HQ_CHAT_LINK_METHODS = [
   defineMethod({
@@ -31,6 +33,17 @@ export const HQ_CHAT_LINK_METHODS = [
     permission: 'workspace',
     params: HqChatLinksParams,
     handler: async (_params, { runtime }) => runtime.pulseChats().list()
+  }),
+  // Custom build (hq-handoff-auto, owner 24.11): one handoff, one new chat.
+  defineMethod({
+    name: 'hq.handoffClaim',
+
+    permission: 'workspace',
+    params: HqHandoffClaimParams,
+    handler: async ({ callerSessionId }) =>
+      callerSessionId
+        ? getClaudeHandoffClaims().claimForAgent(callerSessionId)
+        : { taken: false as const }
   }),
   // Custom build (hq-lead-reassign): `orca hq reassign` — a Lead's chats go to another chat.
   defineMethod({

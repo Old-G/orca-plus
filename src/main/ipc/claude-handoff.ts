@@ -23,7 +23,6 @@ import type {
 } from '../../shared/claude-handoff-file'
 import { getRuntimePathBasename } from '../../shared/file-access/cross-platform-path'
 import { splitWorktreeId } from '../../shared/worktree/id'
-import { parsePaneKey } from '../../shared/workspace-layout/stable-pane-id'
 import { getHqThreads } from '../hq-journal/hq-journal-threads'
 import type { HqChatRole } from '../../shared/hq-chat-role'
 import { getHqSessions } from '../hq-sessions/hq-sessions'
@@ -34,24 +33,11 @@ import {
 import {
   claudeHandoffSuccessorSessionOptions,
   claudeHandoffSuccessorWorktreeId,
-  closeClaudeHandedOffChat
+  closeClaudeHandedOffChat,
+  readLaunchedTabId
 } from '../claude-handoff/claude-handoff-successor'
 import { createClaudeContinueChat } from '../claude-handoff/claude-handoff-continue-chat'
-
-/** The tab the launch opened, so HQ can show the new chat in place; absent from older hosts. */
-function readLaunchedTabId(result: unknown): string | undefined {
-  const outcome: unknown =
-    result && typeof result === 'object' ? Reflect.get(result, 'outcome') : null
-  if (!outcome || typeof outcome !== 'object') {
-    return undefined
-  }
-  const tabId: unknown = Reflect.get(outcome, 'tabId')
-  if (typeof tabId === 'string') {
-    return tabId
-  }
-  const paneKey: unknown = Reflect.get(outcome, 'paneKey')
-  return typeof paneKey === 'string' ? parsePaneKey(paneKey)?.tabId : undefined
-}
+import { startClaudeHandoffOnce } from '../claude-handoff/claude-handoff-start-once'
 
 const NATIVE_CHAT_TAB = 'structured-agent-session-'
 
@@ -285,13 +271,21 @@ export function registerClaudeHandoffHandlers(
         return { ok: false, error: 'The handoff file is gone or no longer valid.' }
       }
       const worktreeId = claudeHandoffSuccessorWorktreeId(resolved.offer)
-      const started = await startSuccessor({
-        worktreeId,
-        from: resolved.offer,
-        prompt: resolved.file.prompt,
-        presentation,
-        keepOld,
-        onStarted: () => offers.dismiss(id)
+      const started = await startClaudeHandoffOnce({
+        fromSessionId: nativeChatSessionId(resolved.offer.tabId),
+        ownStarted: () =>
+          claudeHandoffSuccessorStarted(store, runtime, resolved.offer).catch(() => false),
+        dismiss: () => offers.dismiss(id),
+        start: () =>
+          startSuccessor({
+            worktreeId,
+            from: resolved.offer,
+            prompt: resolved.file.prompt,
+            presentation,
+            keepOld,
+            onStarted: () => offers.dismiss(id)
+          }),
+        card: { runtime, task: resolved.file.prompt }
       })
       if (!started.ok) {
         return started

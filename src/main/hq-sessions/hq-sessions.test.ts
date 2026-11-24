@@ -325,12 +325,9 @@ describe('HQ+ session dispatcher', () => {
       expect(handoffs).toEqual(['h1'])
     })
 
-    it('leaves the chat on the owner’s screen to him, and goes once he looks away', async () => {
-      offers = [offer()]
+    it('starts it beside the chat on the owner’s screen', async () => {
+      offers = [offer({ raisedAt: clock })]
       live = [chat({ onScreen: true, ownerAt: clock })]
-      await service.sweep({ run: true })
-      expect(handoffs).toEqual([])
-      live = [chat({ ownerAt: clock - 10_000 })]
       await service.sweep({ run: true })
       expect(handoffs).toEqual(['h1'])
     })
@@ -344,9 +341,7 @@ describe('HQ+ session dispatcher', () => {
       expect(rows(HQ_JOURNAL_KIND.sessionOpen)).toEqual([])
     })
 
-    it('waits out its few seconds, and a chat stopped on a limit until the limit lifts', async () => {
-      offers = [offer({ raisedAt: clock - 5_000 })]
-      await service.sweep({ run: true })
+    it('waits while its chat is stopped on a limit, and goes once the limit lifts', async () => {
       offers = [offer({ limitStopped: true })]
       await service.sweep({ run: true })
       expect(handoffs).toEqual([])
