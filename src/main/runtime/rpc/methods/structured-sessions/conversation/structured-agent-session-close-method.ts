@@ -36,6 +36,7 @@ export const STRUCTURED_AGENT_SESSION_CLOSE_METHOD = defineMethod({
     }
     const host = requireStructuredCleanupHost(ctx)
     const surface = captureStructuredSessionSurface(host, params.sessionId, ctx.runtime)
+    let tabRetired = false
     try {
       const result = await retireCapturedStructuredSessionSurface(
         host,
@@ -47,11 +48,15 @@ export const STRUCTURED_AGENT_SESSION_CLOSE_METHOD = defineMethod({
       if (result.error !== undefined) {
         throw result.error
       }
+      tabRetired = result.committed
     } finally {
       if (!keepRunning) {
         await host.close(params.sessionId, 'user-close')
-        // Custom build (worktree-sweep): the chat's worktree goes too once its work is merged.
-        sweepWorktreeAfterChatClose(params.sessionId, surface)
+        // Custom build (worktree-sweep): the chat's worktree goes too once its work is merged — only after
+        // this close retired the chat's tab; a failed or superseded retirement schedules nothing (Codex P2 24.11).
+        if (tabRetired) {
+          sweepWorktreeAfterChatClose(params.sessionId, surface)
+        }
       }
     }
     return { ok: true as const }

@@ -32,6 +32,12 @@ export function reasonGroup(reason) {
   if (reason.startsWith('removal failed')) {
     return 'removal failed'
   }
+  if (reason.startsWith('holds another checkout')) {
+    return 'holds another checkout'
+  }
+  if (reason.includes('hidden from git status')) {
+    return 'tracked files hidden from git status'
+  }
   return reason
 }
 
@@ -103,9 +109,16 @@ const REPORT_FOOTER = [
   'Every removal, with its backup ref and copy: ~/Library/Logs/orca-plus-worktree-sweep.log.'
 ].join('\n')
 
-/** The week's report with this run's section on top of the earlier ones. */
+/**
+ * The week's report with this run's section on top of the earlier ones. What someone wrote below the
+ * footer stays: the generated part ends there, and only that part is rebuilt (Codex P3 24.11).
+ */
 export function mergeWeekReport(existing, now, night) {
-  const sections = (existing ?? '')
+  const text = existing ?? ''
+  const footerAt = text.indexOf(REPORT_FOOTER)
+  const generated = footerAt === -1 ? text : text.slice(0, footerAt)
+  const notes = footerAt === -1 ? '' : text.slice(footerAt + REPORT_FOOTER.length).trim()
+  const sections = generated
     .split(/^(?=## )/m)
     .slice(1)
     .map((part) => part.split(/^---$/m)[0].trimEnd())
@@ -116,11 +129,17 @@ export function mergeWeekReport(existing, now, night) {
     ...sections.flatMap((section) => ['', section]),
     '',
     REPORT_FOOTER,
+    ...(notes ? ['', notes] : []),
     ''
   ].join('\n')
 }
 
-/** What chat closes removed and kept since the last sweep run (else since `fallbackSince`), from the log. */
+/**
+ * What chat closes removed and kept since the last report, from the log. The last `run` line says how far
+ * that report read (`readTo`, a byte offset); everything after it counts, whatever its time stamp, so a
+ * close that finished while the night ran is in the next report (Codex P3 24.11). With no run yet: the
+ * entries after `fallbackSince`. `readTo` of the result is where this read stopped.
+ */
 export function closesSince(logFile, fallbackSince) {
   const removed = []
   const kept = []
@@ -128,21 +147,30 @@ export function closesSince(logFile, fallbackSince) {
   try {
     text = readFileSync(logFile, 'utf8')
   } catch {
-    return { removed, kept }
+    return { removed, kept, readTo: 0 }
   }
   const entries = []
-  for (const line of text.split('\n').slice(-5000)) {
+  let offset = 0
+  for (const line of text.split('\n')) {
+    const at = offset
+    offset += Buffer.byteLength(line) + 1
     try {
-      entries.push(JSON.parse(line))
+      entries.push({ at, entry: JSON.parse(line) })
     } catch {
       // A torn or foreign line says nothing.
     }
   }
-  // Why: since the last sweep's report, so a close is reported once, however the runs fall.
-  const lastRun = entries.findLast((entry) => entry.event === 'run')
-  const since = lastRun ? Date.parse(lastRun.at) : fallbackSince
-  for (const entry of entries) {
-    if (entry.trigger !== 'chat-close' || !(Date.parse(entry.at) > since)) {
+  const lastRun = entries.findLast(({ entry }) => entry.event === 'run')
+  const from = !lastRun
+    ? 0
+    : Number.isFinite(lastRun.entry.readTo)
+      ? lastRun.entry.readTo
+      : lastRun.at + 1
+  for (const { at, entry } of entries) {
+    if (at < from || entry.trigger !== 'chat-close') {
+      continue
+    }
+    if (!lastRun && !(Date.parse(entry.at) > fallbackSince)) {
       continue
     }
     const name = `${entry.repo} · ${basename(entry.path ?? '')}`
@@ -150,7 +178,9 @@ export function closesSince(logFile, fallbackSince) {
       removed.push(name)
     } else if (entry.event === 'kept') {
       kept.push(`${name}: ${entry.reasons?.[0] ?? 'kept'}`)
+    } else if (entry.event === 'failed') {
+      kept.push(`${name}: removal failed at ${entry.step ?? 'a step'}`)
     }
   }
-  return { removed, kept }
+  return { removed, kept, readTo: Buffer.byteLength(text) }
 }

@@ -4,7 +4,7 @@
 //
 //   node scripts/orca-plus-worktree-sweep.mjs            dry run: what would go and why the rest stays
 //   node scripts/orca-plus-worktree-sweep.mjs --apply    remove them
-//   options: --idle-hours <n> (default 24) · --json · --report-dir <dir> (writes <dir>/<YYYY-MM-DD>.md)
+//   options: --idle-hours <n> (default 24) · --json · --report-dir <dir> (writes <dir>/<ISO week>.md)
 //            --repo <main checkout> (repeatable; default: every local repo Orca has)
 //            --root <dir> (only worktrees under it; default: every linked worktree of those repos — next to
 //              the repo, in <repo>/.claude/worktrees, in ~/orca/workspaces, anywhere git has one)
@@ -16,21 +16,27 @@
 //   - it is not the main checkout, is not locked or pinned;
 //   - no agent in it is still working, no terminal is live in it, and no process has its folder as cwd;
 //   - nothing happened in it for --idle-hours (Orca's activity stamp and git's own index/HEAD files);
-//   - `git status` is empty — no edits, no untracked files;
+//   - no tab is open in it in Orca (nightly; after a chat close Orca+ checks the tabs itself);
+//   - it holds no other checkout (a nested worktree or clone would go with it);
+//   - `git status` is empty — no edits, no untracked files — and no tracked file is hidden from it
+//     (assume-unchanged, skip-worktree);
 //   - every change on its branch is already in the project's base branch (see landedIn()).
+// Right before the removal all of it is read again — HEAD, branch, status, ignored files, processes and
+// Orca's view — and a worktree that moved meanwhile stays; its branch goes only at the tip that was backed up.
 // Before a branch is deleted its tip is kept as refs/orca-plus-sweep/<YYYYMMDD>/<branch>-<sha12> for 30 days,
 // `/` in the branch written as %2F (a name over 200 bytes is cut and ends in %h<hash>; the log has the
 // branch), so `git worktree add <dir> refs/orca-plus-sweep/<date>/feat%2Fx-<sha12>` brings `feat/x` back
 // (`git for-each-ref refs/orca-plus-sweep` lists them). Ignored files that are not caches (run state, audit
-// logs, outputs, .env) are copied first to <attic>/<YYYYMMDD>/<repo>--<folder>-<sha12>.tar.gz, kept 30 days
-// too (`tar -xzf <copy> -C <dir>` puts them back); a worktree whose such files pass --max-copy-mb stays.
-// Caches (node_modules, __pycache__, .venv, dist…) are not copied. Remote branches are never touched.
+// logs, outputs, .env) are copied first to <attic>/<YYYYMMDD>/<repo>--<folder>-<sha12>-<hash>.tar.gz, kept 30
+// days too (`tar -xzf <copy> -C <dir>` puts them back), and the copy is checked to list every file before
+// anything goes; a worktree whose such files pass --max-copy-mb stays. Caches (node_modules, __pycache__,
+// .venv, dist…) below an ignored folder are not copied. Remote branches are never touched.
 // Folders under ~/orca/workspaces that git does not know as worktrees are listed, never deleted.
+// Repos are Orca's local git projects, each checked to be its own repo's main checkout. ORCA_PLUS_SWEEP_ORCA
+// names the orca CLI to ask (Orca+ passes its bundled one).
 import {
   appendFileSync,
-  chmodSync,
   existsSync,
-  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -43,23 +49,25 @@ import { homedir } from 'node:os'
 import { basename, dirname, join, relative, sep } from 'node:path'
 import {
   BACKUP_REF_PREFIX,
-  CACHE_NAMES,
-  CACHE_SUFFIXES,
   DAY_MS,
   HOUR_MS,
   OUTSIDE_ROOT,
   backupRefName,
-  copyFileName,
+  checkoutInside,
   dayStamp,
   formatBytes,
   isBackupExpired,
-  isCacheName,
   keepReasons,
-  parseLsofCwd,
-  parseStatusZ,
   parseWorktreePorcelain,
   processInside
 } from './orca-plus-worktree-sweep-rules.mjs'
+import {
+  MAX_COPY_FILES,
+  archiveManifest,
+  hiddenTracked,
+  ignoredManifest,
+  readStatus
+} from './orca-plus-worktree-sweep-files.mjs'
 import {
   closesSince,
   isoWeek,
@@ -67,9 +75,16 @@ import {
   renderNight
 } from './orca-plus-worktree-sweep-report.mjs'
 import {
+  ORCA_CLI,
+  orcaEvidence,
+  readOrca,
+  readProcesses
+} from './orca-plus-worktree-sweep-orca.mjs'
+import {
+  fetchOrigin,
   git,
-  gitRaw,
   gitTouchedAt,
+  isMainCheckout,
   landedIn,
   real,
   repoBusy,
@@ -79,98 +94,58 @@ import {
 
 // ---- side effects below ----
 
-function orcaJson(args) {
-  const res = run('orca', [...args, '--json'], { timeout: 60_000 })
-  if (!res.ok) {
-    return null
-  }
-  try {
-    const parsed = JSON.parse(res.out)
-    return parsed.ok ? parsed.result : null
-  } catch {
-    return null
-  }
-}
-
-/** Orca's view: repos and, by real path, each worktree's id, pin, activity and live agents. */
-function readOrca() {
-  const list = orcaJson(['worktree', 'list', '--limit', '100000'])
-  const ps = orcaJson(['worktree', 'ps', '--limit', '100000'])
-  // Why: a cut page hides some worktrees' live agents; a worktree with no row would look idle (Codex P1 10.11).
-  if (!list || !ps || list.truncated || ps.truncated) {
-    return null
-  }
-  const byPath = new Map()
-  for (const w of list.worktrees) {
-    if (w.hostId && w.hostId !== 'local') {
-      continue
-    }
-    byPath.set(real(w.path), {
-      id: w.id,
-      repoId: w.repoId,
-      isMain: w.isMainWorktree,
-      pinned: !!w.isPinned,
-      lastActivityAt: w.lastActivityAt ?? 0
-    })
-  }
-  for (const row of ps.worktrees) {
-    const entry = byPath.get(real(row.path))
-    if (!entry) {
-      continue
-    }
-    entry.liveAgent = (row.agents ?? []).some((a) => a.state && a.state !== 'done')
-    entry.liveTerminal =
-      (row.liveTerminalCount ?? 0) > 0 ||
-      !!row.hasAttachedPty ||
-      (row.unverifiableTerminalCount ?? 0) > 0
-    entry.isActive = !!row.isActive
-    entry.psRead = true
-  }
-  const repos = [...byPath.entries()]
-    .filter(([path, w]) => w.isMain && existsSync(path))
-    .map(([path]) => path)
-  return { byPath, repos, ps }
-}
-
 /** `git fetch` of the repo's remote, once per run, so a merge request merged an hour ago reads as merged. */
 function fetchOnce(mainPath, fetched) {
-  if (fetched.has(mainPath)) {
+  if (!fetched.has(mainPath)) {
+    fetched.add(mainPath)
+    fetchOrigin(mainPath)
+  }
+}
+
+/** Every checkout Orca or git knows on this machine: a worktree holding one of them stays. */
+function allCheckouts(orca) {
+  const paths = new Set(orca.byPath.keys())
+  for (const repo of orca.repos) {
+    const listed = git(repo, 'worktree', 'list', '--porcelain')
+    for (const wt of listed.ok ? parseWorktreePorcelain(listed.out) : []) {
+      paths.add(real(wt.path))
+    }
+  }
+  return [...paths]
+}
+
+/** The git half of the evidence: status, hidden tracked files, the proof it landed, its ignored files. */
+function gitEvidence(ev, path, mainPath, branch, ctx) {
+  const status = readStatus(path)
+  ev.dirtyCount = status ? status.dirty.length : null
+  if (ev.dirtyCount !== 0) {
     return
   }
-  fetched.add(mainPath)
-  // Why: no prompt can hang a background run — a password remote just fails, and 60 s caps the rest.
-  run('git', ['-C', mainPath, 'fetch', '--quiet', '--no-tags', 'origin'], {
-    timeout: 60_000,
-    env: { GIT_TERMINAL_PROMPT: '0' }
-  })
-}
-
-/** Size of the ignored files a removal would copy (caches skipped), stopping once past `max`. */
-function ignoredSize(wtPath, entries, max) {
-  let bytes = 0
-  const stack = entries.map((entry) => join(wtPath, entry))
-  while (stack.length > 0 && bytes <= max) {
-    const path = stack.pop()
-    let info
-    try {
-      info = lstatSync(path)
-    } catch {
-      continue
-    }
-    if (info.isDirectory()) {
-      for (const child of readdirSync(path)) {
-        if (!isCacheName(child)) {
-          stack.push(join(path, child))
-        }
-      }
-    } else {
-      bytes += info.size
-    }
+  const hidden = hiddenTracked(path)
+  ev.hiddenCount = hidden ? hidden.length : null
+  if (ev.hiddenCount !== 0) {
+    return
   }
-  return bytes
+  ev.landedIn = landedIn(path, mainPath, branch)
+  if (!ev.landedIn && ctx.opts.fetch) {
+    fetchOnce(mainPath, ctx.fetched)
+    ev.landedIn = landedIn(path, mainPath, branch)
+  }
+  if (ev.landedIn) {
+    const max = ctx.opts.maxCopyBytes
+    const manifest = ignoredManifest(path, status.ignored, max)
+    ev.nestedCheckout = manifest.nested
+    ev.ignoredUnreadable = manifest.unreadable
+    ev.copyTooBig = !manifest.over
+      ? null
+      : manifest.bytes > max
+        ? `over ${formatBytes(max)}`
+        : `over ${MAX_COPY_FILES} files`
+  }
 }
 
-function gatherRepo(mainPath, orca, opts, now, procs, fetched) {
+function gatherRepo(mainPath, ctx) {
+  const { orca, opts, now, procs } = ctx
   // Why: mid-rebase the base branch and its reflog are being rewritten; the proofs would read noise.
   if (repoBusy(mainPath)) {
     return [
@@ -208,61 +183,27 @@ function gatherRepo(mainPath, orca, opts, now, procs, fetched) {
       bare: wt.bare,
       underRoot,
       locked: wt.locked,
-      pinned: known?.pinned ?? false,
-      liveAgent: known?.liveAgent ?? false,
-      // An Orca worktree with no ps row: its agents are unread, so it is not touched.
-      orcaUnread: known ? !known.psRead : false,
-      liveTerminal: known?.liveTerminal ?? false,
-      // Why: after a chat close the owner still has its workspace selected; Orca+ checked no tab is left.
-      onScreen: !opts.closedChat && (known?.isActive ?? false),
+      ...orcaEvidence(known, opts),
       // Why: a shell in Terminal.app, a Claude subagent or a run outside Orca is invisible to `orca worktree ps`.
       liveProcess: procs ? processInside(procs, path) : null,
       processesUnread: procs === null,
+      // Why: git removes the folder whole, a nested worktree or a clone in an ignored folder with it.
+      holdsCheckout: checkoutInside(ctx.checkouts, path),
       minIdleMs: opts.closedChat ? 0 : opts.idleHours * HOUR_MS,
       idleMs: null,
       dirtyCount: null,
+      hiddenCount: null,
       landedIn: null,
+      nestedCheckout: null,
+      ignoredUnreadable: null,
       copyTooBig: null
     }
-    let ignored = []
-    // Why: the costly git checks are skipped once a cheap reason already keeps it.
-    if (
-      underRoot &&
-      !ev.locked &&
-      !ev.pinned &&
-      !ev.orcaUnread &&
-      !ev.liveAgent &&
-      !ev.liveTerminal &&
-      !ev.onScreen &&
-      !ev.liveProcess &&
-      !ev.processesUnread
-    ) {
+    // Why: the costly git checks run only once no cheap reason keeps it.
+    if (keepReasons({ ...ev, dirtyCount: 0, hiddenCount: 0, landedIn: 'x' }).length === 0) {
       const touched = Math.max(known?.lastActivityAt ?? 0, gitTouchedAt(path))
       ev.idleMs = touched ? now - touched : null
       if (ev.idleMs === null || ev.idleMs >= ev.minIdleMs) {
-        const status = gitRaw(
-          path,
-          'status',
-          '--porcelain',
-          '-z',
-          '--ignored=traditional',
-          '--untracked-files=normal'
-        )
-        const parsed = status.ok ? parseStatusZ(status.out) : null
-        ev.dirtyCount = parsed ? parsed.dirty.length : null
-        if (ev.dirtyCount === 0) {
-          ev.landedIn = landedIn(path, mainPath, wt.branch)
-          if (!ev.landedIn && opts.fetch) {
-            fetchOnce(mainPath, fetched)
-            ev.landedIn = landedIn(path, mainPath, wt.branch)
-          }
-        }
-        if (ev.landedIn && parsed.ignored.length > 0) {
-          const bytes = ignoredSize(path, parsed.ignored, opts.maxCopyBytes)
-          ev.copyTooBig =
-            bytes > opts.maxCopyBytes ? `over ${formatBytes(opts.maxCopyBytes)}` : null
-          ignored = parsed.ignored
-        }
+        gitEvidence(ev, path, mainPath, wt.branch, ctx)
       }
     }
     const reasons = keepReasons(ev)
@@ -273,8 +214,8 @@ function gatherRepo(mainPath, orca, opts, now, procs, fetched) {
       branch: wt.branch,
       head: wt.head,
       orcaId: known?.id ?? null,
+      orcaActivityAt: known?.lastActivityAt ?? 0,
       landedIn: ev.landedIn,
-      ignored,
       reasons,
       remove: reasons.length === 0
     })
@@ -282,25 +223,34 @@ function gatherRepo(mainPath, orca, opts, now, procs, fetched) {
   return rows
 }
 
-/** Folders under the root that git does not know as worktrees: listed for the owner, never deleted. */
+/** The folder's entries that are folders; none when it cannot be read (a dangling link, no access). */
+function subfolders(dir) {
+  try {
+    return readdirSync(dir).filter((name) => {
+      try {
+        return !name.startsWith('.') && statSync(join(dir, name)).isDirectory()
+      } catch {
+        return false
+      }
+    })
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Folders under the root that git does not know as worktrees: listed for the owner, never deleted. An
+ * entry it cannot read is passed over, so it never stops the night's removals (Codex P2 24.11).
+ */
 function strayFolders(root, knownPaths) {
   const out = []
-  if (!existsSync(root)) {
-    return out
-  }
-  for (const project of readdirSync(root)) {
+  for (const project of subfolders(root)) {
     const projectDir = join(root, project)
-    if (project.startsWith('.') || !statSync(projectDir).isDirectory()) {
-      continue
-    }
     if (knownPaths.has(real(projectDir))) {
       continue
     }
-    for (const child of readdirSync(projectDir)) {
+    for (const child of subfolders(projectDir)) {
       const dir = join(projectDir, child)
-      if (child.startsWith('.') || !statSync(dir).isDirectory()) {
-        continue
-      }
       if (!knownPaths.has(real(dir)) && existsSync(join(dir, '.git'))) {
         out.push(dir)
       }
@@ -309,33 +259,72 @@ function strayFolders(root, knownPaths) {
   return out
 }
 
-/** Copies the worktree's ignored files (caches left out) to the attic; null when there are none. */
-function copyIgnored(row, now, attic) {
-  if (row.ignored.length === 0) {
-    return { ok: true, copy: null }
+/**
+ * Reads the worktree again right before it goes (Codex P1 24.11). With `live`, first no process in it and
+ * Orca's view unchanged; then, last so the removal follows at once, the same HEAD and branch, nothing
+ * uncommitted or hidden, the ignored files still copyable — and with `sig`, the very ones just copied.
+ * Returns `{ manifest }`, or `{ why }` when it must stay.
+ */
+function recheck(row, ctx, { live, sig }) {
+  if (live) {
+    const procs = readProcesses()
+    const proc = procs ? processInside(procs, row.path) : 'running processes unread (lsof)'
+    if (proc) {
+      return { why: `a process works in it: ${proc}` }
+    }
+    const orca = readOrca(false)
+    if (!orca) {
+      return { why: 'Orca is not answering' }
+    }
+    const known = orca.byPath.get(row.path)
+    if ((known?.lastActivityAt ?? 0) > row.orcaActivityAt) {
+      return { why: 'active in Orca since the check' }
+    }
+    const reasons = keepReasons({
+      ...orcaEvidence(known, ctx.opts),
+      underRoot: true,
+      minIdleMs: 0,
+      idleMs: null,
+      dirtyCount: 0,
+      hiddenCount: 0,
+      landedIn: row.landedIn
+    })
+    if (reasons.length > 0) {
+      return { why: reasons[0] }
+    }
   }
-  const dir = join(attic, dayStamp(now))
-  mkdirSync(dir, { recursive: true, mode: 0o700 })
-  const copy = join(dir, copyFileName(row.repo, row.path, row.head))
-  const part = `${copy}.part`
-  const excludes = [...CACHE_NAMES, ...CACHE_SUFFIXES.map((suffix) => `*${suffix}`)].flatMap(
-    (name) => ['--exclude', name]
-  )
-  const packed = run('tar', ['-czf', part, '-C', row.path, ...excludes, '--null', '-T', '-'], {
-    input: `${row.ignored.join('\0')}\0`,
-    timeout: 600_000
-  })
-  if (!packed.ok || !existsSync(part)) {
-    rmSync(part, { force: true })
-    return { ok: false, err: packed.err || 'no archive written' }
+  const head = git(row.path, 'rev-parse', 'HEAD')
+  if (!head.ok || head.out !== row.head) {
+    return { why: 'HEAD moved since the check' }
   }
-  // Why: run state and .env copies can hold secrets; the copy is the owner's alone.
-  chmodSync(part, 0o600)
-  renameSync(part, copy)
-  return { ok: true, copy }
+  const ref = git(row.path, 'symbolic-ref', '-q', 'HEAD')
+  if ((ref.ok ? ref.out.replace(/^refs\/heads\//, '') : null) !== row.branch) {
+    return { why: 'its branch changed since the check' }
+  }
+  const status = readStatus(row.path)
+  if (!status || status.dirty.length > 0) {
+    return { why: 'uncommitted files appeared' }
+  }
+  const hidden = hiddenTracked(row.path)
+  if (!hidden || hidden.length > 0) {
+    return { why: 'tracked files hidden from git status' }
+  }
+  const manifest = ignoredManifest(row.path, status.ignored, ctx.opts.maxCopyBytes)
+  if (manifest.over || manifest.nested || manifest.unreadable) {
+    return { why: 'its ignored files changed: too big, unreadable or a checkout inside' }
+  }
+  if (sig !== undefined && manifest.sig !== sig) {
+    return { why: 'its ignored files changed while they were copied' }
+  }
+  return { manifest }
 }
 
-function removeOne(row, now, log, opts) {
+function removeOne(row, ctx) {
+  const { now, log, opts } = ctx
+  const before = recheck(row, ctx, { live: false })
+  if (before.why) {
+    return { ok: false, step: 'check before removal', err: before.why }
+  }
   const backup = backupRefName(
     dayStamp(now),
     row.branch ?? `detached-${basename(row.path)}`,
@@ -345,13 +334,30 @@ function removeOne(row, now, log, opts) {
   if (!saved.ok) {
     return { ok: false, step: 'backup ref', err: saved.err }
   }
-  const copied = copyIgnored(row, now, opts.attic)
+  const copied = archiveManifest({
+    repo: row.repo,
+    wtPath: row.path,
+    head: row.head,
+    paths: before.manifest.paths,
+    now,
+    attic: opts.attic
+  })
   if (!copied.ok) {
+    git(row.mainPath, 'update-ref', '-d', backup, row.head)
     return { ok: false, step: 'copy of ignored files', err: copied.err }
+  }
+  // Why again after the copy: an agent may have committed, a tab opened or a process written meanwhile.
+  const after = recheck(row, ctx, { live: true, sig: before.manifest.sig })
+  if (after.why) {
+    git(row.mainPath, 'update-ref', '-d', backup, row.head)
+    if (copied.copy) {
+      rmSync(copied.copy, { force: true })
+    }
+    return { ok: false, step: 'check before removal', err: after.why }
   }
   const removed = row.orcaId
     ? run(
-        'orca',
+        ORCA_CLI,
         ['worktree', 'rm', '--worktree', `id:${row.orcaId}`, '--delete-branch', '--json'],
         { timeout: 180_000 }
       )
@@ -359,11 +365,12 @@ function removeOne(row, now, log, opts) {
   if (!removed.ok || existsSync(row.path)) {
     return { ok: false, step: 'remove', err: removed.err || removed.out || 'folder still there' }
   }
-  // Why: landedIn() proved the work is in the base; Orca keeps a branch it cannot prove merged (a rebased base).
+  // Why: landedIn() proved the work is in the base; Orca keeps a branch it cannot prove merged (a rebased
+  // base). Only at the backed-up tip: a branch that moved meanwhile stays (Codex P1 24.11).
   const branchDeleted =
     !row.branch ||
     !verified(row.mainPath, `refs/heads/${row.branch}`) ||
-    git(row.mainPath, 'branch', '-D', row.branch).ok
+    git(row.mainPath, 'update-ref', '-d', `refs/heads/${row.branch}`, row.head).ok
   log({
     event: 'removed',
     repo: row.repo,
@@ -471,33 +478,29 @@ function mainCheckoutOf(wtPath) {
   return first && !first.bare ? real(first.path) : null
 }
 
-/** Every running process with its working folder; null when lsof cannot tell (then nothing goes). */
-function readProcesses() {
-  const res = run('lsof', ['-n', '-P', '-w', '+c', '0', '-d', 'cwd', '-F', 'pcn'], {
-    timeout: 60_000
-  })
-  // lsof exits 1 when it could not read some process; what it did read is still good.
-  return /^p\d+/m.test(res.out) ? parseLsofCwd(res.out) : null
-}
-
 /** «.claude/worktrees/x» for a worktree inside its repo, the folder name for one elsewhere. */
 function displayName(row) {
   const inside = relative(row.mainPath, row.path)
   return inside && !inside.startsWith('..') ? inside : basename(row.path)
 }
 
+/** Writes the week's report; `readTo` is how far into the log it read the chat closes. */
 function writeReport(opts, now, rows, results, logFile) {
   const removed = results.filter((r) => r.result.ok)
   const failed = results.filter((r) => !r.result.ok)
   const kept = [
     ...rows.filter((r) => !r.remove && r.reasons[0] !== OUTSIDE_ROOT),
-    ...failed.map((r) => ({ ...r, reasons: [`removal failed at ${r.result.step}`] }))
+    ...failed.map((r) => ({
+      ...r,
+      reasons: [`removal failed at ${r.result.step}${r.result.err ? `: ${r.result.err}` : ''}`]
+    }))
   ]
+  const onClose = closesSince(logFile, now - DAY_MS)
   const night = renderNight({
     now,
     removed: removed.map((r) => ({ repo: r.repo, name: displayName(r) })),
     kept: kept.map((r) => ({ repo: r.repo, name: displayName(r), reason: r.reasons[0] })),
-    onClose: closesSince(logFile, now - DAY_MS),
+    onClose,
     copies: removed.filter((r) => r.result.copy).length,
     attic: opts.attic.replace(homedir(), '~')
   })
@@ -511,51 +514,65 @@ function writeReport(opts, now, rows, results, logFile) {
   }
   writeFileSync(`${file}.part`, mergeWeekReport(existing, now, night))
   renameSync(`${file}.part`, file)
-  return file
+  return { file, readTo: onClose.readTo }
 }
 
-function main() {
-  // Why: Orca+ runs this with its Electron as Node; git, tar and the orca CLI must not inherit that.
-  delete process.env.ELECTRON_RUN_AS_NODE
-  const opts = parseArgs(process.argv.slice(2))
-  const now = Date.now()
-  const logFile = opts.logFile ?? join(homedir(), 'Library', 'Logs', 'orca-plus-worktree-sweep.log')
-  const log = (row) => {
-    if (!opts.apply) {
-      return
+/**
+ * The repos to sweep: Orca's local git projects; `--repo` narrows them (a test repo, one project) and
+ * `--worktree` to the repos those worktrees belong to — among Orca's, unless `--repo` names them.
+ */
+function sweptRepos(opts, orca) {
+  const named = opts.repos.filter((repo) => {
+    const ok = isMainCheckout(repo)
+    if (!ok) {
+      console.error(`worktree-sweep: ${repo} is not the main checkout of its repo — skipped`)
     }
-    mkdirSync(dirname(logFile), { recursive: true })
-    appendFileSync(logFile, `${JSON.stringify({ at: new Date(now).toISOString(), ...row })}\n`)
+    return ok
+  })
+  const allowed = opts.repos.length > 0 ? named : orca.repos
+  if (opts.worktrees.length === 0) {
+    return allowed
   }
+  return [...new Set(opts.worktrees.map(mainCheckoutOf))].filter((repo) => allowed.includes(repo))
+}
+
+function sweep(opts, now, log, logFile) {
   const orca = readOrca()
   if (!orca) {
     // Why: without Orca's view a live chat in a worktree is invisible; better to skip a night than to cut one.
     console.error(
-      'worktree-sweep: Orca is not answering or its worktree list is cut short (orca worktree list/ps) — nothing removed'
+      'worktree-sweep: Orca is not answering or its worktree list is cut short (orca worktree list/ps/repo list) — nothing removed'
     )
     process.exit(opts.apply ? 0 : 1)
   }
-  // --repo narrows the sweep to the named main checkouts (a test repo, one project); --worktree to the
-  // repos those worktrees belong to.
-  const repos =
-    opts.worktrees.length > 0
-      ? [...new Set(opts.worktrees.map(mainCheckoutOf).filter(Boolean))]
-      : opts.repos.length > 0
-        ? opts.repos
-        : orca.repos
-  const procs = readProcesses()
-  const fetched = new Set()
-  const rows = repos.flatMap((repo) => gatherRepo(repo, orca, opts, now, procs, fetched))
+  const repos = sweptRepos(opts, orca)
+  const ctx = {
+    orca,
+    opts,
+    now,
+    log,
+    procs: readProcesses(),
+    fetched: new Set(),
+    checkouts: allCheckouts(orca)
+  }
+  const rows = repos.flatMap((repo) => gatherRepo(repo, ctx))
   const workspaces = opts.root ?? real(join(homedir(), 'orca', 'workspaces'))
-  const known = new Set([...orca.byPath.keys(), ...rows.map((r) => r.path)])
+  const known = new Set([...orca.byPath.keys(), ...ctx.checkouts, ...rows.map((r) => r.path)])
   const strays = opts.worktrees.length > 0 ? [] : strayFolders(workspaces, known)
   const results = []
   let report = null
   if (opts.apply) {
     for (const row of rows.filter((r) => r.remove)) {
-      const result = removeOne(row, now, log, opts)
+      const result = removeOne(row, ctx)
       if (!result.ok) {
-        log({ event: 'failed', repo: row.repo, path: row.path, step: result.step, err: result.err })
+        log({
+          event: 'failed',
+          trigger: opts.closedChat ? 'chat-close' : 'sweep',
+          repo: row.repo,
+          path: row.path,
+          step: result.step,
+          err: result.err
+        })
       }
       results.push({ ...row, result })
     }
@@ -575,13 +592,36 @@ function main() {
     }
     pruneBackups(repos, now, log)
     pruneAttic(opts.attic, now, log)
-    if (opts.reportDir) {
-      report = writeReport(opts, now, rows, results, logFile)
-    }
-    if (!opts.closedChat) {
-      log({ event: 'run', trigger: 'sweep', removed: results.filter((r) => r.result.ok).length })
+    // Why the marker only with a report: the next report starts where this one read the log, so a chat
+    // close logged during or after this run is reported once, never skipped (Codex P3 24.11).
+    if (opts.reportDir && !opts.closedChat) {
+      const written = writeReport(opts, now, rows, results, logFile)
+      report = written.file
+      log({
+        event: 'run',
+        trigger: 'sweep',
+        removed: results.filter((r) => r.result.ok).length,
+        readTo: written.readTo
+      })
     }
   }
+  return { rows, strays, results, report }
+}
+
+function main() {
+  // Why: Orca+ runs this with its Electron as Node; git, tar and the orca CLI must not inherit that.
+  delete process.env.ELECTRON_RUN_AS_NODE
+  const opts = parseArgs(process.argv.slice(2))
+  const now = Date.now()
+  const logFile = opts.logFile ?? join(homedir(), 'Library', 'Logs', 'orca-plus-worktree-sweep.log')
+  const log = (row) => {
+    if (!opts.apply) {
+      return
+    }
+    mkdirSync(dirname(logFile), { recursive: true })
+    appendFileSync(logFile, `${JSON.stringify({ at: new Date().toISOString(), ...row })}\n`)
+  }
+  const { rows, strays, results, report } = sweep(opts, now, log, logFile)
   if (opts.json) {
     console.log(
       JSON.stringify({ apply: opts.apply, root: opts.root, rows, strays, results, report }, null, 1)
@@ -590,8 +630,9 @@ function main() {
   }
   const goes = rows.filter((r) => r.remove)
   const stays = rows.filter((r) => !r.remove && r.reasons[0] !== OUTSIDE_ROOT)
+  const count = opts.apply ? results.filter((r) => r.result.ok).length : goes.length
   console.log(
-    `${opts.apply ? 'Removed' : 'Would remove'} ${goes.length} of ${rows.length} worktrees${opts.root ? ` under ${opts.root}` : ''}`
+    `${opts.apply ? 'Removed' : 'Would remove'} ${count} of ${rows.length} worktrees${opts.root ? ` under ${opts.root}` : ''}`
   )
   for (const r of goes) {
     const res = results.find((x) => x.path === r.path)?.result
