@@ -66,6 +66,22 @@ export type ClaudeHandoffOffers = {
 // Why: the file is written in the very turn that stops, so an older one is a leftover.
 const FRESH_FOR_MS = 30 * 60_000
 const SEEN_LIMIT = 200
+const HANDOFF_WRITE_CHECKS_MS = [1_500, 5_000, 15_000]
+const HANDOFF_WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit'])
+
+/** A Write/Edit of this session's handoff; the status carries a path cut to 160 chars or its tail. */
+function writesHandoff(
+  toolName: string | undefined,
+  toolInput: string | undefined,
+  sessionId: string
+): boolean {
+  if (!toolName || !HANDOFF_WRITE_TOOLS.has(toolName) || !toolInput) {
+    return false
+  }
+  return (
+    toolInput.endsWith(`handoff-${sessionId}.md`) || /\.claude[\\/]handoff[\\/]/.test(toolInput)
+  )
+}
 
 export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeHandoffOffers {
   const now = deps.now ?? Date.now
@@ -155,48 +171,81 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
     publish()
   }
 
+  /** The `done` path: the session's fresh handoff, written with its context full, becomes an offer. */
+  const check = async (
+    worktreeIdOfEvent: string,
+    sessionId: string,
+    tabId: string | undefined
+  ): Promise<void> => {
+    if (reading.has(sessionId)) {
+      return
+    }
+    reading.add(sessionId)
+    try {
+      const found = await find(worktreeIdOfEvent, sessionId)
+      if (!found) {
+        return
+      }
+      // Why: the new session starts where the handoff was written.
+      const { file, worktreeId } = found
+      // Why no lower bound: the agent writes `created` from a guess, often later than the real
+      // time (27.10: 22:58 on a file written at 22:01); the file is this session's, so it is fresh.
+      const age = now() - Date.parse(file.created)
+      if (age > FRESH_FOR_MS) {
+        return
+      }
+      if (await contextFilled(worktreeId, sessionId)) {
+        await raise(worktreeId, sessionId, file, tabId, worktreeIdOfEvent)
+      }
+    } finally {
+      reading.delete(sessionId)
+    }
+  }
+
+  // Why (hq-handoff-auto, owner 24.11): the chat starts its own successor 2–30 s after it writes the
+  // file, so waiting for its `done` lost every start to it. The status comes as the tool begins, so
+  // the file may not be there yet: look a few times.
+  const writeTimers = new Map<string, ReturnType<typeof setTimeout>[]>()
+  const watchWrite = (worktreeId: string, sessionId: string, tabId: string | undefined): void => {
+    for (const timer of writeTimers.get(sessionId) ?? []) {
+      clearTimeout(timer)
+    }
+    const timers = HANDOFF_WRITE_CHECKS_MS.map((delay, index) =>
+      setTimeout(() => {
+        if (index === HANDOFF_WRITE_CHECKS_MS.length - 1) {
+          writeTimers.delete(sessionId)
+        }
+        void check(worktreeId, sessionId, tabId)
+      }, delay)
+    )
+    for (const timer of timers) {
+      ;(timer as { unref?: () => void }).unref?.()
+    }
+    writeTimers.set(sessionId, timers)
+  }
+
   return {
     onStatus: async (event) => {
       const sessionId =
         event.providerSession?.key === 'session_id' ? event.providerSession.id : null
       if (
         event.payload.agentType !== 'claude' ||
-        // Why: a background command or subagent keeps the row `working` after the turn has ended.
-        (event.payload.mainAgent?.state ?? event.payload.state) !== 'done' ||
         event.isReplay ||
         event.restoredUnconfirmed ||
         !event.worktreeId ||
-        !sessionId ||
-        reading.has(sessionId)
+        !sessionId
       ) {
         return
       }
-      reading.add(sessionId)
-      try {
-        const found = await find(event.worktreeId, sessionId)
-        if (!found) {
-          return
-        }
-        // Why: the new session starts where the handoff was written.
-        const { file, worktreeId } = found
-        // Why no lower bound: the agent writes `created` from a guess, often later than the real
-        // time (27.10: 22:58 on a file written at 22:01); the file is this session's, so it is fresh.
-        const age = now() - Date.parse(file.created)
-        if (age > FRESH_FOR_MS) {
-          return
-        }
-        if (await contextFilled(worktreeId, sessionId)) {
-          await raise(
-            worktreeId,
-            sessionId,
-            file,
-            event.tabId ?? parsePaneKey(event.paneKey)?.tabId,
-            event.worktreeId
-          )
-        }
-      } finally {
-        reading.delete(sessionId)
+      const tabId = event.tabId ?? parsePaneKey(event.paneKey)?.tabId
+      if (writesHandoff(event.payload.toolName, event.payload.toolInput, sessionId)) {
+        watchWrite(event.worktreeId, sessionId, tabId)
       }
+      // Why: a background command or subagent keeps the row `working` after the turn has ended.
+      if ((event.payload.mainAgent?.state ?? event.payload.state) !== 'done') {
+        return
+      }
+      await check(event.worktreeId, sessionId, tabId)
     },
     list: () => [...offers.values()],
     resolve: async (id) => {
