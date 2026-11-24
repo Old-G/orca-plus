@@ -2,13 +2,14 @@
 // Run: node --test scripts/orca-plus-worktree-sweep.test.mjs
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import {
   backupRefDay,
   backupRefName,
+  checkoutInside,
   copyFileName,
   firstReflogCommit,
   formatBytes,
@@ -16,7 +17,9 @@ import {
   isCacheName,
   keepReasons,
   lastReflogAt,
+  missingFromListing,
   normalizeSubject,
+  parseHiddenTracked,
   parseLsofCwd,
   parseStatusZ,
   parseWorktreePorcelain,
@@ -30,6 +33,7 @@ import {
   reasonGroup,
   renderNight
 } from './orca-plus-worktree-sweep-report.mjs'
+import { archiveManifest, ignoredManifest } from './orca-plus-worktree-sweep-files.mjs'
 
 const HOUR = 3_600_000
 const finished = {
@@ -43,6 +47,7 @@ const finished = {
   minIdleMs: 24 * HOUR,
   idleMs: 48 * HOUR,
   dirtyCount: 0,
+  hiddenCount: 0,
   landedIn: 'main (merged)'
 }
 
@@ -60,12 +65,23 @@ test('each guard alone keeps it', () => {
     [{ liveAgent: true }, 'an agent is still working'],
     [{ liveTerminal: true }, 'a terminal is live'],
     [{ onScreen: true }, 'open on screen in Orca'],
+    [{ openTab: true }, 'a tab is open in it in Orca'],
+    [{ orcaUnknown: true }, 'Orca does not know it'],
+    [{ orcaTwice: true }, 'Orca lists it more than once'],
+    [{ holdsCheckout: '.claude/worktrees/x' }, 'holds another checkout: .claude/worktrees/x'],
     [{ liveProcess: 'zsh (pid 7)' }, 'a process works in it: zsh (pid 7)'],
     [{ processesUnread: true }, 'running processes unread (lsof)'],
     [{ idleMs: 3 * HOUR }, 'active 3 h ago'],
     [{ dirtyCount: 2 }, '2 uncommitted file(s)'],
     [{ dirtyCount: null }, 'git status unreadable'],
+    [{ hiddenCount: null }, 'git index unreadable'],
+    [
+      { hiddenCount: 1 },
+      '1 tracked file(s) hidden from git status (assume-unchanged, skip-worktree)'
+    ],
     [{ landedIn: null }, 'has work not in the base branch'],
+    [{ nestedCheckout: 'state/clone' }, 'holds another checkout: state/clone'],
+    [{ ignoredUnreadable: 'state/locked' }, 'ignored files unreadable: state/locked'],
     [
       { copyTooBig: 'over 1.0 GB' },
       'over 1.0 GB of ignored files beyond caches — too big to keep a copy'
@@ -261,10 +277,20 @@ test('lsof: a process whose working folder is the worktree or inside it keeps it
   assert.equal(processInside(procs, '/ws/a', 11), null)
 })
 
-test('copy names and sizes', () => {
+test('copy names: one per checkout path, so two `qa` folders at one tip never share a copy (Codex P1 24.11)', () => {
+  const head = 'a'.repeat(40)
+  assert.match(
+    copyFileName('lh agents', '/x/.claude/worktrees/hub qa', head),
+    /^lh_agents--hub_qa-aaaaaaaaaaaa-[0-9a-f]{8}\.tar\.gz$/
+  )
+  assert.notEqual(
+    copyFileName('acme', '/x/acme/.claude/worktrees/qa', head),
+    copyFileName('acme', '/home/ann/.hc-work/qa', head)
+  )
   assert.equal(
-    copyFileName('lh agents', '/x/.claude/worktrees/hub qa', 'a'.repeat(40)),
-    'lh_agents--hub_qa-aaaaaaaaaaaa.tar.gz'
+    copyFileName('acme', '/x/qa', head),
+    copyFileName('acme', '/x/qa', head),
+    'the same path names the same copy'
   )
   assert.equal(formatBytes(5 * 1024 ** 2), '5 MB')
   assert.equal(formatBytes(1.5 * 1024 ** 3), '1.5 GB')
@@ -341,7 +367,114 @@ test('chat closes are reported once: since the last sweep run, not the last 24 h
     { at: at(5), event: 'removed', trigger: 'sweep', repo: 'acme', path: '/w/night' }
   ].map((entry) => JSON.stringify(entry))
   writeFileSync(log, `${lines.join('\n')}\nnot json\n`)
-  assert.deepEqual(closesSince(log, 0), { removed: ['acme · new'], kept: ['acme · k: locked'] })
-  assert.deepEqual(closesSince(join(dir, 'missing'), 0), { removed: [], kept: [] })
+  const first = closesSince(log, 0)
+  assert.deepEqual(first.removed, ['acme · new'])
+  assert.deepEqual(first.kept, ['acme · k: locked'])
+  assert.deepEqual(closesSince(join(dir, 'missing'), 0), { removed: [], kept: [], readTo: 0 })
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('the next report starts where the last one read the log, whatever the time stamps (Codex P3 24.11)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sweep-log-'))
+  const log = join(dir, 'log.jsonl')
+  const line = (entry) => `${JSON.stringify(entry)}\n`
+  const close = (name, at) => ({
+    at,
+    event: 'removed',
+    trigger: 'chat-close',
+    repo: 'acme',
+    path: `/w/${name}`
+  })
+  writeFileSync(log, line(close('before', '2026-11-24T00:30:00Z')))
+  const read = closesSince(log, 0)
+  assert.deepEqual(read.removed, ['acme · before'])
+  // A close that started at 03:59 and finished after the night read the log, stamped before the run.
+  appendFileSync(log, line(close('late', '2026-11-24T00:59:00Z')))
+  appendFileSync(log, line({ at: '2026-11-24T01:00:00Z', event: 'run', readTo: read.readTo }))
+  appendFileSync(
+    log,
+    line({ ...close('failed', '2026-11-24T02:00:00Z'), event: 'failed', step: 'remove' })
+  )
+  const next = closesSince(log, 0)
+  assert.deepEqual(next.removed, ['acme · late'])
+  assert.deepEqual(next.kept, ['acme · failed: removal failed at remove'])
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('notes written below the footer survive the next night (Codex P3 24.11)', () => {
+  const now = new Date(2026, 10, 24, 4).getTime()
+  const night = (title) => `## ${title} — removed 0, kept 0\n`
+  const week = mergeWeekReport(null, now, night('24.11 04:00'))
+  const noted = `${week}\nDecided 24.11: keep acme · feat-b until Friday.\n`
+  const next = mergeWeekReport(noted, now + 86_400_000, night('25.11 04:00'))
+  assert.match(next, /Decided 24\.11: keep acme · feat-b until Friday\.\n$/)
+  assert.ok(next.indexOf('## 25.11') < next.indexOf('## 24.11'))
+  assert.equal(next.match(/^---$/gm).length, 1)
+  assert.equal(next.match(/Decided 24\.11/g).length, 1)
+})
+
+test('hidden tracked files, tar listings and nested checkouts', () => {
+  const listed = ['H src/a.ts', 'h config/local.json', 'S sparse/b.ts', 'M conflict.ts', ''].join(
+    '\0'
+  )
+  assert.deepEqual(parseHiddenTracked(listed), ['config/local.json', 'sparse/b.ts'])
+  assert.deepEqual(parseHiddenTracked(''), [])
+  assert.deepEqual(missingFromListing(['state', 'state/a', 'b.csv'], 'state/\nstate/a\n'), [
+    'b.csv'
+  ])
+  assert.deepEqual(missingFromListing(['x'], './x\n'), [])
+  const checkouts = ['/w/qa', '/w/qa/.claude/worktrees/inner', '/w/qa-2']
+  assert.equal(checkoutInside(checkouts, '/w/qa'), '.claude/worktrees/inner')
+  assert.equal(checkoutInside(checkouts, '/w/qa-2'), null)
+  assert.equal(reasonGroup('holds another checkout: x'), 'holds another checkout')
+})
+
+test('the manifest keeps a file git lists under a cache-named folder; caches below a listed folder stay out (Codex P1 24.11)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sweep-files-'))
+  const wt = join(dir, 'wt')
+  const files = {
+    'build/customer-export.csv': 'ann,1\n',
+    'state/run.json': '{}',
+    'state/node_modules/dep/index.js': 'x',
+    'state/sub/build/out.bin': 'y'
+  }
+  for (const [rel, body] of Object.entries(files)) {
+    mkdirSync(join(wt, rel, '..'), { recursive: true })
+    writeFileSync(join(wt, rel), body)
+  }
+  const manifest = ignoredManifest(wt, ['build/customer-export.csv', 'state/'], 1024 ** 2)
+  assert.deepEqual(manifest.paths, [
+    'build/customer-export.csv',
+    'state',
+    'state/run.json',
+    'state/sub'
+  ])
+  assert.equal(manifest.over, false)
+  assert.equal(manifest.nested, null)
+  assert.equal(ignoredManifest(wt, ['state/'], 1).over, true)
+  assert.equal(ignoredManifest(wt, ['state/'], 1024 ** 2, 1).over, true)
+  mkdirSync(join(wt, 'state', 'clone', '.git'), { recursive: true })
+  assert.equal(ignoredManifest(wt, ['state/'], 1024 ** 2).nested, 'state/clone')
+  rmSync(join(wt, 'state', 'clone'), { recursive: true })
+  // The copy holds every manifest path, and a second copy of the same checkout gets its own file.
+  const attic = join(dir, 'attic')
+  const args = {
+    repo: 'acme',
+    wtPath: wt,
+    head: 'a'.repeat(40),
+    paths: manifest.paths,
+    now: 0,
+    attic
+  }
+  const one = archiveManifest(args)
+  const two = archiveManifest(args)
+  assert.equal(one.ok, true)
+  assert.notEqual(one.copy, two.copy)
+  const listing = execFileSync('tar', ['-tzf', one.copy], { encoding: 'utf8' })
+  assert.deepEqual(missingFromListing(manifest.paths, listing), [])
+  assert.ok(!listing.includes('node_modules'))
+  assert.ok(listing.includes('build/customer-export.csv'))
+  // A manifest path tar cannot read fails the copy rather than passing short.
+  assert.equal(archiveManifest({ ...args, paths: ['gone.txt'] }).ok, false)
   rmSync(dir, { recursive: true, force: true })
 })

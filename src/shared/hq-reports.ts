@@ -62,7 +62,7 @@ export function hqReportDecisionsPrompt(
         : report.folder === 'daily'
           ? 'Примени по скиллу daily-review, шаг «Применение»: только то, на что я сказал «да», и отметь в отчёте «Применено».'
           : report.folder === 'worktrees'
-            ? 'Это отчёт ночной чистки worktree (scripts/orca-plus-worktree-sweep.mjs в orca-custom). Удаляй только названные мной worktree: сначала сохрани вершину ветки ref-ом refs/orca-plus-sweep/<YYYYMMDD>/… и игнорируемые файлы архивом, как делает скрипт; невлитую работу — только после моего явного «удали». Итог допиши в отчёт.'
+            ? 'Это отчёт ночной чистки worktree (scripts/orca-plus-worktree-sweep.mjs в orca-custom). Удаляй только названные мной worktree: сначала сохрани вершину ветки ref-ом refs/orca-plus-sweep/<YYYYMMDD>/… и игнорируемые файлы архивом, как делает скрипт; невлитую работу — только после моего явного «удали». Итог напиши ответом в чате; отчёт не правь, его переписывает ночная чистка.'
             : 'Прочитай отчёт и выполни решения. Сообщения людям — только через Approve.'
   return `Решения по отчёту ${report.path}:\n${decisions}\n\n${how}`
 }

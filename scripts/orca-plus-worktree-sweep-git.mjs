@@ -16,6 +16,8 @@ export function run(cmd, args, opts = {}) {
       stdio: [opts.input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
       input: opts.input,
       timeout: opts.timeout ?? 120_000,
+      // Why SIGKILL on a deadline: a child that ignores SIGTERM keeps a sync call waiting past it.
+      killSignal: opts.killSignal ?? 'SIGTERM',
       maxBuffer: 256 * 1024 * 1024,
       cwd: opts.cwd,
       env: opts.env ? { ...process.env, ...opts.env } : undefined
@@ -32,6 +34,49 @@ export function run(cmd, args, opts = {}) {
 }
 
 export const git = (cwd, ...args) => run('git', ['-C', cwd, ...args])
+
+/**
+ * `git fetch origin` that can neither ask nor hang: no prompt, askpass or credential dialog (a remote that
+ * wants a password just fails), ssh in batch mode, killed at 60 s. It writes no FETCH_HEAD, fetches no
+ * tags and prunes nothing, so a local tag or branch never goes because of it (Codex P2 24.11).
+ */
+export function fetchOrigin(mainPath) {
+  return run(
+    'git',
+    [
+      '-C',
+      mainPath,
+      'fetch',
+      '--quiet',
+      '--no-tags',
+      '--no-prune',
+      '--no-write-fetch-head',
+      'origin'
+    ],
+    {
+      timeout: 60_000,
+      killSignal: 'SIGKILL',
+      env: {
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_ASKPASS: 'false',
+        SSH_ASKPASS: 'false',
+        SSH_ASKPASS_REQUIRE: 'never',
+        GCM_INTERACTIVE: 'never',
+        GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND ?? 'ssh -o BatchMode=yes -o ConnectTimeout=20'
+      }
+    }
+  )
+}
+
+/**
+ * The folder is the main checkout of its own repo: git run there finds this folder as the top and its
+ * `.git` as the common dir. A folder project inside another repo (`/src/acme/docs`) is not (Codex P1 24.11).
+ */
+export function isMainCheckout(path) {
+  const top = git(path, 'rev-parse', '--show-toplevel')
+  const common = git(path, 'rev-parse', '--path-format=absolute', '--git-common-dir')
+  return top.ok && common.ok && real(top.out) === path && real(common.out) === join(path, '.git')
+}
 export const gitRaw = (cwd, ...args) => run('git', ['-C', cwd, ...args], { raw: true })
 export const verified = (cwd, ref) => git(cwd, 'rev-parse', '--verify', '-q', `${ref}^{commit}`).ok
 
