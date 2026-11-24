@@ -39,6 +39,10 @@ export function HqPlusInbox({
   const approveIds = queue.stream.flatMap((row) => (row.type === 'approve' ? [row.line.id] : []))
   const approveKey = approveIds.join('\n')
   const seenApproves = useRef<Set<string> | null>(null)
+  // Custom build (hq-approve-steady): the wait for the pointer to leave before scrolling to a new
+  // Approve. Kept across renders: another Approve coming or going must not drop it.
+  const stopFollowWait = useRef<(() => void) | null>(null)
+  useEffect(() => () => stopFollowWait.current?.(), [])
   // Why (owner 05.11): the feed opens at its newest row; after that it moves only for a new Approve —
   // scrolled to it so it is on screen at once. Any other new card leaves the scroll where he put it.
   useEffect(() => {
@@ -52,13 +56,18 @@ export function HqPlusInbox({
     seenApproves.current = new Set(ids)
     const target = fresh.at(-1)
     const row = target ? document.getElementById(`hqp-${target}`) : null
-    if (!row) {
+    if (!target || !row) {
       return
     }
+    // Why: the newest Approve is the one to show; an older one still waiting gives way to it.
+    stopFollowWait.current?.()
+    stopFollowWait.current = null
     const follow = (): void => {
-      if (row.isConnected) {
-        row.scrollIntoView({ block: 'center', behavior: 'smooth' })
-      }
+      stopFollowWait.current = null
+      // Why by id: a row decided while the pointer stayed is gone, and there is nothing to show.
+      document
+        .getElementById(`hqp-${target}`)
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
     }
     const scroller = row.closest('.hqp-log')
     if (!scroller) {
@@ -67,7 +76,7 @@ export function HqPlusInbox({
     }
     // Custom build (hq-approve-steady): not under a pointer over the feed — it may be aiming at a
     // button; the scroll comes once the pointer leaves.
-    return hqPlusMoveWhenPointerAway(scroller, follow)
+    stopFollowWait.current = hqPlusMoveWhenPointerAway(scroller, follow)
   }, [approveKey])
   const project = (slug: string, unsorted: boolean): { name: string; color: string | null } =>
     unsorted
