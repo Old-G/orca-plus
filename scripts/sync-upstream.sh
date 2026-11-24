@@ -389,32 +389,57 @@ publish() {
   fi
 }
 
+publish_repo() { git remote get-url "$PUBLISH_REMOTE" | sed -e 's#^.*github\.com[:/]##' -e 's#\.git$##'; }
+
 # Why: the workflow moves PUBLISH_BRANCH on GitHub, and nothing here fetches it afterwards, so the
-# next lease would name the pre-promotion head and fail. Only the head this repo itself sent for
-# promotion is taken over, and only while the fork's branch is exactly on it: any other move stays
-# unseen, so the lease still refuses it.
+# next lease would name the pre-promotion head and fail. Every promoting dispatch is recorded in
+# ci-promotions (repo, branch, run, stack sent, lease); the tracking ref takes over a recorded stack
+# only for the same repo and branch, from its own lease, and only while the fork's branch is exactly
+# on it: any other move stays unseen, so the lease still refuses it.
 reconcile_promoted_lease() {
-  local tracking="refs/remotes/$PUBLISH_REMOTE/$PUBLISH_BRANCH" sent_repo sent_run sent_head sent_expect sent_promote rest
-  local remote_head
-  [ -f "$STATE_DIR/ci-run" ] || return 0
-  read -r sent_repo sent_run sent_head sent_expect sent_promote rest <"$STATE_DIR/ci-run" || return 0
-  [ "${sent_promote:-}" = true ] && [ -n "${sent_head:-}" ] || return 0
-  [ "$(git rev-parse -q --verify "$tracking" || true)" = "$sent_expect" ] || return 0
+  local tracking="refs/remotes/$PUBLISH_REMOTE/$PUBLISH_BRANCH" file="$STATE_DIR/ci-promotions"
+  local repo seen remote_head r_repo r_branch r_run r_head r_expect
+  [ -s "$file" ] || return 0
+  seen=$(git rev-parse -q --verify "$tracking" || true)
+  [ -n "$seen" ] || return 0
   remote_head=$(git ls-remote "$PUBLISH_REMOTE" "refs/heads/$PUBLISH_BRANCH" 2>>"$GIT_LOG" | cut -f1)
-  [ "$remote_head" = "$sent_head" ] || return 0
-  git update-ref "$tracking" "$sent_head" "$sent_expect"
-  say "$PUBLISH_REMOTE/$PUBLISH_BRANCH: прогон $sent_run перевёл его на $(short "$sent_head") — lease обновлён"
+  [ -n "$remote_head" ] && [ "$remote_head" != "$seen" ] || return 0
+  repo=$(publish_repo)
+  while read -r r_repo r_branch r_run r_head r_expect; do
+    if [ "$r_repo" = "$repo" ] && [ "$r_branch" = "$PUBLISH_BRANCH" ] && [ "$r_head" = "$remote_head" ] \
+      && [ "$r_expect" = "$seen" ]; then
+      git update-ref "$tracking" "$remote_head" "$seen"
+      say "$PUBLISH_REMOTE/$PUBLISH_BRANCH: прогон $r_run перевёл его на $(short "$remote_head") — lease обновлён"
+      return 0
+    fi
+  done <"$file"
+}
+
+record_promotion() { # repo run head expect
+  local file="$STATE_DIR/ci-promotions"
+  printf '%s %s %s %s %s\n' "$1" "$PUBLISH_BRANCH" "$2" "$3" "$4" >>"$file"
+  # Keep the 20 newest.
+  tail -n 20 "$file" >"$file.tmp" && mv "$file.tmp" "$file"
 }
 
 # Why: a stack resent with nothing new upstream (fixups after a red run) skips the rebase and its
 # guard; it must still keep every line of the stack the fork publishes before it goes to promotion.
+# Findings left from the sync's own guard stay blocked even when this comparison is clean: the
+# published stack may never have had the feature that went missing.
 guard_against_published() {
-  local published
+  local published pending="" keep_base=$OLD_BASE keep_custom=$OLD_CUSTOM
   published=$(git rev-parse -q --verify "refs/remotes/$PUBLISH_REMOTE/$PUBLISH_BRANCH" || true)
   [ -n "$published" ] && [ "$published" != "$(git rev-parse "refs/heads/$CUSTOM")" ] || return 0
+  [ -f "$GUARD_BLOCK" ] && pending=$(cat "$GUARD_BLOCK")
   OLD_BASE=$(git merge-base "$published" "refs/heads/$MIRROR")
   OLD_CUSTOM=$published
   run_guard "refs/heads/$CUSTOM" || PUBLISH_BLOCKED=1
+  OLD_BASE=$keep_base
+  OLD_CUSTOM=$keep_custom
+  if [ -n "$pending" ] && [ -z "${SYNC_GUARD_ACCEPT:-}" ]; then
+    { cat "$GUARD_BLOCK" 2>/dev/null || true; printf '%s\n' "$pending"; } | sort -u >"$GUARD_BLOCK.tmp"
+    mv "$GUARD_BLOCK.tmp" "$GUARD_BLOCK"
+  fi
 }
 
 # The fork's Sync verify workflow checks the stack on GitHub and, when green, moves PUBLISH_BRANCH
@@ -442,7 +467,7 @@ ci_verify() {
     return 0
   fi
   branch="sync/$TS"
-  repo=$(git remote get-url "$PUBLISH_REMOTE" | sed -e 's#^.*github\.com[:/]##' -e 's#\.git$##')
+  repo=$(publish_repo)
   git push --quiet "$PUBLISH_REMOTE" "$head:refs/heads/$branch" >>"$GIT_LOG" 2>&1 \
     || fail 3 "push $branch в $PUBLISH_REMOTE не удался (лог: $GIT_LOG)"
   promote=true
@@ -462,6 +487,9 @@ ci_verify() {
   run_url="https://github.com/$repo/actions/runs/$run_id"
   # repo, run, the stack sent, the lease, promotion on/off, the local head before this sync
   printf '%s %s %s %s %s %s\n' "$repo" "$run_id" "$head" "$expect" "$promote" "$OLD_CUSTOM" >"$STATE_DIR/ci-run"
+  if [ "$promote" = true ]; then
+    record_promotion "$repo" "$run_id" "$head" "$expect"
+  fi
   say "## Отправлено на проверку в GitHub: $branch ($(short "$head"))"
   say "Прогон: $run_url"
   say "Ждать: gh run watch $run_id -R $repo --exit-status"
