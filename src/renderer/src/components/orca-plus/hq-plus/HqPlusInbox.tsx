@@ -13,6 +13,7 @@ import { HqPlusText } from './HqPlusText'
 import { hqPlusClock } from './HqPlusChatCard'
 import { ChatRow, Line, Person, type HqPlusProjectCardContext } from './HqPlusProjectParts'
 import { hqPlusInboxQueue, type HqPlusInboxRow } from './hq-plus-inbox'
+import { hqPlusMoveWhenPointerAway } from './hq-plus-pointer-hold'
 
 type Drawer = 'wait' | 'working' | 'today' | null
 
@@ -50,11 +51,23 @@ export function HqPlusInbox({
     const fresh = ids.filter((id) => !seenApproves.current?.has(id))
     seenApproves.current = new Set(ids)
     const target = fresh.at(-1)
-    if (target) {
-      document
-        .getElementById(`hqp-${target}`)
-        ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    const row = target ? document.getElementById(`hqp-${target}`) : null
+    if (!row) {
+      return
     }
+    const follow = (): void => {
+      if (row.isConnected) {
+        row.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      }
+    }
+    const scroller = row.closest('.hqp-log')
+    if (!scroller) {
+      follow()
+      return
+    }
+    // Custom build (hq-approve-steady): not under a pointer over the feed — it may be aiming at a
+    // button; the scroll comes once the pointer leaves.
+    return hqPlusMoveWhenPointerAway(scroller, follow)
   }, [approveKey])
   const project = (slug: string, unsorted: boolean): { name: string; color: string | null } =>
     unsorted
