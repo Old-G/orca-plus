@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 import { OutgoingApprovalDecision, OutgoingApprovalToast } from './OutgoingApprovalCard'
@@ -62,6 +62,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   cleanup()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -153,11 +154,30 @@ it('holds a click after the card jumped while the pointer crossed its text', () 
   expect(decide).not.toHaveBeenCalled()
 })
 
+// Review 24.11: a jump right as a resting pointer set off was let through once 1.5 s had passed.
+it('holds a click after the card jumped while the pointer rested on its text', () => {
+  const { approve, move } = setup()
+  const text = screen.getByText('Hello Ann')
+  fireEvent.pointerMove(text)
+  now += 5000
+  tops.set(approve, 240)
+  tops.set(move, 300)
+  fireEvent.pointerMove(text)
+  now += 100
+  fireEvent.pointerMove(move)
+  now += 100
+  mouseClick(move)
+  expect(decide).not.toHaveBeenCalled()
+})
+
 // Review 24.11: «Click again» was not taken until the mouse moved, and then only after the settle time.
-it('takes «Click again» on the same unmoved button without a pointer move, once the note was up', () => {
+it('takes «Click again» on the button the pointer went for, without a move, once the note was up', () => {
   const { approve } = setup()
+  fireEvent.pointerMove(approve)
+  tops.set(approve, 290)
+  now += 300
   mouseClick(approve)
-  expect(screen.getByRole('status')).toHaveTextContent('Click again')
+  expect(screen.getByRole('status')).toHaveTextContent('click again')
   now += 100
   mouseClick(approve)
   expect(decide).not.toHaveBeenCalled()
@@ -170,11 +190,97 @@ it('takes «Click again» on the same unmoved button without a pointer move, onc
 
 it('holds «Click again» if the button moved once more after the held click', () => {
   const { approve } = setup()
+  fireEvent.pointerMove(approve)
+  tops.set(approve, 290)
+  now += 300
   mouseClick(approve)
   tops.set(approve, 200)
   now += STEADY_SETTLE_MS
   mouseClick(approve)
   expect(decide).not.toHaveBeenCalled()
+})
+
+// Second review 24.11: «Click again» on the button that slid in sent the message the wrong way.
+it('holds «Click again» on a button that slid under the pointer, and takes a move to Approve at once', () => {
+  const { approve, move } = setup()
+  fireEvent.pointerMove(approve)
+  tops.set(approve, 240)
+  tops.set(move, 300)
+  now += 300
+  mouseClick(move)
+  now += STEADY_SETTLE_MS
+  mouseClick(move)
+  expect(decide).not.toHaveBeenCalled()
+
+  now += 100
+  fireEvent.pointerMove(approve)
+  now += 100
+  mouseClick(approve)
+  expect(decide).toHaveBeenCalledTimes(1)
+  expect(decide.mock.calls[0]?.[1]).toBe('approved')
+  expect(decide.mock.calls[0]?.[3]).not.toHaveProperty('moveTo')
+})
+
+it('holds a jitter back onto the slid-in button right after the hold, and takes it once read', () => {
+  const { approve, move } = setup()
+  fireEvent.pointerMove(approve)
+  tops.set(approve, 240)
+  tops.set(move, 300)
+  now += 300
+  mouseClick(move)
+  now += 100
+  fireEvent.pointerMove(move)
+  mouseClick(move)
+  expect(decide).not.toHaveBeenCalled()
+
+  now += STEADY_SETTLE_MS
+  fireEvent.pointerMove(move)
+  mouseClick(move)
+  expect(decide).toHaveBeenCalledTimes(1)
+  expect(decide.mock.calls[0]?.[3]).toMatchObject({ moveTo: 'clickup' })
+})
+
+it('takes a click on a card that appeared under a resting pointer once the pointer moved onto it', () => {
+  const { approve } = setup()
+  mouseClick(approve)
+  now += STEADY_SETTLE_MS
+  mouseClick(approve)
+  expect(decide).not.toHaveBeenCalled()
+  // Each click without a move restarts the wait, as on a button that slid in.
+  now += STEADY_SETTLE_MS
+  fireEvent.pointerMove(approve)
+  mouseClick(approve)
+  expect(decide).toHaveBeenCalledTimes(1)
+})
+
+// Second review 24.11: any scroll in the window right after a wheel counted as the owner's own.
+it('does not take what another scroller moved right after a wheel as seen', () => {
+  const { approve, move } = setup()
+  fireEvent.pointerMove(approve, { clientX: 10, clientY: 310 })
+  tops.set(approve, 240)
+  tops.set(move, 300)
+  vi.spyOn(document, 'elementFromPoint').mockReturnValue(move)
+  const other = document.createElement('div')
+  document.body.append(other)
+  fireEvent.wheel(document)
+  fireEvent.scroll(other)
+  now += 300
+  mouseClick(move)
+  expect(decide).not.toHaveBeenCalled()
+  other.remove()
+})
+
+// Second review 24.11: a second hold late in the first one's 4 s showed its note for a moment.
+it('keeps the note up for its full time after a second hold', () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  const { approve } = setup()
+  mouseClick(approve)
+  act(() => vi.advanceTimersByTime(3900))
+  mouseClick(approve)
+  act(() => vi.advanceTimersByTime(200))
+  expect(screen.getByRole('status')).toBeInTheDocument()
+  act(() => vi.advanceTimersByTime(4000))
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
 })
 
 const isBefore = (a: Element, b: Element): boolean =>
