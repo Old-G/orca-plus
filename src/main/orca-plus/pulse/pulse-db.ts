@@ -79,6 +79,7 @@ import {
 } from './pulse-sessions'
 import type { HqJournalInput, HqJournalQuery, HqSessionInput } from '../../../shared/hq-journal'
 import { getPerson, listPeople, upsertPerson } from './pulse-people'
+import { replaceLedgerDmRules, type HqLedgerDmRule } from './pulse-ledger-dm-rules'
 import {
   addWaiting,
   closeWaiting,
@@ -197,6 +198,10 @@ export class PulseDb {
 
   setLedgerProject(key: string, project: string): void {
     setLedgerProject(this.core, key, project)
+  }
+
+  replaceLedgerDmRules(rules: readonly HqLedgerDmRule[]): boolean {
+    return replaceLedgerDmRules(this.core, rules)
   }
 
   listLedgerOpenKeys(reader: string): string[] {

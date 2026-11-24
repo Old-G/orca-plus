@@ -6,6 +6,7 @@ import type { HqConversationRow, HqLedgerGuess } from '../orca-plus/pulse/pulse-
 import type { HqLedgerCardRow } from '../orca-plus/pulse/pulse-ledger-cards'
 import type { HqInWorkCandidate, HqInWorkRow } from '../orca-plus/pulse/pulse-ledger-in-work'
 import type { HqOpenConversation } from '../orca-plus/pulse/pulse-ledger-open'
+import type { HqLedgerDmRule } from '../orca-plus/pulse/pulse-ledger-dm-rules'
 import type { HqFeedLedger, HqFeedMessage } from '../../shared/hq-feed-ledger'
 import type { HqAttributionAccuracy } from '../../shared/hq-attribution'
 import type { HqAttributionTake } from '../orca-plus/pulse/pulse-attribution'
@@ -255,6 +256,11 @@ export class RuntimePulseCommands {
   /** Custom build (hq-ledger-feed): the owner's project for a conversation (and its channel). */
   pulseSetLedgerProject(key: string, project: string): void {
     this.db().setLedgerProject(key, project)
+  }
+
+  /** Custom build (hq-dm-default-project): routing.yaml's DM rules; false when nothing changed. */
+  pulseReplaceLedgerDmRules(rules: readonly HqLedgerDmRule[]): boolean {
+    return this.db().replaceLedgerDmRules(rules)
   }
 
   /** Custom build (hq-request-ledger): a message the owner handled from its card is not his move. */
