@@ -200,6 +200,7 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
       pulse: {
         getSession: (sessionId) => runtime.pulseGetSession(sessionId),
         listSessionsByAddress: (address) => runtime.pulseListSessionsByAddress(address),
+        liveSessionOf: (sessionId) => runtime.pulseLiveSessionOf(sessionId),
         record: (inputs) => runtime.pulseRecordJournal(inputs),
         roleOf: (sessionId) => runtime.pulseChats().roleOf(sessionId),
         setRole: (input) => runtime.pulseChats().setRole(input)

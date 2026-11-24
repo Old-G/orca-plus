@@ -29,6 +29,8 @@ export type HqLeadReassignDeps = {
   pulse: {
     getSession: (sessionId: string) => HqSession | null
     listSessionsByAddress: (address: string) => HqSession[]
+    /** Custom build (hq-handoff-parked, T7): the live end of a chat's handoff chain. */
+    liveSessionOf?: (sessionId: string) => string
     record: (inputs: HqJournalInput[]) => unknown
     roleOf: (sessionId: string) => HqChatRole | null
     setRole: (input: { sessionId: string; role: HqChatRole; at: number }) => void
@@ -96,8 +98,13 @@ function under(parentOf: ReadonlyMap<string, string>, key: string, above: string
 export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
   const keyOf = (sessionId: string): string =>
     deps.pulse.getSession(sessionId)?.address ?? sessionId
-  const newestOn = (key: string): string =>
-    key.includes('/') ? (deps.pulse.listSessionsByAddress(key)[0]?.sessionId ?? key) : key
+  const newestOn = (key: string): string => {
+    if (!key.includes('/')) {
+      return key
+    }
+    const top = deps.pulse.listSessionsByAddress(key)[0]?.sessionId
+    return top ? (deps.pulse.liveSessionOf?.(top) ?? top) : key
+  }
 
   /** The chat a ref names: a thread's newest chat, or a session (its thread's newest when it has one). */
   const locate = (ref: string, live: Live): Spot => {
