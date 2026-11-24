@@ -62,7 +62,7 @@ export function OutgoingApprovalDecision({
     <p role="status" className="text-xs text-muted-foreground">
       {translate(
         'auto.outgoingApproval.movedUnderPointer',
-        'The card moved under the pointer — nothing was sent. Click again.'
+        'The card moved under the pointer — nothing was sent. Point at the button you want and click again.'
       )}
     </p>
   ) : null
