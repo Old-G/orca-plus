@@ -86,6 +86,31 @@ describe('HQ reports', () => {
     expect(notify.mock.calls[0][0]).toMatchObject({ title: 'Статус Пете' })
   })
 
+  it('lists the nightly worktree cleanup but rings no bell for it', async () => {
+    report('worktrees/2026-W42.md', '# Worktree cleanup · 2026-W42', NOW - 1_000)
+    report('daily/2026-10-18.md', '# День', NOW - 2_000)
+    expect((await listHqReports(hq)).map((item) => item.folder)).toEqual(['worktrees', 'daily'])
+    const synced: PulseBellInput[][] = []
+    const notify = vi.fn()
+    const deps = {
+      hqPath: () => hq,
+      sync: (_kind: string, items: readonly PulseBellInput[]) => {
+        synced.push([...items])
+        return items.length
+      },
+      notify,
+      now: () => NOW
+    }
+    const known = await refreshHqReportBell(deps, null)
+    expect(synced[0].map((item) => item.refId)).toEqual(['daily/2026-10-18.md'])
+    report('worktrees/2026-W43.md', '# Worktree cleanup · 2026-W43', NOW)
+    await refreshHqReportBell(deps, known)
+    expect(notify).not.toHaveBeenCalled()
+    expect(
+      hqReportDecisionsPrompt({ path: 'worktrees/2026-W42.md', folder: 'worktrees' }, 'удали x')
+    ).toContain('Удаляй только названные мной worktree')
+  })
+
   it('tells the chat how to carry out the decisions for each kind of report', () => {
     expect(
       hqReportDecisionsPrompt(

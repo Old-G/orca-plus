@@ -65,6 +65,9 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     /** Custom build (hq-handoff-auto): a chat's handoff starts the new chat by itself, whatever the
      *  dispatcher's mode; default on. */
     hqHandoffAutoStart?: boolean
+    /** Custom build (worktree-sweep): a chat the owner closes takes its worktree with it once the work there
+     *  is merged and nothing else is open in it; default on. */
+    worktreeSweepOnChatClose?: boolean
     /** Custom build (hq-read-aloud): speed, voice and auto-reading of the chat's «Read aloud». */
     hqReadAloud?: { rate: number; voiceURI: string | null; auto: boolean }
     /** Custom build (hq-night-shift): hour the night shift starts tasks queued «Tonight»; default 23. */
