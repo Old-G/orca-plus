@@ -464,6 +464,15 @@ BEFORE_DISPATCHES=$(dispatches)
 ci_run SYNC_GUARD_ACCEPT="$WORK/accept.md" "$SYNC" --ci-verify
 check "T33 a pending guard log without a fingerprint is never accepted" '[ "$RC" = 5 ] && [ "$(dispatches)" = "$BEFORE_DISPATCHES" ] && printf "%s" "$OUT" | grep -q "нет отпечатка"'
 rm -f "$WORK/fork/.git/custom-sync/guard-blocked"
+printf '## Explain or restore: 1 lines, 0 commits\n\nFingerprint: 0123456789abcdef\n' >"$WORK/pending-guard.md"
+printf '%s\n' "$WORK/pending-guard.md" >"$WORK/fork/.git/custom-sync/guard-blocked"
+upstream_commit other.txt "ci-3" "upstream: before a clean rebase over a pending block"
+BEFORE_DISPATCHES=$(dispatches)
+ci_run SYNC_GUARD_ACCEPT="$WORK/accept.md" "$SYNC" --ci-verify
+check "T34 a clean rebase does not clear an earlier unaccepted report" '[ "$RC" = 5 ] && [ "$(dispatches)" = "$BEFORE_DISPATCHES" ] && grep -q pending-guard "$WORK/fork/.git/custom-sync/guard-blocked"'
+printf 'guard-accept 0123456789abcdef\n' >>"$WORK/accept.md"
+ci_run SYNC_GUARD_ACCEPT="$WORK/accept.md" "$SYNC" --ci-verify
+check "T34 accepted by its fingerprint → dispatched" '[ "$RC" = 0 ] && [ "$(dispatches)" -gt "$BEFORE_DISPATCHES" ] && [ ! -f "$WORK/fork/.git/custom-sync/guard-blocked" ]'
 
 echo "T27–T29 scheduled wrapper after the GitHub run"
 mkdir -p "$WORK/gh-sched"
