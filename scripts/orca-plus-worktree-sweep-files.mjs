@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import {
   chmodSync,
   existsSync,
+  linkSync,
   lstatSync,
   mkdirSync,
   readFileSync,
@@ -120,13 +121,15 @@ export function checkoutInCaches(wtPath, caches) {
   if (dirs.length === 0) {
     return { nested: null, unreadable: false }
   }
-  const found = run('find', [...dirs, '-name', '.git', '-print', '-quit'], {
+  // Why -print0: a folder name with a newline would cut the hit short and lose it (Codex P1 24.11).
+  const found = run('find', [...dirs, '-name', '.git', '-print0', '-quit'], {
     timeout: 120_000,
-    killSignal: 'SIGKILL'
+    killSignal: 'SIGKILL',
+    raw: true
   })
-  const hit = found.out.split('\n')[0]
+  const hit = found.out.split('\0')[0]
   if (hit) {
-    return { nested: relative(wtPath, dirname(hit)), unreadable: false }
+    return { nested: relative(wtPath, dirname(hit)) || '.', unreadable: false }
   }
   return { nested: null, unreadable: !found.ok }
 }
@@ -154,29 +157,66 @@ export function lockCheckout(attic, wtPath) {
   const dir = join(attic, 'locks')
   mkdirSync(dir, { recursive: true, mode: 0o700 })
   const file = join(dir, `${createHash('sha1').update(wtPath).digest('hex').slice(0, 16)}.lock`)
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      writeFileSync(file, `${process.pid}\n`, { flag: 'wx', mode: 0o600 })
-      return () => rmSync(file, { force: true })
-    } catch (error) {
-      if (error.code !== 'EEXIST' || processAlive(file)) {
-        return null
+  // Why linked in from a file of its own: the lock appears with its pid already in it.
+  const own = `${file}.${process.pid}`
+  writeFileSync(own, `${process.pid}\n`, { mode: 0o600 })
+  try {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        linkSync(own, file)
+        return () => rmSync(file, { force: true })
+      } catch (error) {
+        if (error.code !== 'EEXIST' || !takeStale(file)) {
+          return null
+        }
       }
-      rmSync(file, { force: true })
     }
+    return null
+  } finally {
+    rmSync(own, { force: true })
   }
-  return null
 }
 
-function processAlive(lockFile) {
-  let pid = 0
-  try {
-    pid = Number.parseInt(readFileSync(lockFile, 'utf8'), 10)
-  } catch {
-    // Why alive: a lock written this moment has no pid yet; the next sweep looks again.
-    return true
+/**
+ * Moves a lock whose process is gone out of the way. Two sweeps can find the same dead lock, and the second
+ * must not delete the one the first has just taken (Codex P1 24.11, third review): the lock is moved aside
+ * and read back, and one that is no longer the dead one is put back. False when it is live or taken.
+ */
+function takeStale(file) {
+  const pid = lockPid(file)
+  if (pid === null || processAlive(pid)) {
+    return false
   }
-  if (!Number.isInteger(pid) || pid <= 0) {
+  const aside = `${file}.${process.pid}.stale`
+  try {
+    renameSync(file, aside)
+  } catch {
+    return false
+  }
+  const same = lockPid(aside) === pid
+  if (!same) {
+    try {
+      linkSync(aside, file)
+    } catch {
+      // A third sweep took the lock meanwhile; it holds it and this one steps back.
+    }
+  }
+  rmSync(aside, { force: true })
+  return same
+}
+
+/** The pid a lock names (0 when it names none), or null when it cannot be read — gone this moment. */
+function lockPid(lockFile) {
+  try {
+    const pid = Number.parseInt(readFileSync(lockFile, 'utf8'), 10)
+    return Number.isInteger(pid) && pid > 0 ? pid : 0
+  } catch {
+    return null
+  }
+}
+
+function processAlive(pid) {
+  if (pid <= 0) {
     return false
   }
   try {
@@ -212,7 +252,8 @@ export function hiddenTracked(wtPath) {
 /**
  * Copies the manifest's paths to `<attic>/<YYYYMMDD>/…tar.gz` and checks the copy lists every one of
  * them before it counts. The name carries a hash of the worktree's full path, and a second removal of the
- * same path and tip the same day gets its own name, so no copy ever replaces another (Codex P1 24.11).
+ * same path and tip the same day gets its own name: the copy is linked in, which never replaces a file
+ * there, so no copy ever replaces another, not even one a sweep running alongside just wrote (Codex P1 24.11).
  */
 export function archiveManifest({ repo, wtPath, head, paths, now, attic }) {
   if (paths.length === 0) {
@@ -220,11 +261,8 @@ export function archiveManifest({ repo, wtPath, head, paths, now, attic }) {
   }
   const dir = join(attic, dayStamp(now))
   mkdirSync(dir, { recursive: true, mode: 0o700 })
-  let copy = join(dir, copyFileName(repo, wtPath, head))
-  if (existsSync(copy)) {
-    copy = copy.replace(/\.tar\.gz$/, `-${now}-${process.pid}.tar.gz`)
-  }
-  const part = `${copy}.${process.pid}.part`
+  const name = join(dir, copyFileName(repo, wtPath, head))
+  const part = `${name}.${now}-${process.pid}.part`
   // Why --no-recursion: the manifest already names every path, so a folder brings no cache along.
   const packed = run('tar', ['-czf', part, '-C', wtPath, '--no-recursion', '--null', '-T', '-'], {
     input: `${paths.join('\0')}\0`,
@@ -243,6 +281,18 @@ export function archiveManifest({ repo, wtPath, head, paths, now, attic }) {
     rmSync(part, { force: true })
     return { ok: false, err: `the copy lacks ${missing.length} file(s), first ${missing[0]}` }
   }
-  renameSync(part, copy)
-  return { ok: true, copy }
+  for (const copy of [name, name.replace(/\.tar\.gz$/, `-${now}-${process.pid}.tar.gz`)]) {
+    try {
+      linkSync(part, copy)
+      rmSync(part, { force: true })
+      return { ok: true, copy }
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        rmSync(part, { force: true })
+        return { ok: false, err: String(error.message) }
+      }
+    }
+  }
+  rmSync(part, { force: true })
+  return { ok: false, err: 'copies by both names are there already' }
 }
