@@ -35,9 +35,13 @@ export type HqDispatchInput = {
  */
 export function decideHqDispatch(input: HqDispatchInput): HqDispatchDecision {
   const { address, project, now } = input
-  const latest = input.sessions
-    .filter((session) => session.address === address)
-    .sort((a, b) => b.lastActivityAt - a.lastActivityAt)[0]
+  const onThread = input.sessions.filter((session) => session.address === address)
+  // Custom build (hq-handoff-parked, T7): a chat that handed off is parked; the one that continues it
+  // takes the thread's work even while the old one is still finishing its turn.
+  const unparked = onThread.filter((session) => !session.handedOffTo)
+  const latest = (unparked.length > 0 ? unparked : onThread).sort(
+    (a, b) => b.lastActivityAt - a.lastActivityAt
+  )[0]
   let seedFrom: string | null = null
   let why = 'no chat has worked on this thread'
   if (latest) {

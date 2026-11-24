@@ -142,7 +142,8 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
     linkChat: (input) => runtime.pulseChats().link(input),
     roleOf: (sessionId) => runtime.pulseChats().roleOf(sessionId),
     setRole: (input) => runtime.pulseChats().setRole(input),
-    leadMoveOf: (chat, lead) => runtime.pulseChats().leadMoveOf(chat, lead)
+    leadMoveOf: (chat, lead) => runtime.pulseChats().leadMoveOf(chat, lead),
+    liveSessionOf: (sessionId) => runtime.pulseLiveSessionOf(sessionId)
   } satisfies HqThreadsDeps['pulse']
   const delivery = {
     pulse: threadPulse,

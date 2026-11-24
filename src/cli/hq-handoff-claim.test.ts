@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { handoffStartedByOrca } from './hq-handoff-claim'
+import { continuesOwnHandoff, handoffStartedByOrca } from './hq-handoff-claim'
 
 const PROMPT = 'Continue from .claude/handoff/handoff-1a2b3c.md: read it first.'
 
@@ -26,5 +26,18 @@ describe('handoffStartedByOrca', () => {
     const other = vi.fn()
     expect(await handoffStartedByOrca({ call: other, isRemote: false }, 'Fix the tests')).toBeNull()
     expect(other).not.toHaveBeenCalled()
+  })
+})
+
+describe('continuesOwnHandoff (hq-handoff-parked)', () => {
+  it("is true only for the calling chat's own handoff file", () => {
+    vi.stubEnv('CLAUDE_CODE_SESSION_ID', '1a2b3c')
+    expect(continuesOwnHandoff(PROMPT)).toBe(true)
+    // Why: a Lead relaunching a worker's handoff is not that worker's successor itself.
+    expect(continuesOwnHandoff('Continue from .claude/handoff/handoff-9z9z.md')).toBe(false)
+    expect(continuesOwnHandoff('Fix the tests, see handoff-1a2b3c.md')).toBe(false)
+    expect(continuesOwnHandoff(undefined)).toBe(false)
+    vi.stubEnv('CLAUDE_CODE_SESSION_ID', '')
+    expect(continuesOwnHandoff(PROMPT)).toBe(false)
   })
 })

@@ -139,3 +139,19 @@ describe('HQ+ session dispatcher: handoffs', () => {
     })
   })
 })
+
+describe('HQ+ session dispatcher: a chat that handed off (hq-handoff-parked)', () => {
+  it('gives the thread to the chat that continues it, while the old one still finishes its turn', () => {
+    const decision = decide([
+      chat({
+        sessionId: 'claude_old',
+        midTurn: true,
+        state: 'working',
+        lastActivityAt: NOW - MIN,
+        handedOffTo: 'claude_new'
+      }),
+      chat({ sessionId: 'claude_new', lastActivityAt: NOW - 5 * MIN, contextPct: 10 })
+    ])
+    expect(decision).toMatchObject({ kind: 'continue', sessionId: 'claude_new' })
+  })
+})
