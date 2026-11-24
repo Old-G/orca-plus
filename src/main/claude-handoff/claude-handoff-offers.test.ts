@@ -75,6 +75,55 @@ describe('createClaudeHandoffOffers', () => {
     expect(onOffersChanged).toHaveBeenCalledTimes(1)
   })
 
+  it('offers the handoff while the chat is still writing it, before its turn is done', async () => {
+    vi.useFakeTimers()
+    try {
+      const { offers, files } = setup()
+      await offers.onStatus(
+        stop({
+          payload: {
+            state: 'working',
+            prompt: '',
+            agentType: 'claude',
+            toolName: 'Write',
+            toolInput: `/work/orca/${PATH}`
+          }
+        })
+      )
+      // The status comes as the tool starts: no file yet at the first look.
+      await vi.advanceTimersByTimeAsync(1_500)
+      expect(offers.list()).toEqual([])
+      files[PATH] = fileText()
+      await vi.advanceTimersByTimeAsync(3_500)
+      expect(offers.list()).toMatchObject([{ sessionId: SESSION, worktreeId: WORKTREE }])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not look for a handoff on other writes of a working chat', async () => {
+    vi.useFakeTimers()
+    try {
+      const { offers, readWorktreeFile } = setup({ [PATH]: fileText() })
+      await offers.onStatus(
+        stop({
+          payload: {
+            state: 'working',
+            prompt: '',
+            agentType: 'claude',
+            toolName: 'Write',
+            toolInput: '/work/orca/src/index.ts'
+          }
+        })
+      )
+      await vi.advanceTimersByTimeAsync(20_000)
+      expect(readWorktreeFile).not.toHaveBeenCalled()
+      expect(offers.list()).toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('remembers the native chat that wrote the handoff, to close it once the next one starts', async () => {
     const { offers } = setup({ [PATH]: fileText() })
     await offers.onStatus(

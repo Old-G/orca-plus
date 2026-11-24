@@ -120,13 +120,16 @@ describe('HQ+ session dispatcher: handoffs', () => {
     })
   })
 
-  it('with the auto start, goes after seconds, not minutes', () => {
-    const auto = { graceMs: HQ_SESSION_HANDOFF_AUTO_GRACE_MS }
-    expect(handoff({ ...auto, raisedAt: NOW - 5_000 })).toMatchObject({ start: false })
-    expect(handoff({ ...auto, raisedAt: NOW - 30_000 })).toEqual({
+  it('with the auto start, goes at once, even beside the chat on his screen, but not past a limit', () => {
+    const auto = { graceMs: HQ_SESSION_HANDOFF_AUTO_GRACE_MS, auto: true }
+    expect(handoff({ ...auto, raisedAt: NOW - 5_000 })).toEqual({
       start: true,
-      why: '«refunds» handed off 30 s ago'
+      why: '«refunds» handed off 5 s ago'
     })
+    expect(
+      handoff({ ...auto, raisedAt: NOW, session: chat({ ownerAt: NOW, onScreen: true }) })
+    ).toMatchObject({ start: true })
+    expect(handoff({ ...auto, limitStopped: true })).toMatchObject({ start: false })
   })
 
   it('waits while the chat that handed off is stopped on a limit', () => {
