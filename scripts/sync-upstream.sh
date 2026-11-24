@@ -286,12 +286,12 @@ tests_step() { bash "$ROOT/scripts/sync-upstream-tests.sh" "$STATE_DIR/logs/$TS"
 
 # Compares the old stack with the rebased one: every line a feature added must still be there.
 # Returns 1 when something is missing and no SYNC_GUARD_ACCEPT file explains it.
-run_guard() {
-  local log="$STATE_DIR/logs/$TS-guard.md" code=0
+run_guard() { # [new head, default HEAD]
+  local log="$STATE_DIR/logs/$TS-guard.md" code=0 new_head=${1:-HEAD}
   say ""
   say "## Сверка: наши изменения после rebase"
   ensure_toolchain
-  node "$SCRIPT_DIR/sync-upstream-guard.mjs" "$OLD_BASE" "$OLD_CUSTOM" "refs/heads/$MIRROR" HEAD \
+  node "$SCRIPT_DIR/sync-upstream-guard.mjs" "$OLD_BASE" "$OLD_CUSTOM" "refs/heads/$MIRROR" "$new_head" \
     >"$log" 2>&1 || code=$?
   if [ "$code" = 0 ]; then
     rm -f "$GUARD_BLOCK"
@@ -389,6 +389,34 @@ publish() {
   fi
 }
 
+# Why: the workflow moves PUBLISH_BRANCH on GitHub, and nothing here fetches it afterwards, so the
+# next lease would name the pre-promotion head and fail. Only the head this repo itself sent for
+# promotion is taken over, and only while the fork's branch is exactly on it: any other move stays
+# unseen, so the lease still refuses it.
+reconcile_promoted_lease() {
+  local tracking="refs/remotes/$PUBLISH_REMOTE/$PUBLISH_BRANCH" sent_repo sent_run sent_head sent_expect sent_promote rest
+  local remote_head
+  [ -f "$STATE_DIR/ci-run" ] || return 0
+  read -r sent_repo sent_run sent_head sent_expect sent_promote rest <"$STATE_DIR/ci-run" || return 0
+  [ "${sent_promote:-}" = true ] && [ -n "${sent_head:-}" ] || return 0
+  [ "$(git rev-parse -q --verify "$tracking" || true)" = "$sent_expect" ] || return 0
+  remote_head=$(git ls-remote "$PUBLISH_REMOTE" "refs/heads/$PUBLISH_BRANCH" 2>>"$GIT_LOG" | cut -f1)
+  [ "$remote_head" = "$sent_head" ] || return 0
+  git update-ref "$tracking" "$sent_head" "$sent_expect"
+  say "$PUBLISH_REMOTE/$PUBLISH_BRANCH: прогон $sent_run перевёл его на $(short "$sent_head") — lease обновлён"
+}
+
+# Why: a stack resent with nothing new upstream (fixups after a red run) skips the rebase and its
+# guard; it must still keep every line of the stack the fork publishes before it goes to promotion.
+guard_against_published() {
+  local published
+  published=$(git rev-parse -q --verify "refs/remotes/$PUBLISH_REMOTE/$PUBLISH_BRANCH" || true)
+  [ -n "$published" ] && [ "$published" != "$(git rev-parse "refs/heads/$CUSTOM")" ] || return 0
+  OLD_BASE=$(git merge-base "$published" "refs/heads/$MIRROR")
+  OLD_CUSTOM=$published
+  run_guard "refs/heads/$CUSTOM" || PUBLISH_BLOCKED=1
+}
+
 # The fork's Sync verify workflow checks the stack on GitHub and, when green, moves PUBLISH_BRANCH
 # to it with a lease on the head we last saw there — the same lease `publish` uses.
 ci_verify() {
@@ -419,19 +447,24 @@ ci_verify() {
     || fail 3 "push $branch в $PUBLISH_REMOTE не удался (лог: $GIT_LOG)"
   promote=true
   [ "$CI_PROMOTE" = 1 ] || promote=false
-  gh workflow run "$CI_WORKFLOW" -R "$repo" --ref "$PUBLISH_BRANCH" -f branch="$branch" \
-    -f expect_target="$expect" -f target="$PUBLISH_BRANCH" -f promote="$promote" >>"$GIT_LOG" 2>&1 \
-    || fail 3 "не удалось запустить $CI_WORKFLOW в $repo (ветка $branch уже на GitHub; лог: $GIT_LOG)"
-  sleep 5
-  run_id=$(gh run list -R "$repo" --workflow "$CI_WORKFLOW" --event workflow_dispatch -L 1 \
-    --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
-  run_url=""
-  if [ -n "$run_id" ]; then
-    run_url="https://github.com/$repo/actions/runs/$run_id"
-    printf '%s %s\n' "$repo" "$run_id" >"$STATE_DIR/ci-run"
-  fi
+  # Why ref = the sync branch: the stack runs its own verifier, so a fix to the workflow travels with
+  # the fixups it checks. GitHub still lists a workflow only from the default branch (custom here).
+  # Why the API version: since 2026-03-10 the dispatch answers with the run it created, so the
+  # wrapper watches exactly that run, never the newest one in a listing.
+  run_id=$(gh api -X POST -H "X-GitHub-Api-Version: 2026-03-10" \
+    "repos/$repo/actions/workflows/$CI_WORKFLOW/dispatches" -f ref="$branch" -f "inputs[branch]=$branch" \
+    -f "inputs[expect_target]=$expect" -f "inputs[target]=$PUBLISH_BRANCH" -f "inputs[promote]=$promote" \
+    --jq '.workflow_run_id' 2>>"$GIT_LOG") \
+    || fail 3 "не удалось запустить $CI_WORKFLOW в $repo (ветка $branch уже на GitHub; workflow должен лежать и в ветке по умолчанию; лог: $GIT_LOG)"
+  case "$run_id" in
+    '' | *[!0-9]*) fail 3 "GitHub запустил $CI_WORKFLOW, но не назвал прогон (ответ: '$run_id'); найди его: gh run list -R $repo --workflow $CI_WORKFLOW" ;;
+  esac
+  run_url="https://github.com/$repo/actions/runs/$run_id"
+  # repo, run, the stack sent, the lease, promotion on/off, the local head before this sync
+  printf '%s %s %s %s %s %s\n' "$repo" "$run_id" "$head" "$expect" "$promote" "$OLD_CUSTOM" >"$STATE_DIR/ci-run"
   say "## Отправлено на проверку в GitHub: $branch ($(short "$head"))"
-  say "Прогон: ${run_url:-gh run list -R $repo --workflow $CI_WORKFLOW}"
+  say "Прогон: $run_url"
+  say "Ждать: gh run watch $run_id -R $repo --exit-status"
   if [ "$promote" = true ]; then
     say "После зелёного прогона workflow сам переведёт $PUBLISH_BRANCH $(short "$expect") → $(short "$head");"
     say "прежняя вершина останется веткой sync-backup/$TS. Красный прогон $PUBLISH_BRANCH не трогает."
@@ -443,6 +476,9 @@ ci_verify() {
 # --- main --------------------------------------------------------------------------------------
 
 say "# sync-upstream $TS"
+if [ "$CI_VERIFY" = 1 ]; then
+  reconcile_promoted_lease
+fi
 
 if [ "$MODE" = start ]; then
   if rebase_in_progress; then
@@ -486,6 +522,9 @@ if [ "$MODE" = start ]; then
     rm -f "$STATE_FILE"
     say ""
     say "## OK — $CUSTOM уже стоит на свежем upstream, делать нечего"
+    if [ "$CI_VERIFY" = 1 ]; then
+      guard_against_published
+    fi
     publish
     ci_verify
     [ "$PUBLISH_BLOCKED" = 1 ] && finish 5
