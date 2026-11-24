@@ -217,6 +217,7 @@ src/renderer/src/components/orca-plus/outgoing-approval/OutgoingApprovalCard.tsx
 src/renderer/src/components/orca-plus/outgoing-approval/OutgoingApprovalVenue.tsx
 src/renderer/src/components/orca-plus/outgoing-approval/outgoing-approval-toasts.tsx
 src/renderer/src/components/orca-plus/outgoing-approval/use-outgoing-approval-options.ts
+src/renderer/src/components/orca-plus/outgoing-approval/use-steady-click.ts
 src/renderer/src/components/orca-plus/pulse-bell/HqRouteForm.tsx
 src/renderer/src/components/orca-plus/pulse-bell/PulseBellButton.tsx
 src/renderer/src/components/orca-plus/pulse-bell/hq-intake-toasts.tsx
