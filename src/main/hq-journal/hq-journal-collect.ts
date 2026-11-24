@@ -49,6 +49,8 @@ export type HqJournalPulse = {
   list: (query: HqJournalQuery) => HqJournalEntry[]
   /** Custom build (hq-lead-reassign): where `chat`'s message to a Lead it had before goes now. */
   leadMoveOf?: (chat: string, lead: string) => string | null
+  /** Custom build (hq-handoff-parked, T7): the chat at the live end of `sessionId`'s handoff chain. */
+  liveSessionOf?: (sessionId: string) => string
 }
 
 // Why: the finish notice can land a moment before the report the turn wrote last.
@@ -161,3 +163,9 @@ export async function collectHqJournal(
     sessions: sessions.sort((a, b) => a.at - b.at)
   }
 }
+
+/** What HQ+ threads read and write in Pulse, besides their own extras. */
+export type HqThreadsPulseBase = Pick<
+  HqJournalPulse,
+  'record' | 'list' | 'getSession' | 'noteSessions' | 'leadMoveOf' | 'liveSessionOf'
+>
