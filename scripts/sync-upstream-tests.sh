@@ -12,7 +12,7 @@ PREFIX=$1
 MODE=$2
 ROOT=$(git rev-parse --show-toplevel)
 cd "$ROOT"
-KNOWN=${SYNC_KNOWN_FAILURES:-$ROOT/scripts/sync-known-test-failures.txt}
+KNOWN="$ROOT/scripts/sync-known-test-failures.txt"
 # Why run-vitest.mjs: upstream runs Vitest under the pinned Bun with Node runtime contracts.
 VITEST=${SYNC_VITEST_CMD:-node config/scripts/test-runtime/execution-policy/run-vitest.mjs}
 # Why: AGENTS.md runs every test in background-launch mode; browser-manager suites assert it.
