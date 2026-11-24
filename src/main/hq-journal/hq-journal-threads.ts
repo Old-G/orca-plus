@@ -23,7 +23,8 @@ import type { PulsePerson, PulsePersonInput } from '../../shared/pulse-types'
 import { hqJournalLink, journalEntryAsInput } from './hq-journal-adapters'
 import type { HqThreadsPulseBase } from './hq-journal-collect'
 import type { HqCaller, HqCallerScope } from './hq-journal-rooms'
-import { hqCarryChatRole, hqNewChatAddress } from './hq-journal-chat-role'
+import { hqNewChatAddress } from './hq-journal-chat-role'
+import { hqHandOff } from './hq-journal-handoff'
 import type { HqLeadBatch } from './hq-lead-batch'
 import { createHqSend, HQ_JOURNAL_OFF as JOURNAL_OFF, hqRoomOf as roomOf } from './hq-journal-send'
 
@@ -67,8 +68,9 @@ export type HqThreads = {
     caller: HqCaller,
     message: { address: string; text: string; replyTo?: string }
   ) => Promise<HqChatSendResult>
-  /** A handoff's new chat takes over the old one's thread. */
-  handoff: (fromSessionId: string, toSessionId: string) => void
+  /** A handoff's new chat takes over the old one's thread; false when nothing was written (HQ+ off,
+   *  or Orca+ never saw the old chat). */
+  handoff: (fromSessionId: string, toSessionId: string) => boolean
   /** Custom build (hq-plus-routing): a chat closes an open row it was handed, with why. */
   settle: (caller: HqCaller, input: HqSettleInput) => Promise<HqSettleResult>
 }
@@ -283,47 +285,7 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
       return { settled: true, entryId: entry.id, status: input.status }
     },
 
-    handoff(fromSessionId, toSessionId) {
-      const from = deps.pulse.getSession(fromSessionId)
-      if (!from?.address || !deps.enabled()) {
-        return
-      }
-      const at = deps.now()
-      deps.pulse.noteSessions([
-        { ...from, sessionId: toSessionId, parentSessionId: fromSessionId, state: 'working', at }
-      ])
-      hqCarryChatRole(deps.pulse, fromSessionId, toSessionId, at)
-      // Why: the new chat carries the old one's open questions; they are no longer the owner's move there.
-      const asked = deps.pulse
-        .list({
-          sessionId: fromSessionId,
-          needs: 'owner',
-          status: 'open',
-          limit: HQ_JOURNAL_MAX_LIMIT
-        })
-        .filter((entry) => entry.kind === HQ_JOURNAL_KIND.chatReport && entry.dedupeKey)
-      deps.pulse.record([
-        ...asked.map((entry) => journalEntryAsInput(entry, { status: 'done' })),
-        {
-          workspace: from.workspace,
-          placement: 'firm',
-          kind: HQ_JOURNAL_KIND.sessionHandoff,
-          at,
-          project: from.project,
-          address: from.address,
-          sessionId: toSessionId,
-          personId: null,
-          title: `Handoff: a new chat continues ${from.address}`,
-          needs: 'nobody',
-          status: 'done',
-          replyTo: null,
-          refKind: 'session',
-          refId: fromSessionId,
-          source: 'handoff',
-          dedupeKey: `session.handoff:${fromSessionId}:${toSessionId}`
-        }
-      ])
-    }
+    handoff: (fromSessionId, toSessionId) => hqHandOff(deps, fromSessionId, toSessionId)
   }
 }
 

@@ -52,11 +52,17 @@ async function deliverOrReopen(
   return { taken, reopened, worktreeId }
 }
 
-type HqLeadPulse = Pick<HqThreadsDeps['pulse'], 'getSession' | 'listSessionsByAddress'>
+type HqLeadPulse = Pick<
+  HqThreadsDeps['pulse'],
+  'getSession' | 'listSessionsByAddress' | 'liveSessionOf'
+>
 
-/** Custom build (hq-lead-batch): the chat on the Lead's thread now — a handoff's new chat takes it over. */
+/** Custom build (hq-lead-batch): the chat on the Lead's thread now — a handoff's new chat takes it over.
+ *  Custom build (hq-handoff-parked, T7): followed to the live end of the chain, so a successor that got
+ *  another address (or none yet) still takes the batch instead of the parked chat. */
 export function hqLeadBatchSession(pulse: HqLeadPulse, held: HqLeadHeld): string {
-  return pulse.listSessionsByAddress(held.address)[0]?.sessionId ?? held.sessionId
+  const top = pulse.listSessionsByAddress(held.address)[0]?.sessionId ?? held.sessionId
+  return pulse.liveSessionOf?.(top) ?? top
 }
 
 /** Custom build (hq-lead-batch): a held batch goes to the chat on the Lead's thread now. */
