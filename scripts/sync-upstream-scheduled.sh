@@ -106,6 +106,12 @@ hand_to_agent() { # exit code
 rollback_local() { # run, stack sent, local head before the sync
   local custom=${SYNC_CUSTOM:-custom} run=$1 sent=$2 old=$3
   [ -n "$old" ] && [ "$old" != "$sent" ] || return 0
+  # Why: moving a branch another worktree has checked out turns its files into stray local edits.
+  if git worktree list --porcelain | grep -qx "branch refs/heads/$custom" \
+    && [ "$(git symbolic-ref --quiet --short HEAD || true)" != "$custom" ]; then
+    printf 'Локальный %s не откатан: он открыт в другом worktree.\n' "$custom" >>"$report"
+    return 0
+  fi
   if [ "$(git rev-parse -q --verify "refs/heads/$custom" || true)" != "$sent" ]; then
     printf 'Локальный %s сдвинулся после отправки — не откатан.\n' "$custom" >>"$report"
     return 0
@@ -132,6 +138,12 @@ if [ "$code" = 0 ] && [ -f "$STATE_DIR/ci-run" ]; then
   log "waiting for GitHub run $ci_run"
   if gh run watch "$ci_run" -R "$ci_repo" --exit-status --interval 60 >/dev/null 2>&1; then
     CI_RESULT=green
+  elif [ "$(gh run view "$ci_run" -R "$ci_repo" --json status --jq .status 2>/dev/null)" != completed ]; then
+    # Why: watch also fails when it cannot reach the run; the run may still go green and promote.
+    CI_RESULT=unknown
+    code=6
+    printf '\n## НЕ ДОЖДАЛСЯ ПРОГОНА — результат неизвестен, custom не тронут\nПрогон: https://github.com/%s/actions/runs/%s\n' \
+      "$ci_repo" "$ci_run" >>"$report"
   else
     CI_RESULT=red
     code=2
@@ -160,6 +172,7 @@ case "$code" in
       notify "orca-custom sync" "Синхронизация остановилась (код $code), стек не тронут. Запусти scripts/sync-upstream.sh вручную. Отчёт: .git/custom-sync/last-report.md"
     fi
     ;;
+  6) notify "orca-custom sync" "Не дождался прогона на GitHub, результат неизвестен. Проверь: https://github.com/$ci_repo/actions/runs/$ci_run" ;;
   4) notify "orca-custom sync" "Стек пересобран, но push в форк отклонён — там чужие коммиты? Отчёт: .git/custom-sync/last-report.md" ;;
   *) notify "orca-custom sync" "Синхронизация не запустилась (код $code). Отчёт: .git/custom-sync/last-report.md" ;;
 esac
