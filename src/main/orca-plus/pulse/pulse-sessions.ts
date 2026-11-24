@@ -96,6 +96,8 @@ export function noteSessions(core: PulseCore, inputs: readonly HqSessionInput[])
  * Custom build (hq-chat-roles): a new chat that could not be prepared gives its thread back — the
  * address it was given before its first turn is cleared and the chat goes to History, so the next
  * dispatch neither continues it nor hands it a fresh address. Only while it still holds `address`.
+ * Custom build (hq-handoff-parked, T7): its parent link goes too — left, it would park the chat it was
+ * seeded from and send that chat's messages to this empty one.
  */
 export function releaseSessionAddress(
   core: PulseCore,
@@ -105,8 +107,8 @@ export function releaseSessionAddress(
 ): boolean {
   const result = core.db
     .prepare(
-      "UPDATE sessions SET address = NULL, state = 'closed', closed_at = COALESCE(closed_at, ?) " +
-        'WHERE session_id = ? AND address = ?'
+      "UPDATE sessions SET address = NULL, parent_session_id = NULL, state = 'closed', " +
+        'closed_at = COALESCE(closed_at, ?) WHERE session_id = ? AND address = ?'
     )
     .run(at, sessionId, address)
   return Number(result.changes) > 0

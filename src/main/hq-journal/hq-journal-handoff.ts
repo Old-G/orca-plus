@@ -17,8 +17,20 @@ export function hqHandOff(
     return false
   }
   const at = deps.now()
+  // Why: a chat started by `orca agent launch` is known already, in its own worktree and project.
+  const own = deps.pulse.getSession(toSessionId)
   deps.pulse.noteSessions([
-    { ...from, sessionId: toSessionId, parentSessionId: fromSessionId, state: 'working', at }
+    {
+      ...from,
+      agent: own?.agent ?? from.agent,
+      worktreeId: own?.worktreeId ?? from.worktreeId,
+      workspace: own?.workspace ?? from.workspace,
+      project: own?.project ?? from.project,
+      sessionId: toSessionId,
+      parentSessionId: fromSessionId,
+      state: 'working',
+      at
+    }
   ])
   hqCarryChatRole(deps.pulse, fromSessionId, toSessionId, at)
   // Why: the new chat carries the old one's open questions; they are no longer the owner's move there.
