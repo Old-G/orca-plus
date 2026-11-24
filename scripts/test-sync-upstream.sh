@@ -212,7 +212,7 @@ g init -q -b custom "$S"
 S=$(cd "$S" && pwd) # Why: TMPDIR may end in "/"; the wrapper matches the dev process by its pwd path
 mkdir -p "$S/scripts"
 cp "$SCHED" "$S/scripts/"
-cp "$(dirname "$SCHED")/sync-upstream-agent-brief.md" "$S/scripts/"
+cp "$(dirname "$SCHED")/sync-upstream-agent-brief.md" "$(dirname "$SCHED")/sync-upstream-rollback.sh" "$S/scripts/"
 printf '#!/usr/bin/env bash\necho "stub sync $*"; mkdir -p .git/custom-sync; echo "## OK — stub" >.git/custom-sync/last-report.md; exit ${STUB_CODE:-0}\n' \
   >"$S/scripts/sync-upstream.sh"
 chmod +x "$S/scripts/"*.sh
@@ -343,6 +343,7 @@ BEFORE=$(cd "$WORK/fork" && git rev-parse custom)
 SYNC_CHECKS_CMD=true sync_run --unattended
 check "T19 --unattended: a silently dropped feature → exit 5" '[ "$RC" = 5 ] && printf "%s" "$OUT" | grep -q "demo-c"'
 check "T19 --unattended: rolled back" '[ "$(cd "$WORK/fork" && git rev-parse custom)" = "$BEFORE" ]'
+check "T19 --unattended: the report on the discarded stack blocks nothing later" '[ ! -f "$WORK/fork/.git/custom-sync/guard-blocked" ]'
 
 echo "T23 --ci-verify hands the checks to GitHub"
 mkdir -p "$WORK/gh-bin"
@@ -396,13 +397,38 @@ dispatches() { grep -c "dispatches" "$GH_LOG" || true; }
 echo "T24 a dispatch answer without a run id is not guessed"
 (cd "$WORK/fork" && git checkout -q custom && printf 'extra\n' >t24.txt && git add t24.txt \
   && g commit -qm "custom(demo-d): t24" -m "Custom-Feature: demo-d" && git checkout -q main)
-ci_run STUB_RUN_ID= "$SYNC" --ci-verify
-check "T24 exit 3" '[ "$RC" = 3 ]'
-check "T24 no run recorded" '[ ! -f "$WORK/fork/.git/custom-sync/ci-run" ]'
 BEFORE=$(cd "$WORK/fork" && git rev-parse custom)
-upstream_commit other.txt "ci-2" "upstream: before an unsent stack"
+upstream_commit other.txt "ci-2" "upstream: before an unanswered dispatch"
 ci_run STUB_RUN_ID= "$SYNC" --ci-verify --unattended
+CANDIDATE=$(cd "$WORK/fork" && git rev-parse custom)
+check "T24 exit 6 (outcome unknown)" '[ "$RC" = 6 ]'
+check "T24 no run recorded for the wrapper" '[ ! -f "$WORK/fork/.git/custom-sync/ci-run" ]'
+check "T24 the candidate stays on local custom" '[ "$CANDIDATE" != "$BEFORE" ] && (cd "$WORK/fork" && git merge-base --is-ancestor upstream/main custom)'
+check "T24 the possible promotion is recorded for the lease" 'grep -q " custom ? $CANDIDATE " "$WORK/fork/.git/custom-sync/ci-promotions"'
+# The fork refuses the sync branch; meanwhile someone commits on local custom.
+(cd "$WORK/fork" && git update-ref refs/heads/custom "$BEFORE")
+mkdir -p "$WORK/published.git/hooks"
+cat >"$WORK/published.git/hooks/pre-receive" <<HOOK
+#!/usr/bin/env bash
+unset GIT_DIR GIT_QUARANTINE_PATH GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+if [ -f "$WORK/push-moves-custom" ]; then
+  tip=\$(git -C "$WORK/fork" rev-parse custom)
+  git -C "$WORK/fork" update-ref refs/heads/custom "\$(git -C "$WORK/fork" commit-tree -p "\$tip" -m someone "\$tip^{tree}")"
+fi
+grep -q " refs/heads/sync/" && exit 1
+exit 0
+HOOK
+chmod +x "$WORK/published.git/hooks/pre-receive"
+upstream_commit other.txt "ci-2b" "upstream: before a refused push"
+ci_run "$SYNC" --ci-verify --unattended
 check "T24 --unattended: a stack GitHub never took leaves local custom on its old head" '[ "$RC" = 3 ] && [ "$(cd "$WORK/fork" && git rev-parse custom)" = "$BEFORE" ]'
+touch "$WORK/push-moves-custom"
+upstream_commit other.txt "ci-2c" "upstream: before a refused push, custom moving"
+ci_run "$SYNC" --ci-verify --unattended
+MOVED_TIP=$(cd "$WORK/fork" && git rev-parse custom)
+check "T24 a commit made on custom meanwhile is not rolled back" '[ "$RC" = 3 ] && [ "$MOVED_TIP" != "$BEFORE" ] && [ "$(cd "$WORK/fork" && git log -1 --format=%s custom)" = someone ] && printf "%s" "$OUT" | grep -q "не откатан"'
+rm -f "$WORK/published.git/hooks/pre-receive" "$WORK/push-moves-custom"
+(cd "$WORK/fork" && git update-ref refs/heads/custom "$BEFORE")
 
 echo "T25 a confirmed promotion refreshes the lease"
 ci_run "$SYNC" --ci-verify
@@ -470,6 +496,10 @@ upstream_commit other.txt "ci-3" "upstream: before a clean rebase over a pending
 BEFORE_DISPATCHES=$(dispatches)
 ci_run SYNC_GUARD_ACCEPT="$WORK/accept.md" "$SYNC" --ci-verify
 check "T34 a clean rebase does not clear an earlier unaccepted report" '[ "$RC" = 5 ] && [ "$(dispatches)" = "$BEFORE_DISPATCHES" ] && grep -q pending-guard "$WORK/fork/.git/custom-sync/guard-blocked"'
+BEFORE=$(cd "$WORK/fork" && git rev-parse custom)
+upstream_commit other.txt "ci-3u" "upstream: unattended over a pending block"
+ci_run SYNC_GUARD_ACCEPT="$WORK/accept.md" "$SYNC" --ci-verify --unattended
+check "T34 --unattended: refused for the pending report and local custom rolled back" '[ "$RC" = 5 ] && [ "$(cd "$WORK/fork" && git rev-parse custom)" = "$BEFORE" ] && [ "$(dispatches)" = "$BEFORE_DISPATCHES" ]'
 printf 'guard-accept 0123456789abcdef\n' >>"$WORK/accept.md"
 ci_run SYNC_GUARD_ACCEPT="$WORK/accept.md" "$SYNC" --ci-verify
 check "T34 accepted by its fingerprint → dispatched" '[ "$RC" = 0 ] && [ "$(dispatches)" -gt "$BEFORE_DISPATCHES" ] && [ ! -f "$WORK/fork/.git/custom-sync/guard-blocked" ]'
@@ -481,8 +511,9 @@ cat >"$WORK/gh-sched/gh" <<'STUB'
 # `run view`: GitHub's raw fields through the caller's own --jq filter; `run watch`: STUB_WATCH_RC.
 if [ "$2" = view ]; then
   while [ $# -gt 0 ] && [ "$1" != --jq ]; do shift; done
-  printf '%s' "${STUB_RUN_JSON:-{\"status\":\"completed\",\"conclusion\":\"failure\"}}" | jq -r "$2"
-  exit 0
+  failed='{"status":"completed","conclusion":"failure"}'
+  printf '%s' "${STUB_RUN_JSON:-$failed}" | jq -r "$2"
+  exit $?
 fi
 exit ${STUB_WATCH_RC:-0}
 STUB
@@ -494,6 +525,9 @@ printf '#!/usr/bin/env bash\necho "stub sync $*"; mkdir -p .git/custom-sync; ech
   && printf 'c\n' >f.txt && g commit -qam candidate)
 S_OLD=$(cd "$S" && git rev-parse custom~1)
 S_NEW=$(cd "$S" && git rev-parse custom)
+# The fork: its custom is still on the old head unless a test moves it.
+g init -q --bare "$WORK/sched-fork.git"
+(cd "$S" && git remote add origin "$WORK/sched-fork.git" && git push -q origin "$S_OLD:refs/heads/custom")
 wrap_run() {
   set +e
   OUT=$(cd "$S" && PATH="$WORK/gh-sched:$WORK/bin:$PATH" SYNC_AGENT=0 SYNC_NO_NOTIFY=1 SYNC_UPSTREAM_CHECK= \
@@ -519,6 +553,14 @@ check "T30 watch lost the run → exit 6, no rollback, no agent" '[ "$RC" = 6 ] 
 STUB_WATCH_RC=1 STUB_CI_RUN="o/r 82 $MOVED $S_OLD true $S_OLD" wrap_run
 check "T31 custom open in another worktree → not moved" '[ "$(cd "$S" && git rev-parse custom)" = "$MOVED" ] && grep -q "другом worktree" "$S/.git/custom-sync/last-report.md"'
 git -C "$S" worktree remove "$WORK/sched-wt" && git -C "$S" checkout -q custom
+(cd "$S" && git push -q -f origin "$MOVED:refs/heads/custom")
+STUB_WATCH_RC=1 STUB_CI_RUN="o/r 84 $MOVED $S_OLD true $S_OLD" wrap_run
+check "T35 a failed run whose stack the fork already has → not rolled back, not handed off" '[ "$RC" = 0 ] && [ "$(cd "$S" && git rev-parse custom)" = "$MOVED" ] && grep -q "уже на проверенном стеке" "$S/.git/custom-sync/last-report.md"'
+(cd "$S" && git push -q -f origin "$S_OLD:refs/heads/custom")
+(cd "$S" && git remote set-url origin "$WORK/no-such-fork.git")
+STUB_WATCH_RC=1 STUB_CI_RUN="o/r 85 $MOVED $S_OLD true $S_OLD" wrap_run
+check "T35 the fork cannot be checked → local custom left alone" '[ "$RC" = 2 ] && [ "$(cd "$S" && git rev-parse custom)" = "$MOVED" ]'
+(cd "$S" && git remote set-url origin "$WORK/sched-fork.git")
 STUB_WATCH_RC=0 STUB_CI_RUN="o/r 79 $MOVED $S_OLD false $S_OLD" wrap_run
 check "T29 green check-only run → no claim of publication" '[ "$RC" = 0 ] && ! tail -1 "$S/.git/custom-sync/scheduled.log" | grep -q "опубликован" && tail -1 "$S/.git/custom-sync/scheduled.log" | grep -q "только проверка"'
 STUB_WATCH_RC=0 STUB_CI_RUN="o/r 80 $MOVED $S_OLD true $S_OLD" wrap_run
