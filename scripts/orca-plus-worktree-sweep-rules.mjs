@@ -207,8 +207,8 @@ export function dayStamp(now) {
   return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
 }
 
-// Why: rebuilt by an install or a build, so a removal loses nothing by not copying them.
-export const CACHE_NAMES = new Set([
+// Why: rebuilt by an install or a tool run, so a removal loses nothing by not copying them — wherever they are.
+const REGENERABLE_NAMES = new Set([
   'node_modules',
   '__pycache__',
   '.pytest_cache',
@@ -220,27 +220,39 @@ export const CACHE_NAMES = new Set([
   '.nuxt',
   '.turbo',
   '.vite',
-  '.cache',
   '.parcel-cache',
   '.gradle',
   '.eslintcache',
+  '.DS_Store'
+])
+export const CACHE_SUFFIXES = ['.pyc', '.egg-info', '.tsbuildinfo']
+// Why apart: a build's output when git ignores the folder itself (`!! dist/`), but below a folder that is
+// copied (`state/build/export.csv`) they can hold someone's results, so there they are copied (Codex P1 24.11).
+export const CACHE_NAMES = new Set([
+  ...REGENERABLE_NAMES,
   'dist',
   'build',
   'out-tsc',
   'coverage',
   'target',
-  '.DS_Store'
+  '.cache'
 ])
-export const CACHE_SUFFIXES = ['.pyc', '.egg-info', '.tsbuildinfo']
 
+/** A name skipped wherever it is, below a copied folder too. */
+export function isRegenerableName(name) {
+  return REGENERABLE_NAMES.has(name) || CACHE_SUFFIXES.some((suffix) => name.endsWith(suffix))
+}
+
+/** A name skipped when git lists it as its own ignored entry. */
 export function isCacheName(name) {
   return CACHE_NAMES.has(name) || CACHE_SUFFIXES.some((suffix) => name.endsWith(suffix))
 }
 
-/** `git status --porcelain -z --ignored`: changed paths, and ignored ones that are not caches. */
+/** `git status --porcelain -z --ignored`: changed paths, ignored ones that are not caches, and the caches. */
 export function parseStatusZ(text) {
   const dirty = []
   const ignored = []
+  const caches = []
   const parts = text.split('\0')
   for (let i = 0; i < parts.length; i += 1) {
     const entry = parts[i]
@@ -250,9 +262,8 @@ export function parseStatusZ(text) {
     const code = entry.slice(0, 2)
     const path = entry.slice(3)
     if (code === '!!') {
-      if (!isCacheName(basename(path))) {
-        ignored.push(path)
-      }
+      const bucket = isCacheName(basename(path)) ? caches : ignored
+      bucket.push(path)
     } else {
       dirty.push(path)
       // A rename or copy carries its old path as the next field.
@@ -261,7 +272,7 @@ export function parseStatusZ(text) {
       }
     }
   }
-  return { dirty, ignored }
+  return { dirty, ignored, caches }
 }
 
 /** `lsof -F pcn -d cwd`: each process with its working folder. */
