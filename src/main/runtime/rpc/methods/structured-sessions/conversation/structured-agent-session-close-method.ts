@@ -54,6 +54,7 @@ export const STRUCTURED_AGENT_SESSION_CLOSE_METHOD = defineMethod({
         await host.close(params.sessionId, 'user-close')
         // Custom build (worktree-sweep): the chat's worktree goes too once its work is merged — only after
         // this close retired the chat's tab; a failed or superseded retirement schedules nothing (Codex P2 24.11).
+        // A launch-cancellation cleanup lands here too: that is the owner closing the tab while it launched.
         if (tabRetired) {
           sweepWorktreeAfterChatClose(params.sessionId, surface)
         }

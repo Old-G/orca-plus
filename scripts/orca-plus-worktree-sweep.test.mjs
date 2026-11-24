@@ -240,7 +240,7 @@ test('status -z: edits keep it, ignored caches are not copied, other ignored fil
   const { dirty, ignored } = parseStatusZ(text)
   assert.deepEqual(dirty, ['src/a.ts', 'new.ts', 'notes.md'])
   assert.deepEqual(ignored, ['state/', '.env', 'with space/out.json'])
-  assert.deepEqual(parseStatusZ(''), { dirty: [], ignored: [] })
+  assert.deepEqual(parseStatusZ(''), { dirty: [], ignored: [], caches: [] })
   assert.equal(isCacheName('node_modules'), true)
   assert.equal(isCacheName('pkg.egg-info'), true)
   assert.equal(isCacheName('state'), false)
@@ -443,12 +443,18 @@ test('the manifest keeps a file git lists under a cache-named folder; caches bel
     writeFileSync(join(wt, rel), body)
   }
   const manifest = ignoredManifest(wt, ['build/customer-export.csv', 'state/'], 1024 ** 2)
+  // `state/sub/build` is copied: below a copied folder only regenerable caches (node_modules) stay out.
   assert.deepEqual(manifest.paths, [
     'build/customer-export.csv',
     'state',
     'state/run.json',
-    'state/sub'
+    'state/sub',
+    'state/sub/build',
+    'state/sub/build/out.bin'
   ])
+  assert.deepEqual(manifest.caches, ['state/node_modules'])
+  // The last file counts toward the limit too (Codex P2 24.11).
+  assert.equal(ignoredManifest(wt, ['build/customer-export.csv'], 1).over, true)
   assert.equal(manifest.over, false)
   assert.equal(manifest.nested, null)
   assert.equal(ignoredManifest(wt, ['state/'], 1).over, true)
