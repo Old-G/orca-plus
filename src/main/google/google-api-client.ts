@@ -21,11 +21,16 @@ const REQUEST_TIMEOUT_MS = 20_000
 export class GoogleToolError extends Error {
   /** Google's HTTP status, when Google answered; a checker backs off on 429. */
   readonly status?: number
-  constructor(message: string, status?: number) {
+  // Custom build (google-mcp): the account's project has the service's MCP server turned off.
+  readonly mcpOff?: true
+  constructor(message: string, status?: number, mcpOff?: true) {
     super(message)
     this.name = 'GoogleToolError'
     if (status !== undefined) {
       this.status = status
+    }
+    if (mcpOff) {
+      this.mcpOff = true
     }
   }
 }
@@ -255,7 +260,7 @@ export async function googleApi(
       callGoogleMcpTool(
         call,
         (failure) => {
-          throw new GoogleToolError(failure.message, failure.status)
+          throw new GoogleToolError(failure.message, failure.status, failure.mcpOff)
         },
         { service, tool: name, arguments: args, read, ...(projectId ? { projectId } : {}) }
       )
