@@ -24,7 +24,7 @@ import {
   type HqReplyRouteAction,
   type HqReplyRule
 } from '../../shared/hq-reply-routing'
-import { hqReplyGitLabDone } from '../../shared/hq-reply-gitlab'
+import { hqReplyGitLabDone, hqReplyGitLabFact } from '../../shared/hq-reply-gitlab'
 import { HQ_ROUTING_KIND, HQ_ROUTING_SOURCE } from '../../shared/hq-routing'
 import type { HqWaitingReplyPassResult } from '../../shared/hq-waiting-reply-bell'
 import { hqWaitingReplyPrompt } from '../../shared/hq-waiting-replies'
@@ -197,7 +197,12 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
   }
 
   const passPrompt = (waiting: PulseWaiting): string =>
-    hqWaitingReplyPrompt(waiting, { byRule: true })
+    hqWaitingReplyPrompt(
+      hqReplyGitLabDone(waiting)
+        ? { ...waiting, reply: hqReplyGitLabFact(waiting.reply) }
+        : waiting,
+      { byRule: true }
+    )
 
   const carryOut = async (waiting: PulseWaiting): Promise<HqReplyRouteAction> => {
     const replyTs = waiting.replyTs ?? ''

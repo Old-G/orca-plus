@@ -263,6 +263,28 @@ describe('person.reply routing', () => {
       expect(first?.kind).toBe('pass')
       expect(delivered).toHaveLength(1)
       expect(judge).not.toHaveBeenCalled()
+      // Why: the title and names are someone else's words; the chat gets only GitLab's fact.
+      expect(delivered[0]?.prompt).toContain('GitLab: MR !319 (acme/api) merged')
+      expect(delivered[0]?.prompt).not.toContain('deploy notes')
+      expect(delivered[0]?.prompt).not.toContain('by Ann')
+    })
+
+    it('leaves the notice to the owner while another chat waits on the same MR', async () => {
+      const replies = routing()
+      db.addWaiting({
+        direction: 'on-them',
+        title: 'Deploy once !319 is merged',
+        project: 'acme-api',
+        source: 'gitlab',
+        sourceRef: MR,
+        agentSessionId: 'chat-2'
+      })
+      gitlab('GitLab: MR !319 (acme/api) merged by Ann')
+      const actions = await replies.route(RULE, { dryRun: false })
+      expect(actions.map((action) => [action.kind, action.reasons])).toEqual([
+        ['card', ['shared-message']]
+      ])
+      expect(delivered).toEqual([])
     })
 
     it('leaves another MR, or one closed without merging, to the owner', async () => {
