@@ -20,7 +20,7 @@ describe('projectAccentColor', () => {
 })
 
 describe('projectMarkColors', () => {
-  const repo = (id: string, addedAt: number, badgeColor = DEFAULT_REPO_BADGE_COLOR) => ({
+  const repo = (id: string, addedAt: number, badgeColor: string = DEFAULT_REPO_BADGE_COLOR) => ({
     id,
     addedAt,
     badgeColor,
