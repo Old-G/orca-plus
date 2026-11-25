@@ -12,7 +12,11 @@ const FOLDER = '/home/me/.orca/bots/scout'
 const MEMORY = join(FOLDER, 'MEMORY.md')
 const DAY = 24 * 60 * 60 * 1000
 
-function bot(memory: string, start = Date.UTC(2026, 10, 6)) {
+function bot(
+  memory: string,
+  start = Date.UTC(2026, 10, 6),
+  usesGoogle: (botId: string) => boolean = () => false
+) {
   const files = new Map([[MEMORY, memory]])
   const fs = {
     readText: async (path: string) => files.get(path) ?? null,
@@ -51,7 +55,7 @@ function bot(memory: string, start = Date.UTC(2026, 10, 6)) {
     },
     bots: async () => [...stored.keys()]
   }
-  const history = createBotMemoryHistory(io, () => now)
+  const history = createBotMemoryHistory(io, () => now, usesGoogle)
   const record = createBotMemoryRecord(fs, history)
   const context = createBotTurnContext(fs, undefined, undefined, undefined, record)
   context.launched('chat', 'bot-1', FOLDER, { soul: 'Be brief.', memory }, true, HELD_BOT_RULES)
@@ -67,7 +71,7 @@ function bot(memory: string, start = Date.UTC(2026, 10, 6)) {
     },
     history,
     /** The same history as a restarted host opens it. */
-    reopened: () => createBotMemoryHistory(io, () => now),
+    reopened: () => createBotMemoryHistory(io, () => now, usesGoogle),
     reword: (from: string, to: string) =>
       record.change('bot-1', FOLDER, { kind: 'owner' }, (file) =>
         botMemoryChange(file, file.replace(from, to))
@@ -192,6 +196,19 @@ describe("a bot's memory history", () => {
     await restarted.list('bot-3')
     await restarted.settled()
     expect(await stored('bot-2')).toBeUndefined()
+  })
+
+  // Custom build (google-send-again-memory-30d)
+  it('keeps a Google bot 30 days of rows on disk, and the other bots 90', async () => {
+    const { forget, history, later, stored } = bot(OLD, undefined, (botId) => botId === 'bot-1')
+    await forget('owner fact')
+    await history.append('bot-2', { kind: 'owner' }, botMemoryChange('', '- another fact\n'))
+    later(30 * DAY)
+    expect(await history.list('bot-1')).toHaveLength(1)
+    later(1)
+    expect(await history.list('bot-1')).toEqual([])
+    expect(await stored('bot-1')).toBeUndefined()
+    expect(await history.list('bot-2')).toHaveLength(1)
   })
 
   it('returns the newest edits in order after a stalled write, including after restart', async () => {

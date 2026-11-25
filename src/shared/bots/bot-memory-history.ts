@@ -3,6 +3,9 @@ import * as z from 'zod'
 
 /** How long a row is kept. */
 export const BOT_MEMORY_HISTORY_DAYS = 90
+// Custom build (google-send-again-memory-30d): a bot that may read Gmail, Calendar or Drive can carry
+// their words into MEMORY.md, so its history rows go after 30 days, as Google run history does.
+export const BOT_MEMORY_HISTORY_GOOGLE_DAYS = 30
 
 const BotMemoryLineSchema = z.object({ line: z.string(), after: z.string().nullable() })
 

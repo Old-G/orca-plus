@@ -21,6 +21,16 @@ export function botGoogleAccess(bot: Pick<Bot, 'google' | 'googleAccounts'>): Bo
     : { kind: 'some', accounts: bot.googleAccounts.map(googleEmailKey) }
 }
 
+// Custom build (google-send-again-memory-30d)
+/** Google is on for the bot and at least one account is open to it. */
+export function botUsesGoogle(bot: Pick<Bot, 'google' | 'googleAccounts'> | undefined): boolean {
+  if (!bot) {
+    return false
+  }
+  const access = botGoogleAccess(bot)
+  return access.kind === 'all' || (access.kind === 'some' && access.accounts.length > 0)
+}
+
 export function botMayUseGoogleAccount(access: BotGoogleAccess, email: string): boolean {
   return (
     access.kind === 'all' ||

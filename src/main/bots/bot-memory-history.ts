@@ -9,8 +9,10 @@ import {
   type BotMemoryLine,
   isEmptyBotMemoryChange
 } from '../../shared/bot-memory-lines'
+// Custom build (google-send-again-memory-30d): BOT_MEMORY_HISTORY_GOOGLE_DAYS
 import {
   BOT_MEMORY_HISTORY_DAYS,
+  BOT_MEMORY_HISTORY_GOOGLE_DAYS,
   type BotMemoryAuthor,
   type BotMemoryHistoryRow,
   BotMemoryHistoryRowSchema
@@ -129,7 +131,9 @@ function redacted(
 
 export function createBotMemoryHistory(
   io: BotMemoryHistoryIo = botMemoryHistoryFiles(),
-  now: () => number = Date.now
+  now: () => number = Date.now,
+  /** Custom build (google-send-again-memory-30d): the bot may use a Google account now. */
+  usesGoogle: (botId: string) => boolean = () => false
 ): BotMemoryHistory {
   // Each bot's reads and writes run one at a time, in the order asked, off the main thread.
   const queues = new Map<string, Promise<unknown>>()
@@ -144,14 +148,15 @@ export function createBotMemoryHistory(
     })
     return run
   }
-  const kept = (row: BotMemoryHistoryRow): boolean =>
-    row.at >= now() - BOT_MEMORY_HISTORY_DAYS * DAY_MS
+  const keepDays = (botId: string): number =>
+    usesGoogle(botId) ? BOT_MEMORY_HISTORY_GOOGLE_DAYS : BOT_MEMORY_HISTORY_DAYS
   /** The bot's rows still within the limit; rows past it are deleted from disk too. Run queued.
    *  Rejects for a file it can't read or parse, so no write replaces history it never saw. */
   const read = async (botId: string): Promise<BotMemoryHistoryRow[]> => {
     const text = await io.read(botId)
     const all = text === null ? [] : z.array(BotMemoryHistoryRowSchema).parse(JSON.parse(text))
-    const rows = all.filter(kept)
+    const since = now() - keepDays(botId) * DAY_MS
+    const rows = all.filter((row) => row.at >= since)
     if (rows.length < all.length) {
       // What was read still holds; a later read deletes the old rows.
       await io
@@ -238,7 +243,8 @@ export function createBotMemoryHistory(
         state.list = null
         const rows = await read(botId)
         const unwritten = pending.get(botId)?.unwritten ?? []
-        const listed = [...unwritten.filter(kept), ...rows].slice(0, MAX_ROWS)
+        const since = now() - keepDays(botId) * DAY_MS
+        const listed = [...unwritten.filter((row) => row.at >= since), ...rows].slice(0, MAX_ROWS)
         undoneRows.set(botId, undoTargets(listed))
         return listed
       }).finally(() => forget(botId))

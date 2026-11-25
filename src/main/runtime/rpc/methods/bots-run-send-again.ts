@@ -16,6 +16,11 @@ import {
 import { chatThatTookIt } from '../../../bots/bot-automation-sessions'
 import { automationRunMemoryLabel } from '../../../bots/bot-turn-source'
 import { ownerOnly } from './bots-caller-gates'
+// Custom build (google-send-again-memory-30d)
+import {
+  RUN_GOOGLE_EVENT_FORGOTTEN,
+  runGoogleEventForgotten
+} from '../../../bots/bot-run-google-forgotten'
 import { defineMethod, InvalidArgumentError } from '../core'
 
 type NotStarted = Omit<AgentJournalAutomationRunNotStartedItem, 'kind'>
@@ -63,6 +68,8 @@ export type RunSendAgainDependencies = {
   /** Spends the run's one Send again in one durable write; false once it was ever spent. */
   claim: (runId: string, sessionId: string) => boolean
   send: (text: string, run: BotRunFields) => Promise<{ sessionId: string }>
+  /** Custom build (google-send-again-memory-30d): run history no longer keeps the run's Google event. */
+  googleEventForgotten?: (run: NotStarted['run']) => boolean
 }
 
 // One Send again per run at a time, so two clicks or two clients read and claim in turn.
@@ -82,6 +89,10 @@ export function sendRunAgain(
     }
     if (!found || found.run.automation.bot?.botId !== input.botId) {
       throw new InvalidArgumentError('run_not_found')
+    }
+    // Custom build (google-send-again-memory-30d): before the claim, so nothing is spent.
+    if (deps.googleEventForgotten?.(found.run)) {
+      throw new InvalidArgumentError(RUN_GOOGLE_EVENT_FORGOTTEN)
     }
     // The durable claim is what makes it once, ever: the journal reads above can miss a copy that
     // moves from the queue to the transcript between them.
@@ -113,6 +124,12 @@ export const BOT_RUN_SEND_AGAIN_METHOD = defineMethod({
       {
         host: await requireStructuredHost(runtime),
         claim: (id, chat) => runtime.getOrchestrationDb().claimBotRunResend(id, chat),
+        googleEventForgotten: (run) =>
+          runGoogleEventForgotten(
+            run,
+            runtime.listAutomationRuns(run.automation.id).find((entry) => entry.id === run.runId),
+            Date.now()
+          ),
         send: async (text, run) => {
           try {
             return {

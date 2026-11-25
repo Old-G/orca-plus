@@ -26,6 +26,7 @@ import { botOfferCreation } from './bot-offer-creation'
 import { assertBotOwnsHome, type BotHomeFilesystem, botHomeFolder, writeBotHome } from './bot-home'
 import { type BotSlackIcons, botSlackIconsOf } from './bot-slack-icon-store'
 import { type BotMemoryRecord, hostBotMemoryRecord } from './bot-memory-record'
+import { botUsesGoogle } from '../../shared/google/google-bot-accounts'
 import { stampBotLinkOwners } from '../../shared/bot-link-owners'
 import {
   botForManualPicture,
@@ -80,7 +81,10 @@ export class BotController {
   readonly slackIcons: BotSlackIcons
 
   constructor(private readonly deps: BotControllerDependencies) {
-    this.memory = hostBotMemoryRecord(deps.filesystem)
+    // Custom build (google-send-again-memory-30d)
+    this.memory = hostBotMemoryRecord(deps.filesystem, (botId) =>
+      botUsesGoogle(this.list().find((bot) => bot.id === botId))
+    )
     this.slackIcons = botSlackIconsOf(this, deps, (work) => this.serialize(work))
   }
 
