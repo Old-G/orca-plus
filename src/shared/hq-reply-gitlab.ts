@@ -31,7 +31,8 @@ export function hqReplyGitLabDone(
     said !== null &&
     iid !== undefined &&
     said.endsWith(`!${iid}`) &&
-    (gitlabMr(waiting.sourceRef) === said || linksMr(waiting, said))
+    // Why (Codex 25.11): a waiting on MR A may link a related MR B; only with no MR source do its words count.
+    (gitlabMr(waiting.sourceRef) ?? (linksMr(waiting, said) ? said : null)) === said
   )
 }
 
