@@ -23,6 +23,13 @@ describe('the fixing chat at level 3', () => {
     expect(text).not.toContain('ни при каком уровне')
   })
 
+  it('after the rebase in the merge slot merges only a head that passed the pipeline and the review', () => {
+    const text = prompt('flowbridge', 3)
+    expect(text).toContain('снова дождись зелёного пайплайна на новой голове')
+    expect(text).toContain('повтори ревью Codex на новой голове')
+    expect(text).toContain('вливаешь только ту голову, что прошла пайплайн и ревью')
+  })
+
   it('still asks the owner about deploying from CI, the production database and money', () => {
     const text = prompt('flowbridge', 3)
     expect(text).toContain(
