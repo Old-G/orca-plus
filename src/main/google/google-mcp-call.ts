@@ -30,7 +30,7 @@ export type GoogleMcpRequest = {
  */
 export type GoogleMcpFailure = { message: string; status?: number; mcpOff?: true }
 
-const MCP_OFF = /has not been used|is disabled|SERVICE_DISABLED/i
+const MCP_OFF = /SERVICE_DISABLED|API has not been used|API [^.]{0,80}is disabled/i
 const NOT_IN_PREVIEW = /Developer Preview Program/i
 const mcpOff = (status: number, detail: string): boolean =>
   (status === 403 && MCP_OFF.test(detail)) || NOT_IN_PREVIEW.test(detail)
