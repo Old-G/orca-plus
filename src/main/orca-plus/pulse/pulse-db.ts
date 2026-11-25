@@ -27,6 +27,7 @@ import {
   type HqLedgerGuess
 } from './pulse-ledger'
 import { listLedgerCards, settleLedgerMessage } from './pulse-ledger-cards'
+import { forgetLedgerMail, type HqMailForgetResult } from './pulse-ledger-forget'
 import { recordAgentSend, type HqAgentSend } from './pulse-sent'
 import { setConversationChat, setConversationChatIfNone } from './pulse-ledger-chat'
 import { pulseAttribution } from './pulse-attribution-api'
@@ -182,6 +183,11 @@ export class PulseDb {
 
   setLedgerGuess(conversationId: string, guess: HqLedgerGuess): void {
     setLedgerGuess(this.core, conversationId, guess)
+  }
+
+  /** Custom build (google-disconnect-forget): mail threads' text gone, every one or the quiet ones. */
+  forgetLedgerMail(before?: number): HqMailForgetResult {
+    return forgetLedgerMail(this.core, before)
   }
 
   settleLedgerMessage(ts: string): void {

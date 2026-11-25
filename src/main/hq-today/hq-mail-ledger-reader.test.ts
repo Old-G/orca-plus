@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { HqLetter } from '../../shared/hq-mail-events'
 import { PulseDb } from '../orca-plus/pulse/pulse-db'
 import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
@@ -10,6 +10,7 @@ import {
   hqMailLedgerQuery,
   hqMailSenderName,
   runHqMailLedgerReader,
+  startHqMailLedgerReader,
   type HqMailLedgerDeps
 } from './hq-mail-ledger-reader'
 
@@ -225,5 +226,72 @@ describe('mail ledger reader', () => {
       seen: []
     })
     expect(queries).toEqual([])
+  })
+
+  // Custom build (google-disconnect-forget)
+  it('writes nothing of a mailbox disconnected while its letters were fetched', async () => {
+    const { deps, rows } = setup([letter()])
+    const getLetter = deps.getLetter
+    let owner: string | null = OWNER
+    deps.owner = () => owner
+    deps.getLetter = async (letterId) => {
+      const found = await getLetter(letterId)
+      owner = null
+      return found
+    }
+    const state = { cursor: 5, seen: [] }
+    expect(await runHqMailLedgerReader(deps, state)).toBe(state)
+    expect(rows()).toEqual([])
+  })
+
+  it('keeps no guess for a thread whose mailbox was disconnected while the model read it', async () => {
+    const guess: HqLedgerGuess = { project: 'acme-shop', how: 'model', state: 'you', gist: 'Счёт' }
+    const { deps, rows } = setup([letter({ to: 'bob@acme.example', cc: OWNER })], [], guess)
+    let owner: string | null = OWNER
+    deps.owner = () => owner
+    const ask = deps.guess
+    deps.guess = async (item, signal) => {
+      owner = 'other@acme.example'
+      return ask(item, signal)
+    }
+    await runHqMailLedgerReader(deps, { cursor: 0, seen: [] })
+    expect(rows()).toHaveLength(1)
+    expect(rows()[0]).not.toMatchObject({ project: 'acme-shop' })
+    expect(rows()[0]?.title).not.toBe('Счёт')
+  })
+
+  it('starts over after a reset, even when a pass begun before it ends later', async () => {
+    vi.useFakeTimers({ now: NOW })
+    const { deps, fetched, queries } = setup([letter()])
+    const listRefs = deps.listRefs
+    let release = (): void => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let calls = 0
+    deps.listRefs = async (query, max) => {
+      calls += 1
+      if (calls === 1) {
+        await held
+      }
+      return listRefs(query, max)
+    }
+    const reader = startHqMailLedgerReader(deps, () => {})
+    try {
+      await vi.advanceTimersByTimeAsync(50_000)
+      expect(calls).toBe(1)
+      reader.reset()
+      release()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(fetched).toEqual(['m1'])
+      // The next pass looks back a whole day and reads the letter again: the old pass's cursor and
+      // ids were dropped.
+      await vi.advanceTimersByTimeAsync(2 * 60_000)
+      expect(fetched).toEqual(['m1', 'm1'])
+      expect(queries.at(-2)).toBe(hqMailLedgerQuery('inbox', NOW - 24 * 60 * MIN))
+    } finally {
+      reader.stop()
+      vi.useRealTimers()
+    }
   })
 })

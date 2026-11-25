@@ -64,11 +64,18 @@ export async function generateHqText(
       | 'hq-effort-pick'
     /** Custom build (hq-clickup-triage): a cheaper model than the one set for HQ text. */
     model?: string
+    /** Custom build (google-disconnect-forget): the run leaves no transcript on disk — its input is
+     *  Google user data, which Orca+ must not keep past a disconnect. */
+    noTranscript?: true
   },
   deps: HqTextGenerationDeps
 ): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const base = hqTaskQuestionsParams(deps.settings)
-  const params = what.model ? { ...base, model: what.model } : base
+  const params = {
+    ...base,
+    ...(what.model ? { model: what.model } : {}),
+    ...(what.noTranscript ? { agentArgs: `${base.agentArgs} --no-session-persistence` } : {})
+  }
   const target = await resolveGenerationTarget(deps.cwd, params.agentId, deps)
   if (!target) {
     return { ok: false, error: 'Could not prepare the Claude environment.' }

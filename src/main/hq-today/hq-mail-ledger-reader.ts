@@ -229,6 +229,12 @@ export async function runHqMailLedgerReader(
   )
   const created = new Set<string>()
   const fresh = new Map<string, { letter: HqLetter; signal: HqLedgerSignal }>()
+  // Custom build (google-disconnect-forget): a mailbox disconnected while its letters were read
+  // writes nothing of them.
+  const stillOwner = (): boolean => deps.owner()?.trim().toLowerCase() === owner
+  if (!stillOwner()) {
+    return state
+  }
   // Why oldest first: the ledger's state follows the newest message it was given.
   for (const { letter, fromOwner } of letters.toSorted(
     (a, b) => a.letter.receivedAt - b.letter.receivedAt
@@ -254,7 +260,7 @@ export async function runHqMailLedgerReader(
   }
   for (const [conversationId, { letter, signal }] of [...fresh].slice(0, GUESSES_PER_PASS)) {
     const guess = await deps.guess(letter, signal).catch(() => null)
-    if (guess) {
+    if (guess && stillOwner()) {
       deps.setGuess(conversationId, guess)
     }
   }
@@ -264,12 +270,19 @@ export async function runHqMailLedgerReader(
 export function startHqMailLedgerReader(
   deps: HqMailLedgerDeps,
   onError: (error: unknown) => void
-): { stop: () => void } {
+): { stop: () => void; reset: () => void } {
   let state: HqMailLedgerState = { cursor: 0, seen: [] }
+  // Custom build (google-disconnect-forget): a pass begun before a reset does not bring back the
+  // old mailbox's cursor and ids.
+  let generation = 0
   const flight = createDebouncedSingleFlight(
     async () => {
       if (deps.enabled() && claudeBackgroundAllows('mail ledger')) {
-        state = await runHqMailLedgerReader(deps, state)
+        const started = generation
+        const next = await runHqMailLedgerReader(deps, state)
+        if (started === generation) {
+          state = next
+        }
       }
     },
     onError,
@@ -282,6 +295,10 @@ export function startHqMailLedgerReader(
     stop: () => {
       clearInterval(timer)
       flight.dispose()
+    },
+    reset: () => {
+      generation += 1
+      state = { cursor: 0, seen: [] }
     }
   }
 }

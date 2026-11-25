@@ -39,6 +39,7 @@ import { hqMrChatOfBranch } from './hq-mr-chat'
 import { registerHqGitLabMrNotes } from './register-hq-gitlab-mr-notes'
 import { startHqMailLedgerReader } from './hq-mail-ledger-reader'
 import type { HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
+import { registerHqMailForget } from './hq-mail-forget'
 import { noteHqClickUpWatchedTask } from './hq-clickup-ledger-reader'
 import { registerHqClickUpLedger } from './register-hq-clickup-ledger'
 import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
@@ -100,7 +101,8 @@ const GUESS_MODEL = 'haiku'
 function ledgerGuess(
   store: Store,
   runtime: OrcaRuntimeService,
-  input: HqLedgerGuessInput
+  /** Custom build (google-disconnect-forget): noTranscript — a letter's text leaves no transcript behind. */
+  input: HqLedgerGuessInput & { noTranscript?: true }
 ): Promise<HqLedgerGuess | null> {
   const hq = store.getSettings().hqPath
   if (!hq) {
@@ -112,7 +114,12 @@ function ledgerGuess(
     generate: (prompt) =>
       generateHqText(
         prompt,
-        { emptyResultName: 'ledger guess', operation: 'hq-ledger-guess', model: GUESS_MODEL },
+        {
+          emptyResultName: 'ledger guess',
+          operation: 'hq-ledger-guess',
+          model: GUESS_MODEL,
+          noTranscript: input.noTranscript
+        },
         {
           settings: store.getSettings(),
           cwd: hq,
@@ -186,7 +193,7 @@ function registerGitLabTodos(
 
 /** Custom build (hq-ledger-sources): letters from people (the intake reads only notices) into the ledger. */
 function registerMailLetters(store: Store, runtime: OrcaRuntimeService): void {
-  startHqMailLedgerReader(
+  const reader = startHqMailLedgerReader(
     {
       enabled: () => store.getSettings().hqLedger !== 'off' && gmailAccount() !== null,
       owner: gmailAccount,
@@ -201,7 +208,8 @@ function registerMailLetters(store: Store, runtime: OrcaRuntimeService): void {
           dm: signal.forOwner,
           where: signal.forOwner ? 'an email to the user' : 'an email the user is copied on',
           text: `Subject: ${letter.subject}\n\n${signal.text}`,
-          links: []
+          links: [],
+          noTranscript: true
         }),
       setGuess: (id, guess) => runtime.pulseSetLedgerGuess(id, guess),
       now: Date.now
@@ -210,6 +218,13 @@ function registerMailLetters(store: Store, runtime: OrcaRuntimeService): void {
       runtime.pulseRecordJournal(rows)
     )
   )
+  // Custom build (google-disconnect-forget): the mailbox's mail goes with its sign-in.
+  registerHqMailForget({
+    hqPath: () => store.getSettings().hqPath,
+    forgetLedgerMail: (before) => runtime.pulseForgetLedgerMail(before),
+    resetReader: reader.reset,
+    now: Date.now
+  })
 }
 
 export function registerHqMailIntake(store: Store, runtime: OrcaRuntimeService): void {
