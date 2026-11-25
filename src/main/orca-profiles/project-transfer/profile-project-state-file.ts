@@ -118,6 +118,7 @@ function parseProfileState(rawJson: string | undefined): PersistedState {
 
 export function normalizeProfileProjectState(parsed: Partial<PersistedState>): PersistedState {
   const defaults = getDefaultPersistedState(homedir())
+  const { _orcaPlusStableSortMigrated: _freshOnly, ...uiDefaults } = defaults.ui
   const {
     uiLanguagePortugueseMigrationApplied: _migrationApplied,
     nestedWorkerMaxDepthDefaultedToFour: _depthMigrated,
@@ -149,7 +150,10 @@ export function normalizeProfileProjectState(parsed: Partial<PersistedState>): P
     settings: isRecord(parsed.settings)
       ? { ...settingsDefaults, ...parsed.settings }
       : settingsDefaults,
-    ui: isRecord(parsed.ui) ? { ...defaults.ui, ...parsed.ui } : defaults.ui,
+    // Why: the defaults mark Orca+'s stable-sort migration as done for fresh
+    // installs; a moved project's other profile is not fresh, so it must not
+    // inherit that flag or its own one-time move to Manual would be skipped.
+    ui: isRecord(parsed.ui) ? { ...uiDefaults, ...parsed.ui } : uiDefaults,
     githubCache: isRecord(parsed.githubCache)
       ? {
           pr: recordOrEmpty(parsed.githubCache.pr),

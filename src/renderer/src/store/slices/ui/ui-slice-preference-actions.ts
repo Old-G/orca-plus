@@ -58,7 +58,7 @@ export function createUiPreferenceActions(set: UISliceSet, get: UISliceGet): Par
       set({ groupBy: g, collapsedGroups: new Set<string>() })
     },
 
-    sortBy: 'recent',
+    sortBy: 'manual',
     setSortBy: (s) => set({ sortBy: s }),
 
     // Why: bare set — persists only via the debounced window.api.ui.set writer in App.tsx, not on its own.
