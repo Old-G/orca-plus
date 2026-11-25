@@ -261,6 +261,10 @@ export async function runHqMailLedgerReader(
     }
   }
   for (const [conversationId, { letter, signal }] of [...fresh].slice(0, GUESSES_PER_PASS)) {
+    // Custom build (google-disconnect-forget): a mailbox gone mid-pass sends no more letters to the model.
+    if (!stillOwner()) {
+      break
+    }
     const guess = await deps.guess(letter, signal).catch(() => null)
     if (guess && stillOwner()) {
       deps.setGuess(conversationId, guess)
