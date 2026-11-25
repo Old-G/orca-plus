@@ -14,7 +14,7 @@ export function hqAutonomyLabel(level: HqAutonomyLevel): string {
     case 2:
       return translate('auto.hq.autonomy.level2', 'opens a PR')
     case 3:
-      return translate('auto.hq.autonomy.level3', 'merges')
+      return translate('auto.hq.autonomy.level3', 'merges and deploys')
   }
 }
 
@@ -45,7 +45,7 @@ export function HqAutonomyBadge({ level }: { level: HqAutonomyLevel }): React.JS
         <p className="mt-1">
           {translate(
             'auto.hq.autonomy.hint',
-            'Set in autonomy.yaml in the HQ folder. Production always waits for your yes.'
+            'Set in autonomy.yaml in the HQ folder. Level 3 merges and deploys on a green pipeline with no Codex blockers; deploying from CI, the production database and money wait for your yes.'
           )}
         </p>
       </TooltipContent>
