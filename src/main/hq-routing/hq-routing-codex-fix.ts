@@ -257,7 +257,7 @@ function shipRules(project: string, address: string): string[] {
     '2. Дождись пайплайна на голове MR в этом же ходу (until-цикл или Monitor); красный — почини или опиши в отчёте.',
     '3. Ревью второй моделью по скиллу `lh-review-close-mr` (Codex); блокеры — почини и повтори, до 3 кругов.',
     '4. Пайплайн на голове зелёный и у Codex нет блокеров — возьми merge-slot и сделай rebase (ниже).',
-    `5. Rebase сдвинул голову — запушь её, дождись зелёного пайплайна (все обязательные проверки) на новой голове и повтори ревью Codex на ней; вливаешь только ту голову, что прошла пайплайн и ревью. Пока ждёшь, продлевай слот \`orca hq merge-slot take ${project}\` каждые 10 минут; перед вливанием — ещё раз: слот у другого чата — он потерян, вернись к шагу 4 на свежей целевой ветке.`,
+    `5. Rebase сдвинул голову — запушь её, дождись зелёного пайплайна (все обязательные проверки) на новой голове и повтори ревью Codex на ней; вливаешь только ту голову, что прошла пайплайн и ревью. Пока ждёшь, продлевай слот \`orca hq merge-slot take ${project}\` каждые 10 минут; перед вливанием — ещё раз. Ответ не «slot renewed» (слот у другого чата или взят заново после перерыва) — слот терялся, вернись к шагу 4 на свежей целевой ветке.`,
     `6. Перед вливанием и перед выкаткой перечитай уровень: \`orca hq context --project ${project}\` (вторая строка); стал ниже 3 — сам не вливай и не выкатывай, спроси владельца (ниже).`,
     project === ORCA_PLUS_PROJECT
       ? '7. Orca+ не выкатывай: выкатка перезапускает приложение владельца со всеми чатами; влитое уйдёт со следующей выкаткой — так и напиши в отчёте.'
@@ -328,21 +328,18 @@ export function hqCodexFixPrompt(input: {
   ].join('\n')
 }
 
-/** Custom build (hq-codex-fix-ships): the level now, so an owner's downgrade reaches a running chat. */
-function levelNow(level: number): string {
-  return level === 3
-    ? 'Уровень проекта сейчас 3 — вливание и выкатка как в первом сообщении.'
-    : `Уровень проекта сейчас ${level} — это важнее первого сообщения: ${LEVEL_RULES[level] ?? LEVEL_RULES[1] ?? ''} Прод и выкатку не трогай — только после «да» владельца.`
-}
-
 export function hqCodexFixFollowUp(input: {
   findings: readonly HqJournalEntry[]
   commits: readonly string[]
+  project: string
+  address: string
   level: number
 }): string {
   return [
     'Orca+ · ещё находки Codex по этому проекту — тот же порядок: решить, починить с тестом, закрыть `orca hq settle`.',
-    levelNow(input.level),
+    // Why (Codex 25.11): the owner may have changed the level since the first message; this one wins.
+    `Уровень проекта сейчас ${input.level}, это важнее первого сообщения:`,
+    ...levelRules(input.level, input.project, input.address),
     '"""',
     ...input.findings.flatMap((finding) => [
       `- ${finding.id} · ${finding.title}`,

@@ -35,12 +35,20 @@ describe('the fixing chat at level 3', () => {
     expect(prompt('flowbridge', 3)).toContain(
       'Перед вливанием и перед выкаткой перечитай уровень: `orca hq context --project flowbridge`'
     )
-    const lowered = hqCodexFixFollowUp({ findings: [], commits: [], level: 2 })
-    expect(lowered).toContain('Уровень проекта сейчас 2 — это важнее первого сообщения')
-    expect(lowered).toContain('не вливай')
-    expect(hqCodexFixFollowUp({ findings: [], commits: [], level: 3 })).toContain(
-      'Уровень проекта сейчас 3'
-    )
+    const followUp = (level: number): string =>
+      hqCodexFixFollowUp({
+        findings: [],
+        commits: [],
+        project: 'flowbridge',
+        address: 'flowbridge/codex-fix-2026-11-25',
+        level
+      })
+    expect(followUp(2)).toContain('Уровень проекта сейчас 2, это важнее первого сообщения')
+    expect(followUp(2)).toContain('не вливай')
+    expect(followUp(2)).not.toContain('lh-server-ssh')
+    // Why: a chat opened below 3 has no shipping steps of its own; the follow-up brings them.
+    expect(followUp(3)).toContain('`lh-server-ssh`')
+    expect(followUp(3)).toContain('Ответ не «slot renewed»')
   })
 
   it('still asks the owner about deploying from CI, the production database and money', () => {
