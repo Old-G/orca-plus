@@ -114,6 +114,24 @@ describe('a call to a Google MCP tool', () => {
     expect('error' in rpcError.outcome && rpcError.outcome.error.message).toBe(
       'Google refused: Unknown tool'
     )
+    // Google's own words, 25.11, for a project outside its Developer Preview Program.
+    const notInPreview = await callWith(
+      Response.json({
+        jsonrpc: '2.0',
+        id: 1,
+        result: {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text: 'Access to this tool requires that your Google Cloud project (123) is enrolled in the Google Workspace Developer Preview Program. Please see https://developers.google.com/workspace/preview'
+            }
+          ]
+        }
+      })
+    )
+    expect('error' in notInPreview.outcome && notInPreview.outcome.error.mcpOff).toBe(true)
+    expect('error' in toolError.outcome && toolError.outcome.error.mcpOff).toBeUndefined()
     const plainJson = await callWith(
       Response.json({
         jsonrpc: '2.0',
