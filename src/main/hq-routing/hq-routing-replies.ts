@@ -329,6 +329,11 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
       if (sorted.has(id)) {
         continue
       }
+      // Why (Codex 25.11): after a restart the journal already says it is the owner's move; not asked again.
+      if (notes.get(decidedKey(waiting)) === OWNER_TALK_NOTE) {
+        sorted.set(id, 'owner')
+        continue
+      }
       const owner = await talkOf(waiting)
       if (owner === null) {
         continue
@@ -366,11 +371,6 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
   return {
     async route(rule, options) {
       activeRule = rule?.do === 'send_to_asking_session'
-      // Why: with no rule the owner decides every answer the chat should act on; his own talk is sorted out.
-      if (!rule && !options.dryRun) {
-        return await sortOwnerTalk()
-      }
-      const all = deps.listWaitings()
       const rows = decided()
       for (const row of rows.values()) {
         const first = row.body?.split('\n')[0] ?? ''
@@ -380,6 +380,11 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
           notes.set(row.dedupeKey, first)
         }
       }
+      // Why: with no rule the owner decides every answer the chat should act on; his own talk is sorted out.
+      if (!rule && !options.dryRun) {
+        return await sortOwnerTalk()
+      }
+      const all = deps.listWaitings()
       if (!options.dryRun) {
         settleHandled(rows, all)
       }
