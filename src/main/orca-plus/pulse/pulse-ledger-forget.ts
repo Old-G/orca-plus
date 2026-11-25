@@ -12,6 +12,9 @@ export const HQ_MAIL_KEEP_MS = 30 * 24 * 60 * 60_000
 /** The title a forgotten mail thread shows in HQ's history. */
 export const FORGOTTEN_MAIL_TITLE = 'Mail thread (removed)'
 
+/** The title of a thread still going once its first letters are gone: the old one came from them. */
+export const TRIMMED_MAIL_TITLE = 'Mail thread (older letters removed)'
+
 /** Every ledger conversation of a Gmail thread is keyed `gmail:<thread id>`. */
 const MAIL_KEY = 'gmail:%'
 
@@ -107,6 +110,12 @@ function forgetOldLetters(core: PulseCore, before: number): number {
                  JOIN conversations c ON c.id = m.conversation_id
                 WHERE c.key LIKE ? AND m.at < ?`
   core.db.prepare(answeredByEvents(old)).run(MAIL_KEY, before)
+  // Why: the title is the first letter's subject or the model's gist of it, and that letter is going.
+  core.db
+    .prepare(
+      `UPDATE conversations SET title = ? WHERE id IN (SELECT conversation_id FROM (${old}))`
+    )
+    .run(TRIMMED_MAIL_TITLE, MAIL_KEY, before)
   core.db
     .prepare(
       `UPDATE waitings SET ${FORGET_REPLY}

@@ -84,6 +84,23 @@ describe('forgetGoogleAccount', () => {
     expect(otherMake).toHaveBeenCalledTimes(1)
   })
 
+  it('does not keep the text of a Drive read still converting when the account went', async () => {
+    let release = (): void => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const key = { account: 'ann@acme.example', id: 'file-3', modifiedTime: '2026-11-25T09:00:00Z' }
+    const reading = cachedFileText(key, async () => {
+      await held
+      return { text: 'Draft budget', source: 'doc' }
+    })
+    await forgetGoogleAccount('ann@acme.example', join(dir, 'orca-google-triggers.json'))
+    release()
+    expect((await reading).text).toBe('Draft budget')
+    const again = await cachedFileText(key, async () => ({ text: 'Read again', source: 'doc' }))
+    expect(again.text).toBe('Read again')
+  })
+
   it('leaves a missing state file missing and stops telling an unsubscribed listener', async () => {
     const path = join(dir, 'none', 'orca-google-triggers.json')
     const listener = vi.fn()
