@@ -52,10 +52,16 @@ export type HqLeadReassignChat = {
   name: string | null
 }
 
+/** Custom build (hq-lead-reassign, T13 25.11): `--from none` takes chats that have no Lead; `--to none`
+ *  gives such a chat back to no Lead (the undo). Also the old-Lead key of such a chat's move row. */
+export const HQ_REASSIGN_NO_LEAD = 'none'
+
 export type HqLeadReassignResult = {
   dryRun: boolean
-  from: HqLeadReassignChat
-  to: HqLeadReassignChat
+  /** Null: the chats had no Lead (`--from none`). */
+  from: HqLeadReassignChat | null
+  /** Null: the chats have no Lead now (`--to none`). */
+  to: HqLeadReassignChat | null
   /** Moved under the new Lead (or, in a dry run, would be); `told` — the chat got the notice. */
   moved: (HqLeadReassignChat & { told: boolean })[]
   /** Under the old Lead and left there, with why. */

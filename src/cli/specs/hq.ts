@@ -246,17 +246,19 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     path: ['hq', 'reassign'],
     summary: "Hand a Lead's chats to another chat: they report there, and the plan names it",
     usage:
-      'orca hq reassign --from <project>/<task>|<session id> [--to <project>/<task>|<session id>] [--chats <a,b>] [--plans <file,…>] [--dry-run] [--json]',
+      'orca hq reassign --from <project>/<task>|<session id>|none [--to <project>/<task>|<session id>|none] [--chats <a,b>] [--plans <file,…>] [--dry-run] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'from', 'to', 'chats', 'plans', 'dry-run'],
     notes: [
       '--to defaults to the chat that runs the command; --chats moves only those (thread addresses or session ids), otherwise every open chat under the old Lead.',
       'The chats hang under the new Lead in HQ+, and what they send to the old Lead goes to the new one. The new Lead gets the Lead role, the messages held for the old one and a list of its chats; the moved chats and the old Lead are told.',
       'Without --chats the «Lead chat:» line of each plan in HQ/runs naming the old Lead names the new one, with «(was: …)»; with --chats only the plans named in --plans (file names in HQ/runs) change.',
-      "A handoff needs none of this: the new chat keeps the Lead's thread. Undo: the line the command prints — --from and --to swapped, --chats of what moved and --plans of the plans it rewrote."
+      "A handoff needs none of this: the new chat keeps the Lead's thread. Undo: the line the command prints — --from and --to swapped, --chats of what moved and --plans of the plans it rewrote.",
+      '--from none (or no --from) with --chats takes chats that have no Lead — a chat the owner started — under the new Lead; a chat that has one is refused with its Lead named. --to none leaves the chats with no Lead (the printed undo), whatever started them.'
     ],
     examples: [
       'orca hq reassign --from hq/lead-refunds --dry-run',
-      'orca hq reassign --from hq/lead-refunds --to hq/lead-billing --chats acme-api/w-refund-cap'
+      'orca hq reassign --from hq/lead-refunds --to hq/lead-billing --chats acme-api/w-refund-cap',
+      'orca hq reassign --from none --to hq/lead-billing --chats acme-api/w-refund-cap --dry-run'
     ]
   },
   {

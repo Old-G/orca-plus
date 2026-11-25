@@ -20,6 +20,8 @@ let delivered: { sessionId: string; prompt: string }[]
 let closed: Set<string>
 let saved: HqLeadHeld[]
 let hq: string
+/** Chats with no thread address, only a session id (ones the owner started by hand). */
+let bare: HqLiveSession[]
 
 // Two Leads, three workers of the first (the third closed), an HQ chat that is no one's worker.
 const CHATS: Record<string, { address: string; project: string; name: string }> = {
@@ -58,6 +60,10 @@ function scopeOf(sessionId: string | null | undefined): HqCallerScope {
 }
 
 function live(): HqLiveSession[] {
+  return [...bare, ...liveChats()]
+}
+
+function liveChats(): HqLiveSession[] {
   return Object.entries(CHATS).map(([sessionId, chat]) => ({
     sessionId,
     address: chat.address,
@@ -94,6 +100,7 @@ beforeEach(async () => {
   delivered = []
   closed = new Set(['claude_w3'])
   saved = []
+  bare = []
   hq = mkdtempSync(join(tmpdir(), 'hq-reassign-'))
   mkdirSync(join(hq, 'runs'))
   writeFileSync(join(hq, 'runs', '2026-11-16-payouts.md'), PLAN('hq/lead-payouts'))
@@ -400,5 +407,185 @@ describe('orca hq reassign', () => {
       'Lead chat: `hq/lead-payouts` (claude_l1) (was: `hq/lead-billing`, '
     )
     expect(readFileSync(join(hq, 'runs', '2026-11-10-billing.md'), 'utf8')).toBe(billing)
+  })
+
+  describe('chats that have no Lead (T13)', () => {
+    const undoOf = (result: Awaited<ReturnType<HqLeadReassign['reassign']>>) => ({
+      line: formatHqReassign(result)
+        .split('\n')
+        .find((line) => line.startsWith('Undo: '))
+    })
+
+    beforeEach(() => {
+      bare = [
+        {
+          ...liveChats()[0],
+          sessionId: 'b1d0c0de-s3',
+          address: null,
+          project: 'acme-ai',
+          name: 'Support bot fixes',
+          role: null
+        }
+      ]
+    })
+
+    it('takes chats with no Lead, by thread or session id, under the new Lead; a dry run changes nothing', async () => {
+      const dry = await reassign.reassign(
+        {},
+        { from: 'none', to: 'hq/lead-billing', chats: ['hq/notes', 'b1d0c0de-s3'], dryRun: true }
+      )
+      expect(dry.from).toBeNull()
+      expect(dry.moved.map((chat) => chat.sessionId)).toEqual(['b1d0c0de-s3', 'claude_hq'])
+      expect(parentOf('claude_hq')).toBeUndefined()
+      expect(delivered).toEqual([])
+
+      const result = await reassign.reassign(
+        { sessionId: 'claude_l2' },
+        { chats: ['hq/notes', 'b1d0c0de-s3'] }
+      )
+      expect(parentOf('claude_hq')).toBe('claude_l2')
+      expect(parentOf('b1d0c0de-s3')).toBe('claude_l2')
+      expect(db.chats.roleOf('claude_l2')).toBe('lead')
+      expect(delivered.map((entry) => entry.sessionId).sort()).toEqual([
+        'b1d0c0de-s3',
+        'claude_hq',
+        'claude_l2'
+      ])
+      expect([result.toldNewLead, result.toldOldLead, result.plans]).toEqual([true, false, []])
+    })
+
+    it('the printed undo leaves the chats with no Lead, after a Lead change and a message from the Lead', async () => {
+      const taken = await reassign.reassign(
+        {},
+        { from: 'none', to: 'hq/lead-billing', chats: ['hq/notes', 'b1d0c0de-s3'] }
+      )
+      expect(undoOf(taken).line).toBe(
+        'Undo: orca hq reassign --from hq/lead-billing --to none --chats b1d0c0de-s3,hq/notes'
+      )
+      await reassign.reassign({}, { from: 'hq/lead-billing', to: 'hq/lead-ops' })
+      expect(parentOf('claude_hq')).toBe('claude_l3')
+      // Why: the Lead sending it work writes an ordinary link, which must not survive the undo.
+      db.chats.link({ sessionId: 'claude_hq', parentSessionId: 'claude_l3', via: 'send', at: 5 })
+
+      const back = await reassign.reassign(
+        {},
+        { from: 'hq/lead-ops', to: 'none', chats: ['b1d0c0de-s3', 'hq/notes'] }
+      )
+      expect(back.to).toBeNull()
+      expect(back.moved).toHaveLength(2)
+      expect(parentOf('claude_hq')).toBeUndefined()
+      expect(parentOf('b1d0c0de-s3')).toBeUndefined()
+      expect(undoOf(back).line).toBe(
+        'Undo: orca hq reassign --from none --to hq/lead-ops --chats b1d0c0de-s3,hq/notes'
+      )
+      // Why: nothing forwards what it sends any more — a message to an old Lead reaches that Lead.
+      const sent = await threads.send(
+        { sessionId: 'claude_hq' },
+        { address: 'hq/lead-billing', text: 'BLOCKED · x' }
+      )
+      expect(sent.sessionId).toBe('claude_l2')
+      expect(sent.forwardedFrom).toBeUndefined()
+
+      await reassign.reassign({}, { from: 'none', to: 'hq/lead-ops', chats: ['hq/notes'] })
+      expect(parentOf('claude_hq')).toBe('claude_l3')
+    })
+
+    it('a chat taken by session id keeps its Lead and its undo after it gets a thread address', async () => {
+      await reassign.reassign({}, { from: 'none', to: 'hq/lead-billing', chats: ['b1d0c0de-s3'] })
+      db.noteSessions([
+        {
+          sessionId: 'b1d0c0de-s3',
+          address: 'acme-ai/support-bot-fixes',
+          agent: 'claude',
+          worktreeId: 'w',
+          workspace: 'acme',
+          project: 'acme-ai',
+          state: 'working',
+          contextPct: null,
+          parentSessionId: null,
+          taskRef: null,
+          at: 6
+        }
+      ])
+      expect(parentOf('b1d0c0de-s3')).toBe('claude_l2')
+
+      await reassign.reassign({}, { from: 'hq/lead-billing', to: 'hq/lead-ops' })
+      expect(parentOf('b1d0c0de-s3')).toBe('claude_l3')
+      expect(db.chats.leadMoveOf('acme-ai/support-bot-fixes', 'hq/lead-billing')).toBe(
+        'hq/lead-ops'
+      )
+
+      await reassign.reassign({}, { from: 'hq/lead-ops', to: 'none', chats: ['b1d0c0de-s3'] })
+      expect(parentOf('b1d0c0de-s3')).toBeUndefined()
+    })
+
+    it('a chat left with no Lead stays so after it gets an address and hands off, and after its address changes', async () => {
+      const note = (sessionId: string, address: string, parent: string | null, at: number) =>
+        db.noteSessions([
+          {
+            sessionId,
+            address,
+            agent: 'claude',
+            worktreeId: 'w',
+            workspace: 'acme',
+            project: 'acme-ai',
+            state: 'working',
+            contextPct: null,
+            parentSessionId: parent,
+            taskRef: null,
+            at
+          }
+        ])
+      await reassign.reassign({}, { from: 'none', to: 'hq/lead-billing', chats: ['b1d0c0de-s3'] })
+      await reassign.reassign({}, { from: 'hq/lead-billing', to: 'none', chats: ['b1d0c0de-s3'] })
+      note('b1d0c0de-s3', 'acme-ai/support-bot-fixes', null, 6)
+      note('b1d0c0de-s4', 'acme-ai/support-bot-fixes', 'b1d0c0de-s3', 7)
+      db.chats.link({ sessionId: 'b1d0c0de-s4', parentSessionId: 'claude_l2', via: 'send', at: 8 })
+      expect(parentOf('b1d0c0de-s4')).toBeUndefined()
+
+      await reassign.reassign({}, { from: 'none', to: 'hq/lead-billing', chats: ['hq/notes'] })
+      await reassign.reassign({}, { from: 'hq/lead-billing', to: 'none', chats: ['hq/notes'] })
+      note('claude_hq', 'hq/a-notes', null, 9)
+      await reassign.reassign({}, { from: 'none', to: 'hq/lead-ops', chats: ['hq/a-notes'] })
+      expect(parentOf('claude_hq')).toBe('claude_l3')
+
+      // Why: the older no-Lead row of a chat that joins the thread must not undo the thread's newer move.
+      note('b1d0c0de-s3', 'hq/a-notes', null, 10)
+      expect(parentOf('claude_hq')).toBe('claude_l3')
+      expect(db.chats.leadMoveOf('hq/a-notes', 'hq/lead-billing')).toBeNull()
+    })
+
+    it('refuses a chat that has a Lead, none on both sides, none without chats and --plans', async () => {
+      await expect(
+        reassign.reassign({}, { from: 'none', to: 'hq/lead-billing', chats: ['claude_w1'] })
+      ).rejects.toThrow('has a Lead: hq/lead-payouts')
+      await expect(reassign.reassign({}, { to: 'hq/lead-billing' })).rejects.toThrow('--chats')
+      await expect(reassign.reassign({}, { from: 'hq/lead-payouts', to: 'none' })).rejects.toThrow(
+        '--chats'
+      )
+      await expect(
+        reassign.reassign({}, { from: 'none', to: 'none', chats: ['hq/notes'] })
+      ).rejects.toThrow('none')
+      await expect(
+        reassign.reassign(
+          {},
+          { from: 'none', to: 'hq/lead-billing', chats: ['hq/notes'], plans: ['x.md'] }
+        )
+      ).rejects.toThrow('--plans')
+      expect(parentOf('claude_w1')).toBe('claude_l1')
+      expect(parentOf('claude_hq')).toBeUndefined()
+    })
+
+    it('keeps the new Lead itself and a chat the new Lead works under', async () => {
+      db.chats.link({ sessionId: 'claude_l2', parentSessionId: 'claude_hq', via: 'launch', at: 2 })
+      const result = await reassign.reassign(
+        {},
+        { from: 'none', to: 'hq/lead-billing', chats: ['hq/notes', 'hq/lead-ops'] }
+      )
+      expect(result.moved.map((chat) => chat.sessionId)).toEqual(['claude_l3'])
+      expect(result.kept.map((chat) => chat.sessionId)).toEqual(['claude_hq'])
+      expect(parentOf('claude_hq')).toBeUndefined()
+      expect(parentOf('claude_l3')).toBe('claude_l2')
+    })
   })
 })
