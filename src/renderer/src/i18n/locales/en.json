@@ -21437,9 +21437,9 @@
         "level0": "proposes only",
         "level1": "works in a worktree",
         "level2": "opens a PR",
-        "level3": "merges",
+        "level3": "merges and deploys",
         "short": "Autonomy {{value0}}",
-        "hint": "Set in autonomy.yaml in the HQ folder. Production always waits for your yes."
+        "hint": "Set in autonomy.yaml in the HQ folder. Level 3 merges and deploys on a green pipeline with no Codex blockers; deploying from CI, the production database and money wait for your yes."
       },
       "triage": {
         "title": "New tasks",
