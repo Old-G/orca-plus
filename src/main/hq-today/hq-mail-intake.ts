@@ -32,6 +32,8 @@ import {
   ORCA_FOOTER
 } from './hq-clickup-requests'
 import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
+// Custom build (google-disconnect-forget)
+import { forgetHqMailIntakeSeenIfGone, hqMailboxGeneration } from './hq-mail-forget'
 
 // Why: the first look goes back a day, like the ClickUp and Slack collectors.
 const FIRST_LOOK_MS = 24 * 60 * 60_000
@@ -197,6 +199,8 @@ async function replyPostedWith(
 /** Reads the emails that came since the last look and acts on each one once. Returns how many
  *  request cards were added. */
 export async function collectHqMailIntake(hqPath: string, deps: HqMailIntakeDeps): Promise<number> {
+  // Custom build (google-disconnect-forget): a pass begun before a disconnect keeps no ids.
+  const mailbox = hqMailboxGeneration()
   const dir = join(hqPath, HQ_SLACK_SCOUT_DIR)
   const [stateText, cardsText, decisionsText, configText, clickupText, triageText] =
     await Promise.all(
@@ -308,7 +312,8 @@ export async function collectHqMailIntake(hqPath: string, deps: HqMailIntakeDeps
     lastCheckAt: now,
     seen: [...seen].slice(-SEEN_MAX)
   } satisfies MailState)
-  return fresh.length
+  // Custom build (google-disconnect-forget)
+  return (await forgetHqMailIntakeSeenIfGone(hqPath, mailbox)) ? 0 : fresh.length
 }
 
 // Why: a merged MR and a mention should land within a couple of minutes; Gmail allows far more.
