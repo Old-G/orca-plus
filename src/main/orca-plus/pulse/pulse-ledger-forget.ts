@@ -19,6 +19,17 @@ const MAIL_KEY = 'gmail:%'
 const FORGET_REPLY =
   'reply = NULL, reply_author = NULL, reply_author_id = NULL, reply_link = NULL, reply_ts = NULL'
 
+/** The same words in the waiting's event snapshots (each carries the whole waiting). */
+const FORGET_REPLY_EVENT = `payload = json_set(payload, '$.reply', NULL, '$.replyAuthor', NULL,
+  '$.replyAuthorId', NULL, '$.replyLink', NULL, '$.replyTs', NULL)`
+
+/** Waiting events whose snapshot holds an answer from `letters` (conversation id, ts). */
+const answeredByEvents = (letters: string) =>
+  `UPDATE events SET ${FORGET_REPLY_EVENT}
+    WHERE entity = 'waiting' AND json_valid(payload)
+      AND (entity_id, json_extract(payload, '$.replyTs')) IN
+        (SELECT w.id, l.ts FROM waitings w JOIN (${letters}) l ON l.conversation_id = w.conversation_id)`
+
 export type HqMailForgetResult = { conversations: number; messages: number }
 
 /**
@@ -56,6 +67,13 @@ export function forgetLedgerMail(core: PulseCore, before?: number): HqMailForget
 function forgetConversation(core: PulseCore, { id, key }: { id: string; key: string }): number {
   core.db
     .prepare(
+      answeredByEvents(
+        'SELECT conversation_id, ts FROM conversation_messages WHERE conversation_id = ?'
+      )
+    )
+    .run(id)
+  core.db
+    .prepare(
       `UPDATE waitings SET ${FORGET_REPLY}
         WHERE conversation_id = ? AND reply_ts IN
           (SELECT ts FROM conversation_messages WHERE conversation_id = ?)`
@@ -88,6 +106,7 @@ function forgetOldLetters(core: PulseCore, before: number): number {
   const old = `SELECT m.conversation_id, m.ts FROM conversation_messages m
                  JOIN conversations c ON c.id = m.conversation_id
                 WHERE c.key LIKE ? AND m.at < ?`
+  core.db.prepare(answeredByEvents(old)).run(MAIL_KEY, before)
   core.db
     .prepare(
       `UPDATE waitings SET ${FORGET_REPLY}
