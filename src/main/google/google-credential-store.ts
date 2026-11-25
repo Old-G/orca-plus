@@ -30,7 +30,12 @@ export const GoogleAccountRecordSchema = z.object({
   /** Google's stable id for the account, which outlives an address change. */
   sub: z.string().min(1).optional(),
   /** The client this grant belongs to: a refresh must use it, whatever client is saved now. */
-  client: z.object({ clientId: z.string().min(1), clientSecret: z.string().min(1) }),
+  client: z.object({
+    clientId: z.string().min(1),
+    clientSecret: z.string().min(1),
+    // Custom build (google-mcp): a Web app client signs in again through its one return address.
+    redirectUri: z.string().min(1).optional()
+  }),
   projectId: z.string().optional(),
   /** Null once Google ended the grant; the account stays listed for Reconnect. */
   refreshToken: z.string().min(1).nullable(),

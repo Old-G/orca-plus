@@ -144,11 +144,13 @@ export class GoogleConnect {
     if (!parsed.ok) {
       throw new Error(parsed.message)
     }
-    const { clientId, clientSecret, projectId } = parsed
+    const { clientId, clientSecret, projectId, redirectUri } = parsed
     const config = {
       clientId,
       clientSecret,
       ...(projectId ? { projectId } : {}),
+      // Custom build (google-mcp)
+      ...(redirectUri ? { redirectUri } : {}),
       source: 'imported' as const,
       savedAt: this.deps.now()
     }

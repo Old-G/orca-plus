@@ -327,3 +327,43 @@ describe('a Google sign-in that fails after Google returned', () => {
     expect(logged).toEqual(['[google] sign-in failed at save: save_failed'])
   })
 })
+
+// Custom build (google-mcp)
+describe('a sign-in through a Web app client', () => {
+  it('listens on the client’s one listed port and keeps that address for the exchange and reconnects', async () => {
+    const { createServer } = await import('node:net')
+    const port = await new Promise<number>((resolve) => {
+      const probe = createServer().listen(0, '127.0.0.1', () => {
+        const address = probe.address()
+        probe.close(() => resolve(typeof address === 'object' && address ? address.port : 0))
+      })
+    })
+    const redirectUri = `http://127.0.0.1:${port}/google/callback`
+    let exchangedWith: string | null = null
+    const http: typeof fetch = async (input, init) => {
+      if (String(input).startsWith('https://oauth2.googleapis.com/token')) {
+        exchangedWith = new URLSearchParams(String(init?.body)).get('redirect_uri')
+        return tokens()
+      }
+      return Response.json({})
+    }
+    let prompted = ''
+    const record = await runGoogleSignIn(
+      { http, now: () => 1_000, client: () => ({ ...CURRENT, redirectUri }) },
+      { choices: [], openBrowser: false },
+      {
+        signal: new AbortController().signal,
+        stopped: () => null,
+        onPrompt: (prompt) => {
+          prompted = prompt.redirectUri
+          const state = new URL(prompt.authorizeUrl).searchParams.get('state')
+          void fetch(`${redirectUri}?state=${state}&code=the-code`).then((r) => r.text())
+        },
+        nextCode: () => new Promise(() => {})
+      }
+    )
+    expect(prompted).toBe(redirectUri)
+    expect(exchangedWith).toBe(redirectUri)
+    expect(record.client.redirectUri).toBe(redirectUri)
+  })
+})

@@ -16,7 +16,9 @@ export const GoogleClientConfigSchema = z.object({
   clientSecret: z.string().min(1).max(512),
   projectId: z.string().min(1).max(256).optional(),
   source: z.enum(GOOGLE_CLIENT_SOURCES),
-  savedAt: z.number()
+  savedAt: z.number(),
+  // Custom build (google-mcp): a Web app client's one return address (port and path fixed by Google).
+  redirectUri: z.string().min(1).max(512).optional()
 })
 
 export type GoogleClientConfig = z.infer<typeof GoogleClientConfigSchema>

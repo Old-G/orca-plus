@@ -12,6 +12,7 @@ import {
   type GoogleService,
   type GoogleServiceChoice
 } from '../../shared/google/google-scopes'
+import { googleScopeGranted } from '../../shared/google/google-scope-cover'
 import type { GoogleHttp } from './google-token-endpoint'
 
 const PROBE_TIMEOUT_MS = 10_000
@@ -140,7 +141,8 @@ export async function checkGoogleServices(args: {
   const granted = new Set(args.grantedScopes)
   return Promise.all(
     googleChoiceServices(args.choices).map((service) =>
-      GOOGLE_SERVICE_INFO[service].scopes.every((scope) => granted.has(scope))
+      // Custom build (google-mcp): a broader scope allowed before counts.
+      GOOGLE_SERVICE_INFO[service].scopes.every((scope) => googleScopeGranted(granted, scope))
         ? probe(args.http, service, args.accessToken, args.projectId)
         : Promise.resolve<GoogleServiceReadiness>({ service, state: 'needs-permission' })
     )

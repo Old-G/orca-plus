@@ -11,7 +11,7 @@ const GONE: ReadonlySet<string> = new Set(['invalid_client', 'deleted_client', '
 
 export async function checkGoogleClientKey(
   http: GoogleHttp,
-  client: Pick<GoogleClientConfig, 'clientId' | 'clientSecret'>,
+  client: Pick<GoogleClientConfig, 'clientId' | 'clientSecret' | 'redirectUri'>,
   signal?: AbortSignal
 ): Promise<GoogleClientKeyState> {
   try {
@@ -21,7 +21,8 @@ export async function checkGoogleClientKey(
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code: 'orca-key-check',
-        redirect_uri: 'http://127.0.0.1',
+        // Custom build (google-mcp): a Web app client is asked with its own listed address.
+        redirect_uri: client.redirectUri ?? 'http://127.0.0.1',
         client_id: client.clientId,
         client_secret: client.clientSecret
       }).toString(),
