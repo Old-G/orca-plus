@@ -245,7 +245,7 @@ describe('orca hq reassign', () => {
       { from: 'hq/lead-payouts', to: 'hq/lead-billing' }
     )
     expect(result.moved).toHaveLength(2)
-    expect(result.to.sessionId).toBe('claude_l2b')
+    expect(result.to?.sessionId).toBe('claude_l2b')
     expect(to('claude_l2')).toEqual([])
     expect(to('claude_l2b')[0]?.prompt).toContain('you lead 2 more chats now')
   })
