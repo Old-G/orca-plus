@@ -114,10 +114,26 @@ export async function connectGmail(
   }
 }
 
+/** Custom build (google-disconnect-forget): what forgets the mailbox's mail when its sign-in goes. */
+const disconnectListeners = new Set<() => void>()
+
+export function onGmailDisconnected(listener: () => void): () => void {
+  disconnectListeners.add(listener)
+  return () => disconnectListeners.delete(listener)
+}
+
 export function disconnectGmail(): void {
   clearGmailRefreshToken()
   access = null
   lastError = null
+  // Why every time, connected or not: mail kept from an earlier sign-in goes with this one too.
+  for (const listener of disconnectListeners) {
+    try {
+      listener()
+    } catch (error) {
+      console.warn('[gmail] could not forget the mailbox mail:', error)
+    }
+  }
 }
 
 /** Custom build (hq-ledger-sources): a message as Gmail's search lists it — its id and its thread. */

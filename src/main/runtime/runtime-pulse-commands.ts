@@ -4,6 +4,7 @@
 import type { HqLedgerAnswer, HqLedgerResult, HqLedgerSignal } from '../../shared/hq-ledger'
 import type { HqConversationRow, HqLedgerGuess } from '../orca-plus/pulse/pulse-ledger'
 import type { HqLedgerCardRow } from '../orca-plus/pulse/pulse-ledger-cards'
+import type { HqMailForgetResult } from '../orca-plus/pulse/pulse-ledger-forget'
 import type { HqInWorkCandidate, HqInWorkRow } from '../orca-plus/pulse/pulse-ledger-in-work'
 import type { HqOpenConversation } from '../orca-plus/pulse/pulse-ledger-open'
 import type { HqLedgerDmRule } from '../orca-plus/pulse/pulse-ledger-dm-rules'
@@ -235,6 +236,11 @@ export class RuntimePulseCommands {
   /** Custom build (hq-request-ledger): the small model's project, move and gist for a conversation. */
   pulseSetLedgerGuess(conversationId: string, guess: HqLedgerGuess): void {
     this.db().setLedgerGuess(conversationId, guess)
+  }
+
+  /** Custom build (google-disconnect-forget): every mail thread's text (no `before`), or the quiet ones'. */
+  pulseForgetLedgerMail(before?: number): HqMailForgetResult {
+    return this.db().forgetLedgerMail(before)
   }
 
   /** Custom build (hq-ledger-answers): the ledger's answers to waitings, kept in shadow. */
