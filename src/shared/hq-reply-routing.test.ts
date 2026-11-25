@@ -3,10 +3,10 @@ import {
   hqReplyCardNote,
   hqReplyPrechecks,
   hqReplyVerdictReasons,
-  parseHqReplyOwnerTalk,
   parseHqReplyVerdict,
   type HqReplyVerdict
 } from './hq-reply-routing'
+import { parseHqReplyOwnerTalk } from './hq-reply-owner-talk'
 import type { PulseWaiting } from './pulse-types'
 
 const DM = 'slack:D0AAAAAAAAA:1792184200.000100'
