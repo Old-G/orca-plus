@@ -7,7 +7,7 @@ const GITLAB_MR =
   /^https:\/\/gitlab\.com\/((?:[\w.-]+\/)+?[\w.-]+)\/-\/merge_requests\/(\d+)(?:[/?#]|$)/i
 // Why: the watch writes this line itself from GitLab's state (hqMrOutcome); «closed without merging»
 // is not in it — an MR dropped unmerged is the owner's call.
-const GITLAB_DONE = /^GitLab: MR !(\d+) \([^)]+\) (?:merged|approved by)\b/
+const GITLAB_DONE = /^(GitLab: MR !(\d+) \([^)]+\) (?:merged|approved))\b/
 
 function gitlabMr(link: string | null | undefined): string | null {
   const match = GITLAB_MR.exec(link ?? '')
@@ -23,7 +23,7 @@ export function hqReplyGitLabDone(
 ): boolean {
   const asked = gitlabMr(waiting.sourceRef)
   const said = gitlabMr(waiting.replyLink)
-  const iid = GITLAB_DONE.exec(waiting.reply ?? '')?.[1]
+  const iid = GITLAB_DONE.exec(waiting.reply ?? '')?.[2]
   return (
     waiting.replyAuthorId === HQ_GITLAB_AUTHOR_ID &&
     asked !== null &&
@@ -31,4 +31,35 @@ export function hqReplyGitLabDone(
     iid !== undefined &&
     said.endsWith(`!${iid}`)
   )
+}
+
+/**
+ * Another chat's open waiting names the same MR: its notice may not be written yet (the watch asks
+ * GitLab waiting by waiting), so the one notice is the owner's to hand out.
+ */
+export function hqReplyGitLabShared(
+  waiting: Pick<PulseWaiting, 'id' | 'sourceRef' | 'agentSessionId'>,
+  others: readonly Pick<
+    PulseWaiting,
+    'id' | 'sourceRef' | 'agentSessionId' | 'status' | 'direction'
+  >[]
+): boolean {
+  const mr = gitlabMr(waiting.sourceRef)
+  return others.some(
+    (other) =>
+      other.id !== waiting.id &&
+      other.status === 'open' &&
+      other.direction === 'on-them' &&
+      other.agentSessionId !== waiting.agentSessionId &&
+      mr !== null &&
+      gitlabMr(other.sourceRef) === mr
+  )
+}
+
+/**
+ * The notice as the chat gets it: only GitLab's fact. The MR title and people's names in it are
+ * text someone else wrote, and nobody reads it before a level-3 chat acts on it.
+ */
+export function hqReplyGitLabFact(reply: string | null): string {
+  return GITLAB_DONE.exec(reply ?? '')?.[1] ?? ''
 }
