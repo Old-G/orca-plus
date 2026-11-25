@@ -13,6 +13,10 @@ import { readGoogleTriggerState, writeGoogleTriggerState } from './google-trigge
 const TICK_MS = 60_000
 // Custom build (google-disconnect-forget): how often run history drops Google words past 30 days.
 const RUN_HISTORY_SWEEP_MS = 60 * 60_000
+// How long a disconnected account's runs are scrubbed again each tick: a run going at the disconnect,
+// or an event already on its way into a run, saves its words when it settles. Only events from before
+// the disconnect: the same address connected again keeps its new runs.
+const REMOVED_ACCOUNT_SCRUB_MS = 6 * 60 * 60_000
 
 export function bindGoogleTriggersToAutomations(
   service: Pick<AutomationService, 'onTick' | 'stop'>,
@@ -38,10 +42,26 @@ export function bindGoogleTriggersToAutomations(
   // Custom build (google-disconnect-forget): a disconnected account's meetings, timers, in-flight
   // checks and run history go at once; every account's Gmail and Calendar words leave run history
   // after 30 days.
+  const removedAt = new Map<string, number>()
   const stopForgetting = onGoogleAccountRemoved((email) => {
     checker.retire()
-    store.forgetAutomationRunGoogleEvents({ account: email })
+    const at = Date.now()
+    removedAt.set(email.toLowerCase(), at)
+    store.forgetAutomationRunGoogleEvents({ account: email, occurredBefore: at })
   })
+  const scrubRemovedAccounts = () => {
+    for (const [account, at] of removedAt) {
+      if (Date.now() - at > REMOVED_ACCOUNT_SCRUB_MS) {
+        removedAt.delete(account)
+        continue
+      }
+      try {
+        store.forgetAutomationRunGoogleEvents({ account, occurredBefore: at })
+      } catch (error) {
+        console.warn('[google] could not drop a disconnected account from run history', error)
+      }
+    }
+  }
   let sweptAt = -Infinity
   const sweepRunHistory = () => {
     const now = Date.now()
@@ -58,6 +78,7 @@ export function bindGoogleTriggersToAutomations(
   const lookAround = service.onTick
   service.onTick = () => {
     lookAround?.()
+    scrubRemovedAccounts()
     sweepRunHistory()
     void checker.tick()
   }

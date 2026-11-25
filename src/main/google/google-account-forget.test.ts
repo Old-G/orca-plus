@@ -70,9 +70,10 @@ describe('forgetGoogleAccount', () => {
       stop()
     }
 
-    expect(JSON.parse(readFileSync(path, 'utf-8'))).toEqual(
-      forgetGoogleTriggerAccount(state(), 'ann@acme.example')
-    )
+    expect(JSON.parse(readFileSync(path, 'utf-8'))).toEqual({
+      accounts: { 'bob@acme.example': { historyId: '7' } },
+      listeners: { 'bot-1 bob@acme.example': 3_000, 'bot-3 joann@acme.example': 4_000 }
+    })
     expect(heard).toEqual(['ann@acme.example'])
     // A listener that throws is logged and the others still run.
     expect(warn).toHaveBeenCalledTimes(1)

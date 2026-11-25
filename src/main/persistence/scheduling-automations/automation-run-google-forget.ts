@@ -8,7 +8,8 @@ import type { AutomationRunOperations } from './automation-run-operations'
 
 export const GOOGLE_RUN_EVENT_KEEP_MS = 30 * 24 * 60 * 60 * 1000
 
-export type GoogleRunForget = { account: string } | { before: number }
+/** `occurredBefore` keeps the runs of events after it: the same address connected again. */
+export type GoogleRunForget = { account: string; occurredBefore?: number } | { before: number }
 
 // Who did it and where go; that a Gmail or Calendar event did it stays.
 const sourceOnly = ({ triggeredBy }: AutomationRun): Pick<AutomationRun, 'triggeredBy'> =>
@@ -64,11 +65,19 @@ export function forgetAutomationRunGoogleEvents(
     }
     const final = isFinalAutomationRunStatus(run.status)
     if ('account' in forget) {
-      if (google.account.toLowerCase() !== forget.account.toLowerCase()) {
+      if (
+        google.account.toLowerCase() !== forget.account.toLowerCase() ||
+        (forget.occurredBefore !== undefined && run.event.occurredAt >= forget.occurredBefore)
+      ) {
+        return run
+      }
+      const next = final ? forgottenRun(run) : quietedRun(run)
+      // Why compare: an unfinished run quieted before stays as it is, so asking again writes nothing.
+      if (JSON.stringify(next) === JSON.stringify(run)) {
         return run
       }
       changed += 1
-      return final ? forgottenRun(run) : quietedRun(run)
+      return next
     }
     if (!final || run.event.occurredAt >= forget.before) {
       return run
