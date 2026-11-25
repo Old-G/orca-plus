@@ -7,7 +7,7 @@ import { googleApi } from './google-api-client'
 import { GOOGLE_RUN_EVENT_KEEP_MS } from '../persistence/scheduling-automations/automation-run-google-forget'
 import { onGoogleAccountRemoved } from './google-account-forget'
 import { listGoogleAccounts, readGoogleDefaultAccount } from './google-credential-store'
-import { GoogleTriggerChecker } from './google-trigger-checker'
+import { retirableGoogleTriggerChecker } from './google-trigger-retire'
 import { readGoogleTriggerState, writeGoogleTriggerState } from './google-trigger-state'
 
 const TICK_MS = 60_000
@@ -19,7 +19,8 @@ export function bindGoogleTriggersToAutomations(
   store: Pick<Store, 'listAutomations' | 'getBots' | 'forgetAutomationRunGoogleEvents'>,
   runtime: Pick<OrcaRuntimeService, 'runAutomationForEvent'>
 ): void {
-  const checker = new GoogleTriggerChecker({
+  // Custom build (google-disconnect-forget): retirable, so a disconnect drops the checker's memory.
+  const checker = retirableGoogleTriggerChecker({
     automations: () => store.listAutomations(),
     bots: () => store.getBots(),
     accounts: async () =>
@@ -34,10 +35,11 @@ export function bindGoogleTriggersToAutomations(
     now: () => Date.now(),
     tickMs: TICK_MS
   })
-  // Custom build (google-disconnect-forget): a disconnected account's meetings, timers and run
-  // history go at once; every account's Gmail and Calendar words leave run history after 30 days.
+  // Custom build (google-disconnect-forget): a disconnected account's meetings, timers, in-flight
+  // checks and run history go at once; every account's Gmail and Calendar words leave run history
+  // after 30 days.
   const stopForgetting = onGoogleAccountRemoved((email) => {
-    checker.forgetAccount(email)
+    checker.retire()
     store.forgetAutomationRunGoogleEvents({ account: email })
   })
   let sweptAt = -Infinity

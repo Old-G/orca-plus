@@ -84,30 +84,6 @@ export class GoogleTriggerChecker {
     this.timers.clear()
   }
 
-  /* eslint-disable max-lines -- Why: Custom build (google-disconnect-forget) adds forgetAccount, which
-     needs the checker's private maps; upstream keeps this file at the limit, so it can't live outside */
-  // Custom build (google-disconnect-forget): a disconnected account's meetings and timers go now,
-  // not at the next check or the next restart.
-  /** Drops what this checker holds in memory for the account. */
-  forgetAccount(email: string): void {
-    const account = email.toLowerCase()
-    const mine = (key: string) => key.toLowerCase().startsWith(`${account} `)
-    const maps: Map<string, unknown>[] = [this.backoff, this.schedules, this.seedFailedAt]
-    for (const map of maps) {
-      for (const key of map.keys()) {
-        if (mine(key)) {
-          map.delete(key)
-        }
-      }
-    }
-    for (const [id, entry] of this.timers) {
-      if (entry.target.toLowerCase().endsWith(` ${account}`)) {
-        ;(this.deps.clearTimer ?? clearTimeout)(entry.timer)
-        this.timers.delete(id)
-      }
-    }
-  }
-
   private async check(): Promise<void> {
     const automations = this.deps.automations()
     const fallback = await this.deps.defaultAccount()
