@@ -9,6 +9,10 @@ vi.mock('@/components/repo/repo-icon', () => ({
   RepoIconGlyph: ({ color }: { color?: string }) => <span data-color={color ?? ''} />
 }))
 
+vi.mock('@/store', () => ({
+  useAppStore: (select: (state: { repos: never[] }) => unknown) => select({ repos: [] })
+}))
+
 import { ProjectAccentRepoIconGlyph } from './ProjectAccentRepoIconGlyph'
 
 afterEach(() => {
