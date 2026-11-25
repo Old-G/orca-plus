@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import type * as os from 'node:os'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -11,6 +11,7 @@ vi.mock('node:os', async (actual) => ({
 }))
 
 const {
+  readGoogleDefaultAccount,
   removeGoogleAccount,
   resolveGoogleDefaultAccount,
   saveGoogleAccount,
@@ -79,6 +80,22 @@ describe('the Google account used without --account', () => {
     expect(await resolveGoogleAccount(undefined)).toBe('c@acme.com')
     await removeGoogleAccount('c@acme.com')
     expect(await resolveGoogleDefaultAccount()).toBeNull()
+  })
+
+  // Custom build (google-disconnect-forget)
+  it('leaves no address behind once the default account is removed', async () => {
+    const path = join(home.dir, '.orca', 'google', 'default-account.enc')
+    await connect('ann@acme.example', 1_000)
+    await connect('bob@acme.example', 2_000)
+    await saveGoogleDefaultAccount('bob@acme.example')
+    // Another account going keeps the pick.
+    await removeGoogleAccount('ann@acme.example')
+    expect(existsSync(path)).toBe(true)
+    expect(await resolveGoogleDefaultAccount()).toBe('bob@acme.example')
+    await removeGoogleAccount('BOB@acme.example')
+    expect(existsSync(path)).toBe(false)
+    expect(await readGoogleDefaultAccount()).toEqual({ email: null })
+    expect(existsSync(path)).toBe(false)
   })
 
   it.each([
