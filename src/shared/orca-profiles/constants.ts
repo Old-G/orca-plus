@@ -133,7 +133,10 @@ export function getDefaultUIState(): PersistedUIState {
     markdownTocPanelWidth: 240,
     combinedDiffFileTreeWidth: 256,
     groupBy: 'repo',
-    sortBy: 'recent',
+    // Custom build (stable-sidebar-order, owner 25.11): a new profile starts on Manual with Orca+'s move
+    // to Manual done, so a sort picked in its first session is never moved again.
+    sortBy: 'manual',
+    _orcaPlusStableSortMigrated: true,
     projectOrderBy: 'manual',
     showActiveOnly: false,
     hideSleepingWorkspaces: DEFAULT_HIDE_SLEEPING_WORKSPACES,

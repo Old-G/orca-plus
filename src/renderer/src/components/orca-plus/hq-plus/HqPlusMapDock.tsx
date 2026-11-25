@@ -6,7 +6,7 @@
 import type { HqPlusLogItem } from '../../../../../shared/hq-plus-log'
 import type { HqPlusMapModel } from '../../../../../shared/hq-plus-map'
 import type { HqPlusProjectCard as ProjectCard } from '../../../../../shared/hq-plus-project-cards'
-import type { HqChatItem } from '../hq/hq-chat-list'
+import { compareHqChatPlacement, type HqChatItem } from '../hq/hq-chat-list'
 import { HqPlusLogCards } from './HqPlusLog'
 import { HqPlusCloseChat, type HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusWaitsView } from './HqPlusWaitsView'
@@ -71,7 +71,9 @@ export function HqPlusMapDock({
   }
   if (pick?.kind === 'chats') {
     const bySlug = new Map<string, HqChatItem[]>()
-    for (const item of chats) {
+    // Custom build (hq-stable-chat-order, owner 25.11): newest chat first, and its project; what the
+    // chats do never reorders the list.
+    for (const item of chats.toSorted(compareHqChatPlacement)) {
       const slug = slugOfChat(item)
       bySlug.set(slug, [...(bySlug.get(slug) ?? []), item])
     }
