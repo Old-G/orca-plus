@@ -246,7 +246,14 @@ describe('mail ledger reader', () => {
 
   it('keeps no guess for a thread whose mailbox was disconnected while the model read it', async () => {
     const guess: HqLedgerGuess = { project: 'acme-shop', how: 'model', state: 'you', gist: 'Счёт' }
-    const { deps, rows } = setup([letter({ to: 'bob@acme.example', cc: OWNER })], [], guess)
+    const { deps, rows, guessed } = setup(
+      [
+        letter({ to: 'bob@acme.example', cc: OWNER }),
+        letter({ id: 'm2', threadId: 't2', to: 'bob@acme.example', cc: OWNER })
+      ],
+      [],
+      guess
+    )
     let owner: string | null = OWNER
     deps.owner = () => owner
     const ask = deps.guess
@@ -255,9 +262,11 @@ describe('mail ledger reader', () => {
       return ask(item, signal)
     }
     await runHqMailLedgerReader(deps, { cursor: 0, seen: [] })
-    expect(rows()).toHaveLength(1)
-    expect(rows()[0]).not.toMatchObject({ project: 'acme-shop' })
-    expect(rows()[0]?.title).not.toBe('Счёт')
+    expect(rows()).toHaveLength(2)
+    expect(rows().map((row) => row.title)).not.toContain('Счёт')
+    expect(rows()).not.toContainEqual(expect.objectContaining({ project: 'acme-shop' }))
+    // The second thread's letter never went to the model.
+    expect(guessed).toHaveLength(1)
   })
 
   it('starts over after a reset, even when a pass begun before it ends later', async () => {

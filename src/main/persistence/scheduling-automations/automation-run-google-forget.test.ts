@@ -124,6 +124,39 @@ describe('forgetAutomationRunGoogleEvents', () => {
     expect(oldSlack.event?.text).toContain('Invoice')
   })
 
+  it('forgets a run that settles after the disconnect and keeps the runs of the address back again', () => {
+    const forget = { account: 'ann@acme.example', occurredBefore: NOW }
+    const ops = operations([
+      run('live', 'dispatched', 'ann@acme.example', NOW - 60_000),
+      run('back', 'completed', 'ann@acme.example', NOW + 60_000)
+    ])
+    expect(forgetAutomationRunGoogleEvents(ops, forget)).toBe(1)
+    // Asked again while it still runs: nothing is written.
+    expect(forgetAutomationRunGoogleEvents(ops, forget)).toBe(0)
+    expect(ops.flush).toHaveBeenCalledTimes(1)
+
+    // It finishes with the mail in its output; the next ask drops the event and the output.
+    const [live, back] = ops.state.automationRuns ?? []
+    ops.state.automationRuns = [
+      {
+        ...live,
+        status: 'completed',
+        outputSnapshot: {
+          format: 'plain_text',
+          content: 'Paid the Invoice',
+          capturedAt: NOW,
+          truncated: false
+        }
+      },
+      back
+    ]
+    expect(forgetAutomationRunGoogleEvents(ops, forget)).toBe(1)
+    const [done, kept] = ops.state.automationRuns ?? []
+    expect(done.event).toBeUndefined()
+    expect(words(done)).not.toContain('Invoice')
+    expect(kept.event?.text).toContain('Invoice')
+  })
+
   it('writes nothing when no run matches', () => {
     const runs = [run('slack', 'completed', null, NOW - 90 * DAY)]
     const ops = operations(runs)
