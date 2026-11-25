@@ -45,6 +45,8 @@ export function bindGoogleTriggersToAutomations(
   const removedAt = new Map<string, number>()
   const stopForgetting = onGoogleAccountRemoved((email) => {
     checker.retire()
+    // The fresh checker sets the other accounts' Calendar timers again now, not up to a minute later.
+    void checker.tick()
     const at = Date.now()
     removedAt.set(email.toLowerCase(), at)
     store.forgetAutomationRunGoogleEvents({ account: email, occurredBefore: at })
