@@ -2,6 +2,9 @@
 // lookup and the signed-in address are always asked for. Adding a service later asks again for the
 // union, so nothing already allowed is lost.
 
+// Custom build (google-mcp)
+import { googleScopeGranted } from './google-scope-cover'
+
 /** The services a bot's tools call; readiness reads each one. */
 export const GOOGLE_SERVICES = ['gmail', 'calendar', 'drive', 'docs', 'sheets', 'contacts'] as const
 export type GoogleService = (typeof GOOGLE_SERVICES)[number]
@@ -22,22 +25,43 @@ export type GoogleServiceInfo = {
 
 /** Every scope Orca asks for is listed here, once, under the service that needs it. */
 export const GOOGLE_SERVICE_INFO: Record<GoogleService, GoogleServiceInfo> = {
-  // gmail.modify covers read, draft, send, labels and archive.
-  gmail: { label: 'Gmail', scopes: [`${SCOPE}gmail.modify`], api: 'gmail.googleapis.com' },
+  // Custom build (google-mcp): the three scopes Google's Gmail MCP server lists; gmail.modify covers
+  // read, draft, send, labels and archive.
+  gmail: {
+    label: 'Gmail',
+    scopes: [`${SCOPE}gmail.readonly`, `${SCOPE}gmail.compose`, `${SCOPE}gmail.modify`],
+    api: 'gmail.googleapis.com'
+  },
   calendar: {
     label: 'Calendar',
     // calendarlist.readonly: which calendars there are, their names and time zones;
     // events.freebusy: when other people are busy, for suggest-time.
     scopes: [
       `${SCOPE}calendar.events`,
+      // Custom build (google-mcp): listed by Google's Calendar MCP server.
+      `${SCOPE}calendar.events.readonly`,
       `${SCOPE}calendar.calendarlist.readonly`,
       `${SCOPE}calendar.events.freebusy`
     ],
     api: 'calendar-json.googleapis.com'
   },
-  drive: { label: 'Drive', scopes: [`${SCOPE}drive`], api: 'drive.googleapis.com' },
-  docs: { label: 'Docs', scopes: [`${SCOPE}documents`], api: 'docs.googleapis.com' },
-  sheets: { label: 'Sheets', scopes: [`${SCOPE}spreadsheets`], api: 'sheets.googleapis.com' },
+  // Custom build (google-mcp): what Google's Drive, Docs and Sheets MCP servers list, not full Drive:
+  // every file is readable, and Orca may change only the files it made or was handed.
+  drive: {
+    label: 'Drive',
+    scopes: [`${SCOPE}drive.readonly`, `${SCOPE}drive.file`],
+    api: 'drive.googleapis.com'
+  },
+  docs: {
+    label: 'Docs',
+    scopes: [`${SCOPE}documents.readonly`, `${SCOPE}documents`],
+    api: 'docs.googleapis.com'
+  },
+  sheets: {
+    label: 'Sheets',
+    scopes: [`${SCOPE}spreadsheets.readonly`, `${SCOPE}spreadsheets`],
+    api: 'sheets.googleapis.com'
+  },
   // Name lookup, read-only: the person's contacts, people they emailed, and the company directory.
   contacts: {
     label: 'Contacts',
@@ -85,7 +109,9 @@ export function googleSignInScopes(choices: readonly GoogleServiceChoice[]): str
 export function grantedGoogleChoices(scopes: readonly string[]): GoogleServiceChoice[] {
   const granted = new Set(scopes)
   return GOOGLE_SERVICE_CHOICES.filter((choice) =>
-    servicesScopes(GOOGLE_CHOICE_SERVICES[choice]).every((scope) => granted.has(scope))
+    servicesScopes(GOOGLE_CHOICE_SERVICES[choice]).every((scope) =>
+      googleScopeGranted(granted, scope)
+    )
   )
 }
 

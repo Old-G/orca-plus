@@ -36,7 +36,8 @@ const drive: GoogleApi = {
   },
   find: unexpected,
   send: unexpected,
-  bytes: unexpected
+  bytes: unexpected,
+  tool: unexpected
 }
 
 it('reads open comments from every page, past resolved and empty ones', async () => {

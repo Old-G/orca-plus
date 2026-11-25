@@ -46,7 +46,8 @@ it('forwards many attachments without exceeding Gmail per-user concurrency', asy
     get,
     find: unexpected,
     send: unexpected,
-    bytes: unexpected
+    bytes: unexpected,
+    tool: unexpected
   }
 
   const { mime } = await composeForward(api, {
@@ -107,7 +108,8 @@ it('forwards attachments whose bytes Gmail returns in the part body', async () =
     get,
     find: unexpected,
     send: unexpected,
-    bytes: unexpected
+    bytes: unexpected,
+    tool: unexpected
   }
 
   const { mime } = await composeForward(api, {

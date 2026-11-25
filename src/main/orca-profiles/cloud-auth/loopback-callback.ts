@@ -69,6 +69,8 @@ type LoopbackCallbackOptions<T> = {
   errors: LoopbackCallbackErrors
   read: (url: URL) => LoopbackCallbackHit<T>
   onListening: (port: number) => Promise<void> | void
+  // Custom build (google-mcp): a fixed port, for a provider that returns only to a listed address.
+  port?: number
   signal?: AbortSignal
   /** How long a connection may take to send its whole request; 10 s unless set. */
   readDeadlineMs?: number
@@ -239,7 +241,7 @@ export function serveLoopbackCallback<T>(
       clearTimeout(timeout)
       options.signal?.removeEventListener('abort', cancel)
     })
-    listen(server, 0).then(
+    listen(server, options.port ?? 0).then(
       () => {
         server.on('error', rejectFlow)
         const address = server.address()
