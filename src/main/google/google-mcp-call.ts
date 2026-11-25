@@ -23,10 +23,17 @@ export type GoogleMcpRequest = {
   accept: string
 }
 
-/** `mcpOff`: the account's Google Cloud project has this service's MCP server turned off. */
+/**
+ * `mcpOff`: the account's Google Cloud project can't use this service's MCP server yet: the server
+ * is turned off, or (while Google's servers are in preview) the project isn't enrolled in Google's
+ * Workspace Developer Preview Program, which Google answers with 200 and a tool error.
+ */
 export type GoogleMcpFailure = { message: string; status?: number; mcpOff?: true }
 
 const MCP_OFF = /has not been used|is disabled|SERVICE_DISABLED/i
+const NOT_IN_PREVIEW = /Developer Preview Program/i
+const mcpOff = (status: number, detail: string): boolean =>
+  (status === 403 && MCP_OFF.test(detail)) || NOT_IN_PREVIEW.test(detail)
 
 const ACCEPT = 'application/json, text/event-stream'
 const DETAIL_MAX = 300
@@ -116,6 +123,9 @@ export function googleMcpFailureSentence(
   if (status === 429 || /quota|rate limit/i.test(detail)) {
     return 'Google says too many requests right now. Wait a minute and try again.'
   }
+  if (NOT_IN_PREVIEW.test(detail)) {
+    return `Google's ${label} MCP server is open only to Google Cloud projects in Google's Workspace Developer Preview Program, and this app's project isn't in it yet. Ask your owner to enroll it: https://developers.google.com/workspace/preview`
+  }
   if (status === 403 && MCP_OFF.test(detail)) {
     const project = projectId ? `?project=${encodeURIComponent(projectId)}` : ''
     return `Google's ${label} MCP server is turned off for this app. Ask your owner to turn it on: https://console.cloud.google.com/apis/library/${googleMcpApiName(service)}${project}`
@@ -171,7 +181,7 @@ export async function callGoogleMcpTool<T>(
     fail({
       message: googleMcpFailureSentence(args.service, response.status, detail, args.projectId),
       status: response.status,
-      ...(response.status === 403 && MCP_OFF.test(detail) ? { mcpOff: true as const } : {})
+      ...(mcpOff(response.status, detail) ? { mcpOff: true as const } : {})
     })
   if (!message) {
     return response.ok
