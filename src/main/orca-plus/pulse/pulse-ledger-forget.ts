@@ -95,6 +95,10 @@ function forgetConversation(core: PulseCore, { id, key }: { id: string; key: str
       'UPDATE attribution_log SET conversation_key = ?, why = NULL WHERE conversation_key = ?'
     )
     .run(forgotten, key)
+  // Why: Done and project changes are logged under the thread's key, which names the Gmail thread.
+  core.db
+    .prepare("UPDATE events SET entity_id = ? WHERE entity = 'conversation' AND entity_id = ?")
+    .run(forgotten, key)
   core.db
     .prepare(
       `UPDATE conversations SET key = ?, title = ?, state = 'done', state_why = NULL WHERE id = ?`

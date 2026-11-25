@@ -109,6 +109,8 @@ describe('forgetLedgerMail', () => {
     const core = openCore()
     const mail = ingestLedgerSignal(core, letter({ project: 'acme-site' }))
     decorate(core, mail.conversationId, 'gmail:thread-a', 'msg-1')
+    // Done and project changes are logged under the thread's key.
+    core.emit('conversation.updated', 'conversation', 'gmail:thread-a', { state: 'done' })
     const slack = ingestLedgerSignal(
       core,
       letter({
@@ -121,6 +123,9 @@ describe('forgetLedgerMail', () => {
     )
 
     expect(forgetLedgerMail(core)).toEqual({ conversations: 1, messages: 1 })
+    expect(
+      core.db.prepare("SELECT COUNT(*) AS n FROM events WHERE entity_id LIKE '%thread-a%'").get()
+    ).toEqual({ n: 0 })
 
     const kept = dump(core, mail.conversationId)
     for (const leaked of [
