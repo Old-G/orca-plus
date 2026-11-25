@@ -262,7 +262,7 @@ describe('mail ledger reader', () => {
 
   it('starts over after a reset, even when a pass begun before it ends later', async () => {
     vi.useFakeTimers({ now: NOW })
-    const { deps, fetched, queries } = setup([letter()])
+    const { deps, fetched, queries, rows } = setup([letter()])
     const listRefs = deps.listRefs
     let release = (): void => {}
     const held = new Promise<void>((resolve) => {
@@ -284,10 +284,13 @@ describe('mail ledger reader', () => {
       release()
       await vi.advanceTimersByTimeAsync(0)
       expect(fetched).toEqual(['m1'])
+      // The same address is still connected, yet the pass begun before the reset adds nothing.
+      expect(rows()).toEqual([])
       // The next pass looks back a whole day and reads the letter again: the old pass's cursor and
       // ids were dropped.
       await vi.advanceTimersByTimeAsync(2 * 60_000)
       expect(fetched).toEqual(['m1', 'm1'])
+      expect(rows()).toHaveLength(1)
       expect(queries.at(-2)).toBe(hqMailLedgerQuery('inbox', NOW - 24 * 60 * MIN))
     } finally {
       reader.stop()
