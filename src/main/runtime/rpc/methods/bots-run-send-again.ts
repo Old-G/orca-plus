@@ -127,7 +127,7 @@ export const BOT_RUN_SEND_AGAIN_METHOD = defineMethod({
         googleEventForgotten: (run) =>
           runGoogleEventForgotten(
             run,
-            runtime.listAutomationRuns(run.automation.id).find((entry) => entry.id === run.runId),
+            runtime.listAutomationRuns().find((entry) => entry.id === run.runId),
             Date.now()
           ),
         send: async (text, run) => {
