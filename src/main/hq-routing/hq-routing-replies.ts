@@ -38,6 +38,7 @@ export const HQ_REPLY_HOLD_MS = 3 * 60_000
 const UNREAD_TRIES = 3
 const UNREAD_RETRY_MS = 5 * 60_000
 const REF_KIND = 'waiting-reply'
+const OWNER_TALK_NOTE = 'Your move in Slack: this answers you, not the chat'
 
 export type HqReplyRoutingDeps = {
   /** Every waiting on someone else, open or not. */
@@ -307,7 +308,7 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
     }
     // Why (owner 04.11): settled quietly, 76 answers since 28.10 reached nobody — a colleague's «merged,
     // testing now» among them. The card stays, marked as his move in Slack, until he clears it.
-    const note = 'Your move in Slack: this answers you, not the chat'
+    const note = OWNER_TALK_NOTE
     notes.set(decidedKey(waiting), note)
     const done = action(waiting, 'wait', { note })
     await record(waiting, done, `${done.author} answered — yours to reply in Slack`, false)
@@ -372,8 +373,11 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
       const all = deps.listWaitings()
       const rows = decided()
       for (const row of rows.values()) {
-        if (row.status === 'open' && row.dedupeKey && row.body) {
-          notes.set(row.dedupeKey, row.body.split('\n')[0] ?? '')
+        const first = row.body?.split('\n')[0] ?? ''
+        // Why (Codex 25.11): the owner's own talk is journaled done but its card stays; a restart must
+        // not lose why it is his move in Slack.
+        if (row.dedupeKey && (row.status === 'open' || first === OWNER_TALK_NOTE)) {
+          notes.set(row.dedupeKey, first)
         }
       }
       if (!options.dryRun) {

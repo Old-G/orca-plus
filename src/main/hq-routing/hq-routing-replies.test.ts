@@ -245,6 +245,15 @@ describe('person.reply routing', () => {
     expect(db.getWaiting(money.id)?.replyDeliveredAt).toBeNull()
   })
 
+  it("keeps the owner's own talk marked as his move in Slack after a restart", async () => {
+    talk = 'OWNER'
+    const news = answered('License goes through Priority support now, it depends on them')
+    await routing().route(RULE, { dryRun: false })
+    const restarted = routing()
+    await restarted.route(RULE, { dryRun: false })
+    expect(restarted.note(news).why).toBe('Your move in Slack: this answers you, not the chat')
+  })
+
   describe("GitLab's word on the asked MR", () => {
     const MR = 'https://gitlab.com/acme/api/-/merge_requests/319'
 
@@ -301,6 +310,45 @@ describe('person.reply routing', () => {
         ['card', ['shared-message']]
       ])
       expect(delivered).toEqual([])
+    })
+
+    it('passes the notice on a Slack waiting that links the MR; a bare «!319» stays a card', async () => {
+      const replies = routing()
+      const linked = db.addWaiting({
+        direction: 'on-them',
+        title: `Merge after the green pipeline (${(asked += 1)})`,
+        detail: `Please merge ${MR}`,
+        project: 'acme-api',
+        source: 'slack',
+        sourceRef: DM,
+        agentSessionId: 'chat-1'
+      })
+      const bare = db.addWaiting({
+        direction: 'on-them',
+        title: `Merge !319 after the green pipeline (${(asked += 1)})`,
+        project: 'acme-api',
+        source: 'slack',
+        sourceRef: DM,
+        agentSessionId: 'chat-1'
+      })
+      // Why: two notices, not one message matched to two waitings (that is a card of its own).
+      for (const [waiting, ts] of [
+        [linked, '1792184300.000200'],
+        [bare, '1792184300.000300']
+      ] as const) {
+        db.recordWaitingReply(waiting.id, {
+          text: 'GitLab: MR !319 (acme/api) merged by Ann',
+          author: 'GitLab',
+          ts,
+          link: MR,
+          authorId: 'gitlab'
+        })
+      }
+      const actions = await replies.route(RULE, { dryRun: false })
+      expect(actions.map((action) => [action.waitingId, action.kind, action.reasons])).toEqual([
+        [linked.id, 'pass', []],
+        [bare.id, 'card', ['other-author', 'other-venue']]
+      ])
     })
 
     it('leaves «merged» to the owner when the chat asked more than the merge', async () => {

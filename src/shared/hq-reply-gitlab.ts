@@ -19,18 +19,29 @@ function gitlabMr(link: string | null | undefined): string | null {
  * is merged or approved. The Orca+ MR watch wrote it from GitLab's state, so no model needs to read it.
  */
 export function hqReplyGitLabDone(
-  waiting: Pick<PulseWaiting, 'replyAuthorId' | 'reply' | 'replyLink' | 'sourceRef'>
+  waiting: Pick<
+    PulseWaiting,
+    'replyAuthorId' | 'reply' | 'replyLink' | 'sourceRef' | 'title' | 'detail'
+  >
 ): boolean {
-  const asked = gitlabMr(waiting.sourceRef)
   const said = gitlabMr(waiting.replyLink)
   const iid = GITLAB_DONE.exec(waiting.reply ?? '')?.[2]
   return (
     waiting.replyAuthorId === HQ_GITLAB_AUTHOR_ID &&
-    asked !== null &&
-    asked === said &&
+    said !== null &&
     iid !== undefined &&
-    said.endsWith(`!${iid}`)
+    said.endsWith(`!${iid}`) &&
+    (gitlabMr(waiting.sourceRef) === said || linksMr(waiting, said))
   )
+}
+
+/**
+ * The waiting's own words link this MR. Why only a link (Codex 25.11): a bare «!N» is read against a
+ * repo the watch guessed by name or by a model; that notice stays the owner's to check.
+ */
+function linksMr(waiting: Pick<PulseWaiting, 'title' | 'detail'>, mr: string): boolean {
+  const { refs } = hqMrMentions([waiting.title, waiting.detail ?? ''].join('\n'))
+  return refs.some((ref) => `${ref.projectPath.toLowerCase()}!${ref.iid}` === mr)
 }
 
 type SharedWaiting = Pick<
@@ -46,12 +57,9 @@ function namesMr(other: SharedWaiting, mr: string, project: string | null): bool
   if (gitlabMr(other.sourceRef) === mr) {
     return true
   }
-  const { refs, bare } = hqMrMentions([other.title, other.detail ?? ''].join('\n'))
+  const { bare } = hqMrMentions([other.title, other.detail ?? ''].join('\n'))
   const iid = Number(mr.split('!').at(-1))
-  return (
-    refs.some((ref) => `${ref.projectPath.toLowerCase()}!${ref.iid}` === mr) ||
-    (project !== null && other.project === project && bare.includes(iid))
-  )
+  return linksMr(other, mr) || (project !== null && other.project === project && bare.includes(iid))
 }
 
 /**
@@ -59,10 +67,11 @@ function namesMr(other: SharedWaiting, mr: string, project: string | null): bool
  * GitLab waiting by waiting), so the one notice is the owner's to hand out.
  */
 export function hqReplyGitLabShared(
-  waiting: Pick<PulseWaiting, 'id' | 'sourceRef' | 'agentSessionId' | 'project'>,
+  waiting: Pick<PulseWaiting, 'id' | 'replyLink' | 'agentSessionId' | 'project'>,
   others: readonly SharedWaiting[]
 ): boolean {
-  const mr = gitlabMr(waiting.sourceRef)
+  // Why: called once the notice is on the asked MR, so the MR it names is the one asked about.
+  const mr = gitlabMr(waiting.replyLink)
   return (
     mr !== null &&
     others.some(
