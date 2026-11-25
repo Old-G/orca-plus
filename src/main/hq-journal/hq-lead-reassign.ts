@@ -3,11 +3,14 @@
 // goes to the new one, the plan's `Lead chat:` line names the new Lead, the new Lead gets the Lead role
 // and the messages held for the old one, and the new Lead, the moved chats and the old Lead are told.
 // A handoff needs none of this: the new chat keeps the Lead's thread address.
+// T13 (25.11): `--from none --chats …` takes chats that have no Lead (ones the owner started) under the
+// new Lead; `--to none` gives such a chat back to no Lead — the undo it prints.
 import type { HqJournalInput, HqSession } from '../../shared/hq-journal'
-import type {
-  HqChatLinksResult,
-  HqLeadReassignChat,
-  HqLeadReassignResult
+import {
+  HQ_REASSIGN_NO_LEAD,
+  type HqChatLinksResult,
+  type HqLeadReassignChat,
+  type HqLeadReassignResult
 } from '../../shared/hq-chat-links'
 import type { HqChatRole } from '../../shared/hq-chat-role'
 import type { HqLiveSession } from '../../shared/hq-sessions'
@@ -18,8 +21,9 @@ import type { HqPlanLead } from './hq-lead-plan-line'
 import {
   hqReassignNotices,
   hqReassignRef as refOf,
-  hqReassignRow
+  hqReassignRows
 } from './hq-lead-reassign-notices'
+import { hqReassignCheckAsked, hqReassignNoLeadSides } from './hq-lead-reassign-checks'
 
 const MAX_HOPS = 64
 
@@ -57,8 +61,9 @@ export type HqLeadReassignDeps = {
 }
 
 export type HqLeadReassignRequest = {
-  from: string
-  /** Absent: the chat that runs the command. */
+  /** Absent or `none`: the chats in `chats` have no Lead. */
+  from?: string
+  /** Absent: the chat that runs the command. `none`: the chats have no Lead now (the undo of `--from none`). */
   to?: string
   /** Absent: every open chat under the old Lead. */
   chats?: readonly string[]
@@ -139,21 +144,28 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
     return parentOf
   }
 
-  /** The old Lead's chats: which move, and which stay with why. */
-  const sort = (from: Spot, to: Spot, asked: ReadonlySet<string> | null, live: Live) => {
+  /** The old Lead's chats (with no old Lead, the asked chats that have none): which move, and which
+   *  stay with why. */
+  const sort = (
+    from: Spot | null,
+    to: Spot | null,
+    asked: ReadonlySet<string> | null,
+    live: Live
+  ) => {
     const parentOf = parents()
     // Why: sorted, so a listing and a retry read the same.
-    const children = [...parentOf.entries()]
-      .filter(([, up]) => up === from.key)
-      .map(([key]) => key)
-      .sort()
-    for (const key of asked ?? []) {
-      if (!children.includes(key)) {
-        throw new Error(
-          `${key} is not a chat of ${refOf(from)}; \`orca hq reassign --dry-run\` lists them.`
-        )
-      }
-    }
+    const children = from
+      ? [...parentOf.entries()]
+          .filter(([, up]) => up === from.key)
+          .map(([key]) => key)
+          .sort()
+      : [...(asked ?? [])].sort()
+    hqReassignCheckAsked({
+      asked,
+      from: from?.key ?? null,
+      children,
+      leadOf: (key) => parentOf.get(key)
+    })
     const moved: (Spot & { open: boolean })[] = []
     const kept: HqLeadReassignResult['kept'] = []
     for (const key of children) {
@@ -168,9 +180,9 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
       const why =
         asked && !asked.has(key)
           ? 'not asked for'
-          : key === to.key
+          : to && key === to.key
             ? 'it is the new Lead'
-            : under(parentOf, to.key, key)
+            : to && under(parentOf, to.key, key)
               ? 'the new Lead works under it'
               : !isOpen(chat) && !asked
                 ? 'closed'
@@ -190,14 +202,15 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
         throw new Error('The HQ+ journal is off (Settings → Workspace → HQ+ journal).')
       }
       const scope = await deps.scope(caller)
-      const toRef = request.to?.trim() || scope.sessionId
-      if (!toRef) {
+      const { fromNone, toNone } = hqReassignNoLeadSides(request)
+      const toRef = toNone ? null : request.to?.trim() || scope.sessionId
+      if (!toNone && !toRef) {
         throw new Error('Name the new Lead with --to <project>/<task>|<session id>.')
       }
       const live: Live = new Map((await deps.live()).map((chat) => [chat.sessionId, chat]))
-      const from = locate(request.from, live)
-      const to = locate(toRef, live)
-      if (from.key === to.key) {
+      const from = fromNone ? null : locate(request.from ?? '', live)
+      const to = toRef ? locate(toRef, live) : null
+      if (from && to && from.key === to.key) {
         throw new Error(`${refOf(to)} is that Lead already.`)
       }
       const asked = request.chats?.length
@@ -206,25 +219,29 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
       const { moved, kept } = sort(from, to, asked, live)
       const whole = asked === null
       const only = !whole && request.plans?.length ? request.plans : null
-      const rewrite = (dryRun: boolean): Promise<string[]> =>
-        whole
-          ? deps.rewritePlans(fromLead, to, at, dryRun)
-          : only
-            ? deps.rewritePlans(fromLead, to, at, dryRun, only)
-            : Promise.resolve([])
       const at = deps.now()
-      const fromLead: HqPlanLead = {
-        address: from.address,
-        sessionIds: from.address
-          ? deps.pulse.listSessionsByAddress(from.address).map((session) => session.sessionId)
-          : [from.sessionId]
-      }
+      const fromLead: HqPlanLead | null = from
+        ? {
+            address: from.address,
+            sessionIds: from.address
+              ? deps.pulse.listSessionsByAddress(from.address).map((session) => session.sessionId)
+              : [from.sessionId]
+          }
+        : null
+      const rewrite = (dryRun: boolean): Promise<string[]> =>
+        !fromLead || !to
+          ? Promise.resolve([])
+          : whole
+            ? deps.rewritePlans(fromLead, to, at, dryRun)
+            : only
+              ? deps.rewritePlans(fromLead, to, at, dryRun, only)
+              : Promise.resolve([])
       const result = (
         done: Partial<HqLeadReassignResult> & { told?: ReadonlyMap<string, boolean> }
-      ) => ({
+      ): HqLeadReassignResult => ({
         dryRun: request.dryRun === true,
-        from: strip(from),
-        to: strip(to),
+        from: from ? strip(from) : null,
+        to: to ? strip(to) : null,
         moved: moved.map((chat) => ({
           ...strip(chat),
           told: done.told?.get(chat.sessionId) ?? false
@@ -246,22 +263,22 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
         deps.chats.moveLead({
           chat: chat.key,
           sessionId: chat.sessionId,
-          fromLead: from.key,
-          toLead: to.key,
-          toSessionId: to.sessionId,
+          fromLead: from?.key ?? HQ_REASSIGN_NO_LEAD,
+          toLead: to?.key ?? HQ_REASSIGN_NO_LEAD,
+          toSessionId: to?.sessionId ?? '',
           at
         })
       }
-      const toRole = deps.pulse.roleOf(to.sessionId)
-      if (toRole !== 'lead' && toRole !== 'sublead') {
-        const role = deps.pulse.roleOf(from.sessionId) === 'sublead' ? 'sublead' : 'lead'
+      const toRole = to ? deps.pulse.roleOf(to.sessionId) : null
+      if (to && toRole !== 'lead' && toRole !== 'sublead') {
+        const role = from && deps.pulse.roleOf(from.sessionId) === 'sublead' ? 'sublead' : 'lead'
         deps.pulse.setRole({ sessionId: to.sessionId, role, at })
       }
       // Why: a team moved in part leaves the plan with the old Lead; the forward catches strays.
       const plans = await rewrite(false)
       await deps.leadBatch?.ready
       // Why: what the old Lead had not read yet came from the chats that moved — the whole team.
-      const held = whole && from.address ? (deps.leadBatch?.take(from.address) ?? null) : null
+      const held = whole && from?.address ? (deps.leadBatch?.take(from.address) ?? null) : null
       const by = scope.sessionId ? keyOf(scope.sessionId) : 'the owner'
       const notices = hqReassignNotices({ from, to, moved, by, plans, whole, held })
 
@@ -273,7 +290,10 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
           : false
         told.set(chat.sessionId, ok)
       }
-      const toldNewLead = await deps.deliver(to.sessionId, notices.lead).catch(() => false)
+      const toldNewLead =
+        to && notices.lead !== null
+          ? await deps.deliver(to.sessionId, notices.lead).catch(() => false)
+          : false
       if (held) {
         if (toldNewLead) {
           deps.leadBatch?.delivered(held)
@@ -281,27 +301,19 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
           deps.leadBatch?.restore(held)
         }
       }
-      const toldOldLead = isOpen(live.get(from.sessionId))
-        ? await deps.deliver(from.sessionId, notices.oldLead).catch(() => false)
-        : false
+      const toldOldLead =
+        from && notices.oldLead !== null && isOpen(live.get(from.sessionId))
+          ? await deps.deliver(from.sessionId, notices.oldLead).catch(() => false)
+          : false
 
-      const rowOf = (chat: HqLeadReassignChat, title: string, body: string) =>
-        hqReassignRow(deps.pulse.getSession(chat.sessionId), chat, { title, body }, at)
-      const rows = [
-        rowOf(
-          to,
-          `Lead change: took over ${moved.length} chat(s) from ${refOf(from)}`,
-          notices.lead
-        ),
-        rowOf(from, `Lead change: ${moved.length} chat(s) went to ${refOf(to)}`, notices.oldLead),
-        ...moved.map((chat) =>
-          rowOf(
-            chat,
-            `Lead change: ${refOf(to)} leads this chat now, not ${refOf(from)}`,
-            notices.chat
-          )
-        )
-      ].filter((entry): entry is HqJournalInput => entry !== null)
+      const rows = hqReassignRows({
+        from,
+        to,
+        moved,
+        notices,
+        sessionOf: (sessionId) => deps.pulse.getSession(sessionId),
+        at
+      })
       if (rows.length > 0) {
         deps.pulse.record(rows)
       }
