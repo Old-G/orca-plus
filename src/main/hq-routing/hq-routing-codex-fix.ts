@@ -238,8 +238,41 @@ export function hqReviewedCommits(report: string, titles: readonly string[]): st
 
 const LEVEL_RULES: Readonly<Record<number, string>> = {
   1: 'Уровень проекта 1: работай только в этом worktree, коммиты локальные — ничего не пушь и не открывай MR.',
-  2: 'Уровень проекта 2: можно запушить свою ветку и открыть MR/PR по правилам проекта; не вливай.',
-  3: 'Уровень проекта 3: можно влить по правилам проекта (зелёный CI на голове, ревью без блокеров).'
+  2: 'Уровень проекта 2: можно запушить свою ветку и открыть MR/PR по правилам проекта; не вливай.'
+}
+
+/** Orca+ itself: its ship restarts the owner's app with every chat in it, so a fixing chat leaves it. */
+const ORCA_PLUS_PROJECT = 'orca-custom'
+
+/**
+ * Custom build (hq-codex-fix-ships, owner 25.11): at level 3 a green head and a Codex review with no
+ * blockers are enough — the chat merges and deploys by itself and says what it saw; deploying from CI
+ * on merge, the production database and money still wait for the owner's word.
+ */
+function shipRules(project: string, address: string): string[] {
+  const ask = `\`orca hq report --address ${address} --done "<что готово>" --ask "Влить и выкатить <MR>?" --options "да|нет"\``
+  return [
+    'Уровень проекта 3: вливаешь и выкатываешь сам, «да» владельца не ждёшь, когда всё зелёное:',
+    '1. Запушь ветку и открой MR/PR по правилам проекта.',
+    '2. Дождись пайплайна на голове MR в этом же ходу (until-цикл или Monitor); красный — почини или опиши в отчёте.',
+    '3. Ревью второй моделью по скиллу `lh-review-close-mr` (Codex); блокеры — почини и повтори, до 3 кругов.',
+    '4. Пайплайн на голове зелёный и у Codex нет блокеров — влей через merge-slot (ниже).',
+    project === ORCA_PLUS_PROJECT
+      ? '5. Orca+ не выкатывай: выкатка перезапускает приложение владельца со всеми чатами; влитое уйдёт со следующей выкаткой — так и напиши в отчёте.'
+      : '5. Сразу выкати по правилам проекта: сервис на сервере LH — по скиллу `lh-server-ssh` (до выкатки сверь сервер с origin/main, после — логи и здоровье сервиса).',
+    '6. Первой строкой итога: «Выкачено, проверено <что увидел>» или «Не выкачено: <почему>».',
+    `Не вливай и не выкатывай сам — спроси владельца ${ask} и остановись, если: вливание само выкатывает прод из CI; правка трогает прод-БД (миграции, запись в живые данные) или деньги (оплаты, списания, цены); что-то в пайплайне или ревью красное.`,
+    'Сообщения людям — только через Approve.'
+  ]
+}
+
+function levelRules(level: number, project: string, address: string): string[] {
+  return level === 3
+    ? shipRules(project, address)
+    : [
+        LEVEL_RULES[level] ?? LEVEL_RULES[1] ?? '',
+        'Прод (деплой, живые данные, прод-флоу) и выкатку Orca+ не трогай — только после «да» владельца. Сообщения людям — только через Approve.'
+      ]
 }
 
 /** Custom build (hq-fix-now-all): how a fixing chat merges beside other chats of the same project. */
@@ -249,8 +282,7 @@ function mergeRules(project: string, address: string): string[] {
     `1. \`orca hq merge-slot take ${project}\` — занято другим чатом: подожди 2 минуты и повтори (до 30 минут);`,
     `2. получил слот — подтяни свежую целевую ветку, сделай rebase, снова прогони тесты; после rebase и после тестов повтори \`orca hq merge-slot take ${project}\` — это продлевает слот ещё на 30 минут;`,
     `3. влей по правилам проекта, потом \`orca hq merge-slot release ${project}\` — и при ошибке тоже.`,
-    `Что меняли другие: \`orca hq events --project ${project} --since 1d\`; написать чату — \`orca chat send <адрес> "<текст>"\` (твой адрес: ${address}).`,
-    'Если вливание в целевую ветку само выкатывает прод (деплой в CI) — не вливай: открой MR и спроси владельца через `orca hq report --ask "Влить и выкатить <MR>?"`.'
+    `Что меняли другие: \`orca hq events --project ${project} --since 1d\`; написать чату — \`orca chat send <адрес> "<текст>"\` (твой адрес: ${address}).`
   ]
 }
 
@@ -283,15 +315,14 @@ export function hqCodexFixPrompt(input: {
     '- «не нужно» — коротко почему (Codex ошибся, так задумано);',
     '- «чиню» — сначала тест, который падает на этой ошибке, потом фикс, тест зелёный, коммит по правилам проекта.',
     '',
-    LEVEL_RULES[input.level] ?? LEVEL_RULES[1],
-    'Прод (деплой, живые данные, прод-флоу) и выкатку Orca+ не трогай ни при каком уровне — только после «да» владельца. Сообщения людям — только через Approve.',
+    ...levelRules(input.level, input.project, input.address),
     '',
     ...mergeRules(input.project, input.address),
     '',
     'Закрой каждую находку командой:',
     '- `orca hq settle <id> --done --commit <sha>` — починено или уже исправлено;',
     '- `orca hq settle <id> --dropped --why "<почему>"` — не нужно.',
-    `В конце — \`orca hq report --address ${input.address}\` с итогом: что починено, что нет и почему.`
+    `В конце — \`orca hq report --address ${input.address}\` с итогом: что починено, что нет и почему${input.level === 3 ? ', и строка выкатки' : ''}.`
   ].join('\n')
 }
 
