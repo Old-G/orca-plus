@@ -171,6 +171,8 @@ export type HqMailLedgerDeps = {
   guess: (letter: HqLetter, signal: HqLedgerSignal) => Promise<HqLedgerGuess | null>
   setGuess: (conversationId: string, guess: HqLedgerGuess) => void
   now: () => number
+  /** Custom build (google-disconnect-forget): every poll, whether or not the reader runs. */
+  onPoll?: () => void
 }
 
 export type HqMailLedgerState = {
@@ -294,7 +296,10 @@ export function startHqMailLedgerReader(
     onError,
     FIRST_POLL_MS
   )
-  const timer = setInterval(() => void flight.runNow(), POLL_MS)
+  const timer = setInterval(() => {
+    deps.onPoll?.()
+    void flight.runNow()
+  }, POLL_MS)
   timer.unref?.()
   flight.schedule()
   return {

@@ -14,6 +14,7 @@ vi.mock('../gmail/gmail-api', () => ({
 }))
 
 const { forgetHqMailIntakeSeen, registerHqMailForget } = await import('./hq-mail-forget')
+const { collectHqMailIntake } = await import('./hq-mail-intake')
 
 const NOW = Date.parse('2026-11-25T12:00:00Z')
 let hq = ''
@@ -48,17 +49,17 @@ describe('forgetHqMailIntakeSeen', () => {
 })
 
 describe('registerHqMailForget', () => {
-  it('forgets all mail on a disconnect and quiet mail on its timer, until stopped', async () => {
-    vi.useFakeTimers({ now: NOW })
+  it('forgets all mail on a disconnect and quiet mail at most every 6 hours, until stopped', async () => {
     await writeFile(stateFile(), JSON.stringify({ lastCheckAt: NOW, seen: ['m1'] }))
+    let now = NOW
     const forgetLedgerMail = vi.fn((_before?: number) => ({ conversations: 2, messages: 3 }))
     const resetReader = vi.fn()
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
-    const stop = registerHqMailForget({
+    const forget = registerHqMailForget({
       hqPath: () => hq,
       forgetLedgerMail,
       resetReader,
-      now: Date.now
+      now: () => now
     })
     try {
       for (const listener of gmail.listeners) {
@@ -70,16 +71,69 @@ describe('registerHqMailForget', () => {
         expect(JSON.parse(await readFile(stateFile(), 'utf-8')).seen).toEqual([])
       )
 
-      await vi.advanceTimersByTimeAsync(90_000)
-      expect(forgetLedgerMail).toHaveBeenLastCalledWith(NOW + 90_000 - HQ_MAIL_KEEP_MS)
-      await vi.advanceTimersByTimeAsync(6 * 60 * 60_000)
+      forget.sweepQuiet()
+      expect(forgetLedgerMail).toHaveBeenLastCalledWith(NOW - HQ_MAIL_KEEP_MS)
+      now += 6 * 60 * 60_000 - 1
+      forget.sweepQuiet()
+      expect(forgetLedgerMail).toHaveBeenCalledTimes(2)
+      now += 1
+      forget.sweepQuiet()
       expect(forgetLedgerMail).toHaveBeenCalledTimes(3)
     } finally {
-      stop()
+      forget.stop()
       log.mockRestore()
     }
     expect(gmail.listeners.size).toBe(0)
-    await vi.advanceTimersByTimeAsync(6 * 60 * 60_000)
-    expect(forgetLedgerMail).toHaveBeenCalledTimes(3)
+  })
+})
+
+describe('an intake pass in flight at a disconnect', () => {
+  it('writes none of the old mailbox ids back', async () => {
+    const before = { lastCheckAt: NOW - 60_000, seen: ['m1'] }
+    await writeFile(stateFile(), JSON.stringify(before))
+    let asked = false
+    let release = (): void => {}
+    const listed = new Promise<string[]>((resolve) => {
+      release = () => resolve(['m2'])
+    })
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const forget = registerHqMailForget({
+      hqPath: () => hq,
+      forgetLedgerMail: () => ({ conversations: 0, messages: 0 }),
+      resetReader: () => {},
+      now: () => NOW
+    })
+    try {
+      const pass = collectHqMailIntake(hq, {
+        listMailIds: () => {
+          asked = true
+          return listed
+        },
+        getMail: async () => null,
+        getTask: async () => null,
+        listComments: async () => [],
+        listReplies: async () => [],
+        viewer: async () => ({ id: 'u1', username: 'ann' }),
+        projectForList: () => null,
+        mrMerged: () => {},
+        now: () => NOW
+      })
+      await vi.waitFor(() => expect(asked).toBe(true))
+      for (const listener of gmail.listeners) {
+        listener()
+      }
+      await vi.waitFor(async () =>
+        expect(JSON.parse(await readFile(stateFile(), 'utf-8')).seen).toEqual([])
+      )
+      release()
+      await expect(pass).resolves.toBe(0)
+      expect(JSON.parse(await readFile(stateFile(), 'utf-8'))).toEqual({
+        lastCheckAt: NOW,
+        seen: []
+      })
+    } finally {
+      forget.stop()
+      log.mockRestore()
+    }
   })
 })

@@ -9,8 +9,12 @@ import { HQ_MAIL_KEEP_MS, type HqMailForgetResult } from '../orca-plus/pulse/pul
 
 /** How often quiet mail threads are checked for the 30 days. */
 const MAIL_FORGET_EVERY_MS = 6 * 60 * 60_000
-/** After a start, once the ledger is open. */
-const FIRST_FORGET_MS = 90_000
+
+// Why: an intake pass that read the old mailbox's ids before a disconnect must not write them back.
+let mailboxGeneration = 0
+/** Changes on every disconnect. */
+export const hqMailboxGeneration = (): number => mailboxGeneration
+let forgetWrites = 0
 
 /** The intake's mail ids go; when it last looked stays, so a new sign-in does not re-read old notices. */
 export async function forgetHqMailIntakeSeen(hqPath: string): Promise<void> {
@@ -33,9 +37,24 @@ export async function forgetHqMailIntakeSeen(hqPath: string): Promise<void> {
   } catch {
     // Unreadable: rewritten without ids, as the intake would read it.
   }
-  const temp = `${path}.${process.pid}.tmp`
+  // Why: not the intake's temp name nor another forget's, so writes at the same moment cannot collide.
+  forgetWrites += 1
+  const temp = `${path}.${process.pid}.forget-${forgetWrites}.tmp`
   await writeFile(temp, `${JSON.stringify({ lastCheckAt, seen: [] }, null, 2)}\n`)
   await rename(temp, path)
+}
+
+/** After an intake pass's writes: when the mailbox went since the pass began (`mailbox`), the ids it
+ *  wrote are dropped again and true is returned. */
+export async function forgetHqMailIntakeSeenIfGone(
+  hqPath: string,
+  mailbox: number
+): Promise<boolean> {
+  if (mailbox === mailboxGeneration) {
+    return false
+  }
+  await forgetHqMailIntakeSeen(hqPath)
+  return true
 }
 
 export type HqMailForgetDeps = {
@@ -47,9 +66,14 @@ export type HqMailForgetDeps = {
   now: () => number
 }
 
-/** Forgets the mailbox's mail on a disconnect, and old mail text on a timer; returns the stop. */
-export function registerHqMailForget(deps: HqMailForgetDeps): () => void {
+/** Forgets the mailbox's mail on a disconnect. `sweepQuiet` forgets old mail text at most every 6 h;
+ *  the mail reader's poll calls it, so there is no timer of its own. */
+export function registerHqMailForget(deps: HqMailForgetDeps): {
+  stop: () => void
+  sweepQuiet: () => void
+} {
   const stopListening = onGmailDisconnected(() => {
+    mailboxGeneration += 1
     deps.resetReader()
     const { conversations } = deps.forgetLedgerMail()
     console.log(`[hq-mail-ledger] mailbox disconnected: ${conversations} mail thread(s) forgotten`)
@@ -60,20 +84,18 @@ export function registerHqMailForget(deps: HqMailForgetDeps): () => void {
       )
     }
   })
-  const forgetQuiet = (): void => {
+  let sweptAt = -Infinity
+  const sweepQuiet = (): void => {
+    const now = deps.now()
+    if (now - sweptAt < MAIL_FORGET_EVERY_MS) {
+      return
+    }
+    sweptAt = now
     try {
-      deps.forgetLedgerMail(deps.now() - HQ_MAIL_KEEP_MS)
+      deps.forgetLedgerMail(now - HQ_MAIL_KEEP_MS)
     } catch (error) {
       console.warn('[hq-mail-ledger] could not forget old mail:', error)
     }
   }
-  const first = setTimeout(forgetQuiet, FIRST_FORGET_MS)
-  first.unref?.()
-  const timer = setInterval(forgetQuiet, MAIL_FORGET_EVERY_MS)
-  timer.unref?.()
-  return () => {
-    stopListening()
-    clearTimeout(first)
-    clearInterval(timer)
-  }
+  return { stop: stopListening, sweepQuiet }
 }

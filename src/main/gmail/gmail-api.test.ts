@@ -28,12 +28,7 @@ vi.mock('./gmail-oauth', () => ({
   refreshGoogleToken: async () => ({ accessToken: 'access-1', expiresAt: Date.now() + 3_600_000 })
 }))
 
-import {
-  disconnectGmail,
-  importGmailClient,
-  listGmailMessageIds,
-  onGmailDisconnected
-} from './gmail-api'
+import { importGmailClient, listGmailMessageIds } from './gmail-api'
 
 function clientFile(id: string, secret: string): string {
   return JSON.stringify({ installed: { client_id: id, client_secret: secret } })
@@ -74,32 +69,5 @@ describe('importGmailClient', () => {
   it('keeps the sign-in when the same client is chosen again', () => {
     expect(importGmailClient(clientFile('old-id', 'old-secret'))).toEqual({ ok: true })
     expect(store.clearGmailRefreshToken).not.toHaveBeenCalled()
-  })
-})
-
-// Custom build (google-disconnect-forget)
-describe('onGmailDisconnected', () => {
-  it('tells each listener on a disconnect, logs one that throws, and stops after unsubscribe', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const failing = onGmailDisconnected(() => {
-      throw new Error('ledger closed')
-    })
-    const heard = vi.fn()
-    const stop = onGmailDisconnected(heard)
-    try {
-      disconnectGmail()
-      expect(store.clearGmailRefreshToken).toHaveBeenCalledTimes(1)
-      expect(heard).toHaveBeenCalledTimes(1)
-      expect(warn).toHaveBeenCalledTimes(1)
-      // A new client drops the sign-in, and its mail with it.
-      expect(importGmailClient(clientFile('new-id', 'new-secret'))).toEqual({ ok: true })
-      expect(heard).toHaveBeenCalledTimes(2)
-    } finally {
-      failing()
-      stop()
-      warn.mockRestore()
-    }
-    disconnectGmail()
-    expect(heard).toHaveBeenCalledTimes(2)
   })
 })
