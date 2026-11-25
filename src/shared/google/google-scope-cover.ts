@@ -1,6 +1,6 @@
-// Custom build (google-mcp): the scopes Google's MCP servers list are narrower than the ones Orca
-// asked for before (drive.readonly and drive.file, not drive). An account that allowed the broader
-// scope keeps working until it reconnects: Google honours the broader one for the narrower.
+// Custom build (google-mcp): Google's MCP servers list narrower scopes than the ones Orca's REST
+// methods need (drive.readonly and drive.file, not drive). A granted broader scope counts for the
+// narrower one: Google honours it.
 const SCOPE = 'https://www.googleapis.com/auth/'
 
 const COVERED_BY: Readonly<Record<string, readonly string[]>> = {
