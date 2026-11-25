@@ -307,7 +307,7 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       .filter(Boolean)
     const result = await client.call<HqLeadReassignResult>('hq.reassign', {
       ...caller(),
-      from: getRequiredStringFlag(flags, 'from'),
+      from: getOptionalStringFlag(flags, 'from'),
       to: getOptionalStringFlag(flags, 'to'),
       chats: chats?.length ? chats : undefined,
       plans: plans?.length ? plans : undefined,
