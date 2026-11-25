@@ -4,7 +4,8 @@ import { callGoogleMcpTool, type GoogleMcpRequest } from './google-mcp-call'
 class Refused extends Error {
   constructor(
     message: string,
-    readonly status?: number
+    readonly status?: number,
+    readonly mcpOff?: true
   ) {
     super(message)
   }
@@ -19,7 +20,7 @@ async function callWith(answer: Response, projectId?: string) {
       return answer
     },
     (failure) => {
-      throw new Refused(failure.message, failure.status)
+      throw new Refused(failure.message, failure.status, failure.mcpOff)
     },
     {
       service: 'gmail',
@@ -90,6 +91,7 @@ describe('a call to a Google MCP tool', () => {
       'orca-demo'
     )
     expect('error' in outcome && outcome.error.status).toBe(403)
+    expect('error' in outcome && outcome.error.mcpOff).toBe(true)
     expect('error' in outcome && outcome.error.message).toBe(
       "Google's Gmail MCP server is turned off for this app. Ask your owner to turn it on: https://console.cloud.google.com/apis/library/gmailmcp.googleapis.com?project=orca-demo"
     )
