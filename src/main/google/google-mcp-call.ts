@@ -86,8 +86,16 @@ function toolValue(result: NonNullable<RpcMessage['result']>): unknown {
   return parseJson(text) ?? text
 }
 
+/** What Google said, as plain words: an API error's own message when the text is one. */
 const oneLine = (text: string): string => {
-  const flat = text.replace(/\s+/g, ' ').trim()
+  const json = parseJson(text)
+  const said =
+    isRecord(json) && isRecord(json.error) && typeof json.error.message === 'string'
+      ? json.error.message
+      : json === null
+        ? text
+        : ''
+  const flat = said.replace(/\s+/g, ' ').trim()
   return flat.length > DETAIL_MAX ? `${flat.slice(0, DETAIL_MAX - 1)}…` : flat
 }
 
@@ -109,14 +117,19 @@ export function googleMcpFailureSentence(
     const project = projectId ? `?project=${encodeURIComponent(projectId)}` : ''
     return `Google's ${label} MCP server is turned off for this app. Ask your owner to turn it on: https://console.cloud.google.com/apis/library/${googleMcpApiName(service)}${project}`
   }
-  if (status === 403 && /scope|insufficient|permission/i.test(detail)) {
+  if (status === 403 && /ACCESS_TOKEN_SCOPE_INSUFFICIENT|insufficient.{0,40}scope/i.test(detail)) {
     return 'Google access for this was not allowed. Ask your owner to reconnect it in Orca and allow it.'
   }
   if (status === 404) {
     return 'Google found nothing there.'
   }
   const said = oneLine(detail)
-  return `Google refused: ${said || `HTTP ${status}`}`
+  if (said) {
+    return `Google refused: ${said}`
+  }
+  return status >= 200 && status < 300
+    ? 'Google refused this request.'
+    : `Google refused: HTTP ${status}`
 }
 
 /**
@@ -146,7 +159,11 @@ export async function callGoogleMcpTool<T>(
     contentType: 'application/json',
     accept: ACCEPT
   })
-  const message = readGoogleMcpMessage(await response.text())
+  // A stream Google holds open past the request's timeout ends here, not as a raw abort.
+  const text = await response
+    .text()
+    .catch((): never => fail({ message: "Couldn't reach Google. Try again in a moment." }))
+  const message = readGoogleMcpMessage(text)
   const refuse = (detail: string): never =>
     fail({
       message: googleMcpFailureSentence(args.service, response.status, detail, args.projectId),

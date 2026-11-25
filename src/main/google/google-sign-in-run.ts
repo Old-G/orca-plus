@@ -219,10 +219,20 @@ export async function runGoogleSignIn(
           return { kind: 'accept', value: url.search }
         },
         onListening: (port) => prompt(fixedRedirect ?? googleRedirectUri(port))
-      }).then((held) => {
-        tab.held = held
-        return held.value
-      })
+      }).then(
+        (held) => {
+          tab.held = held
+          return held.value
+        },
+        // Custom build (google-mcp): a Web app client's one port may be held by another sign-in.
+        (error: unknown) => {
+          throw fixedRedirect && (error as { code?: unknown } | null)?.code === 'EADDRINUSE'
+            ? new Error(
+                `Another Google sign-in is using port ${googleRedirectPort(fixedRedirect)}. Finish or cancel it, then try again.`
+              )
+            : error
+        }
+      )
       query = await Promise.race([returned, pasted, expired])
     }
   } finally {

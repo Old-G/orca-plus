@@ -11,7 +11,11 @@ const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(['127.0.0.1', 'localhost'])
 
 /** The listed address Orca can return to: http on this computer, an explicit port, Orca's path. */
 export function googleWebClientRedirect(uris: readonly string[]): string | null {
-  for (const uri of uris) {
+  // 127.0.0.1 first: Orca listens there, and a browser may try localhost as ::1.
+  const ordered = [...uris].sort(
+    (a, b) => Number(b.includes('//127.0.0.1')) - Number(a.includes('//127.0.0.1'))
+  )
+  for (const uri of ordered) {
     let url: URL
     try {
       url = new URL(uri)
