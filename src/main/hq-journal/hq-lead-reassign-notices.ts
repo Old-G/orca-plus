@@ -18,8 +18,10 @@ export function hqReassignRef(chat: HqLeadReassignChat): string {
 }
 
 export type HqReassignNoticeInput = {
-  from: HqLeadReassignChat
-  to: HqLeadReassignChat
+  /** Null: the chats had no Lead (T13). */
+  from: HqLeadReassignChat | null
+  /** Null: the chats have no Lead now. */
+  to: HqLeadReassignChat | null
   moved: readonly HqLeadReassignChat[]
   /** Who ran the command: a chat's thread, or the owner. */
   by: string
@@ -29,20 +31,19 @@ export type HqReassignNoticeInput = {
   held: HqLeadHeld | null
 }
 
+/** What each side is told; null for a side that is no chat (`none`). */
 export function hqReassignNotices(input: HqReassignNoticeInput): {
   chat: string
-  lead: string
-  oldLead: string
+  lead: string | null
+  oldLead: string | null
 } {
+  if (!input.from || !input.to) {
+    return noLeadNotices(input)
+  }
   const from = hqReassignRef(input.from)
   const to = hqReassignRef(input.to)
   const count = input.moved.length
-  const list = input.moved
-    .map((chat) => {
-      const session = chat.address ? ` (${chat.sessionId})` : ''
-      return `- ${hqReassignRef(chat)}${session}${chat.name ? ` — ${chat.name}` : ''}`
-    })
-    .join('\n')
+  const list = listOf(input.moved)
   const planLine =
     input.plans.length > 0
       ? `The «Lead chat:» line now names you in ${input.plans.join(', ')}.`
@@ -77,6 +78,53 @@ export function hqReassignNotices(input: HqReassignNoticeInput): {
   }
 }
 
+function listOf(moved: readonly HqLeadReassignChat[]): string {
+  return moved
+    .map((chat) => {
+      const session = chat.address ? ` (${chat.sessionId})` : ''
+      return `- ${hqReassignRef(chat)}${session}${chat.name ? ` — ${chat.name}` : ''}`
+    })
+    .join('\n')
+}
+
+/** T13: chats that had no Lead get one, or such chats are given back to no Lead. */
+function noLeadNotices(input: HqReassignNoticeInput): {
+  chat: string
+  lead: string | null
+  oldLead: string | null
+} {
+  const count = input.moved.length
+  const list = listOf(input.moved)
+  if (input.to) {
+    const to = hqReassignRef(input.to)
+    return {
+      chat: [
+        `Orca+ · you have a Lead now (by ${input.by}): ${to} leads this chat.`,
+        `Reports (DONE / NEEDS DECISION / BLOCKED) go to it: orca chat send ${to} "…".`
+      ].join('\n'),
+      lead: [
+        `Orca+ · you lead ${count === 1 ? 'one more chat' : `${count} more chats`} now, ${count === 1 ? 'one that had' : 'ones that had'} no Lead (by ${input.by}):`,
+        list,
+        'Their reports come to this chat. No plan names you for them; add them to yours if you keep one.'
+      ].join('\n'),
+      oldLead: null
+    }
+  }
+  const from = input.from ? hqReassignRef(input.from) : 'its Lead'
+  return {
+    chat: [
+      `Orca+ · your Lead changed (by ${input.by}): ${from} no longer leads this chat; it has no Lead now.`,
+      'Report to the chat that gives you your next task.'
+    ].join('\n'),
+    lead: null,
+    oldLead: [
+      `Orca+ · ${count === 1 ? 'one of your chats has' : `${count} of your chats have`} no Lead now (by ${input.by}):`,
+      list,
+      'Send them no more work.'
+    ].join('\n')
+  }
+}
+
 /** The notice as a done row on the chat's thread; none for a chat without a thread. */
 export function hqReassignRow(
   session: HqSession | null,
@@ -105,4 +153,49 @@ export function hqReassignRow(
     source: SOURCE,
     dedupeKey: `${SOURCE}:${chat.address}:${at}`
   }
+}
+
+/** The journal rows of a reassign: the new Lead's, the old Lead's and each moved chat's notice. */
+export function hqReassignRows(input: {
+  from: HqLeadReassignChat | null
+  to: HqLeadReassignChat | null
+  moved: readonly HqLeadReassignChat[]
+  notices: ReturnType<typeof hqReassignNotices>
+  sessionOf: (sessionId: string) => HqSession | null
+  at: number
+}): HqJournalInput[] {
+  const { from, to, moved, notices, at } = input
+  const rowOf = (chat: HqLeadReassignChat | null, title: string, body: string | null) =>
+    chat && body !== null
+      ? hqReassignRow(input.sessionOf(chat.sessionId), chat, { title, body }, at)
+      : null
+  const fromName = from ? hqReassignRef(from) : 'no Lead'
+  const count = moved.length
+  return [
+    rowOf(
+      to,
+      from
+        ? `Lead change: took over ${count} chat(s) from ${fromName}`
+        : `Lead change: took ${count} chat(s) that had no Lead`,
+      notices.lead
+    ),
+    rowOf(
+      from,
+      to
+        ? `Lead change: ${count} chat(s) went to ${hqReassignRef(to)}`
+        : `Lead change: ${count} chat(s) have no Lead now`,
+      notices.oldLead
+    ),
+    ...moved.map((chat) =>
+      rowOf(
+        chat,
+        !to
+          ? `Lead change: this chat has no Lead now, not ${fromName}`
+          : from
+            ? `Lead change: ${hqReassignRef(to)} leads this chat now, not ${fromName}`
+            : `Lead change: ${hqReassignRef(to)} leads this chat now`,
+        notices.chat
+      )
+    )
+  ].filter((entry): entry is HqJournalInput => entry !== null)
 }

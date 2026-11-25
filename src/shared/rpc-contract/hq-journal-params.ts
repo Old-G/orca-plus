@@ -246,7 +246,8 @@ export const HqHandoffClaimParams = z.object(CallerFields)
 // Custom build (hq-lead-reassign): a Lead's chats go to another chat.
 export const HqReassignParams = z.object({
   ...CallerFields,
-  from: requiredString('The old Lead (--from <project>/<task>|<session id>) is required'),
+  /** Absent or `none`: the chats in `chats` have no Lead (T13). Blank is refused, not taken for absent. */
+  from: z.string().trim().min(1, '--from needs a Lead, or none').optional(),
   to: OptionalString,
   chats: z.array(z.string()).optional(),
   plans: z.array(z.string()).optional(),
