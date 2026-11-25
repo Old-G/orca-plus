@@ -45,7 +45,7 @@ function storedRun(occurredAt: number, source: 'gmail' | 'slack' = 'gmail'): Aut
       ...(source === 'gmail' ? { google: { account: ACCOUNT, ref: 'gmail:thread:1' } } : {})
     },
     triggeredBy: { source, event: source === 'gmail' ? 'new_email' : 'message' }
-  } as AutomationRun
+  } as unknown as AutomationRun
 }
 
 /** The not-started card Send again reads, made from the run as it was delivered. */
@@ -127,7 +127,7 @@ describe('Send again on a Google run', () => {
   })
 
   it('refuses an unfinished run whose meeting place went at a disconnect', async () => {
-    const run = { ...storedRun(NOW - DAY), status: 'running' } as AutomationRun
+    const run = { ...storedRun(NOW - DAY), status: 'running' } as unknown as AutomationRun
     const { text: _text, ...event } = run.event!
     const quiet = forget(
       { ...run, event: { ...event, place: 'Room 4' } },
@@ -141,7 +141,7 @@ describe('Send again on a Google run', () => {
     const { result, send } = resend(quiet, {
       ...body,
       run: { ...body.run, event: { ...cardEvent, place: 'Room 4' } }
-    } as ReturnType<typeof card>)
+    } as unknown as ReturnType<typeof card>)
     await expect(result).rejects.toThrow(RUN_GOOGLE_EVENT_FORGOTTEN)
     expect(send).not.toHaveBeenCalled()
   })
