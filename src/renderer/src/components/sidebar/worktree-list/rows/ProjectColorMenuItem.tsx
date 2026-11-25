@@ -10,8 +10,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
-import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../../../shared/repository/appearance/repo-badge-color'
-import { projectAccentColor } from '../../../../../../shared/project-accent-color'
+import {
+  DEFAULT_REPO_BADGE_COLOR,
+  REPO_COLORS
+} from '../../../../../../shared/repository/appearance/repo-badge-color'
+import { useRepoAutoMarkColor } from '@/components/repo/RepoMark'
 import type { Repo } from '../../../../../../shared/repository/repo-types'
 
 const PICKABLE = REPO_COLORS.filter((color) => color !== DEFAULT_REPO_BADGE_COLOR)
@@ -25,6 +28,7 @@ function Swatch({ color }: { color: string }): React.JSX.Element {
 export function ProjectColorMenuItem({ repo }: { repo: Repo }): React.JSX.Element {
   const picked = repo.badgeColor?.toLowerCase()
   const isAuto = !picked || picked === DEFAULT_REPO_BADGE_COLOR
+  const autoColor = useRepoAutoMarkColor(repo)
   const setColor = (badgeColor: string): void => {
     void useAppStore.getState().updateRepo(repo.id, { badgeColor })
   }
@@ -36,7 +40,7 @@ export function ProjectColorMenuItem({ repo }: { repo: Repo }): React.JSX.Elemen
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent>
         <DropdownMenuItem onSelect={() => setColor(DEFAULT_REPO_BADGE_COLOR)}>
-          <Swatch color={projectAccentColor(repo.id)} />
+          <Swatch color={autoColor} />
           {translate('auto.sidebar.projectColorAuto', 'Auto')}
           {isAuto ? <Check className="ml-auto size-3.5" /> : null}
         </DropdownMenuItem>
