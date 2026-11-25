@@ -4,9 +4,11 @@ import { getDefaultPersistedState } from '../../../../shared/orca-profiles/const
 import type { PersistedState } from '../../../../shared/orca-profiles/persisted-state-types'
 import { normalizeLoadedUiState } from './normalize-loaded-ui-state'
 
+/** Loads a saved UI state; without the flag in `ui` it is one from before Orca+'s move to Manual. */
 function load(ui: Partial<PersistedState['ui']>): PersistedState['ui'] {
   const defaults = getDefaultPersistedState('/Users/me')
-  const parsed = { ...defaults, ui: { ...defaults.ui, ...ui } } as PersistedState
+  const { _orcaPlusStableSortMigrated: _, ...before } = defaults.ui
+  const parsed = { ...defaults, ui: { ...before, ...ui } } as PersistedState
   return normalizeLoadedUiState(parsed, defaults, defaults.onboarding, false, false, () => {})
 }
 
@@ -24,5 +26,11 @@ describe('Orca+ stable sidebar sort', () => {
     for (const sortBy of ['smart', 'recent', 'name', 'manual'] as const) {
       expect(load({ ...moved, sortBy }).sortBy).toBe(sortBy)
     }
+  })
+
+  it('starts a new profile on Manual and keeps a Smart picked in its first session', () => {
+    const fresh = getDefaultPersistedState('/Users/me').ui
+    expect(fresh.sortBy).toBe('manual')
+    expect(load({ ...fresh, sortBy: 'smart' }).sortBy).toBe('smart')
   })
 })

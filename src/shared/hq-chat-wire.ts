@@ -68,7 +68,18 @@ export function hqChatWireByProject(
   items: readonly HqChatWireItem[]
 ): { project: string; items: HqChatWireItem[] }[] {
   const byProject = new Map<string, HqChatWireItem[]>()
-  for (const item of items.toSorted((a, b) => (b.placedAt ?? 0) - (a.placedAt ?? 0))) {
+  // Why the key: agents in split panes of one terminal share its `placedAt`; the order they arrive in
+  // follows their state.
+  const placed = (a: HqChatWireItem, b: HqChatWireItem): number =>
+    (b.placedAt ?? 0) - (a.placedAt ?? 0) ||
+    (a.placedAt === undefined || b.placedAt === undefined
+      ? 0
+      : a.key < b.key
+        ? -1
+        : a.key > b.key
+          ? 1
+          : 0)
+  for (const item of items.toSorted(placed)) {
     byProject.set(item.projectName, [...(byProject.get(item.projectName) ?? []), item])
   }
   return [...byProject].map(([project, chats]) => ({ project, items: chats }))
