@@ -3,7 +3,12 @@ import type { HqLedgerSignal } from '../../../shared/hq-ledger'
 import { PulseCore } from './pulse-core'
 import { ingestLedgerSignal } from './pulse-ledger'
 import { LEDGER_DRAFT_EVENT } from './pulse-ledger-draft'
-import { FORGOTTEN_MAIL_TITLE, forgetLedgerMail, HQ_MAIL_KEEP_MS } from './pulse-ledger-forget'
+import {
+  FORGOTTEN_MAIL_TITLE,
+  forgetLedgerMail,
+  HQ_MAIL_KEEP_MS,
+  TRIMMED_MAIL_TITLE
+} from './pulse-ledger-forget'
 
 const DAY = 24 * 60 * 60_000
 const NOW = 100 * DAY
@@ -161,7 +166,13 @@ describe('forgetLedgerMail', () => {
     decorate(core, quiet.conversationId, 'gmail:thread-a', 'msg-1')
     const going = ingestLedgerSignal(
       core,
-      letter({ key: 'gmail:thread-b', ts: 'old', at: cutoff - DAY, text: 'Old words' })
+      letter({
+        key: 'gmail:thread-b',
+        ts: 'old',
+        at: cutoff - DAY,
+        text: 'Old words',
+        title: 'Old subject'
+      })
     )
     ingestLedgerSignal(
       core,
@@ -178,5 +189,10 @@ describe('forgetLedgerMail', () => {
     expect(left).toContain('Fresh answer')
     expect(left).not.toContain('Old words')
     expect(left).not.toContain('Old answer')
+    // Its title came from the first letter, which is gone.
+    expect(left).not.toContain('Old subject')
+    expect(
+      core.db.prepare('SELECT title FROM conversations WHERE id = ?').get(going.conversationId)
+    ).toEqual({ title: TRIMMED_MAIL_TITLE })
   })
 })

@@ -183,7 +183,9 @@ export type HqMailLedgerState = {
 /** One pass: people's letters and the owner's replies into the ledger, a guess for each new thread. */
 export async function runHqMailLedgerReader(
   deps: HqMailLedgerDeps,
-  state: HqMailLedgerState
+  state: HqMailLedgerState,
+  // Custom build (google-disconnect-forget): false once the mailbox was reset during this pass.
+  current: () => boolean = () => true
 ): Promise<HqMailLedgerState> {
   const owner = deps.owner()?.trim().toLowerCase()
   if (!owner) {
@@ -230,8 +232,8 @@ export async function runHqMailLedgerReader(
   const created = new Set<string>()
   const fresh = new Map<string, { letter: HqLetter; signal: HqLedgerSignal }>()
   // Custom build (google-disconnect-forget): a mailbox disconnected while its letters were read
-  // writes nothing of them.
-  const stillOwner = (): boolean => deps.owner()?.trim().toLowerCase() === owner
+  // writes nothing of them, even when the same address is connected again meanwhile.
+  const stillOwner = (): boolean => current() && deps.owner()?.trim().toLowerCase() === owner
   if (!stillOwner()) {
     return state
   }
@@ -279,7 +281,7 @@ export function startHqMailLedgerReader(
     async () => {
       if (deps.enabled() && claudeBackgroundAllows('mail ledger')) {
         const started = generation
-        const next = await runHqMailLedgerReader(deps, state)
+        const next = await runHqMailLedgerReader(deps, state, () => started === generation)
         if (started === generation) {
           state = next
         }
