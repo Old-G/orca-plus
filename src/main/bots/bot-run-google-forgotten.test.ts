@@ -126,6 +126,26 @@ describe('Send again on a Google run', () => {
     expect(send).not.toHaveBeenCalled()
   })
 
+  it('refuses an unfinished run whose meeting place went at a disconnect', async () => {
+    const run = { ...storedRun(NOW - DAY), status: 'running' } as AutomationRun
+    const { text: _text, ...event } = run.event!
+    const quiet = forget(
+      { ...run, event: { ...event, place: 'Room 4' } },
+      {
+        account: ACCOUNT,
+        occurredBefore: NOW
+      }
+    )
+    const body = card(run)
+    const { text: _cardText, ...cardEvent } = body.run.event
+    const { result, send } = resend(quiet, {
+      ...body,
+      run: { ...body.run, event: { ...cardEvent, place: 'Room 4' } }
+    } as ReturnType<typeof card>)
+    await expect(result).rejects.toThrow(RUN_GOOGLE_EVENT_FORGOTTEN)
+    expect(send).not.toHaveBeenCalled()
+  })
+
   it('refuses a Gmail run past 30 days, swept or not yet', async () => {
     const run = storedRun(NOW - GOOGLE_RUN_EVENT_KEEP_MS - 1)
     const swept = forget(run, { before: NOW - GOOGLE_RUN_EVENT_KEEP_MS })
