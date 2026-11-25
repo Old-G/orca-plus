@@ -2,7 +2,7 @@
 // the owner. Only a clear, complete answer said where the question was asked passes by itself; money,
 // production, a deadline, a new request, a counter-question, a partial answer or any doubt is a card.
 /* eslint-disable max-lines -- Why: the rule's prechecks, word lists and both model prompts read as one; split when it next grows */
-import { hqReplyGitLabDone } from './hq-reply-gitlab'
+import { hqReplyGitLabDone, hqReplyGitLabShared } from './hq-reply-gitlab'
 import type { PulseWaiting } from './pulse-types'
 import { parseClickUpCommentRef, parseSlackThreadRef } from './hq-waiting-replies'
 
@@ -163,7 +163,9 @@ export function hqReplyPrechecks(
   }
   if (hqReplyGitLabDone(waiting)) {
     // Why: one notice matched to several waitings may mean several chats; the owner picks.
-    return sharedReply(waiting, others) ? [...reasons, HQ_REPLY_CARD_REASON.shared] : reasons
+    return sharedReply(waiting, others) || hqReplyGitLabShared(waiting, others)
+      ? [...reasons, HQ_REPLY_CARD_REASON.shared]
+      : reasons
   }
   // Why: anyone can write in a thread or a task; only the person asked may unblock the chat alone.
   const author = waiting.replyAuthorId ?? null
