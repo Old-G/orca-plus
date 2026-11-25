@@ -23,7 +23,10 @@ export type GoogleMcpRequest = {
   accept: string
 }
 
-export type GoogleMcpFailure = { message: string; status?: number }
+/** `mcpOff`: the account's Google Cloud project has this service's MCP server turned off. */
+export type GoogleMcpFailure = { message: string; status?: number; mcpOff?: true }
+
+const MCP_OFF = /has not been used|is disabled|SERVICE_DISABLED/i
 
 const ACCEPT = 'application/json, text/event-stream'
 const DETAIL_MAX = 300
@@ -113,7 +116,7 @@ export function googleMcpFailureSentence(
   if (status === 429 || /quota|rate limit/i.test(detail)) {
     return 'Google says too many requests right now. Wait a minute and try again.'
   }
-  if (status === 403 && /has not been used|is disabled|SERVICE_DISABLED/i.test(detail)) {
+  if (status === 403 && MCP_OFF.test(detail)) {
     const project = projectId ? `?project=${encodeURIComponent(projectId)}` : ''
     return `Google's ${label} MCP server is turned off for this app. Ask your owner to turn it on: https://console.cloud.google.com/apis/library/${googleMcpApiName(service)}${project}`
   }
@@ -167,7 +170,8 @@ export async function callGoogleMcpTool<T>(
   const refuse = (detail: string): never =>
     fail({
       message: googleMcpFailureSentence(args.service, response.status, detail, args.projectId),
-      status: response.status
+      status: response.status,
+      ...(response.status === 403 && MCP_OFF.test(detail) ? { mcpOff: true as const } : {})
     })
   if (!message) {
     return response.ok
