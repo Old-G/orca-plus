@@ -50,7 +50,34 @@ function dump(core: PulseCore, id: string): string {
       .prepare("SELECT kind, payload FROM events WHERE entity = 'conversation' AND entity_id = ?")
       .all(id),
     attribution: core.db.prepare('SELECT * FROM attribution_log').all(),
-    waitings: core.db.prepare('SELECT * FROM waitings WHERE conversation_id = ?').all(id)
+    waitings: core.db.prepare('SELECT * FROM waitings WHERE conversation_id = ?').all(id),
+    waitingEvents: core.db
+      .prepare(
+        `SELECT kind, payload FROM events WHERE entity = 'waiting'
+          AND entity_id IN (SELECT id FROM waitings WHERE conversation_id = ?)`
+      )
+      .all(id)
+  })
+}
+
+/** A waiting answered by the letter `ts`, with the snapshot event the reply reader writes. */
+function answered(core: PulseCore, id: string, conversationId: string, ts: string, text: string) {
+  core.transaction(() => {
+    core.db
+      .prepare(
+        `INSERT INTO waitings (id, direction, title, source, created_at, conversation_id, reply, reply_author, reply_ts, replied_at)
+         VALUES (?, 'on-them', 'Renewal', 'test', ?, ?, ?, 'Ann Lee', ?, ?)`
+      )
+      .run(id, NOW - 2 * DAY, conversationId, text, ts, NOW - DAY)
+    core.emit('waiting.replied', 'waiting', id, {
+      id,
+      reply: text,
+      replyAuthor: 'Ann Lee',
+      replyAuthorId: 'ann@acme.example',
+      replyLink: 'https://mail.google.com/mail/#all/thread-a',
+      replyTs: ts,
+      repliedAt: NOW - DAY
+    })
   })
 }
 
@@ -68,13 +95,8 @@ function decorate(core: PulseCore, conversationId: string, key: string, ts: stri
          VALUES (?, ?, 'gmail', 'kind', 'reply', 'model', 'Ann wants the renewal', ?)`
       )
       .run(`attr-${conversationId}`, key, NOW)
-    core.db
-      .prepare(
-        `INSERT INTO waitings (id, direction, title, source, created_at, conversation_id, reply, reply_author, reply_ts, replied_at)
-         VALUES (?, 'on-them', 'Renewal', 'test', ?, ?, 'Secret letter text', 'Ann Lee', ?, ?)`
-      )
-      .run(`wait-${conversationId}`, NOW - 2 * DAY, conversationId, ts, NOW - DAY)
   })
+  answered(core, `wait-${conversationId}`, conversationId, ts, 'Secret letter text')
 }
 
 describe('forgetLedgerMail', () => {
@@ -145,12 +167,16 @@ describe('forgetLedgerMail', () => {
       core,
       letter({ key: 'gmail:thread-b', ts: 'new', at: NOW - DAY, text: 'Fresh words' })
     )
+    answered(core, 'wait-old', going.conversationId, 'old', 'Old answer')
+    answered(core, 'wait-new', going.conversationId, 'new', 'Fresh answer')
 
     expect(forgetLedgerMail(core, cutoff)).toEqual({ conversations: 1, messages: 2 })
 
     expect(dump(core, quiet.conversationId)).not.toContain('Secret letter text')
     const left = dump(core, going.conversationId)
     expect(left).toContain('Fresh words')
+    expect(left).toContain('Fresh answer')
     expect(left).not.toContain('Old words')
+    expect(left).not.toContain('Old answer')
   })
 })
