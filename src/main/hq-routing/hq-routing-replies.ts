@@ -15,9 +15,7 @@ import {
   hqReplyCardNote,
   hqReplyPrechecks,
   hqReplyVerdictPrompt,
-  hqReplyOwnerTalkPrompt,
   hqReplyVerdictReasons,
-  parseHqReplyOwnerTalk,
   parseHqReplyVerdict,
   type HqReplyAskedPerson,
   type HqReplyCardReason,
@@ -25,6 +23,7 @@ import {
   type HqReplyRule
 } from '../../shared/hq-reply-routing'
 import { hqReplyGitLabDone, hqReplyGitLabFact } from '../../shared/hq-reply-gitlab'
+import { hqReplyOwnerTalkPrompt, parseHqReplyOwnerTalk } from '../../shared/hq-reply-owner-talk'
 import { HQ_ROUTING_KIND, HQ_ROUTING_SOURCE } from '../../shared/hq-routing'
 import type { HqWaitingReplyPassResult } from '../../shared/hq-waiting-reply-bell'
 import { hqWaitingReplyPrompt } from '../../shared/hq-waiting-replies'
