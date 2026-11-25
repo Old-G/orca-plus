@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type { DashboardCard, DashboardWorkspace } from '../../../../../shared/agent-status/presentation/dashboard-snapshot'
+import type {
+  DashboardCard,
+  DashboardWorkspace
+} from '../../../../../shared/agent-status/presentation/dashboard-snapshot'
 import type { Tab } from '../../../../../shared/workspace-layout/tab-groups/tab-types'
-import { structuredAgentSessionTabId } from '../../../../../shared/agent-session/view/structured-agent-session-projection'
 import { buildHqChatList } from '../hq/hq-chat-list'
 import {
   hqPlusChatIsIdle,
-  hqPlusChatOfSession,
   hqPlusChatWaitingFor,
   hqPlusChatWaitingLabel,
   hqPlusProjectChats,
@@ -56,49 +57,103 @@ const card = (tabId: string, bucket: DashboardCard['bucket'], at: number): Dashb
 })
 
 describe('HQ+ chats', () => {
-  it('lists chats under their project, the project that waits on the owner first', () => {
-    const other: DashboardWorkspace = {
+  // Custom build (hq-stable-chat-order, owner 25.11): the column never reorders itself.
+  it('keeps every chat and project in place whatever the chats do; a new chat takes the top of its project', () => {
+    const beta: DashboardWorkspace = {
       ...workspace,
       repoId: 'repo-2',
       worktreeId: 'wt-2',
       repoName: 'beta'
     }
-    const fresh = structuredAgentSessionTabId('claude_new')
-    const asking = { ...chatTab('tab-ask'), worktreeId: 'wt-2' }
-    const items = buildHqChatList(
-      {
-        workspaces: [workspace, other],
-        cards: [
-          card(fresh, 'working', 50),
-          card('tab-old', 'done', 40),
-          { ...card('tab-ask', 'attention', 30), repoId: 'repo-2', worktreeId: 'wt-2' }
-        ]
-      },
-      [chatTab(fresh), chatTab('tab-old'), asking]
+    const tab = (id: string, createdAt: number, worktreeId = 'wt-1'): Tab => ({
+      ...chatTab(id),
+      worktreeId,
+      createdAt
+    })
+    const tabs = [tab('a1', 10), tab('a2', 20), tab('a3', 30), tab('b1', 15, 'wt-2')]
+    const inBeta = (c: DashboardCard): DashboardCard => ({
+      ...c,
+      repoId: 'repo-2',
+      worktreeId: 'wt-2'
+    })
+    const order = (side: ReturnType<typeof hqPlusProjectChats>): string[][] =>
+      side.projects.map((project) => [
+        project.repoId,
+        ...project.items.map((item) => (item.kind === 'chat' ? item.tab.id : item.key))
+      ])
+    const repoOrder = ['repo-2', 'repo-1']
+    const before = hqPlusProjectChats(
+      buildHqChatList(
+        {
+          workspaces: [workspace, beta],
+          cards: [
+            card('a1', 'done', 100),
+            card('a2', 'working', 90),
+            inBeta(card('b1', 'done', 80))
+          ]
+        },
+        tabs
+      ),
+      [],
+      [],
+      repoOrder
     )
+    expect(order(before)).toEqual([
+      ['repo-2', 'b1'],
+      ['repo-1', 'a3', 'a2', 'a1']
+    ])
 
-    const side = hqPlusProjectChats(items, [], [])
+    // The oldest chat starts asking, the newest starts working, beta finishes: nothing moves.
+    const busy = hqPlusProjectChats(
+      buildHqChatList(
+        {
+          workspaces: [workspace, beta],
+          cards: [
+            card('a1', 'attention', 500),
+            card('a2', 'done', 400),
+            card('a3', 'working', 600),
+            { ...inBeta(card('b1', 'done', 700)), unseen: true }
+          ]
+        },
+        tabs
+      ),
+      [],
+      [],
+      repoOrder
+    )
+    expect(order(busy)).toEqual(order(before))
 
-    expect(side.projects.map((project) => project.repoId)).toEqual(['repo-2', 'repo-1'])
-    expect(side.projects[1]?.items[0]?.key).toContain(fresh)
-    expect(hqPlusChatOfSession(items, 'claude_new')?.group).toBe('working')
-    expect(hqPlusChatOfSession(items, 'claude_gone')).toBeNull()
+    const opened = hqPlusProjectChats(
+      buildHqChatList({ workspaces: [workspace, beta], cards: [card('a1', 'attention', 500)] }, [
+        ...tabs,
+        tab('a4', 40)
+      ]),
+      [],
+      [],
+      repoOrder
+    )
+    expect(order(opened)).toEqual([
+      ['repo-2', 'b1'],
+      ['repo-1', 'a4', 'a3', 'a2', 'a1']
+    ])
   })
 
-  it('lifts a marked chat out of its project', () => {
-    const items = buildHqChatList(
-      {
-        workspaces: [workspace],
-        cards: [card('tab-a', 'working', 50), card('tab-b', 'working', 40)]
-      },
-      [chatTab('tab-a'), chatTab('tab-b')]
-    )
-    const marked = items.find((item) => item.key.includes('tab-b'))?.key ?? ''
+  it('lifts a marked chat out of its project and keeps it there when it starts asking', () => {
+    const items = (bucket: DashboardCard['bucket']) =>
+      buildHqChatList(
+        {
+          workspaces: [workspace],
+          cards: [card('tab-a', 'working', 50), card('tab-b', bucket, 40)]
+        },
+        [chatTab('tab-a'), chatTab('tab-b')]
+      )
+    const marked = items('working').find((item) => item.key.includes('tab-b'))?.key ?? ''
 
-    const side = hqPlusProjectChats(items, [], [marked])
-
-    expect(side.marked.map((item) => item.key)).toEqual([marked])
-    expect(side.projects[0]?.items.map((item) => item.key)).not.toContain(marked)
+    for (const bucket of ['working', 'attention'] as const) {
+      const side = hqPlusProjectChats(items(bucket), [], [marked])
+      expect(side.marked.map((item) => item.key)).toEqual([marked])
+      expect(side.projects[0]?.items.map((item) => item.key)).not.toContain(marked)
+    }
   })
 
   it('folds as idle only chats that finished and were read, not unread, working or just opened', () => {

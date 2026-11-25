@@ -66,7 +66,8 @@ function chat(
     projectName: 'Acme',
     worktreeName: 'main',
     hostKind: 'local',
-    sortAt: at
+    sortAt: at,
+    placedAt: at
   }
 }
 

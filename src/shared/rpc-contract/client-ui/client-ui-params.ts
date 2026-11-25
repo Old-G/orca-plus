@@ -274,6 +274,7 @@ export const UiUpdateFields = lazyZodSchema(() =>
         .optional(),
       windowMaximized: z.boolean().optional(),
       _sortBySmartMigrated: z.boolean().optional(),
+      _orcaPlusStableSortMigrated: z.boolean().optional(),
       _inlineAgentsDefaultedForExperiment: z.boolean().optional(),
       _inlineAgentsDefaultedForAllUsers: z.boolean().optional(),
       trustedOrcaHooks: z.record(z.string(), z.unknown()).optional(),

@@ -255,6 +255,8 @@ export type PersistedUIState = {
   dashboardPopoutBounds?: { x: number; y: number; width: number; height: number } | null
   /** Migrate legacy recent→smart once so later activity-based recent selections survive. */
   _sortBySmartMigrated?: boolean
+  /** Custom build (stable-sidebar-order): Orca+ moved an activity sort to Manual once; a later pick stays. */
+  _orcaPlusStableSortMigrated?: boolean
   /** Rollback field only: every load stamps it, so it cannot gate migration; use _inlineAgentsDefaultedForAllUsers. */
   _inlineAgentsDefaultedForExperiment?: boolean
   /** One-shot flag for the inline-agents default-on rollout; distinct from _inlineAgentsDefaultedForExperiment, which was stamped every load and is permanently dirty. */

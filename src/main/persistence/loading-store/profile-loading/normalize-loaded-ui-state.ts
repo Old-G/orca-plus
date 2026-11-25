@@ -46,6 +46,12 @@ export function normalizeLoadedUiState(
   const rawSort = parsed.ui?.sortBy
   const sort = normalizeSortBy(rawSort)
   const migrate = !parsed.ui?._sortBySmartMigrated && rawSort === 'recent'
+  // Custom build (stable-sidebar-order, owner 25.11): Orca+ moves an activity sort (Smart, Recent) to
+  // Manual once, so a workspace keeps its place and a new one lands on top; a later pick in the menu stays.
+  const stableSort = parsed.ui?._orcaPlusStableSortMigrated !== true
+  if (stableSort) {
+    markNeedsSave()
+  }
   const rightSidebarOpen =
     typeof parsed.ui?.rightSidebarOpen === 'boolean'
       ? parsed.ui.rightSidebarOpen
@@ -228,7 +234,13 @@ export function normalizeLoadedUiState(
       parsed.ui?.setupGuideBrowserMilestoneLegacyComplete === true,
     // Persist pending notices before windows exist so a crash cannot discard them.
     osc52ClipboardDefaultOnNoticePending: osc52ClipboardNoticePending,
-    sortBy: migrate ? ('smart' as const) : sort,
+    sortBy:
+      stableSort && (migrate || sort === 'smart' || sort === 'recent')
+        ? ('manual' as const)
+        : migrate
+          ? ('smart' as const)
+          : sort,
+    _orcaPlusStableSortMigrated: true,
     _explorerDisplayRootMigrated: true,
     explorerDisplayRootByWorktree,
     gitGraphFiltersByWorktree: normalizeGitGraphFilters(parsed.ui?.gitGraphFiltersByWorktree),

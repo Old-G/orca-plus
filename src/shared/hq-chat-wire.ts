@@ -25,7 +25,9 @@ export const HqChatWireItemSchema = z.object({
   /** Custom build (hq-spaces): places the chat in its workspace; absent from older Macs. */
   repoId: z.string().max(200).optional(),
   /** Custom build (hq-plus-phone): the native chat's session, as HQ+'s feed names it; absent from older Macs. */
-  sessionId: z.string().max(200).nullable().optional()
+  sessionId: z.string().max(200).nullable().optional(),
+  /** Custom build (hq-stable-chat-order): when the chat took its place; absent from older Macs. */
+  placedAt: z.number().optional()
 })
 export type HqChatWireItem = z.infer<typeof HqChatWireItemSchema>
 
@@ -55,4 +57,19 @@ export function groupHqChatWire(
     groups[item.group].push(item)
   }
   return groups
+}
+
+/**
+ * Custom build (hq-stable-chat-order, owner 25.11): the open chats by project in an order that what the
+ * chats do never changes — newest chat first in its project, the project of the newest chat first. A
+ * Mac that sends no `placedAt` keeps its own order.
+ */
+export function hqChatWireByProject(
+  items: readonly HqChatWireItem[]
+): { project: string; items: HqChatWireItem[] }[] {
+  const byProject = new Map<string, HqChatWireItem[]>()
+  for (const item of items.toSorted((a, b) => (b.placedAt ?? 0) - (a.placedAt ?? 0))) {
+    byProject.set(item.projectName, [...(byProject.get(item.projectName) ?? []), item])
+  }
+  return [...byProject].map(([project, chats]) => ({ project, items: chats }))
 }
