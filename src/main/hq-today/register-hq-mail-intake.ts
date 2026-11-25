@@ -193,6 +193,7 @@ function registerGitLabTodos(
 
 /** Custom build (hq-ledger-sources): letters from people (the intake reads only notices) into the ledger. */
 function registerMailLetters(store: Store, runtime: OrcaRuntimeService): void {
+  let sweepOldMail = (): void => {}
   const reader = startHqMailLedgerReader(
     {
       enabled: () => store.getSettings().hqLedger !== 'off' && gmailAccount() !== null,
@@ -212,19 +213,21 @@ function registerMailLetters(store: Store, runtime: OrcaRuntimeService): void {
           noTranscript: true
         }),
       setGuess: (id, guess) => runtime.pulseSetLedgerGuess(id, guess),
-      now: Date.now
+      now: Date.now,
+      onPoll: () => sweepOldMail()
     },
     hqLedgerErrorReporter('hq-mail-ledger', 'Letters from people not read', (rows) =>
       runtime.pulseRecordJournal(rows)
     )
   )
-  // Custom build (google-disconnect-forget): the mailbox's mail goes with its sign-in.
-  registerHqMailForget({
+  // Custom build (google-disconnect-forget): the mailbox's mail goes with its sign-in, and its text
+  // after 30 days, checked on the reader's poll.
+  sweepOldMail = registerHqMailForget({
     hqPath: () => store.getSettings().hqPath,
     forgetLedgerMail: (before) => runtime.pulseForgetLedgerMail(before),
     resetReader: reader.reset,
     now: Date.now
-  })
+  }).sweepQuiet
 }
 
 export function registerHqMailIntake(store: Store, runtime: OrcaRuntimeService): void {
