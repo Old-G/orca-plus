@@ -34,6 +34,8 @@ import {
   type GoogleAccountRecord
 } from './google-credential-store'
 import { checkGoogleServices } from './google-readiness'
+// Custom build (google-disconnect-forget)
+import { forgetGoogleAccount } from './google-account-forget'
 import { googleCallbackQuery, googlePromptExpectation } from './google-sign-in-return'
 import {
   GOOGLE_SIGN_IN_TTL_MS,
@@ -284,6 +286,8 @@ export class GoogleConnect {
         : record !== null
     }
     await removeGoogleAccount(email)
+    // Custom build (google-disconnect-forget): nothing kept from the account outlives its sign-in.
+    await forgetGoogleAccount(email)
     return { removed: email.toLowerCase(), revoked, defaultAccount: await this.defaultAccount() }
   }
 }

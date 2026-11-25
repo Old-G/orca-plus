@@ -32,3 +32,14 @@ export async function cachedFileText(
   }
   return made
 }
+
+// Custom build (google-disconnect-forget): a disconnected account's text goes at once, not when it ages out.
+/** Drops every file text kept for this account. */
+export function forgetCachedFileText(account: string): void {
+  const prefix = `${account.toLowerCase()}\n`
+  for (const name of entries.keys()) {
+    if (name.toLowerCase().startsWith(prefix)) {
+      entries.delete(name)
+    }
+  }
+}

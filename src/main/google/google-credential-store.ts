@@ -172,6 +172,13 @@ export async function hasGoogleAccount(email: string): Promise<boolean> {
 export async function removeGoogleAccount(email: string): Promise<void> {
   return inCredentialFileOrder(`${accountsDir()}.mutation`, async () => {
     await removeFile(accountPath(email))
+    // Custom build (google-disconnect-forget): a default naming the removed address goes with it, so
+    // the last account leaves no address behind; the next read promotes the oldest left. A pick this
+    // host can't read is kept, as above.
+    const saved = valueOf(await readJson(defaultAccountPath(), DefaultAccountSchema))
+    if (saved?.email.toLowerCase() === email.toLowerCase()) {
+      await removeFile(defaultAccountPath())
+    }
   })
 }
 
