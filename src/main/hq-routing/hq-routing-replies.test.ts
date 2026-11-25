@@ -234,6 +234,17 @@ describe('person.reply routing', () => {
     expect(decisions().every((row) => row.needs === 'nobody' && row.status === 'done')).toBe(true)
   })
 
+  it('makes money or production a card by the text alone, before the thanks sort can settle it', async () => {
+    const replies = routing()
+    talk = 'NOISE'
+    const money = answered('Thanks! It is $40 a month, as before')
+    const [first] = await replies.route(RULE, { dryRun: false })
+    expect(first?.kind).toBe('card')
+    expect(first?.reasons).toContain('money')
+    expect(asks('talk')).toBe(0)
+    expect(db.getWaiting(money.id)?.replyDeliveredAt).toBeNull()
+  })
+
   describe("GitLab's word on the asked MR", () => {
     const MR = 'https://gitlab.com/acme/api/-/merge_requests/319'
 
@@ -256,13 +267,18 @@ describe('person.reply routing', () => {
       return db.getWaiting(waiting.id) as PulseWaiting
     }
 
-    it('passes «merged» on the very MR the chat asked about, with no model', async () => {
+    it('passes «merged» on the very MR the chat asked about, the model reading only the fact', async () => {
       const replies = routing()
+      // Why: the question is about merging, which the verdict model may flag as prod; only
+      // completeness counts against GitLab's fact.
+      verdict = VERDICT({ prod: true })
       gitlab('GitLab: MR !319 (acme/api) merged by Ann — orders: read the replica, deploy notes')
       const [first] = await replies.route(RULE, { dryRun: false })
       expect(first?.kind).toBe('pass')
       expect(delivered).toHaveLength(1)
-      expect(judge).not.toHaveBeenCalled()
+      expect(asks('talk')).toBe(0)
+      expect(asks('verdict')).toBe(1)
+      expect(judge.mock.calls[0]?.[0]).not.toContain('deploy notes')
       // Why: the title and names are someone else's words; the chat gets only GitLab's fact.
       expect(delivered[0]?.prompt).toContain('GitLab: MR !319 (acme/api) merged')
       expect(delivered[0]?.prompt).not.toContain('deploy notes')
@@ -286,6 +302,40 @@ describe('person.reply routing', () => {
       ])
       expect(delivered).toEqual([])
     })
+
+    it('leaves «merged» to the owner when the chat asked more than the merge', async () => {
+      const replies = routing()
+      verdict = VERDICT({ complete: false, asked: 3, answered: 1 })
+      gitlab('GitLab: MR !319 (acme/api) merged by Ann')
+      const [first] = await replies.route(RULE, { dryRun: false })
+      expect(first?.kind).toBe('card')
+      expect(first?.reasons).toEqual(['partial'])
+      expect(delivered).toEqual([])
+    })
+
+    it.each([
+      ['a bare «!319» in the same project', 'acme-api', 'Deploy once !319 is merged', null, true],
+      ['its link in the detail', 'acme-web', 'Tell the docs chat', `Ping when ${MR} lands`, true],
+      ['a bare «!319» in another project', 'acme-web', 'Deploy once !319 is merged', null, false]
+    ])(
+      'counts another chat that names the MR only in its words: %s',
+      async (_case, project, title, detail, shared) => {
+        const replies = routing()
+        db.addWaiting({
+          direction: 'on-them',
+          title,
+          detail,
+          project,
+          source: 'slack',
+          sourceRef: DM,
+          agentSessionId: 'chat-2'
+        })
+        gitlab('GitLab: MR !319 (acme/api) merged by Ann')
+        const [first] = await replies.route(RULE, { dryRun: false })
+        expect(first?.kind).toBe(shared ? 'card' : 'pass')
+        expect(first?.reasons).toEqual(shared ? ['shared-message'] : [])
+      }
+    )
 
     it('leaves another MR, or one closed without merging, to the owner', async () => {
       const replies = routing()

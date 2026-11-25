@@ -13,6 +13,7 @@ import {
   HQ_REPLY_CARD_REASON,
   hqReplyAnswered,
   hqReplyCardNote,
+  hqReplyOwnerText,
   hqReplyPrechecks,
   hqReplyVerdictPrompt,
   hqReplyVerdictReasons,
@@ -149,16 +150,19 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
       all,
       waiting.personId ? deps.asked(waiting.personId) : null
     )
-    // Why: a card already for certain needs no model; the owner reads the answer anyway. GitLab's own
-    // notice on the asked MR is a fact, not words to weigh.
-    if (reasons.length > 0 || hqReplyGitLabDone(waiting)) {
+    // Why: a card already for certain needs no model; the owner reads the answer anyway.
+    if (reasons.length > 0) {
       return { reasons, answered: null }
     }
     const failed = unread.get(key(waiting))
     if (failed && deps.now() - failed.at < UNREAD_RETRY_MS) {
       return null
     }
-    const verdict = parseHqReplyVerdict((await deps.judge(hqReplyVerdictPrompt(waiting))) ?? '')
+    // Why (Codex 25.11): GitLab's notice says the MR is merged, not that the waiting asked nothing
+    // else; the model reads only GitLab's fact against the question, and only whether it settles it all.
+    const gitlab = hqReplyGitLabDone(waiting)
+    const read = gitlab ? { ...waiting, reply: hqReplyGitLabFact(waiting.reply) } : waiting
+    const verdict = parseHqReplyVerdict((await deps.judge(hqReplyVerdictPrompt(read))) ?? '')
     if (!verdict) {
       const tries = (failed?.tries ?? 0) + 1
       unread.set(key(waiting), { tries, at: deps.now() })
@@ -166,7 +170,16 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
         ? { reasons: [HQ_REPLY_CARD_REASON.unread], answered: null }
         : null
     }
-    return { reasons: hqReplyVerdictReasons(verdict), answered: hqReplyAnswered(verdict) }
+    const said = hqReplyVerdictReasons(verdict)
+    return {
+      reasons: gitlab
+        ? said.filter(
+            (reason) =>
+              reason === HQ_REPLY_CARD_REASON.notAnswer || reason === HQ_REPLY_CARD_REASON.partial
+          )
+        : said,
+      answered: hqReplyAnswered(verdict)
+    }
   }
 
   const record = async (
@@ -383,7 +396,9 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
         }
         // Custom build (hq-reply-auto, owner 25.11): with answers passing by themselves, a thanks and
         // the owner's own talk are still sorted out first, as with the rule off — neither is a card.
-        if (activeRule) {
+        // Why (Codex 25.11): money, production, a deadline, a question or instructions are a card by
+        // the text alone; no model verdict may settle them first, nor keep them waiting on its retries.
+        if (activeRule && !hqReplyOwnerText(waiting.reply)) {
           const owner = await talkOf(waiting)
           if (owner === null) {
             actions.push(
