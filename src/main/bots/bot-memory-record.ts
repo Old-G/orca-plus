@@ -258,7 +258,9 @@ export async function tagBotMemoryFile(
 
 /** The host's record, with history in Orca's data folder. */
 export function hostBotMemoryRecord(
-  fs: Pick<BotHomeFilesystem, 'readText' | 'replaceText' | 'writeText'>
+  fs: Pick<BotHomeFilesystem, 'readText' | 'replaceText' | 'writeText'>,
+  // Custom build (google-send-again-memory-30d): Google bots keep 30 days of history.
+  usesGoogle?: (botId: string) => boolean
 ): BotMemoryRecord {
-  return createBotMemoryRecord(fs, createBotMemoryHistory())
+  return createBotMemoryRecord(fs, createBotMemoryHistory(undefined, undefined, usesGoogle))
 }
