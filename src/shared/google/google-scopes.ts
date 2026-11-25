@@ -45,13 +45,9 @@ export const GOOGLE_SERVICE_INFO: Record<GoogleService, GoogleServiceInfo> = {
     ],
     api: 'calendar-json.googleapis.com'
   },
-  // Custom build (google-mcp): what Google's Drive, Docs and Sheets MCP servers list, not full Drive:
-  // every file is readable, and Orca may change only the files it made or was handed.
-  drive: {
-    label: 'Drive',
-    scopes: [`${SCOPE}drive.readonly`, `${SCOPE}drive.file`],
-    api: 'drive.googleapis.com'
-  },
+  // Custom build (google-mcp): full Drive while the Drive methods run on REST (Google's MCP servers are
+  // open only to preview projects); it covers the drive.readonly and drive.file the MCP server lists.
+  drive: { label: 'Drive', scopes: [`${SCOPE}drive`], api: 'drive.googleapis.com' },
   docs: {
     label: 'Docs',
     scopes: [`${SCOPE}documents.readonly`, `${SCOPE}documents`],
