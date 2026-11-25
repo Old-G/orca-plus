@@ -132,6 +132,18 @@ describe('a call to a Google MCP tool', () => {
     )
     expect('error' in notInPreview.outcome && notInPreview.outcome.error.mcpOff).toBe(true)
     expect('error' in toolError.outcome && toolError.outcome.error.mcpOff).toBeUndefined()
+    // A disabled account is not a turned-off MCP server: it must not send the method to REST.
+    const accountOff = await callWith(
+      Response.json(
+        {
+          jsonrpc: '2.0',
+          id: 1,
+          result: { isError: true, content: [{ type: 'text', text: 'This account is disabled.' }] }
+        },
+        { status: 403 }
+      )
+    )
+    expect('error' in accountOff.outcome && accountOff.outcome.error.mcpOff).toBeUndefined()
     const plainJson = await callWith(
       Response.json({
         jsonrpc: '2.0',
