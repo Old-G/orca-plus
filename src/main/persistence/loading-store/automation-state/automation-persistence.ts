@@ -36,6 +36,11 @@ import {
 } from '../../scheduling-automations/automation-definition-operations'
 import { deleteAutomation as deleteAutomationOperation } from '../../scheduling-automations/automation-definition-removal'
 import { foldAutomationEvent as foldAutomationEventOperation } from '../../scheduling-automations/automation-run-occurrence-folding'
+// Custom build (google-disconnect-forget)
+import {
+  forgetAutomationRunGoogleEvents as forgetAutomationRunGoogleEventsOperation,
+  type GoogleRunForget
+} from '../../scheduling-automations/automation-run-google-forget'
 import {
   updateAutomations as updateAutomationsOperation,
   type AutomationBatchUpdate,
@@ -222,6 +227,11 @@ export class AutomationPersistence {
       target,
       displayName
     )
+  }
+
+  // Custom build (google-disconnect-forget): Gmail and Calendar words leave run history.
+  forgetAutomationRunGoogleEvents(forget: GoogleRunForget): number {
+    return forgetAutomationRunGoogleEventsOperation(getAutomationRunOperations(this), forget)
   }
 
   advanceAutomationNextRun(id: string, now = Date.now()): Automation {
