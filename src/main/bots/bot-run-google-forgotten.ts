@@ -9,6 +9,8 @@ export const RUN_GOOGLE_EVENT_FORGOTTEN =
   "This run's Gmail or Calendar event was forgotten (the account was disconnected or the event is over 30 days old), so it can't be sent again."
 
 const GOOGLE_SOURCES = new Set(['gmail', 'calendar'])
+// What an unfinished run loses at a disconnect while it keeps folding by the event's key.
+const WORDS = ['text', 'actor', 'place', 'url'] as const
 
 /** True when the card's run came from Google and run history no longer keeps that event's words. */
 export function runGoogleEventForgotten(
@@ -25,8 +27,10 @@ export function runGoogleEventForgotten(
     return true
   }
   // Gone from history, event dropped (finished run) or words dropped (unfinished run): all forgotten.
+  // A run the history cap pruned is refused too: nothing left says its account is still connected.
   if (!stored?.event?.google) {
     return true
   }
-  return event.text !== undefined && stored.event.text === undefined
+  const kept = stored.event
+  return WORDS.some((field) => event[field] !== undefined && kept[field] === undefined)
 }
