@@ -112,5 +112,18 @@ describe('a call to a Google MCP tool', () => {
     expect('error' in rpcError.outcome && rpcError.outcome.error.message).toBe(
       'Google refused: Unknown tool'
     )
+    const plainJson = await callWith(
+      Response.json({
+        jsonrpc: '2.0',
+        id: 1,
+        result: {
+          isError: true,
+          content: [{ type: 'text', text: '{"message":"Invalid time range"}' }]
+        }
+      })
+    )
+    expect('error' in plainJson.outcome && plainJson.outcome.error.message).toBe(
+      'Google refused: Invalid time range'
+    )
   })
 })

@@ -228,7 +228,7 @@ export async function runGoogleSignIn(
         (error: unknown) => {
           throw fixedRedirect && (error as { code?: unknown } | null)?.code === 'EADDRINUSE'
             ? new Error(
-                `Another Google sign-in is using port ${googleRedirectPort(fixedRedirect)}. Finish or cancel it, then try again.`
+                `Port ${googleRedirectPort(fixedRedirect)} is in use, by another Google sign-in or another app. Finish that sign-in or close the app, then try again.`
               )
             : error
         }

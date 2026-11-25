@@ -92,9 +92,9 @@ const oneLine = (text: string): string => {
   const said =
     isRecord(json) && isRecord(json.error) && typeof json.error.message === 'string'
       ? json.error.message
-      : json === null
-        ? text
-        : ''
+      : isRecord(json) && typeof json.message === 'string'
+        ? json.message
+        : text
   const flat = said.replace(/\s+/g, ' ').trim()
   return flat.length > DETAIL_MAX ? `${flat.slice(0, DETAIL_MAX - 1)}…` : flat
 }
