@@ -5,6 +5,9 @@ const MAX_FILES = 8
 
 type Entry = { text: string; source: string; at: number }
 const entries = new Map<string, Entry>()
+// Custom build (google-disconnect-forget): bumped by each forget, so a read still converting when an
+// account was disconnected does not put its text back. Any account's read skips the cache then.
+let forgets = 0
 
 /** The text for this version of the file, made once and reused for a few minutes. */
 export async function cachedFileText(
@@ -21,7 +24,11 @@ export async function cachedFileText(
   if (hit && now - hit.at < TTL_MS) {
     return hit
   }
+  const forgetsBefore = forgets
   const made = { ...(await make()), at: now }
+  if (forgets !== forgetsBefore) {
+    return made
+  }
   entries.delete(name)
   entries.set(name, made)
   for (const [old, entry] of entries) {
@@ -36,6 +43,7 @@ export async function cachedFileText(
 // Custom build (google-disconnect-forget): a disconnected account's text goes at once, not when it ages out.
 /** Drops every file text kept for this account. */
 export function forgetCachedFileText(account: string): void {
+  forgets += 1
   const prefix = `${account.toLowerCase()}\n`
   for (const name of entries.keys()) {
     if (name.toLowerCase().startsWith(prefix)) {
