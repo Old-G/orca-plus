@@ -24,6 +24,7 @@ import {
   type HqReplyRouteAction,
   type HqReplyRule
 } from '../../shared/hq-reply-routing'
+import { hqReplyGitLabDone } from '../../shared/hq-reply-gitlab'
 import { HQ_ROUTING_KIND, HQ_ROUTING_SOURCE } from '../../shared/hq-routing'
 import type { HqWaitingReplyPassResult } from '../../shared/hq-waiting-reply-bell'
 import { hqWaitingReplyPrompt } from '../../shared/hq-waiting-replies'
@@ -93,6 +94,9 @@ function pendingAnswer(waiting: PulseWaiting): boolean {
 
 export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
   const unread = new Map<string, { tries: number; at: number }>()
+  /** Custom build (hq-reply-owner-talk): who acts on each answer, as the model said, by key. */
+  const talk = new Map<string, 'owner' | 'chat' | 'noise'>()
+  const unreadTalk = new Map<string, { tries: number; at: number }>()
   /** Custom build (hq-reply-owner-talk): answers already sorted with the rule off, by key. */
   const sorted = new Map<string, 'owner' | 'chat' | 'noise'>()
   /** Card notes by decision key, from this run and the journal. */
@@ -146,8 +150,9 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
       all,
       waiting.personId ? deps.asked(waiting.personId) : null
     )
-    // Why: a card already for certain needs no model; the owner reads the answer anyway.
-    if (reasons.length > 0) {
+    // Why: a card already for certain needs no model; the owner reads the answer anyway. GitLab's own
+    // notice on the asked MR is a fact, not words to weigh.
+    if (reasons.length > 0 || hqReplyGitLabDone(waiting)) {
       return { reasons, answered: null }
     }
     const failed = unread.get(key(waiting))
@@ -238,6 +243,61 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
   }
 
   /**
+   * Custom build (hq-reply-owner-talk): who acts on an answer — the asking chat, the owner in Slack, or
+   * nobody (a thanks). Asked once per answer; null while the model has not answered and may be asked again.
+   */
+  const talkOf = async (waiting: PulseWaiting): Promise<'owner' | 'chat' | 'noise' | null> => {
+    const id = key(waiting)
+    const known = talk.get(id)
+    if (known) {
+      return known
+    }
+    // Why: GitLab's word that the MR is merged is always the chat's to act on.
+    if (waiting.replyAuthorId === HQ_GITLAB_AUTHOR_ID) {
+      talk.set(id, 'chat')
+      return 'chat'
+    }
+    const failed = unreadTalk.get(id)
+    if (failed && deps.now() - failed.at < UNREAD_RETRY_MS) {
+      return null
+    }
+    const owner = parseHqReplyOwnerTalk(
+      (await deps.judge(hqReplyOwnerTalkPrompt(waiting)).catch(() => null)) ?? ''
+    )
+    if (owner === null) {
+      const tries = (failed?.tries ?? 0) + 1
+      unreadTalk.set(id, { tries, at: deps.now() })
+      if (tries < UNREAD_TRIES) {
+        return null
+      }
+    }
+    talk.set(id, owner ?? 'chat')
+    return owner ?? 'chat'
+  }
+
+  /** The owner's own talk keeps its card as his move in Slack; a thanks is handled with none. */
+  const settleTalk = async (
+    waiting: PulseWaiting,
+    owner: 'owner' | 'noise'
+  ): Promise<HqReplyRouteAction> => {
+    if (owner === 'noise') {
+      // Why (owner 09.11): «спасибо, всё супер» made a card to pass on to the chat — thanks, praise
+      // and small talk are nobody's work. The waiting stays open for a real answer.
+      deps.skip(waiting.id, waiting.replyTs ?? '')
+      const done = action(waiting, 'wait', { note: 'thanks or small talk, no card' })
+      await record(waiting, done, `${done.author}: thanks or small talk — no card`, false)
+      return done
+    }
+    // Why (owner 04.11): settled quietly, 76 answers since 28.10 reached nobody — a colleague's «merged,
+    // testing now» among them. The card stays, marked as his move in Slack, until he clears it.
+    const note = 'Your move in Slack: this answers you, not the chat'
+    notes.set(decidedKey(waiting), note)
+    const done = action(waiting, 'wait', { note })
+    await record(waiting, done, `${done.author} answered — yours to reply in Slack`, false)
+    return done
+  }
+
+  /**
    * Custom build (hq-reply-owner-talk): with the rule off, each new answer is asked once whether the
    * asking chat or the owner acts on it; the owner's own talk keeps its card, marked as his move in Slack.
    */
@@ -246,56 +306,21 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
     // Why: a verdict for the chat writes nothing to pulse, so the bell would keep the answer hidden
     // until its next 30-minute look; the owner's and noise verdicts write a journal row instead.
     let released = false
-    const release = (id: string): void => {
-      sorted.set(id, 'chat')
-      released = true
-    }
     for (const waiting of deps.listWaitings().filter(pendingAnswer)) {
       const id = key(waiting)
       if (sorted.has(id)) {
         continue
       }
-      // Why: GitLab's word that the MR is merged is always the chat's to act on.
-      if (waiting.replyAuthorId === HQ_GITLAB_AUTHOR_ID) {
-        release(id)
-        continue
-      }
-      const failed = unread.get(id)
-      if (failed && deps.now() - failed.at < UNREAD_RETRY_MS) {
-        continue
-      }
-      const owner = parseHqReplyOwnerTalk(
-        (await deps.judge(hqReplyOwnerTalkPrompt(waiting)).catch(() => null)) ?? ''
-      )
+      const owner = await talkOf(waiting)
       if (owner === null) {
-        const tries = (failed?.tries ?? 0) + 1
-        unread.set(id, { tries, at: deps.now() })
-        if (tries >= UNREAD_TRIES) {
-          release(id)
-        }
-        continue
-      }
-      if (owner === 'chat') {
-        release(id)
         continue
       }
       sorted.set(id, owner)
-      if (owner === 'noise') {
-        // Why (owner 09.11): «спасибо, всё супер» made a card to pass on to the chat — thanks, praise
-        // and small talk are nobody's work. The waiting stays open for a real answer.
-        deps.skip(waiting.id, waiting.replyTs ?? '')
-        const done = action(waiting, 'wait', { note: 'thanks or small talk, no card' })
-        await record(waiting, done, `${done.author}: thanks or small talk — no card`, false)
-        actions.push(done)
+      if (owner === 'chat') {
+        released = true
         continue
       }
-      // Why (owner 04.11): settled quietly, 76 answers since 28.10 reached nobody — a colleague's «merged,
-      // testing now» among them. The card stays, marked as his move in Slack, until he clears it.
-      const note = 'Your move in Slack: this answers you, not the chat'
-      notes.set(decidedKey(waiting), note)
-      const done = action(waiting, 'wait', { note })
-      await record(waiting, done, `${done.author} answered — yours to reply in Slack`, false)
-      actions.push(done)
+      actions.push(await settleTalk(waiting, owner))
     }
     if (released) {
       deps.changed?.()
@@ -351,6 +376,30 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
       for (const waiting of candidates) {
         if (since !== null && (waiting.repliedAt ?? 0) < since) {
           continue
+        }
+        // Custom build (hq-reply-auto, owner 25.11): with answers passing by themselves, a thanks and
+        // the owner's own talk are still sorted out first, as with the rule off — neither is a card.
+        if (activeRule) {
+          const owner = await talkOf(waiting)
+          if (owner === null) {
+            actions.push(
+              action(waiting, 'wait', { note: 'the model did not answer; asked again later' })
+            )
+            continue
+          }
+          if (owner !== 'chat') {
+            actions.push(
+              options.dryRun
+                ? action(waiting, 'wait', {
+                    note:
+                      owner === 'noise'
+                        ? 'thanks or small talk, no card'
+                        : 'yours to reply in Slack'
+                  })
+                : await settleTalk(waiting, owner)
+            )
+            continue
+          }
         }
         const judged = await judge(waiting, all)
         if (!judged) {

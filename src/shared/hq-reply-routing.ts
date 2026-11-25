@@ -1,6 +1,8 @@
 // Custom build (hq-plus-person-replies): when a person's answer may go to the chat that asked without
 // the owner. Only a clear, complete answer said where the question was asked passes by itself; money,
 // production, a deadline, a new request, a counter-question, a partial answer or any doubt is a card.
+/* eslint-disable max-lines -- Why: the rule's prechecks, word lists and both model prompts read as one; split when it next grows */
+import { hqReplyGitLabDone } from './hq-reply-gitlab'
 import type { PulseWaiting } from './pulse-types'
 import { parseClickUpCommentRef, parseSlackThreadRef } from './hq-waiting-replies'
 
@@ -123,6 +125,14 @@ function mentions(text: string, patterns: readonly RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text))
 }
 
+/** The same message recorded as the answer to another waiting too. */
+function sharedReply(waiting: PulseWaiting, others: readonly PulseWaiting[]): boolean {
+  return others.some(
+    (other) =>
+      other.id !== waiting.id && other.replyTs === waiting.replyTs && other.reply === waiting.reply
+  )
+}
+
 /** The same place: a DM conversation, the same channel thread, or the same ClickUp task. */
 export function hqReplySameVenue(waiting: Pick<PulseWaiting, 'sourceRef' | 'replyLink'>): boolean {
   const askedSlack = parseSlackThreadRef(waiting.sourceRef)
@@ -151,6 +161,10 @@ export function hqReplyPrechecks(
   if (!waiting.agentSessionId) {
     reasons.push(HQ_REPLY_CARD_REASON.noChat)
   }
+  if (hqReplyGitLabDone(waiting)) {
+    // Why: one notice matched to several waitings may mean several chats; the owner picks.
+    return sharedReply(waiting, others) ? [...reasons, HQ_REPLY_CARD_REASON.shared] : reasons
+  }
   // Why: anyone can write in a thread or a task; only the person asked may unblock the chat alone.
   const author = waiting.replyAuthorId ?? null
   if (!author || !asked || (author !== asked.slackUserId && author !== asked.clickupUserId)) {
@@ -165,12 +179,7 @@ export function hqReplyPrechecks(
   if (!hqReplySameVenue(waiting)) {
     reasons.push(HQ_REPLY_CARD_REASON.otherVenue)
   }
-  if (
-    others.some(
-      (other) =>
-        other.id !== waiting.id && other.replyTs === waiting.replyTs && other.reply === reply
-    )
-  ) {
+  if (sharedReply(waiting, others)) {
     reasons.push(HQ_REPLY_CARD_REASON.shared)
   }
   if (reply.includes('?')) {

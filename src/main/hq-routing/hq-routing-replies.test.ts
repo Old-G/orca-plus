@@ -29,6 +29,15 @@ let verdict: string | null
 let chatOpen: boolean
 let delivered: { sessionId: string | null; prompt: string }[]
 let judge: ReturnType<typeof vi.fn<(prompt: string) => Promise<string | null>>>
+/** What the model says on who acts on an answer (CHAT, OWNER or NOISE). */
+let talk: string | null
+
+const TALK_PROMPT = 'CHAT, OWNER or NOISE'
+/** The model's calls of one kind: who acts on an answer, or the verdict on passing it. */
+function asks(kind: 'talk' | 'verdict'): number {
+  return judge.mock.calls.filter(([prompt]) => prompt.includes(TALK_PROMPT) === (kind === 'talk'))
+    .length
+}
 
 function routing() {
   return createHqReplyRouting(routingDeps())
@@ -118,7 +127,8 @@ beforeEach(() => {
   verdict = VERDICT()
   chatOpen = true
   delivered = []
-  judge = vi.fn(async (_prompt: string) => verdict)
+  talk = 'CHAT'
+  judge = vi.fn(async (prompt: string) => (prompt.includes(TALK_PROMPT) ? talk : verdict))
 })
 
 describe('person.reply routing', () => {
@@ -137,7 +147,7 @@ describe('person.reply routing', () => {
       { title: "Ann's answer passed to acme-api/orders by rule", needs: 'nobody', status: 'done' }
     ])
     expect(await replies.route(RULE, { dryRun: false })).toEqual([])
-    expect(judge).toHaveBeenCalledTimes(1)
+    expect([asks('talk'), asks('verdict')]).toEqual([1, 1])
   })
 
   it('leaves money, a partial answer or a model in doubt to the owner, with the reason on the card', async () => {
@@ -151,7 +161,7 @@ describe('person.reply routing', () => {
       ['card', ['partial']]
     ])
     // Why: money was certain from the text alone; no model was asked about it.
-    expect(judge).toHaveBeenCalledTimes(1)
+    expect(asks('verdict')).toBe(1)
     expect(delivered).toEqual([])
     expect(replies.note(money).why).toBe('Not passed by itself: money.')
     expect(replies.note(partial).why).toBe('Not passed by itself: partial answer (1 of 3).')
@@ -173,12 +183,12 @@ describe('person.reply routing', () => {
     expect((await replies.route(RULE, { dryRun: false }))[0]?.kind).toBe('wait')
     expect(replies.note(waiting).hold).toBe(true)
     await replies.route(RULE, { dryRun: false })
-    expect(judge).toHaveBeenCalledTimes(1)
+    expect(asks('verdict')).toBe(1)
     clock += 5 * 60_000
     await replies.route(RULE, { dryRun: false })
     clock += 5 * 60_000
     const [last] = await replies.route(RULE, { dryRun: false })
-    expect(judge).toHaveBeenCalledTimes(3)
+    expect([asks('talk'), asks('verdict')]).toEqual([1, 3])
     expect(last?.reasons).toEqual(['unread'])
     clock += HQ_REPLY_HOLD_MS
     expect(replies.note(waiting)).toEqual({
@@ -196,11 +206,78 @@ describe('person.reply routing', () => {
     expect(db.getWaiting(waiting.id)?.replyDeliveredAt).toBeNull()
   })
 
-  it('leaves an answer someone else wrote to the owner, before any model reads it', async () => {
+  it('leaves an answer someone else wrote to the owner, before the verdict model reads it', async () => {
     const replies = routing()
     answered('The orders live in the reporting replica.', {}, 'U0BOB')
     expect((await replies.route(RULE, { dryRun: false }))[0]?.reasons).toEqual(['other-author'])
-    expect(judge).not.toHaveBeenCalled()
+    expect(asks('verdict')).toBe(0)
+  })
+
+  // 25.11 (итоги дня №2): with the rule on, a thanks and the owner's own talk still make no pass and no card.
+  it('with the rule on still handles a thanks with no card and leaves the owner his own talk', async () => {
+    const replies = routing()
+    talk = 'NOISE'
+    const thanks = answered('Thank you so much, it all adds up!')
+    const [first] = await replies.route(RULE, { dryRun: false })
+    expect(first).toEqual(
+      expect.objectContaining({ kind: 'wait', note: 'thanks or small talk, no card' })
+    )
+    expect(db.getWaiting(thanks.id)?.replyDeliveredAt).toEqual(expect.any(Number))
+    expect(db.getWaiting(thanks.id)?.status).toBe('open')
+    talk = 'OWNER'
+    const news = answered('License goes through Priority support now, it depends on them')
+    await replies.route(RULE, { dryRun: false })
+    expect(replies.note(news).why).toBe('Your move in Slack: this answers you, not the chat')
+    expect(db.getWaiting(news.id)?.replyDeliveredAt).toBeNull()
+    expect(delivered).toEqual([])
+    expect(asks('verdict')).toBe(0)
+    expect(decisions().every((row) => row.needs === 'nobody' && row.status === 'done')).toBe(true)
+  })
+
+  describe("GitLab's word on the asked MR", () => {
+    const MR = 'https://gitlab.com/acme/api/-/merge_requests/319'
+
+    function gitlab(reply: string, link = MR, sourceRef = MR): PulseWaiting {
+      const waiting = db.addWaiting({
+        direction: 'on-them',
+        title: `Merge !319 after the green pipeline? (${(asked += 1)})`,
+        project: 'acme-api',
+        source: 'gitlab',
+        sourceRef,
+        agentSessionId: 'chat-1'
+      })
+      db.recordWaitingReply(waiting.id, {
+        text: reply,
+        author: 'GitLab',
+        ts: '1792184300.000200',
+        link,
+        authorId: 'gitlab'
+      })
+      return db.getWaiting(waiting.id) as PulseWaiting
+    }
+
+    it('passes «merged» on the very MR the chat asked about, with no model', async () => {
+      const replies = routing()
+      gitlab('GitLab: MR !319 (acme/api) merged by Ann — orders: read the replica, deploy notes')
+      const [first] = await replies.route(RULE, { dryRun: false })
+      expect(first?.kind).toBe('pass')
+      expect(delivered).toHaveLength(1)
+      expect(judge).not.toHaveBeenCalled()
+    })
+
+    it('leaves another MR, or one closed without merging, to the owner', async () => {
+      const replies = routing()
+      gitlab(
+        'GitLab: MR !318 (acme/api) merged by Ann',
+        'https://gitlab.com/acme/api/-/merge_requests/318'
+      )
+      gitlab('GitLab: MR !319 (acme/api) closed without merging')
+      const actions = await replies.route(RULE, { dryRun: false })
+      expect(actions.map((action) => action.kind)).toEqual(['card', 'card'])
+      expect(actions[0]?.reasons).toContain('other-venue')
+      expect(actions[1]?.reasons).toContain('other-author')
+      expect(delivered).toEqual([])
+    })
   })
 
   it("without the rule only sorts out the owner's own talk; a dry run looks back over handled ones", async () => {
