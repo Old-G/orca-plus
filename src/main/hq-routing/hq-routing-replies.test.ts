@@ -245,14 +245,22 @@ describe('person.reply routing', () => {
     expect(db.getWaiting(money.id)?.replyDeliveredAt).toBeNull()
   })
 
-  it("keeps the owner's own talk marked as his move in Slack after a restart", async () => {
-    talk = 'OWNER'
-    const news = answered('License goes through Priority support now, it depends on them')
-    await routing().route(RULE, { dryRun: false })
-    const restarted = routing()
-    await restarted.route(RULE, { dryRun: false })
-    expect(restarted.note(news).why).toBe('Your move in Slack: this answers you, not the chat')
-  })
+  it.each([
+    ['on', RULE],
+    ['off', null]
+  ] as const)(
+    "with the rule %s keeps the owner's own talk his move in Slack after a restart, unasked",
+    async (_case, rule) => {
+      talk = 'OWNER'
+      const news = answered('License goes through Priority support now, it depends on them')
+      await routing().route(rule, { dryRun: false })
+      const restarted = routing()
+      talk = 'CHAT'
+      await restarted.route(rule, { dryRun: false })
+      expect(restarted.note(news).why).toBe('Your move in Slack: this answers you, not the chat')
+      expect(asks('talk')).toBe(1)
+    }
+  )
 
   describe("GitLab's word on the asked MR", () => {
     const MR = 'https://gitlab.com/acme/api/-/merge_requests/319'
@@ -349,6 +357,30 @@ describe('person.reply routing', () => {
         [linked.id, 'pass', []],
         [bare.id, 'card', ['other-author', 'other-venue']]
       ])
+    })
+
+    it('keeps the MR in the source the asked one: a related MR linked in the detail is a card', async () => {
+      const replies = routing()
+      const other = 'https://gitlab.com/acme/api/-/merge_requests/320'
+      const waiting = db.addWaiting({
+        direction: 'on-them',
+        title: `Merge !319 after the green pipeline (${(asked += 1)})`,
+        detail: `It needs ${other} first`,
+        project: 'acme-api',
+        source: 'gitlab',
+        sourceRef: MR,
+        agentSessionId: 'chat-1'
+      })
+      db.recordWaitingReply(waiting.id, {
+        text: 'GitLab: MR !320 (acme/api) merged by Ann',
+        author: 'GitLab',
+        ts: '1792184300.000200',
+        link: other,
+        authorId: 'gitlab'
+      })
+      const [first] = await replies.route(RULE, { dryRun: false })
+      expect(first?.kind).toBe('card')
+      expect(delivered).toEqual([])
     })
 
     it('leaves «merged» to the owner when the chat asked more than the merge', async () => {
