@@ -177,7 +177,12 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
     }
     const commits = await commitsOf(hqPath, findings)
     if (action.kind === 'continue' && action.sessionId && action.address) {
-      if (await deps.deliver(action.sessionId, hqCodexFixFollowUp({ findings, commits }))) {
+      if (
+        await deps.deliver(
+          action.sessionId,
+          hqCodexFixFollowUp({ findings, commits, level: action.level ?? 1 })
+        )
+      ) {
         take(findings, action.address)
         deps.pulse.record([
           actionRow(action, `Codex: ${count} more handed to ${action.address}`, 'nobody', null)
