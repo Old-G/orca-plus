@@ -180,7 +180,13 @@ export function createHqRouting(deps: HqRoutingDeps): HqRoutingService {
       if (
         await deps.deliver(
           action.sessionId,
-          hqCodexFixFollowUp({ findings, commits, level: action.level ?? 1 })
+          hqCodexFixFollowUp({
+            findings,
+            commits,
+            project: action.project,
+            address: action.address,
+            level: action.level ?? 1
+          })
         )
       ) {
         take(findings, action.address)

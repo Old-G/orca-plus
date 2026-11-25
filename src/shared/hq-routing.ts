@@ -92,6 +92,6 @@ export type HqSettleResult = { settled: boolean; entryId: string; status: 'done'
 /** Custom build (hq-fix-now-all): `hq.mergeSlot` — the slot taken, refused (held by someone else) or given back. */
 export type HqMergeSlotResult =
   | { project: string; action: 'status'; slot: { holder: string; since: number } | null }
-  | { project: string; action: 'take'; holder: string; ok: true }
+  | { project: string; action: 'take'; holder: string; ok: true; renewed: boolean }
   | { project: string; action: 'take'; holder: string; ok: false; since: number }
   | { project: string; action: 'release'; holder: string; ok: boolean }
