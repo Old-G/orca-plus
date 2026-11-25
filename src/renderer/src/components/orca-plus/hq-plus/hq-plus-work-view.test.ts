@@ -44,7 +44,8 @@ const chat = (
     projectName: project,
     worktreeName: 'main',
     hostKind: 'local',
-    sortAt: at
+    sortAt: at,
+    placedAt: at
   } as HqChatItem
 }
 
@@ -113,11 +114,12 @@ describe('HQ+ «Work» view', () => {
     rows: run.rows.map((row) => `${'  '.repeat(row.depth)}${row.item.key}`)
   }))
 
-  it('makes a block per lead, the one that needs the owner first', () => {
+  // Custom build (hq-stable-chat-order, owner 25.11): blocks keep their place, newest work first.
+  it('makes a block per lead, newest first, whatever the chats do', () => {
     expect(blocks).toEqual([
+      { lead: 'closed:closed-lead', rows: ['orphan-2', 'orphan'] },
       { lead: 'support', rows: ['support', '  support-sync'] },
-      { lead: 'lead', rows: ['lead', '  brain', '    brain-api', '  agents'] },
-      { lead: 'closed:closed-lead', rows: ['orphan', 'orphan-2'] }
+      { lead: 'lead', rows: ['lead', '  agents', '  brain', '    brain-api'] }
     ])
   })
 
@@ -131,9 +133,9 @@ describe('HQ+ «Work» view', () => {
 
   it('sums each block: chats, projects, working, needs you', () => {
     expect(view.runs.map((run) => run.counts)).toEqual([
+      { chats: 2, projects: 1, working: 1, needsYou: 0 },
       { chats: 2, projects: 1, working: 1, needsYou: 1 },
-      { chats: 4, projects: 4, working: 2, needsYou: 1 },
-      { chats: 2, projects: 1, working: 1, needsYou: 0 }
+      { chats: 4, projects: 4, working: 2, needsYou: 1 }
     ])
   })
 

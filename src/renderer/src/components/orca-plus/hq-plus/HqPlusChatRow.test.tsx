@@ -19,6 +19,7 @@ const item = {
   projectName: 'acme',
   repoId: 'r1',
   sortAt: 0,
+  placedAt: 0,
   card: null
 } as unknown as HqChatItem
 

@@ -30,7 +30,8 @@ function chat(key: string, group: HqChatGroup, sortAt: number): HqChatItem {
     projectName: 'REPO',
     worktreeName: 'main',
     hostKind: 'local',
-    sortAt
+    sortAt,
+    placedAt: sortAt
   }
 }
 

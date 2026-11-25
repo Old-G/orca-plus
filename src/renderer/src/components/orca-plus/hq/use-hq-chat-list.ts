@@ -11,7 +11,16 @@ export function useHqChatList(): { items: HqChatItem[]; cards: readonly Dashboar
   const snapshot = useLiveDashboardSnapshot()
   const unifiedTabsByWorktree = useAppStore((state) => state.unifiedTabsByWorktree)
   const items = useMemo(
-    () => buildHqChatList(snapshot, getStructuredAgentSessionTabs(unifiedTabsByWorktree)),
+    () =>
+      buildHqChatList(
+        snapshot,
+        getStructuredAgentSessionTabs(unifiedTabsByWorktree),
+        // Why both ids: a dashboard card names the tab by its unified id or by the terminal's entity id.
+        (worktreeId, tabId) =>
+          (unifiedTabsByWorktree[worktreeId] ?? []).find(
+            (tab) => tab.id === tabId || (tab.contentType === 'terminal' && tab.entityId === tabId)
+          )?.createdAt
+      ),
     [snapshot, unifiedTabsByWorktree]
   )
   return { items, cards: snapshot.cards }

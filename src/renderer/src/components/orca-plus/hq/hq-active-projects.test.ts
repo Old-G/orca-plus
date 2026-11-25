@@ -38,7 +38,8 @@ function chat(
     projectName: repoId.toUpperCase(),
     worktreeName: 'main',
     hostKind: 'local',
-    sortAt
+    sortAt,
+    placedAt: sortAt
   }
 }
 

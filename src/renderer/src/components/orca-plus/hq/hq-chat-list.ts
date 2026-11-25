@@ -30,6 +30,9 @@ type HqChatBase = {
   hostKind: DashboardCardHostKind
   /** Newest first within a group. */
   sortAt: number
+  /** Custom build (hq-stable-chat-order): when the chat took its place in the list — its tab's creation;
+   *  activity never moves it. */
+  placedAt: number
 }
 
 export type HqChatItem =
@@ -38,6 +41,11 @@ export type HqChatItem =
 
 export function hqChatKey(worktreeId: string, tabId: string): string {
   return `${worktreeId}\u0000${tabId}`
+}
+
+/** Custom build (hq-stable-chat-order): newest place first; what a chat does never moves it (owner 25.11). */
+export function compareHqChatPlacement(a: HqChatItem, b: HqChatItem): number {
+  return b.placedAt - a.placedAt || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
 }
 
 /** The tab a chat lives in; a terminal's agents may share it with their split panes. */
@@ -61,7 +69,8 @@ function groupForCard(card: DashboardCard | null): HqChatGroup {
 function base(
   card: DashboardCard | null,
   workspace: DashboardWorkspace,
-  fallbackSortAt: number
+  fallbackSortAt: number,
+  placedAt: number
 ): Omit<HqChatBase, 'key' | 'agentType'> {
   return {
     group: groupForCard(card),
@@ -72,7 +81,8 @@ function base(
     projectName: workspace.repoName,
     worktreeName: workspace.worktreeName,
     hostKind: card?.hostKind ?? workspace.hostKind,
-    sortAt: card ? card.stateChangedAt || card.startedAt : fallbackSortAt
+    sortAt: card ? card.stateChangedAt || card.startedAt : fallbackSortAt,
+    placedAt
   }
 }
 
@@ -80,7 +90,9 @@ function base(
  *  not list (removed, archived) drop their chats. */
 export function buildHqChatList(
   snapshot: Pick<DashboardSnapshot, 'cards' | 'workspaces'>,
-  structuredTabs: readonly Tab[]
+  structuredTabs: readonly Tab[],
+  /** Custom build (hq-stable-chat-order): a terminal tab's creation, for a terminal agent's place. */
+  terminalTabCreatedAt: (worktreeId: string, tabId: string) => number | undefined = () => undefined
 ): HqChatItem[] {
   const workspaces = new Map((snapshot.workspaces ?? []).map((w) => [w.worktreeId, w]))
   const cardsByTab = new Map<string, DashboardCard>()
@@ -98,7 +110,7 @@ export function buildHqChatList(
     chatKeys.add(key)
     const card = cardsByTab.get(key) ?? null
     items.push({
-      ...base(card, workspace, tab.lastFocusedAt ?? tab.createdAt),
+      ...base(card, workspace, tab.lastFocusedAt ?? tab.createdAt, tab.createdAt),
       key,
       kind: 'chat',
       agentType: tab.agentSessionAgent,
@@ -112,7 +124,12 @@ export function buildHqChatList(
       continue
     }
     items.push({
-      ...base(card, workspace, 0),
+      ...base(
+        card,
+        workspace,
+        0,
+        terminalTabCreatedAt(card.worktreeId, card.tabId) ?? card.startedAt
+      ),
       key: card.paneKey,
       kind: 'terminal',
       card,
