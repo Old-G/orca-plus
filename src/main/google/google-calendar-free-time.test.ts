@@ -22,6 +22,9 @@ const api: GoogleApi = {
   },
   bytes: async () => {
     throw new Error('Unexpected Google download')
+  },
+  tool: async () => {
+    throw new Error('Unexpected Google MCP call')
   }
 }
 

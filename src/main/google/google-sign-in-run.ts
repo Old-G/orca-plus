@@ -19,6 +19,8 @@ import {
 } from '../orca-profiles/cloud-auth/loopback-callback'
 import { createOrcaCloudPkceSecrets } from '../orca-profiles/cloud-auth/profile-cloud-pkce'
 import { checkGoogleClientKey } from './google-client-check'
+// Custom build (google-mcp)
+import { googleRedirectPort } from './google-web-client'
 import { exchangeFailureCategory, signInFailure } from './google-sign-in-failures'
 import { checkGoogleServices } from './google-readiness'
 import {
@@ -71,7 +73,10 @@ export type GoogleSignInOptions = {
 }
 
 /** The app a sign-in goes through: its id and secret, and the Cloud project its APIs are checked in. */
-type GoogleSignInClient = Pick<GoogleClientConfig, 'clientId' | 'clientSecret' | 'projectId'>
+type GoogleSignInClient = Pick<
+  GoogleClientConfig,
+  'clientId' | 'clientSecret' | 'projectId' | 'redirectUri'
+>
 
 /**
  * A saved account signs in again through the app it signed in with, which may not be this
@@ -177,12 +182,16 @@ export async function runGoogleSignIn(
       timer = setTimeout(() => reject(new Error(GOOGLE_SIGN_IN_EXPIRED)), GOOGLE_SIGN_IN_TTL_MS)
     })
     expired.catch(() => {})
+    // Custom build (google-mcp): a Web app client returns only to its one listed address; a caller
+    // elsewhere pastes that address back, as when its own port is unreachable.
+    const fixedRedirect = client.redirectUri
     if (options.callerLoopbackPort !== undefined) {
-      await prompt(googleRedirectUri(options.callerLoopbackPort))
+      await prompt(fixedRedirect ?? googleRedirectUri(options.callerLoopbackPort))
       query = await Promise.race([pasted, expired])
     } else {
       const returned = serveHeldLoopbackCallback<string>({
         path: GOOGLE_CALLBACK_PATH,
+        ...(fixedRedirect ? { port: googleRedirectPort(fixedRedirect) } : {}),
         timeoutMs: GOOGLE_SIGN_IN_TTL_MS,
         signal: listener.signal,
         hold: GOOGLE_RETURN_HOLD,
@@ -209,7 +218,7 @@ export async function runGoogleSignIn(
           }
           return { kind: 'accept', value: url.search }
         },
-        onListening: (port) => prompt(googleRedirectUri(port))
+        onListening: (port) => prompt(fixedRedirect ?? googleRedirectUri(port))
       }).then((held) => {
         tab.held = held
         return held.value
@@ -294,7 +303,12 @@ async function finishGoogleSignIn(
   const record: GoogleAccountRecord = {
     email: account.email,
     sub: account.sub,
-    client: { clientId: client.clientId, clientSecret: client.clientSecret },
+    client: {
+      clientId: client.clientId,
+      clientSecret: client.clientSecret,
+      // Custom build (google-mcp)
+      ...(client.redirectUri ? { redirectUri: client.redirectUri } : {})
+    },
     ...(client.projectId ? { projectId: client.projectId } : {}),
     refreshToken: tokens.refreshToken,
     accessToken: tokens.accessToken,

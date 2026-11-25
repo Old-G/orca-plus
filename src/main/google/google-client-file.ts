@@ -7,6 +7,8 @@ import {
   GOOGLE_CREDENTIALS_PAGE,
   type GoogleClientConfig
 } from '../../shared/google/google-client-config'
+// Custom build (google-mcp)
+import { googleWebClientFile, parseGoogleWebClient } from './google-web-client'
 
 const DESKTOP_CLIENT_STEPS = `In Google Cloud Console, open Credentials (${GOOGLE_CREDENTIALS_PAGE}), choose Create credentials › OAuth client ID › Desktop app, then download its file.`
 
@@ -22,7 +24,14 @@ const InstalledClient = lazyZodSchema(() =>
 )
 
 export type ParsedGoogleClient =
-  | { ok: true; clientId: string; clientSecret: string; projectId?: string }
+  | {
+      ok: true
+      clientId: string
+      clientSecret: string
+      projectId?: string
+      // Custom build (google-mcp): a Web app client's one return address.
+      redirectUri?: string
+    }
   | { ok: false; message: string }
 
 const refuse = (message: string): ParsedGoogleClient => ({ ok: false, message })
@@ -52,8 +61,9 @@ export function parseGoogleClientFile(text: string): ParsedGoogleClient {
       `This is a saved Google sign-in, not a client file. Don't share it; Orca signs you in itself. ${DESKTOP_CLIENT_STEPS}`
     )
   }
+  // Custom build (google-mcp): a Web app client marked for an AI-powered agent signs in too.
   if ('web' in json) {
-    return refuse(`This is a Web app client. Choose a Desktop app client. ${DESKTOP_CLIENT_STEPS}`)
+    return parseGoogleWebClient(json.web)
   }
   if (!('installed' in json)) {
     return refuse(`This isn't a Google OAuth client file. ${DESKTOP_CLIENT_STEPS}`)
@@ -70,8 +80,12 @@ export function parseGoogleClientFile(text: string): ParsedGoogleClient {
 
 /** The client as Google's own Desktop app file, for a teammate to import. */
 export function googleClientFile(
-  config: Pick<GoogleClientConfig, 'clientId' | 'clientSecret' | 'projectId'>
+  config: Pick<GoogleClientConfig, 'clientId' | 'clientSecret' | 'projectId' | 'redirectUri'>
 ): string {
+  // Custom build (google-mcp)
+  if (config.redirectUri) {
+    return googleWebClientFile({ ...config, redirectUri: config.redirectUri })
+  }
   return `${JSON.stringify(
     {
       installed: {

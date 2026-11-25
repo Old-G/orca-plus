@@ -31,7 +31,10 @@ it('creates a label named twice in one request once and applies it', async () =>
       labels.push(label)
       return readOrThrow(read(label))
     },
-    bytes: async () => new Uint8Array()
+    bytes: async () => new Uint8Array(),
+    tool: async () => {
+      throw new Error('Unexpected Google MCP call')
+    }
   }
 
   const result = await modifyGmail(api, {
