@@ -2,7 +2,7 @@
 // the chat that started it or handed it work, in any project, from recorded links only. A handoff is the
 // same chat going on: the new chat takes the old one's place, and children of either hang under it.
 import type { HqChatLinksResult } from '../../../../../shared/hq-chat-links'
-import type { HqChatItem } from '../hq/hq-chat-list'
+import { compareHqChatPlacement, type HqChatItem } from '../hq/hq-chat-list'
 import { hqChatSessionId } from '../hq/hq-chat-cleanup'
 
 /** The chats that started others, each with the chats under it; lone chats are left out. */
@@ -21,7 +21,6 @@ export type HqPlusTreeRow = {
   startedBy: string | null
 }
 
-const GROUP_ORDER = { needs: 0, working: 1, done: 2, quiet: 3 } as const
 const MAX_HOPS = 64
 
 type Node = {
@@ -35,30 +34,15 @@ function sessionOf(item: HqChatItem): string | null {
   return item.kind === 'chat' ? hqChatSessionId(item.tab.id) : null
 }
 
-function createdAt(item: HqChatItem): number {
-  return item.kind === 'chat' ? item.tab.createdAt : item.sortAt
-}
-
-/** What needs the owner first, then the latest activity — for a whole branch. */
-function rankOf(node: Node): { group: number; at: number } {
-  const all = [node.head, ...node.earlier]
-  let group = Math.min(...all.map((item) => GROUP_ORDER[item.group]))
-  let at = Math.max(0, ...all.map((item) => item.sortAt))
-  for (const child of node.children) {
-    const rank = rankOf(child)
-    group = Math.min(group, rank.group)
-    at = Math.max(at, rank.at)
-  }
-  return { group, at }
-}
-
+/** Custom build (hq-stable-chat-order, owner 25.11): a line keeps its place by its newest chat's; what
+ *  the chats do never reorders the tree. */
 function sortNodes(nodes: Node[]): Node[] {
-  const ranked = nodes.map((node) => ({ node, rank: rankOf(node) }))
-  ranked.sort((a, b) => a.rank.group - b.rank.group || b.rank.at - a.rank.at)
-  return ranked.map(({ node }) => {
-    node.children = sortNodes(node.children)
-    return node
-  })
+  return nodes
+    .sort((a, b) => compareHqChatPlacement(a.head, b.head))
+    .map((node) => {
+      node.children = sortNodes(node.children)
+      return node
+    })
 }
 
 export function hqPlusChatTree(
@@ -98,7 +82,7 @@ export function hqPlusChatTree(
 
   const nodeOfLine = new Map<string, Node>()
   const loose: Node[] = []
-  for (const item of [...items].sort((a, b) => createdAt(b) - createdAt(a))) {
+  for (const item of [...items].sort(compareHqChatPlacement)) {
     const sessionId = sessionOf(item)
     if (!sessionId) {
       loose.push({ head: item, earlier: [], children: [] })

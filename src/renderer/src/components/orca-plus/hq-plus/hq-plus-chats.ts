@@ -3,8 +3,7 @@
 import { structuredAgentSessionTabId } from '../../../../../shared/agent-session/view/structured-agent-session-projection'
 import { useAppStore } from '@/store'
 import type { HqPlusLiveChat } from '../../../../../shared/hq-plus-fold'
-import { groupHqChats, type HqChatItem } from '../hq/hq-chat-list'
-import { splitHqMarkedChats } from '../hq/hq-marked-chats'
+import { compareHqChatPlacement, type HqChatItem } from '../hq/hq-chat-list'
 import { hqChatSessionId } from '../hq/hq-chat-cleanup'
 
 // Why: a chat opened a moment ago has no turn yet, so the board calls it quiet; it is the newest work.
@@ -117,25 +116,28 @@ export type HqPlusProjectChats = {
   items: HqChatItem[]
 }
 
-const GROUP_ORDER = { needs: 0, working: 1, done: 2, quiet: 3 } as const
-
 /**
- * Custom build (hq-plus-chats-by-project): the left column's chats by project — what needs the owner,
- * works or is unread first, then the rest by time; marked chats above. Custom build
- * (hq-plus-all-open-chats, owner 02.11): every open chat stays under its project however quiet or old —
- * no time window, no cap, no Quiet fold; the owner closes chats himself. A project that waits on him
- * comes first.
+ * Custom build (hq-plus-chats-by-project): the left column's chats by project; marked chats above.
+ * Custom build (hq-plus-all-open-chats, owner 02.11): every open chat stays under its project however
+ * quiet or old — no time window, no cap, no Quiet fold; the owner closes chats himself. Custom build
+ * (hq-stable-chat-order, owner 25.11): the column never reorders itself — projects stand in the
+ * sidebar's project order (`repoOrder`, the owner's), a new chat takes the top of its project and stays
+ * there, and a state change only repaints its row.
  */
 export function hqPlusProjectChats(
   items: readonly HqChatItem[],
   keptRepoIds: readonly string[],
   markedKeys: readonly string[],
-  // Why kept: the screen still passes the time the active window used; the list no longer needs it.
-  _now?: number
+  repoOrder: readonly string[] = []
 ): { marked: HqChatItem[]; projects: HqPlusProjectChats[]; quiet: HqChatItem[] } {
-  const { marked, groups } = splitHqMarkedChats(groupHqChats(items), markedKeys)
+  const markedSet = new Set(markedKeys)
+  // Why not splitHqMarkedChats: there a marked chat that asks leaves for Needs you and comes back.
+  const marked = items.filter((item) => markedSet.has(item.key)).sort(compareHqChatPlacement)
   const byRepo = new Map<string, HqPlusProjectChats>()
-  for (const item of [...groups.needs, ...groups.working, ...groups.done, ...groups.quiet]) {
+  for (const item of items) {
+    if (markedSet.has(item.key)) {
+      continue
+    }
     const project = byRepo.get(item.repoId) ?? {
       repoId: item.repoId,
       projectName: item.projectName,
@@ -145,18 +147,17 @@ export function hqPlusProjectChats(
     project.items.push(item)
     byRepo.set(item.repoId, project)
   }
+  const rankOf = new Map(repoOrder.map((repoId, index) => [repoId, index]))
   const rank = (project: HqPlusProjectChats): number =>
-    Math.min(...project.items.map((item) => GROUP_ORDER[item.group]), GROUP_ORDER.quiet)
-  const latest = (project: HqPlusProjectChats): number =>
-    Math.max(0, ...project.items.map((item) => item.sortAt))
+    rankOf.get(project.repoId) ?? Number.MAX_SAFE_INTEGER
   const projects = [...byRepo.values()]
-    .map((project) => ({
-      ...project,
-      items: project.items.sort(
-        (a, b) => GROUP_ORDER[a.group] - GROUP_ORDER[b.group] || b.sortAt - a.sortAt
-      )
-    }))
-    .sort((a, b) => rank(a) - rank(b) || latest(b) - latest(a))
+    .map((project) => ({ ...project, items: project.items.sort(compareHqChatPlacement) }))
+    .sort(
+      (a, b) =>
+        rank(a) - rank(b) ||
+        a.projectName.localeCompare(b.projectName) ||
+        (a.repoId < b.repoId ? -1 : a.repoId > b.repoId ? 1 : 0)
+    )
   return { marked, projects, quiet: [] }
 }
 

@@ -3,7 +3,7 @@
 // desktop's HqPlusCloseChat. «Chats · N» lists the room's open chats by project in a bottom sheet.
 import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import type { HqChatWireItem } from '../../../src/shared/hq-chat-wire'
+import { hqChatWireByProject, type HqChatWireItem } from '../../../src/shared/hq-chat-wire'
 import type { HqPlusMapChatState } from '../../../src/shared/hq-plus-map'
 import { HQP_CHAT_STATE_LABEL, hqPlusPhoneChatState } from './hq-plus-phone-map'
 import { HQP_TOUCH, hqp, hqpStyles, hqpWeb } from './hq-plus-phone-theme'
@@ -98,10 +98,8 @@ export function MobileHqPlusMapChats({
   onCloseChat: ((item: HqChatWireItem) => void) | null
   onClose: () => void
 }) {
-  const byProject = new Map<string, HqChatWireItem[]>()
-  for (const item of chats) {
-    byProject.set(item.projectName, [...(byProject.get(item.projectName) ?? []), item])
-  }
+  // Custom build (hq-stable-chat-order): what a chat does never moves it in the sheet (owner 25.11).
+  const byProject = hqChatWireByProject(chats)
   return (
     <>
       <Pressable
@@ -132,7 +130,7 @@ export function MobileHqPlusMapChats({
           {chats.length === 0 ? (
             <Text style={hqpStyles.hint}>No chat is open in this room.</Text>
           ) : null}
-          {[...byProject.entries()].map(([project, items]) => (
+          {byProject.map(({ project, items }) => (
             <View key={project} style={styles.group}>
               <Text style={[hqpStyles.label, styles.groupLabel]}>
                 {project} · {items.length}

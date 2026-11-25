@@ -56,7 +56,8 @@ export function buildHqChatWire(
     unseen: item.card?.unseen === true,
     sortAt: item.sortAt,
     color: colorFor(item.repoId),
-    sessionId: item.kind === 'chat' ? hqChatSessionId(item.tab.id) : null
+    sessionId: item.kind === 'chat' ? hqChatSessionId(item.tab.id) : null,
+    placedAt: item.placedAt
   })
   return [
     ...groups.needs.map((item) => wire(item, 'needs')),

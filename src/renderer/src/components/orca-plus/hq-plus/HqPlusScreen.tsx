@@ -552,6 +552,9 @@ export function HqPlusScreen(): React.JSX.Element {
   }, [pages, roomOfProject])
   const keptProjectIds = useAppStore((state) => state.settings?.hqKeptProjectIds) ?? NO_IDS
   const markedChatKeys = useAppStore((state) => state.settings?.hqMarkedChatKeys) ?? NO_IDS
+  // Custom build (hq-stable-chat-order): the sidebar's project order, which only the owner changes.
+  const sidebarRepos = useAppStore((state) => state.repos)
+  const repoOrder = useMemo(() => sidebarRepos.map((repo) => repo.id), [sidebarRepos])
   // Custom build (hq-plus-chats-by-project): the left column lists chats by project, as the classic HQ.
   const sideChats = useMemo(
     () =>
@@ -559,9 +562,9 @@ export function HqPlusScreen(): React.JSX.Element {
         chatItems.filter((item) => !room || (roomOfRepo.get(item.repoId) ?? room) === room),
         keptProjectIds,
         markedChatKeys,
-        now
+        repoOrder
       ),
-    [chatItems, room, roomOfRepo, keptProjectIds, markedChatKeys, now]
+    [chatItems, room, roomOfRepo, keptProjectIds, markedChatKeys, repoOrder]
   )
   // Custom build (hq-plus-drafts): chats the owner left unsent on purpose, at the top of the column.
   const roomChats = useMemo(

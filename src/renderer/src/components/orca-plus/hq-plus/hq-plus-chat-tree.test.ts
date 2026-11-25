@@ -37,7 +37,8 @@ const chat = (
     projectName: project,
     worktreeName: 'main',
     hostKind: 'local',
-    sortAt: at
+    sortAt: at,
+    placedAt: at
   } as HqChatItem
 }
 
@@ -71,7 +72,48 @@ describe('HQ+ «By work» tree', () => {
         ['strata', 'brain']
       ])
     )
-    expect(shape(rows)).toEqual(['brain', '  dev', '  strata'])
+    expect(shape(rows)).toEqual(['brain', '  strata', '  dev'])
+  })
+
+  // Custom build (hq-stable-chat-order, owner 25.11): what the chats do never reorders the tree.
+  it('keeps leads and workers in place whatever they do; a new worker takes the top under its lead', () => {
+    const tree = (groups: HqChatItem['group'][]): string[] =>
+      shape(
+        hqPlusChatTree(
+          [
+            chat('lead-a', groups[0], 10),
+            chat('w1', groups[1], 20),
+            chat('w2', groups[2], 30),
+            chat('lead-b', groups[3], 15),
+            chat('w3', groups[4], 25)
+          ],
+          links([
+            ['w1', 'lead-a'],
+            ['w2', 'lead-a'],
+            ['w3', 'lead-b']
+          ])
+        )
+      )
+    const calm = tree(['quiet', 'quiet', 'quiet', 'quiet', 'quiet'])
+    expect(calm).toEqual(['lead-b', '  w3', 'lead-a', '  w2', '  w1'])
+    expect(tree(['needs', 'needs', 'working', 'done', 'needs'])).toEqual(calm)
+    expect(
+      shape(
+        hqPlusChatTree(
+          [
+            chat('lead-a', 'quiet', 10),
+            chat('w1', 'needs', 20),
+            chat('w2', 'quiet', 30),
+            chat('w4', 'working', 40)
+          ],
+          links([
+            ['w1', 'lead-a'],
+            ['w2', 'lead-a'],
+            ['w4', 'lead-a']
+          ])
+        )
+      )
+    ).toEqual(['lead-a', '  w4', '  w2', '  w1'])
   })
 
   it('without links lists no tree; lone chats stay under their projects', () => {
