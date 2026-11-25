@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { MessageSquare } from 'lucide-react'
 import { hqFeedUrl, type HqFeedItem } from '../../../../../shared/hq-feed'
-import { projectAccentColor } from '../../../../../shared/project-accent-color'
+import { projectAccentColor, projectMarkColors } from '../../../../../shared/project-accent-color'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { formatShortTimeAgo } from '@/lib/time-format/short-time-ago'
@@ -18,9 +18,10 @@ export function useHqFeedProjectColor(): (project: string) => string {
   const repos = useAppStore((state) => state.repos)
   return useMemo(() => {
     const byName = new Map(repos.map((repo) => [repo.displayName, repo]))
+    const colorOf = projectMarkColors(repos)
     return (project: string) => {
       const repo = byName.get(project)
-      return projectAccentColor(repo?.id ?? project, repo?.badgeColor)
+      return repo ? colorOf(repo.id) : projectAccentColor(project)
     }
   }, [repos])
 }

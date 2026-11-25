@@ -4,7 +4,7 @@ import { useAppStore } from '@/store'
 import { getStructuredAgentSessionTabs } from '../../native-chat/session/status/structured-agent-session-tabs'
 import { useLiveDashboardSnapshot } from '../../dashboard/snapshot/useLiveDashboardSnapshot'
 import type { DashboardCard } from '../../../../../shared/agent-status/presentation/dashboard-snapshot'
-import { projectAccentColor } from '../../../../../shared/project-accent-color'
+import { projectMarkColors } from '../../../../../shared/project-accent-color'
 import { buildHqChatList, type HqChatItem } from './hq-chat-list'
 
 export function useHqChatList(): { items: HqChatItem[]; cards: readonly DashboardCard[] } {
@@ -17,12 +17,8 @@ export function useHqChatList(): { items: HqChatItem[]; cards: readonly Dashboar
   return { items, cards: snapshot.cards }
 }
 
-/** A project's accent color by its id; folders and projects on the neutral default get one from
- *  the palette. */
+/** A project's color by its id, the same as its mark in the sidebar; a folder gets a palette color. */
 export function useHqProjectColor(): (projectId: string) => string {
   const repos = useAppStore((state) => state.repos)
-  return useMemo(() => {
-    const picked = new Map(repos.map((repo) => [repo.id, repo.badgeColor]))
-    return (projectId: string) => projectAccentColor(projectId, picked.get(projectId))
-  }, [repos])
+  return useMemo(() => projectMarkColors(repos), [repos])
 }
