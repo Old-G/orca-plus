@@ -159,6 +159,9 @@ export function formatHqMergeSlot(result: HqMergeSlotResult): string {
       ? `${result.project}: slot given back.`
       : `${result.project}: the slot was not yours (or already free).`
   }
+  if (result.ok && result.renewed) {
+    return `${result.project}: slot renewed — still yours for 30 more minutes.`
+  }
   return result.ok
     ? `${result.project}: slot is yours — rebase on the fresh target, re-run tests, merge, then release.`
     : `${result.project}: busy — ${result.holder} is merging since ${new Date(result.since).toLocaleTimeString()}; wait 2 minutes and try again.`

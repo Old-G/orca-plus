@@ -2,7 +2,10 @@
 // take the project's slot before they rebase and merge, and give it back after; a slot nobody gave
 // back frees itself, so a chat that died mid-merge does not block the project. The holder taking it
 // again renews it, so a long rebase or test run keeps the slot.
-export type HqMergeSlotTake = { ok: true } | { ok: false; holder: string; since: number }
+/** `renewed`: the holder still had it. False after it lapsed — another chat may have merged since. */
+export type HqMergeSlotTake =
+  | { ok: true; renewed: boolean }
+  | { ok: false; holder: string; since: number }
 
 export type HqMergeSlots = {
   take: (project: string, holder: string) => HqMergeSlotTake
@@ -31,7 +34,7 @@ export function createHqMergeSlots(deps: { now: () => number; holdMs: number }):
         return { ok: false, holder: slot.holder, since: slot.since }
       }
       slots.set(project, { holder, since: slot?.since ?? deps.now(), renewed: deps.now() })
-      return { ok: true }
+      return { ok: true, renewed: slot !== null }
     },
     release(project, holder) {
       if (live(project)?.holder !== holder) {
