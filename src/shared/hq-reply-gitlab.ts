@@ -1,6 +1,6 @@
 // Custom build (hq-reply-auto, owner 25.11): GitLab's own word on an MR a chat waits for passes to that
 // chat by itself — a fact the Orca+ MR watch read from GitLab, not a person's words to weigh.
-import { HQ_GITLAB_AUTHOR_ID } from './hq-mr-watch'
+import { HQ_GITLAB_AUTHOR_ID, hqMrMentions } from './hq-mr-watch'
 import type { PulseWaiting } from './pulse-types'
 
 const GITLAB_MR =
@@ -33,26 +33,46 @@ export function hqReplyGitLabDone(
   )
 }
 
+type SharedWaiting = Pick<
+  PulseWaiting,
+  'id' | 'sourceRef' | 'agentSessionId' | 'status' | 'direction' | 'project' | 'title' | 'detail'
+>
+
+/**
+ * Whether this waiting names the MR `mr` (`path!iid`): by its link, or in its own words the way the
+ * MR watch reads them — a link, or a bare «!N» in a waiting of the same project.
+ */
+function namesMr(other: SharedWaiting, mr: string, project: string | null): boolean {
+  if (gitlabMr(other.sourceRef) === mr) {
+    return true
+  }
+  const { refs, bare } = hqMrMentions([other.title, other.detail ?? ''].join('\n'))
+  const iid = Number(mr.split('!').at(-1))
+  return (
+    refs.some((ref) => `${ref.projectPath.toLowerCase()}!${ref.iid}` === mr) ||
+    (project !== null && other.project === project && bare.includes(iid))
+  )
+}
+
 /**
  * Another chat's open waiting names the same MR: its notice may not be written yet (the watch asks
  * GitLab waiting by waiting), so the one notice is the owner's to hand out.
  */
 export function hqReplyGitLabShared(
-  waiting: Pick<PulseWaiting, 'id' | 'sourceRef' | 'agentSessionId'>,
-  others: readonly Pick<
-    PulseWaiting,
-    'id' | 'sourceRef' | 'agentSessionId' | 'status' | 'direction'
-  >[]
+  waiting: Pick<PulseWaiting, 'id' | 'sourceRef' | 'agentSessionId' | 'project'>,
+  others: readonly SharedWaiting[]
 ): boolean {
   const mr = gitlabMr(waiting.sourceRef)
-  return others.some(
-    (other) =>
-      other.id !== waiting.id &&
-      other.status === 'open' &&
-      other.direction === 'on-them' &&
-      other.agentSessionId !== waiting.agentSessionId &&
-      mr !== null &&
-      gitlabMr(other.sourceRef) === mr
+  return (
+    mr !== null &&
+    others.some(
+      (other) =>
+        other.id !== waiting.id &&
+        other.status === 'open' &&
+        other.direction === 'on-them' &&
+        other.agentSessionId !== waiting.agentSessionId &&
+        namesMr(other, mr, waiting.project)
+    )
   )
 }
 
