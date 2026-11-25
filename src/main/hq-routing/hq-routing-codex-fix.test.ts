@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hqCodexFixPrompt } from './hq-routing-codex-fix'
+import { hqCodexFixFollowUp, hqCodexFixPrompt } from './hq-routing-codex-fix'
 
 const prompt = (project: string, level: number): string =>
   hqCodexFixPrompt({
@@ -25,9 +25,22 @@ describe('the fixing chat at level 3', () => {
 
   it('after the rebase in the merge slot merges only a head that passed the pipeline and the review', () => {
     const text = prompt('flowbridge', 3)
-    expect(text).toContain('снова дождись зелёного пайплайна на новой голове')
-    expect(text).toContain('повтори ревью Codex на новой голове')
+    expect(text).toContain('дождись зелёного пайплайна (все обязательные проверки) на новой голове')
+    expect(text).toContain('повтори ревью Codex на ней')
     expect(text).toContain('вливаешь только ту голову, что прошла пайплайн и ревью')
+    expect(text).toContain('продлевай слот `orca hq merge-slot take flowbridge` каждые 10 минут')
+  })
+
+  it('reads the level again before merging and deploying, and a follow-up says the level now', () => {
+    expect(prompt('flowbridge', 3)).toContain(
+      'Перед вливанием и перед выкаткой перечитай уровень: `orca hq context --project flowbridge`'
+    )
+    const lowered = hqCodexFixFollowUp({ findings: [], commits: [], level: 2 })
+    expect(lowered).toContain('Уровень проекта сейчас 2 — это важнее первого сообщения')
+    expect(lowered).toContain('не вливай')
+    expect(hqCodexFixFollowUp({ findings: [], commits: [], level: 3 })).toContain(
+      'Уровень проекта сейчас 3'
+    )
   })
 
   it('still asks the owner about deploying from CI, the production database and money', () => {
