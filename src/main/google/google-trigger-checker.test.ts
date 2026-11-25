@@ -26,7 +26,10 @@ function calendarApi(email: string): GoogleApi {
     send: async () => {
       throw new Error('no writes')
     },
-    bytes: async () => new Uint8Array()
+    bytes: async () => new Uint8Array(),
+    tool: async () => {
+      throw new Error('no MCP')
+    }
   }
 }
 

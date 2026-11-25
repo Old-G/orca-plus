@@ -13,6 +13,8 @@ import {
 } from './google-account-tokens'
 import { readGoogleAccount, readGoogleDefaultAccount } from './google-credential-store'
 import { classifyGoogleApiError, readGoogleApiError } from './google-readiness'
+// Custom build (google-mcp)
+import { callGoogleMcpTool, type GoogleMcpService } from './google-mcp-call'
 
 const REQUEST_TIMEOUT_MS = 20_000
 
@@ -97,6 +99,14 @@ export type GoogleApi = {
   ) => Promise<T>
   /** A file's bytes, refused with a sentence once they pass `maxBytes`. */
   bytes: (service: GoogleService, url: string, maxBytes?: number) => Promise<Uint8Array>
+  // Custom build (google-mcp): one tool of Google's MCP server for the service; `read` gets the
+  // tool's structured answer.
+  tool: <T>(
+    service: GoogleMcpService,
+    name: string,
+    args: Record<string, unknown>,
+    read: (value: unknown) => T | null
+  ) => Promise<T>
 }
 
 type Request = {
@@ -104,6 +114,8 @@ type Request = {
   url: string
   body?: Uint8Array<ArrayBuffer> | string
   contentType?: string
+  // Custom build (google-mcp): Google's MCP servers want JSON and event streams both accepted.
+  accept?: string
 }
 
 export async function googleApi(
@@ -135,7 +147,8 @@ export async function googleApi(
         method: request.method,
         headers: {
           authorization: `Bearer ${bearer}`,
-          ...(request.contentType ? { 'content-type': request.contentType } : {})
+          ...(request.contentType ? { 'content-type': request.contentType } : {}),
+          ...(request.accept ? { accept: request.accept } : {})
         },
         ...(request.body !== undefined ? { body: request.body } : {}),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
@@ -236,7 +249,16 @@ export async function googleApi(
         chunks.push(value)
       }
       return Buffer.concat(chunks)
-    }
+    },
+    // Custom build (google-mcp)
+    tool: (service, name, args, read) =>
+      callGoogleMcpTool(
+        call,
+        (failure) => {
+          throw new GoogleToolError(failure.message, failure.status)
+        },
+        { service, tool: name, arguments: args, read, ...(projectId ? { projectId } : {}) }
+      )
   }
 }
 
