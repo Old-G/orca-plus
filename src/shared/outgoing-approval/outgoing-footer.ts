@@ -4,6 +4,7 @@
 import { parseClickUpTaskReference } from '../clickup-task-reference'
 import type { PulseDraft } from '../pulse-types'
 import type { OutgoingDraftCall } from './outgoing-action'
+import { hqCrumbChatId } from '../hq-router-crumb'
 
 export type OutgoingTaskRef = {
   /** `DEV-123`, or the task id when the workspace has no custom ids. */
@@ -17,6 +18,10 @@ export type OutgoingFooterParts = {
   project: string | null
   chatName: string | null
   ref: string
+  /** Custom build (hq-router crumbs): the sending chat's Lead, by name. */
+  leadName?: string | null
+  /** Custom build (hq-router crumbs): the sending chat's session id; the footer carries its short id. */
+  chatSessionId?: string | null
 }
 
 const FOOTER_MARK = '↳ '
@@ -70,7 +75,11 @@ function plain(text: string, max: number): string {
   return line.length > max ? `${line.slice(0, max - 1)}…` : line
 }
 
-/** `↳ [DEV-1](url) · project · «chat» · ref abc123`; a ClickUp comment skips its own task. */
+/**
+ * `↳ [DEV-1](url) · project · «chat» · ref abc123`; a ClickUp comment skips its own task.
+ * Custom build (hq-router crumbs): with the sending chat known, a breadcrumb the router reads back —
+ * `↳ project › Lead › «chat» · [DEV-1](url) · ref abc123 · id 1a2b3c4d`.
+ */
 export function outgoingFooter(
   parts: OutgoingFooterParts,
   commentTaskId: string | null = null
@@ -81,12 +90,17 @@ export function outgoingFooter(
         ? `[${parts.task.id}](${parts.task.url})`
         : parts.task.id
       : null
-  const items = [
-    task,
-    parts.project ? plain(parts.project, CHAT_MAX) : null,
-    parts.chatName ? `«${plain(parts.chatName, CHAT_MAX)}»` : null,
-    `ref ${parts.ref}`
-  ].filter(Boolean)
+  const project = parts.project ? plain(parts.project, CHAT_MAX) : null
+  const chat = parts.chatName ? `«${plain(parts.chatName, CHAT_MAX)}»` : null
+  const chatId = parts.chatSessionId ? hqCrumbChatId(parts.chatSessionId) : ''
+  // Why 8: shorter is not a session id the router could find again.
+  if (chatId.length === 8) {
+    const lead = parts.leadName ? plain(parts.leadName, CHAT_MAX).replace(/›/g, '>') : null
+    const chain = [project, lead, chat].filter(Boolean).join(' › ')
+    const items = [chain || null, task, `ref ${parts.ref}`, `id ${chatId}`].filter(Boolean)
+    return `${FOOTER_MARK}${items.join(' · ')}`
+  }
+  const items = [task, project, chat, `ref ${parts.ref}`].filter(Boolean)
   return `${FOOTER_MARK}${items.join(' · ')}`
 }
 
@@ -95,7 +109,7 @@ export function withOutgoingFooter(text: string, footer: string | null): string 
   if (!footer) {
     return text
   }
-  const ref = /ref [0-9a-z]{6}$/.exec(footer)?.[0]
+  const ref = /ref [0-9a-z]{6}\b/.exec(footer)?.[0]
   if (ref && text.includes(ref)) {
     return text
   }
@@ -105,7 +119,12 @@ export function withOutgoingFooter(text: string, footer: string | null): string 
 /** The footer a held call would be sent with; null for a call that takes none. */
 export function outgoingFooterFor(
   draft: PulseDraft,
-  context: { task?: OutgoingTaskRef | null; chatName?: string | null } = {}
+  context: {
+    task?: OutgoingTaskRef | null
+    chatName?: string | null
+    leadName?: string | null
+    taskId?: string | null
+  } = {}
 ): string | null {
   const call = draft.call
   if (!takesOutgoingFooter(call)) {
@@ -118,7 +137,10 @@ export function outgoingFooterFor(
       task: context.task ?? null,
       project,
       chatName: context.chatName ?? null,
-      ref: outgoingRef(draft.id)
+      ref: outgoingRef(draft.id),
+      leadName: context.leadName ?? null,
+      // Why the task's id (variant b, 26.11): it resolves to whichever chat carries the task on.
+      chatSessionId: context.taskId ?? call?.agentSessionId ?? null
     },
     commentTask
   )

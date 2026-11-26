@@ -23,6 +23,10 @@ export type OutgoingApprovalContext = {
   chatName?: string | null
   /** Custom build (outgoing-footer): the ClickUp task the message is about, when one is known. */
   task?: OutgoingTaskRef | null
+  /** Custom build (hq-router crumbs): the sending chat's Lead, for the footer's breadcrumb. */
+  leadName?: string | null
+  /** Custom build (hq-router graph): the task the sending chat writes for; its short id ends the footer. */
+  taskId?: string | null
 }
 
 export function lastPathSegment(path: string | null | undefined): string | null {

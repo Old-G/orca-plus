@@ -2,8 +2,10 @@
 // half minute and raised as «To work» in the bell. Removing the reaction closes one still open; one he
 // already sent on or skipped never comes back. Custom build (hq-slack-mentions): messages that @mention
 // him are raised the same way and stay until he handles them.
+import type { HqRoute } from '../../shared/hq-router'
 import {
   HQ_INTAKE_KIND,
+  HQ_ROUTER_KEY_PREFIX,
   HQ_INTAKE_TEXT_MAX,
   hqIntakeBellItem,
   hqIntakeKey,
@@ -87,6 +89,26 @@ export type HqSlackIntakeDeps = {
   ledgerCards?: () => HqIntake[] | null
   sync: (kind: string, items: readonly PulseBellInput[]) => void
   now: () => number
+  /** Custom build (hq-router): where a new 👾 mark goes and why; absent while the router is off. */
+  route?: (draft: HqIntakeDraft) => Promise<HqRoute | null>
+  /** Custom build (hq-router): the marks already there when the trial started (recorded from `current`
+   *  on its first run); they are not raised. */
+  routerPreTrial?: (current: readonly string[]) => ReadonlySet<string> | null
+  /** Custom build (hq-router): sends a card whose route is exact (a bound thread); true when it went. */
+  autoSend?: (intake: HqIntake) => Promise<boolean>
+  /** Custom build (hq-router): closes a card that was sent by itself, after it was raised. */
+  settle?: (dedupeKey: string, intake: HqIntake) => void
+}
+
+/** Custom build (hq-router): a mark in the same thread as a card still waiting joins it — root and
+ *  reply marked together are one request. */
+function sameThread(card: HqIntake, draft: HqIntakeDraft): boolean {
+  if (card.via === 'mention' || draft.via === 'mention' || card.channel !== draft.channel) {
+    return false
+  }
+  const cardRoot = card.threadTs ?? card.ts
+  const draftRoot = draft.threadTs ?? draft.ts
+  return cardRoot === draftRoot && !card.pasted
 }
 
 export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number> {
@@ -116,6 +138,15 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
   // it turned out to be the answer to a waiting, which has its own card.
   for (const [key, payload] of raised) {
     const intake = readHqIntake(payload)
+    // Custom build (hq-router): a pasted link's card has no mark either; it stays like a mention.
+    if (
+      intake?.pasted &&
+      key.startsWith(HQ_ROUTER_KEY_PREFIX) &&
+      deps.now() - intake.at <= HQ_INTAKE_WINDOW_MS
+    ) {
+      cards.set(key, intake)
+      continue
+    }
     if (
       intake?.via === 'mention' &&
       !ledger &&
@@ -131,6 +162,12 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
     ...read.mentioned.filter((draft) => !answersWaiting(draft, answers))
   ].sort((a, b) => a.at - b.at)
   let guessed = 0
+  const autoSent: [string, HqIntake][] = []
+  const preTrial = deps.route
+    ? (deps.routerPreTrial?.(
+        drafts.filter((draft) => draft.via !== 'mention').map((draft) => hqIntakeKey(draft))
+      ) ?? null)
+    : null
   for (const draft of drafts) {
     const key = hqIntakeKey(draft)
     if (
@@ -142,7 +179,9 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
     }
     // Why: a follow-up joins the card still waiting; once handled, it is news of its own.
     const burst = [...cards.entries()].find(
-      ([cardKey, card]) => !handled.has(cardKey) && sameBurst(card, draft)
+      ([cardKey, card]) =>
+        !handled.has(cardKey) &&
+        (sameBurst(card, draft) || (!!deps.route && sameThread(card, draft)))
     )
     if (burst) {
       cards.set(burst[0], folded(burst[1], draft))
@@ -151,9 +190,20 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
     const known = readHqIntake(raised.get(key) ?? null)
     if (known) {
       cards.set(key, known)
-    } else {
-      cards.set(key, { ...draft, ...(await deps.guess(draft)) })
-      guessed += 1
+      continue
+    }
+    // Why (owner 26.11): the trial does not dig up marks made before it started.
+    if (draft.via !== 'mention' && preTrial?.has(key)) {
+      continue
+    }
+    const guess = await deps.guess(draft)
+    const route =
+      deps.route && draft.via !== 'mention' ? await deps.route(draft).catch(() => null) : null
+    const card: HqIntake = { ...draft, ...guess, ...(route ? { route } : {}) }
+    cards.set(key, card)
+    guessed += 1
+    if (route?.auto && deps.autoSend && (await deps.autoSend(card).catch(() => false))) {
+      autoSent.push([key, card])
     }
   }
   // Why: a mark a partial read did not reach is not known to be gone.
@@ -174,6 +224,9 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
     HQ_INTAKE_KIND,
     [...cards.values(), ...(ledger ?? [])].map((intake) => hqIntakeBellItem(intake))
   )
+  for (const [key, card] of autoSent) {
+    deps.settle?.(key, card)
+  }
   return guessed
 }
 

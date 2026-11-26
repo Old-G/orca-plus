@@ -35,4 +35,6 @@ export type PulseBellApi = {
     /** Custom build (hq-request-ledger): the chat that took it, so its thread stays with that chat. */
     sessionId?: string | null
   ) => Promise<void>
+  /** Custom build (hq-router): a pasted Slack link becomes one routed «To work» card. */
+  routeLink: (url: string) => Promise<{ ok: true } | { ok: false; error: string }>
 }

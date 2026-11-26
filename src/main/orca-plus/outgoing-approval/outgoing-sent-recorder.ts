@@ -38,6 +38,17 @@ export async function recordOutgoingSent(
       sessionId,
       call: { sessionId: hook.sessionId, toolUseId: hook.toolUseId }
     })
+    // Custom build (hq-router graph, 26.11): our Slack message binds to the sending chat's task.
+    const place = /^slack:([A-Z0-9]+):(\d+\.\d+)?$/.exec(message.key)
+    if (place && sessionId && message.ts) {
+      deps.db().router.bindSent({
+        channel: place[1],
+        ts: message.ts,
+        threadTs: place[2] ?? null,
+        sender: sessionId,
+        at: message.at ?? deps.now()
+      })
+    }
   }
   return true
 }

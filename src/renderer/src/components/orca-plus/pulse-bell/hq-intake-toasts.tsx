@@ -18,7 +18,12 @@ import { formatShortTimeAgo } from '@/lib/time-format/short-time-ago'
 import { useAppStore } from '@/store'
 import { HqRouteForm } from './HqRouteForm'
 import { sendHqRoutePrompt, type HqRouteTarget } from './hq-route-send'
-import { HQ_ROUTE_NEW_CHAT, hqProjectChats, hqProjectNewChatWorktree } from './hq-route-targets'
+import {
+  HQ_ROUTE_NEW_CHAT,
+  hqProjectChats,
+  hqProjectNewChatWorktree,
+  hqRouteChatValue
+} from './hq-route-targets'
 import { showMeasuredCustomToast } from '../measured-custom-toast'
 
 // Why: a burst (marks made on the phone while the Mac slept) must not wall the screen.
@@ -57,8 +62,13 @@ function HqIntakeCard({
   intake: HqIntake
 }): React.JSX.Element {
   const [portal, setPortal] = useState<HTMLDivElement | null>(null)
-  const [repoId, setRepoId] = useState(intake.repoId)
-  const [chat, setChat] = useState<string>(HQ_ROUTE_NEW_CHAT)
+  // Custom build (hq-router): the router's pick is the card's default; «Send» is the owner's yes.
+  const route = intake.route ?? null
+  const routed = route && route.target !== HQ_ROUTE_NEW_CHAT ? route : null
+  const [repoId, setRepoId] = useState(routed?.repoId ?? intake.repoId)
+  const [chat, setChat] = useState<string>(
+    routed ? hqRouteChatValue(routed.target) : HQ_ROUTE_NEW_CHAT
+  )
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   // Why a state: the card is drawn once when it pops, so its age is read then.
@@ -155,6 +165,40 @@ function HqIntakeCard({
         <p className="truncate text-[11px] text-muted-foreground">
           {[...intake.links, ...intake.files].join(' · ')}
         </p>
+      ) : null}
+      {route ? (
+        <div className="flex flex-col gap-1 rounded-md border border-border/60 px-2 py-1.5">
+          <p className="text-xs">
+            <span className="font-medium">
+              {routed
+                ? translate('auto.hqRouter.to', 'Router: «{{chat}}»', {
+                    chat: routed.targetTitle ?? routed.target
+                  })
+                : translate('auto.hqRouter.new', 'Router: a new chat')}
+            </span>
+            <span className="text-muted-foreground"> — {route.why}</span>
+          </p>
+          {route.alternatives.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {route.alternatives.map((other) => (
+                <Button
+                  key={other.sessionId}
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  disabled={busy}
+                  title={translate('auto.hqRouter.other', 'Pick this chat instead')}
+                  onClick={() => {
+                    setRepoId(other.repoId)
+                    setChat(hqRouteChatValue(other.sessionId))
+                  }}
+                >
+                  {other.title.slice(0, 40)}
+                </Button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       ) : null}
       <HqRouteForm
         repoId={repoId}

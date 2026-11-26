@@ -2,6 +2,7 @@
 // a step never edits an earlier one, so every database climbs the same ladder.
 import type Database from '../../sqlite/sync-database'
 import { CHAT_LEAD_MOVES_TABLE } from './pulse-chat-lead-moves'
+import { ROUTER_TABLES } from './pulse-router-graph'
 
 const V1 = `
 CREATE TABLE people (
@@ -340,7 +341,7 @@ export function migratePulseSchema(db: Database.Database): void {
     )
   }
   if (stored === PULSE_SCHEMA_VERSION) {
-    db.exec(SIDE_TABLES + CHAT_LEAD_MOVES_TABLE)
+    db.exec(SIDE_TABLES + CHAT_LEAD_MOVES_TABLE + ROUTER_TABLES)
     return
   }
   db.exec('BEGIN IMMEDIATE')
@@ -349,7 +350,7 @@ export function migratePulseSchema(db: Database.Database): void {
       db.exec(step)
     }
     db.pragma(`user_version = ${PULSE_SCHEMA_VERSION}`)
-    db.exec(SIDE_TABLES + CHAT_LEAD_MOVES_TABLE)
+    db.exec(SIDE_TABLES + CHAT_LEAD_MOVES_TABLE + ROUTER_TABLES)
     db.exec('COMMIT')
   } catch (error) {
     db.exec('ROLLBACK')
