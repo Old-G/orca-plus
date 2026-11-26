@@ -127,6 +127,8 @@ export type HqJournalQuery = {
   address?: string
   sessionId?: string
   source?: string
+  /** Custom build (pulse-hot-indexes): the one row written under this key. */
+  dedupeKey?: string
   /** Oldest first, as a thread reads; newest first otherwise. */
   oldestFirst?: boolean
   /** Custom build (hq-plus-ask): rows holding every word of it, see hqJournalMatches. */

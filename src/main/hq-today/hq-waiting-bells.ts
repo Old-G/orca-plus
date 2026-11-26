@@ -35,7 +35,22 @@ export function syncHqWaitingBells(deps: HqWaitingBellsDeps): void {
 
 export function startHqWaitingBells(deps: HqWaitingBellsDeps): void {
   const run = (): void => syncHqWaitingBells(deps)
-  deps.onChanged(run)
+  // Custom build (pulse-hot-indexes): one pass per burst of writes, after them. Run in the change event
+  // itself, every write re-synced three bell kinds, and each sync that changed a line fired the event
+  // again — a cascade that held the main thread.
+  let soon: ReturnType<typeof setTimeout> | null = null
+  deps.onChanged(() => {
+    soon ??= setTimeout(() => {
+      soon = null
+      try {
+        run()
+      } catch (error) {
+        // Why: the change event caught a follower's throw before; a timer must not let it escape.
+        console.warn('[hq-waiting-bells] sync failed:', error)
+      }
+    }, 0)
+    soon.unref?.()
+  })
   setInterval(run, CHECK_MS).unref?.()
   run()
 }
