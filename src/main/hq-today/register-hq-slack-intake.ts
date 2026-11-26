@@ -26,6 +26,7 @@ import { hqIntakeOfConversation, hqLedgerCardReady } from './hq-ledger-cards'
 import { hqIntakeThreadOf } from './hq-intake-thread'
 import { createSlackLedgerApi } from '../slack/slack-ledger-api'
 import { hqLedgerReplacesScout } from './hq-ledger-cutover'
+import { hqRouterIntakeDeps, hqRouterLogKey, registerHqRouterLink } from './register-hq-router'
 
 const RAISED_LOOKBACK_MS = 8 * 24 * 60 * 60_000
 const ERROR_REPEAT_MS = 60 * 60_000
@@ -119,6 +120,8 @@ export function registerHqSlackIntake(
         : null,
     sync: (kind, items) => void runtime.pulseSyncInboxKind(kind, items),
     now: Date.now,
+    // Custom build (hq-router): where each new mark goes and why; the trial sends only a bound thread.
+    ...hqRouterIntakeDeps(store, runtime, cache),
     // Why: a failing poll used to leave cards stale with no word anywhere the owner looks (26.10).
     onError: (message) => {
       const key = message.slice(0, 120)
@@ -153,6 +156,7 @@ export function registerHqSlackIntake(
         : { ok: false, reason: 'chat-closed' }
       : { ok: false, reason: 'gone' }
   )
+  registerHqRouterLink(store, runtime, cache)
   ipcMain.handle('hqIntake:later', (_event, itemId: unknown, project: unknown, note: unknown) =>
     keepHqIntakeInNotes(deps, text(itemId), { project: text(project) || null, note: text(note) })
   )
@@ -188,6 +192,18 @@ export function registerHqSlackIntake(
       const key = intake ? `slack:${intake.channel}:${intake.threadTs ?? intake.ts}` : null
       if (action === 'sent' && chat && key) {
         runtime.pulseSetConversationChat(key, chat)
+      }
+      // Custom build (hq-router graph, 26.11): the owner's choice binds the thread to the task and
+      // goes into the router's log — the week's evidence for sending by itself.
+      if (action === 'sent' && chat && intake) {
+        const router = runtime.pulseRouter()
+        router.bindChoice({
+          channel: intake.channel,
+          threadTs: intake.threadTs ?? intake.ts,
+          chat,
+          at: Date.now()
+        })
+        router.logChoice(hqRouterLogKey(intake), chat, Date.now())
       }
       // Custom build (hq-attribution-log): a skipped card says nothing about its guesses.
       if (action !== 'sent' && key) {

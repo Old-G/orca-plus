@@ -14,6 +14,10 @@ export type OutgoingContextSources = {
   slackName: (id: string) => Promise<string | null>
   scout: () => Promise<HqSlackScoutIndex | null>
   chatName: (agentSessionId: string) => string | null
+  /** Custom build (hq-router crumbs): the name of the sending chat's Lead, for the footer. */
+  leadName?: (agentSessionId: string) => string | null
+  /** Custom build (hq-router graph): the task the chat writes for (a one-off chat: its parent's). */
+  taskId?: (agentSessionId: string) => string | null
   /** Custom build (outgoing-footer): the task this chat's last message was about. */
   lastTask: (agentSessionId: string) => OutgoingTaskRef | null
   /** The task's link and name from ClickUp; null when ClickUp cannot say. */
@@ -70,8 +74,11 @@ export async function describeOutgoingDraft(
   const call = draft.call
   const chatName = call?.agentSessionId ? sources.chatName(call.agentSessionId) : null
   const task = await outgoingTask(draft, chatName, sources)
+  const leadName = call?.agentSessionId ? (sources.leadName?.(call.agentSessionId) ?? null) : null
+  const taskId = call?.agentSessionId ? (sources.taskId?.(call.agentSessionId) ?? null) : null
+  const crumb = { ...(leadName ? { leadName } : {}), ...(taskId ? { taskId } : {}) }
   if (!call || !/slack/i.test(call.service) || !draft.target) {
-    return { chatName, task }
+    return { chatName, task, ...crumb }
   }
   const scout = await sources.scout().catch(() => null)
   const threadTs = readInputString(call.toolInput, 'thread_ts')
@@ -83,6 +90,7 @@ export async function describeOutgoingDraft(
   return {
     chatName,
     task,
+    ...crumb,
     targetName: await slackTargetName(draft.target, sources, scout),
     replyingTo
   }

@@ -74,6 +74,16 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqNightShiftHour?: number
     /** Custom build (chat-auto-effort): each message to a Claude chat picks medium, high or xhigh effort. */
     nativeChatAutoEffort?: boolean
+    /** Custom build (hq-router, owner 26.11): the 👾 router — off, or the trial: every card waits on
+     *  «Send» but a thread already sent to a chat. Default trial. */
+    hqRouter?: 'off' | 'trial'
+    /** Custom build (hq-router): the 👾 marks already there when the trial first ran; never routed.
+     *  Why keys, not a time: Slack gives no time for a reaction, only the message's. */
+    hqRouterPreTrial?: string[]
+    /** Custom build (hq-router): an env file with `OPENROUTER_API_KEY`, when Orca+'s environment has none. */
+    hqRouterKeyFile?: string | null
+    /** Custom build (hq-router crumbs): footers carry the sending chat and the router reads them. Default on. */
+    hqRouterCrumbs?: boolean
     /** Custom build (quiet-hours): no phone or Slack alerts but urgent ones; unset or null = off. */
     orcaPlusQuietHours?: OrcaPlusQuietHours | null
   }

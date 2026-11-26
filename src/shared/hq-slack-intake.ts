@@ -2,6 +2,8 @@
 // pops as «To work» with a suggested project; the owner sends it to a chat of that project (or a new
 // one) with a note, or keeps it in Notes for later — with everything needed to know where it came from.
 import type { PulseBellInput } from './pulse-bell'
+import type { HqRoute } from './hq-router'
+import { readHqRoute } from './hq-router-model'
 
 export const HQ_INTAKE_KIND = 'hq-intake'
 /** `:space_invader:` — built into Slack and rare at work, so it never fires by accident. */
@@ -42,15 +44,26 @@ export type HqIntake = {
   wholeThread?: boolean
   /** Custom build (hq-ledger-draft): what the person wants, in a line, for the newest message. */
   ask?: string
+  /** Custom build (hq-router): where the router would send it and why. */
+  route?: HqRoute
+  /** Custom build (hq-router): a Slack link the owner pasted, not a 👾 mark. */
+  pasted?: boolean
   /** Orca+'s guess at the project, and what is being sent, in one line. */
   repoId: string | null
   project: string | null
   summary: string
 }
 
-export function hqIntakeKey(intake: Pick<HqIntake, 'channel' | 'ts'>): string {
-  return `${HQ_INTAKE_KIND}:${intake.channel}:${intake.ts}`
+export function hqIntakeKey(
+  intake: Pick<HqIntake, 'channel' | 'ts'> & { pasted?: boolean }
+): string {
+  return intake.pasted
+    ? `${HQ_ROUTER_KEY_PREFIX}${intake.channel}:${intake.ts}`
+    : `${HQ_INTAKE_KIND}:${intake.channel}:${intake.ts}`
 }
+
+/** Custom build (hq-router): the key of a card for a pasted Slack link. */
+export const HQ_ROUTER_KEY_PREFIX = 'router:'
 
 export function hqIntakeVenueLabel(intake: Pick<HqIntake, 'venue' | 'author'>): string {
   if (intake.venue === 'dm') {
@@ -87,7 +100,16 @@ export function hqIntakeBellItem(intake: HqIntake): PulseBellInput {
       intake.via === 'mention'
         ? `To work: ${intake.author} mentioned you`
         : `To work: ${intake.author}`,
-    body: `${intake.summary}\n${intake.text.replace(/\s+/g, ' ').slice(0, 300)}`,
+    body: [
+      intake.summary,
+      // Custom build (hq-router): where the router would send it and why.
+      ...(intake.route
+        ? [
+            `→ ${intake.route.targetTitle ? `«${intake.route.targetTitle}»` : 'a new chat'} — ${intake.route.why}`
+          ]
+        : []),
+      intake.text.replace(/\s+/g, ' ').slice(0, 300)
+    ].join('\n'),
     urgency: 'urgent',
     refKind: 'slack-message',
     refId: JSON.stringify(intake),
@@ -123,6 +145,7 @@ export function readHqIntake(refId: string | null): HqIntake | null {
     return null
   }
   const at = Reflect.get(raw, 'at')
+  const route = readHqRoute(Reflect.get(raw, 'route'))
   return {
     channel,
     ts,
@@ -143,6 +166,8 @@ export function readHqIntake(refId: string | null): HqIntake | null {
     ...(text(raw, 'conversationId') ? { conversationId: text(raw, 'conversationId') ?? '' } : {}),
     ...(text(raw, 'lastTs') ? { lastTs: text(raw, 'lastTs') ?? '' } : {}),
     ...(text(raw, 'ask') ? { ask: text(raw, 'ask') ?? '' } : {}),
+    ...(route ? { route } : {}),
+    ...(Reflect.get(raw, 'pasted') === true ? { pasted: true } : {}),
     repoId: text(raw, 'repoId'),
     project: text(raw, 'project'),
     summary: text(raw, 'summary') ?? ''
