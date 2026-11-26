@@ -98,6 +98,16 @@ async function closeHandedOffChat(
   )
 }
 
+/** Custom build (hq-lead-handover, T2): the sweep closes an old Lead's chat the way a handoff does. */
+export async function closeHqNativeChat(
+  runtime: OrcaRuntimeService,
+  sessionId: string,
+  worktreeId: string
+): Promise<void> {
+  const tabId = `${NATIVE_CHAT_TAB}${sessionId}`
+  await closeHandedOffChat(runtime, { worktreeId, tabId, tabWorktreeId: worktreeId }, undefined)
+}
+
 type OffersListener = (offers: ClaudeHandoffOffer[]) => void
 const offersListeners = new Set<OffersListener>()
 
