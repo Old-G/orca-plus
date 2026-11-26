@@ -82,6 +82,20 @@ describe('router signals', () => {
     expect(hqRouteBySignals(input({ chats, text: 'nothing here' }))).toBeNull()
   })
 
+  it('a bound thread whose reply names another chat\'s task is not sent by itself', () => {
+    const chats = [chat('a'), chat('b', { taskRef: 'DEV-1234' })]
+    expect(
+      hqRouteBySignals(
+        input({ chats, boundChat: 'a', boundByChoice: true, text: 'also DEV-1234 please' })
+      )
+    ).toMatchObject({ target: 'a', how: 'thread', auto: false })
+    expect(
+      hqRouteBySignals(
+        input({ chats, boundChat: 'b', boundByChoice: true, text: 'also DEV-1234 please' })
+      )
+    ).toMatchObject({ target: 'b', how: 'thread', auto: true })
+  })
+
   it('a crumb whose chat closed goes to its Lead and says so', () => {
     const chats = [chat('lead', { role: 'lead', title: 'LEAD · Export' })]
     const route = hqRouteBySignals(
