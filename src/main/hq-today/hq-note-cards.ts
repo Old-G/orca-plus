@@ -21,15 +21,9 @@ import { hqIntakeFallbackSummary } from './hq-slack-intake-suggest'
 const POLL_MS = 60_000
 const FIRST_POLL_MS = 45_000
 
-/** Notes lines from the owner or from a message — not an agent's own reminder to check something, which
- *  its chat already holds. */
-export const HQ_NOTE_CARD_SOURCES: ReadonlySet<string> = new Set([
-  'manual',
-  'note',
-  'slack-promise',
-  'slack',
-  'clickup'
-])
+/** Lines of these sources never get a card: a «Later» line kept from a card of this feed would raise
+ *  the card again. */
+export const HQ_NOTE_CARD_SKIP_SOURCES: ReadonlySet<string> = new Set(['intake'])
 /** A line older than this gets no card: a card is looked for among the bell items of the last 8 days,
  *  and a card is never older than its line, so one line never gets a second card. */
 export const HQ_NOTE_CARD_WINDOW_MS = 7 * 24 * 60 * 60_000
@@ -54,14 +48,14 @@ export function hqNotesInConversations(
   )
 }
 
-/** An open line on the owner that nothing else carries yet: not an agent's reminder, not one a chat
- *  already holds (every `orca pulse wait add` from a chat names its chat) and not one a ledger
- *  conversation carries. `carried` is read only for a line that passed the rest. */
+/** An open line on the owner that nothing else carries yet: not one a chat already holds (every
+ *  `orca pulse wait add` from a chat names its chat) and not one a ledger conversation carries. The
+ *  line's `source` does not matter: the CLI says `agent` for a line added from a plain terminal too. `carried` is read only for a line that passed the rest. */
 export function hqNoteIsOrphan(note: PulseWaiting, carried: () => ReadonlySet<string>): boolean {
   return (
     note.status === 'open' &&
     note.direction === 'on-me' &&
-    HQ_NOTE_CARD_SOURCES.has(note.source) &&
+    !HQ_NOTE_CARD_SKIP_SOURCES.has(note.source) &&
     !note.agentSessionId &&
     !carried().has(note.id)
   )
@@ -132,12 +126,13 @@ export type HqNoteCardDeps = HqCardRouteDeps & {
   closeCard: (id: string, action: string) => void
 }
 
-/** One pass: a card for each line that wants one and has a route, and the end of a card whose line is
- *  no longer open or is carried elsewhere. Returns how many lines the router was asked about. */
-export async function raiseHqNoteCards(deps: HqNoteCardDeps): Promise<number> {
-  const notes = deps.notes()
-  let carriedIds: ReadonlySet<string> | null = null
-  const carried = () => (carriedIds ??= deps.carried())
+/** The end of a card whose line is no longer open or is carried elsewhere. Needs no model, so it runs
+ *  even when the background gate holds the routing back. */
+export function closeHqNoteCards(
+  deps: Pick<HqNoteCardDeps, 'openCards' | 'closeCard'>,
+  notes: readonly PulseWaiting[],
+  carried: () => ReadonlySet<string>
+): void {
   // Why: a card ends with its line — and when its line gained a chat or a conversation, which carry it now.
   const openIds = new Set(
     notes
@@ -149,6 +144,15 @@ export async function raiseHqNoteCards(deps: HqNoteCardDeps): Promise<number> {
       deps.closeCard(card.id, HQ_NOTE_CARD_CLOSED_ACTION)
     }
   }
+}
+
+/** One pass: a card for each line that wants one and has a route, and the end of a card whose line is
+ *  no longer open or is carried elsewhere. Returns how many lines the router was asked about. */
+export async function raiseHqNoteCards(deps: HqNoteCardDeps): Promise<number> {
+  const notes = deps.notes()
+  let carriedIds: ReadonlySet<string> | null = null
+  const carried = () => (carriedIds ??= deps.carried())
+  closeHqNoteCards(deps, notes, carried)
   const raised = new Set(deps.raised())
   const budget = { left: HQ_CARD_ROUTES_PER_POLL }
   const start = budget.left
@@ -183,6 +187,9 @@ export function startHqNoteCards(deps: HqNoteCardDeps): () => void {
     async () => {
       if (claudeBackgroundAllows('Router notes')) {
         await raiseHqNoteCards(deps)
+      } else {
+        let carriedIds: ReadonlySet<string> | null = null
+        closeHqNoteCards(deps, deps.notes(), () => (carriedIds ??= deps.carried()))
       }
     },
     (error) => console.warn('[hq-note-cards] pass failed:', error),
