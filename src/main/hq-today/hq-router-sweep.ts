@@ -103,7 +103,11 @@ export async function sweepHqCardRoutes(deps: HqRouterSweepDeps): Promise<number
         continue
       }
       calls += 1
-      route = await deps.route(draft).catch(() => null)
+      const asked = await deps.route(draft).catch(() => undefined)
+      if (asked === undefined) {
+        continue
+      }
+      route = asked
       deps.saveCardRoute(key, route, deps.now())
       deps.noteCard?.(key, route ? `routed ${route.how} → ${route.target}` : 'no route')
     }

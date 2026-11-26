@@ -468,7 +468,7 @@ describe('T7: one message, one card; every To work card gets a route once', () =
     expect(routed).toEqual([])
   })
 
-  it('a 👾 on another message of that person stays; one in his burst just before the answer joins it', async () => {
+  it('a 👾 on another message of that person stays, even right before his answer', async () => {
     const other = draft('1792630900.000100')
     const burst = draft('1792630000.000100')
     const { deps, synced } = base([other, burst])
@@ -481,7 +481,9 @@ describe('T7: one message, one card; every To work card gets a route once', () =
       }
     ]
     await pollHqSlackIntake(deps)
-    expect(synced[0]?.map((item) => item.dedupeKey)).toEqual([`hq-intake:D0AAAAAAAAA:${other.ts}`])
+    expect(synced[0]?.map((item) => item.dedupeKey).sort()).toEqual(
+      [`hq-intake:D0AAAAAAAAA:${other.ts}`, `hq-intake:D0AAAAAAAAA:${burst.ts}`].sort()
+    )
   })
 
   it('a mention that is also marked is one card, and a repeated poll adds none', async () => {

@@ -57,7 +57,11 @@ export async function routeCardOnce(
     return null
   }
   budget.left -= 1
-  const route = await deps.route(draftOfCard(card)).catch(() => null)
+  // Why: a call that threw says nothing about the card; it is not counted as a try.
+  const route = await deps.route(draftOfCard(card)).catch(() => undefined)
+  if (route === undefined) {
+    return null
+  }
   deps.saveCardRoute?.(key, route, deps.now())
   return route ? { ...route, auto: false } : null
 }

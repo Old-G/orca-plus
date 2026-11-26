@@ -13,9 +13,6 @@ export type HqIntakeAnswer = {
   ts?: string | null
 }
 
-// Why (T7): an answer is taken once a burst goes quiet, so its messages come just before it.
-const MARK_BURST_SPAN_MS = 2 * 60_000
-
 /** The same Slack message, by its own ts (the channel too when the waiting names one). */
 function isAnswerMessage(draft: HqIntakeDraft, answers: readonly HqIntakeAnswer[]): boolean {
   return answers.some(
@@ -32,15 +29,15 @@ export function answersWaiting(
   if (isAnswerMessage(draft, answers)) {
     return true
   }
-  return answers.some(
-    (answer) =>
-      answer.channel === draft.channel &&
-      (answer.authorSlackId === null || answer.authorSlackId === draft.authorSlackId) &&
-      // Why: a 👾 is a deliberate ask: it joins an answer only as that person's burst before it.
-      (loose
-        ? draft.at >= answer.at - ANSWER_SPAN_MS && draft.at <= answer.at + 2 * 60_000
-        : answer.authorSlackId !== null &&
-          draft.at >= answer.at - MARK_BURST_SPAN_MS &&
-          draft.at <= answer.at)
+  // Why: a 👾 is a deliberate ask, so it yields to an answer only when it is that very message.
+  return (
+    loose &&
+    answers.some(
+      (answer) =>
+        answer.channel === draft.channel &&
+        (answer.authorSlackId === null || answer.authorSlackId === draft.authorSlackId) &&
+        draft.at >= answer.at - ANSWER_SPAN_MS &&
+        draft.at <= answer.at + 2 * 60_000
+    )
   )
 }
