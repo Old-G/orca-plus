@@ -1,0 +1,48 @@
+/* Custom build (T5 board): feed on the left, chat tree with columns in the middle, the open chat on the
+   right. Everything is scoped to [data-board], so the current layout, Map and Work do not change. */
+@media (min-width: 1221px) {
+  .hqp-body[data-board='true'] > .hqb-feed {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding-right: 14px;
+    overflow: hidden;
+  }
+  .hqp-body[data-board='true'] > .hqb-tree {
+    margin: 0 20px;
+    overflow: auto;
+  }
+}
+@media (max-width: 1220px) {
+  .hqp-body[data-board='true'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hqp-body[data-board='true'] > .hqb-tree {
+    overflow: auto;
+  }
+  .hqp-body[data-board='true'] > .hqb-feed {
+    width: auto !important;
+    max-height: 70vh;
+    overflow: auto;
+  }
+}
+.hqp-body[data-board='true'][data-center-full='true'] > .hqb-feed {
+  display: none;
+}
+/* the tree's table fits the middle zone: no project column, the project is the first words of the row's tooltip */
+.hqw-board .hqw-tr {
+  grid-template-columns: minmax(110px, 2fr) 72px minmax(60px, 1.4fr) 36px 62px;
+  min-width: 0;
+  gap: 8px;
+  padding-inline: 8px;
+}
+.hqw-board .hqw-tr > :nth-child(2) {
+  display: none;
+}
+.hqw-board .hqw-table {
+  overflow-x: hidden;
+}
+/* the feed's composer is narrow here: its «Ask HQ» label gives the field the room */
+.hqb-feed .hqp-composer form > div > span:first-child {
+  display: none;
+}
