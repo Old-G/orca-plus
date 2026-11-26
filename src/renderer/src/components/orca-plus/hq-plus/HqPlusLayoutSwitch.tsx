@@ -36,10 +36,18 @@ export function HqPlusMapCrumbs({
   )
 }
 
-const LAYOUTS: readonly HqPlusLayout[] = ['current', 'map', 'work']
+const LAYOUTS: readonly HqPlusLayout[] = ['current', 'board', 'map', 'work']
 
 function labelOf(name: HqPlusLayout): { label: string; tip: string } {
   switch (name) {
+    case 'board':
+      return {
+        label: translate('auto.hqPlus.layout.board', 'Board'),
+        tip: translate(
+          'auto.hqPlus.layout.boardTip',
+          'Feed on the left, chat tree in the middle, the open chat on the right'
+        )
+      }
     case 'map':
       return {
         label: translate('auto.hqPlus.layout.map', 'Map'),
@@ -70,7 +78,7 @@ export function HqPlusLayoutSwitch({
 }): React.JSX.Element {
   // Custom build (hq-plus-work-view, owner 06.11): Feed | Map | Work — one switch.
   return (
-    <div className="hqm-seg hqm-layout" role="group" aria-label="Feed, Map or Work">
+    <div className="hqm-seg hqm-layout" role="group" aria-label="Feed, Board, Map or Work">
       {LAYOUTS.map((name) => {
         const { label, tip } = labelOf(name)
         return (

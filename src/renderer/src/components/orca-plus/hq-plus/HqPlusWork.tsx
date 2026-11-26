@@ -87,10 +87,12 @@ function NeedCard({
 
 function WorkRow({
   row,
-  actions
+  actions,
+  board
 }: {
   row: HqPlusTreeRow
   actions: HqPlusWorkActions
+  board: boolean
 }): React.JSX.Element {
   const { item } = row
   const title = useHqChatTitle(item)
@@ -112,7 +114,13 @@ function WorkRow({
       data-you={item.group === 'needs' ? 'true' : undefined}
       data-live={live ? 'true' : undefined}
       aria-current={actions.picked === item.key ? 'true' : undefined}
-      title={reply ? hqPlusFirstLine(reply)?.slice(0, 300) : undefined}
+      title={
+        board
+          ? `${actions.slugOf(item)}${reply ? ` · ${hqPlusFirstLine(reply)?.slice(0, 300) ?? ''}` : ''}`
+          : reply
+            ? hqPlusFirstLine(reply)?.slice(0, 300)
+            : undefined
+      }
       onClick={() => actions.onOpen(item)}
     >
       <span className="hqw-nm" style={{ '--hqw-depth': row.depth } as React.CSSProperties}>
@@ -151,10 +159,12 @@ function RunTitle({ lead }: { lead: HqChatItem }): React.JSX.Element {
 
 function Run({
   run,
-  actions
+  actions,
+  board
 }: {
   run: HqPlusWorkRun
   actions: HqPlusWorkActions
+  board: boolean
 }): React.JSX.Element {
   const { counts } = run
   const summary = [
@@ -194,7 +204,7 @@ function Run({
           <span className="hqw-age">{translate('auto.hqPlus.work.col.age', 'Age')}</span>
         </div>
         {run.rows.map((row) => (
-          <WorkRow key={row.item.key} row={row} actions={actions} />
+          <WorkRow key={row.item.key} row={row} actions={actions} board={board} />
         ))}
       </div>
     </section>
@@ -204,16 +214,22 @@ function Run({
 export function HqPlusWork({
   model,
   actions,
-  newChat
+  newChat,
+  board = false
 }: {
   model: HqPlusWorkModel
   actions: HqPlusWorkActions
   /** Custom build (hq-plus-work-view, owner 07.11): «+ Chat» — a new chat in any project from Work. */
   newChat?: React.ReactNode
+  /** Board layout (T5): the tree sits in the middle zone, so its table drops the project column. */
+  board?: boolean
 }): React.JSX.Element {
   const [showClosed, setShowClosed] = useState(false)
   return (
-    <div className="hqw" aria-label={translate('auto.hqPlus.work.label', 'Work')}>
+    <div
+      className={board ? 'hqw hqw-board' : 'hqw'}
+      aria-label={translate('auto.hqPlus.work.label', 'Work')}
+    >
       {newChat ? <div className="hqw-bar">{newChat}</div> : null}
       {model.needsYou.length > 0 ? (
         <section className="hqw-needs">
@@ -238,7 +254,7 @@ export function HqPlusWork({
         </p>
       ) : null}
       {model.runs.map((run) => (
-        <Run key={run.key} run={run} actions={actions} />
+        <Run key={run.key} run={run} actions={actions} board={board} />
       ))}
       {model.closedActiveToday.length > 0 ? (
         <Collapsible open={showClosed} onOpenChange={setShowClosed}>
