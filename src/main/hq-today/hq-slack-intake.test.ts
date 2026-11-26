@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { hqIntakeBellItem, type HqIntake } from '../../shared/hq-slack-intake'
 import type { HqProjectPage } from '../../shared/hq-project-pages'
 import type { PulseBellInput } from '../../shared/pulse-bell'
-import { pollHqSlackIntake, type HqSlackIntakeDeps } from './hq-slack-intake'
+import { hqIntakeOwnerHandled, pollHqSlackIntake, type HqSlackIntakeDeps } from './hq-slack-intake'
 import { hqIntakeOfConversation } from './hq-ledger-cards'
 import {
   guessHqIntake,
@@ -201,6 +201,17 @@ describe('pollHqSlackIntake', () => {
     await pollHqSlackIntake(next.deps)
     expect(routed).toHaveLength(1)
     expect(notes.at(-1)).toBe(`${mentionCard.dedupeKey} card up, routed`)
+  })
+
+  it('T1c: a card the bell closed by itself does not count as handled', () => {
+    expect(
+      hqIntakeOwnerHandled([
+        { dedupeKey: 'a', doneAt: 1, doneAction: 'gone' },
+        { dedupeKey: 'b', doneAt: 1, doneAction: 'seen' },
+        { dedupeKey: 'c', doneAt: 1, doneAction: 'sent' },
+        { dedupeKey: 'd', doneAt: null, doneAction: null }
+      ])
+    ).toEqual(new Set(['b', 'c']))
   })
 
   it('T1c: a failing route is noted, and the mark still gets its card', async () => {

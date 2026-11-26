@@ -14,6 +14,7 @@ import {
 } from '../../shared/hq-slack-intake'
 import type { PulseBellInput } from '../../shared/pulse-bell'
 import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
+import { INBOX_GONE_ACTION } from '../orca-plus/pulse/pulse-inbox'
 import type { HqIntakeDraft, HqIntakeGuess } from './hq-slack-intake-suggest'
 import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
@@ -100,6 +101,21 @@ export type HqSlackIntakeDeps = {
   settle?: (dedupeKey: string, intake: HqIntake) => void
   /** Custom build (hq-router T1c): one line for each 👾 mark a poll saw and what became of it. */
   noteMark?: (key: string, outcome: string) => void
+}
+
+/** Custom build (hq-router T1c, 26.11): keys the owner handled. A card the bell closed by itself
+ *  (`gone`: a poll stopped reporting it) was not handled — counting it left a 👾 on a
+ *  message whose earlier card had gone unrouted for good. */
+export function hqIntakeOwnerHandled(
+  items: readonly { dedupeKey: string | null; doneAt: number | null; doneAction: string | null }[]
+): Set<string> {
+  return new Set(
+    items.flatMap((item) =>
+      item.dedupeKey && item.doneAt !== null && item.doneAction !== INBOX_GONE_ACTION
+        ? [item.dedupeKey]
+        : []
+    )
+  )
 }
 
 /** Custom build (hq-router T1c, 26.11): a mention card still waiting with no route — the owner's 👾 on
