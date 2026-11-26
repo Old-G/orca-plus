@@ -72,13 +72,12 @@ const PLAN_HEAD_CHARS = 6_000
 /** The Lead lines of every plan in `<hq>/runs`. */
 export async function hqReadPlanLeadRefs(hqPath: string): Promise<HqPlanLeadRef[]> {
   const runs = join(hqPath, 'runs')
-  const names = await readdir(runs).catch(() => [] as string[])
+  // Why throws: a plan not read could be the one that still names the old Lead; the sweep then decides nothing.
+  const names = await readdir(runs)
   const refs: HqPlanLeadRef[] = []
   for (const name of names.filter((entry) => entry.endsWith('.md')).sort()) {
-    const text = await readFile(join(runs, name), 'utf8').catch(() => null)
-    if (text !== null) {
-      refs.push(...hqPlanLeadRefs(name, text.slice(0, PLAN_HEAD_CHARS)))
-    }
+    const text = await readFile(join(runs, name), 'utf8')
+    refs.push(...hqPlanLeadRefs(name, text.slice(0, PLAN_HEAD_CHARS)))
   }
   return refs
 }

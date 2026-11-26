@@ -73,7 +73,8 @@ export type HqSessionsDeps = {
   /** `orca hq reassign --from <old> --to <new>`: the old Lead's chats and held messages go to the new one. */
   reassignLead: (
     from: string,
-    to: string
+    to: string,
+    chats?: readonly string[]
   ) => Promise<{ ok: true; moved: number } | { ok: false; error: string }>
   /** Closes the chat's tab like the tab's ×; it stays in History. */
   closeChat: (sessionId: string, worktreeId: string | null) => Promise<boolean>
@@ -117,6 +118,9 @@ export function createHqSessionJournal(deps: Pick<HqSessionsDeps, 'pulse' | 'roo
   return {
     row,
     recorded,
+    /** Custom build (hq-lead-handover, T2): when a Lead's chats moved, kept in memory too — the journal list
+     *  is capped, and a row aged out of it must not restart the grace. */
+    movedAt: new Map<string, number>(),
     /** Questions to the owner still open (`chat.report` needing `owner:*`). */
     unreviewed: (): number =>
       deps.pulse.list({

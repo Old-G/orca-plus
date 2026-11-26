@@ -182,7 +182,7 @@ export function decideHqLeadHandovers(input: HqLeadHandoverInput): HqLeadHandove
       found.push({
         from: old,
         to: next,
-        sameThread: true,
+        sameThread: old.address !== null && old.address === next.address,
         why: `${label(old)} handed off to ${label(next)}`
       })
       continue

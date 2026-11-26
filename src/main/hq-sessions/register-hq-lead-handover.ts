@@ -21,13 +21,16 @@ export function hqLeadHandoverDeps(
         .list()
         .links.find((link) => link.sessionId === sessionId && link.via === 'launch')
         ?.parentSessionId ?? null,
-    reassignLead: async (from, to) => {
+    reassignLead: async (from, to, chats) => {
       const reassign = getHqLeadReassign()
       if (!reassign) {
         return { ok: false, error: 'Lead handover is not available on this host.' }
       }
       try {
-        const result = await reassign.reassign({ cwd: hqPath() }, { from, to })
+        const result = await reassign.reassign(
+          { cwd: hqPath() },
+          { from, to, ...(chats ? { chats } : {}) }
+        )
         return { ok: true, moved: result.moved.length }
       } catch (error) {
         return { ok: false, error: error instanceof Error ? error.message : String(error) }

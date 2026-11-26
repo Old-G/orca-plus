@@ -46,14 +46,19 @@ export async function carryOutHqLeadHandover(
   action: LeadHandoverAction,
   live: readonly HqLiveSession[]
 ): Promise<void> {
+  // Why: reassign needs the journal; without it nothing is moved, so nothing is closed.
+  if (!deps.enabled()) {
+    return
+  }
   const old = live.find((session) => session.sessionId === action.from)
   const next = live.find((session) => session.sessionId === action.to)
   if (!old || !next) {
     return
   }
   const key = hqLeadHandoverKey(action)
-  const moved = journal.recorded(key)
-  if (!moved) {
+  const recorded = journal.recorded(key)
+  const movedAt = recorded?.at ?? journal.movedAt.get(key)
+  if (movedAt === undefined) {
     // Why: a handoff on the Lead's own address keeps its chats and messages there; nothing to move.
     if (!action.sameThread) {
       const result = await deps.reassignLead(old.sessionId, next.sessionId)
@@ -63,7 +68,12 @@ export async function carryOutHqLeadHandover(
         )
         return
       }
+      // Why: a Lead the old one started stays «under it» in a reassign; once it closes, that one leads alone.
+      if (deps.launchedBy(next.sessionId) === old.sessionId) {
+        await deps.reassignLead(old.sessionId, 'none', [next.sessionId])
+      }
     }
+    journal.movedAt.set(key, deps.now())
     deps.pulse.record([
       journal.row({
         workspace: old.project ? await deps.roomOf(old.project) : HQ_JOURNAL_ALL_ROOMS,
@@ -84,7 +94,7 @@ export async function carryOutHqLeadHandover(
     ])
     return
   }
-  const verdict = decideHqLeadClose({ session: old, movedAt: moved.at, now: deps.now() })
+  const verdict = decideHqLeadClose({ session: old, movedAt, now: deps.now() })
   if (!verdict.close) {
     return
   }

@@ -28,6 +28,7 @@ let launchParents: Record<string, string>
 let reassigns: { from: string; to: string }[]
 let reassignFails: boolean
 let closed: string[]
+let detaches: string[]
 let service: HqSessionsService
 
 function chat(over: Partial<HqLiveSession> = {}): HqLiveSession {
@@ -109,6 +110,7 @@ beforeEach(() => {
   reassigns = []
   reassignFails = false
   closed = []
+  detaches = []
   service = createHqSessions({
     mode: () => mode,
     enabled: () => journalOn,
@@ -156,6 +158,11 @@ beforeEach(() => {
     reassignLead: async (from, to) => {
       if (reassignFails) {
         return { ok: false, error: 'boom' }
+      }
+      // Why: the detach of a launched successor (to none) is its own step, counted apart.
+      if (to === 'none') {
+        detaches.push(from)
+        return { ok: true, moved: 1 }
       }
       reassigns.push({ from, to })
       return { ok: true, moved: 2 }
@@ -480,6 +487,7 @@ describe('HQ+ session dispatcher', () => {
         expect.objectContaining({ kind: 'lead-handover', from: 'claude_lead1', to: 'claude_lead2' })
       )
       expect(reassigns).toEqual([{ from: 'claude_lead1', to: 'claude_lead2' }])
+      expect(detaches).toEqual(['claude_lead1'])
       expect(closed).toEqual([])
       clock += MIN
       await service.sweep({ run: true })
@@ -583,6 +591,26 @@ describe('HQ+ session dispatcher', () => {
       expect(
         rows(HQ_JOURNAL_KIND.sessionPlan).filter((r) => r.title.includes('close'))
       ).toHaveLength(1)
+    })
+
+    it('does nothing with the journal off, and when the plans cannot be read', async () => {
+      journalOn = false
+      await service.sweep({ run: true })
+      clock += 5 * MIN
+      await service.sweep({ run: true })
+      expect(reassigns).toEqual([])
+      expect(closed).toEqual([])
+      journalOn = true
+      planLines = []
+      await service.sweep({ run: true })
+      expect(reassigns).toEqual([])
+    })
+
+    it('moves the chats when a handoff lands on another address', async () => {
+      live = [{ ...oldLead(), handedOffTo: 'claude_lead2' }, newLead()]
+      planLines = []
+      await service.sweep({ run: true })
+      expect(reassigns).toEqual([{ from: 'claude_lead1', to: 'claude_lead2' }])
     })
   })
 })
