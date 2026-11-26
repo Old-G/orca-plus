@@ -20,7 +20,7 @@ import {
   type HqIntakeActionDeps
 } from './hq-slack-intake-actions'
 import { guessHqIntake } from './hq-slack-intake-suggest'
-import { startHqSlackIntake } from './hq-slack-intake'
+import { hqIntakeOwnerHandled, startHqSlackIntake } from './hq-slack-intake'
 import { generateHqText } from './hq-task-questions'
 import { hqIntakeOfConversation, hqLedgerCardReady } from './hq-ledger-cards'
 import { hqIntakeThreadOf } from './hq-intake-thread'
@@ -60,10 +60,11 @@ export function registerHqSlackIntake(
           .flatMap((item) => (item.dedupeKey ? [[item.dedupeKey, item.refId] as const] : []))
       ),
     handled: () =>
-      new Set(
-        runtime
-          .pulseListInbox(true, { kind: HQ_INTAKE_KIND, since: Date.now() - RAISED_LOOKBACK_MS })
-          .flatMap((item) => (item.dedupeKey && item.doneAt !== null ? [item.dedupeKey] : []))
+      hqIntakeOwnerHandled(
+        runtime.pulseListInbox(true, {
+          kind: HQ_INTAKE_KIND,
+          since: Date.now() - RAISED_LOOKBACK_MS
+        })
       ),
     answers: () =>
       runtime.pulseListWaitings({ direction: 'on-them' }).flatMap((waiting) => {
