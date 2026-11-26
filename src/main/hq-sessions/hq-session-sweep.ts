@@ -18,6 +18,11 @@ import { journalEntryAsInput } from '../hq-journal/hq-journal-adapters'
 import { carryOutHqDispatch } from './hq-session-act'
 import { decideHqDispatch, decideHqHandoff } from './hq-session-decide'
 import {
+  carryOutHqLeadHandover,
+  findHqLeadHandovers,
+  hqLeadHandoverKey
+} from './hq-session-lead-handover'
+import {
   describeHqDispatch,
   type HqSessionJournal,
   type HqSessionsDeps
@@ -79,6 +84,7 @@ export async function sweepHqSessions(
       actions.push({ kind: 'drain', entryId: entry.id, decision })
     }
   }
+  actions.push(...(await findHqLeadHandovers(deps, live)))
   const onThread = new Set(
     live
       .filter((session) => session.address && session.tabOpen && session.state !== 'closed')
@@ -163,6 +169,21 @@ export async function sweepHqSessions(
             dedupeKey: `${HQ_JOURNAL_KIND.sessionOpen}:handoff:${action.offerId}`
           })
         ])
+      } else if (action.kind === 'lead-handover') {
+        // Why: like a handoff's successor, the owner's «New chat after a handoff» switch lets it run.
+        if (!auto && !dispatching) {
+          continue
+        }
+        if (!auto && mode === 'report') {
+          await journal.plan(
+            `hand the Lead's chats to ${action.to} and close ${action.from}: ${action.why}`,
+            null,
+            null,
+            `${hqLeadHandoverKey(action)}:plan`
+          )
+          continue
+        }
+        await carryOutHqLeadHandover(deps, journal, action, live)
       } else if (action.kind === 'drain') {
         if (!dispatching) {
           continue
