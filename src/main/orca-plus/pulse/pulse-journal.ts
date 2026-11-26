@@ -304,7 +304,8 @@ export function listJournal(core: PulseCore, query: HqJournalQuery = {}): HqJour
   for (const [column, value] of [
     ['address', query.address],
     ['session_id', query.sessionId],
-    ['source', query.source]
+    ['source', query.source],
+    ['dedupe_key', query.dedupeKey]
   ] as const) {
     if (value) {
       where.push(`${column} = ?`)
