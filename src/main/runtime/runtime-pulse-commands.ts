@@ -44,6 +44,7 @@ import type {
   HqSessionInput
 } from '../../shared/hq-journal'
 import { PulseDb, pulseDbPath } from '../orca-plus/pulse/pulse-db'
+import type { ListInboxOptions } from '../orca-plus/pulse/pulse-inbox'
 import { withLegacySentContext } from '../orca-plus/outgoing-approval/outgoing-sent-history'
 import { OUTGOING_APPROVAL_BELL_KIND } from '../../shared/outgoing-approval/outgoing-approval-bell'
 
@@ -182,7 +183,7 @@ export class RuntimePulseCommands {
 
   pulseListInbox(
     includeDone?: boolean,
-    filter: { kind?: string; since?: number } = {}
+    filter: Omit<ListInboxOptions, 'includeDone'> = {}
   ): PulseInboxItem[] {
     return this.db().listInbox({ includeDone, ...filter })
   }
