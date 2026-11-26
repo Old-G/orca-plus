@@ -1,6 +1,6 @@
 // Custom build (hq-slack-intake): the 👾 watch and the «To work» card's buttons, wired to Orca+.
 import { ipcMain } from 'electron'
-import { HQ_INTAKE_KIND, readHqIntake } from '../../shared/hq-slack-intake'
+import { HQ_INTAKE_KIND, hqIntakeBellItem, readHqIntake } from '../../shared/hq-slack-intake'
 import { HQ_JOURNAL_ALL_ROOMS } from '../../shared/hq-journal'
 import { hqJobRow } from '../hq-journal/hq-journal-jobs'
 import { parseSlackThreadRef } from '../../shared/hq-waiting-replies'
@@ -29,6 +29,7 @@ import { hqLedgerReplacesScout } from './hq-ledger-cutover'
 import { hqRouterIntakeDeps, registerHqRouterLink } from './register-hq-router'
 import { hqIntakeCloseRoute } from './hq-intake-close-route'
 import { hqSweepDraftOf, startHqRouterSweep } from './hq-router-sweep'
+import { HQ_NOTE_CARD_KEY_PREFIX, hqNoteRaisedKeys, startHqNoteCards } from './hq-note-cards'
 import { HQ_SLACK_REQUEST_BELL_KIND } from '../../shared/hq-slack-request-bell'
 
 const RAISED_LOOKBACK_MS = 8 * 24 * 60 * 60_000
@@ -163,6 +164,37 @@ export function registerHqSlackIntake(
       setBody: (id, body) => runtime.pulseSetInboxBody(id, body),
       now: Date.now,
       noteCard: router.noteMark
+    })
+  }
+
+  // Custom build (hq-router T7b): a Notes line that asks for work becomes one «To work» card with a route.
+  if (router.route && router.cardRoute && router.saveCardRoute) {
+    startHqNoteCards({
+      notes: () => runtime.pulseListWaitings({ status: 'open', direction: 'on-me' }),
+      personName: (personId) => people().find((person) => person.id === personId)?.name ?? null,
+      raised: () =>
+        hqNoteRaisedKeys(
+          runtime.pulseListInbox(true, {
+            kind: HQ_INTAKE_KIND,
+            since: Date.now() - RAISED_LOOKBACK_MS
+          })
+        ),
+      openCards: () =>
+        runtime
+          .pulseListInbox(false, { kind: HQ_INTAKE_KIND })
+          .flatMap((item) =>
+            item.dedupeKey?.startsWith(HQ_NOTE_CARD_KEY_PREFIX)
+              ? [{ id: item.id, dedupeKey: item.dedupeKey }]
+              : []
+          ),
+      addCard: (intake) =>
+        void runtime.pulseAddInboxItem({ ...hqIntakeBellItem(intake), kind: HQ_INTAKE_KIND }),
+      closeCard: (id, action) => void runtime.pulseMarkInboxDone(id, action),
+      route: router.route,
+      cardRoute: router.cardRoute,
+      saveCardRoute: router.saveCardRoute,
+      now: Date.now,
+      noteMark: router.noteMark
     })
   }
 

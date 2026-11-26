@@ -3,6 +3,7 @@
 import {
   HQ_INTAKE_KIND,
   HQ_INTAKE_NOTE_SOURCE,
+  hqIntakeIsNote,
   hqIntakeKey,
   hqIntakeNote,
   readHqIntake,
@@ -58,7 +59,8 @@ export function keepHqIntakeInNotes(
   if (!intake) {
     return { ok: false, error: 'This message was already handled.' }
   }
-  if (!savedNote(deps, intake)) {
+  // Why (T7b): a card made from a Notes line already is that line; keeping it would add it twice.
+  if (!hqIntakeIsNote(intake) && !savedNote(deps, intake)) {
     // Why look up first: upserting by Slack id would rename the person Orca+ already knows.
     const person = intake.authorSlackId
       ? (deps.people().find((entry) => entry.slackUserId === intake.authorSlackId) ??
@@ -87,6 +89,15 @@ export function closeHqIntake(
   outcome: { action: 'sent' | 'skipped'; resolution: string }
 ): void {
   const intake = itemIntake(deps, itemId)
+  // Why (T7b): the card of a Notes line goes with the line only once it went to a chat; skipped, the
+  // line stays in Notes and the card is not raised again.
+  if (intake && hqIntakeIsNote(intake)) {
+    deps.markDone(itemId, outcome.action)
+    if (outcome.action === 'sent' && deps.openWaitings().some((entry) => entry.id === intake.ts)) {
+      deps.closeWaiting(intake.ts, outcome.resolution)
+    }
+    return
+  }
   const note = intake ? savedNote(deps, intake) : null
   if (note) {
     deps.closeWaiting(note.id, outcome.resolution)

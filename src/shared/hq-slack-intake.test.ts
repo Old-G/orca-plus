@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   hqIntakeBellItem,
+  hqIntakeHasNoSlackMessage,
+  hqIntakeIsRouterCard,
   hqIntakeNote,
   hqIntakePrompt,
+  hqIntakeVenueLabel,
   readHqIntake,
   type HqIntake
 } from './hq-slack-intake'
@@ -74,5 +77,27 @@ describe('hq-slack-intake', () => {
     expect(title).toBe('В работу: Анна прислал реализацию роутов чата')
     expect(detail).toContain('From: Анна — Slack, DM from Анна')
     expect(detail).toContain('Привет. Вот реализация роутов по чату')
+  })
+
+  it('a card made from a Notes line is a router card keyed by the line, with no Slack words', () => {
+    const card: HqIntake = {
+      ...intake,
+      channel: 'note',
+      ts: 'w1',
+      authorSlackId: null,
+      permalink: null,
+      links: [],
+      files: [],
+      pasted: true
+    }
+    expect(hqIntakeBellItem(card).dedupeKey).toBe('router:note:w1')
+    expect(hqIntakeIsRouterCard(card)).toBe(true)
+    expect(hqIntakeHasNoSlackMessage(card)).toBe(true)
+    expect(hqIntakeHasNoSlackMessage(intake)).toBe(false)
+    expect(hqIntakeVenueLabel(card)).toBe('Notes line')
+    const prompt = hqIntakePrompt(card, { projectName: null, note: '' })
+    expect(prompt).toContain('a line from their Notes')
+    expect(prompt).toContain("a line in the user's Notes")
+    expect(prompt).not.toContain('Slack')
   })
 })
