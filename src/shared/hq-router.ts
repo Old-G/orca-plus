@@ -23,6 +23,8 @@ export type HqRouterChat = {
   project: string | null
   /** The repo its worktree belongs to; the card needs it to name the chat. */
   repoId: string | null
+  /** Custom build (hq-router T4): its worktree, so «Send» can reopen a chat with no tab. */
+  worktreeId?: string | null
   role: 'lead' | 'sublead' | 'worker' | 'review' | null
   /** Its Lead's session id, when it has one open. */
   leadId: string | null
@@ -85,6 +87,8 @@ export type HqRoute = {
   target: string
   targetTitle: string | null
   repoId: string | null
+  /** The chosen chat's worktree, to reopen it when it has no tab or no live session. */
+  worktreeId?: string | null
   project: string | null
   level: HqRouteLevel
   how: HqRouteHow
@@ -93,7 +97,12 @@ export type HqRoute = {
   /** Sent without the owner's «Send» — only a bound thread in the trial. */
   auto: boolean
   /** Two other open chats, best first (a «new» pick always shows them). */
-  alternatives: { sessionId: string; title: string; repoId: string | null }[]
+  alternatives: {
+    sessionId: string
+    title: string
+    repoId: string | null
+    worktreeId?: string | null
+  }[]
   /** The model's share for its pick, when a model chose. */
   confidence: number | null
   /** Which model answered, when one did. */
@@ -191,6 +200,16 @@ function levelOf(chat: HqRouterChat | null): HqRouteLevel {
   return chat.role === 'lead' || chat.role === 'sublead' ? 'lead' : 'worker'
 }
 
+/** A runner-up as the card keeps it: enough to name the chat and to reopen it. */
+export function hqRouteAlternative(chat: HqRouterChat): HqRoute['alternatives'][number] {
+  return {
+    sessionId: chat.sessionId,
+    title: chat.title,
+    repoId: chat.repoId,
+    worktreeId: chat.worktreeId ?? null
+  }
+}
+
 export function routeTo(
   chat: HqRouterChat,
   how: HqRouteHow,
@@ -202,6 +221,7 @@ export function routeTo(
     target: chat.sessionId,
     targetTitle: chat.title,
     repoId: chat.repoId,
+    worktreeId: chat.worktreeId ?? null,
     project: chat.project,
     level: levelOf(chat),
     how,
@@ -210,7 +230,7 @@ export function routeTo(
     alternatives: hqRouterByState(others)
       .filter((other) => other.sessionId !== chat.sessionId)
       .slice(0, 2)
-      .map((other) => ({ sessionId: other.sessionId, title: other.title, repoId: other.repoId })),
+      .map(hqRouteAlternative),
     confidence: null,
     model: null,
     ...extra

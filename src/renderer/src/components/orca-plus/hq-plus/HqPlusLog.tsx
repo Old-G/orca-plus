@@ -24,6 +24,8 @@ import { hqPlusDaysAgo, hqPlusSameDay } from '../../../../../shared/hq-plus-feed
 import type { HqPlusLinkClick } from './hq-plus-link-open'
 import type { HqPlusChatRef } from './HqPlusChatName'
 import { noteHqPlusTakeHint } from './hq-plus-take-hint'
+import { HqPlusRouterCardView } from './HqPlusRouter'
+import { hqPlusRouterCardOf, hqPlusRouterSendsTo } from './hq-plus-router'
 import { hqPlusTileOf } from '../../../../../shared/hq-plus-tile'
 import { hqPlusPointerOver } from './hq-plus-pointer-hold'
 
@@ -213,6 +215,28 @@ function LogItem({
             ctx={ctx}
           />
         </HqPlusGrow>
+      </div>
+    )
+  }
+  // Custom build (hq-router T4, owner 26.11): a 👾 mark or a paste is a Router card — «→ chat» before
+  // anything is sent, «Send» / another chat on it.
+  const routed = item.kind === 'card' && item.open ? hqPlusRouterCardOf(item.inbox) : null
+  if (routed) {
+    return row(
+      <div className="b">
+        <NewMark item={item} ctx={ctx} />
+        <HqPlusRouterCardView
+          card={routed}
+          now={ctx.now}
+          badges={look.badges}
+          onTake={(inbox) => {
+            noteHqPlusTakeHint(inbox.id, {
+              project: routed.intake.route?.project ?? item.project,
+              sessionId: hqPlusRouterSendsTo(routed.intake)
+            })
+            ctx.toWork(inbox)
+          }}
+        />
       </div>
     )
   }

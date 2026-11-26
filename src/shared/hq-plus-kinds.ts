@@ -4,7 +4,12 @@
 import { HQ_JOURNAL_KIND } from './hq-journal'
 import { PULSE_BELL_KIND } from './pulse-bell'
 import { HQ_SLACK_REQUEST_BELL_KIND, readHqSlackRequestRef } from './hq-slack-request-bell'
-import { HQ_INTAKE_KIND } from './hq-slack-intake'
+import {
+  HQ_INTAKE_KIND,
+  hqIntakeIsPastedText,
+  hqIntakeIsRouterCard,
+  readHqIntake
+} from './hq-slack-intake'
 import { HQ_REMIND_KIND } from './hq-remind'
 import { HQ_DEFERRED_KIND } from './hq-morning-briefing'
 import type { HqPlusLogItem } from './hq-plus-log'
@@ -20,6 +25,7 @@ export type HqPlusBadgeTone =
   | 'clickup'
   | 'gmail'
   | 'gitlab'
+  | 'router'
   | 'bg'
   | 'working'
   | 'waits'
@@ -61,6 +67,7 @@ const BG_TAG: Readonly<Record<string, string>> = {
 }
 
 const MOVE: HqPlusBadge = { label: 'YOUR MOVE', tone: 'move' }
+const ROUTER: HqPlusBadge = { label: 'ROUTER', tone: 'router' }
 const BACKGROUND: HqPlusBadge = { label: 'BACKGROUND', tone: 'bg' }
 const LEARNED: HqPlusBadge = { label: 'LEARNED', tone: 'done' }
 
@@ -126,6 +133,15 @@ export function hqPlusLook(item: HqPlusLogItem): HqPlusLook {
     return look(fyi ? 'bg' : 'inbox', [SOURCE_BADGE[source]], source, fyi)
   }
   if (bellKind === HQ_INTAKE_KIND) {
+    // Custom build (hq-router T4, owner 26.11): a 👾 mark or a paste is a Router card.
+    const intake = readHqIntake(item.inbox?.refId ?? null)
+    if (intake && hqIntakeIsRouterCard(intake)) {
+      return look(
+        'inbox',
+        hqIntakeIsPastedText(intake) ? [ROUTER] : [ROUTER, SOURCE_BADGE.slack],
+        'slack'
+      )
+    }
     return look('inbox', [SOURCE_BADGE.slack], 'slack')
   }
   if (bellKind === PULSE_BELL_KIND.handoff) {

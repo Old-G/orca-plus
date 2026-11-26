@@ -1,6 +1,6 @@
 // Custom build (hq-slack-intake): the 👾 watch and the «To work» card's buttons, wired to Orca+.
 import { ipcMain } from 'electron'
-import { HQ_INTAKE_KIND, hqIntakeIsPastedText, readHqIntake } from '../../shared/hq-slack-intake'
+import { HQ_INTAKE_KIND, readHqIntake } from '../../shared/hq-slack-intake'
 import { HQ_JOURNAL_ALL_ROOMS } from '../../shared/hq-journal'
 import { hqJobRow } from '../hq-journal/hq-journal-jobs'
 import { parseSlackThreadRef } from '../../shared/hq-waiting-replies'
@@ -26,7 +26,8 @@ import { hqIntakeOfConversation, hqLedgerCardReady } from './hq-ledger-cards'
 import { hqIntakeThreadOf } from './hq-intake-thread'
 import { createSlackLedgerApi } from '../slack/slack-ledger-api'
 import { hqLedgerReplacesScout } from './hq-ledger-cutover'
-import { hqRouterIntakeDeps, hqRouterLogKey, registerHqRouterLink } from './register-hq-router'
+import { hqRouterIntakeDeps, registerHqRouterLink } from './register-hq-router'
+import { hqIntakeCloseRoute } from './hq-intake-close-route'
 import { hqSweepDraftOf, startHqRouterSweep } from './hq-router-sweep'
 import { HQ_SLACK_REQUEST_BELL_KIND } from '../../shared/hq-slack-request-bell'
 
@@ -216,24 +217,17 @@ export function registerHqSlackIntake(
         .find((i) => i.id === text(itemId))
       const intake = item ? readHqIntake(item.refId) : null
       const key = intake ? `slack:${intake.channel}:${intake.threadTs ?? intake.ts}` : null
-      // Custom build (hq-router T4): pasted text has no Slack thread to bind; its choice is only logged.
-      const thread = intake && !hqIntakeIsPastedText(intake)
-      if (action === 'sent' && chat && key && thread) {
-        runtime.pulseSetConversationChat(key, chat)
-      }
-      // Custom build (hq-router graph, 26.11): the owner's choice binds the thread to the task and
-      // goes into the router's log — the week's evidence for sending by itself.
+      // Custom build (hq-request-ledger, hq-router graph 26.11): the owner's choice keeps the thread with
+      // that chat, binds it to the task and goes into the router's log — the week's evidence.
       if (action === 'sent' && chat && intake) {
         const router = runtime.pulseRouter()
-        if (thread) {
-          router.bindChoice({
-            channel: intake.channel,
-            threadTs: intake.threadTs ?? intake.ts,
-            chat,
-            at: Date.now()
-          })
-        }
-        router.logChoice(hqRouterLogKey(intake), chat, Date.now())
+        hqIntakeCloseRoute(intake, chat, {
+          setConversationChat: (conversationKey, target) =>
+            runtime.pulseSetConversationChat(conversationKey, target),
+          bindChoice: (input) => router.bindChoice(input),
+          logChoice: (logKey, target, at) => router.logChoice(logKey, target, at),
+          now: Date.now()
+        })
       }
       // Custom build (hq-attribution-log): a skipped card says nothing about its guesses.
       if (action !== 'sent' && key) {

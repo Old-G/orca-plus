@@ -43,6 +43,7 @@ export function hqRouterChats(
         session.sessionId,
       project: session.project,
       repoId: session.worktreeId?.split('::')[0] || null,
+      worktreeId: session.worktreeId || null,
       role: role && ROLES.has(role) ? (role as HqRouterChat['role']) : null,
       leadId: lead && ids.has(lead) && lead !== session.sessionId ? lead : null,
       taskRef: session.taskRef,
