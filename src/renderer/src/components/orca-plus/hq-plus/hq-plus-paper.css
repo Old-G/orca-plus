@@ -31,6 +31,7 @@ html.light .hq-plus-pop {
   --hqp-node: #ffffff;
   --hqp-src-slack: #a8226f;
   --hqp-src-gmail: #9e4110;
+  --hqp-src-router: #0b7a62;
   /* shadows and wells: the dark theme's black at about a third of its strength, in ink blue */
   --hqp-shade: rgba(16, 42, 56, 0.35);
   --hqp-open-move: linear-gradient(#fffaf0, #fffaf0);

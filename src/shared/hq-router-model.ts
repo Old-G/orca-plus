@@ -4,6 +4,7 @@
 import {
   HQ_ROUTER_JEV_MODEL,
   HQ_ROUTER_NEW,
+  hqRouteAlternative,
   quote,
   routeTo,
   type HqRoute,
@@ -192,7 +193,7 @@ export function hqRouteByModel(
     alternatives: others
       .filter((other, index) => others.indexOf(other) === index)
       .slice(0, 2)
-      .map((other) => ({ sessionId: other.sessionId, title: other.title, repoId: other.repoId })),
+      .map(hqRouteAlternative),
     confidence: answer?.confidence ?? null,
     model: answer ? model : null
   }
@@ -221,6 +222,7 @@ export function readHqRoute(raw: unknown): HqRoute | null {
     target,
     targetTitle: str(raw, 'targetTitle'),
     repoId: str(raw, 'repoId'),
+    worktreeId: str(raw, 'worktreeId'),
     project: str(raw, 'project'),
     level: level === 'lead' || level === 'new' ? level : 'worker',
     how:
@@ -235,7 +237,14 @@ export function readHqRoute(raw: unknown): HqRoute | null {
       }
       const sessionId = str(entry, 'sessionId')
       return sessionId
-        ? [{ sessionId, title: str(entry, 'title') ?? sessionId, repoId: str(entry, 'repoId') }]
+        ? [
+            {
+              sessionId,
+              title: str(entry, 'title') ?? sessionId,
+              repoId: str(entry, 'repoId'),
+              worktreeId: str(entry, 'worktreeId')
+            }
+          ]
         : []
     }),
     confidence: typeof confidence === 'number' ? confidence : null,

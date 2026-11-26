@@ -16,6 +16,7 @@ import type { HqRoute } from '../../shared/hq-router'
 import { readHqRoute } from '../../shared/hq-router-model'
 import { hqChatTabIds } from '../hq-sessions/hq-session-live'
 import { hqRouterChats } from './hq-router-chats'
+import { hqRouterLogKey } from './hq-intake-close-route'
 import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
@@ -45,11 +46,6 @@ function readText(path: string): string | null {
   } catch {
     return null
   }
-}
-
-/** The router log's key for a card: the marked message. */
-export function hqRouterLogKey(message: { channel: string; ts: string }): string {
-  return `slack:${message.channel}:${message.ts}`
 }
 
 // Why (T1c, 26.11): a mark that came to nothing left no word anywhere; main's console reaches no file.

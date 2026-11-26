@@ -1,9 +1,8 @@
-// Custom build (hq-router T4, owner 26.11): what «👾 Router» lists — every open «To work» card the router
-// routed (a 👾 mark, a pasted link or text), newest first. A card the router did not route (a mention, a
-// ledger conversation) stays only in the feed.
+// Custom build (hq-router T4, owner 26.11): what «👾 Router» lists — every open Router card (a 👾 mark,
+// a pasted link or text), newest first. A mention or a ledger conversation stays only in the feed.
 import {
   HQ_INTAKE_KIND,
-  HQ_ROUTER_KEY_PREFIX,
+  hqIntakeIsRouterCard,
   readHqIntake,
   type HqIntake
 } from '../../../../../shared/hq-slack-intake'
@@ -11,18 +10,20 @@ import type { PulseInboxItem } from '../../../../../shared/pulse-types'
 
 export type HqPlusRouterCard = { item: PulseInboxItem; intake: HqIntake }
 
+/** An open Router card, or null. Why (T7 routes every To work card): only the router's own kind. */
+export function hqPlusRouterCardOf(
+  item: PulseInboxItem | null | undefined
+): HqPlusRouterCard | null {
+  if (!item || item.kind !== HQ_INTAKE_KIND || item.doneAt !== null) {
+    return null
+  }
+  const intake = readHqIntake(item.refId)
+  return intake && hqIntakeIsRouterCard(intake) ? { item, intake } : null
+}
+
 export function hqPlusRouterCards(items: readonly PulseInboxItem[]): HqPlusRouterCard[] {
   return items
-    .flatMap((item) => {
-      if (item.kind !== HQ_INTAKE_KIND || item.doneAt !== null) {
-        return []
-      }
-      const intake = readHqIntake(item.refId)
-      const routed =
-        !!intake &&
-        (!!intake.route || (!!item.dedupeKey?.startsWith(HQ_ROUTER_KEY_PREFIX) && !!intake.pasted))
-      return intake && routed ? [{ item, intake }] : []
-    })
+    .flatMap((item) => hqPlusRouterCardOf(item) ?? [])
     .sort((a, b) => b.item.createdAt - a.item.createdAt)
 }
 
@@ -45,4 +46,14 @@ export function hqPlusWorktreeOfSession(
     }
   }
   return null
+}
+
+/** Custom build (hq-router T4, owner 26.11): where to reopen a done or closed chat for «Send» — its tab,
+ *  else the worktree the router read it in; '' leaves it unopened. */
+export function hqPlusRouterChatWorktree(
+  tabsByWorktree: Parameters<typeof hqPlusWorktreeOfSession>[0],
+  sessionId: string,
+  known: string | null | undefined
+): string {
+  return hqPlusWorktreeOfSession(tabsByWorktree, sessionId) ?? known ?? ''
 }

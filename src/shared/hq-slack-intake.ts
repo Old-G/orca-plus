@@ -71,6 +71,17 @@ export function hqIntakeIsPastedText(intake: Pick<HqIntake, 'channel'>): boolean
   return intake.channel === HQ_ROUTER_TEXT_CHANNEL
 }
 
+/** Custom build (hq-router T4, owner 26.11): a Router card — a 👾 mark, a pasted link or pasted text —
+ *  not a mention or a ledger conversation, which the router also routes but which keep their look. */
+export function hqIntakeIsRouterCard(
+  intake: Pick<HqIntake, 'via' | 'conversationId' | 'pasted' | 'channel'>
+): boolean {
+  if (intake.pasted || hqIntakeIsPastedText(intake)) {
+    return true
+  }
+  return intake.via !== 'mention' && !intake.conversationId
+}
+
 export function hqIntakeVenueLabel(
   intake: Pick<HqIntake, 'venue' | 'author'> & { channel?: string }
 ): string {
