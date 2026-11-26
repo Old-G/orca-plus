@@ -19,7 +19,11 @@ import {
   hqRouterJevBody
 } from '../../shared/hq-router-model'
 import { parseHqCrumbs, type HqCrumbFooter, type HqRouterCrumb } from '../../shared/hq-router-crumb'
-import { HQ_INTAKE_TEXT_MAX, HQ_ROUTER_TEXT_CHANNEL } from '../../shared/hq-slack-intake'
+import {
+  HQ_INTAKE_TEXT_MAX,
+  HQ_NOTE_CHANNEL,
+  HQ_ROUTER_TEXT_CHANNEL
+} from '../../shared/hq-slack-intake'
 import { hqRouterPasteAuthor } from '../../shared/hq-router-paste'
 import type { HqRouterCrumbLookup } from '../orca-plus/pulse/pulse-router'
 import type { HqIntakeDraft } from './hq-slack-intake-suggest'
@@ -130,11 +134,13 @@ export async function routeHqIntake(draft: HqIntakeDraft, deps: HqRouterDeps): P
     venue:
       draft.channel === HQ_ROUTER_TEXT_CHANNEL
         ? 'text the owner pasted'
-        : draft.venue === 'dm'
-          ? 'Slack DM'
-          : draft.venue === 'group'
-            ? 'Slack group DM'
-            : 'Slack channel',
+        : draft.channel === HQ_NOTE_CHANNEL
+          ? 'a line from the owner’s Notes'
+          : draft.venue === 'dm'
+            ? 'Slack DM'
+            : draft.venue === 'group'
+              ? 'Slack group DM'
+              : 'Slack channel',
     crumb,
     boundChat:
       (binding?.source === 'choice' ? binding.chat : null) ?? deps.boundChat(conversationKey),
