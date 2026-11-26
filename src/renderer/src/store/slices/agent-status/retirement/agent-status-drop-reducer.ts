@@ -166,10 +166,9 @@ export function buildAgentStatusTabPrefixDropPatch(
       ...(nextManualUnread !== s.manuallyUnreadTurnsByPaneKey
         ? { manuallyUnreadTurnsByPaneKey: nextManualUnread }
         : {}),
-      // Bump epochs only for live-map changes; metadata-only sweeps do not affect sort/freshness.
+      // Bump the freshness epoch only for live-map changes. Custom build (sidebar-close-stays): sortEpoch stays, a close re-ranks nothing.
       agentStatusEpoch:
-        hadLive || migrationUnsupported.changed ? s.agentStatusEpoch + 1 : s.agentStatusEpoch,
-      sortEpoch: hadLive || migrationUnsupported.changed ? s.sortEpoch + 1 : s.sortEpoch
+        hadLive || migrationUnsupported.changed ? s.agentStatusEpoch + 1 : s.agentStatusEpoch
     }
   }
   const patch = buildPatch()

@@ -35,7 +35,9 @@ export function reduceSortSettle(
     return { state: { ...state, deadline: null }, settle: state.deadline !== null }
   }
   const { change } = event
-  const structuralChange = change !== null && change.liveCount !== state.liveCountAtLastBump
+  // Custom build (sidebar-close-stays): only an add re-ranks at once; a close or removal leaves every other row where it is.
+  const removalOnly = change !== null && change.liveCount < state.liveCountAtLastBump
+  const structuralChange = change !== null && change.liveCount > state.liveCountAtLastBump
   const liveCountAtLastBump = change?.epochBumped ? change.liveCount : state.liveCountAtLastBump
   if (event.settled) {
     return { state: { liveCountAtLastBump, deadline: null }, settle: false }
@@ -44,6 +46,7 @@ export function reduceSortSettle(
   if (structuralChange || event.sortBy === 'manual' || event.sortBy !== event.previousSortBy) {
     return { state: { liveCountAtLastBump, deadline: null }, settle: true }
   }
-  const deadline = change?.epochBumped ? now + SORT_SETTLE_MS : state.deadline
+  // A removal bump arms no re-rank: the rows that stay keep their order and the owner's scroll position.
+  const deadline = change?.epochBumped && !removalOnly ? now + SORT_SETTLE_MS : state.deadline
   return { state: { liveCountAtLastBump, deadline }, settle: false }
 }
