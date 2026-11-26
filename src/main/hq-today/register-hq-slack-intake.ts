@@ -27,6 +27,8 @@ import { hqIntakeThreadOf } from './hq-intake-thread'
 import { createSlackLedgerApi } from '../slack/slack-ledger-api'
 import { hqLedgerReplacesScout } from './hq-ledger-cutover'
 import { hqRouterIntakeDeps, hqRouterLogKey, registerHqRouterLink } from './register-hq-router'
+import { hqSweepDraftOf, startHqRouterSweep } from './hq-router-sweep'
+import { HQ_SLACK_REQUEST_BELL_KIND } from '../../shared/hq-slack-request-bell'
 
 const RAISED_LOOKBACK_MS = 8 * 24 * 60 * 60_000
 const ERROR_REPEAT_MS = 60 * 60_000
@@ -70,8 +72,16 @@ export function registerHqSlackIntake(
       runtime.pulseListWaitings({ direction: 'on-them' }).flatMap((waiting) => {
         const thread = parseSlackThreadRef(waiting.sourceRef)
         const at = waiting.replyTs ? Math.round(Number(waiting.replyTs) * 1000) : 0
-        return thread && at > Date.now() - RAISED_LOOKBACK_MS
-          ? [{ channel: thread.channel, authorSlackId: waiting.replyAuthorId ?? null, at }]
+        // Why (T7): a question recorded with no place still has its answer's own ts, which ties it.
+        return at > Date.now() - RAISED_LOOKBACK_MS
+          ? [
+              {
+                channel: thread?.channel ?? null,
+                authorSlackId: waiting.replyAuthorId ?? null,
+                at,
+                ts: waiting.replyTs
+              }
+            ]
           : []
       }),
     guess: (draft) =>
@@ -139,6 +149,21 @@ export function registerHqSlackIntake(
       ])
     }
   })
+
+  // Custom build (hq-router T7): the scout's Slack and ClickUp requests get the router's «→ chat» too.
+  const router = hqRouterIntakeDeps(store, runtime, cache)
+  if (router.route && router.cardRoute && router.saveCardRoute) {
+    startHqRouterSweep({
+      cards: () => runtime.pulseListInbox(false, { kind: HQ_SLACK_REQUEST_BELL_KIND }),
+      draftOf: hqSweepDraftOf,
+      route: router.route,
+      cardRoute: router.cardRoute,
+      saveCardRoute: router.saveCardRoute,
+      setBody: (id, body) => runtime.pulseSetInboxBody(id, body),
+      now: Date.now,
+      noteCard: router.noteMark
+    })
+  }
 
   const deps: HqIntakeActionDeps = {
     openItems: () => runtime.pulseListInbox(false, { kind: HQ_INTAKE_KIND }),
