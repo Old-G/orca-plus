@@ -262,7 +262,8 @@ export function syncInboxKind(
 ): { raised: number; closed: number } {
   return core.transaction(() => {
     const wanted = new Map(desired.map((input) => [input.dedupeKey, input]))
-    const open = listInbox(core).filter((entry) => entry.kind === kind)
+    // Custom build (pulse-hot-indexes): only this kind's open rows, not every open row of the bell.
+    const open = listInbox(core, { kind })
     const openKeys = new Set(open.map((entry) => entry.dedupeKey))
     let closed = 0
     for (const item of open) {
