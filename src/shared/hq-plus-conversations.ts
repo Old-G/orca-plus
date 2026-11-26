@@ -85,9 +85,9 @@ type Places = {
   conversation: (id: string) => string | null
 }
 
-/** A 👾 mark or a paste: the feed draws it as a Router card. */
+/** An open 👾 mark or paste: the feed draws it as a Router card; once handled it folds as before. */
 export function hqPlusIsRouterItem(item: HqPlusLogItem): boolean {
-  if (item.kind !== 'card' || item.inbox?.kind !== HQ_INTAKE_KIND) {
+  if (item.kind !== 'card' || !item.open || item.inbox?.kind !== HQ_INTAKE_KIND) {
     return false
   }
   const intake = readHqIntake(item.inbox.refId)

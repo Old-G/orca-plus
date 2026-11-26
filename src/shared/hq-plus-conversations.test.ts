@@ -456,4 +456,27 @@ describe('hqPlusFeedLog, Router card (hq-router T4)', () => {
     }
     expect(conversation.conversation.parts.map((part) => part.inbox?.id)).not.toContain('marked')
   })
+
+  it('folds a handled 👾 card into its conversation as before', () => {
+    const sent = bell({
+      kind: 'hq-intake',
+      id: 'sent',
+      title: 'To work: Ann',
+      createdAt: NOW - 9 * MIN,
+      doneAt: NOW - 5 * MIN,
+      doneAction: 'sent',
+      refId: JSON.stringify({
+        channel: 'C0HUB',
+        ts: '1793000000.000200',
+        threadTs: '1793000000.000100',
+        author: 'Ann',
+        venue: 'channel',
+        text: 'Ann: still not found',
+        at: NOW - 9 * MIN,
+        summary: 'still not found'
+      })
+    })
+    const items = hqPlusFeedLog(feed([], [mention, sent]), DAY_START, { chatQuestions: 'line' })
+    expect(items.some((item) => item.kind === 'card' && item.inbox?.id === 'sent')).toBe(false)
+  })
 })
