@@ -15,12 +15,14 @@ import {
   HQ_NOTE_CARD_WINDOW_MS,
   hqNoteIntake,
   hqNoteRaisedKeys,
+  hqNotesInConversations,
   hqNoteWantsCard,
   raiseHqNoteCards,
   type HqNoteCardDeps
 } from './hq-note-cards'
 
 const NOW = 1_800_000_000_000
+const none = () => new Set<string>()
 
 const route: HqRoute = {
   target: 'worker',
@@ -63,7 +65,10 @@ function note(id: string, extra: Partial<PulseWaiting> = {}): PulseWaiting {
   }
 }
 
-function setup(notes: PulseWaiting[], options: { answer?: HqRoute | null | 'throw' } = {}) {
+function setup(
+  notes: PulseWaiting[],
+  options: { answer?: HqRoute | null | 'throw'; carried?: Set<string> } = {}
+) {
   let id = 0
   const db = new PulseDb(':memory:', { now: () => NOW, newId: () => `i${++id}` })
   const saved = new Map<string, { route: HqRoute | null; at: number; tries: number }>()
@@ -74,6 +79,7 @@ function setup(notes: PulseWaiting[], options: { answer?: HqRoute | null | 'thro
   const state = { now: NOW }
   const deps: HqNoteCardDeps = {
     notes: () => notes.filter((entry) => entry.status === 'open'),
+    carried: () => options.carried ?? new Set<string>(),
     personName: () => 'Ann',
     raised: () => hqNoteRaisedKeys(db.listInbox({ includeDone: true, kind: HQ_INTAKE_KIND })),
     openCards: () =>
@@ -105,36 +111,34 @@ function setup(notes: PulseWaiting[], options: { answer?: HqRoute | null | 'thro
 
 describe('hqNoteWantsCard', () => {
   it('takes an open line from the owner or a message, young enough', () => {
-    expect(hqNoteWantsCard(note('a'), NOW)).toBe(true)
-    expect(hqNoteWantsCard(note('a', { source: 'manual' }), NOW)).toBe(true)
+    expect(hqNoteWantsCard(note('a'), NOW, none)).toBe(true)
+    expect(hqNoteWantsCard(note('a', { source: 'manual' }), NOW, none)).toBe(true)
   })
 
-  it('leaves a line a chat already holds, and one that belongs to a thread, task or MR', () => {
-    expect(hqNoteWantsCard(note('a', { agentSessionId: 'chat-1', source: 'manual' }), NOW)).toBe(
-      false
-    )
-    const thread =
-      'https://acme.slack.com/archives/C0123456789/p1795424123869509?thread_ts=1795423334.440239'
-    expect(hqNoteWantsCard(note('a', { sourceRef: thread }), NOW)).toBe(false)
+  it('leaves a line a chat already holds, and one a ledger conversation carries', () => {
     expect(
-      hqNoteWantsCard(note('a', { sourceRef: 'https://app.clickup.com/t/1/DEV-1' }), NOW)
+      hqNoteWantsCard(note('a', { agentSessionId: 'chat-1', source: 'manual' }), NOW, none)
     ).toBe(false)
+    expect(hqNoteWantsCard(note('a'), NOW, () => new Set(['a']))).toBe(false)
+    expect(hqNoteWantsCard(note('a'), NOW, () => new Set(['other']))).toBe(true)
+  })
+
+  it('keeps a line with a Slack, ClickUp or MR ref when no conversation was made from it', () => {
+    const ref = 'https://acme.slack.com/archives/C0123456789/p1795424123869509'
+    expect(hqNoteWantsCard(note('a', { sourceRef: ref }), NOW, none)).toBe(true)
     expect(
-      hqNoteWantsCard(
-        note('a', { sourceRef: 'https://gitlab.com/acme/app/-/merge_requests/7' }),
-        NOW
-      )
-    ).toBe(false)
+      hqNoteWantsCard(note('a', { sourceRef: 'https://app.clickup.com/t/1/DEV-1' }), NOW, none)
+    ).toBe(true)
   })
 
   it('leaves an agent reminder, a Later line, a line on them, a closed or an old one', () => {
-    expect(hqNoteWantsCard(note('a', { source: 'agent' }), NOW)).toBe(false)
-    expect(hqNoteWantsCard(note('a', { source: 'intake' }), NOW)).toBe(false)
-    expect(hqNoteWantsCard(note('a', { direction: 'on-them' }), NOW)).toBe(false)
-    expect(hqNoteWantsCard(note('a', { status: 'resolved' }), NOW)).toBe(false)
-    expect(hqNoteWantsCard(note('a', { createdAt: NOW - HQ_NOTE_CARD_WINDOW_MS - 1 }), NOW)).toBe(
-      false
-    )
+    expect(hqNoteWantsCard(note('a', { source: 'agent' }), NOW, none)).toBe(false)
+    expect(hqNoteWantsCard(note('a', { source: 'intake' }), NOW, none)).toBe(false)
+    expect(hqNoteWantsCard(note('a', { direction: 'on-them' }), NOW, none)).toBe(false)
+    expect(hqNoteWantsCard(note('a', { status: 'resolved' }), NOW, none)).toBe(false)
+    expect(
+      hqNoteWantsCard(note('a', { createdAt: NOW - HQ_NOTE_CARD_WINDOW_MS - 1 }), NOW, none)
+    ).toBe(false)
   })
 })
 
@@ -307,17 +311,42 @@ describe('raiseHqNoteCards', () => {
     expect(asked).toHaveLength(1)
   })
 
-  it('makes no card for a line a chat holds, even with a source that asks for one', async () => {
-    const { deps, asked, added } = setup([
-      note('n1', { source: 'manual', agentSessionId: 'chat-1' }),
-      note('n2', {
-        sourceRef:
-          'https://acme.slack.com/archives/C0123456789/p1795424123869509?thread_ts=1795423334.440239'
-      })
-    ])
+  it('makes no card for a line a chat holds or a conversation carries', async () => {
+    const { deps, asked, added } = setup(
+      [note('n1', { source: 'manual', agentSessionId: 'chat-1' }), note('n2')],
+      { carried: new Set(['n2']) }
+    )
     await raiseHqNoteCards(deps)
     expect(asked).toHaveLength(0)
     expect(added).toHaveLength(0)
+  })
+
+  it('reads the ledger only when a line needs it', async () => {
+    const carried = vi.fn(() => new Set<string>())
+    const { deps } = setup([
+      note('n1', { agentSessionId: 'chat-1' }),
+      note('n2', { source: 'agent' })
+    ])
+    await raiseHqNoteCards({ ...deps, carried })
+    expect(carried).not.toHaveBeenCalled()
+  })
+
+  it('takes a line with a conversation ref and no conversation, as before', async () => {
+    const { deps, added } = setup([
+      note('n1', {
+        sourceRef: 'https://acme.slack.com/archives/C0123456789/p1795424123869509'
+      })
+    ])
+    await raiseHqNoteCards(deps)
+    expect(added).toHaveLength(1)
+  })
+
+  it('names the notes a conversation carries only when that conversation exists', () => {
+    const ledger = {
+      conversations: [{ key: 'slack:C1:1.1' }],
+      waitingPlaces: { n1: 'slack:C1:1.1', n2: 'slack:C1:2.2', n3: 'clickup:DEV-1' }
+    }
+    expect([...hqNotesInConversations(ledger)]).toEqual(['n1'])
   })
 
   it('leaves the cards of other readers alone', async () => {
