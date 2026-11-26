@@ -30,13 +30,17 @@ function closeTreeRows(
 ): HqPlusTreeRow[] {
   // Why a stack: ancestors[d] says whether the nearest row above at depth d is still open.
   const ancestors: boolean[] = []
+  // Whether the first row of the line being walked is still open; an older chat of a line follows it.
+  let headOpen = true
   const kept: HqPlusTreeRow[] = []
   for (const row of rows) {
     const item = current.get(row.item.key)
-    // Why not for an older chat of a line: the chats under the line hang from its first row.
-    if (!row.earlier) {
+    // Why: the first older chat of a line whose head closed becomes the line's head.
+    const promoted = row.earlier && !headOpen && item !== undefined
+    if (!row.earlier || promoted) {
       ancestors.length = row.depth
       ancestors.push(item !== undefined)
+      headOpen = item !== undefined
     }
     if (!item) {
       continue
@@ -46,6 +50,7 @@ function closeTreeRows(
       ...row,
       item,
       depth,
+      earlier: row.earlier && !promoted,
       children: 0,
       startedBy: depth === 0 && row.depth > 0 ? null : row.startedBy
     })
@@ -93,7 +98,7 @@ export function holdSideLayout(
       projects: held.chats.projects
         .map((project) => ({
           ...project,
-          kept: keptOf.get(project.repoId) ?? project.kept,
+          kept: keptOf.get(project.repoId) ?? false,
           items: live(project.items)
         }))
         .filter((project) => project.items.length > 0 || project.kept),

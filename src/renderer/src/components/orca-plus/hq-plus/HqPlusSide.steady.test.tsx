@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HqChatLinksResult } from '../../../../../shared/hq-chat-links'
 import { structuredAgentSessionTabId } from '../../../../../shared/agent-session/view/structured-agent-session-projection'
 import type { Tab } from '../../../../../shared/workspace-layout/tab-groups/tab-types'
@@ -112,7 +112,18 @@ function column(items: HqChatItem[], close: (key: string) => void): React.JSX.El
 const order = (container: HTMLElement): string[] =>
   [...container.querySelectorAll('[data-chat]')].map((node) => node.getAttribute('data-chat') ?? '')
 
-afterEach(cleanup)
+const realMatches = Element.prototype.matches
+let pointerInside = true
+beforeEach(() => {
+  pointerInside = true
+  Element.prototype.matches = function (selector: string): boolean {
+    return selector === ':hover' ? pointerInside : realMatches.call(this, selector)
+  }
+})
+afterEach(() => {
+  Element.prototype.matches = realMatches
+  cleanup()
+})
 
 describe('HqPlusSide after a ✕ (owner 26.11)', () => {
   it('keeps the other chats where they were until the pointer leaves the column', () => {
@@ -140,5 +151,14 @@ describe('HqPlusSide after a ✕ (owner 26.11)', () => {
     rerender(column([lead, other], close))
     rerender(column([lead, other, chat('fresh', 9)], close))
     expect(order(container)).toEqual(['fresh', 'other', 'lead'])
+  })
+
+  it('holds nothing when the ✕ was pressed with the pointer outside the column', () => {
+    const close = vi.fn()
+    const { container, rerender } = render(column([lead, w1, other], close))
+    pointerInside = false
+    fireEvent.click(screen.getByLabelText('close w1'))
+    rerender(column([lead, other], close))
+    expect(order(container)).toEqual(['other', 'lead'])
   })
 })

@@ -119,4 +119,26 @@ describe('holdSideLayout', () => {
     const kept = holdSideLayout(layoutOf([lead]), layoutOf([]))
     expect(kept?.chats.projects).toEqual([])
   })
+
+  it("makes an older chat of a line the head when the line's head closes", () => {
+    const older = chat('older', 0)
+    const continues = {
+      links: links.links,
+      continues: [{ sessionId: 'lead', fromSessionId: 'older' }]
+    } as unknown as HqChatLinksResult
+    const items = [lead, older, w1]
+    const held: HqPlusSideLayout = {
+      chats: layoutOf(items).chats,
+      tree: hqPlusChatTree(items, continues)
+    }
+    expect(held.tree.map((row) => `${row.item.key}:${row.depth}:${row.earlier}`)).toEqual([
+      'lead:0:false',
+      'older:0:true',
+      'w1:1:false'
+    ])
+    const kept = holdSideLayout(held, layoutOf([older, w1]))
+    expect(
+      kept?.tree.map((row) => `${row.item.key}:${row.depth}:${row.earlier}:${row.children}`)
+    ).toEqual(['older:0:false:1', 'w1:1:false:0'])
+  })
 })

@@ -107,6 +107,7 @@ export function HqPlusSide({
   }
   const shown = holding ?? fresh
   const shownRef = useRef(shown)
+  const asideRef = useRef<HTMLElement>(null)
   useEffect(() => {
     shownRef.current = shown
   })
@@ -116,7 +117,11 @@ export function HqPlusSide({
       ? {
           ...closer,
           close: () => {
-            setHeld(shownRef.current)
+            // Why only under the pointer: a ✕ pressed by keyboard with the pointer elsewhere would
+            // hold the column with nothing to end it.
+            if (asideRef.current?.matches(':hover')) {
+              setHeld(shownRef.current)
+            }
             closer.close()
           }
         }
@@ -169,6 +174,7 @@ export function HqPlusSide({
   const loneMarked = chats.marked.filter((item) => !inTree.has(item.key))
   return (
     <aside
+      ref={asideRef}
       className="hqp-side"
       aria-label={translate('auto.hqPlus.side.label', 'Live and chats')}
       onPointerLeave={() => setHeld(null)}
