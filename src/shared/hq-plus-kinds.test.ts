@@ -79,3 +79,37 @@ describe('hqPlusRequestSource', () => {
     expect(hqPlusRequestSource('D1:1.2')).toBe('slack')
   })
 })
+
+describe('hqPlusLook, Router card (hq-router T4)', () => {
+  const intake = (extra: Record<string, unknown>): string =>
+    JSON.stringify({
+      channel: 'D1',
+      ts: '100.000001',
+      author: 'Ann',
+      venue: 'dm',
+      text: 'the export is green',
+      summary: '',
+      at: 1,
+      ...extra
+    })
+
+  it('marks a 👾 card ROUTER beside SLACK, pasted text ROUTER alone', () => {
+    expect(hqPlusLook(bell('hq-intake', intake({}))).badges.map((b) => b.label)).toEqual([
+      'ROUTER',
+      'SLACK'
+    ])
+    expect(
+      hqPlusLook(bell('hq-intake', intake({ channel: 'text', pasted: true }))).badges.map(
+        (b) => b.label
+      )
+    ).toEqual(['ROUTER'])
+  })
+
+  it('keeps a mention and a ledger card SLACK only', () => {
+    for (const extra of [{ via: 'mention' }, { conversationId: 'c-1' }]) {
+      expect(hqPlusLook(bell('hq-intake', intake(extra))).badges.map((b) => b.label)).toEqual([
+        'SLACK'
+      ])
+    }
+  })
+})
