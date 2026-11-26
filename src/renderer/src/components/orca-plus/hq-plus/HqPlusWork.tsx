@@ -21,6 +21,9 @@ import {
 import { useHqPlusChatChip } from './use-hq-plus-chat-chip'
 import type { HqPlusOtherWait } from './HqPlusSideQueues'
 import type { HqPlusTile } from './HqPlusChatRow'
+import type { HqPlusChatCloser } from './HqPlusCloseChat'
+import { HqPlusNewChatMenu } from './HqPlusNewChatMenu'
+import { HqPlusRowActions } from './HqPlusRowActions'
 
 export type HqPlusWorkActions = {
   now: number
@@ -39,6 +42,10 @@ export type HqPlusWorkActions = {
   nameOf: (sessionId: string) => string | null
   /** What we wait for from a person on this chat's behalf. */
   waitOf: (item: HqChatItem) => HqPlusOtherWait | null
+  /** T5e (board): × on a row — the same close the sidebar and the Feed use. */
+  closerOf?: (item: HqChatItem) => HqPlusChatCloser
+  /** T5e (board): the workspace a new chat of this chat's project opens in; null when there is none. */
+  newChatWorktreeOf?: (item: HqChatItem) => string | null
 }
 
 const TASK = /\b[A-Z][A-Z0-9]+-\d+\b/
@@ -114,7 +121,7 @@ function WorkRow({
   // T5c: the board's row wears the Feed card's look — the same .hqp-tile in the project's colour and the
   // chat's name — so the colour comes from --hqp-room, the one variable the Feed's tile reads.
   const tile = board ? actions.tileOf(item) : null
-  return (
+  const button = (
     <button
       type="button"
       className="hqw-tr"
@@ -169,6 +176,19 @@ function WorkRow({
       </span>
     </button>
   )
+  if (!board) {
+    return button
+  }
+  // Why a wrapper: the row is a button, and a button cannot hold the + and × buttons.
+  return (
+    <div
+      className="hqw-row"
+      style={tile?.color ? ({ '--hqp-room': tile.color } as React.CSSProperties) : undefined}
+    >
+      {button}
+      <HqPlusRowActions item={item} title={title} actions={actions} />
+    </div>
+  )
 }
 
 function RunTitle({ lead }: { lead: HqChatItem }): React.JSX.Element {
@@ -211,6 +231,13 @@ function Run({
           </>
         )}
         <span className="hqw-rs">{summary}</span>
+        {board && run.lead && actions.newChatWorktreeOf?.(run.lead) ? (
+          <HqPlusNewChatMenu worktreeId={actions.newChatWorktreeOf(run.lead) ?? ''} align="end">
+            <button type="button" className="hqp-pill hqw-run-new">
+              {translate('auto.hqPlus.board.runNewChat', '+ chat')}
+            </button>
+          </HqPlusNewChatMenu>
+        ) : null}
       </header>
       <div className="hqw-table">
         <div className="hqw-tr hqw-hd" aria-hidden="true">

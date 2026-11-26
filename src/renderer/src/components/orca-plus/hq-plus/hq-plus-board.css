@@ -101,3 +101,38 @@
   outline-offset: -2px;
   border-radius: 8px;
 }
+/* T5e (owner 26.11): close a chat and start one in its project from the board's row. The buttons sit over the
+   Age column and show on hover or focus (and always while the «close?» question is open). */
+.hqw-board .hqw-row {
+  position: relative;
+}
+.hqw-board .hqw-acts {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding-left: 14px;
+  white-space: nowrap;
+  background: linear-gradient(90deg, transparent, var(--hqp-bg, var(--background)) 14px);
+}
+.hqw-board .hqw-row:hover > .hqw-acts,
+.hqw-board .hqw-row:focus-within > .hqw-acts,
+.hqw-board .hqw-acts:has(.hqp-confirm),
+.hqw-board .hqw-acts:has([aria-expanded='true']) {
+  display: inline-flex;
+}
+.hqw-board .hqw-plus {
+  font-size: 15px;
+  line-height: 1;
+}
+.hqw-board .hqw-run-new {
+  margin-left: auto;
+  flex: none;
+}
+/* the wrapper hides the table's «last row has no line» selector, so say it for the wrapped row */
+.hqw-board .hqw-table > .hqw-row:last-child > .hqw-tr {
+  border-bottom: 0;
+}
