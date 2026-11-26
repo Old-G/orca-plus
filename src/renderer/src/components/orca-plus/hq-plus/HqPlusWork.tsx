@@ -150,7 +150,15 @@ function WorkRow({
             {tile.letters}
           </span>
         ) : null}
-        <span className="hqw-tt">{title}</span>
+        {board ? (
+          // T5g (owner 26.11): the tile's two letters do not say which project — its name sits under the chat's.
+          <span className="hqw-nt">
+            <span className="hqw-tt">{title}</span>
+            <span className="hqw-proj">{actions.slugOf(item)}</span>
+          </span>
+        ) : (
+          <span className="hqw-tt">{title}</span>
+        )}
         {row.children > 0 ? <span className="hqp-pc-kids">{row.children}</span> : null}
       </span>
       <span>
