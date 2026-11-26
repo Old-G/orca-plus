@@ -134,7 +134,7 @@ import { setHqPlusLayout, useHqPlusLayout } from './hq-plus-layout'
 import { HqPlusMapLayout } from './HqPlusMapLayout'
 import { HqPlusLayoutSwitch } from './HqPlusLayoutSwitch'
 import { HqPlusWork, type HqPlusWorkActions } from './HqPlusWork'
-import { hqPlusWorkView } from './hq-plus-work-view'
+import { hqPlusLooseRows, hqPlusWorkView } from './hq-plus-work-view'
 import { hqPlusChatTree } from './hq-plus-chat-tree'
 import { activateAndRevealWorktree } from '@/lib/workspace/activation/worktree-activation'
 import { useHqPlusRootClass } from './hq-plus-theme'
@@ -1526,7 +1526,7 @@ export function HqPlusScreen(): React.JSX.Element {
     if (layout !== 'work' && layout !== 'board') {
       return null
     }
-    return hqPlusWorkView({
+    const view = hqPlusWorkView({
       tree: hqPlusChatTree(roomChats, data.chatLinks),
       links: data.chatLinks,
       sessions: (data.sessions?.sessions ?? []).filter(
@@ -1534,6 +1534,8 @@ export function HqPlusScreen(): React.JSX.Element {
       ),
       since: dayStart
     })
+    // T5f: the board also lists the chats no lead's block holds.
+    return layout === 'board' ? { ...view, loose: hqPlusLooseRows(view, roomChats) } : view
   }, [layout, roomChats, data.chatLinks, data.sessions, room, dayStart])
   // T5e: a board row's «+» opens a chat in the main checkout of the row's project.
   const newChatTargets = useHqPlusNewChatTargets(NO_IDS)

@@ -4,7 +4,7 @@
 // Built from the same tree as «By work», so its links are the recorded facts, never names.
 import type { HqChatLinksResult } from '../../../../../shared/hq-chat-links'
 import type { HqLiveSession } from '../../../../../shared/hq-sessions'
-import type { HqChatItem } from '../hq/hq-chat-list'
+import { compareHqChatPlacement, type HqChatItem } from '../hq/hq-chat-list'
 import type { HqPlusTreeRow } from './hq-plus-chat-tree'
 
 export type HqPlusWorkRun = {
@@ -27,6 +27,11 @@ export type HqPlusWorkModel = {
    * first. Why not «closed since»: nothing records when a tab was closed, only when the chat last spoke.
    */
   closedActiveToday: HqLiveSession[]
+  /**
+   * T5f (board only): chats on view that are in no lead's block — no workers, started by no one. The tree
+   * leaves them to their project; the board lists them in one «No lead» group so every open chat shows.
+   */
+  loose?: HqPlusTreeRow[]
 }
 
 /** The heading of `closedActiveToday`: it says what the list filters on (codex review 07.11). */
@@ -116,6 +121,18 @@ export function hqPlusWorkView({
       )
       .sort((a, b) => b.lastActivityAt - a.lastActivityAt)
   }
+}
+
+/** T5f (board): the chats on view that no run lists, newest first — each open chat shows exactly once. */
+export function hqPlusLooseRows(
+  model: Pick<HqPlusWorkModel, 'runs'>,
+  chats: readonly HqChatItem[]
+): HqPlusTreeRow[] {
+  const listed = new Set(model.runs.flatMap((run) => run.rows.map((row) => row.item.key)))
+  return chats
+    .filter((item) => !listed.has(item.key))
+    .sort(compareHqChatPlacement)
+    .map((item) => ({ item, depth: 0, children: 0, earlier: false, startedBy: null }))
 }
 
 /** The first line of a reply, without its markdown marks; null when it has no words. */

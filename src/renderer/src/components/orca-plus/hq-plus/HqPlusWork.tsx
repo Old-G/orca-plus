@@ -294,7 +294,7 @@ export function HqPlusWork({
           </div>
         </section>
       ) : null}
-      {model.runs.length === 0 ? (
+      {model.runs.length === 0 && !model.loose?.length ? (
         <p className="hqp-empty hqp-quiet">
           {translate(
             'auto.hqPlus.work.empty',
@@ -305,6 +305,19 @@ export function HqPlusWork({
       {model.runs.map((run) => (
         <Run key={run.key} run={run} actions={actions} board={board} />
       ))}
+      {board && model.loose && model.loose.length > 0 ? (
+        <section className="hqw-run hqw-loose">
+          <header className="hqw-run-h">
+            <span className="hqw-rk">{translate('auto.hqPlus.board.noLead', 'NO LEAD')}</span>
+            <span className="hqw-rs">{plural(model.loose.length, 'chat', 'chats')}</span>
+          </header>
+          <div className="hqw-table">
+            {model.loose.map((row) => (
+              <WorkRow key={row.item.key} row={row} actions={actions} board />
+            ))}
+          </div>
+        </section>
+      ) : null}
       {model.closedActiveToday.length > 0 ? (
         <Collapsible open={showClosed} onOpenChange={setShowClosed}>
           <button
