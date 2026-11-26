@@ -29,8 +29,8 @@ import {
   hqChatSessionOf,
   hqLiveSessions,
   hqAddressOpenChats,
-  type HqAgentSighting,
-  type HqChatTab
+  hqChatTabs,
+  type HqAgentSighting
 } from './hq-session-live'
 
 const SWEEP_MS = 2 * 60_000
@@ -58,30 +58,6 @@ async function readContextPct(sessionId: string): Promise<number | null> {
     .catch(() => null)
   const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), CONTEXT_READ_MS))
   return Promise.race([read, timeout])
-}
-
-function chatTabs(store: Store): HqChatTab[] {
-  const session = store.getWorkspaceSession()
-  const tabs: HqChatTab[] = []
-  for (const [worktreeId, list] of Object.entries(session.unifiedTabs ?? {})) {
-    const groups = session.tabGroups?.[worktreeId] ?? []
-    const activeGroup = groups.find(
-      (group) => group.id === session.activeGroupIdByWorktree?.[worktreeId]
-    )
-    for (const tab of list) {
-      const sessionId = hqChatSessionOf(tab.id)
-      if (!sessionId) {
-        continue
-      }
-      tabs.push({
-        sessionId,
-        worktreeId,
-        lastFocusedAt: tab.lastFocusedAt ?? null,
-        focused: session.activeWorktreeId === worktreeId && activeGroup?.activeTabId === tab.id
-      })
-    }
-  }
-  return tabs
 }
 
 export function registerHqSessions(
@@ -159,7 +135,7 @@ export function registerHqSessions(
       const seen = hqLiveSessions({
         sessions,
         agents: await agents(),
-        tabs: chatTabs(store),
+        tabs: hqChatTabs(store),
         asking,
         contextPct,
         name: (sessionId) => record(sessionId)?.conversationName?.trim() || null,

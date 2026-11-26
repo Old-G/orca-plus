@@ -3,6 +3,7 @@
 import { hqChatAddress, type HqSession, type HqSessionInput } from '../../shared/hq-journal'
 import type { HqLiveSession } from '../../shared/hq-sessions'
 import type { HqChatRole } from '../../shared/hq-chat-role'
+import type { Store } from '../persistence/loading-store/store'
 
 const NATIVE_CHAT_TAB = 'structured-agent-session-'
 
@@ -28,6 +29,41 @@ export type HqChatTab = {
   lastFocusedAt: number | null
   /** On screen now: the active tab of the active workspace. */
   focused: boolean
+}
+
+/** The native-chat tabs open in the workspace session, and which one is on screen. */
+export function hqChatTabs(store: Pick<Store, 'getWorkspaceSession'>): HqChatTab[] {
+  const session = store.getWorkspaceSession()
+  const tabs: HqChatTab[] = []
+  for (const [worktreeId, list] of Object.entries(session.unifiedTabs ?? {})) {
+    const groups = session.tabGroups?.[worktreeId] ?? []
+    const activeGroup = groups.find(
+      (group) => group.id === session.activeGroupIdByWorktree?.[worktreeId]
+    )
+    for (const tab of list) {
+      const sessionId = hqChatSessionOf(tab.id)
+      if (!sessionId) {
+        continue
+      }
+      tabs.push({
+        sessionId,
+        worktreeId,
+        lastFocusedAt: tab.lastFocusedAt ?? null,
+        focused: session.activeWorktreeId === worktreeId && activeGroup?.activeTabId === tab.id
+      })
+    }
+  }
+  return tabs
+}
+
+/** The chats with a tab open; null when the workspace session could not be read. */
+export function hqChatTabIds(store: Pick<Store, 'getWorkspaceSession'>): Set<string> | null {
+  try {
+    return new Set(hqChatTabs(store).map((tab) => tab.sessionId))
+  } catch (error) {
+    console.warn('[hq-sessions] chat tabs not read', error)
+    return null
+  }
 }
 
 export type HqLiveInputs = {

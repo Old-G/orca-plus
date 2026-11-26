@@ -12,8 +12,10 @@ import {
   hqIntakePrompt,
   type HqIntake
 } from '../../shared/hq-slack-intake'
-import type { HqRoute, HqRouterChat } from '../../shared/hq-router'
+import type { HqRoute } from '../../shared/hq-router'
 import { readHqRoute } from '../../shared/hq-router-model'
+import { hqChatTabIds } from '../hq-sessions/hq-session-live'
+import { hqRouterChats } from './hq-router-chats'
 import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
@@ -37,58 +39,12 @@ import { hqIntakeFallbackSummary, type HqIntakeDraft } from './hq-slack-intake-s
 import { generateHqText } from './hq-task-questions'
 import { getLogsDirectory } from '../observability/logs-directory'
 
-/** Why a month: a chat left open a week is still where its thread's answer belongs (as the ledger). */
-const CHATS_WINDOW_MS = 30 * 24 * 60 * 60_000
-const REPORTS_PER_CHAT = 2
-
 function readText(path: string): string | null {
   try {
     return readFileSync(path, 'utf-8')
   } catch {
     return null
   }
-}
-
-const ROLES = new Set(['lead', 'sublead', 'worker', 'review'])
-
-export function hqRouterChats(runtime: OrcaRuntimeService, now: number): HqRouterChat[] {
-  const since = now - CHATS_WINDOW_MS
-  const reports = new Map<string, string[]>()
-  for (const entry of runtime.pulseListJournal({ kind: 'chat.report', since, limit: 300 })) {
-    const held = entry.sessionId ? (reports.get(entry.sessionId) ?? []) : null
-    if (entry.sessionId && held && held.length < REPORTS_PER_CHAT) {
-      reports.set(entry.sessionId, [...held, entry.title])
-    }
-  }
-  const router = runtime.pulseRouter()
-  const open = runtime.pulseListRecentSessions(since).filter(
-    (session) =>
-      session.closedAt === null &&
-      session.state !== 'closed' &&
-      // Why: a chat that handed off sends its messages on; its successor is the one to offer.
-      runtime.pulseLiveSessionOf(session.sessionId) === session.sessionId
-  )
-  const ids = new Set(open.map((session) => session.sessionId))
-  return open.map((session) => {
-    const role = router.roleOf(session.sessionId)
-    const lead = router.leadOf(session.sessionId)
-    return {
-      sessionId: session.sessionId,
-      title:
-        runtime.openedAgentSessionRecordStore()?.getRecord(session.sessionId)?.conversationName ||
-        session.address ||
-        session.sessionId,
-      project: session.project,
-      repoId: session.worktreeId?.split('::')[0] || null,
-      role: role && ROLES.has(role) ? (role as HqRouterChat['role']) : null,
-      leadId: lead && ids.has(lead) && lead !== session.sessionId ? lead : null,
-      taskRef: session.taskRef,
-      lastReport: reports.get(session.sessionId)?.join(' / ') ?? null,
-      waitsOnAuthor: [],
-      lastActivityAt: session.lastActivityAt,
-      finished: session.state === 'done'
-    }
-  })
 }
 
 /** The router log's key for a card: the marked message. */
@@ -125,7 +81,7 @@ export function hqRouterIntakeDeps(
     const key = hqRouterKey(process.env, settings.hqRouterKeyFile, readText)
     const router = runtime.pulseRouter()
     const routed = routeHqIntake(draft, {
-      chats: () => hqRouterChats(runtime, Date.now()),
+      chats: () => hqRouterChats(runtime, Date.now(), hqChatTabIds(store)),
       binding: (lookup) => router.binding(lookup),
       leadOf: (sessionId) => router.leadOf(sessionId),
       crumb: (lookup) => router.crumb(lookup),
