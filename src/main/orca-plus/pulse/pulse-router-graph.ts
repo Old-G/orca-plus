@@ -30,6 +30,12 @@ CREATE TABLE IF NOT EXISTS router_log (
   chosen TEXT,
   chosen_at INTEGER
 );
+CREATE TABLE IF NOT EXISTS router_card_routes (
+  key TEXT PRIMARY KEY,
+  at INTEGER NOT NULL,
+  route TEXT,
+  tries INTEGER NOT NULL DEFAULT 1
+);
 `
 
 const MAX_HOPS = 32
@@ -246,4 +252,34 @@ export function logChoice(core: PulseCore, key: string, chosen: string, at: numb
   core.db
     .prepare('UPDATE router_log SET chosen = ?, chosen_at = ? WHERE key = ? AND chosen IS NULL')
     .run(chosen, at, key)
+}
+
+export type RouterCardRoute = { at: number; route: unknown; tries: number }
+
+/** Custom build (hq-router T7): what the router said about a To work card, kept by the card's key so
+ *  the card is routed once — a poll, a restart or a rebuilt card reads it back. `route` is null when
+ *  the router found nothing (the card is tried again later, up to a few times). */
+export function cardRouteOf(core: PulseCore, key: string): RouterCardRoute | null {
+  const row = core.db
+    .prepare('SELECT at, route, tries FROM router_card_routes WHERE key = ?')
+    .get(key)
+  if (!row) {
+    return null
+  }
+  let route: unknown = null
+  try {
+    route = typeof row.route === 'string' ? JSON.parse(row.route) : null
+  } catch {
+    route = null
+  }
+  return { at: Number(row.at), route, tries: Number(row.tries) }
+}
+
+export function saveCardRoute(core: PulseCore, key: string, route: unknown, at: number): void {
+  core.db
+    .prepare(
+      'INSERT INTO router_card_routes (key, at, route, tries) VALUES (?, ?, ?, 1) ' +
+        'ON CONFLICT(key) DO UPDATE SET at = excluded.at, route = excluded.route, tries = tries + 1'
+    )
+    .run(key, at, route ? JSON.stringify(route) : null)
 }

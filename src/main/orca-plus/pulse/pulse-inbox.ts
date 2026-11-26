@@ -164,6 +164,17 @@ export function markInboxRead(core: PulseCore, id: string): PulseInboxItem {
   return update(core, id, 'read')
 }
 
+/** Custom build (hq-router T7): an open item's words change in place — a route line added to a card
+ *  the owner may be reading; its place, read state and key stay. */
+export function setInboxBody(core: PulseCore, id: string, body: string): void {
+  const existing = getInboxItem(core, id)
+  if (!existing || existing.body === body) {
+    return
+  }
+  core.db.prepare('UPDATE inbox SET body = ? WHERE id = ?').run(body, id)
+  core.emit('inbox.updated', 'inbox', id, { ...existing, body })
+}
+
 /** Done with the button that was pressed, if any; done twice keeps the first answer. */
 export function markInboxDone(core: PulseCore, id: string, action?: string): PulseInboxItem {
   return update(core, id, 'done', action)

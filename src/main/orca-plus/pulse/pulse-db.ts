@@ -58,6 +58,7 @@ import {
   getInboxItem,
   listInbox,
   markInboxDone,
+  setInboxBody,
   markInboxRead,
   syncInboxKind,
   type ListInboxOptions
@@ -286,6 +287,10 @@ export class PulseDb {
   markInboxRead(id: string) {
     return markInboxRead(this.core, id)
   }
+  setInboxBody(id: string, body: string): void {
+    setInboxBody(this.core, id, body)
+  }
+
   markInboxDone(id: string, action?: string) {
     return markInboxDone(this.core, id, action)
   }

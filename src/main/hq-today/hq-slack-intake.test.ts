@@ -409,3 +409,168 @@ describe('ledger switched on', () => {
     ])
   })
 })
+
+describe('T7: one message, one card; every To work card gets a route once', () => {
+  const route = {
+    target: 'worker',
+    targetTitle: 'W · support',
+    repoId: null,
+    project: null,
+    level: 'worker' as const,
+    how: 'model' as const,
+    why: 'x',
+    auto: true,
+    alternatives: [],
+    confidence: null,
+    model: null
+  }
+
+  function base(
+    marked: HqIntakeDraft[],
+    mentioned: HqIntakeDraft[] = [],
+    extra: Partial<HqSlackIntakeDeps> = {}
+  ) {
+    const synced: PulseBellInput[][] = []
+    const saved = new Map<string, { route: typeof route | null; at: number; tries: number }>()
+    const routed: string[] = []
+    const deps: HqSlackIntakeDeps = {
+      read: async (run) =>
+        run({
+          marked: async () => ({ drafts: marked, complete: true }),
+          mentioned: async () => mentioned
+        }),
+      raised: () => new Map(),
+      guess: async () => ({ repoId: null, project: null, summary: 's' }),
+      sync: (_kind, items) => void synced.push([...items]),
+      now: () => NOW,
+      route: async (d) => {
+        routed.push(d.ts)
+        return route
+      },
+      routerPreTrial: () => new Set(),
+      cardRoute: (key) => saved.get(key) ?? null,
+      saveCardRoute: (key, r, at) =>
+        void saved.set(key, { route: r, at, tries: (saved.get(key)?.tries ?? 0) + 1 }),
+      ...extra
+    }
+    return { deps, synced, routed, saved }
+  }
+
+  it('a 👾 on the message a person answered a waiting with makes no second card (REPLY first)', async () => {
+    const message = draft('1792630000.000100', { channel: 'D0BBBBBBBBB' })
+    const { deps, synced, routed } = base([message])
+    // The waiting names no channel (asked by hand); only the answer's own ts ties it.
+    deps.answers = () => [
+      { channel: null, authorSlackId: null, at: message.at + 70_000, ts: message.ts }
+    ]
+    await pollHqSlackIntake(deps)
+    expect(synced[0]).toEqual([])
+    expect(routed).toEqual([])
+  })
+
+  it('a 👾 on another message of that person stays; one in his burst just before the answer joins it', async () => {
+    const other = draft('1792630900.000100')
+    const burst = draft('1792630000.000100')
+    const { deps, synced } = base([other, burst])
+    deps.answers = () => [
+      {
+        channel: 'D0AAAAAAAAA',
+        authorSlackId: 'U1',
+        at: burst.at + 60_000,
+        ts: '1792630060.000200'
+      }
+    ]
+    await pollHqSlackIntake(deps)
+    expect(synced[0]?.map((item) => item.dedupeKey)).toEqual([`hq-intake:D0AAAAAAAAA:${other.ts}`])
+  })
+
+  it('a mention that is also marked is one card, and a repeated poll adds none', async () => {
+    const message = draft('1792630000.000100', { via: 'mention' })
+    const { via: _via, ...marked } = message
+    const first = base([marked], [message])
+    await pollHqSlackIntake(first.deps)
+    expect(first.synced[0]).toHaveLength(1)
+    const card = first.synced[0]?.[0]
+    const again = base([marked], [message], {
+      raised: () => new Map([[card?.dedupeKey ?? '', card?.refId ?? null]])
+    })
+    await pollHqSlackIntake(again.deps)
+    expect(again.synced[0]).toHaveLength(1)
+    expect(again.routed).toHaveLength(0)
+  })
+
+  it('a ledger conversation card gets its route once, proposal only, and keeps it on the next poll', async () => {
+    const intake = hqIntakeOfConversation({
+      id: 'c1',
+      key: 'slack:C0AAAAAAAAA:1792600000.000100',
+      project: null,
+      title: 'Проверить возвраты',
+      lastAt: NOW - 60_000,
+      messages: [
+        {
+          ts: '1792600000.000100',
+          author: 'Анна',
+          authorId: 'U1',
+          text: 'Глянь',
+          link: null,
+          at: NOW - 60_000
+        }
+      ]
+    }) as HqIntake
+    const first = base([], [], { ledgerCards: () => [intake] })
+    await pollHqSlackIntake(first.deps)
+    expect(first.routed).toEqual(['1792600000.000100'])
+    const item = first.synced[0]?.[0]
+    expect(item?.body).toContain('→ «W · support»')
+    expect(JSON.parse(item?.refId ?? '{}').route.auto).toBe(false)
+    await pollHqSlackIntake({ ...first.deps, sync: first.deps.sync })
+    expect(first.routed).toHaveLength(1)
+    expect(first.synced[1]?.[0]?.body).toContain('→ «W · support»')
+  })
+
+  it('a router that finds nothing is asked again only after the wait, and only a few times', async () => {
+    const intake = hqIntakeOfConversation({
+      id: 'c2',
+      key: 'slack:C0AAAAAAAAA:1792600000.000100',
+      project: null,
+      title: 't',
+      lastAt: NOW,
+      messages: [
+        { ts: '1792600000.000100', author: 'A', authorId: 'U1', text: 'x', link: null, at: NOW }
+      ]
+    }) as HqIntake
+    let clock = NOW
+    const calls: number[] = []
+    const first = base([], [], {
+      ledgerCards: () => [intake],
+      now: () => clock,
+      route: async () => {
+        calls.push(clock)
+        return null
+      }
+    })
+    await pollHqSlackIntake(first.deps)
+    await pollHqSlackIntake(first.deps)
+    expect(calls).toHaveLength(1)
+    clock += 31 * 60_000
+    await pollHqSlackIntake(first.deps)
+    expect(calls).toHaveLength(2)
+    clock += 31 * 60_000
+    await pollHqSlackIntake(first.deps)
+    clock += 31 * 60_000
+    await pollHqSlackIntake(first.deps)
+    expect(calls).toHaveLength(3)
+  })
+
+  it('a plain mention card with no route gets one in place', async () => {
+    const message = draft('1792630000.000100', { via: 'mention' })
+    const card = hqIntakeBellItem({ ...message, repoId: null, project: null, summary: 'm' })
+    const { deps, synced, routed } = base([], [], {
+      raised: () => new Map([[card.dedupeKey, card.refId ?? null]])
+    })
+    await pollHqSlackIntake(deps)
+    expect(routed).toEqual([message.ts])
+    expect(synced[0]?.[0]).toMatchObject({ dedupeKey: card.dedupeKey, replaces: card.dedupeKey })
+    expect(synced[0]?.[0]?.body).toContain('→ «W · support»')
+  })
+})

@@ -31,6 +31,8 @@ export type HqRouterChat = {
   /** Our open questions to this message's author that the chat asked. */
   waitsOnAuthor: string[]
   lastActivityAt: number
+  /** Custom build (hq-router T7): its last turn ended (state `done`); a chat still going ranks above. */
+  finished?: boolean
 }
 
 export type HqRouterInput = {
@@ -130,7 +132,10 @@ export function hqRouterRefMatches(
  */
 export function hqRouterShortlist(input: HqRouterInput): HqRouterChat[] {
   const byId = new Map(input.chats.map((chat) => [chat.sessionId, chat]))
-  const recent = [...input.chats].sort((a, b) => b.lastActivityAt - a.lastActivityAt)
+  // Why (T7, owner 26.11): a chat still going is where the work is; a finished one comes after.
+  const recent = [...input.chats].sort(
+    (a, b) => Number(!!a.finished) - Number(!!b.finished) || b.lastActivityAt - a.lastActivityAt
+  )
   // Why open questions first (variant b, 26.11): an answer most often answers what we asked.
   const order = [
     ...recent.filter((chat) => chat.waitsOnAuthor.length > 0),
