@@ -53,6 +53,16 @@ describe('hqIntakeCloseRoute', () => {
     expect(calls).toEqual(['log slack:text:100.000002 S2'])
   })
 
+  it('only logs a Notes line: it has no Slack thread', () => {
+    const { calls, deps } = recorder()
+    hqIntakeCloseRoute(
+      intake({ channel: 'note', ts: 'w1', threadTs: null, pasted: true }),
+      'S2',
+      deps
+    )
+    expect(calls).toEqual(['log slack:note:w1 S2'])
+  })
+
   it('fills router_log.chosen and chosen_at and binds the thread in the pulse db', () => {
     const c = new PulseCore(':memory:', { now: () => 1_000, newId: () => 'x' })
     try {

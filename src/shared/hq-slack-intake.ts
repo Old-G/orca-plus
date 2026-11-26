@@ -46,7 +46,7 @@ export type HqIntake = {
   ask?: string
   /** Custom build (hq-router): where the router would send it and why. */
   route?: HqRoute
-  /** Custom build (hq-router): a Slack link the owner pasted, not a 👾 mark. */
+  /** Custom build (hq-router): a Slack link, text or Notes line the owner put to the router, not a 👾 mark. */
   pasted?: boolean
   /** Orca+'s guess at the project, and what is being sent, in one line. */
   repoId: string | null
@@ -71,6 +71,19 @@ export function hqIntakeIsPastedText(intake: Pick<HqIntake, 'channel'>): boolean
   return intake.channel === HQ_ROUTER_TEXT_CHANNEL
 }
 
+/** Custom build (hq-router T7b, owner 26.11): the channel of a card for a Notes line; its `ts` is the
+ *  note's id and no Slack message stands behind it. */
+export const HQ_NOTE_CHANNEL = 'note'
+
+export function hqIntakeIsNote(intake: Pick<HqIntake, 'channel'>): boolean {
+  return intake.channel === HQ_NOTE_CHANNEL
+}
+
+/** A card with no Slack message behind it: pasted text or a Notes line. */
+export function hqIntakeHasNoSlackMessage(intake: Pick<HqIntake, 'channel'>): boolean {
+  return hqIntakeIsPastedText(intake) || hqIntakeIsNote(intake)
+}
+
 /** Custom build (hq-router T4, owner 26.11): a Router card — a 👾 mark, a pasted link or pasted text —
  *  not a mention or a ledger conversation, which the router also routes but which keep their look. */
 export function hqIntakeIsRouterCard(
@@ -87,6 +100,9 @@ export function hqIntakeVenueLabel(
 ): string {
   if (intake.channel === HQ_ROUTER_TEXT_CHANNEL) {
     return 'pasted text'
+  }
+  if (intake.channel === HQ_NOTE_CHANNEL) {
+    return 'Notes line'
   }
   if (intake.venue === 'dm') {
     return `DM from ${intake.author}`
@@ -231,9 +247,10 @@ export function hqIntakeThreadLink(
 /** Where it came from, in lines a person and an agent both read. */
 export function hqIntakeSourceLines(intake: HqIntake): string[] {
   const thread = hqIntakeThreadLink(intake.permalink, intake.threadTs)
-  if (hqIntakeIsPastedText(intake)) {
+  if (hqIntakeHasNoSlackMessage(intake)) {
     return [
-      `From: ${oneLine(intake.author)} — text the user pasted into the router, ${when(intake.at)}`,
+      `From: ${oneLine(intake.author)} — ${hqIntakeIsNote(intake) ? "a line in the user's Notes" : 'text the user pasted into the router'}, ${when(intake.at)}`,
+      ...(intake.permalink ? [`Source: ${intake.permalink}`] : []),
       ...(intake.links.length > 0 ? [`Links: ${intake.links.join(' ')}`] : [])
     ]
   }
@@ -253,7 +270,7 @@ export function hqIntakePrompt(
 ): string {
   const note = target.note.trim()
   return [
-    `Orca+ · the user sent you ${hqIntakeIsPastedText(intake) ? 'a message' : 'a Slack message'} to take into work${target.projectName ? ` (project ${oneLine(target.projectName)})` : ''}.`,
+    `Orca+ · the user sent you ${hqIntakeIsNote(intake) ? 'a line from their Notes' : hqIntakeIsPastedText(intake) ? 'a message' : 'a Slack message'} to take into work${target.projectName ? ` (project ${oneLine(target.projectName)})` : ''}.`,
     ...(note ? [`The user's note: ${note}`] : []),
     ...hqIntakeSourceLines(intake),
     intake.wholeThread

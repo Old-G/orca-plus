@@ -6,7 +6,7 @@ import { PULSE_BELL_KIND } from './pulse-bell'
 import { HQ_SLACK_REQUEST_BELL_KIND, readHqSlackRequestRef } from './hq-slack-request-bell'
 import {
   HQ_INTAKE_KIND,
-  hqIntakeIsPastedText,
+  hqIntakeHasNoSlackMessage,
   hqIntakeIsRouterCard,
   readHqIntake
 } from './hq-slack-intake'
@@ -138,7 +138,7 @@ export function hqPlusLook(item: HqPlusLogItem): HqPlusLook {
     if (intake && hqIntakeIsRouterCard(intake)) {
       return look(
         'inbox',
-        hqIntakeIsPastedText(intake) ? [ROUTER] : [ROUTER, SOURCE_BADGE.slack],
+        hqIntakeHasNoSlackMessage(intake) ? [ROUTER] : [ROUTER, SOURCE_BADGE.slack],
         'slack'
       )
     }
