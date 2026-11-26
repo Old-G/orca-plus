@@ -4,6 +4,7 @@
 // chats. The card says why in words the code writes, never the model. In the trial only a bound thread
 // is sent without the owner's «Send». No runtime imports: the offline eval runs this file as it is.
 import type { HqRouterCrumb } from './hq-router-crumb'
+import type { HqSessionState } from './hq-journal'
 
 export const HQ_ROUTER_NEW = 'new'
 export const HQ_ROUTER_SHORTLIST = 8
@@ -31,8 +32,32 @@ export type HqRouterChat = {
   /** Our open questions to this message's author that the chat asked. */
   waitsOnAuthor: string[]
   lastActivityAt: number
-  /** Custom build (hq-router T7): its last turn ended (state `done`); a chat still going ranks above. */
-  finished?: boolean
+  /** Open: working or waiting; done: its tab is open, the turn ended; closed: no tab. Missing = open.
+   *  Why (owner 26.11): a 👾 offered done/done/closed chats while open ones did the work. */
+  state?: HqRouterChatState
+}
+
+export type HqRouterChatState = 'open' | 'done' | 'closed'
+
+/** Open: mid-turn or waiting; done: the tab is open and the turn ended; closed: no tab (null = unknown). */
+export function hqRouterChatState(
+  state: HqSessionState,
+  hasTab: boolean | null
+): HqRouterChatState {
+  if (hasTab === false) {
+    return 'closed'
+  }
+  return state === 'working' || state === 'waiting' || state === 'queued' ? 'open' : 'done'
+}
+
+const STATE_RANK: Record<HqRouterChatState, number> = { open: 0, done: 1, closed: 2 }
+
+/** Open chats first, then done, then closed; the given order kept within each. */
+export function hqRouterByState<T extends Pick<HqRouterChat, 'state'>>(chats: readonly T[]): T[] {
+  return chats
+    .map((chat, index) => ({ chat, index, rank: STATE_RANK[chat.state ?? 'open'] }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((entry) => entry.chat)
 }
 
 export type HqRouterInput = {
@@ -128,14 +153,14 @@ export function hqRouterRefMatches(
 
 /**
  * The eight chats the model chooses from, in this order: where the owner sent this author before,
- * chats waiting on the author, fresh Leads, then the most recently active.
+ * chats waiting on the author, fresh Leads, then the most recently active — open chats above done
+ * ones, done above closed.
  */
 export function hqRouterShortlist(input: HqRouterInput): HqRouterChat[] {
   const byId = new Map(input.chats.map((chat) => [chat.sessionId, chat]))
-  // Why (T7, owner 26.11): a chat still going is where the work is; a finished one comes after.
-  const recent = [...input.chats].sort(
-    (a, b) => Number(!!a.finished) - Number(!!b.finished) || b.lastActivityAt - a.lastActivityAt
-  )
+  // Why (T7/T4, owner 26.11): a chat still going is where the work is; hqRouterByState below puts
+  // done and closed ones after it.
+  const recent = [...input.chats].sort((a, b) => b.lastActivityAt - a.lastActivityAt)
   // Why open questions first (variant b, 26.11): an answer most often answers what we asked.
   const order = [
     ...recent.filter((chat) => chat.waitsOnAuthor.length > 0),
@@ -148,7 +173,7 @@ export function hqRouterShortlist(input: HqRouterInput): HqRouterChat[] {
     ...recent
   ]
   const out: HqRouterChat[] = []
-  for (const chat of order) {
+  for (const chat of hqRouterByState(order)) {
     if (!out.includes(chat)) {
       out.push(chat)
     }
@@ -182,7 +207,7 @@ export function routeTo(
     how,
     why,
     auto: false,
-    alternatives: others
+    alternatives: hqRouterByState(others)
       .filter((other) => other.sessionId !== chat.sessionId)
       .slice(0, 2)
       .map((other) => ({ sessionId: other.sessionId, title: other.title, repoId: other.repoId })),
@@ -235,9 +260,10 @@ export function hqRouteBySignals(input: HqRouterInput): HqRoute | null {
   }
   const hits = hqRouterRefMatches(input.text, input.chats)
   if (hits.length > 0) {
-    // Why the worker over its Lead: the chat started for the task is the one doing it.
+    // Why the worker over its Lead: the chat started for the task is the one doing it; an open one first.
     const sorted = [...hits].sort(
       (a, b) =>
+        STATE_RANK[a.chat.state ?? 'open'] - STATE_RANK[b.chat.state ?? 'open'] ||
         Number(levelOf(a.chat) === 'lead') - Number(levelOf(b.chat) === 'lead') ||
         b.chat.lastActivityAt - a.chat.lastActivityAt
     )

@@ -18,6 +18,7 @@ export const pulseBellApi = {
   closeIntake: (itemId, action, resolution, sessionId) =>
     ipcRenderer.invoke('hqIntake:close', itemId, action, resolution, sessionId ?? null),
   routeLink: (url) => ipcRenderer.invoke('hqRouter:routeLink', url),
+  routeText: (text) => ipcRenderer.invoke('hqRouter:routeText', text),
   onChanged: (callback) => {
     const listener = (): void => callback()
     ipcRenderer.on('pulseBell:changed', listener)

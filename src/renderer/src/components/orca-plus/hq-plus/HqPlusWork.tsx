@@ -233,8 +233,11 @@ export function HqPlusWork({
   model,
   actions,
   newChat,
+  pinned,
   board = false
 }: {
+  /** Custom build (hq-router T4): rows pinned above the tree — «👾 Router». */
+  pinned?: React.ReactNode
   model: HqPlusWorkModel
   actions: HqPlusWorkActions
   /** Custom build (hq-plus-work-view, owner 07.11): «+ Chat» — a new chat in any project from Work. */
@@ -249,6 +252,7 @@ export function HqPlusWork({
       aria-label={translate('auto.hqPlus.work.label', 'Work')}
     >
       {newChat ? <div className="hqw-bar">{newChat}</div> : null}
+      {pinned}
       {model.needsYou.length > 0 ? (
         <section className="hqw-needs">
           <div className="hqw-needs-h">

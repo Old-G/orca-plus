@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   HQ_ROUTER_NEW,
   hqRouteBySignals,
+  hqRouterChatState,
   hqRouterRefs,
   hqRouterShortlist,
   type HqRouterChat,
@@ -9,6 +10,7 @@ import {
 } from './hq-router'
 import {
   hqRouteByModel,
+  hqRouterCandidateLine,
   hqRouterFallbackAnswer,
   hqRouterJevAnswer,
   hqRouterJevBody,
@@ -135,12 +137,61 @@ describe('router shortlist', () => {
       'r4'
     ])
   })
+
+  it('puts open chats above done ones and done above closed (Ann 👾 offered done/done/closed)', () => {
+    const chats = [
+      chat('closed', { state: 'closed', lastActivityAt: NOW - 1 }),
+      chat('done-1', { state: 'done', lastActivityAt: NOW - 2 }),
+      chat('done-2', { state: 'done', lastActivityAt: NOW - 3 }),
+      chat('open-old', { state: 'open', lastActivityAt: NOW - 50_000 }),
+      chat('waits-done', { state: 'done', waitsOnAuthor: ['Ann: export?'] }),
+      chat('no-state', { lastActivityAt: NOW - 60_000 })
+    ]
+    const short = hqRouterShortlist(input({ chats }))
+    expect(short.map((c) => c.sessionId)).toEqual([
+      'open-old',
+      'no-state',
+      'waits-done',
+      'done-1',
+      'done-2',
+      'closed'
+    ])
+    const route = hqRouteByModel(
+      input({ chats }),
+      short,
+      { pick: 'closed', ranked: ['done-1'], confidence: 0.6 },
+      'Jev'
+    )
+    expect(route.alternatives.map((a) => a.sessionId)).toEqual(['open-old', 'no-state'])
+  })
+
+  it('picks the open chat when a done one names the same task', () => {
+    const chats = [
+      chat('done', { state: 'done', taskRef: 'DEV-1234', lastActivityAt: NOW - 1 }),
+      chat('open', { state: 'open', taskRef: 'DEV-1234', lastActivityAt: NOW - 90_000 })
+    ]
+    expect(hqRouteBySignals(input({ chats, text: 'about DEV-1234' }))?.target).toBe('open')
+  })
+
+  it('reads a chat as closed without a tab, open mid-turn, done otherwise', () => {
+    expect(hqRouterChatState('working', false)).toBe('closed')
+    expect(hqRouterChatState('waiting', true)).toBe('open')
+    expect(hqRouterChatState('queued', null)).toBe('open')
+    expect(hqRouterChatState('done', true)).toBe('done')
+    expect(hqRouterChatState('done', null)).toBe('done')
+  })
+
+  it('tells the model which chats are done or closed', () => {
+    expect(hqRouterCandidateLine(chat('a', { state: 'done' }), [])).toContain(' · done')
+    expect(hqRouterCandidateLine(chat('b', { state: 'closed' }), [])).toContain(' · closed')
+    expect(hqRouterCandidateLine(chat('c', { state: 'open' }), [])).not.toMatch(/done|closed/)
+  })
 })
 
 describe('router shortlist, T7', () => {
   it('a chat still going comes before a finished one among the recent', () => {
     const chats = [
-      chat('done-new', { finished: true, lastActivityAt: NOW - 1 }),
+      chat('done-new', { state: 'done', lastActivityAt: NOW - 1 }),
       chat('going-old', { lastActivityAt: NOW - 50_000 }),
       chat('going-new', { lastActivityAt: NOW - 10 })
     ]

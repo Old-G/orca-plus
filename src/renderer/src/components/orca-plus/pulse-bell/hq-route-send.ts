@@ -66,14 +66,16 @@ export async function sendHqRoutePrompt(target: HqRouteTarget, prompt: string): 
     )
     return true
   }
-  const result = await sendWithReopen(target.chat, () =>
+  // Why (hq-router T4): a chat the router picked may have no tab here; with no workspace it is not reopened.
+  const where = target.chat.worktreeId ? target.chat : null
+  const result = await sendWithReopen(where, () =>
     window.api.pulseBell.sendToChat(target.chat.sessionId, prompt)
   )
   if (result.ok) {
     // Why: a closed chat with a live session takes the turn unseen; under HQ+ it comes back to the
     // sidebar (the classic HQ keeps its old behaviour).
-    if (hqFlavor() === 'plus' && !isHqRouteChatListed(target.chat)) {
-      await openHqRouteChat(target.chat).catch(() => undefined)
+    if (hqFlavor() === 'plus' && where && !isHqRouteChatListed(where)) {
+      await openHqRouteChat(where).catch(() => undefined)
     }
     toast.success(translate('auto.hqRoute.sent', 'Sent to «{{name}}»', { name: target.chat.title }))
     return true

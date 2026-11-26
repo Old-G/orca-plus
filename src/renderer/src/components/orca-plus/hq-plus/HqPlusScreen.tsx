@@ -94,6 +94,7 @@ import { hqPlusLinkClick, type HqPlusLinkClick } from './hq-plus-link-open'
 import { readHqWaitingTags } from '../../../../../shared/hq-waiting-tags'
 import { readHqWaitingReplyRef } from '../../../../../shared/hq-waiting-reply-bell'
 import { HqPlusTakePanel } from './HqPlusTakePanel'
+import { HqPlusRouter, HqPlusRouterRow } from './HqPlusRouter'
 import {
   HQ_PLUS_VIEW_TABS,
   flushHqPlusViewState,
@@ -240,6 +241,8 @@ export function HqPlusScreen(): React.JSX.Element {
   // Custom build (hq-plus-ui-v3): the open chat folded to a bar under Graph / River, until «Expand».
   const [chatFolded, setChatFolded] = useState(view.chatFolded)
   const [take, setTake] = useState<PulseInboxItem | null>(null)
+  // Custom build (hq-router T4): «👾 Router» open on the right, from its pinned row in the tree.
+  const [routerOpen, setRouterOpen] = useState(false)
   // Custom build (hq-plus-map): the Map layout's panel shows the picked card rather than a tab.
   const [panelCard, setPanelCard] = useState(true)
   // Custom build (hq-closed-loop): «Open» on the chat already open on the right lights it up briefly.
@@ -838,6 +841,7 @@ export function HqPlusScreen(): React.JSX.Element {
   const roleOfChat = (item: HqChatItem): HqChatRole | null =>
     item.kind === 'chat' ? (liveOf(item.tab.entityId)?.role ?? null) : null
   const showChat = (key: string): void => {
+    setRouterOpen(false)
     setPanelCard(false)
     setChatKey(key)
     setChatFolded(false)
@@ -1332,6 +1336,7 @@ export function HqPlusScreen(): React.JSX.Element {
                   }
                   setTab(name)
                   setTake(null)
+                  setRouterOpen(false)
                   setPanelCard(false)
                   if (name === 'session') {
                     setChatFolded(false)
@@ -1374,9 +1379,11 @@ export function HqPlusScreen(): React.JSX.Element {
               ? 'card'
               : take
                 ? `take:${take.id}`
-                : tab === 'session'
-                  ? `session:${chatItem ? chatItem.key : (pickKey ?? '')}`
-                  : tab
+                : routerOpen
+                  ? 'router'
+                  : tab === 'session'
+                    ? `session:${chatItem ? chatItem.key : (pickKey ?? '')}`
+                    : tab
           }
         >
           {card?.active && !take ? (
@@ -1388,9 +1395,14 @@ export function HqPlusScreen(): React.JSX.Element {
               onDone={(sessionId) => {
                 setTake(null)
                 data.reload()
-                openChat(sessionId)?.()
+                // Why: from the router the owner goes on to its next card, not into the chat.
+                if (!routerOpen) {
+                  openChat(sessionId)?.()
+                }
               }}
             />
+          ) : routerOpen ? (
+            <HqPlusRouter now={now} onTake={setTake} />
           ) : tab === 'session' && chatItem ? (
             <HqPlusChatSession
               item={chatItem}
@@ -1811,6 +1823,15 @@ export function HqPlusScreen(): React.JSX.Element {
             <HqPlusWork
               model={workModel}
               actions={workActions}
+              pinned={
+                <HqPlusRouterRow
+                  open={routerOpen}
+                  onOpen={() => {
+                    setTake(null)
+                    setRouterOpen(true)
+                  }}
+                />
+              }
               newChat={
                 <HqPlusNewChat
                   activeRepoIds={workRepoIds}
@@ -1859,6 +1880,15 @@ export function HqPlusScreen(): React.JSX.Element {
                 model={workModel}
                 actions={workActions}
                 board
+                pinned={
+                  <HqPlusRouterRow
+                    open={routerOpen}
+                    onOpen={() => {
+                      setTake(null)
+                      setRouterOpen(true)
+                    }}
+                  />
+                }
                 newChat={
                   <HqPlusNewChat
                     activeRepoIds={workRepoIds}
