@@ -100,9 +100,9 @@ export function createAgentStatusWorktreeDropActions(
           ...(nextManualUnread !== s.manuallyUnreadTurnsByPaneKey
             ? { manuallyUnreadTurnsByPaneKey: nextManualUnread }
             : {}),
+          // Custom build (sidebar-close-stays): a close drops live status without arming a re-rank, so no other sidebar row moves.
           agentStatusEpoch:
-            hadLive || migrationUnsupported.changed ? s.agentStatusEpoch + 1 : s.agentStatusEpoch,
-          sortEpoch: hadLive || migrationUnsupported.changed ? s.sortEpoch + 1 : s.sortEpoch
+            hadLive || migrationUnsupported.changed ? s.agentStatusEpoch + 1 : s.agentStatusEpoch
         }
       })
       if (hadLive) {
