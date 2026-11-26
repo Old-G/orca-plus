@@ -1,10 +1,11 @@
 // Custom build (hq-plus-map): which layout HQ+ shows — the current one (feed in the middle, tabs on the
 // right), Map (the room's map or the feed by tabs, the chat docked on the right) or Work (the chat tree on
-// the whole screen, hq-plus-work-view). A per-device choice,
+// the whole screen, hq-plus-work-view) or Board (T5: the feed on the left, the chat tree with columns in the
+// middle, the open chat on the right). A per-device choice,
 // remembered in this browser profile; the current layout is the default. Switching needs no restart.
 import { useSyncExternalStore } from 'react'
 
-export type HqPlusLayout = 'current' | 'map' | 'work'
+export type HqPlusLayout = 'current' | 'board' | 'map' | 'work'
 
 const KEY = 'orca-plus.hq-plus-layout'
 const listeners = new Set<() => void>()
@@ -12,7 +13,7 @@ const listeners = new Set<() => void>()
 function read(): HqPlusLayout {
   try {
     const saved = window.localStorage.getItem(KEY)
-    return saved === 'map' || saved === 'work' ? saved : 'current'
+    return saved === 'board' || saved === 'map' || saved === 'work' ? saved : 'current'
   } catch {
     return 'current'
   }

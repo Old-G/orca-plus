@@ -4,7 +4,9 @@ import { clampSidebarResizeWidth } from '@/hooks/useSidebarResize'
 
 export const HQ_PLUS_PANEL = {
   left: { key: 'orca-plus.hq-plus-left-width', min: 200, max: 560, initial: 260 },
-  right: { key: 'orca-plus.hq-plus-right-width', min: 320, max: 1200, initial: 420 }
+  right: { key: 'orca-plus.hq-plus-right-width', min: 320, max: 1200, initial: 420 },
+  // Board layout (T5): the feed is the left zone, so it gets its own, wider range.
+  boardLeft: { key: 'orca-plus.hq-plus-board-left-width', min: 300, max: 720, initial: 380 }
 } as const
 
 export type HqPlusPanelSide = keyof typeof HQ_PLUS_PANEL
