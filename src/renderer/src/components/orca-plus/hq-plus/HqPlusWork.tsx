@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import { formatRelativeTime } from '@/components/activity/threads/activity-thread-presentation'
+import { hqPlusShortAge } from './hq-plus-short-age'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import type { HqLiveSession } from '../../../../../shared/hq-sessions'
 import type { HqChatItem } from '../hq/hq-chat-list'
@@ -147,7 +148,11 @@ function WorkRow({
       <span className="hqw-last">{last ?? ''}</span>
       <span className="hqw-mr">{mr ?? ''}</span>
       <span className="hqw-age">
-        {item.sortAt ? formatRelativeTime(item.sortAt, actions.now) : ''}
+        {item.sortAt
+          ? board
+            ? hqPlusShortAge(item.sortAt, actions.now)
+            : formatRelativeTime(item.sortAt, actions.now)
+          : ''}
       </span>
     </button>
   )
