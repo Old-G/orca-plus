@@ -132,9 +132,13 @@ export function createAgentStatusDropActions(
             : {}),
           activityClearedAtByPaneKey: nextClearedAt,
           manuallyUnreadTurnsByPaneKey: nextManualUnread,
-          // Custom build (sidebar-close-stays): a close drops live status without arming a re-rank, so no other sidebar row moves.
           agentStatusEpoch:
-            hasLive || migrationUnsupported.changed ? s.agentStatusEpoch + 1 : s.agentStatusEpoch
+            hasLive || migrationUnsupported.changed ? s.agentStatusEpoch + 1 : s.agentStatusEpoch,
+          // Custom build (sidebar-close-stays): a result ending or an interrupt still re-ranks; only a pane removal (a close) does not.
+          sortEpoch:
+            (hasLive || migrationUnsupported.changed) && !opts?.paneRemoved
+              ? s.sortEpoch + 1
+              : s.sortEpoch
         }
       })
       if (liveExisted) {
