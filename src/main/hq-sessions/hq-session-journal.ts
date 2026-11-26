@@ -110,10 +110,10 @@ export function createHqSessionJournal(deps: Pick<HqSessionsDeps, 'pulse' | 'roo
     source: HQ_SESSION_SOURCE
   })
 
+  // Custom build (pulse-hot-indexes): the row by its key — reading this source's newest rows to find
+  // it cost a 500-row read per call, and missed a row older than them.
   const recorded = (dedupeKey: string): HqJournalEntry | null =>
-    deps.pulse
-      .list({ source: HQ_SESSION_SOURCE, limit: HQ_JOURNAL_MAX_LIMIT })
-      .find((entry) => entry.dedupeKey === dedupeKey) ?? null
+    deps.pulse.list({ source: HQ_SESSION_SOURCE, dedupeKey, limit: 1 })[0] ?? null
 
   return {
     row,
