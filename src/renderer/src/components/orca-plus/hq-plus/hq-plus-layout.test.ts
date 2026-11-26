@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('hq-plus layout', () => {
   beforeEach(() => {
@@ -10,6 +10,10 @@ describe('hq-plus layout', () => {
         setItem: (key: string, value: string) => void store.set(key, value)
       }
     })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('starts on the current layout', async () => {

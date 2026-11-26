@@ -17,6 +17,9 @@
   .hqp-body[data-board='true'] {
     grid-template-columns: minmax(0, 1fr);
   }
+  .hqp-body[data-board='true'] > .hqb-tree {
+    overflow: auto;
+  }
   .hqp-body[data-board='true'] > .hqb-feed {
     width: auto !important;
     max-height: 70vh;
@@ -26,7 +29,7 @@
 .hqp-body[data-board='true'][data-center-full='true'] > .hqb-feed {
   display: none;
 }
-/* the tree's table fits the middle zone: no project column, the chip stays in the name's tooltip */
+/* the tree's table fits the middle zone: no project column, the project is the first words of the row's tooltip */
 .hqw-board .hqw-tr {
   grid-template-columns: minmax(110px, 2fr) 72px minmax(60px, 1.4fr) 36px 62px;
   min-width: 0;
