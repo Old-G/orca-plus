@@ -8,14 +8,17 @@ import { hqCrumbChatId } from '../../../shared/hq-router-crumb'
 import {
   bindChosenThread,
   bindSentMessage,
+  cardRouteOf,
   chainBack,
   liveChatOf,
   logChoice,
   logRoute,
   ownerTaskOf,
   routerBindingFor,
+  saveCardRoute,
   taskOfChat,
   type RouterBinding,
+  type RouterCardRoute,
   type RouterLogEntry
 } from './pulse-router-graph'
 import type { PulseCore } from './pulse-core'
@@ -242,6 +245,10 @@ export function pulseRouter(core: () => PulseCore) {
     bindChoice: (input: Parameters<typeof bindChosenThread>[1]): void =>
       bindChosenThread(core(), input),
     logRoute: (entry: RouterLogEntry): void => logRoute(core(), entry),
-    logChoice: (key: string, chosen: string, at: number): void => logChoice(core(), key, chosen, at)
+    logChoice: (key: string, chosen: string, at: number): void =>
+      logChoice(core(), key, chosen, at),
+    cardRoute: (key: string): RouterCardRoute | null => cardRouteOf(core(), key),
+    saveCardRoute: (key: string, route: unknown, at: number): void =>
+      saveCardRoute(core(), key, route, at)
   }
 }

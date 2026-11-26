@@ -78,6 +78,11 @@ export function hqConversationCardPrefix(conversationId: string): string {
   return `${HQ_INTAKE_KIND}:conv:${conversationId}:`
 }
 
+/** Custom build (hq-router): the card's «→ chat — why» line. */
+export function hqIntakeRouteLine(route: HqRoute): string {
+  return `→ ${route.targetTitle ? `«${route.targetTitle}»` : 'a new chat'} — ${route.why}`
+}
+
 export function hqIntakeBellItem(intake: HqIntake): PulseBellInput {
   if (intake.conversationId) {
     const prefix = hqConversationCardPrefix(intake.conversationId)
@@ -85,7 +90,11 @@ export function hqIntakeBellItem(intake: HqIntake): PulseBellInput {
       kind: HQ_INTAKE_KIND,
       // Custom build (hq-ledger-draft): what they want in a line, as the scout's card read.
       title: `${intake.author}: ${intake.ask || intake.summary}`,
-      body: intake.text.slice(0, 600),
+      // Custom build (hq-router T7): the router's word on the conversation, above what was said.
+      body: [
+        ...(intake.route ? [hqIntakeRouteLine(intake.route)] : []),
+        intake.text.slice(0, 600)
+      ].join('\n'),
       urgency: 'urgent',
       refKind: 'slack-message',
       refId: JSON.stringify(intake),
@@ -103,11 +112,7 @@ export function hqIntakeBellItem(intake: HqIntake): PulseBellInput {
     body: [
       intake.summary,
       // Custom build (hq-router): where the router would send it and why.
-      ...(intake.route
-        ? [
-            `→ ${intake.route.targetTitle ? `«${intake.route.targetTitle}»` : 'a new chat'} — ${intake.route.why}`
-          ]
-        : []),
+      ...(intake.route ? [hqIntakeRouteLine(intake.route)] : []),
       intake.text.replace(/\s+/g, ' ').slice(0, 300)
     ].join('\n'),
     urgency: 'urgent',
