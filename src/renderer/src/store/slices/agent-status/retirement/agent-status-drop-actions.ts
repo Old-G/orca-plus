@@ -62,8 +62,8 @@ export function createAgentStatusDropActions(
       return {
         agentStatusByPaneKey,
         ...processRetirement.patch,
-        agentStatusEpoch: s.agentStatusEpoch + 1,
-        sortEpoch: s.sortEpoch + 1
+        // Custom build (sidebar-close-stays): a close drops live status without arming a re-rank, so no other sidebar row moves.
+        agentStatusEpoch: s.agentStatusEpoch + 1
       }
     })
     if (hadLive) {
@@ -132,9 +132,9 @@ export function createAgentStatusDropActions(
             : {}),
           activityClearedAtByPaneKey: nextClearedAt,
           manuallyUnreadTurnsByPaneKey: nextManualUnread,
+          // Custom build (sidebar-close-stays): a close drops live status without arming a re-rank, so no other sidebar row moves.
           agentStatusEpoch:
-            hasLive || migrationUnsupported.changed ? s.agentStatusEpoch + 1 : s.agentStatusEpoch,
-          sortEpoch: hasLive || migrationUnsupported.changed ? s.sortEpoch + 1 : s.sortEpoch
+            hasLive || migrationUnsupported.changed ? s.agentStatusEpoch + 1 : s.agentStatusEpoch
         }
       })
       if (liveExisted) {
