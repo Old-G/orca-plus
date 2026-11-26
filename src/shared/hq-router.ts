@@ -215,8 +215,12 @@ export function hqRouteBySignals(input: HqRouterInput): HqRoute | null {
   }
   const bound = input.boundChat ? byId.get(input.boundChat) : undefined
   if (bound) {
+    // Why: a reply naming another task's ref is a hint the thread moved on — he confirms it by hand.
+    const namesOther = hqRouterRefMatches(input.text, input.chats).some(
+      (hit) => hit.chat.sessionId !== bound.sessionId
+    )
     return routeTo(bound, 'thread', `This thread already went to ${quote(bound.title)}`, short, {
-      auto: input.boundByChoice === true
+      auto: input.boundByChoice === true && !namesOther
     })
   }
   const asking = input.chats.filter((chat) => chat.waitsOnAuthor.length > 0)
