@@ -211,7 +211,7 @@ describe('pollHqSlackIntake', () => {
         { dedupeKey: 'c', doneAt: 1, doneAction: 'sent' },
         { dedupeKey: 'd', doneAt: null, doneAction: null }
       ])
-    ).toEqual(new Set(['c']))
+    ).toEqual(new Set(['b', 'c']))
   })
 
   it('T1c: a failing route is noted, and the mark still gets its card', async () => {

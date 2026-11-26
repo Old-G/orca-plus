@@ -14,6 +14,7 @@ import {
 } from '../../shared/hq-slack-intake'
 import type { PulseBellInput } from '../../shared/pulse-bell'
 import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
+import { INBOX_GONE_ACTION } from '../orca-plus/pulse/pulse-inbox'
 import type { HqIntakeDraft, HqIntakeGuess } from './hq-slack-intake-suggest'
 import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
@@ -103,17 +104,14 @@ export type HqSlackIntakeDeps = {
 }
 
 /** Custom build (hq-router T1c, 26.11): keys the owner handled. A card the bell closed by itself
- *  (`gone` when a poll stopped reporting it, `seen`) was not handled — counting it left a 👾 on a
+ *  (`gone`: a poll stopped reporting it) was not handled — counting it left a 👾 on a
  *  message whose earlier card had gone unrouted for good. */
 export function hqIntakeOwnerHandled(
   items: readonly { dedupeKey: string | null; doneAt: number | null; doneAction: string | null }[]
 ): Set<string> {
   return new Set(
     items.flatMap((item) =>
-      item.dedupeKey &&
-      item.doneAt !== null &&
-      item.doneAction !== 'gone' &&
-      item.doneAction !== 'seen'
+      item.dedupeKey && item.doneAt !== null && item.doneAction !== INBOX_GONE_ACTION
         ? [item.dedupeKey]
         : []
     )
