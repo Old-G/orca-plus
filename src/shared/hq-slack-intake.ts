@@ -75,6 +75,9 @@ export function hqIntakeIsPastedText(intake: Pick<HqIntake, 'channel'>): boolean
  *  note's id and no Slack message stands behind it. */
 export const HQ_NOTE_CHANNEL = 'note'
 
+/** Cards of Notes lines have this dedupe-key prefix; the rest of the key is the note's id. */
+export const HQ_NOTE_CARD_KEY_PREFIX = `${HQ_ROUTER_KEY_PREFIX}${HQ_NOTE_CHANNEL}:`
+
 export function hqIntakeIsNote(intake: Pick<HqIntake, 'channel'>): boolean {
   return intake.channel === HQ_NOTE_CHANNEL
 }
