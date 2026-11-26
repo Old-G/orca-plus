@@ -73,7 +73,7 @@ import { HqPlusProjectChips, HqPlusProjectFeed } from './HqPlusProjectFeed'
 import type { HqPlusProjectCardContext } from './HqPlusProjectParts'
 import { useHqPlusDraftChats } from './use-hq-plus-drafts'
 import { HqPlusSide, type HqPlusTile } from './HqPlusSide'
-import { HqPlusNewChat } from './HqPlusNewChat'
+import { HqPlusNewChat, useHqPlusNewChatTargets } from './HqPlusNewChat'
 import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
 import { HqPlusTicker } from './HqPlusTicker'
 import type { HqPlusChatCloser } from './HqPlusCloseChat'
@@ -1535,10 +1535,16 @@ export function HqPlusScreen(): React.JSX.Element {
       since: dayStart
     })
   }, [layout, roomChats, data.chatLinks, data.sessions, room, dayStart])
+  // T5e: a board row's «+» opens a chat in the main checkout of the row's project.
+  const newChatTargets = useHqPlusNewChatTargets(NO_IDS)
   const workActions: HqPlusWorkActions = {
     now,
     picked: tab === 'session' ? chatKey : null,
     onOpen: (item) => showChat(item.key),
+    closerOf: boardLayout ? closerOf : undefined,
+    newChatWorktreeOf: boardLayout
+      ? (item) => newChatTargets.find((target) => target.repoId === item.repoId)?.worktreeId ?? null
+      : undefined,
     onOpenClosed: (session) => {
       const open = openChat(session.sessionId)
       if (open) {
