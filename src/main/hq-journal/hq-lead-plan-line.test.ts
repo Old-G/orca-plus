@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hqRewriteLeadLines } from './hq-lead-plan-line'
+import { hqPlanLeadRefs, hqRewriteLeadLines } from './hq-lead-plan-line'
 
 const AT = new Date(2026, 10, 16, 12).getTime()
 const FROM = { address: 'hq/lead-old', sessionIds: ['claude_aaa', 'claude_bbb'] }
@@ -40,5 +40,20 @@ describe('the plan line «Lead chat:»', () => {
         AT
       )
     ).toBe('Lead chat: claude_ddd (was: `hq/lead-old`, 16.11)')
+  })
+})
+
+describe('hqPlanLeadRefs (T2)', () => {
+  it('splits the current Lead from «(was: …)» and skips Sub-lead lines', () => {
+    const text = [
+      '# Plan',
+      'Lead chat: `acme/lead-2` (s-2) (was: `acme/lead-1`, 26.11) · started 26.11',
+      'Sub-lead chat: acme/sub (s-3)',
+      'Lead chat: acme/lead-9 (s-9) · started'
+    ].join('\n')
+    expect(hqPlanLeadRefs('plan.md', text)).toEqual([
+      { file: 'plan.md', current: ['acme/lead-2', 's-2'], was: ['acme/lead-1', '26.11'], text },
+      { file: 'plan.md', current: ['acme/lead-9', 's-9'], was: [], text }
+    ])
   })
 })

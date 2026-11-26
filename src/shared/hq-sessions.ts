@@ -25,6 +25,12 @@ export const HQ_SESSION_HANDOFF_GRACE_MS = 3 * 60_000
  */
 export const HQ_SESSION_HANDOFF_AUTO_GRACE_MS = 0
 
+/**
+ * Custom build (hq-lead-handover, T2): a Lead's chat whose plan now names another live chat is closed this
+ * long after its chats moved under the new Lead — time for it to finish a turn the owner may be reading.
+ */
+export const HQ_SESSION_LEAD_HANDOVER_GRACE_MS = 2 * 60_000
+
 /** queued → working → waiting (on the owner) → done → closed (in History). */
 export const HQ_SESSION_LIFECYCLE = ['queued', 'working', 'waiting', 'done', 'closed'] as const
 export type HqSessionLifecycle = (typeof HQ_SESSION_LIFECYCLE)[number]
@@ -80,6 +86,9 @@ export type HqSweepAction =
   | { kind: 'successor'; offerId: string; sessionId: string; address: string | null; why: string }
   /** Queued work that can go now, and where. */
   | { kind: 'drain'; entryId: string; decision: HqDispatchDecision }
+  /** Custom build (hq-lead-handover, T2): the plan's Lead is another live chat; the old Lead's chats move
+   *  under it, then the old chat closes. `sameThread`: a handoff on the Lead's own address, nothing to move. */
+  | { kind: 'lead-handover'; from: string; to: string; sameThread: boolean; why: string }
   /** Work handed to a thread no chat is on; only reported. */
   | { kind: 'lost'; address: string; entryIds: string[]; why: string }
 
