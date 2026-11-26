@@ -30,11 +30,25 @@
   display: none;
 }
 /* the tree's table fits the middle zone: no project column, the project is the first words of the row's tooltip */
+/* T5b: every column may shrink and clips inside its own cell, so a narrow tree never pushes Age past the card */
 .hqw-board .hqw-tr {
-  grid-template-columns: minmax(110px, 2fr) 72px minmax(60px, 1.4fr) 36px 62px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 72px) minmax(0, 1.6fr) minmax(0, 40px) 34px;
   min-width: 0;
   gap: 8px;
   padding-inline: 8px;
+}
+.hqw-board .hqw-tr > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hqw-board .hqw-tr .hqp-badge {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
 }
 .hqw-board .hqw-tr > :nth-child(2) {
   display: none;
@@ -45,4 +59,17 @@
 /* the feed's composer is narrow here: its «Ask HQ» label gives the field the room */
 .hqb-feed .hqp-composer form > div > span:first-child {
   display: none;
+}
+/* T5b (owner 26.11): no scrollbar in the board's feed and tree; the wheel and trackpad still scroll them */
+.hqp-body[data-board='true'] > .hqb-tree,
+.hqp-body[data-board='true'] > .hqb-feed,
+.hqp-body[data-board='true'] > .hqb-feed .hqp-log {
+  scrollbar-width: none;
+}
+.hqp-body[data-board='true'] > .hqb-tree::-webkit-scrollbar,
+.hqp-body[data-board='true'] > .hqb-feed::-webkit-scrollbar,
+.hqp-body[data-board='true'] > .hqb-feed .hqp-log::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
