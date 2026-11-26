@@ -64,8 +64,19 @@ export function hqIntakeKey(
 
 /** Custom build (hq-router): the key of a card for a pasted Slack link. */
 export const HQ_ROUTER_KEY_PREFIX = 'router:'
+/** Custom build (hq-router T4): the channel of a card for text pasted into the router — no Slack message. */
+export const HQ_ROUTER_TEXT_CHANNEL = 'text'
 
-export function hqIntakeVenueLabel(intake: Pick<HqIntake, 'venue' | 'author'>): string {
+export function hqIntakeIsPastedText(intake: Pick<HqIntake, 'channel'>): boolean {
+  return intake.channel === HQ_ROUTER_TEXT_CHANNEL
+}
+
+export function hqIntakeVenueLabel(
+  intake: Pick<HqIntake, 'venue' | 'author'> & { channel?: string }
+): string {
+  if (intake.channel === HQ_ROUTER_TEXT_CHANNEL) {
+    return 'pasted text'
+  }
   if (intake.venue === 'dm') {
     return `DM from ${intake.author}`
   }
@@ -209,6 +220,12 @@ export function hqIntakeThreadLink(
 /** Where it came from, in lines a person and an agent both read. */
 export function hqIntakeSourceLines(intake: HqIntake): string[] {
   const thread = hqIntakeThreadLink(intake.permalink, intake.threadTs)
+  if (hqIntakeIsPastedText(intake)) {
+    return [
+      `From: ${oneLine(intake.author)} — text the user pasted into the router, ${when(intake.at)}`,
+      ...(intake.links.length > 0 ? [`Links: ${intake.links.join(' ')}`] : [])
+    ]
+  }
   return [
     `From: ${oneLine(intake.author)} — Slack, ${hqIntakeVenueLabel(intake)}, ${when(intake.at)}`,
     ...(thread && thread !== intake.permalink ? [`Thread: ${thread}`] : []),
@@ -225,7 +242,7 @@ export function hqIntakePrompt(
 ): string {
   const note = target.note.trim()
   return [
-    `Orca+ · the user sent you a Slack message to take into work${target.projectName ? ` (project ${oneLine(target.projectName)})` : ''}.`,
+    `Orca+ · the user sent you ${hqIntakeIsPastedText(intake) ? 'a message' : 'a Slack message'} to take into work${target.projectName ? ` (project ${oneLine(target.projectName)})` : ''}.`,
     ...(note ? [`The user's note: ${note}`] : []),
     ...hqIntakeSourceLines(intake),
     intake.wholeThread

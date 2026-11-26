@@ -20,7 +20,8 @@ export function hqRouterCandidateLine(chat: HqRouterChat, short: readonly HqRout
     chat.project ?? '',
     chat.role ? chat.role.toUpperCase() : '',
     lead >= 0 ? `under Lead [${lead + 1}]` : '',
-    chat.taskRef ?? ''
+    chat.taskRef ?? '',
+    chat.state === 'done' || chat.state === 'closed' ? chat.state : ''
   ].filter(Boolean)
   let line = parts.join(' · ')
   if (chat.waitsOnAuthor.length > 0) {
@@ -40,7 +41,7 @@ export const HQ_ROUTER_RULES = [
   '2. The same task id (DEV-…), MR, ticket, PR or system named in the message and in the chat.',
   '3. The chat whose current work the message is about. 4. A goal a Lead runs with no worker that fits —',
   'that Lead. 5. Nothing fits: "new". Prefer an existing chat when it clearly covers the topic, "new" over a',
-  'weak match.'
+  'weak match. A chat marked «done» finished its turn, «closed» has no tab: prefer an open chat that fits.'
 ].join(' ')
 
 /** The Decisions API body: one `choice` over the candidates' numbers and `new`. */
@@ -223,7 +224,9 @@ export function readHqRoute(raw: unknown): HqRoute | null {
     project: str(raw, 'project'),
     level: level === 'lead' || level === 'new' ? level : 'worker',
     how:
-      (['crumb', 'thread', 'question', 'ref', 'model', 'fallback'] as const).find((x) => x === how) ?? 'none',
+      (['crumb', 'thread', 'question', 'ref', 'model', 'fallback'] as const).find(
+        (x) => x === how
+      ) ?? 'none',
     why,
     auto: Reflect.get(raw, 'auto') === true,
     alternatives: (Array.isArray(alternatives) ? alternatives : []).flatMap((entry: unknown) => {

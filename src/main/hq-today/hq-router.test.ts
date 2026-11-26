@@ -4,6 +4,8 @@ import {
   hqRouterKey,
   hqRouterLinkedMessage,
   hqRouterMarkLine,
+  hqRouterTextDraft,
+  hqRouterTextTs,
   routeHqIntake,
   type HqRouterDeps
 } from './hq-router'
@@ -127,5 +129,40 @@ describe('hqRouterMarkLine (T1c)', () => {
       '2026-11-26T18:00:00.000Z 👾 hq-intake:D1:1.1 card up\n',
       '2026-11-26T18:00:00.000Z 👾 hq-intake:D1:1.1 routed crumb → s1\n'
     ])
+  })
+})
+
+describe('pasted text (T4)', () => {
+  it('gets a Slack-shaped ts that two pastes in one millisecond do not share', () => {
+    expect(hqRouterTextTs(1_764_100_000_123, 1)).toBe('1764100000.123001')
+    expect(hqRouterTextTs(1_764_100_000_123, 2)).not.toBe(hqRouterTextTs(1_764_100_000_123, 1))
+  })
+
+  it('is a draft with no Slack message, its author from «Name wrote:» and its links', () => {
+    const pasted = hqRouterTextDraft(
+      'Bob wrote: access granted, see https://acme.example/x',
+      NOW,
+      1
+    )
+    expect(pasted).toMatchObject({
+      channel: 'text',
+      author: 'Bob',
+      authorSlackId: null,
+      threadTs: null,
+      permalink: null,
+      links: ['https://acme.example/x'],
+      at: NOW
+    })
+    expect(hqRouterTextDraft('access granted', NOW, 2).author).toBe('Pasted text')
+  })
+
+  it('is routed by the model over the open chats, one call, never sent by itself', async () => {
+    const jev = vi.fn(async () => ({ choice: '1', probabilities: { '1': 0.7, new: 0.1 } }))
+    const done = await routeHqIntake(
+      hqRouterTextDraft('Bob wrote: the export is green', NOW, 3),
+      deps({ chats: () => [chat('S1'), chat('S2')], jev })
+    )
+    expect(jev).toHaveBeenCalledTimes(1)
+    expect(done.auto).toBe(false)
   })
 })
