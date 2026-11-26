@@ -29,7 +29,7 @@
 .hqp-body[data-board='true'][data-center-full='true'] > .hqb-feed {
   display: none;
 }
-/* the tree's table fits the middle zone: no project column, the project is the first words of the row's tooltip */
+/* the tree's table fits the middle zone: no project column; the project's name sits under the chat's (T5g) */
 /* T5b: every column may shrink and clips inside its own cell, so a narrow tree never pushes Age past the card */
 .hqw-board .hqw-tr {
   grid-template-columns: minmax(0, 2fr) minmax(0, 72px) minmax(0, 1.6fr) minmax(0, 46px) 34px;
@@ -135,4 +135,19 @@
 /* the wrapper hides the table's «last row has no line» selector, so say it for the wrapped row */
 .hqw-board .hqw-table > .hqw-row:last-child > .hqw-tr {
   border-bottom: 0;
+}
+/* T5g (owner 26.11): the project's name in small faint text under the chat's name, so «SF» and «IH» read
+   as words; it lives in the name cell, so no column gets wider. */
+.hqw-board .hqw-nt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+.hqw-board .hqw-proj {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  color: var(--hqp-faint, var(--muted-foreground));
 }
