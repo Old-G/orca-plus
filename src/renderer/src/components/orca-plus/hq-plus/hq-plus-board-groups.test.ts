@@ -91,4 +91,22 @@ describe('board groups (T5f)', () => {
     expect(keys.slice().sort()).toEqual(items.map((item) => item.key).sort())
     expect(new Set(keys).size).toBe(keys.length)
   })
+
+  it('a closed lead’s workers stay in their run and are not loose', () => {
+    const closedLead = hqPlusWorkView({
+      tree: hqPlusChatTree(
+        [chat('x', 'quiet', 5), chat('solo', 'quiet', 4)],
+        links([['x', 'gone']])
+      ),
+      links: links([['x', 'gone']]),
+      sessions: [],
+      since: 0
+    })
+    expect(closedLead.runs.flatMap((run) => run.rows.map((row) => row.item.key))).toEqual(['x'])
+    expect(
+      hqPlusLooseRows(closedLead, [chat('x', 'quiet', 5), chat('solo', 'quiet', 4)]).map(
+        (row) => row.item.key
+      )
+    ).toEqual(['solo'])
+  })
 })

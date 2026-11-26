@@ -1535,7 +1535,16 @@ export function HqPlusScreen(): React.JSX.Element {
       since: dayStart
     })
     // T5f: the board also lists the chats no lead's block holds.
-    return layout === 'board' ? { ...view, loose: hqPlusLooseRows(view, roomChats) } : view
+    if (layout !== 'board') {
+      return view
+    }
+    const loose = hqPlusLooseRows(view, roomChats)
+    // A loose chat that waits on the owner is in «Needs you» too, as one under a lead is.
+    const needsYou = [
+      ...view.needsYou,
+      ...loose.filter((row) => row.item.group === 'needs').map((row) => row.item)
+    ]
+    return { ...view, needsYou, loose }
   }, [layout, roomChats, data.chatLinks, data.sessions, room, dayStart])
   // T5e: a board row's «+» opens a chat in the main checkout of the row's project.
   const newChatTargets = useHqPlusNewChatTargets(NO_IDS)

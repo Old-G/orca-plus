@@ -309,7 +309,16 @@ export function HqPlusWork({
         <section className="hqw-run hqw-loose">
           <header className="hqw-run-h">
             <span className="hqw-rk">{translate('auto.hqPlus.board.noLead', 'NO LEAD')}</span>
-            <span className="hqw-rs">{plural(model.loose.length, 'chat', 'chats')}</span>
+            <span className="hqw-rs">
+              {[
+                plural(model.loose.length, 'chat', 'chats'),
+                model.loose.some((row) => row.item.group === 'working')
+                  ? `${model.loose.filter((row) => row.item.group === 'working').length} working`
+                  : null
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
           </header>
           <div className="hqw-table">
             {model.loose.map((row) => (
