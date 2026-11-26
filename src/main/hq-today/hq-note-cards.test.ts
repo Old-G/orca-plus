@@ -16,6 +16,7 @@ import {
   hqNoteIntake,
   hqNoteRaisedKeys,
   hqNotesInConversations,
+  closeHqNoteCards,
   hqNoteWantsCard,
   raiseHqNoteCards,
   type HqNoteCardDeps
@@ -131,8 +132,14 @@ describe('hqNoteWantsCard', () => {
     ).toBe(true)
   })
 
-  it('leaves an agent reminder, a Later line, a line on them, a closed or an old one', () => {
-    expect(hqNoteWantsCard(note('a', { source: 'agent' }), NOW, none)).toBe(false)
+  it('takes a line added from a plain terminal (source agent, no chat), leaves one from a chat', () => {
+    expect(hqNoteWantsCard(note('a', { source: 'agent' }), NOW, none)).toBe(true)
+    expect(
+      hqNoteWantsCard(note('a', { source: 'agent', agentSessionId: 'chat-1' }), NOW, none)
+    ).toBe(false)
+  })
+
+  it('leaves a Later line, a line on them, a closed or an old one', () => {
     expect(hqNoteWantsCard(note('a', { source: 'intake' }), NOW, none)).toBe(false)
     expect(hqNoteWantsCard(note('a', { direction: 'on-them' }), NOW, none)).toBe(false)
     expect(hqNoteWantsCard(note('a', { status: 'resolved' }), NOW, none)).toBe(false)
@@ -248,11 +255,26 @@ describe('raiseHqNoteCards', () => {
     expect(added).toHaveLength(5)
   })
 
-  it('makes no card for an agent reminder', async () => {
-    const { deps, asked, added } = setup([note('n1', { source: 'agent' })])
+  it('one card and one call for a line with source agent and no chat; none for an agent chat’s line', async () => {
+    const { deps, asked, added } = setup([
+      note('n1', { source: 'agent' }),
+      note('n2', { source: 'agent', agentSessionId: 'chat-1' })
+    ])
     await raiseHqNoteCards(deps)
-    expect(asked).toHaveLength(0)
-    expect(added).toHaveLength(0)
+    await raiseHqNoteCards(deps)
+    expect(asked).toHaveLength(1)
+    expect(added).toHaveLength(1)
+    expect(added[0]?.ts).toBe('n1')
+  })
+
+  it('closes the card of a resolved line without asking the router (closeHqNoteCards)', async () => {
+    const lines = [note('n1')]
+    const { deps, db, closed } = setup(lines)
+    await raiseHqNoteCards(deps)
+    lines[0] = note('n1', { status: 'resolved' })
+    closeHqNoteCards(deps, [], none)
+    expect(db.listInbox({ kind: HQ_INTAKE_KIND })).toEqual([])
+    expect(closed).toHaveLength(1)
   })
 
   it('closes the card of a line that is no longer open, and keeps the card of an open one', async () => {
@@ -325,7 +347,7 @@ describe('raiseHqNoteCards', () => {
     const carried = vi.fn(() => new Set<string>())
     const { deps } = setup([
       note('n1', { agentSessionId: 'chat-1' }),
-      note('n2', { source: 'agent' })
+      note('n2', { source: 'intake' })
     ])
     await raiseHqNoteCards({ ...deps, carried })
     expect(carried).not.toHaveBeenCalled()
