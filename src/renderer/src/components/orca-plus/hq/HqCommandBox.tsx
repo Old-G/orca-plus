@@ -37,13 +37,34 @@ export function HqCommandBox({
     }
     const fit = (): void => {
       box.style.height = 'auto'
+      // Custom build (T5b board): Chromium counts a wrapped placeholder in scrollHeight, so an empty
+      // compact box stayed several lines tall; empty, it keeps its one-line height.
+      if (compact && !box.value) {
+        box.style.height = ''
+        box.style.overflowY = 'hidden'
+        return
+      }
       box.style.height = `${Math.min(box.scrollHeight, MAX_HEIGHT_PX)}px`
       box.style.overflowY = box.scrollHeight > MAX_HEIGHT_PX ? 'auto' : 'hidden'
     }
     fit()
     box.addEventListener('input', fit)
-    return () => box.removeEventListener('input', fit)
-  }, [newChatEach, text])
+    // Why: a resized column rewraps the text; the compact box refits instead of keeping the old height.
+    let lastWidth = box.clientWidth
+    const resize = compact
+      ? new ResizeObserver(() => {
+          if (box.clientWidth !== lastWidth) {
+            lastWidth = box.clientWidth
+            fit()
+          }
+        })
+      : null
+    resize?.observe(box)
+    return () => {
+      box.removeEventListener('input', fit)
+      resize?.disconnect()
+    }
+  }, [newChatEach, compact, text])
   // Custom build (hq-ask): every question goes to the one standing «Ask HQ» chat.
   const submit = (): void => {
     const question = text
