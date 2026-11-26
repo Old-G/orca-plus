@@ -6,6 +6,8 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import {
+  hqIntakeHasNoSlackMessage,
+  hqIntakeIsNote,
   hqIntakeIsPastedText,
   hqIntakePrompt,
   hqIntakeVenueLabel,
@@ -89,6 +91,9 @@ function sourceOf(card: HqPlusRouterCard): string {
   if (hqIntakeIsPastedText(intake)) {
     return translate('auto.hqPlus.router.fromText', 'Text')
   }
+  if (hqIntakeIsNote(intake)) {
+    return translate('auto.hqPlus.router.fromNote', 'Notes')
+  }
   const via = intake.pasted ? translate('auto.hqPlus.router.fromLink', 'Link') : '👾 Slack'
   return `${via} · ${hqIntakeVenueLabel(intake)}`
 }
@@ -116,7 +121,7 @@ function sureOf(intake: HqIntake): { label: string; tone: 'sure' | 'mid' | 'low'
 async function promptFor(intake: HqIntake, projectName: string | null): Promise<string> {
   // Why (hq-intake-thread): the chat gets the thread whole, as «To work» sends it.
   const thread =
-    intake.threadTs && !hqIntakeIsPastedText(intake)
+    intake.threadTs && !hqIntakeHasNoSlackMessage(intake)
       ? await window.api.pulseBell.intakeThread(intake.channel, intake.threadTs).catch(() => null)
       : null
   const whole = thread && thread.lines.length > 0 ? thread : null

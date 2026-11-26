@@ -71,4 +71,51 @@ describe('hq-slack-intake actions', () => {
     expect(db.listWaitings({ status: 'open' })).toEqual([])
     expect(db.listInbox()).toEqual([])
   })
+
+  describe('a card made from a Notes line', () => {
+    const noteCard: HqIntake = {
+      ...intake,
+      channel: 'note',
+      ts: 'id1',
+      authorSlackId: null,
+      venue: 'channel',
+      permalink: null,
+      pasted: true
+    }
+
+    function withNote() {
+      const base = setup()
+      const line = base.db.addWaiting({
+        direction: 'on-me',
+        title: 'Acme MR is coming',
+        source: 'slack-promise'
+      })
+      const card = base.db.addInboxItem(hqIntakeBellItem({ ...noteCard, ts: line.id })).record
+      return { ...base, line, card }
+    }
+
+    it('Later adds no second Notes line', () => {
+      const { db, deps, card } = withNote()
+      expect(keepHqIntakeInNotes(deps, card.id, { project: null, note: '' })).toEqual({ ok: true })
+      expect(db.listWaitings({ status: 'open' })).toHaveLength(1)
+    })
+
+    it('sent to a chat closes the card and the line', () => {
+      const { db, deps, card } = withNote()
+      closeHqIntake(deps, card.id, { action: 'sent', resolution: 'Sent to «Billing»' })
+      expect(db.listWaitings({ status: 'open' })).toEqual([])
+      expect(db.listInbox({ includeDone: true }).find((e) => e.id === card.id)?.doneAction).toBe(
+        'sent'
+      )
+    })
+
+    it('skipped closes the card and leaves the line in Notes', () => {
+      const { db, deps, card } = withNote()
+      closeHqIntake(deps, card.id, { action: 'skipped', resolution: 'Skipped' })
+      expect(db.listWaitings({ status: 'open' })).toHaveLength(1)
+      expect(db.listInbox({ includeDone: true }).find((e) => e.id === card.id)?.doneAction).toBe(
+        'skipped'
+      )
+    })
+  })
 })
