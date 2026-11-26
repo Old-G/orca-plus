@@ -5,6 +5,7 @@ import { HQ_JOURNAL_KIND, type HqJournalEntry } from './hq-journal'
 import type { PulseInboxItem } from './pulse-types'
 import { slackTsAt } from './hq-plus-stamp'
 import { HQ_INTAKE_KIND, readHqIntake } from './hq-slack-intake'
+import { hqCardedNoteIds } from './hq-note-cards'
 import {
   PULSE_BELL_KIND,
   readPulseBellPaneRef,
@@ -289,6 +290,8 @@ export function hqPlusLog(
         : []
     )
   )
+  // Custom build (hq-router T7b): a Notes line whose «To work» card is open needs no «Notes» card too.
+  const cardedNotes = hqCardedNoteIds(inbox)
   const answers = new Map<string, HqJournalEntry>()
   for (const entry of entries) {
     if (isHqPlusOwnerMessage(entry) && entry.replyTo) {
@@ -494,6 +497,9 @@ export function hqPlusLog(
       continue
     }
     if (entry.kind === HQ_JOURNAL_KIND.waitingOpen && entry.needs.startsWith('owner:')) {
+      if (entry.refId && cardedNotes.has(entry.refId)) {
+        continue
+      }
       const done = replyDone(entry) ?? (ownerOpen ? null : { by: 'status', status: entry.status })
       items.push(
         card(entry, null, { type: 'wait', title: entry.title, body: entry.body, open: !done, done })
