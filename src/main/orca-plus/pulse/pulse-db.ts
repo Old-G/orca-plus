@@ -80,6 +80,7 @@ import {
 } from './pulse-sessions'
 import type { HqJournalInput, HqJournalQuery, HqSessionInput } from '../../../shared/hq-journal'
 import { getPerson, listPeople, upsertPerson } from './pulse-people'
+import { pulseRouter } from './pulse-router'
 import { replaceLedgerDmRules, type HqLedgerDmRule } from './pulse-ledger-dm-rules'
 import {
   addWaiting,
@@ -107,6 +108,8 @@ export class PulseDb {
   readonly attribution = pulseAttribution(() => this.core)
   /** Custom build (hq-plus-chat-tree): handoff chains and which chat started which. */
   readonly chats = pulseChats(() => this.core)
+  /** Custom build (hq-router): what the 👾 router reads — crumbs, bound threads, an author's chats. */
+  readonly router = pulseRouter(() => this.core)
 
   constructor(path: (string & {}) | ':memory:', clock: Partial<PulseClock> = {}) {
     this.core = new PulseCore(path, clock)
