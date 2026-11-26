@@ -2,6 +2,8 @@
 // the journal, crumbs and bound threads from Orca+'s records, Jev with the key from Orca+'s environment
 // (or the env file the settings name), the small Claude model as the fallback.
 import { readFileSync } from 'node:fs'
+import { appendFile, mkdir } from 'node:fs/promises'
+import { join } from 'node:path'
 import { ipcMain } from 'electron'
 import {
   HQ_INTAKE_KIND,
@@ -20,10 +22,17 @@ import {
   type SlackReaderCache
 } from '../slack/slack-reader-api'
 import { createSlackLedgerApi } from '../slack/slack-ledger-api'
-import { HQ_ROUTER_FALLBACK_MODEL, hqRouterJevCall, hqRouterKey, routeHqIntake } from './hq-router'
+import {
+  HQ_ROUTER_FALLBACK_MODEL,
+  hqRouterJevCall,
+  hqRouterKey,
+  hqRouterMarkLine,
+  routeHqIntake
+} from './hq-router'
 import type { HqSlackIntakeDeps } from './hq-slack-intake'
 import { hqIntakeFallbackSummary, type HqIntakeDraft } from './hq-slack-intake-suggest'
 import { generateHqText } from './hq-task-questions'
+import { getLogsDirectory } from '../observability/logs-directory'
 
 /** Why a month: a chat left open a week is still where its thread's answer belongs (as the ledger). */
 const CHATS_WINDOW_MS = 30 * 24 * 60 * 60_000
@@ -83,12 +92,20 @@ export function hqRouterLogKey(message: { channel: string; ts: string }): string
   return `slack:${message.channel}:${message.ts}`
 }
 
+// Why (T1c, 26.11): a mark that came to nothing left no word anywhere; main's console reaches no file.
+function writeMarkLog(line: string): void {
+  const dir = getLogsDirectory()
+  void mkdir(dir, { recursive: true })
+    .then(() => appendFile(join(dir, 'hq-router.log'), line))
+    .catch((error: unknown) => console.warn('[hq-router] mark log not written', error))
+}
+
 /** The router's part of the 👾 watch; empty while the router is off. */
 export function hqRouterIntakeDeps(
   store: Store,
   runtime: OrcaRuntimeService,
   cache: SlackReaderCache
-): Pick<HqSlackIntakeDeps, 'route' | 'routerPreTrial' | 'autoSend' | 'settle'> {
+): Pick<HqSlackIntakeDeps, 'route' | 'routerPreTrial' | 'autoSend' | 'settle' | 'noteMark'> {
   const on = (): boolean => (store.getSettings().hqRouter ?? 'trial') !== 'off'
   if (!on()) {
     return {}
@@ -169,6 +186,7 @@ export function hqRouterIntakeDeps(
   }
   return {
     route,
+    noteMark: (key, outcome) => hqRouterMarkLine(key, outcome, writeMarkLog, Date.now()),
     routerPreTrial: (current) => {
       const settings = store.getSettings()
       if ((settings.hqRouter ?? 'trial') === 'off') {

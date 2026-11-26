@@ -98,6 +98,25 @@ export type HqSlackIntakeDeps = {
   autoSend?: (intake: HqIntake) => Promise<boolean>
   /** Custom build (hq-router): closes a card that was sent by itself, after it was raised. */
   settle?: (dedupeKey: string, intake: HqIntake) => void
+  /** Custom build (hq-router T1c): one line for each 👾 mark a poll saw and what became of it. */
+  noteMark?: (key: string, outcome: string) => void
+}
+
+/** Custom build (hq-router T1c, 26.11): a mention card still waiting with no route — the owner's 👾 on
+ *  the same message (same key) is his ask to route it; before, the mark found the card and stopped. */
+function routesMentionCard(
+  deps: HqSlackIntakeDeps,
+  card: HqIntake,
+  key: string,
+  handled: ReadonlySet<string>
+): boolean {
+  return (
+    !!deps.route &&
+    card.via === 'mention' &&
+    !card.conversationId &&
+    !card.route &&
+    !handled.has(key)
+  )
 }
 
 /** Custom build (hq-router): a mark in the same thread as a card still waiting joins it — root and
@@ -170,38 +189,72 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
     : null
   for (const draft of drafts) {
     const key = hqIntakeKey(draft)
-    if (
-      deps.now() - draft.at > HQ_INTAKE_WINDOW_MS ||
-      cards.has(key) ||
-      [...cards.values()].some((card) => card.more?.includes(draft.ts))
-    ) {
+    const mark = draft.via !== 'mention'
+    const note = (outcome: string) => {
+      if (mark) {
+        deps.noteMark?.(key, outcome)
+      }
+    }
+    if (deps.now() - draft.at > HQ_INTAKE_WINDOW_MS) {
+      note('older than a week')
+      continue
+    }
+    const kept = cards.get(key) ?? null
+    if (kept && !(mark && routesMentionCard(deps, kept, key, handled))) {
+      note(kept.route ? 'card up, routed' : 'card up')
+      continue
+    }
+    if (!kept && [...cards.values()].some((card) => card.more?.includes(draft.ts))) {
+      note('joined a card')
       continue
     }
     // Why: a follow-up joins the card still waiting; once handled, it is news of its own.
-    const burst = [...cards.entries()].find(
-      ([cardKey, card]) =>
-        !handled.has(cardKey) &&
-        (sameBurst(card, draft) || (!!deps.route && sameThread(card, draft)))
-    )
+    const burst = kept
+      ? undefined
+      : [...cards.entries()].find(
+          ([cardKey, card]) =>
+            !handled.has(cardKey) &&
+            (sameBurst(card, draft) || (!!deps.route && sameThread(card, draft)))
+        )
     if (burst) {
       cards.set(burst[0], folded(burst[1], draft))
+      note('joined a card')
       continue
     }
-    const known = readHqIntake(raised.get(key) ?? null)
-    if (known) {
+    const known = kept ?? readHqIntake(raised.get(key) ?? null)
+    const upgrade =
+      !!known && mark && !preTrial?.has(key) && routesMentionCard(deps, known, key, handled)
+    if (known && !upgrade) {
       cards.set(key, known)
+      note(known.route ? 'card up, routed' : 'card up')
       continue
     }
     // Why (owner 26.11): the trial does not dig up marks made before it started.
-    if (draft.via !== 'mention' && preTrial?.has(key)) {
+    if (mark && preTrial?.has(key)) {
+      note('made before the trial')
       continue
     }
-    const guess = await deps.guess(draft)
     const route =
-      deps.route && draft.via !== 'mention' ? await deps.route(draft).catch(() => null) : null
-    const card: HqIntake = { ...draft, ...guess, ...(route ? { route } : {}) }
+      deps.route && mark
+        ? await deps.route(draft).catch((error: unknown) => {
+            note(`route failed: ${error instanceof Error ? error.message : String(error)}`)
+            return null
+          })
+        : null
+    let card: HqIntake
+    if (known && upgrade) {
+      // Why: the mention card already has its guess; the mark adds the route and makes it a 👾 card.
+      const { via: _via, ...rest } = known
+      card = { ...rest, ...(route ? { route } : {}) }
+    } else {
+      const guess = await deps.guess(draft)
+      card = { ...draft, ...guess, ...(route ? { route } : {}) }
+      guessed += 1
+    }
     cards.set(key, card)
-    guessed += 1
+    if (route) {
+      note(`routed ${route.how} → ${route.target}${upgrade ? ' (was a mention card)' : ''}`)
+    }
     if (route?.auto && deps.autoSend && (await deps.autoSend(card).catch(() => false))) {
       autoSent.push([key, card])
     }
