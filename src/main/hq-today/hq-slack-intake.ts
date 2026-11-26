@@ -244,8 +244,9 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
     let card: HqIntake
     if (known && upgrade) {
       // Why: the mention card already has its guess; the mark adds the route and makes it a 👾 card.
+      // With no route it stays the mention card, and the next poll tries again.
       const { via: _via, ...rest } = known
-      card = { ...rest, ...(route ? { route } : {}) }
+      card = route ? { ...rest, route } : known
     } else {
       const guess = await deps.guess(draft)
       card = { ...draft, ...guess, ...(route ? { route } : {}) }
