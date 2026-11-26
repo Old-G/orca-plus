@@ -6,7 +6,7 @@ import type { HqJournalEntry } from './hq-journal'
 import { HQ_JOURNAL_KIND } from './hq-journal'
 import { hqPlaceKey } from './hq-ledger'
 import { HQ_ROUTING_KIND } from './hq-routing'
-import { HQ_INTAKE_KIND, readHqIntake } from './hq-slack-intake'
+import { HQ_INTAKE_KIND, hqIntakeIsRouterCard, readHqIntake } from './hq-slack-intake'
 import { HQ_SLACK_REQUEST_BELL_KIND } from './hq-slack-request-bell'
 import { HQ_REMIND_KIND } from './hq-remind'
 import {
@@ -83,6 +83,15 @@ function refLink(refId: string | null): string | null {
 type Places = {
   waiting: (id: string | null) => string | null
   conversation: (id: string) => string | null
+}
+
+/** An open 👾 mark or paste: the feed draws it as a Router card; once handled it folds as before. */
+export function hqPlusIsRouterItem(item: HqPlusLogItem): boolean {
+  if (item.kind !== 'card' || !item.open || item.inbox?.kind !== HQ_INTAKE_KIND) {
+    return false
+  }
+  const intake = readHqIntake(item.inbox.refId)
+  return !!intake && hqIntakeIsRouterCard(intake)
 }
 
 function placeOfInbox(item: PulseInboxItem, places: Places): string | null {
@@ -189,7 +198,8 @@ export function hqPlusFoldConversations(
   const keyOfItem = new Map<HqPlusLogItem, string>()
   const answersOf = new Map<string, HqWaitingReplyRef[]>()
   for (const item of items) {
-    const key = placeOf(item, entryById, places)
+    // Custom build (hq-router T4, owner 26.11): a Router card stays its own card, «→ chat» and «Send» on it.
+    const key = hqPlusIsRouterItem(item) ? null : placeOf(item, entryById, places)
     if (key) {
       groups.set(key, [...(groups.get(key) ?? []), item])
       // Custom build (hq-plus-answer-cards): an answer stays its own card, beside its conversation.

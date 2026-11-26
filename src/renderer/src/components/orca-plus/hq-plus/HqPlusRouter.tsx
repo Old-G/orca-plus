@@ -13,6 +13,7 @@ import {
 } from '../../../../../shared/hq-slack-intake'
 import { hqRouterPasteParts } from '../../../../../shared/hq-router-paste'
 import type { PulseInboxItem } from '../../../../../shared/pulse-types'
+import type { HqPlusBadge } from '../../../../../shared/hq-plus-kinds'
 import { translate } from '@/i18n/i18n'
 import { formatShortTimeAgo } from '@/lib/time-format/short-time-ago'
 import { useAppStore } from '@/store'
@@ -20,10 +21,11 @@ import { sendHqRoutePrompt } from '../pulse-bell/hq-route-send'
 import {
   hqPlusRouterCards,
   hqPlusRouterSendsTo,
-  hqPlusWorktreeOfSession,
+  hqPlusRouterChatWorktree,
   type HqPlusRouterCard
 } from './hq-plus-router'
 import { noteHqPlusTakeHint } from './hq-plus-take-hint'
+import { HqPlusBadges } from './HqPlusBadge'
 import './hq-plus-router.css'
 
 /** The router's open cards, kept fresh with the bell. */
@@ -131,23 +133,34 @@ async function promptFor(intake: HqIntake, projectName: string | null): Promise<
   )
 }
 
-function RouterCard({
+/** One Router card: «→ chat» and why before anything is sent; the feed shows the same card with its badges. */
+export function HqPlusRouterCardView({
   card,
   now,
-  onTake
+  onTake,
+  badges
 }: {
   card: HqPlusRouterCard
   now: number
   onTake: (item: PulseInboxItem) => void
+  badges?: readonly HqPlusBadge[]
 }): React.JSX.Element {
   const { item, intake } = card
   const route = intake.route ?? null
   const [busy, setBusy] = useState(false)
   const target = hqPlusRouterSendsTo(intake)
   const sure = sureOf(intake)
-  const sendTo = async (sessionId: string, title: string): Promise<void> => {
-    const worktreeId =
-      hqPlusWorktreeOfSession(useAppStore.getState().unifiedTabsByWorktree, sessionId) ?? ''
+  const sendTo = async (
+    sessionId: string,
+    title: string,
+    known: string | null | undefined
+  ): Promise<void> => {
+    // Why (owner 26.11): a done or closed chat is reopened to take it — by its tab, else its worktree.
+    const worktreeId = hqPlusRouterChatWorktree(
+      useAppStore.getState().unifiedTabsByWorktree,
+      sessionId,
+      known
+    )
     const prompt = await promptFor(intake, route?.project ?? intake.project)
     const sent = await sendHqRoutePrompt(
       { kind: 'chat', chat: { sessionId, worktreeId, title } },
@@ -176,6 +189,7 @@ function RouterCard({
   return (
     <article className="hqr-card" aria-busy={busy}>
       <div className="hqr-from">
+        {badges ? <HqPlusBadges badges={badges} /> : null}
         <span>{sourceOf(card)}</span>
         <span>·</span>
         <span>{intake.author}</span>
@@ -218,7 +232,9 @@ function RouterCard({
             className="hqp-opt"
             data-main="true"
             disabled={busy}
-            onClick={() => run(() => sendTo(target, route?.targetTitle ?? target))}
+            onClick={() =>
+              run(() => sendTo(target, route?.targetTitle ?? target, route?.worktreeId))
+            }
           >
             {translate('auto.hqPlus.router.send', 'Send')}
           </button>
@@ -234,7 +250,7 @@ function RouterCard({
             className="hqp-opt"
             disabled={busy}
             title={translate('auto.hqRouter.other', 'Pick this chat instead')}
-            onClick={() => run(() => sendTo(other.sessionId, other.title))}
+            onClick={() => run(() => sendTo(other.sessionId, other.title, other.worktreeId))}
           >
             {other.title.slice(0, 40)}
           </button>
@@ -340,7 +356,7 @@ export function HqPlusRouter({
           </p>
         ) : null}
         {cards.map((card) => (
-          <RouterCard key={card.item.id} card={card} now={now} onTake={onTake} />
+          <HqPlusRouterCardView key={card.item.id} card={card} now={now} onTake={onTake} />
         ))}
       </div>
       <form
