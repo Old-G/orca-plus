@@ -1,10 +1,11 @@
 // Custom build (hq-plus-ui): HQ+'s left column — what waits on the owner (with the same badge as its card
 // in the feed), what we wait for from people, the FYI pile to clear in one go, the live chats (the same
 // list the classic HQ shows, so a chat started a second ago is there), and three plain numbers.
-import { Fragment } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import type { HqChatLinksResult } from '../../../../../shared/hq-chat-links'
 import { hqChatRoleLabel, type HqChatRole } from '../../../../../shared/hq-chat-role'
 import { hqPlusChatTree } from './hq-plus-chat-tree'
+import { holdSideLayout, type HqPlusSideLayout } from './hq-plus-held-layout'
 import { HqPlusChatsBySwitch, useHqPlusChatsBy } from './HqPlusChatsBy'
 import type { HqPlusScreenStats } from '../../../../../shared/hq-plus-screen'
 import { translate } from '@/i18n/i18n'
@@ -79,7 +80,7 @@ export function HqPlusSide({
   const shownDrafts = drafts
   // Custom build (hq-plus-drafts): a chat with unsent words shows once, in Drafts.
   const drafted = new Set(shownDrafts.map((draft) => draft.item.key))
-  const chats = {
+  const freshChats = {
     marked: allChats.marked.filter((item) => !drafted.has(item.key)),
     projects: allChats.projects
       .map((project) => ({
@@ -89,6 +90,39 @@ export function HqPlusSide({
       .filter((project) => project.items.length > 0 || project.kept),
     quiet: allChats.quiet.filter((item) => !drafted.has(item.key))
   }
+  const byWork = chatsBy === 'work'
+  const freshTree = byWork
+    ? hqPlusChatTree(
+        [...freshChats.marked, ...freshChats.projects.flatMap((project) => project.items)],
+        chatLinks
+      )
+    : []
+  // Custom build (hq-close-steady, owner 26.11): after a ✕ the rest of the column stays where it was
+  // shown until the pointer leaves it (or a chat opens, or the grouping is switched).
+  const [held, setHeld] = useState<HqPlusSideLayout | null>(null)
+  const fresh: HqPlusSideLayout = { chats: freshChats, tree: freshTree }
+  const holding = held ? holdSideLayout(held, fresh) : null
+  if (held && !holding) {
+    setHeld(null)
+  }
+  const shown = holding ?? fresh
+  const shownRef = useRef(shown)
+  useEffect(() => {
+    shownRef.current = shown
+  })
+  const steadyCloserOf = (item: HqChatItem): HqPlusChatCloser | null => {
+    const closer = closerOf(item)
+    return closer
+      ? {
+          ...closer,
+          close: () => {
+            setHeld(shownRef.current)
+            closer.close()
+          }
+        }
+      : null
+  }
+  const chats = shown.chats
   const listed = chats.marked.length + chats.projects.reduce((n, p) => n + p.items.length, 0)
   const done = [...chats.marked, ...chats.projects.flatMap((project) => project.items)].filter(
     (item) => item.group === 'done'
@@ -112,7 +146,7 @@ export function HqPlusSide({
       picked={picked === item.key}
       now={now}
       tile={tileOf(item)}
-      closer={closerOf(item)}
+      closer={steadyCloserOf(item)}
       onPick={onPickChat}
       waitsOn={waitOf(item)}
       depth={tree?.depth}
@@ -121,13 +155,7 @@ export function HqPlusSide({
       role={tree && !tree.headed ? roleOf(item) : null}
     />
   )
-  const byWork = chatsBy === 'work'
-  const treeRows = byWork
-    ? hqPlusChatTree(
-        [...chats.marked, ...chats.projects.flatMap((project) => project.items)],
-        chatLinks
-      )
-    : []
+  const treeRows = shown.tree
   // Custom build (hq-plus-chat-tree, owner 05.11): below the trees, every other chat by project.
   // A project whose chats all went into trees keeps its header — its «+» is the only way to start a
   // chat there, as «All projects» lists only projects with no chat (owner 07.11: «плюсик пропал»).
@@ -140,7 +168,11 @@ export function HqPlusSide({
     : chats.projects
   const loneMarked = chats.marked.filter((item) => !inTree.has(item.key))
   return (
-    <aside className="hqp-side" aria-label={translate('auto.hqPlus.side.label', 'Live and chats')}>
+    <aside
+      className="hqp-side"
+      aria-label={translate('auto.hqPlus.side.label', 'Live and chats')}
+      onPointerLeave={() => setHeld(null)}
+    >
       {/* Custom build (hq-plus-ticker): «Waiting on you» and «We wait for» live in the feed's chips now;
           their place is a live strip of what comes in and what the chats do (owner, 28.10). */}
       {ticker}
@@ -168,7 +200,15 @@ export function HqPlusSide({
             {translate('auto.hqPlus.side.noSessions', 'no live chats')}
           </p>
         ) : null}
-        {listed > 0 ? <HqPlusChatsBySwitch chatsBy={chatsBy} onChange={setChatsBy} /> : null}
+        {listed > 0 ? (
+          <HqPlusChatsBySwitch
+            chatsBy={chatsBy}
+            onChange={(next) => {
+              setHeld(null)
+              setChatsBy(next)
+            }}
+          />
+        ) : null}
         {shownDrafts.length > 0 ? (
           <>
             <div className="hqp-side-sub">
@@ -181,7 +221,7 @@ export function HqPlusSide({
                 picked={picked === draft.item.key}
                 now={now}
                 tile={tileOf(draft.item)}
-                closer={closerOf(draft.item)}
+                closer={steadyCloserOf(draft.item)}
                 onPick={onPickChat}
                 draft={draft.text}
               />
