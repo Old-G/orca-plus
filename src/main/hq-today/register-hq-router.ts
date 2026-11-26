@@ -8,6 +8,7 @@ import { ipcMain } from 'electron'
 import {
   HQ_INTAKE_KIND,
   hqIntakeBellItem,
+  hqIntakeKey,
   hqIntakePrompt,
   type HqIntake
 } from '../../shared/hq-slack-intake'
@@ -28,6 +29,7 @@ import {
   hqRouterJevCall,
   hqRouterKey,
   hqRouterMarkLine,
+  hqRouterTextDraft,
   routeHqIntake
 } from './hq-router'
 import type { HqSlackIntakeDeps } from './hq-slack-intake'
@@ -241,15 +243,58 @@ export function parseHqRouterLink(
     : null
 }
 
+/** Custom build (hq-router T4): a routed card for what the owner pasted; one with a 👾 card stays that one. */
+function raiseRouterCard(
+  runtime: OrcaRuntimeService,
+  draft: HqIntakeDraft,
+  routed: HqRoute | null
+): { ok: true; existing?: true } {
+  // Why (proposal 26.11, point 5): a link to a message he already marked is the 👾 card, not a second one.
+  const marked = hqIntakeKey({ channel: draft.channel, ts: draft.ts })
+  if (
+    runtime
+      .pulseListInbox(false, { kind: HQ_INTAKE_KIND })
+      .some((item) => item.dedupeKey === marked)
+  ) {
+    return { ok: true, existing: true }
+  }
+  const intake: HqIntake = {
+    ...draft,
+    // Why the paste time: the card lives a week from when he pasted it, not from the old message.
+    at: Date.now(),
+    pasted: true,
+    repoId: routed?.repoId ?? null,
+    project: routed?.project ?? null,
+    summary: hqIntakeFallbackSummary(draft.text),
+    ...(routed ? { route: routed } : {})
+  }
+  runtime.pulseAddInboxItem({ ...hqIntakeBellItem(intake), kind: HQ_INTAKE_KIND })
+  return { ok: true }
+}
+
+let pastedTextSeq = 0
+
 /**
  * Custom build (hq-router): `hqRouter:routeLink` — the Slack message a pasted link points to, read with
  * the owner's token and routed like a 👾 mark; its card's key is `router:<channel>:<ts>`.
+ * T4: `hqRouter:routeText` — text pasted into «👾 Router», routed the same way; key `router:text:<ts>`.
  */
 export function registerHqRouterLink(
   store: Store,
   runtime: OrcaRuntimeService,
   cache: SlackReaderCache
 ): void {
+  ipcMain.handle('hqRouter:routeText', async (_event, raw: unknown) => {
+    const text = typeof raw === 'string' ? raw.trim() : ''
+    if (!text) {
+      return { ok: false, error: 'Nothing to route' }
+    }
+    pastedTextSeq += 1
+    const draft = hqRouterTextDraft(text, Date.now(), pastedTextSeq)
+    const route = hqRouterIntakeDeps(store, runtime, cache).route
+    const routed = route ? await route(draft).catch(() => null) : null
+    return raiseRouterCard(runtime, draft, routed)
+  })
   ipcMain.handle('hqRouter:routeLink', async (_event, url: unknown) => {
     const link = typeof url === 'string' ? parseHqRouterLink(url) : null
     if (!link) {
@@ -289,17 +334,6 @@ export function registerHqRouterLink(
       at: Math.round(Number(message.ts) * 1000)
     }
     const routed = route ? await route(draft).catch(() => null) : null
-    const intake: HqIntake = {
-      ...draft,
-      // Why the paste time: the card lives a week from when he pasted it, not from the old message.
-      at: Date.now(),
-      pasted: true,
-      repoId: routed?.repoId ?? null,
-      project: routed?.project ?? null,
-      summary: hqIntakeFallbackSummary(message.text),
-      ...(routed ? { route: routed } : {})
-    }
-    runtime.pulseAddInboxItem({ ...hqIntakeBellItem(intake), kind: HQ_INTAKE_KIND })
-    return { ok: true }
+    return raiseRouterCard(runtime, draft, routed)
   })
 }
