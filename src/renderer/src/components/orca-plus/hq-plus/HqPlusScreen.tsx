@@ -1537,6 +1537,7 @@ export function HqPlusScreen(): React.JSX.Element {
     },
     slugOf: (item) => slugOfRepo.get(item.repoId) ?? item.projectName,
     colorOf: (item) => colorFor(item.repoId),
+    tileOf: tileOfChat,
     colorOfProject: projectColor,
     nameOf: (sessionId) => liveOf(sessionId)?.name ?? null,
     waitOf: (item) =>

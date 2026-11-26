@@ -20,6 +20,7 @@ import {
 } from './hq-plus-work-view'
 import { useHqPlusChatChip } from './use-hq-plus-chat-chip'
 import type { HqPlusOtherWait } from './HqPlusSideQueues'
+import type { HqPlusTile } from './HqPlusChatRow'
 
 export type HqPlusWorkActions = {
   now: number
@@ -30,6 +31,8 @@ export type HqPlusWorkActions = {
   onOpenClosed: (session: HqLiveSession) => void
   slugOf: (item: HqChatItem) => string
   colorOf: (item: HqChatItem) => string | null
+  /** The chat's tile as the Feed's cards draw it (letters + the project's colour). */
+  tileOf: (item: HqChatItem) => HqPlusTile
   /** A project's colour by its HQ name, for a closed chat. */
   colorOfProject: (project: string | null) => string | null
   /** A chat's name from the dispatcher, for a lead that is not on view. */
@@ -108,6 +111,9 @@ function WorkRow({
         })
       : null)
   const mr = hqPlusMrOf(reply ?? item.card?.lastAgentMessage)
+  // T5c: the board's row wears the Feed card's look — the same .hqp-tile in the project's colour and the
+  // chat's name — so the colour comes from --hqp-room, the one variable the Feed's tile reads.
+  const tile = board ? actions.tileOf(item) : null
   return (
     <button
       type="button"
@@ -122,12 +128,19 @@ function WorkRow({
             ? hqPlusFirstLine(reply)?.slice(0, 300)
             : undefined
       }
+      style={tile?.color ? ({ '--hqp-room': tile.color } as React.CSSProperties) : undefined}
+      data-tinted={tile?.color ? 'true' : undefined}
       onClick={() => actions.onOpen(item)}
     >
       <span className="hqw-nm" style={{ '--hqw-depth': row.depth } as React.CSSProperties}>
         {row.depth > 0 ? (
           <span className="hqw-hook" aria-hidden="true">
             ↳
+          </span>
+        ) : null}
+        {tile ? (
+          <span className="hqp-tile hqw-tile" aria-hidden="true">
+            {tile.letters}
           </span>
         ) : null}
         <span className="hqw-tt">{title}</span>
