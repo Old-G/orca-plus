@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { HqRoute } from '../../shared/hq-router'
 import {
   HQ_INTAKE_KIND,
+  HQ_NOTE_CARD_KEY_PREFIX,
   hqIntakeBellItem,
   hqIntakeKey,
   readHqIntake,
@@ -11,7 +12,6 @@ import type { PulseWaiting } from '../../shared/pulse-types'
 import { PulseDb } from '../orca-plus/pulse/pulse-db'
 import { INBOX_GONE_ACTION } from '../orca-plus/pulse/pulse-inbox'
 import {
-  HQ_NOTE_CARD_KEY_PREFIX,
   HQ_NOTE_CARD_WINDOW_MS,
   hqNoteIntake,
   hqNoteRaisedKeys,
@@ -43,9 +43,9 @@ function note(id: string, extra: Partial<PulseWaiting> = {}): PulseWaiting {
     personId: null,
     project: null,
     title: `Acme MR for DEV-1 is coming (${id})`,
-    detail: 'We promised Ann in https://acme.slack.example/archives/C1/p1',
+    detail: 'We promised Ann in https://acme.example/notes/1',
     source: 'slack-promise',
-    sourceRef: 'https://acme.slack.example/archives/C1/p1',
+    sourceRef: 'https://acme.example/notes/1',
     status: 'open',
     dueAt: null,
     resolution: null,
@@ -109,6 +109,24 @@ describe('hqNoteWantsCard', () => {
     expect(hqNoteWantsCard(note('a', { source: 'manual' }), NOW)).toBe(true)
   })
 
+  it('leaves a line a chat already holds, and one that belongs to a thread, task or MR', () => {
+    expect(hqNoteWantsCard(note('a', { agentSessionId: 'chat-1', source: 'manual' }), NOW)).toBe(
+      false
+    )
+    const thread =
+      'https://acme.slack.com/archives/C0123456789/p1795424123869509?thread_ts=1795423334.440239'
+    expect(hqNoteWantsCard(note('a', { sourceRef: thread }), NOW)).toBe(false)
+    expect(
+      hqNoteWantsCard(note('a', { sourceRef: 'https://app.clickup.com/t/1/DEV-1' }), NOW)
+    ).toBe(false)
+    expect(
+      hqNoteWantsCard(
+        note('a', { sourceRef: 'https://gitlab.com/acme/app/-/merge_requests/7' }),
+        NOW
+      )
+    ).toBe(false)
+  })
+
   it('leaves an agent reminder, a Later line, a line on them, a closed or an old one', () => {
     expect(hqNoteWantsCard(note('a', { source: 'agent' }), NOW)).toBe(false)
     expect(hqNoteWantsCard(note('a', { source: 'intake' }), NOW)).toBe(false)
@@ -130,10 +148,10 @@ describe('hqNoteIntake', () => {
       threadTs: null,
       author: 'Ann',
       pasted: true,
-      permalink: 'https://acme.slack.example/archives/C1/p1'
+      permalink: 'https://acme.example/notes/1'
     })
     expect(card.text).toContain('Acme MR for DEV-1')
-    expect(card.links).toEqual(['https://acme.slack.example/archives/C1/p1'])
+    expect(card.links).toEqual(['https://acme.example/notes/1'])
   })
 })
 
@@ -274,6 +292,32 @@ describe('raiseHqNoteCards', () => {
     await raiseHqNoteCards(deps)
     expect(db.listInbox({ kind: HQ_INTAKE_KIND })).toHaveLength(1)
     expect(asked).toHaveLength(1)
+  })
+
+  it('ends a card whose line gained a chat or a conversation, with no call', async () => {
+    const lines = [note('n1')]
+    const { deps, db, closed, asked } = setup(lines)
+    await raiseHqNoteCards(deps)
+    expect(db.listInbox({ kind: HQ_INTAKE_KIND })).toHaveLength(1)
+    lines[0] = note('n1', { agentSessionId: 'chat-1' })
+    await raiseHqNoteCards(deps)
+    await raiseHqNoteCards(deps)
+    expect(db.listInbox({ kind: HQ_INTAKE_KIND })).toEqual([])
+    expect(closed).toHaveLength(1)
+    expect(asked).toHaveLength(1)
+  })
+
+  it('makes no card for a line a chat holds, even with a source that asks for one', async () => {
+    const { deps, asked, added } = setup([
+      note('n1', { source: 'manual', agentSessionId: 'chat-1' }),
+      note('n2', {
+        sourceRef:
+          'https://acme.slack.com/archives/C0123456789/p1795424123869509?thread_ts=1795423334.440239'
+      })
+    ])
+    await raiseHqNoteCards(deps)
+    expect(asked).toHaveLength(0)
+    expect(added).toHaveLength(0)
   })
 
   it('leaves the cards of other readers alone', async () => {

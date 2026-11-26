@@ -4,11 +4,13 @@
 // «Send» does that.
 import {
   HQ_INTAKE_TEXT_MAX,
+  HQ_NOTE_CARD_KEY_PREFIX,
   HQ_NOTE_CHANNEL,
   hqIntakeBellItem,
   hqIntakeKey,
   type HqIntake
 } from '../../shared/hq-slack-intake'
+import { hqPlaceKey } from '../../shared/hq-ledger'
 import type { PulseWaiting } from '../../shared/pulse-types'
 import { INBOX_GONE_ACTION } from '../orca-plus/pulse/pulse-inbox'
 import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
@@ -34,22 +36,28 @@ export const HQ_NOTE_CARD_WINDOW_MS = 7 * 24 * 60 * 60_000
 /** How a card ends when its line was closed elsewhere. Not `gone`: the poll's sync would raise a `gone`
  *  card again, since it keeps a `router:` card for a week. */
 export const HQ_NOTE_CARD_CLOSED_ACTION = 'note-closed'
-/** Cards of Notes lines have this dedupe-key prefix (`router:` + the note channel). */
-export const HQ_NOTE_CARD_KEY_PREFIX = `router:${HQ_NOTE_CHANNEL}:`
 
 /** The key the router keeps a line's answer under. */
 export function hqNoteRouteKey(noteId: string): string {
   return `note:${noteId}`
 }
 
-/** An open line on the owner from a person or a message, young enough to be taken up. */
-export function hqNoteWantsCard(note: PulseWaiting, now: number): boolean {
+/** An open line on the owner that nothing else carries yet: not an agent's reminder, not one a chat
+ *  already holds (every `orca pulse wait add` from a chat names its chat) and not one that belongs to a
+ *  Slack thread, ClickUp task or MR — the ledger's conversation card is that, with its own route. */
+export function hqNoteIsOrphan(note: PulseWaiting): boolean {
   return (
     note.status === 'open' &&
     note.direction === 'on-me' &&
     HQ_NOTE_CARD_SOURCES.has(note.source) &&
-    now - note.createdAt <= HQ_NOTE_CARD_WINDOW_MS
+    !note.agentSessionId &&
+    !hqPlaceKey(note.sourceRef)
   )
+}
+
+/** An orphan line young enough to be taken up. */
+export function hqNoteWantsCard(note: PulseWaiting, now: number): boolean {
+  return hqNoteIsOrphan(note) && now - note.createdAt <= HQ_NOTE_CARD_WINDOW_MS
 }
 
 /** The card for a line, before it has a route. `ts` is the line's id. */
@@ -107,10 +115,13 @@ export type HqNoteCardDeps = HqCardRouteDeps & {
 }
 
 /** One pass: a card for each line that wants one and has a route, and the end of a card whose line is
- *  no longer open. Returns how many lines the router was asked about. */
+ *  no longer open or is carried elsewhere. Returns how many lines the router was asked about. */
 export async function raiseHqNoteCards(deps: HqNoteCardDeps): Promise<number> {
   const notes = deps.notes()
-  const openIds = new Set(notes.map((note) => `${HQ_NOTE_CARD_KEY_PREFIX}${note.id}`))
+  // Why: a card ends with its line — and when its line gained a chat or a conversation, which carry it now.
+  const openIds = new Set(
+    notes.filter(hqNoteIsOrphan).map((note) => `${HQ_NOTE_CARD_KEY_PREFIX}${note.id}`)
+  )
   for (const card of deps.openCards()) {
     if (card.dedupeKey.startsWith(HQ_NOTE_CARD_KEY_PREFIX) && !openIds.has(card.dedupeKey)) {
       deps.closeCard(card.id, HQ_NOTE_CARD_CLOSED_ACTION)
