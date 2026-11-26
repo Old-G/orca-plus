@@ -141,7 +141,8 @@ describe('pulse hot-path indexes', () => {
     const pointed = add('agent-finished', 'pointed at')
     const approval = add('outgoing-approval', 'approval', 'outgoing', 'send-1')
     const otherApproval = add('outgoing-approval', 'other approval', 'outgoing', 'send-2')
-    for (const item of [oldDone, oldReport, pointed, approval, otherApproval]) {
+    const bareApproval = add('outgoing-approval', 'bare approval')
+    for (const item of [oldDone, oldReport, pointed, approval, otherApproval, bareApproval]) {
       settle(item.id)
     }
     const dayStart = settle(add('agent-finished', 'probe').id).doneAt! + 1
