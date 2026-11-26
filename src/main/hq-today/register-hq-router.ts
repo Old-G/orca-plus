@@ -8,11 +8,14 @@ import { ipcMain } from 'electron'
 import {
   HQ_INTAKE_KIND,
   hqIntakeBellItem,
+  hqIntakeKey,
   hqIntakePrompt,
   type HqIntake
 } from '../../shared/hq-slack-intake'
-import type { HqRoute, HqRouterChat } from '../../shared/hq-router'
+import type { HqRoute } from '../../shared/hq-router'
 import { readHqRoute } from '../../shared/hq-router-model'
+import { hqChatTabIds } from '../hq-sessions/hq-session-live'
+import { hqRouterChats } from './hq-router-chats'
 import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
@@ -28,6 +31,7 @@ import {
   hqRouterJevCall,
   hqRouterKey,
   hqRouterMarkLine,
+  hqRouterTextDraft,
   routeHqIntake
 } from './hq-router'
 import type { HqSlackIntakeDeps } from './hq-slack-intake'
@@ -35,58 +39,12 @@ import { hqIntakeFallbackSummary, type HqIntakeDraft } from './hq-slack-intake-s
 import { generateHqText } from './hq-task-questions'
 import { getLogsDirectory } from '../observability/logs-directory'
 
-/** Why a month: a chat left open a week is still where its thread's answer belongs (as the ledger). */
-const CHATS_WINDOW_MS = 30 * 24 * 60 * 60_000
-const REPORTS_PER_CHAT = 2
-
 function readText(path: string): string | null {
   try {
     return readFileSync(path, 'utf-8')
   } catch {
     return null
   }
-}
-
-const ROLES = new Set(['lead', 'sublead', 'worker', 'review'])
-
-export function hqRouterChats(runtime: OrcaRuntimeService, now: number): HqRouterChat[] {
-  const since = now - CHATS_WINDOW_MS
-  const reports = new Map<string, string[]>()
-  for (const entry of runtime.pulseListJournal({ kind: 'chat.report', since, limit: 300 })) {
-    const held = entry.sessionId ? (reports.get(entry.sessionId) ?? []) : null
-    if (entry.sessionId && held && held.length < REPORTS_PER_CHAT) {
-      reports.set(entry.sessionId, [...held, entry.title])
-    }
-  }
-  const router = runtime.pulseRouter()
-  const open = runtime.pulseListRecentSessions(since).filter(
-    (session) =>
-      session.closedAt === null &&
-      session.state !== 'closed' &&
-      // Why: a chat that handed off sends its messages on; its successor is the one to offer.
-      runtime.pulseLiveSessionOf(session.sessionId) === session.sessionId
-  )
-  const ids = new Set(open.map((session) => session.sessionId))
-  return open.map((session) => {
-    const role = router.roleOf(session.sessionId)
-    const lead = router.leadOf(session.sessionId)
-    return {
-      sessionId: session.sessionId,
-      title:
-        runtime.openedAgentSessionRecordStore()?.getRecord(session.sessionId)?.conversationName ||
-        session.address ||
-        session.sessionId,
-      project: session.project,
-      repoId: session.worktreeId?.split('::')[0] || null,
-      role: role && ROLES.has(role) ? (role as HqRouterChat['role']) : null,
-      leadId: lead && ids.has(lead) && lead !== session.sessionId ? lead : null,
-      taskRef: session.taskRef,
-      lastReport: reports.get(session.sessionId)?.join(' / ') ?? null,
-      waitsOnAuthor: [],
-      lastActivityAt: session.lastActivityAt,
-      finished: session.state === 'done'
-    }
-  })
 }
 
 /** The router log's key for a card: the marked message. */
@@ -123,7 +81,7 @@ export function hqRouterIntakeDeps(
     const key = hqRouterKey(process.env, settings.hqRouterKeyFile, readText)
     const router = runtime.pulseRouter()
     const routed = routeHqIntake(draft, {
-      chats: () => hqRouterChats(runtime, Date.now()),
+      chats: () => hqRouterChats(runtime, Date.now(), hqChatTabIds(store)),
       binding: (lookup) => router.binding(lookup),
       leadOf: (sessionId) => router.leadOf(sessionId),
       crumb: (lookup) => router.crumb(lookup),
@@ -241,15 +199,58 @@ export function parseHqRouterLink(
     : null
 }
 
+/** Custom build (hq-router T4): a routed card for what the owner pasted; one with a 👾 card stays that one. */
+function raiseRouterCard(
+  runtime: OrcaRuntimeService,
+  draft: HqIntakeDraft,
+  routed: HqRoute | null
+): { ok: true; existing?: true } {
+  // Why (proposal 26.11, point 5): a link to a message he already marked is the 👾 card, not a second one.
+  const marked = hqIntakeKey({ channel: draft.channel, ts: draft.ts })
+  if (
+    runtime
+      .pulseListInbox(false, { kind: HQ_INTAKE_KIND })
+      .some((item) => item.dedupeKey === marked)
+  ) {
+    return { ok: true, existing: true }
+  }
+  const intake: HqIntake = {
+    ...draft,
+    // Why the paste time: the card lives a week from when he pasted it, not from the old message.
+    at: Date.now(),
+    pasted: true,
+    repoId: routed?.repoId ?? null,
+    project: routed?.project ?? null,
+    summary: hqIntakeFallbackSummary(draft.text),
+    ...(routed ? { route: routed } : {})
+  }
+  runtime.pulseAddInboxItem({ ...hqIntakeBellItem(intake), kind: HQ_INTAKE_KIND })
+  return { ok: true }
+}
+
+let pastedTextSeq = 0
+
 /**
  * Custom build (hq-router): `hqRouter:routeLink` — the Slack message a pasted link points to, read with
  * the owner's token and routed like a 👾 mark; its card's key is `router:<channel>:<ts>`.
+ * T4: `hqRouter:routeText` — text pasted into «👾 Router», routed the same way; key `router:text:<ts>`.
  */
 export function registerHqRouterLink(
   store: Store,
   runtime: OrcaRuntimeService,
   cache: SlackReaderCache
 ): void {
+  ipcMain.handle('hqRouter:routeText', async (_event, raw: unknown) => {
+    const text = typeof raw === 'string' ? raw.trim() : ''
+    if (!text) {
+      return { ok: false, error: 'Nothing to route' }
+    }
+    pastedTextSeq += 1
+    const draft = hqRouterTextDraft(text, Date.now(), pastedTextSeq)
+    const route = hqRouterIntakeDeps(store, runtime, cache).route
+    const routed = route ? await route(draft).catch(() => null) : null
+    return raiseRouterCard(runtime, draft, routed)
+  })
   ipcMain.handle('hqRouter:routeLink', async (_event, url: unknown) => {
     const link = typeof url === 'string' ? parseHqRouterLink(url) : null
     if (!link) {
@@ -289,17 +290,6 @@ export function registerHqRouterLink(
       at: Math.round(Number(message.ts) * 1000)
     }
     const routed = route ? await route(draft).catch(() => null) : null
-    const intake: HqIntake = {
-      ...draft,
-      // Why the paste time: the card lives a week from when he pasted it, not from the old message.
-      at: Date.now(),
-      pasted: true,
-      repoId: routed?.repoId ?? null,
-      project: routed?.project ?? null,
-      summary: hqIntakeFallbackSummary(message.text),
-      ...(routed ? { route: routed } : {})
-    }
-    runtime.pulseAddInboxItem({ ...hqIntakeBellItem(intake), kind: HQ_INTAKE_KIND })
-    return { ok: true }
+    return raiseRouterCard(runtime, draft, routed)
   })
 }
