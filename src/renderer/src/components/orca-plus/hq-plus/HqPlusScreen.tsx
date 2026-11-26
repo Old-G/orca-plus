@@ -141,6 +141,7 @@ import { OrcaPlusThemeMenu } from '../theme/OrcaPlusThemeMenu'
 import './hq-plus.css'
 import './hq-plus-map.css'
 import './hq-plus-work.css'
+import './hq-plus-board.css'
 import './hq-plus-paper.css'
 import { HqBackgroundPauseBadge } from '../hq/HqBackgroundPauseBadge'
 
@@ -247,6 +248,7 @@ export function HqPlusScreen(): React.JSX.Element {
   // Custom build (hq-plus-ui-v3): where a project picked in the River or Graph came from, for «← Back».
   const [pickedFrom, setPickedFrom] = useState<'river' | 'graph' | null>(view.pickedFrom)
   const [leftWidth, setLeftWidth] = useState(() => readHqPlusPanelWidth('left'))
+  const [boardLeftWidth, setBoardLeftWidth] = useState(() => readHqPlusPanelWidth('boardLeft'))
   const [rightWidth, setRightWidth] = useState(() => readHqPlusPanelWidth('right'))
   const [reportPath, setReportPath] = useState<string | null>(view.reportPath)
   // Custom build (hq-plus-links): where a clicked link should open — the popover chat links show.
@@ -1233,16 +1235,26 @@ export function HqPlusScreen(): React.JSX.Element {
     (scopedItem?.project
       ? `${scopedItem.project} · ${liveOf(scopedItem.sessionId)?.name ?? translate('auto.hqPlus.chat', 'chat')}`
       : (scope ?? ''))
+  // Custom build (T5 board): in the Board layout the left zone is the feed and has its own width.
+  const boardLayout = layout === 'board'
+  const leftSide = boardLayout ? 'boardLeft' : 'left'
   const left = useSidebarResize<HTMLDivElement>({
     isOpen: true,
-    width: leftWidth,
-    minWidth: HQ_PLUS_PANEL.left.min,
-    maxWidth: HQ_PLUS_PANEL.left.max,
+    width: boardLayout ? boardLeftWidth : leftWidth,
+    minWidth: HQ_PLUS_PANEL[leftSide].min,
+    maxWidth: HQ_PLUS_PANEL[leftSide].max,
     deltaSign: 1,
-    setWidth: useCallback((width: number) => {
-      setLeftWidth(width)
-      saveHqPlusPanelWidth('left', width)
-    }, [])
+    setWidth: useCallback(
+      (width: number) => {
+        if (boardLayout) {
+          setBoardLeftWidth(width)
+        } else {
+          setLeftWidth(width)
+        }
+        saveHqPlusPanelWidth(leftSide, width)
+      },
+      [boardLayout, leftSide]
+    )
   })
   const right = useSidebarResize<HTMLElement>({
     isOpen: true,
@@ -1265,7 +1277,7 @@ export function HqPlusScreen(): React.JSX.Element {
       return
     }
     const sides: [HTMLElement | null, number][] = [
-      [left.containerRef.current, leftWidth],
+      [left.containerRef.current, boardLayout ? boardLeftWidth : leftWidth],
       [right.containerRef.current, rightWidth]
     ]
     for (const [element, width] of sides) {
@@ -1499,7 +1511,7 @@ export function HqPlusScreen(): React.JSX.Element {
   // Custom build (hq-plus-work-view, owner 06.11): the Work view — the same tree as «By work», on the
   // whole screen, every chat in it.
   const workModel = useMemo(() => {
-    if (layout !== 'work') {
+    if (layout !== 'work' && layout !== 'board') {
       return null
     }
     return hqPlusWorkView({
@@ -1697,6 +1709,76 @@ export function HqPlusScreen(): React.JSX.Element {
     )
   }
 
+  const workOnly = workModel !== null && !boardLayout
+  // Why: the feed's header, list and composer are the middle of the current layout and the left zone of Board.
+  const feedBody = (
+    <>
+      <div className="hqp-fh">
+        <span className="hqp-hl">
+          {scope
+            ? translate('auto.hqPlus.feed.thread', 'thread · {{key}}', { key: scopeLabel })
+            : translate('auto.hqPlus.feed.projects', 'projects · today')}
+        </span>
+        {scope ? (
+          <button type="button" className="hqp-chip-btn" onClick={() => setScope(null)}>
+            {translate('auto.hqPlus.feed.all', 'whole log')}
+          </button>
+        ) : null}
+        <span className="hqp-spacer" />
+        <HqPlusProjectChips
+          filter={feedFilter}
+          counts={projectFeed.counts}
+          onFilter={changeFeedFilter}
+        />
+      </div>
+      {search.open ? (
+        <HqPlusFeedSearch
+          query={search.query}
+          matches={matchIds.length}
+          at={search.at}
+          inputRef={searchRef}
+          onQuery={(query) => setSearch({ open: true, query, at: -1 })}
+          onStep={stepSearch}
+          onClose={closeSearch}
+        />
+      ) : null}
+      {data.error && !data.feed ? <p className="hqp-error">{data.error}</p> : null}
+      <HqPlusProjectFeed
+        feed={projectFeed}
+        filter={feedFilter}
+        onFilter={changeFeedFilter}
+        ctx={projectCtx}
+      />
+      <div className="hqp-composer">
+        {scope ? (
+          <HqPlusThreadComposer
+            key={scope}
+            target={{
+              address: scopedItem?.address ?? null,
+              sessionId: scopedItem?.sessionId ?? null,
+              replyTo: null,
+              about: null
+            }}
+            openQuestion={
+              all.findLast(
+                (item): item is HqPlusCard =>
+                  item.kind === 'card' &&
+                  item.type === 'move' &&
+                  item.open &&
+                  hqPlusThreadKey(item) === scope
+              ) ?? null
+            }
+            label={scopeLabel}
+            hqPath={hqPath}
+            onSent={data.reload}
+          />
+        ) : (
+          <HqCommandBox hqWorktreeId={hqWorktreeId} newChatEach />
+        )}
+      </div>
+    </>
+  )
+
   return (
     <div className={rootClass}>
       <header className="hqp-top">
@@ -1717,9 +1799,10 @@ export function HqPlusScreen(): React.JSX.Element {
         className="hqp-body"
         data-wide={wide ? 'true' : undefined}
         data-center-full={centerBrowser && browserFull ? 'true' : undefined}
-        data-work={workModel ? 'true' : undefined}
+        data-work={workOnly ? 'true' : undefined}
+        data-board={boardLayout ? 'true' : undefined}
       >
-        {workModel ? (
+        {workOnly ? (
           <main
             className="hqp-feed hqw-main"
             aria-label={translate('auto.hqPlus.work.label', 'Work')}
@@ -1740,9 +1823,19 @@ export function HqPlusScreen(): React.JSX.Element {
           </main>
         ) : (
           <>
-            <div className="hqp-side-wrap" ref={left.containerRef}>
-              {side}
-            </div>
+            {boardLayout ? (
+              <section
+                className="hqp-side-wrap hqp-feed hqb-feed"
+                ref={left.containerRef}
+                aria-label={translate('auto.hqPlus.feed', 'Conversation with HQ')}
+              >
+                {feedBody}
+              </section>
+            ) : (
+              <div className="hqp-side-wrap" ref={left.containerRef}>
+                {side}
+              </div>
+            )}
             <button
               type="button"
               className="hqp-resize"
@@ -1755,74 +1848,34 @@ export function HqPlusScreen(): React.JSX.Element {
           </>
         )}
 
-        {workModel ? null : (
+        {workOnly ? null : boardLayout ? (
+          <main
+            className="hqp-feed hqw-main hqb-tree"
+            aria-label={translate('auto.hqPlus.board.tree', 'Chat tree')}
+          >
+            {workModel ? (
+              <HqPlusWork
+                model={workModel}
+                actions={workActions}
+                board
+                newChat={
+                  <HqPlusNewChat
+                    activeRepoIds={workRepoIds}
+                    tileOf={tileOfRepoId}
+                    openChats={chatItems}
+                    onPickChat={(item) => showChat(item.key)}
+                  />
+                }
+              />
+            ) : null}
+            {centerOverlay}
+          </main>
+        ) : (
           <main
             className="hqp-feed"
             aria-label={translate('auto.hqPlus.feed', 'Conversation with HQ')}
           >
-            <div className="hqp-fh">
-              <span className="hqp-hl">
-                {scope
-                  ? translate('auto.hqPlus.feed.thread', 'thread · {{key}}', { key: scopeLabel })
-                  : translate('auto.hqPlus.feed.projects', 'projects · today')}
-              </span>
-              {scope ? (
-                <button type="button" className="hqp-chip-btn" onClick={() => setScope(null)}>
-                  {translate('auto.hqPlus.feed.all', 'whole log')}
-                </button>
-              ) : null}
-              <span className="hqp-spacer" />
-              <HqPlusProjectChips
-                filter={feedFilter}
-                counts={projectFeed.counts}
-                onFilter={changeFeedFilter}
-              />
-            </div>
-            {search.open ? (
-              <HqPlusFeedSearch
-                query={search.query}
-                matches={matchIds.length}
-                at={search.at}
-                inputRef={searchRef}
-                onQuery={(query) => setSearch({ open: true, query, at: -1 })}
-                onStep={stepSearch}
-                onClose={closeSearch}
-              />
-            ) : null}
-            {data.error && !data.feed ? <p className="hqp-error">{data.error}</p> : null}
-            <HqPlusProjectFeed
-              feed={projectFeed}
-              filter={feedFilter}
-              onFilter={changeFeedFilter}
-              ctx={projectCtx}
-            />
-            <div className="hqp-composer">
-              {scope ? (
-                <HqPlusThreadComposer
-                  key={scope}
-                  target={{
-                    address: scopedItem?.address ?? null,
-                    sessionId: scopedItem?.sessionId ?? null,
-                    replyTo: null,
-                    about: null
-                  }}
-                  openQuestion={
-                    all.findLast(
-                      (item): item is HqPlusCard =>
-                        item.kind === 'card' &&
-                        item.type === 'move' &&
-                        item.open &&
-                        hqPlusThreadKey(item) === scope
-                    ) ?? null
-                  }
-                  label={scopeLabel}
-                  hqPath={hqPath}
-                  onSent={data.reload}
-                />
-              ) : (
-                <HqCommandBox hqWorktreeId={hqWorktreeId} newChatEach />
-              )}
-            </div>
+            {feedBody}
             {centerOverlay}
           </main>
         )}
