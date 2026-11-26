@@ -102,6 +102,24 @@ export type HqSlackIntakeDeps = {
   noteMark?: (key: string, outcome: string) => void
 }
 
+/** Custom build (hq-router T1c, 26.11): keys the owner handled. A card the bell closed by itself
+ *  (`gone` when a poll stopped reporting it, `seen`) was not handled — counting it left a 👾 on a
+ *  message whose earlier card had gone unrouted for good. */
+export function hqIntakeOwnerHandled(
+  items: readonly { dedupeKey: string | null; doneAt: number | null; doneAction: string | null }[]
+): Set<string> {
+  return new Set(
+    items.flatMap((item) =>
+      item.dedupeKey &&
+      item.doneAt !== null &&
+      item.doneAction !== 'gone' &&
+      item.doneAction !== 'seen'
+        ? [item.dedupeKey]
+        : []
+    )
+  )
+}
+
 /** Custom build (hq-router T1c, 26.11): a mention card still waiting with no route — the owner's 👾 on
  *  the same message (same key) is his ask to route it; before, the mark found the card and stopped. */
 function routesMentionCard(
