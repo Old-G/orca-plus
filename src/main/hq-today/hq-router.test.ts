@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { HqRouterChat } from '../../shared/hq-router'
-import { hqRouterKey, hqRouterLinkedMessage, routeHqIntake, type HqRouterDeps } from './hq-router'
+import {
+  hqRouterKey,
+  hqRouterLinkedMessage,
+  hqRouterMarkLine,
+  routeHqIntake,
+  type HqRouterDeps
+} from './hq-router'
 import type { HqIntakeDraft } from './hq-slack-intake-suggest'
 
 const NOW = 1_800_000_000_000
@@ -106,5 +112,20 @@ describe('router helpers', () => {
     expect(hqRouterKey({ OPENROUTER_API_KEY: ' k1 ' }, null, () => null)).toBe('k1')
     expect(hqRouterKey({}, '/f', () => 'A=1\nexport OPENROUTER_API_KEY="k2"\n')).toBe('k2')
     expect(hqRouterKey({}, null, () => null)).toBeNull()
+  })
+})
+
+describe('hqRouterMarkLine (T1c)', () => {
+  it('writes one line per mark and outcome, not one per poll', () => {
+    const lines: string[] = []
+    const seen = new Set<string>()
+    const at = Date.UTC(2026, 10, 26, 18)
+    hqRouterMarkLine('hq-intake:D1:1.1', 'card up', (line) => lines.push(line), at, seen)
+    hqRouterMarkLine('hq-intake:D1:1.1', 'card up', (line) => lines.push(line), at, seen)
+    hqRouterMarkLine('hq-intake:D1:1.1', 'routed crumb → s1', (line) => lines.push(line), at, seen)
+    expect(lines).toEqual([
+      '2026-11-26T18:00:00.000Z 👾 hq-intake:D1:1.1 card up\n',
+      '2026-11-26T18:00:00.000Z 👾 hq-intake:D1:1.1 routed crumb → s1\n'
+    ])
   })
 })

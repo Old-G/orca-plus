@@ -154,6 +154,67 @@ describe('pollHqSlackIntake', () => {
     expect(settled).toHaveLength(1)
   })
 
+  it('T1c: a 👾 on a message whose mention card is up routes that card once, and notes each mark', async () => {
+    const message = draft('1792630000.000100', { via: 'mention' })
+    const mentionCard = hqIntakeBellItem({
+      ...message,
+      repoId: 'r1',
+      project: 'support-service',
+      summary: 'Уже угадано'
+    })
+    const raised = new Map([[mentionCard.dedupeKey, mentionCard.refId ?? null]])
+    const { via: _via, ...marked } = message
+    const { deps, synced, guess } = setup([marked], raised)
+    const routed: string[] = []
+    const notes: string[] = []
+    deps.routerPreTrial = () => new Set()
+    deps.route = async (d) => {
+      routed.push(d.ts)
+      return {
+        target: 'worker',
+        targetTitle: 'W · support',
+        repoId: null,
+        project: null,
+        level: 'worker',
+        how: 'crumb',
+        why: 'x',
+        auto: false,
+        alternatives: [],
+        confidence: null,
+        model: null
+      }
+    }
+    deps.noteMark = (key, outcome) => void notes.push(`${key} ${outcome}`)
+    expect(await pollHqSlackIntake(deps)).toBe(0)
+    expect(guess).not.toHaveBeenCalled()
+    expect(routed).toEqual(['1792630000.000100'])
+    const card = synced[0]?.[0]
+    expect(card?.dedupeKey).toBe(mentionCard.dedupeKey)
+    expect(card?.title).toBe('To work: Анна')
+    expect(card?.body).toContain('«W · support»')
+    expect(notes).toEqual([`${mentionCard.dedupeKey} routed crumb → worker (was a mention card)`])
+
+    // The next poll finds the routed card and does not route again.
+    const next = setup([marked], new Map([[card?.dedupeKey ?? '', card?.refId ?? null]]))
+    next.deps.route = deps.route
+    next.deps.noteMark = deps.noteMark
+    await pollHqSlackIntake(next.deps)
+    expect(routed).toHaveLength(1)
+    expect(notes.at(-1)).toBe(`${mentionCard.dedupeKey} card up, routed`)
+  })
+
+  it('T1c: a failing route is noted, and the mark still gets its card', async () => {
+    const { deps, synced } = setup([draft('1792600000.000100')])
+    const notes: string[] = []
+    deps.route = async () => {
+      throw new Error('jev 500')
+    }
+    deps.noteMark = (_key, outcome) => void notes.push(outcome)
+    await pollHqSlackIntake(deps)
+    expect(synced[0]).toHaveLength(1)
+    expect(notes).toEqual(['route failed: jev 500'])
+  })
+
   it('raises a fresh mention and keeps its card once the search no longer returns it', async () => {
     const mention = draft('1792630000.000100', {
       channel: 'C0AAAAAAAAA',
