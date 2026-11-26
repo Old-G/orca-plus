@@ -333,6 +333,11 @@ export class RuntimePulseCommands {
     return this.db().attribution
   }
 
+  /** Custom build (hq-router): the 👾 router's reads. */
+  pulseRouter(): PulseDb['router'] {
+    return this.db().router
+  }
+
   /** Custom build (hq-attribution-log): the owner sent a conversation to work from its card. */
   pulseNoteAttributionTake(take: HqAttributionTake): void {
     this.db().attribution.take(take)

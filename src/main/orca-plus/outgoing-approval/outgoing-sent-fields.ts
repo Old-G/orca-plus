@@ -17,7 +17,7 @@ export type RepoOfCwd = (cwd: string) => Promise<string | null>
 
 const TITLE_MAX = 100
 // Why: the footer Approve adds says where the message came from, not what was said.
-const FOOTER = /\n+_?↳ [^\n]*\bref [0-9a-z]{6}_?\s*$/
+const FOOTER = /\n+_?↳ [^\n]*\bref [0-9a-z]{6}(?: · id [0-9a-f]{8})?_?\s*$/
 
 export function field(value: unknown, key: string): unknown {
   return value && typeof value === 'object' ? Reflect.get(value, key) : undefined

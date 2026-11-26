@@ -133,6 +133,14 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
     },
     chatName: (id) =>
       runtime.openedAgentSessionRecordStore()?.getRecord(id)?.conversationName ?? null,
+    // Custom build (hq-router crumbs): the footer names the chat's Lead, so an answer finds it later.
+    leadName: (id) => {
+      const lead = pulseDb().router.leadOf(id)
+      return lead && lead !== id
+        ? (runtime.openedAgentSessionRecordStore()?.getRecord(lead)?.conversationName ?? null)
+        : null
+    },
+    taskId: (id) => pulseDb().router.ownerTask(id),
     lastTask: (id) => lastChatTask(pulseDb(), id),
     clickUpTask: clickUpTaskRef
   }
