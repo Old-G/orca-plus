@@ -121,6 +121,39 @@ describe('pollHqSlackIntake', () => {
     expect(synced[0]?.[1]?.body).toContain('Уже угадано')
   })
 
+  it('router trial: marks there at its start stay down, root and reply join one card, a chosen thread goes by itself', async () => {
+    const before = draft('1792600000.000100')
+    const root = draft('1792600200.000100')
+    const reply = draft('1792600300.000100', { threadTs: '1792600200.000100' })
+    const bound = draft('1792600400.000100', { channel: 'D0BBBBBBBBB' })
+    const { deps, synced } = setup([before, root, reply, bound])
+    const preTrial = new Set([
+      hqIntakeBellItem({ ...before, repoId: null, project: null, summary: '' }).dedupeKey
+    ])
+    const sent: string[] = []
+    const settled: string[] = []
+    deps.routerPreTrial = () => preTrial
+    deps.route = async (d) => ({
+      target: d.channel === 'D0BBBBBBBBB' ? 'chosen' : 'worker',
+      targetTitle: null,
+      repoId: null,
+      project: null,
+      level: 'worker',
+      how: d.channel === 'D0BBBBBBBBB' ? 'thread' : 'crumb',
+      why: 'x',
+      auto: d.channel === 'D0BBBBBBBBB',
+      alternatives: [],
+      confidence: null,
+      model: null
+    })
+    deps.autoSend = async (card) => (sent.push(card.ts), true)
+    deps.settle = (key) => void settled.push(key)
+    expect(await pollHqSlackIntake(deps)).toBe(2)
+    expect(synced[0]).toHaveLength(2)
+    expect(sent).toEqual(['1792600400.000100'])
+    expect(settled).toHaveLength(1)
+  })
+
   it('raises a fresh mention and keeps its card once the search no longer returns it', async () => {
     const mention = draft('1792630000.000100', {
       channel: 'C0AAAAAAAAA',
