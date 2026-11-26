@@ -209,3 +209,25 @@ export function hqRouterKey(
     .replace(/^(['"])(.*)\1$/, '$2')
   return value || null
 }
+
+const MARK_LOG_SEEN_MAX = 2_000
+const markLogSeen = new Set<string>()
+
+/** One line in logs/hq-router.log per 👾 mark and outcome — a poll every half minute repeats none. */
+export function hqRouterMarkLine(
+  key: string,
+  outcome: string,
+  write: (line: string) => void,
+  now: number,
+  seen: Set<string> = markLogSeen
+): void {
+  const id = `${key} ${outcome}`
+  if (seen.has(id)) {
+    return
+  }
+  if (seen.size >= MARK_LOG_SEEN_MAX) {
+    seen.clear()
+  }
+  seen.add(id)
+  write(`${new Date(now).toISOString()} 👾 ${key} ${outcome}\n`)
+}
