@@ -198,6 +198,9 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
   ].sort((a, b) => a.at - b.at)
   let guessed = 0
   const autoSent: [string, HqIntake][] = []
+  // Why (T1c live, 26.11): the sync leaves an open card with the same key as it was, so the upgraded
+  // card says it replaces itself — its words and route are written in place, once.
+  const upgraded = new Set<string>()
   const preTrial = deps.route
     ? (deps.routerPreTrial?.(
         drafts.filter((draft) => draft.via !== 'mention').map((draft) => hqIntakeKey(draft))
@@ -263,6 +266,9 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
       // With no route it stays the mention card, and the next poll tries again.
       const { via: _via, ...rest } = known
       card = route ? { ...rest, route } : known
+      if (route) {
+        upgraded.add(key)
+      }
     } else {
       const guess = await deps.guess(draft)
       card = { ...draft, ...guess, ...(route ? { route } : {}) }
@@ -290,10 +296,12 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
       }
     }
   }
-  deps.sync(
-    HQ_INTAKE_KIND,
-    [...cards.values(), ...(ledger ?? [])].map((intake) => hqIntakeBellItem(intake))
-  )
+  deps.sync(HQ_INTAKE_KIND, [
+    ...[...cards.entries()].map(([key, intake]) =>
+      upgraded.has(key) ? { ...hqIntakeBellItem(intake), replaces: key } : hqIntakeBellItem(intake)
+    ),
+    ...(ledger ?? []).map((intake) => hqIntakeBellItem(intake))
+  ])
   for (const [key, card] of autoSent) {
     deps.settle?.(key, card)
   }

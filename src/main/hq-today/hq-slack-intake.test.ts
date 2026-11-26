@@ -192,6 +192,8 @@ describe('pollHqSlackIntake', () => {
     expect(card?.dedupeKey).toBe(mentionCard.dedupeKey)
     expect(card?.title).toBe('To work: Анна')
     expect(card?.body).toContain('«W · support»')
+    // The open mention card is rewritten in place, once.
+    expect(card?.replaces).toBe(mentionCard.dedupeKey)
     expect(notes).toEqual([`${mentionCard.dedupeKey} routed crumb → worker (was a mention card)`])
 
     // The next poll finds the routed card and does not route again.
@@ -200,6 +202,7 @@ describe('pollHqSlackIntake', () => {
     next.deps.noteMark = deps.noteMark
     await pollHqSlackIntake(next.deps)
     expect(routed).toHaveLength(1)
+    expect(next.synced[0]?.[0]?.replaces).toBeUndefined()
     expect(notes.at(-1)).toBe(`${mentionCard.dedupeKey} card up, routed`)
   })
 
