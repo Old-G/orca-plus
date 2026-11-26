@@ -204,6 +204,8 @@ function sweepLine(action: HqSweepAction, would: boolean): string {
       return `handoff of ${action.address ?? action.sessionId}: ${verb}start the next chat — ${action.why}`
     case 'drain':
       return `queued ${action.entryId}: ${decisionLine(action.decision, would)}`
+    case 'lead-handover':
+      return `lead handover ${action.from} → ${action.to}: ${verb}move its chats and close the old chat — ${action.why}`
     case 'lost':
       return `lost: ${action.why} (${action.entryIds.join(', ')})`
   }
