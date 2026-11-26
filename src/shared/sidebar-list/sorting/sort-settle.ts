@@ -6,6 +6,8 @@ export const SORT_SETTLE_MS = 3_000
 export type SortSettleState = {
   /** Why from the last bump (not the previous write): a row change that skipped its bump (stale-host purge) must not re-sort on its own. */
   liveCountAtLastBump: number
+  /** Rows seen by the previous write, so a removal is told apart within its own write. */
+  liveCountAtLastWrite: number
   /** When the pending burst settles; null when nothing is pending. */
   deadline: number | null
 }
@@ -24,7 +26,11 @@ export type SortSettleEvent =
 
 export type SortSettleStep = { state: SortSettleState; settle: boolean }
 
-export const INITIAL_SORT_SETTLE_STATE: SortSettleState = { liveCountAtLastBump: 0, deadline: null }
+export const INITIAL_SORT_SETTLE_STATE: SortSettleState = {
+  liveCountAtLastBump: 0,
+  liveCountAtLastWrite: 0,
+  deadline: null
+}
 
 export function reduceSortSettle(
   state: SortSettleState,
@@ -36,17 +42,19 @@ export function reduceSortSettle(
   }
   const { change } = event
   // Custom build (sidebar-close-stays): only an add re-ranks at once; a close or removal leaves every other row where it is.
-  const removalOnly = change !== null && change.liveCount < state.liveCountAtLastBump
-  const structuralChange = change !== null && change.liveCount > state.liveCountAtLastBump
+  const removalOnly = change !== null && change.liveCount < state.liveCountAtLastWrite
+  const structuralChange =
+    change !== null && !removalOnly && change.liveCount !== state.liveCountAtLastBump
+  const liveCountAtLastWrite = change ? change.liveCount : state.liveCountAtLastWrite
   const liveCountAtLastBump = change?.epochBumped ? change.liveCount : state.liveCountAtLastBump
   if (event.settled) {
-    return { state: { liveCountAtLastBump, deadline: null }, settle: false }
+    return { state: { liveCountAtLastBump, liveCountAtLastWrite, deadline: null }, settle: false }
   }
   // Why: adds/removes, Manual (direct manipulation), and a mode switch never wait out the window.
   if (structuralChange || event.sortBy === 'manual' || event.sortBy !== event.previousSortBy) {
-    return { state: { liveCountAtLastBump, deadline: null }, settle: true }
+    return { state: { liveCountAtLastBump, liveCountAtLastWrite, deadline: null }, settle: true }
   }
   // A removal bump arms no re-rank: the rows that stay keep their order and the owner's scroll position.
   const deadline = change?.epochBumped && !removalOnly ? now + SORT_SETTLE_MS : state.deadline
-  return { state: { liveCountAtLastBump, deadline }, settle: false }
+  return { state: { liveCountAtLastBump, liveCountAtLastWrite, deadline }, settle: false }
 }
