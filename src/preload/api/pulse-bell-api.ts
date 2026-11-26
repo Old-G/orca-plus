@@ -36,5 +36,8 @@ export type PulseBellApi = {
     sessionId?: string | null
   ) => Promise<void>
   /** Custom build (hq-router): a pasted Slack link becomes one routed «To work» card. */
-  routeLink: (url: string) => Promise<{ ok: true } | { ok: false; error: string }>
+  /** `existing`: the link is a message already marked with 👾 — its card is the one. */
+  routeLink: (url: string) => Promise<{ ok: true; existing?: true } | { ok: false; error: string }>
+  /** Custom build (hq-router T4): text pasted into «👾 Router» becomes one routed card. */
+  routeText: (text: string) => Promise<{ ok: true } | { ok: false; error: string }>
 }

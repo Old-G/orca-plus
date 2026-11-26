@@ -1,6 +1,6 @@
 // Custom build (hq-slack-intake): the 👾 watch and the «To work» card's buttons, wired to Orca+.
 import { ipcMain } from 'electron'
-import { HQ_INTAKE_KIND, readHqIntake } from '../../shared/hq-slack-intake'
+import { HQ_INTAKE_KIND, hqIntakeIsPastedText, readHqIntake } from '../../shared/hq-slack-intake'
 import { HQ_JOURNAL_ALL_ROOMS } from '../../shared/hq-journal'
 import { hqJobRow } from '../hq-journal/hq-journal-jobs'
 import { parseSlackThreadRef } from '../../shared/hq-waiting-replies'
@@ -216,19 +216,23 @@ export function registerHqSlackIntake(
         .find((i) => i.id === text(itemId))
       const intake = item ? readHqIntake(item.refId) : null
       const key = intake ? `slack:${intake.channel}:${intake.threadTs ?? intake.ts}` : null
-      if (action === 'sent' && chat && key) {
+      // Custom build (hq-router T4): pasted text has no Slack thread to bind; its choice is only logged.
+      const thread = intake && !hqIntakeIsPastedText(intake)
+      if (action === 'sent' && chat && key && thread) {
         runtime.pulseSetConversationChat(key, chat)
       }
       // Custom build (hq-router graph, 26.11): the owner's choice binds the thread to the task and
       // goes into the router's log — the week's evidence for sending by itself.
       if (action === 'sent' && chat && intake) {
         const router = runtime.pulseRouter()
-        router.bindChoice({
-          channel: intake.channel,
-          threadTs: intake.threadTs ?? intake.ts,
-          chat,
-          at: Date.now()
-        })
+        if (thread) {
+          router.bindChoice({
+            channel: intake.channel,
+            threadTs: intake.threadTs ?? intake.ts,
+            chat,
+            at: Date.now()
+          })
+        }
         router.logChoice(hqRouterLogKey(intake), chat, Date.now())
       }
       // Custom build (hq-attribution-log): a skipped card says nothing about its guesses.

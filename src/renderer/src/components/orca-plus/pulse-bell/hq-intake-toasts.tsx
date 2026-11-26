@@ -6,6 +6,7 @@ import { ExternalLink, Inbox } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   HQ_INTAKE_KIND,
+  HQ_ROUTER_KEY_PREFIX,
   hqIntakePrompt,
   hqIntakeVenueLabel,
   readHqIntake,
@@ -249,7 +250,12 @@ export function showHqIntakeCard(item: PulseInboxItem): boolean {
 /** Pops each new mark once and closes the cards of the ones handled (here, on the phone, or unmarked). */
 export function syncHqIntakeToasts(items: readonly PulseInboxItem[]): void {
   const open = new Map(
-    items.filter((item) => item.kind === HQ_INTAKE_KIND).map((item) => [item.id, item])
+    items
+      // Custom build (hq-router T4): what he pasted into «👾 Router» is already on its screen.
+      .filter(
+        (item) => item.kind === HQ_INTAKE_KIND && !item.dedupeKey?.startsWith(HQ_ROUTER_KEY_PREFIX)
+      )
+      .map((item) => [item.id, item])
   )
   for (const id of memory.shown) {
     if (!open.has(id)) {

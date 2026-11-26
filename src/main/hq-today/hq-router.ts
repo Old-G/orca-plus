@@ -19,6 +19,8 @@ import {
   hqRouterJevBody
 } from '../../shared/hq-router-model'
 import { parseHqCrumbs, type HqCrumbFooter, type HqRouterCrumb } from '../../shared/hq-router-crumb'
+import { HQ_INTAKE_TEXT_MAX, HQ_ROUTER_TEXT_CHANNEL } from '../../shared/hq-slack-intake'
+import { hqRouterPasteAuthor } from '../../shared/hq-router-paste'
 import type { HqRouterCrumbLookup } from '../orca-plus/pulse/pulse-router'
 import type { HqIntakeDraft } from './hq-slack-intake-suggest'
 
@@ -126,11 +128,13 @@ export async function routeHqIntake(draft: HqIntakeDraft, deps: HqRouterDeps): P
     text: thread && thread.length > 1 ? thread.join('\n').slice(-3_500) : draft.text,
     author: draft.author,
     venue:
-      draft.venue === 'dm'
-        ? 'Slack DM'
-        : draft.venue === 'group'
-          ? 'Slack group DM'
-          : 'Slack channel',
+      draft.channel === HQ_ROUTER_TEXT_CHANNEL
+        ? 'text the owner pasted'
+        : draft.venue === 'dm'
+          ? 'Slack DM'
+          : draft.venue === 'group'
+            ? 'Slack group DM'
+            : 'Slack channel',
     crumb,
     boundChat:
       (binding?.source === 'choice' ? binding.chat : null) ?? deps.boundChat(conversationKey),
@@ -230,4 +234,26 @@ export function hqRouterMarkLine(
   }
   seen.add(id)
   write(`${new Date(now).toISOString()} 👾 ${key} ${outcome}\n`)
+}
+
+/** A ts for pasted text: Slack's shape, unique even for two pastes in the same millisecond. */
+export function hqRouterTextTs(now: number, seq: number): string {
+  return `${Math.floor(now / 1000)}.${String(now % 1000).padStart(3, '0')}${String(seq % 1000).padStart(3, '0')}`
+}
+
+/** The draft for text pasted into the router: no Slack message, the author from «Name wrote:». */
+export function hqRouterTextDraft(text: string, now: number, seq: number): HqIntakeDraft {
+  return {
+    channel: HQ_ROUTER_TEXT_CHANNEL,
+    ts: hqRouterTextTs(now, seq),
+    threadTs: null,
+    author: hqRouterPasteAuthor(text) ?? 'Pasted text',
+    authorSlackId: null,
+    venue: 'channel',
+    text: text.slice(0, HQ_INTAKE_TEXT_MAX),
+    links: [...new Set(text.match(/https?:\/\/[^\s<>"')]+/g) ?? [])],
+    files: [],
+    permalink: null,
+    at: now
+  }
 }
