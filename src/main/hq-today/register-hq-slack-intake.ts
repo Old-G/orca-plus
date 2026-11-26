@@ -1,6 +1,11 @@
 // Custom build (hq-slack-intake): the 👾 watch and the «To work» card's buttons, wired to Orca+.
 import { ipcMain } from 'electron'
-import { HQ_INTAKE_KIND, hqIntakeBellItem, readHqIntake } from '../../shared/hq-slack-intake'
+import {
+  HQ_INTAKE_KIND,
+  HQ_NOTE_CARD_KEY_PREFIX,
+  hqIntakeBellItem,
+  readHqIntake
+} from '../../shared/hq-slack-intake'
 import { HQ_JOURNAL_ALL_ROOMS } from '../../shared/hq-journal'
 import { hqJobRow } from '../hq-journal/hq-journal-jobs'
 import { parseSlackThreadRef } from '../../shared/hq-waiting-replies'
@@ -29,7 +34,7 @@ import { hqLedgerReplacesScout } from './hq-ledger-cutover'
 import { hqRouterIntakeDeps, registerHqRouterLink } from './register-hq-router'
 import { hqIntakeCloseRoute } from './hq-intake-close-route'
 import { hqSweepDraftOf, startHqRouterSweep } from './hq-router-sweep'
-import { HQ_NOTE_CARD_KEY_PREFIX, hqNoteRaisedKeys, startHqNoteCards } from './hq-note-cards'
+import { hqNoteRaisedKeys, hqNotesInConversations, startHqNoteCards } from './hq-note-cards'
 import { HQ_SLACK_REQUEST_BELL_KIND } from '../../shared/hq-slack-request-bell'
 
 const RAISED_LOOKBACK_MS = 8 * 24 * 60 * 60_000
@@ -171,6 +176,8 @@ export function registerHqSlackIntake(
   if (router.route && router.cardRoute && router.saveCardRoute) {
     startHqNoteCards({
       notes: () => runtime.pulseListWaitings({ status: 'open', direction: 'on-me' }),
+      carried: () =>
+        hqNotesInConversations(runtime.pulseListLedgerFeed(Date.now() - RAISED_LOOKBACK_MS)),
       personName: (personId) => people().find((person) => person.id === personId)?.name ?? null,
       raised: () =>
         hqNoteRaisedKeys(
