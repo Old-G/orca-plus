@@ -93,3 +93,11 @@
   border-radius: 7px;
   font-size: 9px;
 }
+/* T5d (owner 26.11): the chat open on the right is framed in the tree — a visible border in the row's
+   project colour (ice where the row has none), on top of the T5c stripe, and a stronger wash. Board only. */
+.hqw-board .hqw-tr[aria-current='true'] {
+  outline: 2px solid var(--hqp-room, var(--hqp-ice));
+  outline-offset: -2px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--hqp-room, var(--hqp-ice)) 16%, transparent);
+}
