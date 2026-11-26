@@ -1,7 +1,7 @@
 // Custom build (hq-router T4, owner 26.11): what «Send» on a To work / Router card leaves behind — the
 // thread stays with the chosen chat (the conversation and the router's binding) and the router's log
 // gets the owner's choice. Pasted text has no Slack thread; its choice is only logged.
-import { hqIntakeIsPastedText, type HqIntake } from '../../shared/hq-slack-intake'
+import { hqIntakeHasNoSlackMessage, type HqIntake } from '../../shared/hq-slack-intake'
 
 export type HqIntakeCloseRouteDeps = {
   setConversationChat: (key: string, chat: string) => void
@@ -21,7 +21,7 @@ export function hqIntakeCloseRoute(
   deps: HqIntakeCloseRouteDeps
 ): void {
   const threadTs = intake.threadTs ?? intake.ts
-  if (!hqIntakeIsPastedText(intake)) {
+  if (!hqIntakeHasNoSlackMessage(intake)) {
     deps.setConversationChat(`slack:${intake.channel}:${threadTs}`, chat)
     deps.bindChoice({ channel: intake.channel, threadTs, chat, at: deps.now })
   }
