@@ -12,6 +12,41 @@ import { HQ_REPORT_BELL_KIND } from './hq-reports'
 /** Kinds the log reads whole: a newer report supersedes an older one; an answer hides its journal line. */
 const KEEP_KINDS: ReadonlySet<string> = new Set([HQ_REPORT_BELL_KIND, HQ_WAITING_REPLY_KIND])
 
+/**
+ * Custom build (t8b-feed-sql): the same rule as data, so the pulse file reads only the settled rows the
+ * feed keeps instead of a week of them (4,400 rows, ~70 ms on every HQ+ reload).
+ */
+export type HqPlusFeedKeep = {
+  settledSince: number
+  kinds: string[]
+  ids: string[]
+  refKind: string
+  refIds: string[]
+}
+
+export function hqPlusFeedKeep(
+  entries: readonly HqJournalEntry[],
+  settledSince: number
+): HqPlusFeedKeep {
+  const ids = new Set<string>()
+  const refIds = new Set<string>()
+  for (const entry of entries) {
+    if (entry.refId) {
+      refIds.add(entry.refId)
+      if (entry.refKind === 'inbox') {
+        ids.add(entry.refId)
+      }
+    }
+  }
+  return {
+    settledSince,
+    kinds: [...KEEP_KINDS],
+    ids: [...ids],
+    refKind: OUTGOING_APPROVAL_BELL_KIND,
+    refIds: [...refIds]
+  }
+}
+
 /** `settledSince` undefined keeps every item (the phone and older callers). */
 export function hqPlusFeedInbox(
   inbox: readonly PulseInboxItem[],
@@ -21,16 +56,9 @@ export function hqPlusFeedInbox(
   if (settledSince === undefined) {
     return [...inbox]
   }
-  const byId = new Set<string>()
-  const byRef = new Set<string>()
-  for (const entry of entries) {
-    if (entry.refId) {
-      byRef.add(entry.refId)
-      if (entry.refKind === 'inbox') {
-        byId.add(entry.refId)
-      }
-    }
-  }
+  const keep = hqPlusFeedKeep(entries, settledSince)
+  const byId = new Set(keep.ids)
+  const byRef = new Set(keep.refIds)
   return inbox.filter(
     (item) =>
       item.doneAt === null ||
@@ -38,6 +66,6 @@ export function hqPlusFeedInbox(
       item.doneAt >= settledSince ||
       KEEP_KINDS.has(item.kind) ||
       byId.has(item.id) ||
-      (item.kind === OUTGOING_APPROVAL_BELL_KIND && item.refId !== null && byRef.has(item.refId))
+      (item.kind === keep.refKind && item.refId !== null && byRef.has(item.refId))
   )
 }

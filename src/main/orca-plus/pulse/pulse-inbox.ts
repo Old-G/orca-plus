@@ -9,6 +9,8 @@ import type {
   PulseInboxItem
 } from '../../../shared/pulse-types'
 import type { PulseCore } from './pulse-core'
+import type { HqPlusFeedKeep } from '../../../shared/hq-plus-feed-inbox'
+import { inboxFeedKeepSql } from './pulse-inbox-feed-keep'
 import { integer, oneOf, optionalInteger, optionalText, text } from './pulse-row-fields'
 
 const URGENCIES = ['normal', 'urgent'] as const
@@ -185,6 +187,10 @@ export type ListInboxOptions = {
   // Custom build (hq-history): one kind since a time, so a long log is not read whole.
   kind?: string
   since?: number
+  /** Custom build (t8b-feed-sql): any of these kinds. */
+  kinds?: readonly string[]
+  /** Custom build (t8b-feed-sql): only the settled rows HQ+'s feed still draws (hqPlusFeedInbox). */
+  keep?: HqPlusFeedKeep
 }
 
 /** Open items (not done), urgent first, then newest. */
@@ -201,6 +207,15 @@ export function listInbox(core: PulseCore, options: ListInboxOptions = {}) {
   if (options.since !== undefined) {
     where.push('created_at >= ?')
     args.push(options.since)
+  }
+  if (options.kinds !== undefined) {
+    where.push('kind IN (SELECT value FROM json_each(?))')
+    args.push(JSON.stringify(options.kinds))
+  }
+  if (options.keep) {
+    const keep = inboxFeedKeepSql(options.keep)
+    where.push(keep.sql)
+    args.push(...keep.args)
   }
   const whereSql = where.length > 0 ? ` WHERE ${where.join(' AND ')}` : ''
   const sql = `SELECT * FROM inbox${whereSql} ORDER BY urgency = 'urgent' DESC, created_at DESC, rowid DESC`
