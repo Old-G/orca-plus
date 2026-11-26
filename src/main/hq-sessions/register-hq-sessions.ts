@@ -13,6 +13,7 @@ import { launchHqBackgroundChat, limitHqChatToAuto } from '../hq-today/hq-backgr
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/host/structured-agent-session-registry'
 import { getClaudeHandoffLauncher, onClaudeHandoffOffersChanged } from '../ipc/claude-handoff'
+import { hqLeadHandoverDeps } from './register-hq-lead-handover'
 import { claudeLimitStoppedNow } from '../ipc/claude-limit-guard'
 import { HQ_JOURNAL_KIND, HQ_JOURNAL_MAX_LIMIT } from '../../shared/hq-journal'
 import {
@@ -243,6 +244,7 @@ export function registerHqSessions(
       const launched = await launcher.launch(offerId)
       return launched.ok ? { ok: true } : launched
     },
+    ...hqLeadHandoverDeps(runtime, hqPath),
     sync: async () => {
       await journal.sync()
     },

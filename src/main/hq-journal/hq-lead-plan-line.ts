@@ -31,6 +31,58 @@ function stamp(at: number): string {
   return `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
+/** One plan's `Lead chat:` line: who leads it now, and who it names as the Lead before. */
+export type HqPlanLeadRef = {
+  file: string
+  current: readonly string[]
+  was: readonly string[]
+  /** The plan's first lines: a launched successor's plan tells who the old Lead was. */
+  text: string
+}
+
+function wordsOf(text: string): string[] {
+  return text
+    .replace(/`/g, ' ')
+    .split(/[\s(),;]+/)
+    .filter(Boolean)
+}
+
+/** Custom build (hq-lead-handover, T2): the Lead lines of a plan text (not `Sub-lead chat:`), each split
+ *  into its current Lead's words (address, session id) and the «(was: …)» words. */
+export function hqPlanLeadRefs(file: string, text: string): HqPlanLeadRef[] {
+  const refs: HqPlanLeadRef[] = []
+  for (const line of text.split('\n')) {
+    const match = LEAD_LINE.exec(line)
+    if (!match || /sub-?lead/i.test(match[1])) {
+      continue
+    }
+    const cut = match[2].indexOf(SEPARATOR)
+    const head = cut === -1 ? match[2] : match[2].slice(0, cut)
+    const was = [...head.matchAll(WAS)].flatMap((found) =>
+      wordsOf(found[0].replace(/^\(\s*\S+/, ''))
+    )
+    refs.push({ file, current: wordsOf(head.replace(WAS, ' ')), was, text })
+  }
+  return refs
+}
+
+// Why: the Lead line sits in the plan's first lines; the sweep reads this every two minutes.
+const PLAN_HEAD_CHARS = 6_000
+
+/** The Lead lines of every plan in `<hq>/runs`. */
+export async function hqReadPlanLeadRefs(hqPath: string): Promise<HqPlanLeadRef[]> {
+  const runs = join(hqPath, 'runs')
+  const names = await readdir(runs).catch(() => [] as string[])
+  const refs: HqPlanLeadRef[] = []
+  for (const name of names.filter((entry) => entry.endsWith('.md')).sort()) {
+    const text = await readFile(join(runs, name), 'utf8').catch(() => null)
+    if (text !== null) {
+      refs.push(...hqPlanLeadRefs(name, text.slice(0, PLAN_HEAD_CHARS)))
+    }
+  }
+  return refs
+}
+
 /** The plan text with each Lead line naming `from` rewritten to `to`; null when none names it. */
 export function hqRewriteLeadLines(
   text: string,

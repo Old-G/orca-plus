@@ -23,6 +23,11 @@ let delivered: { sessionId: string; prompt: string }[]
 // Custom build (hq-chat-roles): the thread a new chat already holds when its first turn goes in.
 let addressAtDelivery: (string | null)[]
 let handoffs: string[]
+let planLines: { file: string; current: string[]; was: string[]; text?: string }[]
+let launchParents: Record<string, string>
+let reassigns: { from: string; to: string }[]
+let reassignFails: boolean
+let closed: string[]
 let service: HqSessionsService
 
 function chat(over: Partial<HqLiveSession> = {}): HqLiveSession {
@@ -99,6 +104,11 @@ beforeEach(() => {
   delivered = []
   addressAtDelivery = []
   handoffs = []
+  planLines = []
+  launchParents = {}
+  reassigns = []
+  reassignFails = false
+  closed = []
   service = createHqSessions({
     mode: () => mode,
     enabled: () => journalOn,
@@ -140,6 +150,19 @@ beforeEach(() => {
     startHandoff: async (offerId) => {
       handoffs.push(offerId)
       return { ok: true }
+    },
+    planLeads: async () => planLines,
+    launchedBy: (sessionId) => launchParents[sessionId] ?? null,
+    reassignLead: async (from, to) => {
+      if (reassignFails) {
+        return { ok: false, error: 'boom' }
+      }
+      reassigns.push({ from, to })
+      return { ok: true, moved: 2 }
+    },
+    closeChat: async (sessionId) => {
+      closed.push(sessionId)
+      return true
     },
     sync: async () => {},
     now: () => clock,
@@ -418,6 +441,148 @@ describe('HQ+ session dispatcher', () => {
       state: 'closed',
       closedAt: clock - 13 * HOUR,
       lastActivityAt: clock - 13 * HOUR
+    })
+  })
+
+  // Custom build (hq-lead-handover, T2): the old Lead of a plan closes itself.
+  describe('the old Lead after a change of Lead (T2)', () => {
+    const oldLead = () =>
+      chat({ sessionId: 'claude_lead1', address: 'chat/lead-plan', role: 'lead', name: 'LEAD 1' })
+    const newLead = (over: Partial<HqLiveSession> = {}) =>
+      chat({
+        sessionId: 'claude_lead2',
+        address: 'acme-api/lead-plan-2',
+        role: 'lead',
+        name: 'LEAD 2',
+        midTurn: true,
+        state: 'working',
+        ...over
+      })
+    beforeEach(() => {
+      mode = 'off'
+      auto = true
+      journalOn = true
+      live = [oldLead(), newLead()]
+      planLines = [
+        {
+          file: 'plan.md',
+          current: ['acme-api/lead-plan-2', 'claude_lead2'],
+          was: [],
+          text: 'Handover: Lead 1 = chat/lead-plan'
+        }
+      ]
+      launchParents = { claude_lead2: 'claude_lead1' }
+    })
+
+    it('moves the old Lead’s chats at once and closes it after the grace', async () => {
+      const first = await service.sweep({ run: true })
+      expect(first.actions).toContainEqual(
+        expect.objectContaining({ kind: 'lead-handover', from: 'claude_lead1', to: 'claude_lead2' })
+      )
+      expect(reassigns).toEqual([{ from: 'claude_lead1', to: 'claude_lead2' }])
+      expect(closed).toEqual([])
+      clock += MIN
+      await service.sweep({ run: true })
+      expect(closed).toEqual([])
+      clock += 2 * MIN
+      await service.sweep({ run: true })
+      expect(closed).toEqual(['claude_lead1'])
+      expect(reassigns).toHaveLength(1)
+    })
+
+    it('waits while the old Lead is mid-turn or on the owner’s screen', async () => {
+      live = [oldLead(), newLead()].map((s) =>
+        s.sessionId === 'claude_lead1' ? { ...s, midTurn: true, state: 'working' as const } : s
+      )
+      await service.sweep({ run: true })
+      clock += 3 * MIN
+      await service.sweep({ run: true })
+      expect(closed).toEqual([])
+      live = [{ ...oldLead(), onScreen: true }, newLead()]
+      await service.sweep({ run: true })
+      expect(closed).toEqual([])
+      live = [oldLead(), newLead()]
+      await service.sweep({ run: true })
+      expect(closed).toEqual(['claude_lead1'])
+    })
+
+    it('leaves a Lead the plan still names, and one nobody took over from', async () => {
+      planLines = [
+        { file: 'plan.md', current: ['acme-api/lead-plan-2'], was: [] },
+        { file: 'other.md', current: ['chat/lead-plan'], was: [] }
+      ]
+      await service.sweep({ run: true })
+      clock += 5 * MIN
+      await service.sweep({ run: true })
+      expect(reassigns).toEqual([])
+      expect(closed).toEqual([])
+      planLines = [{ file: 'plan.md', current: ['acme-api/lead-plan-2'], was: [] }]
+      launchParents = {}
+      await service.sweep({ run: true })
+      expect(reassigns).toEqual([])
+      // Why: a Lead that launched another Lead for its own plan is not handing over.
+      launchParents = { claude_lead2: 'claude_lead1' }
+      planLines = [
+        { file: 'plan.md', current: ['acme-api/lead-plan-2'], was: [], text: 'no old Lead here' }
+      ]
+      await service.sweep({ run: true })
+      expect(reassigns).toEqual([])
+    })
+
+    it('takes the plan’s «was» as the old Lead without a launch link', async () => {
+      launchParents = {}
+      planLines = [{ file: 'plan.md', current: ['acme-api/lead-plan-2'], was: ['chat/lead-plan'] }]
+      await service.sweep({ run: true })
+      expect(reassigns).toHaveLength(1)
+    })
+
+    it('does not close a Lead when its chats could not move; tries again', async () => {
+      reassignFails = true
+      await service.sweep({ run: true })
+      clock += 5 * MIN
+      await service.sweep({ run: true })
+      expect(closed).toEqual([])
+      reassignFails = false
+      await service.sweep({ run: true })
+      expect(reassigns).toHaveLength(1)
+      clock += 3 * MIN
+      await service.sweep({ run: true })
+      expect(closed).toEqual(['claude_lead1'])
+    })
+
+    it('after a context handoff on the same thread, only closes the old chat', async () => {
+      live = [{ ...oldLead(), handedOffTo: 'claude_lead2' }, newLead({ address: 'chat/lead-plan' })]
+      planLines = []
+      await service.sweep({ run: true })
+      clock += 3 * MIN
+      await service.sweep({ run: true })
+      expect(reassigns).toEqual([])
+      expect(closed).toEqual(['claude_lead1'])
+    })
+
+    it('never closes a chat whose successor is closed or not a Lead', async () => {
+      live = [oldLead(), newLead({ tabOpen: false, state: 'closed' })]
+      await service.sweep({ run: true })
+      live = [oldLead(), newLead({ role: 'worker' })]
+      await service.sweep({ run: true })
+      clock += 5 * MIN
+      await service.sweep({ run: true })
+      expect(reassigns).toEqual([])
+      expect(closed).toEqual([])
+    })
+
+    it('with the switch off and the dispatcher off, only lists it; in report mode notes it once', async () => {
+      auto = false
+      const listed = await service.sweep({ run: true })
+      expect(listed.actions.some((a) => a.kind === 'lead-handover')).toBe(true)
+      expect(reassigns).toEqual([])
+      mode = 'report'
+      await service.sweep({ run: true })
+      await service.sweep({ run: true })
+      expect(reassigns).toEqual([])
+      expect(
+        rows(HQ_JOURNAL_KIND.sessionPlan).filter((r) => r.title.includes('close'))
+      ).toHaveLength(1)
     })
   })
 })

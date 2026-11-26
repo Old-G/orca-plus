@@ -22,6 +22,7 @@ import {
 } from '../../shared/hq-sessions'
 import type { HqBackgroundChatLaunch } from '../hq-today/hq-background-chat'
 import type { HqCaller } from '../hq-journal/hq-journal-rooms'
+import type { HqPlanLeadRef } from '../hq-journal/hq-lead-plan-line'
 
 export type HqHandoffOfferRef = {
   id: string
@@ -65,6 +66,17 @@ export type HqSessionsDeps = {
   deliver: (sessionId: string, prompt: string) => Promise<boolean>
   offers: () => readonly HqHandoffOfferRef[]
   startHandoff: (offerId: string) => Promise<{ ok: true } | { ok: false; error: string }>
+  /** Custom build (hq-lead-handover, T2): the `Lead chat:` lines of the plans. */
+  planLeads: () => Promise<readonly HqPlanLeadRef[]>
+  /** The chat that started `sessionId` with `orca agent launch`; null when none did. */
+  launchedBy: (sessionId: string) => string | null
+  /** `orca hq reassign --from <old> --to <new>`: the old Lead's chats and held messages go to the new one. */
+  reassignLead: (
+    from: string,
+    to: string
+  ) => Promise<{ ok: true; moved: number } | { ok: false; error: string }>
+  /** Closes the chat's tab like the tab's ×; it stays in History. */
+  closeChat: (sessionId: string, worktreeId: string | null) => Promise<boolean>
   /** Brings the journal up to date (finished turns become reports). */
   sync: () => Promise<void>
   now: () => number

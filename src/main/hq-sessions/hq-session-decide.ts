@@ -2,6 +2,7 @@
 // thread's chat, open a new one seeded from it, or queue; and when a handoff starts by itself.
 import {
   HQ_SESSION_CONTINUE_BELOW_PCT,
+  HQ_SESSION_LEAD_HANDOVER_GRACE_MS,
   HQ_SESSION_OWNER_IN_MS,
   HQ_SESSION_QUIET_MS,
   type HqDispatchDecision,
@@ -120,4 +121,117 @@ export function decideHqHandoff(
     start: true,
     why: input.session ? `${label(input.session)} handed off ${ago} ago` : `a handoff waited ${ago}`
   }
+}
+
+/** What the sweep needs of a plan's `Lead chat:` line: who leads now, and who the line names as before. */
+export type HqLeadLine = { current: readonly string[]; was: readonly string[]; text?: string }
+
+export type HqLeadHandoverInput = {
+  sessions: readonly HqLiveSession[]
+  plans: readonly HqLeadLine[]
+  /** The chat that started `sessionId` with `orca agent launch`; null when none did. */
+  launchedBy: (sessionId: string) => string | null
+}
+
+export type HqLeadHandover = {
+  from: HqLiveSession
+  to: HqLiveSession
+  sameThread: boolean
+  why: string
+}
+
+function isOpenLead(session: HqLiveSession): boolean {
+  return session.role === 'lead' && session.tabOpen && session.state !== 'closed'
+}
+
+function named(words: readonly string[], session: HqLiveSession): boolean {
+  return (
+    words.includes(session.sessionId) ||
+    (session.address !== null && words.includes(session.address))
+  )
+}
+
+function mentions(text: string | undefined, session: HqLiveSession): boolean {
+  return (
+    text !== undefined &&
+    (text.includes(session.sessionId) ||
+      (session.address !== null && text.includes(session.address)))
+  )
+}
+
+/**
+ * Custom build (hq-lead-handover, T2): Leads whose work another live chat took over. Two signs:
+ * the Lead's context handoff went to a live chat (same thread), or a plan's `Lead chat:` line now names a
+ * live Lead that the old one started and the plan names as before (or the line keeps the old one as «was») while no plan names the old
+ * Lead any more. A Lead a plan still names, or one nobody took over from, is left alone.
+ */
+export function decideHqLeadHandovers(input: HqLeadHandoverInput): HqLeadHandover[] {
+  const leads = input.sessions.filter(isOpenLead)
+  const found: HqLeadHandover[] = []
+  for (const old of leads) {
+    const next = old.handedOffTo
+      ? input.sessions.find(
+          (candidate) =>
+            candidate.sessionId === old.handedOffTo &&
+            candidate.tabOpen &&
+            candidate.state !== 'closed' &&
+            (candidate.role === 'lead' || candidate.role === null)
+        )
+      : undefined
+    if (next) {
+      found.push({
+        from: old,
+        to: next,
+        sameThread: true,
+        why: `${label(old)} handed off to ${label(next)}`
+      })
+      continue
+    }
+    if (input.plans.some((plan) => named(plan.current, old))) {
+      continue
+    }
+    const successor = leads
+      .filter(
+        (candidate) =>
+          candidate.sessionId !== old.sessionId &&
+          input.plans.some(
+            (plan) =>
+              named(plan.current, candidate) &&
+              (named(plan.was, old) ||
+                (input.launchedBy(candidate.sessionId) === old.sessionId &&
+                  mentions(plan.text, old)))
+          )
+      )
+      .sort((a, b) => b.lastActivityAt - a.lastActivityAt)[0]
+    if (successor) {
+      found.push({
+        from: old,
+        to: successor,
+        sameThread: false,
+        why: `the plan names ${label(successor)} as Lead, not ${label(old)}`
+      })
+    }
+  }
+  return found
+}
+
+/**
+ * The old Lead closes once its chats moved, the grace is over, its turn has ended and it is not on the
+ * owner's screen; until then the sweep asks again.
+ */
+export function decideHqLeadClose(input: {
+  session: HqLiveSession
+  movedAt: number
+  now: number
+}): { close: true } | { close: false; why: string } {
+  if (input.now - input.movedAt < HQ_SESSION_LEAD_HANDOVER_GRACE_MS) {
+    return { close: false, why: 'its chats moved a moment ago' }
+  }
+  if (input.session.midTurn) {
+    return { close: false, why: 'its turn has not ended' }
+  }
+  if (input.session.onScreen) {
+    return { close: false, why: 'the owner is looking at it' }
+  }
+  return { close: true }
 }
