@@ -56,10 +56,12 @@ export function hqChatTabs(store: Pick<Store, 'getWorkspaceSession'>): HqChatTab
   return tabs
 }
 
-/** The chats with a tab open; null when the workspace session could not be read. */
+/** The chats with a tab open; null when the workspace session could not be read or lists none yet
+ *  (just after start a chat would read as closed). */
 export function hqChatTabIds(store: Pick<Store, 'getWorkspaceSession'>): Set<string> | null {
   try {
-    return new Set(hqChatTabs(store).map((tab) => tab.sessionId))
+    const ids = new Set(hqChatTabs(store).map((tab) => tab.sessionId))
+    return ids.size > 0 ? ids : null
   } catch (error) {
     console.warn('[hq-sessions] chat tabs not read', error)
     return null
