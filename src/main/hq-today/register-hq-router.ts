@@ -12,6 +12,7 @@ import {
   type HqIntake
 } from '../../shared/hq-slack-intake'
 import type { HqRoute, HqRouterChat } from '../../shared/hq-router'
+import { readHqRoute } from '../../shared/hq-router-model'
 import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
@@ -82,7 +83,8 @@ export function hqRouterChats(runtime: OrcaRuntimeService, now: number): HqRoute
       taskRef: session.taskRef,
       lastReport: reports.get(session.sessionId)?.join(' / ') ?? null,
       waitsOnAuthor: [],
-      lastActivityAt: session.lastActivityAt
+      lastActivityAt: session.lastActivityAt,
+      finished: session.state === 'done'
     }
   })
 }
@@ -105,7 +107,10 @@ export function hqRouterIntakeDeps(
   store: Store,
   runtime: OrcaRuntimeService,
   cache: SlackReaderCache
-): Pick<HqSlackIntakeDeps, 'route' | 'routerPreTrial' | 'autoSend' | 'settle' | 'noteMark'> {
+): Pick<
+  HqSlackIntakeDeps,
+  'route' | 'routerPreTrial' | 'autoSend' | 'settle' | 'noteMark' | 'cardRoute' | 'saveCardRoute'
+> {
   const on = (): boolean => (store.getSettings().hqRouter ?? 'trial') !== 'off'
   if (!on()) {
     return {}
@@ -186,6 +191,12 @@ export function hqRouterIntakeDeps(
   }
   return {
     route,
+    // Why (T7): a To work card is routed once; the router keeps the answer by the card's key.
+    cardRoute: (key) => {
+      const kept = runtime.pulseRouter().cardRoute(key)
+      return kept ? { route: readHqRoute(kept.route), at: kept.at, tries: kept.tries } : null
+    },
+    saveCardRoute: (key, routed, at) => runtime.pulseRouter().saveCardRoute(key, routed, at),
     noteMark: (key, outcome) => hqRouterMarkLine(key, outcome, writeMarkLog, Date.now()),
     routerPreTrial: (current) => {
       const settings = store.getSettings()

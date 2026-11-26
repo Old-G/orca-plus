@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { PulseCore } from './pulse-core'
 import {
   bindChosenThread,
+  cardRouteOf,
+  saveCardRoute,
   bindSentMessage,
   liveChatOf,
   logChoice,
@@ -160,5 +162,16 @@ describe('router log', () => {
       top: '["a","b"]',
       chosen: 'b'
     })
+  })
+})
+
+describe('card routes (T7)', () => {
+  it('keeps a card’s route by its key and counts a try for each save', () => {
+    const c = core()
+    expect(cardRouteOf(c, 'k')).toBeNull()
+    saveCardRoute(c, 'k', null, 1)
+    expect(cardRouteOf(c, 'k')).toEqual({ at: 1, route: null, tries: 1 })
+    saveCardRoute(c, 'k', { target: 'w' }, 2)
+    expect(cardRouteOf(c, 'k')).toEqual({ at: 2, route: { target: 'w' }, tries: 2 })
   })
 })

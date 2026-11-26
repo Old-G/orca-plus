@@ -191,6 +191,11 @@ export class RuntimePulseCommands {
     return this.db().markInboxRead(id)
   }
 
+  /** Custom build (hq-router T7): an open card's body, rewritten in place. */
+  pulseSetInboxBody(id: string, body: string): void {
+    this.db().setInboxBody(id, body)
+  }
+
   pulseMarkInboxDone(id: string, action?: string): PulseInboxItem {
     return this.db().markInboxDone(id, action)
   }

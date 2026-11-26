@@ -82,7 +82,7 @@ describe('router signals', () => {
     expect(hqRouteBySignals(input({ chats, text: 'nothing here' }))).toBeNull()
   })
 
-  it('a bound thread whose reply names another chat\'s task is not sent by itself', () => {
+  it("a bound thread whose reply names another chat's task is not sent by itself", () => {
     const chats = [chat('a'), chat('b', { taskRef: 'DEV-1234' })]
     expect(
       hqRouteBySignals(
@@ -133,6 +133,21 @@ describe('router shortlist', () => {
       'r2',
       'r3',
       'r4'
+    ])
+  })
+})
+
+describe('router shortlist, T7', () => {
+  it('a chat still going comes before a finished one among the recent', () => {
+    const chats = [
+      chat('done-new', { finished: true, lastActivityAt: NOW - 1 }),
+      chat('going-old', { lastActivityAt: NOW - 50_000 }),
+      chat('going-new', { lastActivityAt: NOW - 10 })
+    ]
+    expect(hqRouterShortlist(input({ chats })).map((c) => c.sessionId)).toEqual([
+      'going-new',
+      'going-old',
+      'done-new'
     ])
   })
 })

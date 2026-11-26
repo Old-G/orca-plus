@@ -16,6 +16,8 @@ import type { PulseBellInput } from '../../shared/pulse-bell'
 import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
 import { INBOX_GONE_ACTION } from '../orca-plus/pulse/pulse-inbox'
 import type { HqIntakeDraft, HqIntakeGuess } from './hq-slack-intake-suggest'
+import { answersWaiting, type HqIntakeAnswer } from './hq-intake-answers'
+import { routeToWorkCards, type HqCardRouteDeps } from './hq-card-route'
 import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 // Why: a mark older than this is an old reaction found on the first run, not a new request.
@@ -36,20 +38,6 @@ export type HqIntakeReadApi = {
 // Custom build (hq-intake-one-card): a person's messages this close together in one thread are one
 // request, and a message that answered a waiting already has its card (26.10: three cards for one).
 export const HQ_INTAKE_BURST_MS = 10 * 60_000
-const ANSWER_SPAN_MS = 15 * 60_000
-
-/** A Slack answer to a waiting: its card is the answer's, not a second «To work». */
-export type HqIntakeAnswer = { channel: string; authorSlackId: string | null; at: number }
-
-function answersWaiting(draft: HqIntakeDraft, answers: readonly HqIntakeAnswer[]): boolean {
-  return answers.some(
-    (answer) =>
-      answer.channel === draft.channel &&
-      (answer.authorSlackId === null || answer.authorSlackId === draft.authorSlackId) &&
-      draft.at >= answer.at - ANSWER_SPAN_MS &&
-      draft.at <= answer.at + 2 * 60_000
-  )
-}
 
 function sameBurst(card: HqIntake, draft: HqIntakeDraft): boolean {
   return (
@@ -101,6 +89,10 @@ export type HqSlackIntakeDeps = {
   settle?: (dedupeKey: string, intake: HqIntake) => void
   /** Custom build (hq-router T1c): one line for each 👾 mark a poll saw and what became of it. */
   noteMark?: (key: string, outcome: string) => void
+  /** Custom build (hq-router T7): what the router said about a card before (by the card's key) —
+   *  `route` null when it found nothing; a card is routed once. */
+  cardRoute?: HqCardRouteDeps['cardRoute']
+  saveCardRoute?: HqCardRouteDeps['saveCardRoute']
 }
 
 /** Custom build (hq-router T1c, 26.11): keys the owner handled. A card the bell closed by itself
@@ -192,8 +184,9 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
       cards.set(key, intake)
     }
   }
+  // Why (T7, owner 26.11): one message is one card — REPLY first, then a 👾 route, then a mention.
   const drafts = [
-    ...read.marked.drafts,
+    ...read.marked.drafts.filter((draft) => !answersWaiting(draft, answers, { loose: false })),
     ...read.mentioned.filter((draft) => !answersWaiting(draft, answers))
   ].sort((a, b) => a.at - b.at)
   let guessed = 0
@@ -282,6 +275,9 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
       autoSent.push([key, card])
     }
   }
+  // Custom build (hq-router T7): a mention card or a ledger conversation card has no route of its
+  // own; the router gives each one, once.
+  const routedLedger = await routeToWorkCards(deps, cards, ledger ?? [], handled, upgraded)
   // Why: a mark a partial read did not reach is not known to be gone.
   if (!read.marked.complete) {
     for (const [key, payload] of raised) {
@@ -300,7 +296,7 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
     ...[...cards.entries()].map(([key, intake]) =>
       upgraded.has(key) ? { ...hqIntakeBellItem(intake), replaces: key } : hqIntakeBellItem(intake)
     ),
-    ...(ledger ?? []).map((intake) => hqIntakeBellItem(intake))
+    ...routedLedger.map((intake) => hqIntakeBellItem(intake))
   ])
   for (const [key, card] of autoSent) {
     deps.settle?.(key, card)
@@ -331,3 +327,5 @@ export function startHqSlackIntake(
     flight.dispose()
   }
 }
+
+export type { HqIntakeAnswer }
