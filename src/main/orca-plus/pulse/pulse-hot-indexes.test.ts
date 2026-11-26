@@ -8,7 +8,8 @@ import type { HqJournalInput } from '../../../shared/hq-journal'
 import Database from '../../sqlite/sync-database'
 import { liveSessionOf } from './pulse-chat-chain'
 import { PulseCore } from './pulse-core'
-import { syncInboxKind } from './pulse-inbox'
+import { addInboxItem, listInbox, markInboxDone, syncInboxKind } from './pulse-inbox'
+import { hqPlusFeedInbox, hqPlusFeedKeep } from '../../../shared/hq-plus-feed-inbox'
 import { listJournal, recordJournal } from './pulse-journal'
 import { PULSE_SCHEMA_VERSION } from './pulse-schema'
 
@@ -109,6 +110,65 @@ describe('pulse hot-path indexes', () => {
     expect(scans(plans, 'journal')).toEqual([])
   })
 
+  it("reads HQ+'s feed and one chat's rows by index", () => {
+    const core = openCore()
+    recordJournal(core, [entry(), entry({ dedupeKey: 'report-2', status: 'done' })])
+    addInboxItem(core, { kind: 'agent-finished', title: 'Done' })
+    const keep = hqPlusFeedKeep(listJournal(core, { since: 0 }), 0)
+    const plans = plansOf(core, () => {
+      listJournal(core, { since: 0, limit: 500 })
+      listJournal(core, { needs: 'owner', status: 'open', limit: 500 })
+      listJournal(core, { needs: 'owner', since: 0, limit: 500 })
+      listJournal(core, { sessionId: 'session-1', limit: 100 })
+      listInbox(core, { includeDone: true, since: 0, kinds: ['agent-finished'], keep })
+    })
+    expect(plans).toHaveLength(5)
+    expect(scans(plans, 'journal')).toEqual([])
+    expect(scans(plans, 'inbox')).toEqual([])
+  })
+
+  it("returns the settled bell items HQ+'s feed keeps, and only those", () => {
+    const core = openCore()
+    const add = (
+      kind: string,
+      title: string,
+      refKind: string | null = null,
+      refId: string | null = null
+    ) => addInboxItem(core, { kind, title, refKind, refId, dedupeKey: title }).record
+    const settle = (id: string) => markInboxDone(core, id, 'done')
+    const oldDone = add('agent-finished', 'old done')
+    const oldReport = add('hq-report', 'old report')
+    const pointed = add('agent-finished', 'pointed at')
+    const approval = add('outgoing-approval', 'approval', 'outgoing', 'send-1')
+    const otherApproval = add('outgoing-approval', 'other approval', 'outgoing', 'send-2')
+    for (const item of [oldDone, oldReport, pointed, approval, otherApproval]) {
+      settle(item.id)
+    }
+    const dayStart = settle(add('agent-finished', 'probe').id).doneAt! + 1
+    add('agent-finished', 'still open')
+    settle(add('agent-finished', 'settled today').id)
+    recordJournal(core, [
+      entry({ refKind: 'inbox', refId: pointed.id }),
+      entry({ dedupeKey: 'report-2', refKind: 'outgoing', refId: 'send-1' })
+    ])
+    const entries = listJournal(core, { since: 0 })
+    const every = listInbox(core, { includeDone: true, since: 0 })
+    const kept = listInbox(core, {
+      includeDone: true,
+      since: 0,
+      keep: hqPlusFeedKeep(entries, dayStart)
+    })
+    expect(kept.map((item) => item.title)).toEqual(
+      hqPlusFeedInbox(every, entries, dayStart).map((item) => item.title)
+    )
+    expect(kept.map((item) => item.title).sort()).toEqual(
+      ['approval', 'old report', 'pointed at', 'settled today', 'still open'].sort()
+    )
+    expect(
+      listInbox(core, { includeDone: true, kinds: ['hq-report'] }).map((item) => item.title)
+    ).toEqual(['old report'])
+  })
+
   it('follows a handoff chain by index', () => {
     const core = openCore()
     const plans = plansOf(core, () => {
@@ -140,7 +200,11 @@ describe('pulse hot-path indexes', () => {
         'journal_by_kind_status',
         'journal_by_kind_at',
         'journal_by_source',
-        'sessions_by_parent'
+        'sessions_by_parent',
+        'journal_by_at',
+        'journal_by_session',
+        'journal_by_status',
+        'inbox_by_created'
       ]) {
         raw.exec(`DROP INDEX ${index}`)
       }
@@ -162,7 +226,11 @@ describe('pulse hot-path indexes', () => {
           'journal_by_kind_status',
           'journal_by_kind_at',
           'journal_by_source',
-          'sessions_by_parent'
+          'sessions_by_parent',
+          'journal_by_at',
+          'journal_by_session',
+          'journal_by_status',
+          'inbox_by_created'
         ])
       )
     } finally {
