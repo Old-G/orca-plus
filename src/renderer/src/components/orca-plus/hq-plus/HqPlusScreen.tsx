@@ -78,6 +78,15 @@ import type { HqPlusOtherWait, HqPlusQueueActions } from './HqPlusSideQueues'
 import { HqPlusTicker } from './HqPlusTicker'
 import type { HqPlusChatCloser } from './HqPlusCloseChat'
 import { HqPlusChatBar, HqPlusChatSession } from './HqPlusChatSession'
+import {
+  getHqChatHistory,
+  hqChatHistoryCanGo,
+  hqChatHistoryCurrent,
+  hqChatHistoryGo,
+  hqChatHistoryVisit,
+  setHqChatHistory,
+  useHqChatHistory
+} from './hq-plus-chat-history'
 import { canFinishHqPlusCard, finishHqPlusCard } from './hq-plus-actions'
 import { HQ_PLUS_PANEL, readHqPlusPanelWidth, saveHqPlusPanelWidth } from './hq-plus-panel-widths'
 import { HqPlusRiver } from './HqPlusRiver'
@@ -1215,6 +1224,30 @@ export function HqPlusScreen(): React.JSX.Element {
   const pickKey = pick ? hqPlusThreadKey(pick) : null
   const chatItem = chatKey ? (chatItems.find((item) => item.key === chatKey) ?? null) : null
   const shownChat = tab === 'session' ? chatItem : null
+  // Custom build (hq-session-history, owner 27.11): every chat shown in Session joins the ← / → history,
+  // whichever way it was opened (tree, feed, History, a request from the sidebar).
+  const shownChatKey = shownChat?.key ?? null
+  useEffect(() => {
+    if (shownChatKey) {
+      setHqChatHistory(hqChatHistoryVisit(getHqChatHistory(), shownChatKey))
+    }
+  }, [shownChatKey])
+  const chatHistory = useHqChatHistory()
+  const chatIsOpen = (key: string): boolean => chatItems.some((item) => item.key === key)
+  const goChatHistory = (dir: -1 | 1): void => {
+    const next = hqChatHistoryGo(getHqChatHistory(), dir, chatIsOpen)
+    const key = hqChatHistoryCurrent(next)
+    if (next !== getHqChatHistory() && key) {
+      setHqChatHistory(next)
+      showChat(key)
+    }
+  }
+  const chatNav = {
+    canBack: hqChatHistoryCanGo(chatHistory, -1, chatIsOpen),
+    canForward: hqChatHistoryCanGo(chatHistory, 1, chatIsOpen),
+    onBack: () => goChatHistory(-1),
+    onForward: () => goChatHistory(1)
+  }
   useEffect(
     () =>
       onHqTabRequested((requested) => {
@@ -1414,6 +1447,7 @@ export function HqPlusScreen(): React.JSX.Element {
                 (item) => item.kind === 'chat' && item.repoId === chatItem.repoId
               )}
               onPick={(item) => showChat(item.key)}
+              nav={chatNav}
             />
           ) : tab === 'session' && chatKey ? (
             <p className="hqp-empty">
