@@ -206,12 +206,12 @@ describe('router shortlist, T7', () => {
 describe('router model step', () => {
   const short = [chat('a'), chat('b'), chat('c')]
 
-  it('asks Jev one choice over the numbers and new', () => {
+  it('asks Jev one choice over the numbers only (👾 is ongoing work: no «new»)', () => {
     const body = hqRouterJevBody(input(), short)
     const target = (body.questions as Record<string, { type: string; criteria: object }>).target
     expect(body.model).toBe('typesafe/jev-1.14')
     expect(target.type).toBe('choice')
-    expect(Object.keys(target.criteria)).toEqual(['1', '2', '3', 'new'])
+    expect(Object.keys(target.criteria)).toEqual(['1', '2', '3'])
   })
 
   it('reads Jev’s pick, ranking and share', () => {

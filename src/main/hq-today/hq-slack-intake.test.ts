@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { hqRouteNewMark } from '../../shared/hq-router'
 import { hqIntakeBellItem, type HqIntake } from '../../shared/hq-slack-intake'
 import type { HqProjectPage } from '../../shared/hq-project-pages'
 import type { PulseBellInput } from '../../shared/pulse-bell'
@@ -574,5 +575,105 @@ describe('T7: one message, one card; every To work card gets a route once', () =
     expect(routed).toEqual([message.ts])
     expect(synced[0]?.[0]).toMatchObject({ dedupeKey: card.dedupeKey, replaces: card.dedupeKey })
     expect(synced[0]?.[0]?.body).toContain('→ «W · support»')
+  })
+
+  function setupNew(drafts: HqIntakeDraft[], raised = new Map<string, string | null>()) {
+    const synced: PulseBellInput[][] = []
+    const guess = vi.fn(async () => ({
+      repoId: 'r1' as string | null,
+      project: 'support-service' as string | null,
+      summary: 'Роуты'
+    }))
+    const deps: HqSlackIntakeDeps = {
+      read: async (run) =>
+        run({ marked: async () => ({ drafts, complete: true }), mentioned: async () => [] }),
+      raised: () => raised,
+      guess,
+      sync: (_kind, items) => void synced.push([...items]),
+      now: () => NOW
+    }
+    return { deps, synced, guess }
+  }
+
+  it('28.11: a 🆕 mark takes the guessed project, starts its chat by itself and settles the card', async () => {
+    const { deps, synced, guess } = setupNew([draft('1792630100.000100', { newMark: true })])
+    const sent: HqIntake[] = []
+    const settled: string[] = []
+    deps.routerPreTrial = () => new Set()
+    deps.newMarkPreTrial = () => new Set()
+    deps.route = async () => hqRouteNewMark()
+    deps.autoSend = async (card) => (sent.push(card), true)
+    deps.settle = (key) => void settled.push(key)
+    expect(await pollHqSlackIntake(deps)).toBe(1)
+    expect(guess).toHaveBeenCalledOnce()
+    expect(sent).toHaveLength(1)
+    expect(sent[0]).toMatchObject({
+      newMark: true,
+      repoId: 'r1',
+      project: 'support-service',
+      route: { how: 'new-mark', project: 'support-service', repoId: 'r1', auto: true }
+    })
+    expect(settled).toHaveLength(1)
+    expect(synced[0]).toHaveLength(1)
+  })
+
+  it('28.11: with no guessed project a 🆕 chat opens in HQ', async () => {
+    const { deps, guess } = setupNew([draft('1792630200.000100', { newMark: true })])
+    guess.mockResolvedValue({ repoId: null, project: null, summary: 'x' } as never)
+    const sent: HqIntake[] = []
+    deps.routerPreTrial = () => new Set()
+    deps.newMarkPreTrial = () => new Set()
+    deps.route = async () => hqRouteNewMark()
+    deps.autoSend = async (card) => (sent.push(card), true)
+    await pollHqSlackIntake(deps)
+    expect(sent[0].route).toMatchObject({ how: 'new-mark', project: null, repoId: null })
+    expect(sent[0].route?.why).toContain('HQ')
+  })
+
+  it('28.11: a 🆕 already there on the first run starts nothing; a later one does', async () => {
+    const old = draft('1792630300.000100', { newMark: true })
+    const fresh = draft('1792630400.000100', { newMark: true })
+    const { deps } = setupNew([old, fresh])
+    const sent: string[] = []
+    deps.routerPreTrial = () => new Set()
+    deps.newMarkPreTrial = () => new Set(['hq-intake:D0AAAAAAAAA:1792630300.000100'])
+    deps.route = async () => hqRouteNewMark()
+    deps.autoSend = async (card) => (sent.push(card.ts), true)
+    await pollHqSlackIntake(deps)
+    expect(sent).toEqual(['1792630400.000100'])
+  })
+
+  it('28.11: a failed chat start leaves the card up, and the next poll does not start again', async () => {
+    const message = draft('1792630500.000100', { newMark: true })
+    const { deps, synced } = setupNew([message])
+    let starts = 0
+    deps.routerPreTrial = () => new Set()
+    deps.newMarkPreTrial = () => new Set()
+    deps.route = async () => hqRouteNewMark()
+    deps.autoSend = async () => (starts++, false)
+    await pollHqSlackIntake(deps)
+    expect(synced[0]).toHaveLength(1)
+    const [item] = synced[0]
+    const raised = new Map([[item.dedupeKey, item.refId ?? null]])
+    const second = setupNew([message], raised)
+    second.deps.routerPreTrial = deps.routerPreTrial
+    second.deps.newMarkPreTrial = deps.newMarkPreTrial
+    second.deps.route = deps.route
+    second.deps.autoSend = deps.autoSend
+    await pollHqSlackIntake(second.deps)
+    expect(starts).toBe(1)
+  })
+
+  it('28.11: two 🆕 marks in one thread each start their own chat', async () => {
+    const a = draft('1792630600.000100', { newMark: true, threadTs: '1792630600.000100' })
+    const b = draft('1792630650.000100', { newMark: true, threadTs: '1792630600.000100' })
+    const { deps } = setupNew([a, b])
+    const sent: string[] = []
+    deps.routerPreTrial = () => new Set()
+    deps.newMarkPreTrial = () => new Set()
+    deps.route = async () => hqRouteNewMark()
+    deps.autoSend = async (card) => (sent.push(card.ts), true)
+    await pollHqSlackIntake(deps)
+    expect(sent).toEqual([a.ts, b.ts])
   })
 })

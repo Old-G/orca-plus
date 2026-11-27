@@ -6,6 +6,7 @@ import {
   HQ_ROUTER_JEV_TIMEOUT_MS,
   HQ_ROUTER_JEV_URL,
   hqRouteBySignals,
+  hqRouteNewMark,
   hqRouterShortlist,
   type HqRoute,
   type HqRouterChat,
@@ -92,6 +93,11 @@ async function withTimeout<T>(
 
 /** The route for one message. Never throws: with nothing to go on, the card asks the owner. */
 export async function routeHqIntake(draft: HqIntakeDraft, deps: HqRouterDeps): Promise<HqRoute> {
+  // Why first (owner 28.11): 🆕 is the owner's word that this is new work — no thread, crumb or chat is
+  // read, so nothing can pull it into an old chat; the project comes from the card's guess.
+  if (draft.newMark) {
+    return hqRouteNewMark()
+  }
   const now = deps.now()
   const thread =
     draft.threadTs && deps.thread
