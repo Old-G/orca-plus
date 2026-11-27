@@ -6,6 +6,7 @@ import { readOutgoingSentContext } from '../../../shared/outgoing-approval/outgo
 import type { HqCrumbFooter, HqRouterCrumb } from '../../../shared/hq-router-crumb'
 import { hqCrumbChatId } from '../../../shared/hq-router-crumb'
 import {
+  approvedWorkOf,
   bindChosenThread,
   bindSentMessage,
   cardRouteOf,
@@ -15,6 +16,7 @@ import {
   ownerTaskOf,
   routerBindingFor,
   saveCardRoute,
+  senderWorkOf,
   taskOfChat,
   type RouterBinding,
   type RouterCardRoute,
@@ -155,6 +157,35 @@ export function leadOfChat(core: PulseCore, sessionId: string): string | null {
   return lead ? liveChatOf(core, lead) : null
 }
 
+function isClosed(core: PulseCore, sessionId: string): boolean {
+  const row = core.db
+    .prepare('SELECT state, closed_at FROM sessions WHERE session_id = ?')
+    .get(sessionId)
+  return !!row && (row.state === 'closed' || row.closed_at != null)
+}
+
+/**
+ * Custom build (router v2 T1, owner 28.11): the registry of a work — the chat carrying it now (its
+ * handoffs and Lead→Lead hand-overs followed); once that chat is closed, the work's Lead; with no live
+ * Lead either, nothing, and the router's card asks the owner.
+ */
+export function routerWorkTarget(
+  core: PulseCore,
+  work: string,
+  title: string | null = null
+): HqRouterCrumb {
+  const live = liveChatOf(core, work)
+  const lead = leadOfChat(core, live)
+  const liveLead = lead && lead !== live && !isClosed(core, lead) ? lead : null
+  return { chat: isClosed(core, live) ? null : live, lead: liveLead, chatTitle: title }
+}
+
+/** The work a footer's `w` id names: the session it cuts to, as the head of its chain. */
+function workByShortId(core: PulseCore, workId: string): string | null {
+  const session = sessionsByShortId(core, workId)[0]
+  return session ? taskOfChat(core, session) : null
+}
+
 function crumbFor(
   core: PulseCore,
   sender: string | null,
@@ -164,8 +195,7 @@ function crumbFor(
     return null
   }
   // Why the task, not the sender: a one-off chat writes for its parent's task (variant b, 26.11).
-  const chat = liveChatOf(core, ownerTaskOf(core, sender))
-  return { chat, lead: leadOfChat(core, chat), chatTitle: title }
+  return routerWorkTarget(core, ownerTaskOf(core, sender), title)
 }
 
 export type HqRouterCrumbLookup = {
@@ -185,6 +215,11 @@ export type HqRouterCrumbLookup = {
  */
 export function routerCrumb(core: PulseCore, lookup: HqRouterCrumbLookup): HqRouterCrumb | null {
   for (const footer of lookup.footers) {
+    // Why first (router v2 T1): a `w` footer names the work itself, as the owner confirmed it.
+    const work = footer.workId ? workByShortId(core, footer.workId) : null
+    if (work) {
+      return routerWorkTarget(core, work, footer.chatTitle)
+    }
     const sender =
       (footer.chatId ? sessionsByShortId(core, footer.chatId)[0] : null) ??
       (footer.ref ? senderByRef(core, footer.ref) : null)
@@ -240,6 +275,7 @@ export function pulseRouter(core: () => PulseCore) {
     boundChat: (key: string): string | null => routerBoundChat(core(), key),
     authorHistory: (slackUserId: string): string[] => routerAuthorHistory(core(), slackUserId),
     leadOf: (sessionId: string): string | null => leadOfChat(core(), sessionId),
+    workTarget: (work: string): HqRouterCrumb => routerWorkTarget(core(), work),
     roleOf: (sessionId: string): string | null => roleOf(core(), sessionId),
     taskOf: (sessionId: string): string => taskOfChat(core(), sessionId),
     ownerTask: (sessionId: string): string => ownerTaskOf(core(), sessionId),
@@ -247,6 +283,11 @@ export function pulseRouter(core: () => PulseCore) {
       routerBindingFor(core(), input),
     bindSent: (input: Parameters<typeof bindSentMessage>[1]): void =>
       bindSentMessage(core(), input),
+    senderWork: (sessionId: string): { work: string; known: boolean } =>
+      senderWorkOf(core(), sessionId),
+    approvedWork: (call: Parameters<typeof approvedWorkOf>[1]): string | null =>
+      approvedWorkOf(core(), call),
+    liveChat: (work: string): string => liveChatOf(core(), work),
     bindChoice: (input: Parameters<typeof bindChosenThread>[1]): void =>
       bindChosenThread(core(), input),
     logRoute: (entry: RouterLogEntry): void => logRoute(core(), entry),

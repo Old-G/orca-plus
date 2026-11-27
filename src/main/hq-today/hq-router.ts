@@ -39,7 +39,9 @@ export type HqRouterDeps = {
     threadTs: string | null
     linked: { channel: string; ts: string } | null
     at: number
-  }) => { chat: string; source: 'approve' | 'choice' } | null
+  }) => { task?: string; chat: string; source: 'approve' | 'choice' } | null
+  /** Router v2 T1: a work's chat now, its Lead once that closed, or neither (the card asks). */
+  workTarget?: (work: string) => HqRouterCrumb
   crumb: (lookup: HqRouterCrumbLookup) => HqRouterCrumb | null
   boundChat: (conversationKey: string) => string | null
   leadOf?: (sessionId: string) => string | null
@@ -121,7 +123,9 @@ export async function routeHqIntake(draft: HqIntakeDraft, deps: HqRouterDeps): P
     deps.crumbs === false
       ? null
       : binding?.source === 'approve'
-        ? { chat: binding.chat, lead: deps.leadOf?.(binding.chat) ?? null, chatTitle: null }
+        ? binding.task && deps.workTarget
+          ? deps.workTarget(binding.task)
+          : { chat: binding.chat, lead: deps.leadOf?.(binding.chat) ?? null, chatTitle: null }
         : deps.crumb({
             footers,
             channel: draft.channel,

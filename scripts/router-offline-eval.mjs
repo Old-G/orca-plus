@@ -54,15 +54,27 @@ const here = dirname(new URL(import.meta.url).pathname)
 const load = (path) => tsImport(join(here, '..', path), import.meta.url)
 const { PulseCore } = await load('src/main/orca-plus/pulse/pulse-core.ts')
 const graph = await load('src/main/orca-plus/pulse/pulse-router-graph.ts')
-const { leadOfChat } = await load('src/main/orca-plus/pulse/pulse-router.ts')
+const { leadOfChat, routerWorkTarget } = await load('src/main/orca-plus/pulse/pulse-router.ts')
 const { hqRouterRefMatches } = await load('src/shared/hq-router.ts')
 const core = new PulseCore(copy)
 const q = (sql, ...params) => core.db.prepare(sql).all(...params)
 
-// Restore the bindings from the Approve history.
+// Router v2 T1: the Approve card's work — a one-off chat with no work of its own gets the work its
+// thread is bound to (the card's suggestion, confirmed by Approve). SUGGEST=0 replays without it.
+let suggested = 0
+const cardWork = (sender, channel, threadTs, at) => {
+  if (process.env.SUGGEST === '0' || graph.senderWorkOf(core, sender).known || !threadTs) {
+    return null
+  }
+  const work = graph.routerBindingFor(core, { channel, threadTs, linked: null, at })?.task ?? null
+  suggested += work ? 1 : 0
+  return work
+}
+
+// Restore the bindings from the Approve history, oldest first.
 let restored = 0
 for (const row of q(
-  "SELECT c.key, m.ts, m.at, m.session_id, m.decision_id FROM conversation_messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.direction = 'out' AND m.decision_id IS NOT NULL AND c.key LIKE 'slack:%'"
+  "SELECT c.key, m.ts, m.at, m.session_id, m.decision_id FROM conversation_messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.direction = 'out' AND m.decision_id IS NOT NULL AND c.key LIKE 'slack:%' ORDER BY m.at"
 )) {
   const [, channel, thread] = row.key.split(':')
   let sender = row.session_id
@@ -76,7 +88,8 @@ for (const row of q(
       ts: row.ts,
       threadTs: thread || null,
       sender,
-      at: row.at
+      at: row.at,
+      work: cardWork(sender, channel, thread || null, row.at)
     })
     restored += 1
   }
@@ -173,14 +186,19 @@ for (const c of cases) {
         at
       )[0]?.at
     : null
-  const bound = channel
+  const binding = channel
     ? graph.routerBindingFor(core, { channel, threadTs: root, linked: null, at: lastIn ?? at })
     : null
+  // Router v2 T1: our message's work goes through the registry — its chat now, its Lead once that
+  // closed, nothing with no live Lead (then the card, as with no binding).
+  const work = binding?.source === 'approve' ? routerWorkTarget(core, binding.task) : null
+  const bound = work && !work.chat && !work.lead ? null : binding
   if (bound) {
     how = bound.source === 'choice' ? 'thread' : 'crumb'
     auto = bound.source === 'choice'
-    const lead = leadOfChat(core, bound.chat)
-    card = [bound.chat, ...(lead ? [lead] : []), ...jevCard]
+    const lead = work ? work.lead : leadOfChat(core, bound.chat)
+    const chat = work ? work.chat : bound.chat
+    card = [...(chat ? [chat] : []), ...(lead ? [lead] : []), ...jevCard]
   } else {
     const keys = c.set === 'B' ? (ALIAS[c.person] ?? null) : null
     const asking = keys ? askingTasks(personIds(keys), at) : []
@@ -240,7 +258,9 @@ for (const c of cases) {
   }
 }
 const pct = (a, b) => (b ? (a / b).toFixed(2) : 'n/a')
-console.log(`bindings_restored ${restored}`)
+console.log(
+  `bindings_restored ${restored} (one-off chats bound to the card's suggested work: ${suggested})`
+)
 console.log(
   `cases ${tally.n} by ${JSON.stringify(tally.how)}; without a recorded Jev answer ${tally.noJev}`
 )

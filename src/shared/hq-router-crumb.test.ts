@@ -12,22 +12,23 @@ describe('router crumbs', () => {
     expect(hqCrumbIdMatches('5a7f', SESSION)).toBe(false)
   })
 
-  it('writes project › Lead › chat · task · ref · id and reads it back', () => {
+  it('writes project › Lead › chat · task · ref · w <work> and reads it back', () => {
     const footer = outgoingFooter({
       task: { id: 'DEV-1234', url: 'https://app.clickup.com/t/9/DEV-1234', name: null },
       project: 'acme-bot',
       chatName: 'W · T3 refunds',
       leadName: 'LEAD · Refunds',
-      chatSessionId: SESSION,
+      workId: SESSION,
       ref: 'abc123'
     })
     expect(footer).toBe(
-      '↳ acme-bot › LEAD · Refunds › «W · T3 refunds» · [DEV-1234](https://app.clickup.com/t/9/DEV-1234) · ref abc123 · id 5a7fefad'
+      '↳ acme-bot › LEAD · Refunds › «W · T3 refunds» · [DEV-1234](https://app.clickup.com/t/9/DEV-1234) · ref abc123 · w 5a7fefad'
     )
     const [crumb] = parseHqCrumbs(`Ann, see above\n\n_${footer}_`)
     expect(crumb).toMatchObject({
       ref: 'abc123',
-      chatId: '5a7fefad',
+      chatId: null,
+      workId: '5a7fefad',
       chatTitle: 'W · T3 refunds',
       task: 'DEV-1234'
     })
@@ -40,6 +41,7 @@ describe('router crumbs', () => {
     expect(crumb).toEqual({
       ref: '3fa9c1',
       chatId: null,
+      workId: null,
       chatTitle: 'Core: status',
       leadTitle: null,
       project: 'acme_tasks',
@@ -57,8 +59,18 @@ describe('router crumbs', () => {
     ].join('\n')
     const [crumb] = parseHqCrumbs(text)
     expect(crumb?.ref).toBe('0a1b2c')
+    // Why chatId: the `id` footer before router v2 named the sending chat, not the work.
     expect(crumb?.chatId).toBe('1a2b3c4d')
+    expect(crumb?.workId).toBeNull()
     expect(crumb?.chatTitle).toBe('Export chat')
+  })
+
+  it('reads a wrapped `w` footer as the work id', () => {
+    const text = ['Bob: done', '> _↳ acme › «Export chat» · ref 0a1b2c ·', '> w 9f8e7d6c_'].join(
+      '\n'
+    )
+    const [crumb] = parseHqCrumbs(text)
+    expect(crumb).toMatchObject({ ref: '0a1b2c', workId: '9f8e7d6c', chatId: null })
   })
 
   it('lists the newest footer first and nothing for plain text', () => {
