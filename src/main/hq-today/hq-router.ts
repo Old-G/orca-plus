@@ -7,10 +7,12 @@ import {
   HQ_ROUTER_JEV_URL,
   hqRouteBySignals,
   hqRouteNewMark,
+  hqRouterOpenTopics,
   hqRouterShortlist,
   type HqRoute,
   type HqRouterChat,
-  type HqRouterInput
+  type HqRouterInput,
+  type HqRouterTopic
 } from '../../shared/hq-router'
 import {
   hqRouteByModel,
@@ -19,6 +21,11 @@ import {
   hqRouterJevAnswer,
   hqRouterJevBody
 } from '../../shared/hq-router-model'
+import {
+  hqRouteByTopics,
+  hqRouterTopicBody,
+  hqRouterTopicPrompt
+} from '../../shared/hq-router-topics'
 import { parseHqCrumbs, type HqCrumbFooter, type HqRouterCrumb } from '../../shared/hq-router-crumb'
 import {
   HQ_INTAKE_TEXT_MAX,
@@ -48,6 +55,13 @@ export type HqRouterDeps = {
   history: (slackUserId: string) => string[]
   /** The thread's messages, oldest first, when the message is in one; read when routing. */
   thread?: (channel: string, threadTs: string) => Promise<string[] | null>
+  /** Router v2 T2: the author's open topics, newest first (the registry «person × topic»). */
+  topics?: (lookup: {
+    slackUserId: string
+    channel: string
+    now: number
+    conversationKey: string
+  }) => HqRouterTopic[]
   /** Our open questions to this author, by the chat that asked. */
   waitsOn: (slackUserId: string) => Map<string, string[]>
   /** POSTs the Decisions API body; null when no key is set. */
@@ -157,6 +171,16 @@ export async function routeHqIntake(draft: HqIntakeDraft, deps: HqRouterDeps): P
     boundByChoice: binding?.source === 'choice',
     history: draft.authorSlackId ? deps.history(draft.authorSlackId) : [],
     chats,
+    // Why only a DM (owner 28.11): there an answer with no breadcrumb is to one of our talks with them.
+    topics:
+      draft.authorSlackId && deps.topics && (draft.venue === 'dm' || draft.venue === 'group')
+        ? deps.topics({
+            slackUserId: draft.authorSlackId,
+            channel: draft.channel,
+            now,
+            conversationKey
+          })
+        : undefined,
     now
   }
   const bySignals = hqRouteBySignals(input)
@@ -164,6 +188,13 @@ export async function routeHqIntake(draft: HqIntakeDraft, deps: HqRouterDeps): P
     return bySignals
   }
   const short = hqRouterShortlist(input)
+  const topics = hqRouterOpenTopics(input)
+  if (topics.length > 1) {
+    const byTopic = await routeByTopics(input, topics, short, deps)
+    if (byTopic) {
+      return byTopic
+    }
+  }
   if (short.length === 0) {
     return hqRouteByModel(input, short, null, HQ_ROUTER_JEV_MODEL)
   }
@@ -183,6 +214,35 @@ export async function routeHqIntake(draft: HqIntakeDraft, deps: HqRouterDeps): P
     .catch((error: unknown) => ({ ok: false as const, error: String(error) }))
   const answer = generated.ok ? hqRouterFallbackAnswer(generated.text, short) : null
   return hqRouteByModel(input, short, answer, 'Haiku')
+}
+
+/**
+ * Router v2 T2: the model's pick among the author's topics only — Jev, else the fallback model; null when
+ * neither picked one (or picked «new»), and the router goes on over all open chats.
+ */
+async function routeByTopics(
+  input: HqRouterInput,
+  topics: ReturnType<typeof hqRouterOpenTopics>,
+  short: readonly HqRouterChat[],
+  deps: HqRouterDeps
+): Promise<HqRoute | null> {
+  const chats = topics.map((hit) => hit.chat)
+  const jev = deps.jev
+  if (jev) {
+    const response = await withTimeout(
+      (signal) => jev(hqRouterTopicBody(input, topics), signal),
+      deps.timeoutMs ?? HQ_ROUTER_JEV_TIMEOUT_MS
+    )
+    const answer = response ? hqRouterJevAnswer(response, chats) : null
+    if (answer) {
+      return hqRouteByTopics(input, topics, answer, 'Jev', short)
+    }
+  }
+  const generated = await deps
+    .fallback(hqRouterTopicPrompt(input, topics))
+    .catch((error: unknown) => ({ ok: false as const, error: String(error) }))
+  const answer = generated.ok ? hqRouterFallbackAnswer(generated.text, chats) : null
+  return hqRouteByTopics(input, topics, answer, 'Haiku', short)
 }
 
 /** The Decisions API call with a key; a non-2xx answer is an error. */

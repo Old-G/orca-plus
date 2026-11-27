@@ -62,6 +62,21 @@ export function hqRouterByState<T extends Pick<HqRouterChat, 'state'>>(chats: re
     .map((entry) => entry.chat)
 }
 
+/**
+ * Router v2 T2 (owner 28.11): an open topic with the message's author — a work our recent message to them
+ * came from, our open waiting on them, or a chat the owner sent their message to — named by the chat
+ * that carries it now.
+ */
+export type HqRouterTopic = {
+  /** The chat to send to: the work's live chat, or its Lead once that closed. */
+  chat: string
+  work: string
+  /** Our last word on it (the question we asked), else theirs. */
+  text: string
+  at: number
+  source: 'message' | 'waiting' | 'choice'
+}
+
 export type HqRouterInput = {
   text: string
   author: string
@@ -76,6 +91,8 @@ export type HqRouterInput = {
   /** Chats the owner sent this author's messages to before, newest first. */
   history: readonly string[]
   chats: readonly HqRouterChat[]
+  /** Router v2 T2: the author's open topics, newest first — read only for a DM with no breadcrumb. */
+  topics?: readonly HqRouterTopic[]
   now: number
 }
 
@@ -88,6 +105,8 @@ export type HqRouteHow =
   | 'fallback'
   | 'none'
   | 'new-mark'
+  | 'topic'
+  | 'topics'
 export type HqRouteLevel = 'worker' | 'lead' | 'new'
 
 export type HqRoute = {
@@ -304,7 +323,41 @@ export function hqRouteBySignals(input: HqRouterInput): HqRoute | null {
     const more = hits.length > 1 ? ` (${hits.length - 1} more chats name it)` : ''
     return routeTo(chat, 'ref', `${ref} is ${quote(chat.title)}'s work${more}`, others)
   }
+  const topics = hqRouterOpenTopics(input)
+  if (topics.length === 1) {
+    const [{ chat, topic }] = topics
+    const said = topic.text
+      ? ` — ${topic.source === 'waiting' ? 'we asked' : 'last'}: ${quote(topic.text)}`
+      : ''
+    return routeTo(
+      chat,
+      'topic',
+      `${input.author}'s one open topic is ${quote(chat.title)}${said}`,
+      short
+    )
+  }
   return null
+}
+
+/**
+ * Router v2 T2: the author's topics whose chat is on the list, one per chat, newest first. Read after the
+ * breadcrumb and the bound thread, so a crumb that resolved to no open chat still finds its topic.
+ */
+export function hqRouterOpenTopics(
+  input: HqRouterInput
+): { chat: HqRouterChat; topic: HqRouterTopic }[] {
+  if (!input.topics) {
+    return []
+  }
+  const byId = new Map(input.chats.map((chat) => [chat.sessionId, chat]))
+  const out: { chat: HqRouterChat; topic: HqRouterTopic }[] = []
+  for (const topic of input.topics) {
+    const chat = byId.get(topic.chat)
+    if (chat && !out.some((hit) => hit.chat === chat)) {
+      out.push({ chat, topic })
+    }
+  }
+  return out
 }
 
 /**
