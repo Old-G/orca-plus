@@ -151,3 +151,15 @@
   font-size: 10.5px;
   color: var(--hqp-faint, var(--muted-foreground));
 }
+/* Router sticky (owner 27.11): on a phone the board keeps one scroller per column, like the mid layout —
+   the screen itself stops scrolling, the feed gets the top half and the tree scrolls under its pinned
+   «👾 Router». Without this the whole screen scrolled and the tree's sticky header had nothing to stick to. */
+@media (max-width: 760px) {
+  .hq-plus:has(> .hqp-body[data-board='true']) {
+    overflow: clip;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .hqp-body[data-board='true'] > .hqb-feed {
+    max-height: 50vh;
+  }
+}
