@@ -8,7 +8,22 @@ import { readHqRoute } from './hq-router-model'
 export const HQ_INTAKE_KIND = 'hq-intake'
 /** `:space_invader:` — built into Slack and rare at work, so it never fires by accident. */
 export const HQ_INTAKE_EMOJI = 'space_invader'
+/** `:new:` (🆕) — the owner's second mark: new work, a new chat starts by itself. Slack's name for it is
+ *  the default; the settings can name another (hq-router two marks, 28.11). */
+export const HQ_INTAKE_NEW_EMOJI = 'new'
 export const HQ_INTAKE_TEXT_MAX = 4_000
+
+/** The second mark's emoji name from the settings: unset = `new`, empty or router off = no second mark. */
+export function hqRouterNewMarkName(settings: {
+  hqRouter?: 'off' | 'trial'
+  hqRouterNewMark?: string
+}): string | null {
+  if (settings.hqRouter === 'off') {
+    return null
+  }
+  const name = (settings.hqRouterNewMark ?? HQ_INTAKE_NEW_EMOJI).trim().replace(/^:|:$/g, '')
+  return name || null
+}
 /** Notes lines a «Later» leaves carry this source. */
 export const HQ_INTAKE_NOTE_SOURCE = 'intake'
 /** The bell's one button: pops the «To work» card again. */
@@ -46,6 +61,8 @@ export type HqIntake = {
   ask?: string
   /** Custom build (hq-router): where the router would send it and why. */
   route?: HqRoute
+  /** Custom build (hq-router two marks): the owner marked it 🆕, not 👾 — new work, never an existing chat. */
+  newMark?: boolean
   /** Custom build (hq-router): a Slack link, text or Notes line the owner put to the router, not a 👾 mark. */
   pasted?: boolean
   /** Orca+'s guess at the project, and what is being sent, in one line. */
@@ -213,6 +230,7 @@ export function readHqIntake(refId: string | null): HqIntake | null {
     ...(text(raw, 'lastTs') ? { lastTs: text(raw, 'lastTs') ?? '' } : {}),
     ...(text(raw, 'ask') ? { ask: text(raw, 'ask') ?? '' } : {}),
     ...(route ? { route } : {}),
+    ...(Reflect.get(raw, 'newMark') === true ? { newMark: true } : {}),
     ...(Reflect.get(raw, 'pasted') === true ? { pasted: true } : {}),
     repoId: text(raw, 'repoId'),
     project: text(raw, 'project'),

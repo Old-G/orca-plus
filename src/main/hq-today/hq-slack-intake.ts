@@ -2,7 +2,7 @@
 // half minute and raised as «To work» in the bell. Removing the reaction closes one still open; one he
 // already sent on or skipped never comes back. Custom build (hq-slack-mentions): messages that @mention
 // him are raised the same way and stay until he handles them.
-import type { HqRoute } from '../../shared/hq-router'
+import { hqRouteNewMark, type HqRoute } from '../../shared/hq-router'
 import {
   HQ_INTAKE_KIND,
   HQ_ROUTER_KEY_PREFIX,
@@ -83,6 +83,9 @@ export type HqSlackIntakeDeps = {
   /** Custom build (hq-router): the marks already there when the trial started (recorded from `current`
    *  on its first run); they are not raised. */
   routerPreTrial?: (current: readonly string[]) => ReadonlySet<string> | null
+  /** Custom build (hq-router two marks): the 🆕 marks already there when it first ran (recorded from
+   *  `current` on that run); they start no chat. */
+  newMarkPreTrial?: (current: readonly string[]) => ReadonlySet<string> | null
   /** Custom build (hq-router): sends a card whose route is exact (a bound thread); true when it went. */
   autoSend?: (intake: HqIntake) => Promise<boolean>
   /** Custom build (hq-router): closes a card that was sent by itself, after it was raised. */
@@ -199,6 +202,13 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
         drafts.filter((draft) => draft.via !== 'mention').map((draft) => hqIntakeKey(draft))
       ) ?? null)
     : null
+  // Why (owner 28.11): a :new: left on a message long before this mark meant something else must not
+  // start a chat — the 🆕 marks present on the first run are only recorded.
+  const newPreTrial = deps.route
+    ? (deps.newMarkPreTrial?.(
+        drafts.filter((draft) => draft.newMark).map((draft) => hqIntakeKey(draft))
+      ) ?? null)
+    : null
   for (const draft of drafts) {
     const key = hqIntakeKey(draft)
     const mark = draft.via !== 'mention'
@@ -226,6 +236,9 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
       : [...cards.entries()].find(
           ([cardKey, card]) =>
             !handled.has(cardKey) &&
+            // Why (review 28.11): a 🆕 starts its own chat, so it never folds into another card, nor another in it.
+            !draft.newMark &&
+            !card.newMark &&
             (sameBurst(card, draft) || (!!deps.route && sameThread(card, draft)))
         )
     if (burst) {
@@ -242,7 +255,7 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
       continue
     }
     // Why (owner 26.11): the trial does not dig up marks made before it started.
-    if (mark && preTrial?.has(key)) {
+    if (mark && (preTrial?.has(key) || (draft.newMark && newPreTrial?.has(key)))) {
       note('made before the trial')
       continue
     }
@@ -254,6 +267,24 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
           })
         : null
     let card: HqIntake
+    if (draft.newMark && route?.how === 'new-mark') {
+      // Why (owner 28.11): the model's only job for 🆕 is the project — the card's guess (none → HQ).
+      const guess = known ?? (await deps.guess(draft))
+      const placed = hqRouteNewMark(guess)
+      const { via: _via, ...base } = known ?? { ...draft, ...guess }
+      card = { ...base, newMark: true, route: placed }
+      if (!known) {
+        guessed += 1
+      } else if (upgrade) {
+        upgraded.add(key)
+      }
+      cards.set(key, card)
+      note(`routed ${placed.how} → ${placed.project ?? 'HQ'}`)
+      if (deps.autoSend && (await deps.autoSend(card).catch(() => false))) {
+        autoSent.push([key, card])
+      }
+      continue
+    }
     if (known && upgrade) {
       // Why: the mention card already has its guess; the mark adds the route and makes it a 👾 card.
       // With no route it stays the mention card, and the next poll tries again.

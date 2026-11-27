@@ -17,6 +17,8 @@ import { readHqRoute } from '../../shared/hq-router-model'
 import { hqChatTabIds } from '../hq-sessions/hq-session-live'
 import { hqRouterChats } from './hq-router-chats'
 import { hqRouterLogKey } from './hq-intake-close-route'
+import { startHqNewMarkChat } from './hq-new-mark-chat'
+import { newMarkChatDeps } from './hq-new-mark-chat-deps'
 import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
@@ -63,7 +65,14 @@ export function hqRouterIntakeDeps(
   cache: SlackReaderCache
 ): Pick<
   HqSlackIntakeDeps,
-  'route' | 'routerPreTrial' | 'autoSend' | 'settle' | 'noteMark' | 'cardRoute' | 'saveCardRoute'
+  | 'route'
+  | 'routerPreTrial'
+  | 'newMarkPreTrial'
+  | 'autoSend'
+  | 'settle'
+  | 'noteMark'
+  | 'cardRoute'
+  | 'saveCardRoute'
 > {
   const on = (): boolean => (store.getSettings().hqRouter ?? 'trial') !== 'off'
   if (!on()) {
@@ -163,15 +172,32 @@ export function hqRouterIntakeDeps(
       store.updateSettings({ hqRouterPreTrial: [...current] })
       return new Set(current)
     },
-    // Why only a thread his own «Send» bound (owner 26.11): the trial sends nothing else by itself.
-    autoSend: async (intake: HqIntake) =>
-      intake.route?.auto === true && intake.route.target !== 'new'
+    newMarkPreTrial: (current) => {
+      const settings = store.getSettings()
+      if (Array.isArray(settings.hqRouterNewPreTrial)) {
+        return new Set(settings.hqRouterNewPreTrial)
+      }
+      store.updateSettings({ hqRouterNewPreTrial: [...current] })
+      return new Set(current)
+    },
+    // Why only a thread his own «Send» bound (owner 26.11): the trial sends nothing else by itself —
+    // and, since 28.11, a message he marked 🆕, which starts a new chat.
+    autoSend: async (intake: HqIntake) => {
+      const route = intake.route
+      if (route?.auto !== true) {
+        return false
+      }
+      if (route.how === 'new-mark') {
+        return startHqNewMarkChat(intake, newMarkChatDeps(store, runtime))
+      }
+      return route.target !== 'new'
         ? deliverToNativeChat(
-            intake.route.target,
-            hqIntakePrompt(intake, { projectName: intake.route.project, note: '' }),
+            route.target,
+            hqIntakePrompt(intake, { projectName: route.project, note: '' }),
             'hq-router'
           )
-        : false,
+        : false
+    },
     settle: (dedupeKey) => {
       const item = runtime
         .pulseListInbox(false, { kind: 'hq-intake' })
