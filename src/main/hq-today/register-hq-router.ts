@@ -95,6 +95,7 @@ export function hqRouterIntakeDeps(
       chats: () => hqRouterChats(runtime, Date.now(), hqChatTabIds(store)),
       binding: (lookup) => router.binding(lookup),
       leadOf: (sessionId) => router.leadOf(sessionId),
+      workTarget: (work) => router.workTarget(work),
       crumb: (lookup) => router.crumb(lookup),
       boundChat: (conversationKey) => router.boundChat(conversationKey),
       history: (slackUserId) => router.authorHistory(slackUserId),

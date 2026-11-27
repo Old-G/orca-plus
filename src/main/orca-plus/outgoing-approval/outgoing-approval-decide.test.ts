@@ -172,4 +172,61 @@ describe('decideOutgoingCall', () => {
       /cannot be moved/
     )
   })
+
+  // Custom build (router v2 T1): «Work: X» on the card.
+  const OWN = 'aaaaaaaa-0000-4000-8000-000000000000'
+  const OTHER = 'bbbbbbbb-0000-4000-8000-000000000000'
+  const workDeps = (deps: ReturnType<typeof setup>['deps']) => ({
+    ...deps,
+    workPlan: () => ({
+      current: OWN,
+      suggested: false,
+      choices: [
+        { id: OWN, title: 'W · export', why: 'this chat’s work' },
+        { id: OTHER, title: 'LEAD · Refunds', why: 'an open Lead' }
+      ]
+    }),
+    workLeadName: (work: string) => (work === OTHER ? 'LEAD · Refunds' : null)
+  })
+
+  it('offers the works with the footer each would carry, and binds the one the owner picked', async () => {
+    const { db, gate, deps, submit } = setup()
+    const id = submit(
+      'mcp__claude_ai_Slack__slack_send_message',
+      { channel_id: 'C0AAAAAAAAA', message: text },
+      't-work'
+    )
+    const withWork = workDeps(deps)
+    const options = outgoingApprovalOptions(gate.pending()[0], deps.context(), withWork)
+    expect(options.work?.current).toBe(OWN)
+    expect(options.footer).toMatch(/ · w aaaaaaaa$/)
+    // Why the work's own chat in the chain: the reader sees whose work it is.
+    expect(options.work?.choices[1].footer).toMatch(
+      /› LEAD · Refunds › «LEAD · Refunds» · .* · w bbbbbbbb$/
+    )
+    decideOutgoingCall(withWork, id, 'approved', undefined, { workId: OTHER })
+    const sent = hookOutput(await gate.wait(id)).updatedInput
+    expect(String((sent as { message: string }).message)).toMatch(/ · w bbbbbbbb_$/)
+    expect(db.listDecisions()[0]?.sentContext).toMatchObject({ workId: OTHER })
+  })
+
+  it('binds the card’s own work when the owner did not pick, and refuses a work it did not offer', () => {
+    const { db, deps, submit } = setup()
+    const withWork = workDeps(deps)
+    const kept = submit(
+      'mcp__claude_ai_Slack__slack_send_message',
+      { channel_id: 'C0AAAAAAAAA', message: text },
+      't-own'
+    )
+    decideOutgoingCall(withWork, kept, 'approved', undefined, {})
+    expect(db.listDecisions()[0]?.sentContext).toMatchObject({ workId: OWN })
+    const odd = submit(
+      'mcp__claude_ai_Slack__slack_send_message',
+      { channel_id: 'C0AAAAAAAAA', message: `${text} 2` },
+      't-odd'
+    )
+    expect(() =>
+      decideOutgoingCall(withWork, odd, 'approved', undefined, { workId: 'cccccccc-0000' })
+    ).toThrow(/cannot be bound/)
+  })
 })

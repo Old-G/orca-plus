@@ -44,6 +44,8 @@ import {
   type OutgoingDecideDeps
 } from './outgoing-approval-decide'
 import { MovedApprovals } from './outgoing-moved-approvals'
+import { createOutgoingWorkPlans } from './outgoing-work'
+import { hqRouterChats } from '../../hq-today/hq-router-chats'
 import { untaggedClickUpNudge } from './outgoing-untagged-nudge'
 
 const SWEEP_INTERVAL_MS = 30_000
@@ -144,6 +146,12 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
     lastTask: (id) => lastChatTask(pulseDb(), id),
     clickUpTask: clickUpTaskRef
   }
+  // Custom build (router v2 T1): the works a card offers, once per card.
+  const works = createOutgoingWorkPlans({
+    router: () => pulseDb().router,
+    chats: () => hqRouterChats(runtime, Date.now(), null),
+    title: (id) => runtime.openedAgentSessionRecordStore()?.getRecord(id)?.conversationName ?? null
+  })
   // Why: a card restored after a restart was never named in this run.
   const contextOf = async (draft: PulseDraft): Promise<OutgoingApprovalContext> => {
     const kept = contexts.get(draft.id)
@@ -167,6 +175,7 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
           contexts.delete(id)
         }
       }
+      works.keep(live)
     } catch (error) {
       console.warn('[outgoing-approval] bell sync failed:', error)
     }
@@ -204,7 +213,9 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
     projectOf: projects.now,
     moved,
     decisions: (limit) => pulseDb().listDecisions({ kind: 'approval', limit }),
-    waitings: () => pulseDb().listWaitings()
+    waitings: () => pulseDb().listWaitings(),
+    workPlan: works.planOf,
+    workLeadName: works.leadName
   }
   function decide(
     id: string,
