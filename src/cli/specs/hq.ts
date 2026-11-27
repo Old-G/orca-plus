@@ -112,6 +112,19 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     notes: ["Without an address it shows this chat's own thread."]
   },
   {
+    // Custom build (hq-router T0, owner 28.11)
+    path: ['hq', 'router-stats'],
+    summary:
+      'How the 👾 router did, per route class: cards that went to a chat, how often the first offer or the same work was right, and the rest',
+    usage: 'orca hq router-stats [--days <n>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'days'],
+    notes: [
+      'n = cards that went to a chat (sent, sent by itself, or pasted into one); chat = the first offered chat; work = a chat of the same work; top3 = one of the first three offered.',
+      'Skipped, gone (mark removed, card expired) and still-open cards are counted apart and never as wrong. --days defaults to 30.'
+    ],
+    examples: ['orca hq router-stats', 'orca hq router-stats --days 7 --json']
+  },
+  {
     // Custom build (hq-attribution-log, owner 03.11)
     path: ['hq', 'accuracy'],
     summary:

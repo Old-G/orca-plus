@@ -6,6 +6,7 @@ import { onPulseChanged } from '../orca-plus/pulse/pulse-change-events'
 import { PULSE_BELL_KIND } from '../../shared/pulse-bell'
 import { createHqJournalService, provideHqJournalService } from './hq-journal-service'
 import { effortJournal } from './hq-effort-journal'
+import { hqRouterNotePaste } from '../hq-today/hq-router-paste-match'
 import { hqPlaceOf } from './hq-journal-rooms'
 import { provideAutoEffortLog } from '../native-chat/auto-effort/native-chat-auto-effort'
 import { createHqThreads, provideHqThreads, type HqThreadsDeps } from './hq-journal-threads'
@@ -119,6 +120,10 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
   provideAutoEffortLog((entry) => {
     if (!enabled()) {
       return
+    }
+    // T0 (router v2): a Slack message or its link pasted into a chat settles that card in the router's log.
+    if (entry.sessionId && entry.full && entry.result !== 'relayed') {
+      hqRouterNotePaste(runtime, entry.sessionId, entry.full, entry.at)
     }
     void service
       .sources()

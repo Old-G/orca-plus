@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { HqIntake } from '../../shared/hq-slack-intake'
 import { PulseCore } from '../orca-plus/pulse/pulse-core'
-import { bindChosenThread, logChoice, logRoute } from '../orca-plus/pulse/pulse-router-graph'
+import { bindChosenThread, logRoute } from '../orca-plus/pulse/pulse-router-graph'
+import { logChoice } from '../orca-plus/pulse/pulse-router-outcomes'
 import { hqIntakeCloseRoute, hqRouterLogKey } from './hq-intake-close-route'
 
 const intake = (extra: Partial<HqIntake> = {}): HqIntake => ({

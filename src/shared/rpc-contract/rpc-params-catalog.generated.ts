@@ -1989,6 +1989,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'hq.reassign': HqReassignParams,
   'hq.report': HqReportParams,
   'hq.route': HqRouteParams,
+  'hq.routerStats': HqAccuracyParams,
   'hq.screenStats': HqFeedParams,
   'hq.sessions': HqSessionsParams,
   'hq.settle': HqSettleParams,

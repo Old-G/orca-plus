@@ -123,5 +123,13 @@ export const HQ_LEDGER_METHODS = [
     params: HqAccuracyParams,
     handler: (params, { runtime }) =>
       runtime.pulseAttributionAccuracy(Date.now() - (params.days ?? 14) * 24 * 60 * 60_000)
+  }),
+  // Custom build (hq-router T0, owner 28.11): how the 👾 router's cards ended, per route class.
+  defineMethod({
+    name: 'hq.routerStats',
+
+    permission: 'workspace',
+    params: HqAccuracyParams,
+    handler: (params, { runtime }) => runtime.pulseRouterStats(params.days ?? 30)
   })
 ]
