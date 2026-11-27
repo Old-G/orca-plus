@@ -56,6 +56,7 @@ const { PulseCore } = await load('src/main/orca-plus/pulse/pulse-core.ts')
 const graph = await load('src/main/orca-plus/pulse/pulse-router-graph.ts')
 const { leadOfChat, routerWorkTarget } = await load('src/main/orca-plus/pulse/pulse-router.ts')
 const { hqRouterRefMatches } = await load('src/shared/hq-router.ts')
+const { routerPersonTopics } = await load('src/main/orca-plus/pulse/pulse-router-topics.ts')
 const core = new PulseCore(copy)
 const q = (sql, ...params) => core.db.prepare(sql).all(...params)
 
@@ -156,6 +157,12 @@ const askingTasks = (ids, at) => {
   return out
 }
 
+// TOPICS=0 replays without the T2 step, for comparison.
+const dmTopics = (key, channel, at) => {
+  const slackUserId = process.env.TOPICS === '0' ? null : authorOf(key, at)
+  return slackUserId ? routerPersonTopics(core, { slackUserId, channel, now: at }) : []
+}
+
 const jev = new Map()
 for (const line of readFileSync(join(dirname(casesPath), 'results_v2.jsonl'), 'utf8').split('\n')) {
   const r = line && JSON.parse(line)
@@ -170,6 +177,15 @@ const cases = readFileSync(casesPath, 'utf8')
   .map((l) => JSON.parse(l))
 cases.sort((a, b) => a.at - b.at)
 const tally = { n: 0, code: 0, codeOk: 0, top1: 0, top3: 0, sentWithoutYes: 0, noJev: 0, how: {} }
+// Router v2 T2: per class, how often the first pick was right.
+const classes = {}
+// The DM's author, as the ledger saw them write in that conversation.
+const authorOf = (key, at) =>
+  q(
+    "SELECT m.author_id AS id FROM conversation_messages m JOIN conversations c ON c.id = m.conversation_id WHERE c.key = ? AND m.direction = 'in' AND m.author_id IS NOT NULL AND m.at <= ? ORDER BY m.at DESC LIMIT 1",
+    key,
+    at
+  )[0]?.id ?? null
 for (const c of cases) {
   const gold = norm(c.gold)
   const at = c.at
@@ -178,6 +194,7 @@ for (const c of cases) {
   let card = null
   let how = 'model'
   let auto = false
+  let topics = []
   // Why the person's last message, not the owner's pick: our later replies are not what they answered.
   const lastIn = channel
     ? q(
@@ -220,6 +237,15 @@ for (const c of cases) {
     } else if (refs.length > 0) {
       how = 'ref'
       card = [refs[0].chat.sessionId, ...jevCard]
+    } else if (
+      (topics = c.venue === 'Slack DM' && channel ? dmTopics(c.id.slice(2), channel, at) : [])
+        .length > 0
+    ) {
+      // Router v2 T2: one topic → there; several → the recorded Jev pick when it is one of them (its
+      // answer was over all chats, not the topics), else the newest topic.
+      how = topics.length === 1 ? 'topic' : 'topics'
+      const inTopics = jevCard.filter((id) => topics.some((t) => correct(id, t.chat)))
+      card = [...inTopics, ...topics.map((t) => t.chat), ...jevCard]
     } else {
       card = jevCard
       if (card.length === 0) {
@@ -236,6 +262,18 @@ for (const c of cases) {
     tally.codeOk += ok1
   }
   tally.top1 += ok1
+  classes[how] ??= { n: 0, ok: 0, old: 0, n2: 0, ok2: 0, old2: 0 }
+  classes[how].n += 1
+  classes[how].ok += ok1
+  // Beside each class: the recorded Jev pick over all chats on the same cases, and both without the cases
+  // the owner sent to a new chat (since T3 that is the 🆕 mark, never a 👾 route).
+  const oldOk = correct(jevCard[0], gold)
+  classes[how].old += oldOk
+  if (gold !== 'new') {
+    classes[how].n2 += 1
+    classes[how].ok2 += ok1
+    classes[how].old2 += oldOk
+  }
   if (process.env.DEBUG) {
     console.log(
       c.id,
@@ -250,6 +288,11 @@ for (const c of cases) {
     )
   }
   tally.top3 += top3.some((id) => correct(id, gold))
+  if (gold !== 'new') {
+    tally.old2 = (tally.old2 ?? 0) + 1
+    tally.top1Old2 = (tally.top1Old2 ?? 0) + ok1
+    tally.top3Old2 = (tally.top3Old2 ?? 0) + top3.some((id) => correct(id, gold))
+  }
   // Sent without his yes: a route sent by itself that his own choice did not bind.
   tally.sentWithoutYes += auto && bound?.source !== 'choice'
   // The owner's choice on the card binds the thread for the cases after it.
@@ -269,4 +312,14 @@ console.log(`code_precision ${pct(tally.codeOk, tally.code)}`)
 console.log(`top1_overall ${pct(tally.top1, tally.n)}`)
 console.log(`top3_overall ${pct(tally.top3, tally.n)}`)
 console.log(`sent_without_yes ${tally.sentWithoutYes}`)
+console.log(
+  `without new-chat cases (🆕 since T3): n ${tally.old2} top1 ${pct(tally.top1Old2, tally.old2)} top3 ${pct(tally.top3Old2, tally.old2)}`
+)
+for (const [name, { n, ok, old, n2, ok2, old2 }] of Object.entries(classes).sort(
+  (a, b) => b[1].n - a[1].n
+)) {
+  console.log(
+    `class ${name} n ${n} top1 ${pct(ok, n)} (jev over all ${pct(old, n)}); without new-chat cases n ${n2} top1 ${pct(ok2, n2)} (jev ${pct(old2, n2)})`
+  )
+}
 core.close()
