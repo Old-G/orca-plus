@@ -241,6 +241,8 @@ export type RuntimeStore = {
     /** Custom build (claude-subscriptions): read when a runtime launch pins a Claude config dir. */
     claudeSubscriptions?: ClaudeSubscriptionSettings['claudeSubscriptions']
     defaultClaudeSubscriptionId?: ClaudeSubscriptionSettings['defaultClaudeSubscriptionId']
+    /** Custom build (hq-router auto classes): `orca hq router-stats` reads the auto thresholds. */
+    hqRouterAuto?: GlobalSettings['hqRouterAuto']
   }
   // Unknown return lets mocks return void; runtime reads persisted settings on next access, never this return.
   updateSettings?: (

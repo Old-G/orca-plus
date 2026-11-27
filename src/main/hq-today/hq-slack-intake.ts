@@ -79,7 +79,8 @@ export type HqSlackIntakeDeps = {
   sync: (kind: string, items: readonly PulseBellInput[]) => void
   now: () => number
   /** Custom build (hq-router): where a new 👾 mark goes and why; absent while the router is off. */
-  route?: (draft: HqIntakeDraft) => Promise<HqRoute | null>
+  /** `mark`: a 👾 — the one draft whose route may send by itself (router v2 T4). */
+  route?: (draft: HqIntakeDraft, opts?: { mark?: boolean }) => Promise<HqRoute | null>
   /** Custom build (hq-router): the marks already there when the trial started (recorded from `current`
    *  on its first run); they are not raised. */
   routerPreTrial?: (current: readonly string[]) => ReadonlySet<string> | null
@@ -261,7 +262,7 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
     }
     const route =
       deps.route && mark
-        ? await deps.route(draft).catch((error: unknown) => {
+        ? await deps.route(draft, { mark: true }).catch((error: unknown) => {
             note(`route failed: ${error instanceof Error ? error.message : String(error)}`)
             return null
           })

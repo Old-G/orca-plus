@@ -26,6 +26,7 @@ import {
   logChoice,
   logOutcome,
   reconcileRouterOutcomes,
+  routerAutoRecords,
   routerStats
 } from './pulse-router-outcomes'
 import type { PulseCore } from './pulse-core'
@@ -299,6 +300,7 @@ export function pulseRouter(core: () => PulseCore) {
       logOutcome(core(), key, input),
     reconcileOutcomes: (now: number): number => reconcileRouterOutcomes(core(), now),
     stats: (since: number) => routerStats(core(), since),
+    autoRecords: (since: number) => routerAutoRecords(core(), since),
     cardRoute: (key: string): RouterCardRoute | null => cardRouteOf(core(), key),
     saveCardRoute: (key: string, route: unknown, at: number): void =>
       saveCardRoute(core(), key, route, at)
