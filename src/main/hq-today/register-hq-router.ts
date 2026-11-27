@@ -99,6 +99,7 @@ export function hqRouterIntakeDeps(
       crumb: (lookup) => router.crumb(lookup),
       boundChat: (conversationKey) => router.boundChat(conversationKey),
       history: (slackUserId) => router.authorHistory(slackUserId),
+      topics: (lookup) => router.topics(lookup),
       thread: async (channel, threadTs) =>
         withSlackReader(async (token, owner) => {
           const names = createSlackReadApi(token, owner, cache)

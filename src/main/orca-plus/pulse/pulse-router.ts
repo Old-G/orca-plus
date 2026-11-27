@@ -29,6 +29,7 @@ import {
   routerStats
 } from './pulse-router-outcomes'
 import type { PulseCore } from './pulse-core'
+import { routerPersonTopics } from './pulse-router-topics'
 
 const LEAD_ROLES = new Set(['lead', 'sublead'])
 const HISTORY_MAX = 5
@@ -85,7 +86,7 @@ function senderOfMessage(core: PulseCore, channel: string, ts: string): string |
   return row ? sessionOfOut(core, row) : null
 }
 
-function sessionOfOut(
+export function sessionOfOut(
   core: PulseCore,
   row: { session_id?: unknown; decision_id?: unknown }
 ): string | null {
@@ -274,6 +275,7 @@ export function pulseRouter(core: () => PulseCore) {
     crumb: (lookup: HqRouterCrumbLookup): HqRouterCrumb | null => routerCrumb(core(), lookup),
     boundChat: (key: string): string | null => routerBoundChat(core(), key),
     authorHistory: (slackUserId: string): string[] => routerAuthorHistory(core(), slackUserId),
+    topics: (input: Parameters<typeof routerPersonTopics>[1]) => routerPersonTopics(core(), input),
     leadOf: (sessionId: string): string | null => leadOfChat(core(), sessionId),
     workTarget: (work: string): HqRouterCrumb => routerWorkTarget(core(), work),
     roleOf: (sessionId: string): string | null => roleOf(core(), sessionId),
