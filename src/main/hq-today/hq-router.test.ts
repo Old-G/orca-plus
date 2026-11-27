@@ -103,6 +103,60 @@ describe('routeHqIntake', () => {
   })
 })
 
+describe('two marks (28.11)', () => {
+  it('🆕 is a new chat sent by itself: no chat, thread, crumb or model is read', async () => {
+    const chats = vi.fn(() => [chat('a')])
+    const jev = vi.fn(async () => ({}))
+    const route = await routeHqIntake(
+      draft({ newMark: true }),
+      deps({
+        chats,
+        jev,
+        boundChat: () => 'a',
+        binding: () => ({ chat: 'a', source: 'choice' }),
+        waitsOn: () => new Map([['a', ['Is the export ready?']]])
+      })
+    )
+    expect(route).toMatchObject({
+      target: 'new',
+      how: 'new-mark',
+      level: 'new',
+      auto: true,
+      alternatives: []
+    })
+    expect(chats).not.toHaveBeenCalled()
+    expect(jev).not.toHaveBeenCalled()
+  })
+  it('👾 never offers «new» to the model, and a «new» answer is a card to pick a chat', async () => {
+    const bodies: Record<string, unknown>[] = []
+    const route = await routeHqIntake(
+      draft({ threadTs: null }),
+      deps({
+        jev: async (body) => {
+          bodies.push(body)
+          return { answers: { target: { choice: 'new', probabilities: { new: 0.9, '1': 0.1 } } } }
+        }
+      })
+    )
+    const criteria = (bodies[0].questions as Record<string, { criteria: Record<string, string> }>)
+      .target.criteria
+    expect(Object.keys(criteria)).not.toContain('new')
+    expect(route).toMatchObject({ how: 'model', auto: false })
+    expect(route.target).toBe('new')
+    expect(route.why).toContain('pick a chat')
+  })
+  it('👾 prompts for the fallback model do not mention «new» either', async () => {
+    const fallback = vi.fn(async (_prompt: string) => ({
+      ok: true as const,
+      text: '{"target": 1}'
+    }))
+    const route = await routeHqIntake(draft({ threadTs: null }), deps({ fallback }))
+    expect(fallback.mock.calls[0][0]).not.toMatch(/"new"|or "new"/)
+    expect(route.how).toBe('model')
+    expect(route.target).not.toBe('new')
+  })
+})
+
 describe('router helpers', () => {
   it('reads a linked Slack message', () => {
     expect(hqRouterLinkedMessage(['https://x.slack.com/archives/C1/p1700000000123456'])).toEqual({

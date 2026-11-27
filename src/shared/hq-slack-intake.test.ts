@@ -6,6 +6,7 @@ import {
   hqIntakeNote,
   hqIntakePrompt,
   hqIntakeVenueLabel,
+  hqRouterNewMarkName,
   readHqIntake,
   type HqIntake
 } from './hq-slack-intake'
@@ -99,5 +100,14 @@ describe('hq-slack-intake', () => {
     expect(prompt).toContain('a line from their Notes')
     expect(prompt).toContain("a line in the user's Notes")
     expect(prompt).not.toContain('Slack')
+  })
+})
+
+describe('hqRouterNewMarkName (28.11)', () => {
+  it('is `new` by default, can be renamed, and is off for an empty name or an off router', () => {
+    expect(hqRouterNewMarkName({})).toBe('new')
+    expect(hqRouterNewMarkName({ hqRouterNewMark: ':sparkles:' })).toBe('sparkles')
+    expect(hqRouterNewMarkName({ hqRouterNewMark: '' })).toBeNull()
+    expect(hqRouterNewMarkName({ hqRouter: 'off' })).toBeNull()
   })
 })
