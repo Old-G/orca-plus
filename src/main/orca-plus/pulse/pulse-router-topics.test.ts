@@ -124,6 +124,24 @@ describe('routerPersonTopics', () => {
     ).toEqual(['W2', 'OLD'])
   })
 
+  it('the message’s own conversation is no topic; a group DM brings no messages of others', () => {
+    const { core, session, conversation, message } = setup()
+    session('W3')
+    session('W4')
+    conversation('c2', 'slack:D1:300.000001', 'W3')
+    message('c2', '300.000001', 'in', 'Here it is', NOW - DAY, null, 'U1')
+    conversation('g1', 'slack:G1:400.000001')
+    message('g1', '400.000001', 'out', 'To the whole group', NOW - DAY, 'W4')
+    expect(
+      routerPersonTopics(core, {
+        slackUserId: 'U1',
+        channel: 'G1',
+        now: NOW,
+        conversationKey: 'slack:D1:300.000001'
+      })
+    ).toEqual([])
+  })
+
   it('a closed work with a live Lead goes to the Lead', () => {
     const { core, sql, session, conversation, message } = setup()
     session('W1', 'closed', NOW - DAY)

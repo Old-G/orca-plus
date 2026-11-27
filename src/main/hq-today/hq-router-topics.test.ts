@@ -62,7 +62,12 @@ describe('routeHqIntake — person × topic', () => {
     const route = await routeHqIntake(draft(), deps({ topics, jev }))
     expect(route).toMatchObject({ target: 'b', how: 'topic', auto: false })
     expect(route.why).toContain('Is the price $69')
-    expect(topics).toHaveBeenCalledWith({ slackUserId: 'U1', channel: 'D1', now: NOW })
+    expect(topics).toHaveBeenCalledWith({
+      slackUserId: 'U1',
+      channel: 'D1',
+      now: NOW,
+      conversationKey: 'slack:D1:200.000001'
+    })
     expect(jev).not.toHaveBeenCalled()
   })
 

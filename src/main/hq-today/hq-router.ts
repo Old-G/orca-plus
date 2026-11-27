@@ -56,7 +56,12 @@ export type HqRouterDeps = {
   /** The thread's messages, oldest first, when the message is in one; read when routing. */
   thread?: (channel: string, threadTs: string) => Promise<string[] | null>
   /** Router v2 T2: the author's open topics, newest first (the registry «person × topic»). */
-  topics?: (lookup: { slackUserId: string; channel: string; now: number }) => HqRouterTopic[]
+  topics?: (lookup: {
+    slackUserId: string
+    channel: string
+    now: number
+    conversationKey: string
+  }) => HqRouterTopic[]
   /** Our open questions to this author, by the chat that asked. */
   waitsOn: (slackUserId: string) => Map<string, string[]>
   /** POSTs the Decisions API body; null when no key is set. */
@@ -169,7 +174,12 @@ export async function routeHqIntake(draft: HqIntakeDraft, deps: HqRouterDeps): P
     // Why only a DM (owner 28.11): there an answer with no breadcrumb is to one of our talks with them.
     topics:
       draft.authorSlackId && deps.topics && (draft.venue === 'dm' || draft.venue === 'group')
-        ? deps.topics({ slackUserId: draft.authorSlackId, channel: draft.channel, now })
+        ? deps.topics({
+            slackUserId: draft.authorSlackId,
+            channel: draft.channel,
+            now,
+            conversationKey
+          })
         : undefined,
     now
   }

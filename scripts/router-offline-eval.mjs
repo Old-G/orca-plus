@@ -160,7 +160,10 @@ const askingTasks = (ids, at) => {
 // TOPICS=0 replays without the T2 step, for comparison.
 const dmTopics = (key, channel, at) => {
   const slackUserId = process.env.TOPICS === '0' ? null : authorOf(key, at)
-  return slackUserId ? routerPersonTopics(core, { slackUserId, channel, now: at }) : []
+  // Why its own key: the case's own conversation carries the owner's later choice — the answer itself.
+  return slackUserId
+    ? routerPersonTopics(core, { slackUserId, channel, now: at, conversationKey: key })
+    : []
 }
 
 const jev = new Map()

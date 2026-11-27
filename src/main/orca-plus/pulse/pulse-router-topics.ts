@@ -18,9 +18,9 @@ type Seen = { work: string; text: string; at: number; source: HqRouterTopic['sou
 const clip = (text: unknown): string =>
   typeof text === 'string' ? text.replace(/\s+/g, ' ').trim().slice(0, TEXT_MAX) : ''
 
-/** The DM channels this person wrote us in, plus the one the message came in. */
+/** The DM channels this person wrote us in, plus the one the message came in (a group DM is not theirs alone). */
 function channelsOf(core: PulseCore, slackUserId: string, channel: string | null): string[] {
-  const out = channel && /^[DG]/.test(channel) ? [channel] : []
+  const out = channel?.startsWith('D') ? [channel] : []
   const rows = core.db
     .prepare(
       'SELECT DISTINCT c.key FROM conversations c JOIN conversation_messages m ON m.conversation_id = c.id ' +
@@ -103,14 +103,20 @@ function openWaitings(core: PulseCore, slackUserId: string, now: number): Seen[]
 }
 
 /** The chats the owner sent this person's conversations to, with our last word there (else theirs). */
-function ownerChoices(core: PulseCore, slackUserId: string, since: number, now: number): Seen[] {
+function ownerChoices(
+  core: PulseCore,
+  slackUserId: string,
+  since: number,
+  now: number,
+  conversationKey: string | null
+): Seen[] {
   const rows = core.db
     .prepare(
       'SELECT c.id, c.session_id, MAX(m.at) AS at FROM conversations c JOIN conversation_messages m ' +
         "ON m.conversation_id = c.id WHERE m.direction = 'in' AND m.author_id = ? AND c.session_id IS NOT NULL " +
-        'AND m.at >= ? AND m.at <= ? GROUP BY c.id ORDER BY at DESC LIMIT ?'
+        'AND c.key <> ? AND m.at >= ? AND m.at <= ? GROUP BY c.id ORDER BY at DESC LIMIT ?'
     )
-    .all(slackUserId, since, now, ROWS_MAX)
+    .all(slackUserId, conversationKey ?? '', since, now, ROWS_MAX)
   return rows.map((row) => {
     const last = core.db
       .prepare(
@@ -133,13 +139,19 @@ function ownerChoices(core: PulseCore, slackUserId: string, since: number, now: 
  */
 export function routerPersonTopics(
   core: PulseCore,
-  input: { slackUserId: string; channel: string | null; now: number }
+  input: {
+    slackUserId: string
+    channel: string | null
+    now: number
+    /** The message's own conversation: its owner choice is the bound thread, not a topic. */
+    conversationKey?: string | null
+  }
 ): HqRouterTopic[] {
   const since = input.now - ROUTER_TOPIC_WINDOW_MS
   const seen = [
     ...openWaitings(core, input.slackUserId, input.now),
     ...ourMessages(core, channelsOf(core, input.slackUserId, input.channel), since, input.now),
-    ...ownerChoices(core, input.slackUserId, since, input.now)
+    ...ownerChoices(core, input.slackUserId, since, input.now, input.conversationKey ?? null)
   ].sort((a, b) => b.at - a.at)
   const byWork = new Map<string, HqRouterTopic>()
   const chats = new Set<string>()
