@@ -278,6 +278,9 @@ function withLead(chat: HqRouterChat, chats: readonly HqRouterChat[]): HqRouterC
 export function hqRouteBySignals(input: HqRouterInput): HqRoute | null {
   const byId = new Map(input.chats.map((chat) => [chat.sessionId, chat]))
   const short = hqRouterShortlist(input)
+  const hits = hqRouterRefMatches(input.text, input.chats)
+  // Why (T4): a text naming another chat's task is a hint the talk moved on — no class, he confirms by hand.
+  const namesOther = (id: string): boolean => hits.some((hit) => hit.chat.sessionId !== id)
   if (input.crumb) {
     const chat = input.crumb.chat ? byId.get(input.crumb.chat) : undefined
     const lead = input.crumb.lead ? byId.get(input.crumb.lead) : undefined
@@ -288,27 +291,24 @@ export function hqRouteBySignals(input: HqRouterInput): HqRoute | null {
       const why = chat
         ? `Breadcrumb: ${quote(pick.title)} sent the message they answer`
         : `Breadcrumb: ${input.crumb.chatTitle ? quote(input.crumb.chatTitle) : 'the work'} is closed; its Lead ${quote(pick.title)}`
-      const work = chat && input.crumb.work ? 'work-crumb' : null // T4: not a closed work's Lead
+      const work = chat && input.crumb.work && !namesOther(chat.sessionId) ? 'work-crumb' : null
       return routeTo(pick, 'crumb', why, others, { autoClass: work })
     }
   }
   const bound = input.boundChat ? byId.get(input.boundChat) : undefined
   if (bound) {
-    // Why: a reply naming another task's ref is a hint the thread moved on — he confirms it by hand.
-    const namesOther = hqRouterRefMatches(input.text, input.chats).some(
-      (hit) => hit.chat.sessionId !== bound.sessionId
-    )
     return routeTo(bound, 'thread', `This thread already went to ${quote(bound.title)}`, short, {
-      autoClass: input.boundByChoice === true && !namesOther ? 'thread-choice' : null
+      autoClass:
+        input.boundByChoice === true && !namesOther(bound.sessionId) ? 'thread-choice' : null
     })
   }
   const asking = input.chats.filter((chat) => chat.waitsOnAuthor.length > 0)
   if (asking.length === 1) {
     const [chat] = asking
     const asked = `We asked them: ${quote(chat.waitsOnAuthor[0])}`
-    return routeTo(chat, 'question', asked, short, { autoClass: 'question' })
+    const autoClass = namesOther(chat.sessionId) ? null : 'question'
+    return routeTo(chat, 'question', asked, short, { autoClass })
   }
-  const hits = hqRouterRefMatches(input.text, input.chats)
   if (hits.length > 0) {
     // Why the worker over its Lead: the chat started for the task is the one doing it; an open one first.
     const sorted = [...hits].sort(

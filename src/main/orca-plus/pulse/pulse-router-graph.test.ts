@@ -289,7 +289,10 @@ describe('card routes (T7)', () => {
       ensureRouterLogColumns(c.db)
       route(c, 'a', 'crumb', 'x')
       logChoice(c, 'a', 'x', 20)
-      expect(outcomeOf(c, 'a')).toMatchObject({ outcome: 'sent' })
+      expect(outcomeOf(c, 'a')).toMatchObject({ outcome: 'sent' }) // T4: a log made before classes gains auto_class; its rows have none and count for no class.
+      expect(c.db.prepare("SELECT auto_class FROM router_log WHERE key = 'a'").get()).toEqual({
+        auto_class: null
+      })
     })
   })
 })
@@ -371,6 +374,6 @@ describe('router v2 T1: works', () => {
       linked: null,
       at: 20
     })
-    expect(crumb).toEqual({ chat: next, lead: null, chatTitle: 'W · export', work })
+    expect(crumb).toEqual({ chat: next, lead: null, chatTitle: 'W · export' })
   })
 })

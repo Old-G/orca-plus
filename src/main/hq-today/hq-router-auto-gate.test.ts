@@ -5,7 +5,7 @@ import { PulseCore } from '../orca-plus/pulse/pulse-core'
 import { logRoute } from '../orca-plus/pulse/pulse-router-graph'
 import { logChoice, logOutcome, routerAutoRecords } from '../orca-plus/pulse/pulse-router-outcomes'
 import { routeHqIntake, type HqRouterDeps } from './hq-router'
-import { withAutoGate } from './hq-router-auto-gate'
+import { gateAndLogRoute, withAutoGate } from './hq-router-auto-gate'
 import type { HqIntakeDraft } from './hq-slack-intake-suggest'
 
 const DAY = 24 * 60 * 60_000
@@ -174,6 +174,126 @@ describe('router v2 T4: the auto gate', () => {
     expect(withAutoGate(routed, {}, router(c), NOW)).toMatchObject({
       target: 'waiting',
       auto: true
+    })
+  })
+
+  it('rows with no class (made before T4) count for none', () => {
+    const c = core()
+    for (let i = 0; i < 40; i++) {
+      logRoute(c, {
+        key: `old${i}`,
+        at: NOW - DAY,
+        how: 'question',
+        target: 'a',
+        top: ['a'],
+        auto: false
+      })
+      logChoice(c, `old${i}`, 'a', NOW - DAY + 1)
+    }
+    expect(routerAutoRecords(c, 0).size).toBe(0)
+    expect(withAutoGate(route(), {}, router(c), NOW).auto).toBe(false)
+  })
+
+  it('only a 👾 passes the gate; its route replaces the mention card’s line while the card is open', () => {
+    const c = core()
+    decided(c, 'question', 30)
+    const log = {
+      ...router(c),
+      logRoute: (entry: Parameters<typeof logRoute>[1]) => logRoute(c, entry)
+    }
+    const base = { settings: {}, router: log }
+    // A To work card / pasted link: never by itself, even for a proved class.
+    expect(
+      gateAndLogRoute(route({ auto: true }), { ...base, mark: false, key: 'k' }, NOW).auto
+    ).toBe(false)
+    const row = () =>
+      c.db.prepare("SELECT how, auto, auto_class FROM router_log WHERE key = 'k'").get()
+    expect(row()).toEqual({ how: 'question', auto: 0, auto_class: 'question' })
+    // The 👾 on the same message: its route and send are what the log keeps.
+    const marked = gateAndLogRoute(
+      route({ how: 'topic', autoClass: 'question' }),
+      { ...base, mark: true, key: 'k' },
+      NOW
+    )
+    expect(marked.auto).toBe(true)
+    expect(row()).toEqual({ how: 'topic', auto: 1, auto_class: 'question' })
+    // A decided card keeps its line.
+    logChoice(c, 'k', 'a', NOW + 1)
+    gateAndLogRoute(
+      route({ how: 'model', autoClass: null }),
+      { ...base, mark: true, key: 'k' },
+      NOW
+    )
+    expect(row()).toEqual({ how: 'topic', auto: 1, auto_class: 'question' })
+  })
+
+  it('work-crumb comes from our Approve binding only, and a text naming another chat’s task has no class', async () => {
+    const chat = (id: string, extra: Partial<HqRouterChat> = {}): HqRouterChat => ({
+      sessionId: id,
+      title: `Chat ${id}`,
+      project: 'acme',
+      repoId: 'repo',
+      role: 'worker',
+      leadId: null,
+      taskRef: null,
+      lastReport: null,
+      waitsOnAuthor: [],
+      lastActivityAt: NOW - 1_000,
+      ...extra
+    })
+    const draft = (text: string): HqIntakeDraft => ({
+      channel: 'C1',
+      ts: '200.000001',
+      threadTs: '100.000001',
+      author: 'Ann',
+      authorSlackId: 'U1',
+      venue: 'channel',
+      text,
+      links: [],
+      files: [],
+      permalink: null,
+      at: NOW
+    })
+    const deps = (extra: Partial<HqRouterDeps>): HqRouterDeps => ({
+      chats: () => [chat('w1'), chat('b', { taskRef: 'DEV-1234' })],
+      crumb: () => ({ chat: 'w1', lead: null, chatTitle: 'W1' }),
+      boundChat: () => null,
+      history: () => [],
+      waitsOn: () => new Map(),
+      jev: null,
+      fallback: async () => ({ ok: false, error: 'off' }),
+      now: () => NOW,
+      ...extra
+    })
+    const approved = {
+      binding: () => ({ task: 'work-1', chat: 'w1', source: 'approve' as const }),
+      workTarget: () => ({ chat: 'w1', lead: null, chatTitle: null })
+    }
+    expect(await routeHqIntake(draft('done'), deps(approved))).toMatchObject({
+      target: 'w1',
+      how: 'crumb',
+      autoClass: 'work-crumb'
+    })
+    // A footer's crumb (deps.crumb) is text anyone can paste: no class.
+    expect(await routeHqIntake(draft('done'), deps({}))).toMatchObject({
+      how: 'crumb',
+      autoClass: null
+    })
+    expect(await routeHqIntake(draft('done, and DEV-1234?'), deps(approved))).toMatchObject({
+      target: 'w1',
+      autoClass: null
+    })
+    const asking = deps({
+      crumb: () => null,
+      waitsOn: () => new Map([['w1', ['Is the export ready?']]])
+    })
+    expect(await routeHqIntake(draft('yes'), asking)).toMatchObject({
+      how: 'question',
+      autoClass: 'question'
+    })
+    expect(await routeHqIntake(draft('yes, see DEV-1234'), asking)).toMatchObject({
+      how: 'question',
+      autoClass: null
     })
   })
 })

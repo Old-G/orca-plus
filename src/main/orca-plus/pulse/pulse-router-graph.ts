@@ -304,15 +304,23 @@ export type RouterLogEntry = {
   auto: boolean
   /** Router v2 T4: the route's class, when it rested on one. */
   autoClass?: string | null
+  /** Router v2 T4: a 👾's route replaces an earlier one of the same card (its mention card's) while
+   *  the card is open, so its class and send are what the log counts. */
+  replace?: boolean
 }
+
+const LOG_ROUTE_INSERT =
+  'INTO router_log (key, at, how, target, top, auto, target_task, auto_class) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+const LOG_ROUTE_KEEP = `INSERT OR IGNORE ${LOG_ROUTE_INSERT}`
+const LOG_ROUTE_REPLACE =
+  `INSERT ${LOG_ROUTE_INSERT} ON CONFLICT(key) DO UPDATE SET how = excluded.how, target = excluded.target, ` +
+  'top = excluded.top, auto = excluded.auto, target_task = excluded.target_task, ' +
+  'auto_class = excluded.auto_class WHERE router_log.outcome IS NULL'
 
 /** What the router offered for a card; a later route of the same card keeps the first. */
 export function logRoute(core: PulseCore, entry: RouterLogEntry): void {
   core.db
-    .prepare(
-      'INSERT OR IGNORE INTO router_log (key, at, how, target, top, auto, target_task, auto_class) ' +
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    )
+    .prepare(entry.replace ? LOG_ROUTE_REPLACE : LOG_ROUTE_KEEP)
     .run(
       entry.key,
       entry.at,

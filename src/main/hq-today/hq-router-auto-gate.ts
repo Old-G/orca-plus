@@ -52,7 +52,8 @@ export function gateAndLogRoute(
     target: done.target,
     top: [done.target, ...done.alternatives.map((other) => other.sessionId)].slice(0, 3),
     auto: done.auto,
-    autoClass: done.autoClass
+    autoClass: done.autoClass,
+    replace: input.mark
   })
   return done
 }

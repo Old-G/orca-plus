@@ -220,7 +220,7 @@ export function routerCrumb(core: PulseCore, lookup: HqRouterCrumbLookup): HqRou
     // Why first (router v2 T1): a `w` footer names the work itself, as the owner confirmed it.
     const work = footer.workId ? workByShortId(core, footer.workId) : null
     if (work) {
-      return { ...routerWorkTarget(core, work, footer.chatTitle), work }
+      return routerWorkTarget(core, work, footer.chatTitle)
     }
     const sender =
       (footer.chatId ? sessionsByShortId(core, footer.chatId)[0] : null) ??

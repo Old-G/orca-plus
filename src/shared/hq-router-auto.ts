@@ -15,9 +15,10 @@ export const HQ_ROUTER_AUTO_CLASSES = [
 ] as const
 
 /**
- * thread-choice — a thread the owner's own «Send» bound; work-crumb — an answer to our message whose
- * footer (or Approve) named the work, its live chat; single-ref — the one DEV / MR the text names is one
- * live work's; topic — the author's one open topic (T2); question — the one chat waiting on the author.
+ * thread-choice — a thread the owner's own «Send» bound; work-crumb — an answer in a thread our Approve
+ * bound to a work (our record, not a footer anyone can paste), to that work's live chat; single-ref — the
+ * one DEV / MR the text names is one live work's; topic — the author's one open topic (T2); question —
+ * the one chat waiting on the author. A text naming another chat's task gives none of them.
  */
 export type HqRouterAutoClass = (typeof HQ_ROUTER_AUTO_CLASSES)[number]
 
