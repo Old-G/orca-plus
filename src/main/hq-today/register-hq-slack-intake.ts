@@ -33,7 +33,7 @@ import { hqIntakeThreadOf } from './hq-intake-thread'
 import { createSlackLedgerApi } from '../slack/slack-ledger-api'
 import { hqLedgerReplacesScout } from './hq-ledger-cutover'
 import { hqRouterIntakeDeps, registerHqRouterLink } from './register-hq-router'
-import { hqIntakeCloseRoute, hqRouterLogKey } from './hq-intake-close-route'
+import { hqIntakeCloseRoute, hqIntakeWrongChat, hqRouterLogKey } from './hq-intake-close-route'
 import { hqSweepDraftOf, startHqRouterSweep } from './hq-router-sweep'
 import { hqNoteRaisedKeys, hqNotesInConversations, startHqNoteCards } from './hq-note-cards'
 import { HQ_SLACK_REQUEST_BELL_KIND } from '../../shared/hq-slack-request-bell'
@@ -282,6 +282,16 @@ export function registerHqSlackIntake(
           logChoice: (logKey, target, at) => router.logChoice(logKey, target, at),
           now: Date.now()
         })
+      }
+      // Router v2 T5: the router had sent it to another chat by itself (a new chat comes with no
+      // session id) — that one ignores it now, and the owner's chat is the outcome.
+      if (action === 'sent' && intake?.sent) {
+        const router = runtime.pulseRouter()
+        void hqIntakeWrongChat(intake, chat || 'new', {
+          deliver: (wrong, prompt) => deliverToNativeChat(wrong, prompt, 'hq-router'),
+          rewriteOutcome: (logKey, input) => router.rewriteAutoOutcome(logKey, input),
+          now: Date.now()
+        }).catch((error: unknown) => console.warn('[hq-router] wrong chat not handled', error))
       }
       // T0 (router v2): a card closed with no chat ends in the router's log too.
       if (intake && !(action === 'sent' && chat)) {
