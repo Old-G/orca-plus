@@ -39,6 +39,12 @@ import type { HqSlackIntakeDeps } from './hq-slack-intake'
 import { hqIntakeFallbackSummary, type HqIntakeDraft } from './hq-slack-intake-suggest'
 import { generateHqText } from './hq-task-questions'
 import { getLogsDirectory } from '../observability/logs-directory'
+import { getAppEnvironment } from '../../shared/app-lifecycle/app-environment'
+
+/** T0 (router v2): the settings' env file, else `hq-router.env` in Orca+'s settings folder. */
+export function hqRouterKeyFilePath(configured: string | null | undefined): string {
+  return configured?.trim() || join(getAppEnvironment().getPath('userData'), 'hq-router.env')
+}
 
 function readText(path: string): string | null {
   try {
@@ -74,7 +80,7 @@ export function hqRouterIntakeDeps(
     if ((settings.hqRouter ?? 'trial') === 'off') {
       return Promise.resolve(null)
     }
-    const key = hqRouterKey(process.env, settings.hqRouterKeyFile, readText)
+    const key = hqRouterKey(process.env, hqRouterKeyFilePath(settings.hqRouterKeyFile), readText)
     const router = runtime.pulseRouter()
     const routed = routeHqIntake(draft, {
       chats: () => hqRouterChats(runtime, Date.now(), hqChatTabIds(store)),
@@ -178,6 +184,7 @@ export function hqRouterIntakeDeps(
         .find((entry) => entry.dedupeKey === dedupeKey)
       if (item) {
         runtime.pulseMarkInboxDone(item.id, 'sent')
+        runtime.pulseRouter().reconcileOutcomes(Date.now())
       }
     }
   }

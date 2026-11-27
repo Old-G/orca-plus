@@ -6,13 +6,19 @@ import {
   saveCardRoute,
   bindSentMessage,
   liveChatOf,
-  logChoice,
   logRoute,
+  ensureRouterLogColumns,
   ownerTaskOf,
   routerBindingFor,
   taskOfChat
 } from './pulse-router-graph'
 import { leadOfChat } from './pulse-router'
+import {
+  logChoice,
+  logOutcome,
+  reconcileRouterOutcomes,
+  routerStats
+} from './pulse-router-outcomes'
 
 const open: PulseCore[] = []
 function core(): PulseCore {
@@ -173,5 +179,110 @@ describe('card routes (T7)', () => {
     expect(cardRouteOf(c, 'k')).toEqual({ at: 1, route: null, tries: 1 })
     saveCardRoute(c, 'k', { target: 'w' }, 2)
     expect(cardRouteOf(c, 'k')).toEqual({ at: 2, route: { target: 'w' }, tries: 2 })
+  })
+
+  describe('outcomes (T0)', () => {
+    const route = (
+      c: PulseCore,
+      key: string,
+      how: string,
+      target: string,
+      top: string[] = [target]
+    ) => logRoute(c, { key, at: 10, how, target, top, auto: false })
+    const outcomeOf = (c: PulseCore, key: string) =>
+      c.db.prepare('SELECT outcome, chosen, reason FROM router_log WHERE key = ?').get(key)
+
+    it('reads «sent» when the choice is the offer and «other» when it is another chat', () => {
+      const c = core()
+      route(c, 'a', 'crumb', 'x')
+      route(c, 'b', 'crumb', 'x')
+      logChoice(c, 'a', 'x', 20)
+      logChoice(c, 'b', 'y', 20)
+      expect(outcomeOf(c, 'a')).toMatchObject({ outcome: 'sent', chosen: 'x' })
+      expect(outcomeOf(c, 'b')).toMatchObject({ outcome: 'other', chosen: 'y' })
+    })
+
+    it('keeps the first outcome', () => {
+      const c = core()
+      route(c, 'a', 'model', 'x')
+      logOutcome(c, 'a', { outcome: 'skipped', at: 20, reason: 'skipped' })
+      logOutcome(c, 'a', { outcome: 'paste', at: 21, chosen: 'y' })
+      expect(outcomeOf(c, 'a')).toMatchObject({ outcome: 'skipped', chosen: null })
+    })
+
+    it('settles cards the bell closed by itself, with a reason', () => {
+      const c = core()
+      const item = (key: string, createdAt: number, doneAt: number | null, action: string | null) =>
+        c.db
+          .prepare(
+            "INSERT INTO inbox (id, kind, title, urgency, actions, dedupe_key, created_at, done_at, done_action) VALUES (?, 'hq-intake', 't', 'normal', '[]', ?, ?, ?, ?)"
+          )
+          .run(key, key, createdAt, doneAt, action)
+      const week = 7 * 24 * 60 * 60_000
+      for (const id of ['gone1', 'gone2', 'auto', 'skip', 'open1']) {
+        route(c, `slack:C:${id}`, 'thread', 'x')
+      }
+      item('hq-intake:C:gone1', 100, 200, 'gone')
+      item('hq-intake:C:gone2', 100, 100 + week, 'gone')
+      item('hq-intake:C:auto', 100, 200, 'sent')
+      item('router:C:skip', 100, 200, 'skipped')
+      item('hq-intake:C:open1', 100, null, null)
+      expect(reconcileRouterOutcomes(c, 1_000)).toBe(4)
+      expect(outcomeOf(c, 'slack:C:gone1')).toMatchObject({
+        outcome: 'gone',
+        reason: 'mark-removed-or-message-gone'
+      })
+      expect(outcomeOf(c, 'slack:C:gone2')).toMatchObject({
+        outcome: 'gone',
+        reason: 'expired-after-a-week'
+      })
+      expect(outcomeOf(c, 'slack:C:auto')).toMatchObject({ outcome: 'auto', chosen: 'x' })
+      expect(outcomeOf(c, 'slack:C:skip')).toMatchObject({ outcome: 'skipped' })
+      expect(outcomeOf(c, 'slack:C:open1')).toMatchObject({ outcome: null })
+    })
+
+    it('counts a class: chat, same work, top three, and the rest apart', () => {
+      const c = core()
+      for (const id of ['x', 'x2', 'y', 'z']) {
+        session(c, id, 1)
+      }
+      handoff(c, 'x', 'x2', 5)
+      route(c, 'r1', 'crumb', 'x', ['x', 'y', 'z'])
+      route(c, 'r2', 'crumb', 'x', ['x', 'y', 'z'])
+      route(c, 'r3', 'crumb', 'x', ['x', 'y', 'z'])
+      route(c, 'r4', 'crumb', 'x')
+      route(c, 'r5', 'crumb', 'x')
+      logChoice(c, 'r1', 'x', 20)
+      logChoice(c, 'r2', 'x2', 20)
+      logChoice(c, 'r3', 'y', 20)
+      logOutcome(c, 'r4', { outcome: 'skipped', at: 20, reason: 'skipped' })
+      const stats = routerStats(c, 0)
+      expect(stats).toEqual([
+        {
+          how: 'crumb',
+          n: 3,
+          chatRight: 1,
+          workRight: 2,
+          top3: 2,
+          skipped: 1,
+          gone: 0,
+          open: 1,
+          share: 1
+        }
+      ])
+    })
+
+    it('migrates a router_log made before outcomes', () => {
+      const c = core()
+      c.db.exec('DROP TABLE router_log')
+      c.db.exec(
+        'CREATE TABLE router_log (key TEXT PRIMARY KEY, at INTEGER NOT NULL, how TEXT NOT NULL, target TEXT NOT NULL, top TEXT NOT NULL, auto INTEGER NOT NULL, chosen TEXT, chosen_at INTEGER)'
+      )
+      ensureRouterLogColumns(c.db)
+      ensureRouterLogColumns(c.db)
+      route(c, 'a', 'crumb', 'x')
+      logChoice(c, 'a', 'x', 20)
+      expect(outcomeOf(c, 'a')).toMatchObject({ outcome: 'sent' })
+    })
   })
 })

@@ -76,6 +76,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
       'hq route',
       'hq ladder',
       'hq accuracy',
+      'hq router-stats',
       'hq settle',
       'hq merge-slot',
       'hq context',
