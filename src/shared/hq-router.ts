@@ -79,7 +79,15 @@ export type HqRouterInput = {
   now: number
 }
 
-export type HqRouteHow = 'crumb' | 'thread' | 'question' | 'ref' | 'model' | 'fallback' | 'none'
+export type HqRouteHow =
+  | 'crumb'
+  | 'thread'
+  | 'question'
+  | 'ref'
+  | 'model'
+  | 'fallback'
+  | 'none'
+  | 'new-mark'
 export type HqRouteLevel = 'worker' | 'lead' | 'new'
 
 export type HqRoute = {
@@ -297,4 +305,27 @@ export function hqRouteBySignals(input: HqRouterInput): HqRoute | null {
     return routeTo(chat, 'ref', `${ref} is ${quote(chat.title)}'s work${more}`, others)
   }
   return null
+}
+
+/**
+ * The route of a 🆕 mark (owner 28.11): new work, so no chat is offered and the model is not asked
+ * «new or existing» — only the project, which the card's guess fills in (none → the HQ workspace).
+ * Sent by itself: the new chat starts without the owner's «Send».
+ */
+export function hqRouteNewMark(
+  where: { repoId: string | null; project: string | null } | null = null
+): HqRoute {
+  return {
+    target: HQ_ROUTER_NEW,
+    targetTitle: null,
+    repoId: where?.repoId ?? null,
+    project: where?.project ?? null,
+    level: 'new',
+    how: 'new-mark',
+    why: `🆕 new work — a new chat in ${where?.project ?? 'HQ'}`,
+    auto: true,
+    alternatives: [],
+    confidence: null,
+    model: null
+  }
 }

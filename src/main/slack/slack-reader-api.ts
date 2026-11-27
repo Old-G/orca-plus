@@ -196,7 +196,9 @@ export function createSlackIntakeApi(
   token: string,
   owner: string,
   name: (userId: string) => Promise<string>,
-  isBot: (userId: string) => Promise<boolean> = async () => false
+  isBot: (userId: string) => Promise<boolean> = async () => false,
+  /** The second mark's emoji name (🆕, owner 28.11); null = off. */
+  newEmoji: string | null = null
 ): HqIntakeReadApi {
   return {
     marked: async () => {
@@ -233,12 +235,14 @@ export function createSlackIntakeApi(
         const message = asSlackRecord(item.message)
         const ts = asString(message.ts)
         const reactions = Array.isArray(message.reactions) ? message.reactions : []
-        const marked = reactions.some((reaction) => {
-          const raw = asSlackRecord(reaction)
-          return (
-            raw.name === HQ_INTAKE_EMOJI && Array.isArray(raw.users) && raw.users.includes(owner)
-          )
-        })
+        const markedWith = (emoji: string): boolean =>
+          reactions.some((reaction) => {
+            const raw = asSlackRecord(reaction)
+            return raw.name === emoji && Array.isArray(raw.users) && raw.users.includes(owner)
+          })
+        // Why 🆕 wins over 👾 on one message: the owner said it is new work.
+        const newMark = newEmoji !== null && newEmoji !== '' && markedWith(newEmoji)
+        const marked = newMark || markedWith(HQ_INTAKE_EMOJI)
         if (item.type !== 'message' || !channel || !ts || !marked) {
           continue
         }
@@ -260,7 +264,8 @@ export function createSlackIntakeApi(
           permalink:
             asString(message.permalink) ??
             (base ? slackMessageUrl(base, channel, ts, asString(message.thread_ts)) : null),
-          at: Math.round(Number(ts) * 1000)
+          at: Math.round(Number(ts) * 1000),
+          ...(newMark ? { newMark: true } : {})
         })
       }
       return { drafts, complete: !cursor }
