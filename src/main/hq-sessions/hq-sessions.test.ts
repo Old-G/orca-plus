@@ -30,6 +30,7 @@ let reassigns: { from: string; to: string }[]
 let quiet: (boolean | undefined)[]
 let reassignFails: boolean
 let startResult: { ok: true } | { ok: false; error: string; skipped?: true }
+let startThrows = false
 let notStarted: { id: string; why: string }[]
 let closed: string[]
 let detaches: string[]
@@ -115,6 +116,7 @@ beforeEach(() => {
   quiet = []
   reassignFails = false
   startResult = { ok: true }
+  startThrows = false
   notStarted = []
   closed = []
   detaches = []
@@ -161,6 +163,9 @@ beforeEach(() => {
     offers: () => offers,
     startHandoff: async (offerId) => {
       handoffs.push(offerId)
+      if (startThrows) {
+        throw new Error('resolve failed')
+      }
       return startResult
     },
     handoffNotStarted: (id, why) => notStarted.push({ id, why }),
@@ -333,7 +338,13 @@ describe('HQ+ session dispatcher', () => {
       service.dispatch({ cwd: '/w/api' }, { address: 'acme-api/refunds', prompt: 'B' })
     ])
     expect(launched).toHaveLength(1)
-    expect(both.map((result) => result.status).sort()).toEqual(['fulfilled', 'rejected'])
+    // The second piece of work waits for the new chat instead of being dropped.
+    expect(both.map((result) => result.status)).toEqual(['fulfilled', 'fulfilled'])
+    const decisions = both.map((result) =>
+      result.status === 'fulfilled' ? result.value.decision?.kind : null
+    )
+    expect(decisions.sort()).toEqual(['new', 'queue'])
+    expect(rows(HQ_JOURNAL_KIND.sessionQueued)).toHaveLength(1)
   })
 
   it('lets a chat of another room hand work to a thread', async () => {
@@ -416,6 +427,13 @@ describe('HQ+ session dispatcher', () => {
       offers = [offer({ id: 'h2', limitStopped: true })]
       await service.sweep({ run: true })
       expect(notStarted.at(-1)).toMatchObject({ id: 'h2', why: expect.stringContaining('limit') })
+    })
+
+    it('shows the owner the offer when the start threw', async () => {
+      offers = [offer()]
+      startThrows = true
+      await service.sweep({ run: true })
+      expect(notStarted).toEqual([{ id: 'h1', why: 'resolve failed' }])
     })
 
     it('two sweeps at once start it once', async () => {

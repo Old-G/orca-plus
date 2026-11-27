@@ -102,7 +102,7 @@ export async function carryOutHqLeadHandover(
         address: old.address,
         sessionId: old.sessionId,
         title: hqJournalTitle(
-          `Lead handover: ${next.address ?? next.sessionId} leads now; ${old.address ?? old.sessionId} closes in 2 min`
+          `Lead handover: ${next.address ?? next.sessionId} leads now; ${old.address ?? old.sessionId} closes when its turn ends (10 min at most)`
         ),
         needs: 'nobody',
         status: 'done',

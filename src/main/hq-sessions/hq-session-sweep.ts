@@ -207,9 +207,13 @@ export async function sweepHqSessions(
         deps.pulse.record([journalEntryAsInput(entry, { status: 'done' })])
       }
     } catch (error) {
-      deps.log(
-        `sweep: ${action.kind} failed: ${error instanceof Error ? error.message : String(error)}`
-      )
+      const message = error instanceof Error ? error.message : String(error)
+      deps.log(`sweep: ${action.kind} failed: ${message}`)
+      // Custom build (hq-handoff-once): a start that threw is a failure too — the offer, hidden
+      // while auto-start runs, comes back as a card instead of failing silently every sweep.
+      if (action.kind === 'successor') {
+        deps.handoffNotStarted?.(action.offerId, message)
+      }
     }
   }
   return result

@@ -16,7 +16,7 @@ import type {
   HqSessionsResult
 } from '../../shared/hq-sessions'
 import type { HqCaller } from '../hq-journal/hq-journal-rooms'
-import { carryOutHqDispatch } from './hq-session-act'
+import { carryOutHqDispatch, HqChatOpeningError } from './hq-session-act'
 import { decideHqDispatch } from './hq-session-decide'
 import {
   createHqSessionJournal,
@@ -101,11 +101,29 @@ export function createHqSessions(deps: HqSessionsDeps): HqSessionsService {
           'Report mode: written to the journal, nothing done. Hand it over yourself (`orca chat send`) or switch the dispatcher on.'
         )
       }
-      return result(
-        true,
-        await carryOutHqDispatch(deps, journal, caller, decision, request.prompt),
-        null
-      )
+      try {
+        return result(
+          true,
+          await carryOutHqDispatch(deps, journal, caller, decision, request.prompt),
+          null
+        )
+      } catch (error) {
+        // Custom build (hq-handoff-once): a second piece of work while the thread's new chat opens
+        // waits in the queue; the sweep hands it to that chat instead of dropping it.
+        if (!(error instanceof HqChatOpeningError)) {
+          throw error
+        }
+        const queued: HqDispatchDecision = {
+          kind: 'queue',
+          address: decision.address,
+          why: 'its new chat is still opening'
+        }
+        return result(
+          true,
+          await carryOutHqDispatch(deps, journal, caller, queued, request.prompt),
+          null
+        )
+      }
     },
 
     sweep(options = {}) {

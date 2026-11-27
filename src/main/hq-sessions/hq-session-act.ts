@@ -16,6 +16,14 @@ export type HqDispatchDone = {
   entryId: string | null
 }
 
+/** A new chat on this thread is already opening; the caller queues the work for it instead. */
+export class HqChatOpeningError extends Error {
+  constructor(address: string) {
+    super(`A new chat on ${address} is already opening.`)
+    this.name = 'HqChatOpeningError'
+  }
+}
+
 /** A chat that will not take the work hands the thread to a new one. */
 export async function carryOutHqDispatch(
   deps: HqSessionsDeps,
@@ -92,7 +100,7 @@ export async function carryOutHqDispatch(
   // Custom build (hq-handoff-once): one thread, one new chat at a time — a sweep and an `orca hq
   // dispatch` on the same thread would each open one.
   if (opening.has(decision.address)) {
-    throw new Error(`A new chat on ${decision.address} is already opening.`)
+    throw new HqChatOpeningError(decision.address)
   }
   opening.add(decision.address)
   try {
