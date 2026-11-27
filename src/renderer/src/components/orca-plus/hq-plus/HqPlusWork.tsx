@@ -286,8 +286,13 @@ export function HqPlusWork({
       className={board ? 'hqw hqw-board' : 'hqw'}
       aria-label={translate('auto.hqPlus.work.label', 'Work')}
     >
-      {newChat ? <div className="hqw-bar">{newChat}</div> : null}
-      {pinned}
+      {/* Router sticky (owner 27.11): «+ Chat» and «👾 Router» stay on top while the tree scrolls under them. */}
+      {newChat || pinned ? (
+        <div className="hqw-pin">
+          {newChat ? <div className="hqw-bar">{newChat}</div> : null}
+          {pinned}
+        </div>
+      ) : null}
       {model.needsYou.length > 0 ? (
         <section className="hqw-needs">
           <div className="hqw-needs-h">

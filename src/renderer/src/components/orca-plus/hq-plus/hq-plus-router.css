@@ -180,3 +180,21 @@
   outline: none;
   border-color: var(--hqp-ice);
 }
+
+/* Router sticky (owner 27.11): «+ Chat» and «👾 Router» stay at the top of the tree's column; the rows
+   scroll under them. The tree's own column is the only scroller (board: .hqb-tree, Work: .hqw-main). */
+.hqw-pin {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 0 8px;
+  margin-bottom: -8px;
+  background: color-mix(in srgb, var(--hqp-bg) 92%, transparent);
+  backdrop-filter: blur(10px);
+}
+.hqw-pin > .hqw-bar {
+  margin-bottom: 0;
+}
