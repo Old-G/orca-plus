@@ -200,7 +200,10 @@ describe('decideOutgoingCall', () => {
     const options = outgoingApprovalOptions(gate.pending()[0], deps.context(), withWork)
     expect(options.work?.current).toBe(OWN)
     expect(options.footer).toMatch(/ · w aaaaaaaa$/)
-    expect(options.work?.choices[1].footer).toMatch(/› LEAD · Refunds › .* · w bbbbbbbb$/)
+    // Why the work's own chat in the chain: the reader sees whose work it is.
+    expect(options.work?.choices[1].footer).toMatch(
+      /› LEAD · Refunds › «LEAD · Refunds» · .* · w bbbbbbbb$/
+    )
     decideOutgoingCall(withWork, id, 'approved', undefined, { workId: OTHER })
     const sent = hookOutput(await gate.wait(id)).updatedInput
     expect(String((sent as { message: string }).message)).toMatch(/ · w bbbbbbbb_$/)

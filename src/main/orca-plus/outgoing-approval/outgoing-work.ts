@@ -19,7 +19,7 @@ export type OutgoingWorkSources = {
   threadWork: (channel: string, threadTs: string) => string | null
   /** Open chats, as the router reads them. */
   chats: () => readonly HqRouterChat[]
-  /** The work a chat is part of. */
+  /** The work a chat writes for (a one-off chat: its parent's). */
   workOfChat: (sessionId: string) => string
   /** The chat carrying a work now. */
   liveChat: (work: string) => string
@@ -93,7 +93,7 @@ export type OutgoingWorkRouter = {
     linked: null
     at: number
   }) => { task: string } | null
-  taskOf: (sessionId: string) => string
+  ownerTask: (sessionId: string) => string
   liveChat: (work: string) => string
   leadOf: (sessionId: string) => string | null
 }
@@ -121,7 +121,7 @@ export function createOutgoingWorkPlans(deps: {
             threadWork: (channel, threadTs) =>
               router.binding({ channel, threadTs, linked: null, at: Date.now() })?.task ?? null,
             chats: deps.chats,
-            workOfChat: (id) => router.taskOf(id),
+            workOfChat: (id) => router.ownerTask(id),
             liveChat: (work) => router.liveChat(work),
             title: deps.title
           })

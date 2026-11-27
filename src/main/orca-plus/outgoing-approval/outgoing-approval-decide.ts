@@ -47,20 +47,26 @@ export type OutgoingDecideDeps = {
   workLeadName?: (work: string) => string | null
 }
 
-/** The footer context with a work: its id, and its Lead's name when it is not the sender's work. */
+/** The footer context with a work: its id; for a work not the sender's, that work's chat and Lead,
+ *  so the reader sees whose work the message is (router v2 T1). */
 function withWork(
   draft: PulseDraft,
   context: OutgoingApprovalContext,
-  work: string | null,
+  work: OutgoingWorkPlan['choices'][number] | null,
   deps: Pick<OutgoingDecideDeps, 'workLeadName'>
 ): OutgoingApprovalContext & { workId?: string | null } {
   if (!work) {
     return context
   }
   const own = context.taskId ?? draft.call?.agentSessionId ?? null
-  return work === own
-    ? { ...context, workId: work }
-    : { ...context, workId: work, leadName: deps.workLeadName?.(work) ?? null }
+  return work.id === own
+    ? { ...context, workId: work.id }
+    : {
+        ...context,
+        workId: work.id,
+        chatName: work.title,
+        leadName: deps.workLeadName?.(work.id) ?? null
+      }
 }
 
 function workOptions(
@@ -77,7 +83,7 @@ function workOptions(
     suggested: plan.suggested,
     choices: plan.choices.map((choice) => ({
       ...choice,
-      footer: outgoingFooterFor(draft, withWork(draft, context, choice.id, deps))
+      footer: outgoingFooterFor(draft, withWork(draft, context, choice, deps))
     }))
   }
 }
@@ -87,17 +93,19 @@ function chosenWork(
   plan: OutgoingWorkPlan | null,
   choice: OutgoingApprovalChoice,
   id: string
-): string | null {
+): OutgoingWorkPlan['choices'][number] | null {
   if (!plan) {
     return null
   }
-  if (!choice.workId) {
-    return plan.current
+  const wanted = choice.workId ?? plan.current
+  const found = plan.choices.find((entry) => entry.id === wanted)
+  if (!found) {
+    // Why refuse: binding another work than the one he picked would route its answers wrong.
+    throw new Error(
+      `outgoing-approval: ${id} cannot be bound to work ${wanted} — it is no longer offered; pick again`
+    )
   }
-  if (!plan.choices.some((entry) => entry.id === choice.workId)) {
-    throw new Error(`outgoing-approval: ${id} cannot be bound to work ${choice.workId}`)
-  }
-  return choice.workId
+  return found
 }
 
 export function outgoingApprovalOptions(
@@ -153,11 +161,12 @@ export function decideOutgoingCall(
   const recorded: PulseApprovalOutcome = move ? 'rejected' : outcome
   // Custom build (router v2 T1): his Approve confirms the card's work, his pick on it rebinds.
   const plan = draft && !move && recorded !== 'rejected' ? (deps.workPlan?.(draft) ?? null) : null
-  const workId = chosenWork(plan, choice, id)
+  const work = chosenWork(plan, choice, id)
+  const workId = work?.id ?? null
   // Why: the footer goes unless the owner unticked it; a moved message gets it where it lands.
   const footer =
     draft && !move && recorded !== 'rejected' && choice.footer !== false
-      ? outgoingFooterFor(draft, withWork(draft, context ?? {}, workId, deps))
+      ? outgoingFooterFor(draft, withWork(draft, context ?? {}, work, deps))
       : null
   const threadTs = move || recorded === 'rejected' ? null : (choice.threadTs ?? null)
   const movedText = move && draft ? (editedText?.trim() ? editedText : draft.body) : null
