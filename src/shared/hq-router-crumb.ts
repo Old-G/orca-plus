@@ -1,15 +1,19 @@
 // Custom build (hq-router crumbs, owner 26.11): the footer an approved message ends with carries a
-// breadcrumb — project › Lead › chat · task · ref · the sending chat's short id — so an answer to it
-// can be routed back by code. The id is the chat's own session id cut to 8 characters: it never
-// changes, and Orca+ follows it to the chat's successor or Lead when that chat has closed. The parser
-// reads the footer however Slack wrapped, quoted or forwarded it, and the older footer without a Lead.
+// breadcrumb — project › Lead › chat · task · ref · `w` and the work's short id — so an answer to it
+// can be routed back by code. Router v2 T1 (owner 28.11): the id names the work (a task's chain of
+// chats, by its first chat's session id cut to 8 characters), not the chat that sent it: the work's id
+// never changes, and Orca+ follows it to the chat carrying the work now, or its Lead once it closed.
+// The parser reads the footer however Slack wrapped, quoted or forwarded it, the `id` footer before
+// (a chat's id) and the older one without a Lead.
 // No runtime imports: the offline eval runs this file as it is.
 
 /** What a footer names. */
 export type HqCrumbFooter = {
   ref: string | null
-  /** The sending chat's short id (8 hex); absent in the older footer. */
+  /** The sending chat's short id (8 hex) of the `id` footer before router v2; null otherwise. */
   chatId: string | null
+  /** The work's short id (8 hex) of a `w` footer; null in older footers. */
+  workId: string | null
   chatTitle: string | null
   leadTitle: string | null
   project: string | null
@@ -56,10 +60,10 @@ function flatten(text: string): string {
   )
 }
 
-const FOOTER = /↳\s?(.{0,400}?)\bref\s([0-9a-z]{6})\b(?:\s?·\s?id\s([0-9a-f]{8})\b)?/gi
+const FOOTER = /↳\s?(.{0,400}?)\bref\s([0-9a-z]{6})\b(?:\s?·\s?(id|w)\s([0-9a-f]{8})\b)?/gi
 const TASK = /\b(DEV-\d{2,7})\b/i
 
-function parseHead(head: string): Omit<HqCrumbFooter, 'ref' | 'chatId'> {
+function parseHead(head: string): Omit<HqCrumbFooter, 'ref' | 'chatId' | 'workId'> {
   const quoted = /«([^»]+)»/.exec(head)
   const before = quoted ? head.slice(0, quoted.index) : head
   const after = quoted ? head.slice(quoted.index + quoted[0].length) : ''
@@ -99,13 +103,20 @@ export function parseHqCrumbs(text: string | null | undefined): HqCrumbFooter[] 
   const flat = flatten(text)
   const out: HqCrumbFooter[] = []
   for (const match of flat.matchAll(FOOTER)) {
-    out.push({ ...parseHead(match[1]), ref: match[2].toLowerCase(), chatId: match[3] ?? null })
+    const id = match[4]?.toLowerCase() ?? null
+    const isWork = match[3]?.toLowerCase() === 'w'
+    out.push({
+      ...parseHead(match[1]),
+      ref: match[2].toLowerCase(),
+      chatId: isWork ? null : id,
+      workId: isWork ? id : null
+    })
   }
   return out.toReversed()
 }
 
 /**
- * The footer line with the crumb: `↳ project › Lead › «chat» · DEV-1 · ref abc123 · id 1a2b3c4d`.
+ * The footer line with the crumb: `↳ project › Lead › «chat» · DEV-1 · ref abc123 · w 1a2b3c4d`.
  * Parts that are unknown are left out; the ref always ends up last but one, the id last.
  */
 export function hqCrumbFooterParts(parts: {

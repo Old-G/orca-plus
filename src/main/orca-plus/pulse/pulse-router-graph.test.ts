@@ -10,9 +10,10 @@ import {
   ensureRouterLogColumns,
   ownerTaskOf,
   routerBindingFor,
+  senderWorkOf,
   taskOfChat
 } from './pulse-router-graph'
-import { leadOfChat } from './pulse-router'
+import { leadOfChat, routerCrumb, routerWorkTarget } from './pulse-router'
 import {
   logChoice,
   logOutcome,
@@ -290,5 +291,86 @@ describe('card routes (T7)', () => {
       logChoice(c, 'a', 'x', 20)
       expect(outcomeOf(c, 'a')).toMatchObject({ outcome: 'sent' })
     })
+  })
+})
+
+const close = (c: PulseCore, id: string): void =>
+  void c.db
+    .prepare("UPDATE sessions SET state = 'closed', closed_at = 5 WHERE session_id = ?")
+    .run(id)
+const footer = (workId: string) => ({
+  ref: 'abc123',
+  chatId: null,
+  workId,
+  chatTitle: 'W · export',
+  leadTitle: null,
+  project: 'acme',
+  task: null
+})
+
+describe('router v2 T1: works', () => {
+  it('knows a sender’s work unless it is a one-off chat with no role and no parent', () => {
+    const c = core()
+    role(c, 'w', 'worker')
+    link(c, 'ask', 'w')
+    handoff(c, 'solo1', 'solo2', 10)
+    expect(senderWorkOf(c, 'w')).toEqual({ work: 'w', known: true })
+    expect(senderWorkOf(c, 'ask')).toEqual({ work: 'w', known: true })
+    expect(senderWorkOf(c, 'solo2')).toEqual({ work: 'solo1', known: true })
+    expect(senderWorkOf(c, 'inbox')).toEqual({ work: 'inbox', known: false })
+  })
+
+  it('binds our message to the work the Approve card confirmed, over the sender’s', () => {
+    const c = core()
+    bindSentMessage(c, {
+      channel: 'C1',
+      ts: '1.0',
+      threadTs: null,
+      sender: 'ask',
+      at: 1,
+      work: 'W1'
+    })
+    bindSentMessage(c, { channel: 'C1', ts: '2.0', threadTs: '1.0', sender: 'ask', at: 2 })
+    expect(routerBindingFor(c, { channel: 'C1', threadTs: '1.0', linked: null, at: 1 })?.task).toBe(
+      'W1'
+    )
+    expect(routerBindingFor(c, { channel: 'C1', threadTs: '1.0', linked: null, at: 3 })?.task).toBe(
+      'ask'
+    )
+  })
+
+  it('a work goes to its chat now, its Lead once closed, and nowhere with no live Lead', () => {
+    const c = core()
+    for (const id of ['W1', 'W2', 'L1', 'L2']) {
+      session(c, id, 1)
+    }
+    role(c, 'W1', 'worker')
+    role(c, 'L1', 'lead')
+    role(c, 'L2', 'lead')
+    link(c, 'W1', 'L1')
+    link(c, 'L2', 'L1')
+    handoff(c, 'W1', 'W2', 10)
+    expect(routerWorkTarget(c, 'W1')).toMatchObject({ chat: 'W2', lead: 'L2' })
+    close(c, 'W2')
+    expect(routerWorkTarget(c, 'W1')).toMatchObject({ chat: null, lead: 'L2' })
+    close(c, 'L2')
+    expect(routerWorkTarget(c, 'W1')).toMatchObject({ chat: null, lead: null })
+  })
+
+  it('a `w` footer names the work itself, not the chat that sent the message', () => {
+    const c = core()
+    const work = '5a7fefad-4a7f-4676-bd5e-b46493c68fe9'
+    const next = '9b9b9b9b-0000-4000-8000-000000000000'
+    session(c, work, 1)
+    session(c, next, 2)
+    handoff(c, work, next, 10)
+    const crumb = routerCrumb(c, {
+      footers: [footer('5a7fefad')],
+      channel: 'C1',
+      threadTs: null,
+      linked: null,
+      at: 20
+    })
+    expect(crumb).toEqual({ chat: next, lead: null, chatTitle: 'W · export' })
   })
 })

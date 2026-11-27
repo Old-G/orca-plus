@@ -6,6 +6,7 @@
 // what the router offered and what the owner chose — the week's evidence for sending by itself.
 import { liveSessionOf } from './pulse-chat-chain'
 import type { PulseCore } from './pulse-core'
+import { approvalOfCall, type HqAgentSend } from './pulse-sent'
 
 /** Why outside the versioned steps: added tables need no version bump (as chat_roles). */
 export const ROUTER_TABLES = `
@@ -151,6 +152,33 @@ export function ownerTaskOf(core: PulseCore, sessionId: string): string {
   return parent ? taskOfChat(core, String(parent.parent_session_id)) : task
 }
 
+/**
+ * Custom build (router v2 T1): the work a sending chat writes for, and whether Orca+ knows it — false
+ * for a one-off chat with no role and no parent (the owner started it), whose work the router suggests
+ * on the Approve card instead.
+ */
+export function senderWorkOf(core: PulseCore, sessionId: string): { work: string; known: boolean } {
+  const task = taskOfChat(core, sessionId)
+  const work = ownerTaskOf(core, sessionId)
+  if (work !== task || roleOf(core, task) || roleOf(core, sessionId)) {
+    return { work, known: true }
+  }
+  // Why the chain counts: a chat that took a handoff carries on its predecessor's work.
+  return { work, known: task !== sessionId }
+}
+
+/** Custom build (router v2 T1): the work the owner confirmed on this call's Approve card, if any. */
+export function approvedWorkOf(core: PulseCore, call: HqAgentSend['call']): string | null {
+  const approval = approvalOfCall(core, call)
+  if (!approval) {
+    return null
+  }
+  const row = core.db
+    .prepare("SELECT json_extract(context, '$.workId') AS work FROM decisions WHERE id = ?")
+    .get(approval.id)
+  return row && typeof row.work === 'string' && row.work ? row.work : null
+}
+
 export type RouterBinding = {
   task: string
   /** The task's live chat now (its handoff successor). */
@@ -158,12 +186,23 @@ export type RouterBinding = {
   source: 'approve' | 'choice'
 }
 
-/** Our sent Slack message binds to the task of the chat that sent it; the first binding stays. */
+/**
+ * Our sent Slack message binds to its work: the one the owner confirmed on the Approve card (router v2
+ * T1), else the task of the chat that sent it; the first binding stays.
+ */
 export function bindSentMessage(
   core: PulseCore,
-  input: { channel: string; ts: string; threadTs: string | null; sender: string; at: number }
+  input: {
+    channel: string
+    ts: string
+    threadTs: string | null
+    sender: string
+    at: number
+    /** The work the Approve card bound it to. */
+    work?: string | null
+  }
 ): void {
-  const task = ownerTaskOf(core, input.sender)
+  const task = input.work || ownerTaskOf(core, input.sender)
   core.db
     .prepare(
       'INSERT OR IGNORE INTO router_bindings (channel, ts, thread_ts, task, chat, source, at) ' +

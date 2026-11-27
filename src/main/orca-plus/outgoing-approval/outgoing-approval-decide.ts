@@ -4,8 +4,10 @@
 import type { OutgoingApprovalContext } from '../../../shared/outgoing-approval/outgoing-approval-bell'
 import type {
   OutgoingApprovalChoice,
-  OutgoingApprovalOptions
+  OutgoingApprovalOptions,
+  OutgoingWorkOptions
 } from '../../../shared/outgoing-approval/outgoing-approval-options'
+import type { OutgoingWorkPlan } from './outgoing-work'
 import { outgoingFooterFor } from '../../../shared/outgoing-approval/outgoing-footer'
 import { parseClickUpTaskReference } from '../../../shared/clickup-task-reference'
 import { outgoingSentContext } from '../../../shared/outgoing-approval/outgoing-sent-context'
@@ -39,15 +41,85 @@ export type OutgoingDecideDeps = {
   decisions: (limit: number) => PulseDecision[]
   waitings: () => PulseWaiting[]
   now?: () => number
+  /** Custom build (router v2 T1): the works the card offers for a call, the same for one card. */
+  workPlan?: (draft: PulseDraft) => OutgoingWorkPlan | null
+  /** The name of a work's Lead, for the footer of a work other than the sender's. */
+  workLeadName?: (work: string) => string | null
+}
+
+/** The footer context with a work: its id; for a work not the sender's, that work's chat and Lead,
+ *  so the reader sees whose work the message is (router v2 T1). */
+function withWork(
+  draft: PulseDraft,
+  context: OutgoingApprovalContext,
+  work: OutgoingWorkPlan['choices'][number] | null,
+  deps: Pick<OutgoingDecideDeps, 'workLeadName'>
+): OutgoingApprovalContext & { workId?: string | null } {
+  if (!work) {
+    return context
+  }
+  const own = context.taskId ?? draft.call?.agentSessionId ?? null
+  return work.id === own
+    ? { ...context, workId: work.id }
+    : {
+        ...context,
+        workId: work.id,
+        chatName: work.title,
+        leadName: deps.workLeadName?.(work.id) ?? null
+      }
+}
+
+function workOptions(
+  draft: PulseDraft,
+  context: OutgoingApprovalContext,
+  plan: OutgoingWorkPlan | null,
+  deps: Pick<OutgoingDecideDeps, 'workLeadName'>
+): OutgoingWorkOptions | null {
+  if (!plan || !outgoingFooterFor(draft, context)) {
+    return null
+  }
+  return {
+    current: plan.current,
+    suggested: plan.suggested,
+    choices: plan.choices.map((choice) => ({
+      ...choice,
+      footer: outgoingFooterFor(draft, withWork(draft, context, choice, deps))
+    }))
+  }
+}
+
+/** The work the owner's choice names, from what the card offered; the card's default without one. */
+function chosenWork(
+  plan: OutgoingWorkPlan | null,
+  choice: OutgoingApprovalChoice,
+  id: string
+): OutgoingWorkPlan['choices'][number] | null {
+  if (!plan) {
+    return null
+  }
+  const wanted = choice.workId ?? plan.current
+  const found = plan.choices.find((entry) => entry.id === wanted)
+  if (!found) {
+    // Why refuse: binding another work than the one he picked would route its answers wrong.
+    throw new Error(
+      `outgoing-approval: ${id} cannot be bound to work ${wanted} — it is no longer offered; pick again`
+    )
+  }
+  return found
 }
 
 export function outgoingApprovalOptions(
   draft: PulseDraft,
   context: OutgoingApprovalContext,
-  deps: Pick<OutgoingDecideDeps, 'decisions' | 'waitings' | 'now'>
+  deps: Pick<OutgoingDecideDeps, 'decisions' | 'waitings' | 'now' | 'workPlan' | 'workLeadName'>
 ): OutgoingApprovalOptions {
+  const plan = deps.workPlan?.(draft) ?? null
+  const work = workOptions(draft, context, plan, deps)
   return {
-    footer: outgoingFooterFor(draft, context),
+    work,
+    footer:
+      work?.choices.find((choice) => choice.id === work.current)?.footer ??
+      outgoingFooterFor(draft, context),
     move: outgoingMove(draft, context.task ?? null),
     threads: outgoingThreadChoices(
       draft,
@@ -87,10 +159,14 @@ export function decideOutgoingCall(
     throw new Error(`outgoing-approval: ${id} cannot be moved to ${choice.moveTo}`)
   }
   const recorded: PulseApprovalOutcome = move ? 'rejected' : outcome
+  // Custom build (router v2 T1): his Approve confirms the card's work, his pick on it rebinds.
+  const plan = draft && !move && recorded !== 'rejected' ? (deps.workPlan?.(draft) ?? null) : null
+  const work = chosenWork(plan, choice, id)
+  const workId = work?.id ?? null
   // Why: the footer goes unless the owner unticked it; a moved message gets it where it lands.
   const footer =
     draft && !move && recorded !== 'rejected' && choice.footer !== false
-      ? outgoingFooterFor(draft, context)
+      ? outgoingFooterFor(draft, withWork(draft, context ?? {}, work, deps))
       : null
   const threadTs = move || recorded === 'rejected' ? null : (choice.threadTs ?? null)
   const movedText = move && draft ? (editedText?.trim() ? editedText : draft.body) : null
@@ -106,7 +182,8 @@ export function decideOutgoingCall(
         footer,
         threadTs,
         movedTo: move?.to ?? null,
-        hqProject: deps.projectOf?.({ worktreeId, sessionId, cwd: held.call?.cwd ?? null }) ?? null
+        hqProject: deps.projectOf?.({ worktreeId, sessionId, cwd: held.call?.cwd ?? null }) ?? null,
+        workId
       })
     },
     {

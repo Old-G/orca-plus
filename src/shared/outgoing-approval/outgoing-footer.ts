@@ -20,8 +20,9 @@ export type OutgoingFooterParts = {
   ref: string
   /** Custom build (hq-router crumbs): the sending chat's Lead, by name. */
   leadName?: string | null
-  /** Custom build (hq-router crumbs): the sending chat's session id; the footer carries its short id. */
-  chatSessionId?: string | null
+  /** Custom build (router v2 T1): the work the message is for — its first chat's session id; the
+   *  footer carries its short id after `w`. */
+  workId?: string | null
 }
 
 const FOOTER_MARK = '↳ '
@@ -77,8 +78,8 @@ function plain(text: string, max: number): string {
 
 /**
  * `↳ [DEV-1](url) · project · «chat» · ref abc123`; a ClickUp comment skips its own task.
- * Custom build (hq-router crumbs): with the sending chat known, a breadcrumb the router reads back —
- * `↳ project › Lead › «chat» · [DEV-1](url) · ref abc123 · id 1a2b3c4d`.
+ * Custom build (hq-router crumbs): with the work known, a breadcrumb the router reads back —
+ * `↳ project › Lead › «chat» · [DEV-1](url) · ref abc123 · w 1a2b3c4d`.
  */
 export function outgoingFooter(
   parts: OutgoingFooterParts,
@@ -92,12 +93,12 @@ export function outgoingFooter(
       : null
   const project = parts.project ? plain(parts.project, CHAT_MAX) : null
   const chat = parts.chatName ? `«${plain(parts.chatName, CHAT_MAX)}»` : null
-  const chatId = parts.chatSessionId ? hqCrumbChatId(parts.chatSessionId) : ''
+  const workId = parts.workId ? hqCrumbChatId(parts.workId) : ''
   // Why 8: shorter is not a session id the router could find again.
-  if (chatId.length === 8) {
+  if (workId.length === 8) {
     const lead = parts.leadName ? plain(parts.leadName, CHAT_MAX).replace(/›/g, '>') : null
     const chain = [project, lead, chat].filter(Boolean).join(' › ')
-    const items = [chain || null, task, `ref ${parts.ref}`, `id ${chatId}`].filter(Boolean)
+    const items = [chain || null, task, `ref ${parts.ref}`, `w ${workId}`].filter(Boolean)
     return `${FOOTER_MARK}${items.join(' · ')}`
   }
   const items = [task, project, chat, `ref ${parts.ref}`].filter(Boolean)
@@ -124,6 +125,7 @@ export function outgoingFooterFor(
     chatName?: string | null
     leadName?: string | null
     taskId?: string | null
+    workId?: string | null
   } = {}
 ): string | null {
   const call = draft.call
@@ -139,8 +141,9 @@ export function outgoingFooterFor(
       chatName: context.chatName ?? null,
       ref: outgoingRef(draft.id),
       leadName: context.leadName ?? null,
-      // Why the task's id (variant b, 26.11): it resolves to whichever chat carries the task on.
-      chatSessionId: context.taskId ?? call?.agentSessionId ?? null
+      // Why the work's id (variant b 26.11, router v2 T1): it resolves to whichever chat carries the
+      // work on; the owner's pick on the card (`workId`) over the sender's own.
+      workId: context.workId ?? context.taskId ?? call?.agentSessionId ?? null
     },
     commentTask
   )
