@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { hqRouteNewMark } from '../../shared/hq-router'
+import { hqRouteNewMark, type HqRoute } from '../../shared/hq-router'
 import { hqIntakeBellItem, type HqIntake } from '../../shared/hq-slack-intake'
 import type { HqProjectPage } from '../../shared/hq-project-pages'
 import type { PulseBellInput } from '../../shared/pulse-bell'
@@ -134,25 +134,31 @@ describe('pollHqSlackIntake', () => {
     const sent: string[] = []
     const settled: string[] = []
     deps.routerPreTrial = () => preTrial
-    deps.route = async (d) => ({
-      target: d.channel === 'D0BBBBBBBBB' ? 'chosen' : 'worker',
-      targetTitle: null,
-      repoId: null,
-      project: null,
-      level: 'worker',
-      how: d.channel === 'D0BBBBBBBBB' ? 'thread' : 'crumb',
-      why: 'x',
-      auto: d.channel === 'D0BBBBBBBBB',
-      alternatives: [],
-      confidence: null,
-      model: null
-    })
+    const marks: unknown[] = []
+    deps.route = async (d, opts) => (
+      marks.push(opts?.mark),
+      {
+        target: d.channel === 'D0BBBBBBBBB' ? 'chosen' : 'worker',
+        targetTitle: null,
+        repoId: null,
+        project: null,
+        level: 'worker',
+        how: d.channel === 'D0BBBBBBBBB' ? 'thread' : 'crumb',
+        why: 'x',
+        auto: d.channel === 'D0BBBBBBBBB',
+        alternatives: [],
+        confidence: null,
+        model: null
+      }
+    )
     deps.autoSend = async (card) => (sent.push(card.ts), true)
     deps.settle = (key) => void settled.push(key)
     expect(await pollHqSlackIntake(deps)).toBe(2)
     expect(synced[0]).toHaveLength(2)
     expect(sent).toEqual(['1792600400.000100'])
     expect(settled).toHaveLength(1)
+    // Router v2 T4: a 👾's route is asked as a mark — the one kind the auto gate may let go by itself.
+    expect(marks).toEqual([true, true])
   })
 
   it('T1c: a 👾 on a message whose mention card is up routes that card once, and notes each mark', async () => {
@@ -412,7 +418,7 @@ describe('ledger switched on', () => {
 })
 
 describe('T7: one message, one card; every To work card gets a route once', () => {
-  const route = {
+  const route: HqRoute = {
     target: 'worker',
     targetTitle: 'W · support',
     repoId: null,
@@ -432,7 +438,7 @@ describe('T7: one message, one card; every To work card gets a route once', () =
     extra: Partial<HqSlackIntakeDeps> = {}
   ) {
     const synced: PulseBellInput[][] = []
-    const saved = new Map<string, { route: typeof route | null; at: number; tries: number }>()
+    const saved = new Map<string, { route: HqRoute | null; at: number; tries: number }>()
     const routed: string[] = []
     const deps: HqSlackIntakeDeps = {
       read: async (run) =>

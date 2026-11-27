@@ -28,6 +28,9 @@ export type HqRouterCrumb = {
   lead: string | null
   /** The sender's title, as the footer named it. */
   chatTitle: string | null
+  /** Router v2 T4: the work our own record binds the thread to (its Approve) — never a footer's text,
+   *  which anyone can paste, so only this crumb may become the work-crumb auto class. */
+  work?: string | null
 }
 
 export const HQ_CRUMB_MARK = '↳'

@@ -41,4 +41,25 @@ describe('formatHqRouterStats', () => {
     expect(lines[2]).toMatch(/^crumb\s+4\s+75%\s+100%\s+100%\s+80%\s+1\s+0\s+2$/)
     expect(lines[3]).toMatch(/^model\s+1\s+0%\s+0%\s+100%\s+20%\s+0\s+2\s+0$/)
   })
+
+  it('T4: prints each auto class — auto, gathering n of 30, or waiting on «Send» below the share', () => {
+    const text = formatHqRouterStats({
+      days: 7,
+      classes: [],
+      auto: {
+        thresholds: { minN: 30, minRight: 0.98, days: 30 },
+        classes: [
+          { autoClass: 'thread-choice', n: 31, right: 31, auto: true },
+          { autoClass: 'work-crumb', n: 4, right: 4, auto: false },
+          { autoClass: 'question', n: 30, right: 27, auto: false }
+        ]
+      }
+    })
+    const lines = text.split('\n')
+    expect(lines[0]).toBe('No routed cards in the last 7 days.')
+    expect(lines[2]).toBe('Auto send (last 30 days: n ≥ 30, right ≥ 98%)')
+    expect(lines[3]).toMatch(/^thread-choice\s+auto \(31 of 31 right\)$/)
+    expect(lines[4]).toMatch(/^work-crumb\s+gathering: n 4 of 30$/)
+    expect(lines[5]).toMatch(/^question\s+waits on «Send»: 27 of 30 right \(90%\)$/)
+  })
 })
