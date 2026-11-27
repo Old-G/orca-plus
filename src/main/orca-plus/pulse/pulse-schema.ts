@@ -2,7 +2,7 @@
 // a step never edits an earlier one, so every database climbs the same ladder.
 import type Database from '../../sqlite/sync-database'
 import { CHAT_LEAD_MOVES_TABLE } from './pulse-chat-lead-moves'
-import { ROUTER_TABLES } from './pulse-router-graph'
+import { ROUTER_TABLES, ensureRouterLogColumns } from './pulse-router-graph'
 import { PULSE_HOT_INDEXES } from './pulse-hot-indexes'
 
 const V1 = `
@@ -343,6 +343,7 @@ export function migratePulseSchema(db: Database.Database): void {
   }
   if (stored === PULSE_SCHEMA_VERSION) {
     db.exec(SIDE_TABLES + CHAT_LEAD_MOVES_TABLE + ROUTER_TABLES + PULSE_HOT_INDEXES)
+    ensureRouterLogColumns(db)
     return
   }
   db.exec('BEGIN IMMEDIATE')
@@ -352,6 +353,7 @@ export function migratePulseSchema(db: Database.Database): void {
     }
     db.pragma(`user_version = ${PULSE_SCHEMA_VERSION}`)
     db.exec(SIDE_TABLES + CHAT_LEAD_MOVES_TABLE + ROUTER_TABLES + PULSE_HOT_INDEXES)
+    ensureRouterLogColumns(db)
     db.exec('COMMIT')
   } catch (error) {
     db.exec('ROLLBACK')
