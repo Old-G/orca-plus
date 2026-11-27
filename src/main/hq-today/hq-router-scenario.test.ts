@@ -110,7 +110,11 @@ describe('router scenario (Slack mocked)', () => {
 
     // 3. The owner presses «Send»: the thread binds to the task.
     router.bindChoice({ channel, threadTs, chat: 'W1', at: NOW + 70_000 })
-    expect(await route(NOW + 80_000)).toMatchObject({ target: 'W1', how: 'thread', auto: true })
+    expect(await route(NOW + 80_000)).toMatchObject({
+      target: 'W1',
+      how: 'thread',
+      autoClass: 'thread-choice'
+    })
 
     // 4. The Lead changes and the worker hands off: the answer goes to the successor, Lead L2.
     sql(
@@ -123,7 +127,11 @@ describe('router scenario (Slack mocked)', () => {
       NOW + 95_000
     )
     chats = [chat('W2'), chat('L2', 'lead'), chat('other')]
-    expect(await route(NOW + 100_000)).toMatchObject({ target: 'W2', how: 'thread', auto: true })
+    expect(await route(NOW + 100_000)).toMatchObject({
+      target: 'W2',
+      how: 'thread',
+      autoClass: 'thread-choice'
+    })
     expect(router.leadOf('W2')).toBe('L2')
   })
 

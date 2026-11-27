@@ -11,6 +11,11 @@ import type { HqLedgerDmRule } from '../orca-plus/pulse/pulse-ledger-dm-rules'
 import type { HqFeedLedger, HqFeedMessage } from '../../shared/hq-feed-ledger'
 import type { HqAttributionAccuracy } from '../../shared/hq-attribution'
 import type { HqRouterStats } from '../../shared/hq-router-stats'
+import {
+  HQ_ROUTER_AUTO_DEFAULTS,
+  hqRouterAutoStatuses,
+  type HqRouterAutoThresholds
+} from '../../shared/hq-router-auto'
 import type { HqAttributionTake } from '../orca-plus/pulse/pulse-attribution'
 import type { HqLedgerDecision } from '../orca-plus/pulse/pulse-ledger-decision'
 import type {
@@ -375,10 +380,23 @@ export class RuntimePulseCommands {
   }
 
   /** Custom build (hq-router T0): how the routed cards ended, per route class, over the last days. */
-  pulseRouterStats(days: number): HqRouterStats {
+  pulseRouterStats(
+    days: number,
+    autoThresholds: HqRouterAutoThresholds = HQ_ROUTER_AUTO_DEFAULTS
+  ): HqRouterStats {
     const now = Date.now()
+    const day = 24 * 60 * 60_000
     this.db().router.reconcileOutcomes(now)
-    return { days, classes: this.db().router.stats(now - days * 24 * 60 * 60_000) }
+    // Router v2 T4: the auto gate's own window, whatever --days the table asks for.
+    const records = this.db().router.autoRecords(now - autoThresholds.days * day)
+    return {
+      days,
+      classes: this.db().router.stats(now - days * day),
+      auto: {
+        thresholds: autoThresholds,
+        classes: hqRouterAutoStatuses(records, autoThresholds)
+      }
+    }
   }
 
   /** Custom build (hq-request-ledger): whether a Slack message reached the ledger. */
