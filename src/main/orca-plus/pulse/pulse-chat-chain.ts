@@ -44,3 +44,22 @@ function mostRecentlyActive(core: PulseCore, ids: readonly string[]): string {
   marks.sort((a, b) => b.at - a.at)
   return marks[0].id
 }
+
+/**
+ * Custom build (hq-handoff-once, owner 27.11): the chat that continued `sessionId` at or after `since`,
+ * newest first; null when none did. One handoff, one new chat: whoever starts second asks this first.
+ */
+export function successorSince(core: PulseCore, sessionId: string, since: number): string | null {
+  const row = core.db
+    .prepare(
+      `SELECT next, at FROM (
+         SELECT session_id AS next, at FROM journal
+           WHERE kind = 'session.handoff' AND ref_id = ? AND session_id IS NOT NULL AND at >= ?
+         UNION
+         SELECT session_id AS next, opened_at AS at FROM sessions
+           WHERE parent_session_id = ? AND opened_at >= ?
+       ) WHERE next != ? ORDER BY at DESC LIMIT 1`
+    )
+    .get(sessionId, since, sessionId, since, sessionId)
+  return row ? String(row.next) : null
+}

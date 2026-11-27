@@ -21,6 +21,16 @@ import type {
   ClaudeHandoffLaunchResult,
   ClaudeHandoffOffer
 } from '../../shared/claude-handoff-file'
+import {
+  broadcastClaudeHandoffOffers as broadcastOffers,
+  claudeHandoffOffersForOwner,
+  setClaudeHandoffAutoStart
+} from './claude-handoff-broadcast'
+
+export {
+  claudeHandoffOffersForOwner,
+  onClaudeHandoffOffersChanged
+} from './claude-handoff-broadcast'
 import { getRuntimePathBasename } from '../../shared/file-access/cross-platform-path'
 import { splitWorktreeId } from '../../shared/worktree/id'
 import { getHqThreads } from '../hq-journal/hq-journal-threads'
@@ -38,6 +48,7 @@ import {
 } from '../claude-handoff/claude-handoff-successor'
 import { createClaudeContinueChat } from '../claude-handoff/claude-handoff-continue-chat'
 import { startClaudeHandoffOnce } from '../claude-handoff/claude-handoff-start-once'
+import { provideClaudeHandoffSuccessorLookup } from '../claude-handoff/claude-handoff-claims'
 
 const NATIVE_CHAT_TAB = 'structured-agent-session-'
 
@@ -108,36 +119,11 @@ export async function closeHqNativeChat(
   await closeHandedOffChat(runtime, { worktreeId, tabId, tabWorktreeId: worktreeId }, undefined)
 }
 
-type OffersListener = (offers: ClaudeHandoffOffer[]) => void
-const offersListeners = new Set<OffersListener>()
-
-/** Custom build (pulse-bell): lets the bell mirror the offers the toast shows. */
-
 function handedOnRole(runtime: OrcaRuntimeService, sessionId: string): HqChatRole | null {
   try {
     return runtime.pulseChats().roleOf(sessionId)
   } catch {
     return null
-  }
-}
-
-export function onClaudeHandoffOffersChanged(listener: OffersListener): () => void {
-  offersListeners.add(listener)
-  return () => offersListeners.delete(listener)
-}
-
-function broadcastOffers(offers: ClaudeHandoffOffer[]): void {
-  for (const listener of offersListeners) {
-    try {
-      listener(offers)
-    } catch (error) {
-      console.warn('[claude-handoff] offers listener failed:', error)
-    }
-  }
-  for (const window of BrowserWindow.getAllWindows()) {
-    if (!window.isDestroyed()) {
-      window.webContents.send('claudeHandoff:offersChanged', offers)
-    }
   }
 }
 
@@ -173,6 +159,7 @@ export function registerClaudeHandoffHandlers(
   store: Store,
   runtime: OrcaRuntimeService
 ): ClaudeHandoffOffers {
+  setClaudeHandoffAutoStart(() => store.getSettings().hqHandoffAutoStart !== false)
   const dispatcher = new RpcDispatcher({ runtime, methods: AGENT_LAUNCH_METHODS })
   const offers = createClaudeHandoffOffers({
     readWorktreeFile: (worktreeId, relativePath) =>
@@ -192,6 +179,11 @@ export function registerClaudeHandoffHandlers(
         : []
     }
   })
+  // Custom build (hq-handoff-once, owner 27.11): every start path asks the journal whether the chat is
+  // already continued — the chat's own `orca agent launch`, a click, the sweep, «Continue in new chat».
+  provideClaudeHandoffSuccessorLookup((from, since) =>
+    runtime.pulseChats().successorSince(from, since)
+  )
   const launching = new Set<string>()
   let db: PulseDb | null = null
   const pulseDb = (): PulseDb => (db ??= new PulseDb(pulseDbPath(app.getPath('userData'))))
@@ -202,7 +194,7 @@ export function registerClaudeHandoffHandlers(
     })
   })
 
-  ipcMain.handle('claudeHandoff:list', () => offers.list())
+  ipcMain.handle('claudeHandoff:list', () => claudeHandoffOffersForOwner(offers.list()))
   ipcMain.handle('claudeHandoff:dismiss', (_event, id: unknown) => {
     if (typeof id === 'string') {
       offers.dismiss(id)
@@ -272,7 +264,7 @@ export function registerClaudeHandoffHandlers(
     keepOld = false
   ): Promise<ClaudeHandoffLaunchResult> => {
     if (launching.has(id)) {
-      return { ok: false, error: 'This handoff is already starting.' }
+      return { ok: false, error: 'This handoff is already starting.', skipped: true }
     }
     launching.add(id)
     try {
@@ -307,7 +299,13 @@ export function registerClaudeHandoffHandlers(
   }
   // Custom build (chat-continue-new, T6): «Continue in new chat» — no handoff file; the window sends the prompt.
   const continueChat = createClaudeContinueChat(async ({ worktreeId, from, prompt, options }) => {
-    const started = await startSuccessor({ worktreeId, from, prompt, options, keepOld: false })
+    // Custom build (hq-handoff-once): the same one-new-chat lock as a handoff's start.
+    const started = await startClaudeHandoffOnce({
+      fromSessionId: nativeChatSessionId(from.tabId),
+      ownStarted: async () => false,
+      dismiss: () => undefined,
+      start: () => startSuccessor({ worktreeId, from, prompt, options, keepOld: false })
+    })
     return started.ok
       ? { ok: true, worktreeId, ...(started.tabId ? { tabId: started.tabId } : {}) }
       : started
@@ -326,7 +324,8 @@ export function registerClaudeHandoffHandlers(
     list: () => offers.list(),
     // Custom build (hq-plus-all-open-chats, owner 02.11): a successor started for him leaves the old chat
     // open; he closes it himself once he sees the new one took over.
-    launch: (id) => launch(id, 'background', true)
+    launch: (id) => launch(id, 'background', true),
+    notStarted: (id, why) => offers.markNotStarted(id, why)
   })
   return offers
 }
@@ -335,6 +334,8 @@ export function registerClaudeHandoffHandlers(
 export type ClaudeHandoffLauncher = {
   list: () => ClaudeHandoffOffer[]
   launch: (id: string) => Promise<ClaudeHandoffLaunchResult>
+  /** Custom build (hq-handoff-once): the sweep could not start it; the owner's card shows, with why. */
+  notStarted: (id: string, why: string) => void
 }
 
 let launcher: ClaudeHandoffLauncher | null = null

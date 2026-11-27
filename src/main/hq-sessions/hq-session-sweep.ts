@@ -17,11 +17,7 @@ import {
 import { journalEntryAsInput } from '../hq-journal/hq-journal-adapters'
 import { carryOutHqDispatch } from './hq-session-act'
 import { decideHqDispatch, decideHqHandoff } from './hq-session-decide'
-import {
-  carryOutHqLeadHandover,
-  findHqLeadHandovers,
-  hqLeadHandoverKey
-} from './hq-session-lead-handover'
+import { carryOutHqLeadHandover, findHqLeadHandovers } from './hq-session-lead-handover'
 import {
   describeHqDispatch,
   type HqSessionJournal,
@@ -60,6 +56,10 @@ export async function sweepHqSessions(
       auto,
       now
     })
+    // Custom build (hq-handoff-once): with auto-start on, the owner sees the offer only when it waits.
+    if (auto && !verdict.start && offer.limitStopped) {
+      deps.handoffNotStarted?.(offer.id, verdict.why)
+    }
     if (verdict.start && offer.sessionId) {
       actions.push({
         kind: 'successor',
@@ -145,6 +145,9 @@ export async function sweepHqSessions(
         const started = await deps.startHandoff(action.offerId)
         if (!started.ok) {
           deps.log(`sweep: the handoff ${action.offerId} did not start: ${started.error}`)
+          if (!started.skipped) {
+            deps.handoffNotStarted?.(action.offerId, started.error)
+          }
           continue
         }
         if (!deps.enabled()) {
@@ -171,16 +174,9 @@ export async function sweepHqSessions(
         ])
       } else if (action.kind === 'lead-handover') {
         // Why: like a handoff's successor, the owner's «New chat after a handoff» switch lets it run.
+        // Custom build (hq-handoff-once, owner 27.11): report mode carries it out too — a note in the plan
+        // left two Leads working on one plan. It opens no chat; it moves chats and closes one.
         if (!auto && !dispatching) {
-          continue
-        }
-        if (!auto && mode === 'report') {
-          await journal.plan(
-            `hand the Lead's chats to ${action.to} and close ${action.from}: ${action.why}`,
-            null,
-            null,
-            `${hqLeadHandoverKey(action)}:plan`
-          )
           continue
         }
         await carryOutHqLeadHandover(deps, journal, action, live)
@@ -211,9 +207,13 @@ export async function sweepHqSessions(
         deps.pulse.record([journalEntryAsInput(entry, { status: 'done' })])
       }
     } catch (error) {
-      deps.log(
-        `sweep: ${action.kind} failed: ${error instanceof Error ? error.message : String(error)}`
-      )
+      const message = error instanceof Error ? error.message : String(error)
+      deps.log(`sweep: ${action.kind} failed: ${message}`)
+      // Custom build (hq-handoff-once): a start that threw is a failure too — the offer, hidden
+      // while auto-start runs, comes back as a card instead of failing silently every sweep.
+      if (action.kind === 'successor') {
+        deps.handoffNotStarted?.(action.offerId, message)
+      }
     }
   }
   return result
