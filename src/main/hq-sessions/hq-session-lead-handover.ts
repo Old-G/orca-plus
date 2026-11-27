@@ -35,6 +35,15 @@ export async function findHqLeadHandovers(
   )
 }
 
+/** What the old Lead is told once its chats moved. */
+export function hqOldLeadStopPrompt(newLead: string): string {
+  return [
+    `Orca+ · you are no longer the Lead: ${newLead} leads this plan now and gets your chats' reports.`,
+    'Stop: take no new reports, start no chats, send no work. Finish the sentence you are on and end this turn.',
+    'Orca+ closes this chat in a few minutes; History keeps it.'
+  ].join('\n')
+}
+
 export function hqLeadHandoverKey(action: LeadHandoverAction): string {
   return `${HQ_JOURNAL_KIND.sessionPlan}:lead-handover:${action.from}:${action.to}`
 }
@@ -61,7 +70,7 @@ export async function carryOutHqLeadHandover(
   if (movedAt === undefined) {
     // Why: a handoff on the Lead's own address keeps its chats and messages there; nothing to move.
     if (!action.sameThread) {
-      const result = await deps.reassignLead(old.sessionId, next.sessionId)
+      const result = await deps.reassignLead(old.sessionId, next.sessionId, undefined, true)
       if (!result.ok) {
         deps.log(
           `sweep: the Lead handover ${old.sessionId} → ${next.sessionId} failed: ${result.error}`
@@ -70,7 +79,17 @@ export async function carryOutHqLeadHandover(
       }
       // Why: a Lead the old one started stays «under it» in a reassign; once it closes, that one leads alone.
       if (deps.launchedBy(next.sessionId) === old.sessionId) {
-        await deps.reassignLead(old.sessionId, 'none', [next.sessionId])
+        await deps.reassignLead(old.sessionId, 'none', [next.sessionId], true)
+      }
+    }
+    // Custom build (hq-handoff-once, owner 27.11): one plain «stop» instead of the reassign notices that
+    // kept waking it. A chat whose turn has ended is not woken for it: it closes after the grace.
+    if (old.midTurn) {
+      const told = await deps
+        .deliver(old.sessionId, hqOldLeadStopPrompt(next.address ?? next.sessionId))
+        .catch(() => false)
+      if (!told) {
+        deps.log(`sweep: the old Lead ${old.sessionId} was not told to stop`)
       }
     }
     journal.movedAt.set(key, deps.now())
@@ -83,7 +102,7 @@ export async function carryOutHqLeadHandover(
         address: old.address,
         sessionId: old.sessionId,
         title: hqJournalTitle(
-          `Lead handover: ${next.address ?? next.sessionId} leads now; ${old.address ?? old.sessionId} closes in 2 min`
+          `Lead handover: ${next.address ?? next.sessionId} leads now; ${old.address ?? old.sessionId} closes when its turn ends (10 min at most)`
         ),
         needs: 'nobody',
         status: 'done',

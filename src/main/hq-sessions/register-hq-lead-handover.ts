@@ -21,7 +21,7 @@ export function hqLeadHandoverDeps(
         .list()
         .links.find((link) => link.sessionId === sessionId && link.via === 'launch')
         ?.parentSessionId ?? null,
-    reassignLead: async (from, to, chats) => {
+    reassignLead: async (from, to, chats, quietOldLead) => {
       const reassign = getHqLeadReassign()
       if (!reassign) {
         return { ok: false, error: 'Lead handover is not available on this host.' }
@@ -29,7 +29,7 @@ export function hqLeadHandoverDeps(
       try {
         const result = await reassign.reassign(
           { cwd: hqPath() },
-          { from, to, ...(chats ? { chats } : {}) }
+          { from, to, ...(chats ? { chats } : {}), ...(quietOldLead ? { quietOldLead } : {}) }
         )
         return { ok: true, moved: result.moved.length }
       } catch (error) {

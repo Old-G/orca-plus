@@ -29,11 +29,25 @@ export type ClaudeHandoffOffer = {
    * at times an hour off; the successor's wait counts from this.
    */
   raisedAt?: number
+  /**
+   * Custom build (hq-handoff-once, owner 27.11): why Orca+ did not start the new chat by itself. With
+   * «New chat after a handoff» on, only an offer with this is shown — the card is the fallback.
+   */
+  autoStartError?: string
+}
+
+/** The offers the owner sees: all with auto-start off; with it on, only the ones it could not start. */
+export function claudeHandoffOffersShown(
+  offers: readonly ClaudeHandoffOffer[],
+  autoStart: boolean
+): ClaudeHandoffOffer[] {
+  return autoStart ? offers.filter((offer) => Boolean(offer.autoStartError)) : [...offers]
 }
 
 export type ClaudeHandoffLaunchResult =
   | { ok: true; worktreeId: string; tabId?: string }
-  | { ok: false; error: string }
+  /** `skipped`: the handoff is already starting or started elsewhere — no failure to show. */
+  | { ok: false; error: string; skipped?: true }
 
 // Why: a launch prompt is typed into the agent; anything this large is not a handoff prompt.
 const MAX_PROMPT_LENGTH = 20_000

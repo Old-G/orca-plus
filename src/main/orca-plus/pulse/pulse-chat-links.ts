@@ -8,7 +8,7 @@ import type {
   HqChatLinkVia
 } from '../../../shared/hq-chat-links'
 import { isHqChatRole, type HqChatRole } from '../../../shared/hq-chat-role'
-import { liveSessionOf } from './pulse-chat-chain'
+import { liveSessionOf, successorSince } from './pulse-chat-chain'
 import {
   leadMoveOf,
   moveChatLead,
@@ -196,6 +196,8 @@ export function pulseChats(core: () => PulseCore) {
     clearRole: (sessionId: string): void => clearChatRole(core(), sessionId),
     launchedSince: (parentSessionId: string, since: number): string[] =>
       chatsLaunchedSince(core(), parentSessionId, since),
+    successorSince: (sessionId: string, since: number): string | null =>
+      successorSince(core(), sessionId, since),
     moveLead: (input: HqLeadMoveInput): void => moveChatLead(core(), input),
     leadMoveOf: (chat: string, lead: string): string | null => leadMoveOf(core(), chat, lead)
   }

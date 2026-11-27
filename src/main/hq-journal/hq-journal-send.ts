@@ -21,6 +21,19 @@ const REOPEN_STEP_MS = 1_000
 
 export const HQ_JOURNAL_OFF = 'The HQ+ journal is off (Settings → Workspace → HQ+ journal).'
 
+/**
+ * Custom build (hq-handoff-once, owner 27.11): the message surely did not reach any chat — no chat on the
+ * thread, or a closed one Orca+ could not bring back. Only then may the dispatcher open a new chat for
+ * the work instead; after any other failure the message may be in the chat already.
+ */
+export class HqNotDeliveredError extends Error {
+  readonly notDelivered = true
+}
+
+export function isHqNotDelivered(error: unknown): boolean {
+  return error instanceof HqNotDeliveredError
+}
+
 export function hqRoomOf(scope: HqCallerScope): string {
   return scope.kind === 'room' ? scope.room : HQ_JOURNAL_ALL_ROOMS
 }
@@ -144,7 +157,7 @@ export function createHqSend(
           })
         : (deps.pulse.listSessionsByAddress(to)[0] ?? null)
     if (!target) {
-      throw new Error(
+      throw new HqNotDeliveredError(
         `No chat works on ${to}; \`orca hq sessions --json\` lists the chats — send to its sessionId.`
       )
     }
@@ -230,7 +243,7 @@ export function createHqSend(
         if (prior) {
           batch?.restore(prior)
         }
-        throw new Error(
+        throw new HqNotDeliveredError(
           byId && !known && !worktreeId
             ? `No open chat ${to}; \`orca hq sessions --json\` lists the chats.`
             : `The chat on ${address} is closed and Orca+ could not bring it back; open it from History and send again.`

@@ -220,6 +220,7 @@ export function registerHqSessions(
       const launched = await launcher.launch(offerId)
       return launched.ok ? { ok: true } : launched
     },
+    handoffNotStarted: (offerId, why) => getClaudeHandoffLauncher()?.notStarted(offerId, why),
     ...hqLeadHandoverDeps(runtime, hqPath),
     sync: async () => {
       await journal.sync()

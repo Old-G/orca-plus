@@ -7,7 +7,9 @@ import { claudeHandoffRelativePath } from '../../shared/claude-handoff-file'
 import { splitWorktreeId } from '../../shared/worktree/id'
 
 type Repos = Pick<Store, 'getRepo'>
-type LaunchedChats = { pulseChats: () => Pick<PulseDb['chats'], 'launchedSince'> }
+type LaunchedChats = {
+  pulseChats: () => Pick<PulseDb['chats'], 'launchedSince' | 'successorSince'>
+}
 
 /** The file's path on this machine; null when it lives on an SSH or runtime host. */
 function localWorktreeFilePath(
@@ -64,7 +66,12 @@ export async function claudeHandoffSuccessorStarted(
     const modifiedAt = Math.floor((await stat(path)).mtimeMs)
     const created = Date.parse(handoff.created)
     const since = Number.isNaN(created) ? modifiedAt : Math.min(modifiedAt, created)
-    return runtime.pulseChats().launchedSince(chatId, since).length > 0
+    const chats = runtime.pulseChats()
+    // Custom build (hq-handoff-once, owner 27.11): a chat that continues its own handoff has no launch
+    // link — the handoff, recorded first, makes it the same chat going on — so ask the chain as well.
+    return (
+      chats.launchedSince(chatId, since).length > 0 || chats.successorSince(chatId, since) !== null
+    )
   } catch {
     return false
   }

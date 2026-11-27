@@ -45,7 +45,8 @@ function workspace(repo: Record<string, unknown> | undefined = { connectionId: n
 
 function chats(launched: string[]) {
   const launchedSince = vi.fn((_parent: string, _since: number) => launched)
-  return { runtime: { pulseChats: () => ({ launchedSince }) }, launchedSince }
+  const successorSince = vi.fn((_from: string, _since: number): string | null => null)
+  return { runtime: { pulseChats: () => ({ launchedSince, successorSince }) }, launchedSince }
 }
 
 describe('claude handoff worktree files', () => {

@@ -10,7 +10,11 @@ import type { RateLimitService } from '../../rate-limits/service/rate-limit-serv
 import { agentHookServer } from '../../agent-hooks/server/agent-hook-server'
 import { hqCoveredSlackMessages } from '../../../shared/hq-covered-slack'
 import { HQ_INTAKE_KIND } from '../../../shared/hq-slack-intake'
-import { describeWorktree, onClaudeHandoffOffersChanged } from '../../ipc/claude-handoff'
+import {
+  claudeHandoffOffersForOwner,
+  describeWorktree,
+  onClaudeHandoffOffersChanged
+} from '../../ipc/claude-handoff'
 import type { ClaudeHandoffOffer } from '../../../shared/claude-handoff-file'
 import {
   PULSE_BELL_KIND,
@@ -113,7 +117,8 @@ export function registerPulseBell(
   }
 
   const syncHandoffs = (offers: readonly ClaudeHandoffOffer[]): void =>
-    sync(PULSE_BELL_KIND.handoff, offers.map(handoffBellItem))
+    // Custom build (hq-handoff-once, owner 27.11): with auto-start on, a card only for one it did not start.
+    sync(PULSE_BELL_KIND.handoff, claudeHandoffOffersForOwner(offers).map(handoffBellItem))
   onClaudeHandoffOffersChanged(syncHandoffs)
   // Why: offers live in memory, so any left open by the last run are stale.
   syncHandoffs([])

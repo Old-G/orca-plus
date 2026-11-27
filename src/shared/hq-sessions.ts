@@ -30,6 +30,11 @@ export const HQ_SESSION_HANDOFF_AUTO_GRACE_MS = 0
  * long after its chats moved under the new Lead — time for it to finish a turn the owner may be reading.
  */
 export const HQ_SESSION_LEAD_HANDOVER_GRACE_MS = 2 * 60_000
+/**
+ * Custom build (hq-handoff-once, owner 27.11): an old Lead still mid-turn this long after its chats moved
+ * is closed anyway — it was told to stop; one that keeps working beside the new Lead was the bug.
+ */
+export const HQ_SESSION_LEAD_HANDOVER_MAX_MS = 10 * 60_000
 
 /** queued → working → waiting (on the owner) → done → closed (in History). */
 export const HQ_SESSION_LIFECYCLE = ['queued', 'working', 'waiting', 'done', 'closed'] as const
