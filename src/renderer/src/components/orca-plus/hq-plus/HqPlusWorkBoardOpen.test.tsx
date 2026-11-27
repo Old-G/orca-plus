@@ -74,3 +74,29 @@ describe('board marks the chat open on the right (T5d)', () => {
     expect(css).toMatch(/\.hqw-board \.hqw-tr\[aria-current='true'\]\s*\{[^}]*outline: 2px solid/)
   })
 })
+
+describe('Router sticky (owner 27.11): «+ Chat» and «👾 Router» stay on top of the tree', () => {
+  it('both sit in the one pinned header, before the tree rows', () => {
+    const { container } = render(
+      <HqPlusWork
+        model={model}
+        actions={actions(null)}
+        board
+        newChat={<button type="button">+ Chat</button>}
+        pinned={<button type="button">Router</button>}
+      />
+    )
+    const pin = container.querySelector('.hqw-pin')
+    expect(pin?.textContent).toBe('+ ChatRouter')
+    expect(pin?.nextElementSibling?.classList.contains('hqw-run')).toBe(true)
+  })
+
+  it('the pinned header is sticky, and on a phone the board screen itself does not scroll', () => {
+    const router = readFileSync(join(__dirname, 'hq-plus-router.css'), 'utf8')
+    expect(router).toMatch(/\.hqw-pin\s*\{[^}]*position: sticky;[^}]*top: 0;/)
+    const board = readFileSync(join(__dirname, 'hq-plus-board.css'), 'utf8')
+    expect(board).toMatch(
+      /\.hq-plus:has\(> \.hqp-body\[data-board='true'\]\)\s*\{[^}]*overflow: clip;/
+    )
+  })
+})
