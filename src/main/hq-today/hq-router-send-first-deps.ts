@@ -37,6 +37,7 @@ function hqRouterSendFirstDeps(runtime: OrcaRuntimeService): HqRouterSendFirstDe
     rewriteOutcome: (key, input) => runtime.pulseRouter().rewriteAutoOutcome(key, input),
     reopenOutcome: (key, reason) => runtime.pulseRouter().reopenAutoOutcome(key, reason),
     unmarkAuto: (key) => runtime.pulseRouter().unmarkAutoRoute(key),
+    sentBefore: (key) => runtime.pulseRouter().autoSentTo(key),
     now: Date.now
   }
 }

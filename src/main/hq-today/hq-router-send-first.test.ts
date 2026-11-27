@@ -5,6 +5,7 @@ import { hqIntakeBellItem, type HqIntake } from '../../shared/hq-slack-intake'
 import type { PulseBellInput } from '../../shared/pulse-bell'
 import { PulseCore } from '../orca-plus/pulse/pulse-core'
 import {
+  autoSentTo,
   logChoice,
   reopenAutoOutcome,
   rewriteAutoOutcome,
@@ -12,7 +13,7 @@ import {
   unmarkAutoRoute
 } from '../orca-plus/pulse/pulse-router-outcomes'
 import { logRoute } from '../orca-plus/pulse/pulse-router-graph'
-import { hqIntakeWrongChat, hqRouterLogKey } from './hq-intake-close-route'
+import { hqIntakeSentClose, hqRouterLogKey } from './hq-intake-close-route'
 import { gateAndLogRoute, withSendFirst } from './hq-router-auto-gate'
 import {
   followNotMine,
@@ -100,6 +101,7 @@ function wired(c: PulseCore, turns: HqRouterFinishedTurn[] = [], refuse = new Se
     rewriteOutcome: (key, input) => rewriteAutoOutcome(c, key, input),
     reopenOutcome: (key, reason) => reopenAutoOutcome(c, key, reason),
     unmarkAuto: (key) => unmarkAutoRoute(c, key),
+    sentBefore: (key) => autoSentTo(c, key),
     now: () => now
   }
   return { deps, sent, tick: (ms: number) => (now += ms) }
@@ -144,10 +146,13 @@ describe('router v2 T5: the middle zone', () => {
     expect(out.sent).toEqual({ chat: 'a', title: 'A', at: NOW })
     expect(row(c, KEY)).toMatchObject({
       auto: 1,
-      outcome: 'auto',
+      outcome: 'sent-first',
       chosen: 'a',
       reason: 'send-first'
     })
+    // A poll that sent but never saved its card sends nothing the second time.
+    expect((await sendFirstCard(card(), deps)).sent).toMatchObject({ chat: 'a', title: 'A' })
+    expect(sent).toHaveLength(1)
 
     const c2 = core()
     logged(c2, route())
@@ -210,27 +215,60 @@ describe('router v2 T5: the middle zone', () => {
     const { deps } = wired(c)
     const sentCard = await sendFirstCard(card(), deps)
     const told: { chat: string; prompt: string }[] = []
-    const wrong = await hqIntakeWrongChat(sentCard, 'c', {
-      deliver: async (chat, prompt) => (told.push({ chat, prompt }), true),
-      rewriteOutcome: (key, input) => rewriteAutoOutcome(c, key, input),
-      now: NOW + 5_000
-    })
-    expect(wrong).toBe(true)
+    const close = (chat: string, intake = sentCard) =>
+      hqIntakeSentClose(intake, chat, {
+        deliver: async (to, prompt) => (told.push({ chat: to, prompt }), true),
+        rewriteOutcome: (key, input) => rewriteAutoOutcome(c, key, input),
+        now: NOW + 5_000
+      })
+    expect(await close('c')).toBe('wrong')
     expect(told).toHaveLength(1)
     expect(told[0].chat).toBe('a')
     expect(told[0].prompt).toContain('ignore the message')
     expect(row(c, KEY)).toMatchObject({ outcome: 'other', chosen: 'c', reason: 'wrong-chat' })
-    // «OK» (the same chat) and a card the router never sent change nothing.
-    const none: string[] = []
-    const deliver = async (chat: string) => (none.push(chat), true)
-    const rewrite = () => none.push('rewrite')
-    expect(
-      await hqIntakeWrongChat(sentCard, 'a', { deliver, rewriteOutcome: rewrite, now: NOW })
-    ).toBe(false)
-    expect(
-      await hqIntakeWrongChat(card(), 'c', { deliver, rewriteOutcome: rewrite, now: NOW })
-    ).toBe(false)
-    expect(none).toEqual([])
+    // «OK» is his word that the router's chat was right; a card the router never sent is not touched.
+    expect(await close('a')).toBe('ok')
+    expect(told).toHaveLength(1)
+    expect(row(c, KEY)).toMatchObject({ outcome: 'sent', chosen: 'a', reason: 'ok' })
+    expect(await close('c', card())).toBeNull()
+    expect(told).toHaveLength(1)
+  })
+
+  it('the T4 gate counts only the owner’s word: a send-first or a runner-up is not proof, «OK» and «Wrong chat» are', async () => {
+    const c = core()
+    const records = () => routerAutoRecords(c, 0).get('question')
+    const send = async (key: string) => {
+      gateAndLogRoute(
+        route({ how: 'question', autoClass: 'question' }),
+        {
+          mark: true,
+          settings: {},
+          router: {
+            autoRecords: (since) => routerAutoRecords(c, since),
+            logRoute: (entry) => logRoute(c, entry)
+          },
+          key
+        },
+        NOW
+      )
+      return sendFirstCard({ ...card(), ts: key.split(':')[2] }, wired(c).deps)
+    }
+    const owner = (key: string, chosen: string, reason: string) =>
+      rewriteAutoOutcome(c, key, { chosen, at: NOW, reason, by: 'owner' })
+    for (let i = 0; i < 3; i++) {
+      await send(`slack:C0AAAAAAAAA:1795000001.00000${i}`)
+    }
+    expect(records()).toBeUndefined()
+    rewriteAutoOutcome(c, 'slack:C0AAAAAAAAA:1795000001.000001', {
+      chosen: 'b',
+      at: NOW,
+      reason: 'not-mine',
+      by: 'router'
+    })
+    expect(records()).toEqual({ n: 1, right: 0 })
+    owner('slack:C0AAAAAAAAA:1795000001.000000', 'a', 'ok')
+    owner('slack:C0AAAAAAAAA:1795000001.000002', 'c', 'wrong-chat')
+    expect(records()).toEqual({ n: 3, right: 1 })
   })
 
   it('poll: a 👾 in the middle zone goes to №1 and its card stays up; «не моё» moves it in place; nothing goes to Slack', async () => {

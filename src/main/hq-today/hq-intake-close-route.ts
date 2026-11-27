@@ -30,24 +30,35 @@ export function hqIntakeCloseRoute(
 }
 
 /**
- * Router v2 T5 («Wrong chat»): the owner sent a card the router had sent by itself to another chat — the
- * chat that had it is told to ignore it, and the auto row's outcome becomes the owner's chat. «Send» to
- * the same chat (or a card the router did not send) changes nothing here. True when the chat was wrong.
+ * Router v2 T5: the owner closed a card the router had sent by itself. «OK» (the same chat) is his word
+ * that it went right; another chat is «Wrong chat» — the chat that had it is told to ignore it. Either
+ * way the auto row's outcome becomes his choice, which the T4 gate counts. Null for a card not sent so.
  */
-export async function hqIntakeWrongChat(
+export async function hqIntakeSentClose(
   intake: HqIntake,
   chat: string,
   deps: {
     deliver: (chat: string, prompt: string) => Promise<boolean>
-    rewriteOutcome: (key: string, input: { chosen: string; at: number; reason: string }) => void
+    rewriteOutcome: (
+      key: string,
+      input: { chosen: string; at: number; reason: string; by: 'owner' }
+    ) => void
     now: number
   }
-): Promise<boolean> {
+): Promise<'ok' | 'wrong' | null> {
   const sent = intake.sent
-  if (!sent || sent.chat === chat) {
-    return false
+  if (!sent) {
+    return null
   }
-  deps.rewriteOutcome(hqRouterLogKey(intake), { chosen: chat, at: deps.now, reason: 'wrong-chat' })
-  await deps.deliver(sent.chat, hqRouterIgnorePrompt(intake, sent.at)).catch(() => false)
-  return true
+  const wrong = sent.chat !== chat
+  deps.rewriteOutcome(hqRouterLogKey(intake), {
+    chosen: chat,
+    at: deps.now,
+    reason: wrong ? 'wrong-chat' : 'ok',
+    by: 'owner'
+  })
+  if (wrong) {
+    await deps.deliver(sent.chat, hqRouterIgnorePrompt(intake, sent.at)).catch(() => false)
+  }
+  return wrong ? 'wrong' : 'ok'
 }

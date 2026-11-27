@@ -21,8 +21,13 @@ export type HqRouterSendFirstDeps = {
   deliver: (chat: string, card: HqIntake) => Promise<boolean>
   /** Chats' finished turns since a moment, any order. */
   finishedTurns: (since: number) => readonly HqRouterFinishedTurn[]
-  /** The auto row's outcome: it went to `chosen` (send first or the runner-up). */
-  rewriteOutcome: (key: string, input: { chosen: string; at: number; reason: string }) => void
+  /** The auto row's outcome: the router sent it to `chosen` (send first or the runner-up). */
+  rewriteOutcome: (
+    key: string,
+    input: { chosen: string; at: number; reason: string; by: 'router' }
+  ) => void
+  /** The chat the log says the router already sent this card to (a send whose card was never saved). */
+  sentBefore: (key: string) => { chat: string; at: number } | null
   /** The card is back with the owner; the row is open again. */
   reopenOutcome: (key: string, reason: string) => void
   /** The send did not go; the row is not auto. */
@@ -40,13 +45,27 @@ export async function sendFirstCard(
   if (!route?.sendFirst || route.auto || route.target === 'new' || card.sent) {
     return card
   }
+  // Why (T5 review): a poll that sent but never saved the card must not send it twice.
+  const before = deps.sentBefore(logKey(card))
+  if (before) {
+    const title =
+      before.chat === route.target
+        ? route.targetTitle
+        : (route.alternatives.find((other) => other.sessionId === before.chat)?.title ?? null)
+    return { ...card, sent: { chat: before.chat, title, at: before.at } }
+  }
   const at = deps.now()
   const went = await deps.deliver(route.target, card).catch(() => false)
   if (!went) {
     deps.unmarkAuto(logKey(card))
     return { ...card, route: { ...route, sendFirst: false } }
   }
-  deps.rewriteOutcome(logKey(card), { chosen: route.target, at, reason: 'send-first' })
+  deps.rewriteOutcome(logKey(card), {
+    chosen: route.target,
+    at,
+    reason: 'send-first',
+    by: 'router'
+  })
   note?.(`sent first → ${route.target}`)
   return { ...card, sent: { chat: route.target, title: route.targetTitle, at } }
 }
@@ -106,8 +125,15 @@ export async function followNotMine(
         ? hqRouterNextChat(route.alternatives, refused, sent.chat)
         : null
     const at = deps.now()
-    if (next && (await deps.deliver(next.sessionId, card).catch(() => false))) {
-      deps.rewriteOutcome(logKey(card), { chosen: next.sessionId, at, reason: 'not-mine' })
+    // Why: a runner-up the log already names got it in a poll whose card was never saved.
+    const already = next ? deps.sentBefore(logKey(card))?.chat === next.sessionId : false
+    if (next && (already || (await deps.deliver(next.sessionId, card).catch(() => false)))) {
+      deps.rewriteOutcome(logKey(card), {
+        chosen: next.sessionId,
+        at,
+        reason: 'not-mine',
+        by: 'router'
+      })
       changed.set(key, { ...back, sent: { chat: next.sessionId, title: next.title, at } })
       continue
     }

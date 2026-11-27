@@ -5,7 +5,9 @@ import type { RouterClassStats } from '../../../shared/hq-router-stats'
 import type { PulseCore } from './pulse-core'
 import { taskOfTarget } from './pulse-router-graph'
 
-export type RouterOutcome = 'sent' | 'auto' | 'paste' | 'skipped' | 'gone'
+// Why 'sent-first' apart from 'auto' (T5 review): the middle zone's send is the router's guess, not the
+// owner's word — kept out of routerAutoRecords, so a gathering class never proves itself on its own sends.
+export type RouterOutcome = 'sent' | 'auto' | 'paste' | 'skipped' | 'gone' | 'sent-first'
 
 /**
  * How a card ended, once: sent / auto / paste take a chat (chosen); skipped and gone take a reason.
@@ -183,22 +185,24 @@ export function routerAutoRecords(
 }
 
 /**
- * Router v2 T5: where a card the router sent by itself really belongs — the chat it went to (send first),
- * the runner-up after «не моё», the chat the owner picked with «Wrong chat». Unlike logOutcome it rewrites
- * an outcome already written, but only on an auto row: «auto» when it is the offered chat, else «other».
+ * Router v2 T5: where a card the router sent by itself really belongs. `by: 'router'` — its own send
+ * (send first, the runner-up after «не моё»): «sent-first» on the offered chat, which the T4 gate does
+ * not count. `by: 'owner'` — his «OK» or «Wrong chat»: «sent» on the offered chat, which it does. Any
+ * other chat is «other». Unlike logOutcome it rewrites an outcome already written, on an auto row only.
  */
 export function rewriteAutoOutcome(
   core: PulseCore,
   key: string,
-  input: { chosen: string; at: number; reason: string }
+  input: { chosen: string; at: number; reason: string; by: 'router' | 'owner' }
 ): void {
   core.db
     .prepare(
-      "UPDATE router_log SET outcome = CASE WHEN target = ? THEN 'auto' ELSE 'other' END, outcome_at = ?, " +
+      "UPDATE router_log SET outcome = CASE WHEN target = ? THEN ? ELSE 'other' END, outcome_at = ?, " +
         'reason = ?, chosen = ?, chosen_at = ?, chosen_task = ? WHERE key = ? AND auto = 1'
     )
     .run(
       input.chosen,
+      input.by === 'owner' ? 'sent' : 'sent-first',
       input.at,
       input.reason,
       input.chosen,
@@ -206,6 +210,18 @@ export function rewriteAutoOutcome(
       taskOfTarget(core, input.chosen),
       key
     )
+}
+
+/** Router v2 T5: the chat the router itself last sent this card to, from the log — so a poll that sent
+ *  but never saved the card (a crash, a failed sync) does not send it again. */
+export function autoSentTo(core: PulseCore, key: string): { chat: string; at: number } | null {
+  const row = core.db
+    .prepare(
+      "SELECT chosen, chosen_at FROM router_log WHERE key = ? AND auto = 1 AND reason IN ('send-first', 'not-mine') " +
+        'AND chosen IS NOT NULL'
+    )
+    .get(key) as { chosen: string; chosen_at: number | null } | undefined
+  return row ? { chat: row.chosen, at: row.chosen_at ?? 0 } : null
 }
 
 /**
