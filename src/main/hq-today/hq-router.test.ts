@@ -62,12 +62,17 @@ describe('routeHqIntake', () => {
     expect(route).toMatchObject({ target: 'b', how: 'crumb', auto: false })
     expect(route.alternatives[0].sessionId).toBe('lead')
   })
-  it("the owner's earlier choice for the thread is sent by itself", async () => {
+  it("the owner's earlier choice for the thread is the thread-choice class", async () => {
     const route = await routeHqIntake(
       draft(),
       deps({ binding: () => ({ chat: 'a', source: 'choice' }) })
     )
-    expect(route).toMatchObject({ target: 'a', how: 'thread', auto: true })
+    expect(route).toMatchObject({
+      target: 'a',
+      how: 'thread',
+      auto: false,
+      autoClass: 'thread-choice'
+    })
   })
   it('a thread a chat only posted in (no owner choice) is a hint, never sent by itself', async () => {
     const route = await routeHqIntake(draft(), deps({ boundChat: () => 'a' }))

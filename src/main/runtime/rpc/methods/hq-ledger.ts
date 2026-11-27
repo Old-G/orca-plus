@@ -1,5 +1,6 @@
 // Custom build (hq-ledger-sources): the owner's word on a request-ledger conversation from its card in
 // HQ+ — «Done» on an MR or a mail thread no other card stands for.
+import { hqRouterAutoThresholds } from '../../../../shared/hq-router-auto'
 import { defineMethod } from '../core'
 import {
   HqAccuracyParams,
@@ -130,6 +131,10 @@ export const HQ_LEDGER_METHODS = [
 
     permission: 'workspace',
     params: HqAccuracyParams,
-    handler: (params, { runtime }) => runtime.pulseRouterStats(params.days ?? 30)
+    handler: (params, { runtime }) =>
+      runtime.pulseRouterStats(
+        params.days ?? 30,
+        hqRouterAutoThresholds(runtime.requireStore().getSettings().hqRouterAuto)
+      )
   })
 ]

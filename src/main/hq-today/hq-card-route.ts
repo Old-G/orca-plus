@@ -6,7 +6,8 @@ import type { HqIntakeDraft } from './hq-slack-intake-suggest'
 
 export type HqCardRouteDeps = {
   noteMark?: (key: string, outcome: string) => void
-  route?: (draft: HqIntakeDraft) => Promise<HqRoute | null>
+  /** `mark`: a 👾 — the one draft whose route may send by itself (router v2 T4). */
+  route?: (draft: HqIntakeDraft, opts?: { mark?: boolean }) => Promise<HqRoute | null>
   cardRoute?: (key: string) => { route: HqRoute | null; at: number; tries: number } | null
   saveCardRoute?: (key: string, route: HqRoute | null, at: number) => void
   now: () => number

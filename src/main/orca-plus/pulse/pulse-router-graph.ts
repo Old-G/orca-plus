@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS router_log (
   outcome_at INTEGER,
   reason TEXT,
   target_task TEXT,
-  chosen_task TEXT
+  chosen_task TEXT,
+  auto_class TEXT
 );
 CREATE TABLE IF NOT EXISTS router_card_routes (
   key TEXT PRIMARY KEY,
@@ -50,7 +51,9 @@ const ROUTER_LOG_OUTCOME_COLUMNS = [
   ['outcome_at', 'INTEGER'],
   ['reason', 'TEXT'],
   ['target_task', 'TEXT'],
-  ['chosen_task', 'TEXT']
+  ['chosen_task', 'TEXT'],
+  // Router v2 T4: the class of exact signal the route rested on; the auto gate counts by it.
+  ['auto_class', 'TEXT']
 ] as const
 
 export function ensureRouterLogColumns(db: {
@@ -299,13 +302,16 @@ export type RouterLogEntry = {
   /** The card's first three, best first. */
   top: readonly string[]
   auto: boolean
+  /** Router v2 T4: the route's class, when it rested on one. */
+  autoClass?: string | null
 }
 
 /** What the router offered for a card; a later route of the same card keeps the first. */
 export function logRoute(core: PulseCore, entry: RouterLogEntry): void {
   core.db
     .prepare(
-      'INSERT OR IGNORE INTO router_log (key, at, how, target, top, auto, target_task) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT OR IGNORE INTO router_log (key, at, how, target, top, auto, target_task, auto_class) ' +
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     )
     .run(
       entry.key,
@@ -314,7 +320,8 @@ export function logRoute(core: PulseCore, entry: RouterLogEntry): void {
       entry.target,
       JSON.stringify(entry.top),
       entry.auto ? 1 : 0,
-      taskOfTarget(core, entry.target)
+      taskOfTarget(core, entry.target),
+      entry.autoClass ?? null
     )
 }
 

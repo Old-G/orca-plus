@@ -12,6 +12,7 @@ import {
   type HqRouterChat,
   type HqRouterInput
 } from './hq-router'
+import { isHqRouterAutoClass, type HqRouterAutoClass } from './hq-router-auto'
 
 /** One line per candidate, as the model reads it. */
 export function hqRouterCandidateLine(chat: HqRouterChat, short: readonly HqRouterChat[]): string {
@@ -261,6 +262,9 @@ export function readHqRoute(raw: unknown): HqRoute | null {
       ).find((x) => x === how) ?? 'none',
     why,
     auto: Reflect.get(raw, 'auto') === true,
+    ...(isHqRouterAutoClass(Reflect.get(raw, 'autoClass'))
+      ? { autoClass: Reflect.get(raw, 'autoClass') as HqRouterAutoClass }
+      : {}),
     alternatives: (Array.isArray(alternatives) ? alternatives : []).flatMap((entry: unknown) => {
       if (!entry || typeof entry !== 'object') {
         return []

@@ -371,6 +371,6 @@ describe('router v2 T1: works', () => {
       linked: null,
       at: 20
     })
-    expect(crumb).toEqual({ chat: next, lead: null, chatTitle: 'W · export' })
+    expect(crumb).toEqual({ chat: next, lead: null, chatTitle: 'W · export', work })
   })
 })

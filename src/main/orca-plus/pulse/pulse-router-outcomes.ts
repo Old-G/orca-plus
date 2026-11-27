@@ -162,6 +162,26 @@ export function routerStats(core: PulseCore, since: number): RouterClassStats[] 
     .sort((a, b) => b.n - a.n || a.how.localeCompare(b.how))
 }
 
+/**
+ * Router v2 T4: per auto class, the cards decided since a moment — the owner sent, pasted or picked
+ * another chat, or the class sent it by itself — and how many went to the offered chat. A card sent by
+ * itself counts as right: nothing marks it wrong until T5's «Не туда», and without it a class that went
+ * auto would drop out once the owner's own decisions left the window.
+ */
+export function routerAutoRecords(
+  core: PulseCore,
+  since: number
+): Map<string, { n: number; right: number }> {
+  const rows = core.db
+    .prepare(
+      'SELECT auto_class, COUNT(*) AS n, SUM(CASE WHEN chosen = target THEN 1 ELSE 0 END) AS right ' +
+        "FROM router_log WHERE at >= ? AND auto_class IS NOT NULL AND chosen IS NOT NULL AND outcome IN ('sent', 'other', 'paste', 'auto') " +
+        'GROUP BY auto_class'
+    )
+    .all(since) as { auto_class: string; n: number; right: number | null }[]
+  return new Map(rows.map((row) => [row.auto_class, { n: row.n, right: row.right ?? 0 }]))
+}
+
 /** Where the owner sent the card in the end. */
 export function logChoice(core: PulseCore, key: string, chosen: string, at: number): void {
   core.db
