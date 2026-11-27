@@ -42,6 +42,11 @@ export async function startHqNewMarkChat(
   if (!(await deps.deliver(launched.sessionId, prompt).catch(() => false))) {
     return false
   }
-  deps.bind(intake, launched.sessionId)
+  // Why: the chat is running with the message in it; a binding that fails must not read as a failed start.
+  try {
+    deps.bind(intake, launched.sessionId)
+  } catch (error) {
+    console.warn('[hq-router] new-mark thread not bound', error)
+  }
   return true
 }

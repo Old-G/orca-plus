@@ -663,4 +663,17 @@ describe('T7: one message, one card; every To work card gets a route once', () =
     await pollHqSlackIntake(second.deps)
     expect(starts).toBe(1)
   })
+
+  it('28.11: two 🆕 marks in one thread each start their own chat', async () => {
+    const a = draft('1792630600.000100', { newMark: true, threadTs: '1792630600.000100' })
+    const b = draft('1792630650.000100', { newMark: true, threadTs: '1792630600.000100' })
+    const { deps } = setupNew([a, b])
+    const sent: string[] = []
+    deps.routerPreTrial = () => new Set()
+    deps.newMarkPreTrial = () => new Set()
+    deps.route = async () => hqRouteNewMark()
+    deps.autoSend = async (card) => (sent.push(card.ts), true)
+    await pollHqSlackIntake(deps)
+    expect(sent).toEqual([a.ts, b.ts])
+  })
 })

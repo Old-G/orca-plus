@@ -236,6 +236,9 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
       : [...cards.entries()].find(
           ([cardKey, card]) =>
             !handled.has(cardKey) &&
+            // Why (review 28.11): a 🆕 starts its own chat, so it never folds into another card, nor another in it.
+            !draft.newMark &&
+            !card.newMark &&
             (sameBurst(card, draft) || (!!deps.route && sameThread(card, draft)))
         )
     if (burst) {
@@ -268,7 +271,8 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
       // Why (owner 28.11): the model's only job for 🆕 is the project — the card's guess (none → HQ).
       const guess = known ?? (await deps.guess(draft))
       const placed = hqRouteNewMark(guess)
-      card = { ...(known ?? { ...draft, ...guess }), newMark: true, route: placed }
+      const { via: _via, ...base } = known ?? { ...draft, ...guess }
+      card = { ...base, newMark: true, route: placed }
       if (!known) {
         guessed += 1
       } else if (upgrade) {

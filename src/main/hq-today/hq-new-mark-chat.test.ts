@@ -64,6 +64,14 @@ describe('startHqNewMarkChat', () => {
       expect(d.bind).not.toHaveBeenCalled()
     }
   })
+  it('a binding that throws does not undo a started chat', async () => {
+    const d = deps({
+      bind: vi.fn(() => {
+        throw new Error('db')
+      })
+    })
+    expect(await startHqNewMarkChat(intake, d)).toBe(true)
+  })
   it('names the project in the first line, HQ-less cards use the workspace name', () => {
     expect(hqNewMarkPrompt(intake, 'acme')).toContain('(project acme)')
   })
