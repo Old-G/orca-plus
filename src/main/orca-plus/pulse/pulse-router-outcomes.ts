@@ -51,6 +51,13 @@ const WEEK_MS = 7 * 24 * 60 * 60_000
  * ends leaves an outcome. A row whose card never appears and is older than a week is `gone`.
  */
 export function reconcileRouterOutcomes(core: PulseCore, now: number): number {
+  // Why: a row made before outcomes has its choice but no outcome.
+  core.db
+    .prepare(
+      "UPDATE router_log SET outcome = CASE WHEN chosen = target THEN 'sent' ELSE 'other' END, " +
+        'outcome_at = chosen_at WHERE outcome IS NULL AND chosen IS NOT NULL'
+    )
+    .run()
   const open = core.db
     .prepare('SELECT key, at, target FROM router_log WHERE outcome IS NULL AND at > ?')
     .all(now - 30 * 24 * 60 * 60_000) as { key: string; at: number; target: string }[]
@@ -59,11 +66,13 @@ export function reconcileRouterOutcomes(core: PulseCore, now: number): number {
     const rest = row.key.replace(/^slack:/, '')
     const item = core.db
       .prepare(
-        'SELECT created_at, done_at, done_action FROM inbox WHERE dedupe_key IN (?, ?) ORDER BY created_at DESC LIMIT 1'
+        'SELECT created_at, done_at, done_action FROM inbox WHERE dedupe_key IN (?, ?) OR dedupe_key LIKE ? ORDER BY created_at DESC LIMIT 1'
       )
-      .get(`hq-intake:${rest}`, `router:${rest}`) as
-      | { created_at: number; done_at: number | null; done_action: string | null }
-      | undefined
+      .get(
+        `hq-intake:${rest}`,
+        `router:${rest}`,
+        `hq-intake:conv:%:${rest.slice(rest.lastIndexOf(':') + 1)}`
+      ) as { created_at: number; done_at: number | null; done_action: string | null } | undefined
     if (!item) {
       if (now - row.at > WEEK_MS + 24 * 60 * 60_000) {
         logOutcome(core, row.key, { outcome: 'gone', at: now, reason: 'card-missing' })
@@ -128,8 +137,11 @@ export function routerStats(core: PulseCore, since: number): RouterClassStats[] 
       stats.skipped += 1
     } else if (row.outcome === 'gone') {
       stats.gone += 1
-    } else if (!row.outcome || !row.chosen) {
+    } else if (!row.outcome) {
       stats.open += 1
+    } else if (!row.chosen) {
+      // Why: closed «sent» with no chat to compare — nothing to be right or wrong about.
+      stats.skipped += 1
     } else {
       stats.n += 1
       const chat = row.chosen === row.target

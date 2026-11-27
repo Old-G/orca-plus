@@ -227,7 +227,13 @@ describe('card routes (T7)', () => {
       item('hq-intake:C:auto', 100, 200, 'sent')
       item('router:C:skip', 100, 200, 'skipped')
       item('hq-intake:C:open1', 100, null, null)
-      expect(reconcileRouterOutcomes(c, 1_000)).toBe(4)
+      route(c, 'slack:C:conv1', 'thread', 'x')
+      item('hq-intake:conv:abc:conv1', 100, 200, 'sent')
+      route(c, 'slack:C:old', 'thread', 'x')
+      c.db.prepare("UPDATE router_log SET chosen = 'y' WHERE key = 'slack:C:old'").run()
+      expect(reconcileRouterOutcomes(c, 1_000)).toBe(5)
+      expect(outcomeOf(c, 'slack:C:conv1')).toMatchObject({ outcome: 'auto', chosen: 'x' })
+      expect(outcomeOf(c, 'slack:C:old')).toMatchObject({ outcome: 'other', chosen: 'y' })
       expect(outcomeOf(c, 'slack:C:gone1')).toMatchObject({
         outcome: 'gone',
         reason: 'mark-removed-or-message-gone'

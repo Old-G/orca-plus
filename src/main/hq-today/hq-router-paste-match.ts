@@ -42,6 +42,10 @@ export function hqRouterNotePaste(
   message: string,
   at: number
 ): void {
+  // Why: what Orca+ or another chat delivers carries the card's words too; only the owner's own paste counts.
+  if (/^\s*(Orca\+ ·|From |От лида)/.test(message)) {
+    return
+  }
   try {
     const cards = runtime.pulseListInbox(false, { kind: HQ_INTAKE_KIND }).flatMap((item) => {
       const intake = readHqIntake(item.refId)
