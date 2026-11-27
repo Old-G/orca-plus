@@ -4,6 +4,7 @@ import {
   HQ_INTAKE_KIND,
   HQ_NOTE_CARD_KEY_PREFIX,
   hqIntakeBellItem,
+  hqRouterNewMarkName,
   readHqIntake
 } from '../../shared/hq-slack-intake'
 import { HQ_JOURNAL_ALL_ROOMS } from '../../shared/hq-journal'
@@ -60,7 +61,15 @@ export function registerHqSlackIntake(
         const name = async (userId: string) =>
           people().find((person) => person.slackUserId === userId)?.name ??
           (await names.userName(userId))
-        return run(createSlackIntakeApi(token, owner, name, (userId) => names.isBot(userId)))
+        return run(
+          createSlackIntakeApi(
+            token,
+            owner,
+            name,
+            (userId) => names.isBot(userId),
+            hqRouterNewMarkName(store.getSettings())
+          )
+        )
       }),
     raised: () =>
       new Map(

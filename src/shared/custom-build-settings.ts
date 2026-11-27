@@ -82,6 +82,11 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqRouterPreTrial?: string[]
     /** Custom build (hq-router): an env file with `OPENROUTER_API_KEY`, when Orca+'s environment has none. */
     hqRouterKeyFile?: string | null
+    /** Custom build (hq-router two marks, 28.11): the Slack emoji name (no colons) of the second mark —
+     *  🆕 = new work, a new chat starts by itself. Unset = `new`; an empty string turns the mark off. */
+    hqRouterNewMark?: string
+    /** Custom build (hq-router two marks): the 🆕 marks already there when it first ran; never started. */
+    hqRouterNewPreTrial?: string[]
     /** Custom build (hq-router crumbs): footers carry the sending chat and the router reads them. Default on. */
     hqRouterCrumbs?: boolean
     /** Custom build (quiet-hours): no phone or Slack alerts but urgent ones; unset or null = off. */

@@ -45,6 +45,22 @@ export const HQ_ROUTER_RULES = [
   'weak match. A chat marked «done» finished its turn, «closed» has no tab: prefer an open chat that fits.'
 ].join(' ')
 
+/**
+ * The rules of the 👾 mark (owner 28.11): it means work already going, so the model is never offered
+ * «new» — a message that fits nothing becomes a card for the owner. New work is the 🆕 mark.
+ */
+export const HQ_ROUTER_RULES_ONGOING = [
+  "You route a message to one of an engineering manager's open AI chats: Leads (head chats that run a goal",
+  'and hand tasks to worker chats under them), workers, and plain chats. The message is a colleague’s Slack',
+  'message or thread, or text he pasted (often «X wrote: …», an answer to a question one of the chats asked).',
+  'It is about work that is already going, so it belongs to one of these chats.',
+  'Signals, strongest first: 1. A chat that waits on this person for exactly this question («waits:»).',
+  '2. The same task id (DEV-…), MR, ticket, PR or system named in the message and in the chat.',
+  '3. The chat whose current work the message is about. 4. A goal a Lead runs with no worker that fits —',
+  'that Lead. Pick the closest chat even when the match is weak.',
+  'A chat marked «done» finished its turn, «closed» has no tab: prefer an open chat that fits.'
+].join(' ')
+
 /** The Decisions API body: one `choice` over the candidates' numbers and `new`. */
 export function hqRouterJevBody(
   input: HqRouterInput,
@@ -55,11 +71,11 @@ export function hqRouterJevBody(
   short.forEach((chat, index) => {
     criteria[String(index + 1)] = hqRouterCandidateLine(chat, short)
   })
-  criteria[HQ_ROUTER_NEW] = 'No open chat fits: start a new chat in the right project.'
+  // Why (owner 28.11): 👾 is work already going; «new» is the 🆕 mark's, never offered here.
   return {
     model,
     state: { incoming: input.text.slice(0, 3_500), venue: input.venue, from: input.author },
-    questions: { target: { type: 'choice', instructions: HQ_ROUTER_RULES, criteria } }
+    questions: { target: { type: 'choice', instructions: HQ_ROUTER_RULES_ONGOING, criteria } }
   }
 }
 
@@ -106,7 +122,7 @@ export function hqRouterFallbackPrompt(
   short: readonly HqRouterChat[]
 ): string {
   return [
-    HQ_ROUTER_RULES,
+    HQ_ROUTER_RULES_ONGOING,
     '',
     'Open chats:',
     ...short.map((chat, index) => `[${index + 1}] ${hqRouterCandidateLine(chat, short)}`),
@@ -115,7 +131,7 @@ export function hqRouterFallbackPrompt(
     '"""',
     input.text.replace(/"{3,}/g, '″').slice(0, 3_500),
     '"""',
-    'Answer with JSON only: {"target": <chat number or "new">, "alternatives": [<up to 2 other numbers>]}'
+    'Answer with JSON only: {"target": <chat number>, "alternatives": [<up to 2 other numbers>]}'
   ].join('\n')
 }
 
@@ -178,6 +194,8 @@ export function hqRouteByModel(
       }
     )
   }
+  // Why (owner 28.11): the model never proposes «new» for a 👾; a `new` answer from an older model
+  // reads as no pick — the card asks the owner, who may start a chat by hand.
   const how: HqRouteHow = answer ? 'model' : short.length > 0 ? 'fallback' : 'none'
   return {
     target: HQ_ROUTER_NEW,
@@ -187,8 +205,10 @@ export function hqRouteByModel(
     level: 'new',
     how,
     why: answer
-      ? `${model}: no open chat fits${percent} — a new chat, or one of these two`
-      : 'No model answered — pick a chat',
+      ? `${model}: no open chat fits${percent} — pick a chat, or one of these two`
+      : short.length > 0
+        ? 'No model answered — pick a chat'
+        : 'No open chats — pick a chat or start a new one',
     auto: false,
     alternatives: others
       .filter((other, index) => others.indexOf(other) === index)
@@ -226,7 +246,7 @@ export function readHqRoute(raw: unknown): HqRoute | null {
     project: str(raw, 'project'),
     level: level === 'lead' || level === 'new' ? level : 'worker',
     how:
-      (['crumb', 'thread', 'question', 'ref', 'model', 'fallback'] as const).find(
+      (['crumb', 'thread', 'question', 'ref', 'model', 'fallback', 'new-mark'] as const).find(
         (x) => x === how
       ) ?? 'none',
     why,

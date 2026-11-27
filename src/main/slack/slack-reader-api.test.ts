@@ -71,6 +71,51 @@ describe('createSlackIntakeApi', () => {
     expect(requestMock).toHaveBeenCalledWith('xoxp-1', 'reactions.list', { full: true, limit: 100 })
   })
 
+  it('28.11: a 🆕 (named by the settings) marks new work; 👾 on the same message loses to it', async () => {
+    const items = [
+      { ts: '1792600010.000100', reactions: [{ name: 'new', users: ['UOWNER'] }] },
+      {
+        ts: '1792600011.000100',
+        reactions: [
+          { name: 'space_invader', users: ['UOWNER'] },
+          { name: 'new', users: ['UOWNER'] }
+        ]
+      },
+      { ts: '1792600012.000100', reactions: [{ name: 'space_invader', users: ['UOWNER'] }] },
+      { ts: '1792600013.000100', reactions: [{ name: 'new', users: ['U3'] }] }
+    ].map((message) => ({
+      type: 'message',
+      channel: 'C0AAAAAAAAA',
+      message: { ...message, user: 'U2', text: 'x' }
+    }))
+    requestMock.mockReset()
+    requestMock.mockResolvedValue({ ok: true, items })
+    const on = createSlackIntakeApi(
+      'xoxp-1',
+      'UOWNER',
+      async (id) => id,
+      async () => false,
+      'new'
+    )
+    expect((await on.marked()).drafts.map((d) => [d.ts, d.newMark === true])).toEqual([
+      ['1792600010.000100', true],
+      ['1792600011.000100', true],
+      ['1792600012.000100', false]
+    ])
+    const off = createSlackIntakeApi(
+      'xoxp-1',
+      'UOWNER',
+      async (id) => id,
+      async () => false,
+      null
+    )
+    expect((await off.marked()).drafts.map((d) => d.ts)).toEqual([
+      '1792600011.000100',
+      '1792600012.000100'
+    ])
+    requestMock.mockReset()
+  })
+
   it('says the read is partial when reactions run past the pages it reads', async () => {
     requestMock.mockReset()
     requestMock.mockResolvedValue({
