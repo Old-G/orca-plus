@@ -3,6 +3,7 @@
 import {
   HQ_SESSION_CONTINUE_BELOW_PCT,
   HQ_SESSION_LEAD_HANDOVER_GRACE_MS,
+  HQ_SESSION_LEAD_HANDOVER_MAX_MS,
   HQ_SESSION_OWNER_IN_MS,
   HQ_SESSION_QUIET_MS,
   type HqDispatchDecision,
@@ -217,7 +218,8 @@ export function decideHqLeadHandovers(input: HqLeadHandoverInput): HqLeadHandove
 
 /**
  * The old Lead closes once its chats moved, the grace is over, its turn has ended and it is not on the
- * owner's screen; until then the sweep asks again.
+ * owner's screen; until then the sweep asks again. Custom build (hq-handoff-once, owner 27.11): a turn
+ * that does not end within HQ_SESSION_LEAD_HANDOVER_MAX_MS no longer holds it open.
  */
 export function decideHqLeadClose(input: {
   session: HqLiveSession
@@ -227,11 +229,11 @@ export function decideHqLeadClose(input: {
   if (input.now - input.movedAt < HQ_SESSION_LEAD_HANDOVER_GRACE_MS) {
     return { close: false, why: 'its chats moved a moment ago' }
   }
-  if (input.session.midTurn) {
-    return { close: false, why: 'its turn has not ended' }
-  }
   if (input.session.onScreen) {
     return { close: false, why: 'the owner is looking at it' }
+  }
+  if (input.session.midTurn && input.now - input.movedAt < HQ_SESSION_LEAD_HANDOVER_MAX_MS) {
+    return { close: false, why: 'its turn has not ended' }
   }
   return { close: true }
 }

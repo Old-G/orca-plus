@@ -5,6 +5,10 @@ import type { HqDispatchDecision } from '../../shared/hq-sessions'
 import type { HqCaller } from '../hq-journal/hq-journal-rooms'
 import { hqNewChatPrompt } from './hq-session-prompts'
 import { hqWorkKey, type HqSessionJournal, type HqSessionsDeps } from './hq-session-journal'
+import { isHqNotDelivered } from '../hq-journal/hq-journal-send'
+
+/** Custom build (hq-handoff-once, owner 27.11): threads a new chat is being opened on right now. */
+const opening = new Set<string>()
 
 export type HqDispatchDone = {
   decision: HqDispatchDecision
@@ -70,6 +74,11 @@ export async function carryOutHqDispatch(
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
+      // Custom build (hq-handoff-once): a send that failed after the chat took the message (its record,
+      // a reopen that answered late) must not open a second chat with the same work.
+      if (!isHqNotDelivered(error)) {
+        throw error
+      }
       deps.log(`dispatch: ${decision.address} could not continue (${message}); opening a new chat`)
       decision = {
         kind: 'new',
@@ -80,6 +89,27 @@ export async function carryOutHqDispatch(
       }
     }
   }
+  // Custom build (hq-handoff-once): one thread, one new chat at a time — a sweep and an `orca hq
+  // dispatch` on the same thread would each open one.
+  if (opening.has(decision.address)) {
+    throw new Error(`A new chat on ${decision.address} is already opening.`)
+  }
+  opening.add(decision.address)
+  try {
+    return await openHqChat(deps, journal, decision, work, workspace, project)
+  } finally {
+    opening.delete(decision.address)
+  }
+}
+
+async function openHqChat(
+  deps: HqSessionsDeps,
+  journal: HqSessionJournal,
+  decision: Extract<HqDispatchDecision, { kind: 'new' }>,
+  work: string,
+  workspace: string,
+  project: string
+): Promise<HqDispatchDone> {
   const seed = decision.seedFrom ? deps.pulse.getSession(decision.seedFrom) : null
   const target = await deps.workspaceFor(project, seed?.worktreeId ?? null)
   if (!target) {

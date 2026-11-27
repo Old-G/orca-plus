@@ -26,6 +26,8 @@ export const HQ_CHAT_LINK_METHODS = [
       // it its thread, as Orca+'s own start does — the address, role, open questions and waitings — so
       // what is sent to the old chat reaches the new one and the old one is parked.
       if (params.handoff === true && params.sessionId !== caller) {
+        // Custom build (hq-handoff-once, owner 27.11): Orca+'s own start sees this one is under way.
+        getClaudeHandoffClaims().started(caller, params.sessionId)
         if (getHqThreads()?.handoff(caller, params.sessionId) !== true) {
           console.warn(
             `[hq-chat-links] handoff ${caller} → ${params.sessionId} not recorded: HQ+ is off or the old chat is unknown`

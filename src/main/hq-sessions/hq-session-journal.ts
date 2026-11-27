@@ -65,7 +65,15 @@ export type HqSessionsDeps = {
   nameChat: (sessionId: string, name: string) => Promise<void>
   deliver: (sessionId: string, prompt: string) => Promise<boolean>
   offers: () => readonly HqHandoffOfferRef[]
-  startHandoff: (offerId: string) => Promise<{ ok: true } | { ok: false; error: string }>
+  /** `skipped`: another start of the same handoff is under way or done — no failure. */
+  startHandoff: (
+    offerId: string
+  ) => Promise<{ ok: true } | { ok: false; error: string; skipped?: true }>
+  /**
+   * Custom build (hq-handoff-once, owner 27.11): the successor did not start by itself, and why; the
+   * owner's «New session» card shows only then.
+   */
+  handoffNotStarted?: (offerId: string, why: string) => void
   /** Custom build (hq-lead-handover, T2): the `Lead chat:` lines of the plans. */
   planLeads: () => Promise<readonly HqPlanLeadRef[]>
   /** The chat that started `sessionId` with `orca agent launch`; null when none did. */
@@ -74,7 +82,9 @@ export type HqSessionsDeps = {
   reassignLead: (
     from: string,
     to: string,
-    chats?: readonly string[]
+    chats?: readonly string[],
+    /** Custom build (hq-handoff-once): the old Lead is not told — the handover tells it to stop. */
+    quietOldLead?: boolean
   ) => Promise<{ ok: true; moved: number } | { ok: false; error: string }>
   /** Closes the chat's tab like the tab's ×; it stays in History. */
   closeChat: (sessionId: string, worktreeId: string | null) => Promise<boolean>

@@ -71,6 +71,11 @@ export type HqLeadReassignRequest = {
    *  team's move gives back, so the plans the new Lead led before stay its own. */
   plans?: readonly string[]
   dryRun?: boolean
+  /**
+   * Custom build (hq-handoff-once, owner 27.11): the sweep's Lead handover tells the old Lead itself to
+   * stop; the notice of each reassign woke it again and kept it working beside the new Lead.
+   */
+  quietOldLead?: boolean
 }
 
 export type HqLeadReassign = {
@@ -302,7 +307,10 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
         }
       }
       const toldOldLead =
-        from && notices.oldLead !== null && isOpen(live.get(from.sessionId))
+        from &&
+        notices.oldLead !== null &&
+        request.quietOldLead !== true &&
+        isOpen(live.get(from.sessionId))
           ? await deps.deliver(from.sessionId, notices.oldLead).catch(() => false)
           : false
 
