@@ -78,6 +78,40 @@ function History({
   )
 }
 
+export type HqPlusChatNav = {
+  canBack: boolean
+  canForward: boolean
+  onBack: () => void
+  onForward: () => void
+}
+
+function ChatNav({ nav }: { nav: HqPlusChatNav }): React.JSX.Element {
+  return (
+    <span className="hqp-ses-nav">
+      <button
+        type="button"
+        className="hqp-ses-nav-b"
+        disabled={!nav.canBack}
+        aria-label={translate('auto.hqPlus.session.back', 'Previous chat')}
+        title={translate('auto.hqPlus.session.back', 'Previous chat')}
+        onClick={nav.onBack}
+      >
+        ←
+      </button>
+      <button
+        type="button"
+        className="hqp-ses-nav-b"
+        disabled={!nav.canForward}
+        aria-label={translate('auto.hqPlus.session.forward', 'Next chat')}
+        title={translate('auto.hqPlus.session.forward', 'Next chat')}
+        onClick={nav.onForward}
+      >
+        →
+      </button>
+    </span>
+  )
+}
+
 export function HqPlusChatSession({
   item,
   role = null,
@@ -85,7 +119,8 @@ export function HqPlusChatSession({
   status,
   color,
   siblings,
-  onPick
+  onPick,
+  nav
 }: {
   item: HqChatItem
   /** Custom build (hq-chat-roles): the role it was launched with, before its title. */
@@ -96,6 +131,8 @@ export function HqPlusChatSession({
   /** The project's chats open as tabs, this one included. */
   siblings: readonly HqChatItem[]
   onPick: (item: HqChatItem) => void
+  /** Custom build (hq-session-history, owner 27.11): ← / → through the chats opened in this app run. */
+  nav?: HqPlusChatNav
 }): React.JSX.Element {
   const title = hqPlusRoleTitle(useHqChatTitle(item), role)
   const [history, setHistory] = useState(false)
@@ -107,6 +144,7 @@ export function HqPlusChatSession({
   return (
     <div className="hqp-chat flex h-full min-h-0 flex-col">
       <div className="hqp-ses-h">
+        {nav ? <ChatNav nav={nav} /> : null}
         <span className="hqp-tile" style={tileStyle(tile.color)} aria-hidden="true">
           {tile.letters}
         </span>
