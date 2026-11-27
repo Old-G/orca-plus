@@ -60,7 +60,7 @@ describe('router refs', () => {
 })
 
 describe('router signals', () => {
-  it('a crumb wins, then a bound thread (the only one sent by itself), then a named task', () => {
+  it('a crumb wins, then a bound thread, then a named task', () => {
     const chats = [
       chat('a', { title: 'Export' }),
       chat('b', { taskRef: 'DEV-1234' }),
@@ -76,7 +76,8 @@ describe('router signals', () => {
     expect(hqRouteBySignals(input({ chats, boundChat: 'b', boundByChoice: true }))).toMatchObject({
       target: 'b',
       how: 'thread',
-      auto: true
+      auto: false,
+      autoClass: 'thread-choice'
     })
     const byRef = hqRouteBySignals(input({ chats, text: 'about DEV-1234' }))
     expect(byRef).toMatchObject({ target: 'b', how: 'ref', auto: false })
@@ -90,12 +91,12 @@ describe('router signals', () => {
       hqRouteBySignals(
         input({ chats, boundChat: 'a', boundByChoice: true, text: 'also DEV-1234 please' })
       )
-    ).toMatchObject({ target: 'a', how: 'thread', auto: false })
+    ).toMatchObject({ target: 'a', how: 'thread', auto: false, autoClass: null })
     expect(
       hqRouteBySignals(
         input({ chats, boundChat: 'b', boundByChoice: true, text: 'also DEV-1234 please' })
       )
-    ).toMatchObject({ target: 'b', how: 'thread', auto: true })
+    ).toMatchObject({ target: 'b', how: 'thread', auto: false, autoClass: 'thread-choice' })
   })
 
   it('a crumb whose chat closed goes to its Lead and says so', () => {
@@ -265,5 +266,79 @@ describe('router model step', () => {
     const route = hqRouteByModel(input(), short, { pick: 'a', ranked: [], confidence: 0.5 }, 'Jev')
     expect(readHqRoute(JSON.parse(JSON.stringify(route)))).toEqual(route)
     expect(readHqRoute({ target: 'a' })).toBeNull()
+  })
+})
+
+describe('router v2 T4: auto classes on the signals', () => {
+  it('each exact signal names its class, and none sends by itself before the gate', () => {
+    const chats = [
+      chat('a', { taskRef: 'DEV-1234' }),
+      chat('b', { waitsOnAuthor: ['Is the export ready?'] }),
+      chat('lead', { role: 'lead' })
+    ]
+    const byWork = hqRouteBySignals(
+      input({ chats, crumb: { chat: 'a', lead: 'lead', chatTitle: 'A', work: 'w1' } })
+    )
+    expect(byWork).toMatchObject({ how: 'crumb', autoClass: 'work-crumb', auto: false })
+    // A crumb with no work id (a sender's crumb) and a closed work's Lead are no class.
+    expect(
+      hqRouteBySignals(input({ chats, crumb: { chat: 'a', lead: null, chatTitle: 'A' } }))
+    ).toMatchObject({ how: 'crumb', autoClass: null })
+    expect(
+      hqRouteBySignals(
+        input({ chats, crumb: { chat: null, lead: 'lead', chatTitle: 'A', work: 'w1' } })
+      )
+    ).toMatchObject({ target: 'lead', how: 'crumb', autoClass: null })
+    expect(hqRouteBySignals(input({ chats }))).toMatchObject({
+      target: 'b',
+      how: 'question',
+      autoClass: 'question',
+      auto: false
+    })
+  })
+
+  it('single-ref: one DEV / MR named, one live work carries it (its Lead may too)', () => {
+    const lead = chat('lead', { role: 'lead', taskRef: 'DEV-1234' })
+    const worker = chat('a', { taskRef: 'DEV-1234', leadId: 'lead' })
+    const other = chat('c', { lastReport: 'DEV-1234 review' })
+    const closed = chat('d', { taskRef: 'DEV-1234', state: 'closed' })
+    const route = (chats: HqRouterChat[], text = 'about DEV-1234') =>
+      hqRouteBySignals(input({ chats, text }))
+    expect(route([worker, lead])).toMatchObject({ target: 'a', autoClass: 'single-ref' })
+    expect(route([worker, closed])).toMatchObject({ target: 'a', autoClass: 'single-ref' })
+    expect(route([worker, other])).toMatchObject({ target: 'a', how: 'ref', autoClass: null })
+    expect(route([worker], 'DEV-1234 and !42')).toMatchObject({ how: 'ref', autoClass: null })
+    expect(route([worker], 'DEV-1234 on feat/new-export')).toMatchObject({ autoClass: null })
+    expect(route([closed], 'about DEV-1234')).toMatchObject({ target: 'd', autoClass: null })
+  })
+
+  it("topic: the author's one open topic; several topics are the model's and have none", () => {
+    const chats = [chat('a'), chat('b')]
+    const topic = (id: string) => ({
+      chat: id,
+      work: id,
+      text: 'q',
+      at: 1,
+      source: 'message' as const
+    })
+    expect(hqRouteBySignals(input({ chats, topics: [topic('a')] }))).toMatchObject({
+      how: 'topic',
+      autoClass: 'topic'
+    })
+    expect(hqRouteBySignals(input({ chats, topics: [topic('a'), topic('b')] }))).toBeNull()
+  })
+
+  it('a model pick has no class, whatever its confidence', () => {
+    const short = [chat('a'), chat('b')]
+    const picked = hqRouteByModel(
+      input(),
+      short,
+      { pick: 'a', ranked: [], confidence: 0.99 },
+      'Jev'
+    )
+    expect(picked.autoClass ?? null).toBeNull()
+    expect(picked.auto).toBe(false)
+    expect(readHqRoute({ ...picked, autoClass: 'topic' })?.autoClass).toBe('topic')
+    expect(readHqRoute({ ...picked, autoClass: 'model' })?.autoClass).toBeUndefined()
   })
 })

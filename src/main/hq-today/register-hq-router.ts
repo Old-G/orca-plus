@@ -13,6 +13,7 @@ import {
   type HqIntake
 } from '../../shared/hq-slack-intake'
 import type { HqRoute } from '../../shared/hq-router'
+import { gateAndLogRoute } from './hq-router-auto-gate'
 import { readHqRoute } from '../../shared/hq-router-model'
 import { hqChatTabIds } from '../hq-sessions/hq-session-live'
 import { hqRouterChats } from './hq-router-chats'
@@ -84,7 +85,7 @@ export function hqRouterIntakeDeps(
   if (!on()) {
     return {}
   }
-  const route = (draft: HqIntakeDraft): Promise<HqRoute | null> => {
+  const route = (draft: HqIntakeDraft, opts?: { mark?: boolean }): Promise<HqRoute | null> => {
     const settings = store.getSettings()
     if ((settings.hqRouter ?? 'trial') === 'off') {
       return Promise.resolve(null)
@@ -148,17 +149,14 @@ export function hqRouterIntakeDeps(
       crumbs: settings.hqRouterCrumbs !== false,
       now: Date.now
     })
-    return routed.then((done) => {
-      router.logRoute({
-        key: hqRouterLogKey(draft),
-        at: Date.now(),
-        how: done.how,
-        target: done.target,
-        top: [done.target, ...done.alternatives.map((other) => other.sessionId)].slice(0, 3),
-        auto: done.auto
+    return routed.then((done) =>
+      gateAndLogRoute(done, {
+        mark: opts?.mark === true,
+        settings,
+        router,
+        key: hqRouterLogKey(draft)
       })
-      return done
-    })
+    )
   }
   return {
     route,

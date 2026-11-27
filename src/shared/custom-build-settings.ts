@@ -89,6 +89,10 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqRouterNewPreTrial?: string[]
     /** Custom build (hq-router crumbs): footers carry the sending chat and the router reads them. Default on. */
     hqRouterCrumbs?: boolean
+    /** Custom build (hq-router auto classes, router v2 T4): a 👾 route class sends by itself once the router
+     *  log of the last `days` holds at least `minN` decided cards of it and `minRight` (0..1) of them went
+     *  to the offered chat. Unset fields = 30 cards, 0.98, 30 days. */
+    hqRouterAuto?: { minN?: number; minRight?: number; days?: number } | null
     /** Custom build (quiet-hours): no phone or Slack alerts but urgent ones; unset or null = off. */
     orcaPlusQuietHours?: OrcaPlusQuietHours | null
   }

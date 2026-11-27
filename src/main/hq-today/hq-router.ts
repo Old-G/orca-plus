@@ -138,7 +138,7 @@ export async function routeHqIntake(draft: HqIntakeDraft, deps: HqRouterDeps): P
       ? null
       : binding?.source === 'approve'
         ? binding.task && deps.workTarget
-          ? deps.workTarget(binding.task)
+          ? { ...deps.workTarget(binding.task), work: binding.task }
           : { chat: binding.chat, lead: deps.leadOf?.(binding.chat) ?? null, chatTitle: null }
         : deps.crumb({
             footers,

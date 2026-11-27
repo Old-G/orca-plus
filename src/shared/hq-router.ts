@@ -1,8 +1,8 @@
 // Custom build (hq-router, plan router T1, owner 26.11): where a message the owner marked with 👾 (or
 // pasted as a link) goes, and why — exact signals in code first (a footer breadcrumb, a thread already
 // bound to a chat, a task / MR / branch the message names), then one model choice over eight open
-// chats. The card says why in words the code writes, never the model. In the trial only a bound thread
-// is sent without the owner's «Send». No runtime imports: the offline eval runs this file as it is.
+// chats. The card says why in words the code writes, never the model. Auto sends: hq-router-auto.
+import { hqRouterSingleLiveWork, type HqRouterAutoClass } from './hq-router-auto'
 import type { HqRouterCrumb } from './hq-router-crumb'
 import type { HqSessionState } from './hq-journal'
 
@@ -85,7 +85,7 @@ export type HqRouterInput = {
   crumb: HqRouterCrumb | null
   /** The chat this thread was already sent to; its live successor. */
   boundChat: string | null
-  /** The owner's own «Send» bound the thread (router_bindings 'choice'): the one route sent by itself.
+  /** The owner's own «Send» bound the thread (router_bindings 'choice'): the thread-choice class.
    *  A chat that only posted in the thread or was guessed to work on it is a hint, never auto. */
   boundByChoice?: boolean
   /** Chats the owner sent this author's messages to before, newest first. */
@@ -121,8 +121,9 @@ export type HqRoute = {
   how: HqRouteHow
   /** Code-written, for the card: what the choice rests on. */
   why: string
-  /** Sent without the owner's «Send» — only a bound thread in the trial. */
+  /** Sent without the owner's «Send»: a 🆕, or a class the router log has proved (router v2 T4). */
   auto: boolean
+  autoClass?: HqRouterAutoClass | null // T4: the exact signal's class; a model's pick has none
   /** Two other open chats, best first (a «new» pick always shows them). */
   alternatives: {
     sessionId: string
@@ -271,12 +272,15 @@ function withLead(chat: HqRouterChat, chats: readonly HqRouterChat[]): HqRouterC
 }
 
 /**
- * The exact signals, strongest first; null when none fits and the model chooses. A bound thread is
- * the one route sent without the owner's «Send».
+ * The exact signals, strongest first; null when none fits and the model chooses. Each names its auto
+ * class (T4); whether it sends by itself is the gate's call (hq-router-auto-gate), not this one's.
  */
 export function hqRouteBySignals(input: HqRouterInput): HqRoute | null {
   const byId = new Map(input.chats.map((chat) => [chat.sessionId, chat]))
   const short = hqRouterShortlist(input)
+  const hits = hqRouterRefMatches(input.text, input.chats)
+  // Why (T4): a text naming another chat's task is a hint the talk moved on — no class, he confirms by hand.
+  const namesOther = (id: string): boolean => hits.some((hit) => hit.chat.sessionId !== id)
   if (input.crumb) {
     const chat = input.crumb.chat ? byId.get(input.crumb.chat) : undefined
     const lead = input.crumb.lead ? byId.get(input.crumb.lead) : undefined
@@ -287,25 +291,24 @@ export function hqRouteBySignals(input: HqRouterInput): HqRoute | null {
       const why = chat
         ? `Breadcrumb: ${quote(pick.title)} sent the message they answer`
         : `Breadcrumb: ${input.crumb.chatTitle ? quote(input.crumb.chatTitle) : 'the work'} is closed; its Lead ${quote(pick.title)}`
-      return routeTo(pick, 'crumb', why, others)
+      const work = chat && input.crumb.work && !namesOther(chat.sessionId) ? 'work-crumb' : null
+      return routeTo(pick, 'crumb', why, others, { autoClass: work })
     }
   }
   const bound = input.boundChat ? byId.get(input.boundChat) : undefined
   if (bound) {
-    // Why: a reply naming another task's ref is a hint the thread moved on — he confirms it by hand.
-    const namesOther = hqRouterRefMatches(input.text, input.chats).some(
-      (hit) => hit.chat.sessionId !== bound.sessionId
-    )
     return routeTo(bound, 'thread', `This thread already went to ${quote(bound.title)}`, short, {
-      auto: input.boundByChoice === true && !namesOther
+      autoClass:
+        input.boundByChoice === true && !namesOther(bound.sessionId) ? 'thread-choice' : null
     })
   }
   const asking = input.chats.filter((chat) => chat.waitsOnAuthor.length > 0)
   if (asking.length === 1) {
     const [chat] = asking
-    return routeTo(chat, 'question', `We asked them: ${quote(chat.waitsOnAuthor[0])}`, short)
+    const asked = `We asked them: ${quote(chat.waitsOnAuthor[0])}`
+    const autoClass = namesOther(chat.sessionId) ? null : 'question'
+    return routeTo(chat, 'question', asked, short, { autoClass })
   }
-  const hits = hqRouterRefMatches(input.text, input.chats)
   if (hits.length > 0) {
     // Why the worker over its Lead: the chat started for the task is the one doing it; an open one first.
     const sorted = [...hits].sort(
@@ -321,7 +324,9 @@ export function hqRouteBySignals(input: HqRouterInput): HqRoute | null {
       ...short
     ]
     const more = hits.length > 1 ? ` (${hits.length - 1} more chats name it)` : ''
-    return routeTo(chat, 'ref', `${ref} is ${quote(chat.title)}'s work${more}`, others)
+    return routeTo(chat, 'ref', `${ref} is ${quote(chat.title)}'s work${more}`, others, {
+      autoClass: hqRouterSingleLiveWork(hqRouterRefs(input.text), chat, hits) ? 'single-ref' : null
+    })
   }
   const topics = hqRouterOpenTopics(input)
   if (topics.length === 1) {
@@ -333,7 +338,8 @@ export function hqRouteBySignals(input: HqRouterInput): HqRoute | null {
       chat,
       'topic',
       `${input.author}'s one open topic is ${quote(chat.title)}${said}`,
-      short
+      short,
+      { autoClass: 'topic' }
     )
   }
   return null
