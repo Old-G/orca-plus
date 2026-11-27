@@ -3717,3 +3717,33 @@ button.hqp-chat-name[data-opens='true']:hover {
 .hqp-part-acts .hqp-cb {
   padding: 0;
 }
+
+/* Custom build (hq-session-history, owner 27.11): ← / → at the head of Session, like a browser's. Greyed at
+   either end of the history; 30px squares so a finger hits them on the phone. */
+.hqp-ses-nav {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+}
+.hqp-ses-nav-b {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--hqp-line-2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--hqp-ice);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.hqp-ses-nav-b:hover:not(:disabled) {
+  background: var(--hqp-soft-2);
+}
+.hqp-ses-nav-b:disabled {
+  border-color: var(--hqp-line);
+  color: var(--hqp-faint);
+  opacity: 0.5;
+  cursor: default;
+}
