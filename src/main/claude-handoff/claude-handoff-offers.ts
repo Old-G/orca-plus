@@ -50,6 +50,8 @@ export type ClaudeHandoffOffers = {
   /** The offer with its file as it is now; null when either is gone. The offer stays listed. */
   resolve: (id: string) => Promise<{ offer: ClaudeHandoffOffer; file: ClaudeHandoffFile } | null>
   dismiss: (id: string) => void
+  /** Custom build (hq-handoff-once): the auto-start did not start it; the offer now shows, with why. */
+  markNotStarted: (id: string, why: string) => void
   /**
    * Whether the session wrote its handoff in the turn that stopped at `stoppedAt` — a turn cut off
    * by a usage limit ends without the `done` this module otherwise listens for. Raises the offer
@@ -262,6 +264,13 @@ export function createClaudeHandoffOffers(deps: ClaudeHandoffOfferDeps): ClaudeH
         deps.handled?.add(offerKey(offer.sessionId, offer.created))
       }
       if (offers.delete(id)) {
+        publish()
+      }
+    },
+    markNotStarted: (id, why) => {
+      const offer = offers.get(id)
+      if (offer && offer.autoStartError !== why) {
+        offers.set(id, { ...offer, autoStartError: why })
         publish()
       }
     },

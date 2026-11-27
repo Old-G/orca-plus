@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { HQ_JOURNAL_KIND, type HqJournalInput } from '../../shared/hq-journal'
 import type { HqLiveSession, HqSessionDispatchMode } from '../../shared/hq-sessions'
 import { PulseDb } from '../orca-plus/pulse/pulse-db'
+import { HqNotDeliveredError } from '../hq-journal/hq-journal-send'
 import { createHqSessions, type HqHandoffOfferRef, type HqSessionsService } from './hq-sessions'
 
 const MIN = 60_000
@@ -16,7 +17,7 @@ let journalOn: boolean
 let live: HqLiveSession[]
 let offers: HqHandoffOfferRef[]
 let sent: { address: string; text: string }[]
-let sendFails: boolean
+let sendFails: boolean | 'after-delivery'
 let limitFails: boolean
 let launched: string[]
 let delivered: { sessionId: string; prompt: string }[]
@@ -26,7 +27,11 @@ let handoffs: string[]
 let planLines: { file: string; current: string[]; was: string[]; text?: string }[]
 let launchParents: Record<string, string>
 let reassigns: { from: string; to: string }[]
+let quiet: (boolean | undefined)[]
 let reassignFails: boolean
+let startResult: { ok: true } | { ok: false; error: string; skipped?: true }
+let startThrows = false
+let notStarted: { id: string; why: string }[]
 let closed: string[]
 let detaches: string[]
 let service: HqSessionsService
@@ -108,7 +113,11 @@ beforeEach(() => {
   planLines = []
   launchParents = {}
   reassigns = []
+  quiet = []
   reassignFails = false
+  startResult = { ok: true }
+  startThrows = false
+  notStarted = []
   closed = []
   detaches = []
   service = createHqSessions({
@@ -126,8 +135,11 @@ beforeEach(() => {
     },
     live: async () => live,
     send: async (_caller, message) => {
+      if (sendFails === 'after-delivery') {
+        throw new Error('The message was delivered but not recorded.')
+      }
       if (sendFails) {
-        throw new Error('the chat is closed')
+        throw new HqNotDeliveredError('the chat is closed')
       }
       sent.push(message)
       const [entry] = db.listJournal({ limit: 1 })
@@ -151,11 +163,16 @@ beforeEach(() => {
     offers: () => offers,
     startHandoff: async (offerId) => {
       handoffs.push(offerId)
-      return { ok: true }
+      if (startThrows) {
+        throw new Error('resolve failed')
+      }
+      return startResult
     },
+    handoffNotStarted: (id, why) => notStarted.push({ id, why }),
     planLeads: async () => planLines,
     launchedBy: (sessionId) => launchParents[sessionId] ?? null,
-    reassignLead: async (from, to) => {
+    reassignLead: async (from, to, _chats, quietOldLead) => {
+      quiet.push(quietOldLead)
       if (reassignFails) {
         return { ok: false, error: 'boom' }
       }
@@ -300,6 +317,36 @@ describe('HQ+ session dispatcher', () => {
     expect(rows(HQ_JOURNAL_KIND.sessionQueued)[0]?.status).toBe('done')
   })
 
+  // Custom build (hq-handoff-once, owner 27.11): the message may be in the chat already.
+  it('opens no new chat when the send failed after the chat took the message', async () => {
+    db.recordJournal([report('claude_old', clock - 2 * HOUR, 'Refund cap drafted')])
+    live = [chat()]
+    noteOld(clock - 2 * HOUR)
+    sendFails = 'after-delivery'
+    await expect(
+      service.dispatch({ cwd: '/w/api' }, { address: 'acme-api/refunds', prompt: 'Ship it' })
+    ).rejects.toThrow('delivered but not recorded')
+    expect(launched).toEqual([])
+  })
+
+  it('opens one new chat on a thread when two dispatches race (hq-handoff-once)', async () => {
+    db.recordJournal([report('claude_old', clock - 2 * HOUR, 'Refund cap drafted')])
+    live = [chat({ contextPct: 70 })]
+    noteOld(clock - 2 * HOUR)
+    const both = await Promise.allSettled([
+      service.dispatch({ cwd: '/w/api' }, { address: 'acme-api/refunds', prompt: 'A' }),
+      service.dispatch({ cwd: '/w/api' }, { address: 'acme-api/refunds', prompt: 'B' })
+    ])
+    expect(launched).toHaveLength(1)
+    // The second piece of work waits for the new chat instead of being dropped.
+    expect(both.map((result) => result.status)).toEqual(['fulfilled', 'fulfilled'])
+    const decisions = both.map((result) =>
+      result.status === 'fulfilled' ? result.value.decision?.kind : null
+    )
+    expect(decisions.sort()).toEqual(['new', 'queue'])
+    expect(rows(HQ_JOURNAL_KIND.sessionQueued)).toHaveLength(1)
+  })
+
   it('lets a chat of another room hand work to a thread', async () => {
     live = [chat()]
     const sent = await service.dispatch(
@@ -362,6 +409,31 @@ describe('HQ+ session dispatcher', () => {
       offers = [offer({ id: 'h2', sessionId: 'claude_two' })]
       await service.sweep({ run: true })
       expect(handoffs).toEqual(['h1', 'h2'])
+    })
+
+    // Custom build (hq-handoff-once, owner 27.11): the owner's «New session» card is the fallback only.
+    it('shows the owner the offer only when the start failed, not when it was a duplicate', async () => {
+      offers = [offer()]
+      startResult = {
+        ok: false,
+        error: 'This chat is already continued in claude_new.',
+        skipped: true
+      }
+      await service.sweep({ run: true })
+      expect(notStarted).toEqual([])
+      startResult = { ok: false, error: 'no host' }
+      await service.sweep({ run: true })
+      expect(notStarted).toEqual([{ id: 'h1', why: 'no host' }])
+      offers = [offer({ id: 'h2', limitStopped: true })]
+      await service.sweep({ run: true })
+      expect(notStarted.at(-1)).toMatchObject({ id: 'h2', why: expect.stringContaining('limit') })
+    })
+
+    it('shows the owner the offer when the start threw', async () => {
+      offers = [offer()]
+      startThrows = true
+      await service.sweep({ run: true })
+      expect(notStarted).toEqual([{ id: 'h1', why: 'resolve failed' }])
     })
 
     it('two sweeps at once start it once', async () => {
@@ -579,18 +651,40 @@ describe('HQ+ session dispatcher', () => {
       expect(closed).toEqual([])
     })
 
-    it('with the switch off and the dispatcher off, only lists it; in report mode notes it once', async () => {
+    it('with the switch off and the dispatcher off, only lists it; in report mode carries it out', async () => {
       auto = false
       const listed = await service.sweep({ run: true })
       expect(listed.actions.some((a) => a.kind === 'lead-handover')).toBe(true)
       expect(reassigns).toEqual([])
+      // Custom build (hq-handoff-once, owner 27.11): a note in the plan left two Leads on one plan.
       mode = 'report'
       await service.sweep({ run: true })
       await service.sweep({ run: true })
-      expect(reassigns).toEqual([])
-      expect(
-        rows(HQ_JOURNAL_KIND.sessionPlan).filter((r) => r.title.includes('close'))
-      ).toHaveLength(1)
+      expect(reassigns).toEqual([{ from: 'claude_lead1', to: 'claude_lead2' }])
+    })
+
+    // Custom build (hq-handoff-once, owner 27.11): the old Lead kept working beside the new one.
+    it('tells a working old Lead to stop once, quietly moves its chats, and closes it by a timeout', async () => {
+      const busy = () => ({ ...oldLead(), midTurn: true, state: 'working' as const })
+      live = [busy(), newLead()]
+      await service.sweep({ run: true })
+      expect(quiet).toEqual([true, true])
+      const stops = delivered.filter((d) => d.sessionId === 'claude_lead1')
+      expect(stops).toHaveLength(1)
+      expect(stops[0].prompt).toContain('no longer the Lead')
+      expect(stops[0].prompt).toContain('acme-api/lead-plan-2')
+      clock += 5 * MIN
+      await service.sweep({ run: true })
+      expect(closed).toEqual([])
+      expect(delivered.filter((d) => d.sessionId === 'claude_lead1')).toHaveLength(1)
+      clock += 6 * MIN
+      await service.sweep({ run: true })
+      expect(closed).toEqual(['claude_lead1'])
+    })
+
+    it('does not wake an old Lead whose turn has ended', async () => {
+      await service.sweep({ run: true })
+      expect(delivered.filter((d) => d.sessionId === 'claude_lead1')).toEqual([])
     })
 
     it('does nothing with the journal off, and when the plans cannot be read', async () => {
