@@ -30,3 +30,30 @@ describe('createClaudeHandoffClaims', () => {
     expect(claims.claimForAgent('claude_a')).toEqual({ taken: false })
   })
 })
+
+// Custom build (hq-handoff-once, owner 27.11): what the journal knows outlives the in-memory claims.
+describe('one handoff, one new chat (hq-handoff-once)', () => {
+  it('turns Orca+ away once the chat’s own start is in the journal, after its claim lapsed', () => {
+    let clock = 0
+    const continued = new Map<string, { to: string; at: number }>()
+    const claims = createClaudeHandoffClaims(
+      () => clock,
+      () => (from, since) => {
+        const hit = continued.get(from)
+        return hit && hit.at >= since ? hit.to : null
+      }
+    )
+    expect(claims.claimForAgent('claude_a')).toEqual({ taken: false })
+    continued.set('claude_a', { to: 'claude_b', at: clock })
+    // 27.11 00:07 → 00:09: the 2-minute claim lapsed and Orca+ started a second chat.
+    clock += 3 * 60_000
+    expect(claims.claimForOrca('claude_a')).toBe(false)
+    expect(claims.claimForAgent('claude_a')).toEqual({
+      taken: true,
+      successorSessionId: 'claude_b'
+    })
+    // Long after, the owner typing on in the old chat may hand off again.
+    clock += 31 * 60_000
+    expect(claims.claimForOrca('claude_a')).toBe(true)
+  })
+})

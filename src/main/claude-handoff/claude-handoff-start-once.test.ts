@@ -75,3 +75,57 @@ describe('startClaudeHandoffOnce', () => {
     expect(claims.claimForAgent('claude_old')).toEqual({ taken: false })
   })
 })
+
+describe('every start path at once (hq-handoff-once)', () => {
+  it('opens exactly one new chat when the sweep, a click, «Continue» and the chat itself race', async () => {
+    let clock = 0
+    const journal = new Map<string, string>()
+    const claims = createClaudeHandoffClaims(
+      () => clock,
+      () => (from) => journal.get(from) ?? null
+    )
+    let opened = 0
+    const start = async () => {
+      // The launch takes a while; the others arrive meanwhile.
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      opened += 1
+      journal.set('claude_old', `claude_new_${opened}`)
+      return { ok: true as const, tabId: `structured-agent-session-claude_new_${opened}` }
+    }
+    const orcaStart = () =>
+      startClaudeHandoffOnce({
+        fromSessionId: 'claude_old',
+        ownStarted: async () => false,
+        dismiss: () => undefined,
+        start,
+        claims
+      })
+    const agentStart = async () => {
+      await Promise.resolve()
+      return claims.claimForAgent('claude_old').taken ? 'refused' : 'launched'
+    }
+    const results = await Promise.all([orcaStart(), orcaStart(), orcaStart(), agentStart()])
+    expect(opened).toBe(1)
+    expect(results.filter((result) => typeof result === 'object' && result.ok)).toHaveLength(1)
+    expect(results[3]).toBe('refused')
+    // Minutes later, every claim gone from memory: the journal still says it is continued.
+    clock += 10 * 60_000
+    expect(await orcaStart()).toMatchObject({ ok: false })
+    expect(claims.claimForAgent('claude_old')).toMatchObject({ taken: true })
+    expect(opened).toBe(1)
+  })
+
+  it('the chat’s own start first: Orca+ starts nothing and drops the offer', async () => {
+    const journal = new Map<string, string>()
+    const claims = createClaudeHandoffClaims(
+      () => 0,
+      () => (from) => journal.get(from) ?? null
+    )
+    expect(claims.claimForAgent('claude_old')).toEqual({ taken: false })
+    journal.set('claude_old', 'claude_own')
+    const { args, start, dismiss } = run({ claims })
+    expect(await startClaudeHandoffOnce(args)).toMatchObject({ ok: false })
+    expect(start).not.toHaveBeenCalled()
+    expect(dismiss).toHaveBeenCalled()
+  })
+})

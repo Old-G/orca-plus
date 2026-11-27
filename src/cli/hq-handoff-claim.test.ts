@@ -8,6 +8,7 @@ afterEach(() => vi.unstubAllEnvs())
 describe('handoffStartedByOrca', () => {
   it('stops a second start of a handoff Orca+ already started', async () => {
     vi.stubEnv('ORCA_AGENT_SESSION_ID', 'claude_old')
+    vi.stubEnv('CLAUDE_CODE_SESSION_ID', '1a2b3c')
     const call = vi.fn().mockResolvedValue({
       result: { taken: true, successorSessionId: 'claude_new' }
     })
@@ -19,6 +20,7 @@ describe('handoffStartedByOrca', () => {
 
   it('launches when the handoff is free, the host cannot tell, or the prompt is no handoff', async () => {
     vi.stubEnv('ORCA_AGENT_SESSION_ID', 'claude_old')
+    vi.stubEnv('CLAUDE_CODE_SESSION_ID', '1a2b3c')
     const free = vi.fn().mockResolvedValue({ result: { taken: false } })
     expect(await handoffStartedByOrca({ call: free, isRemote: false }, PROMPT)).toBeNull()
     const older = vi.fn().mockRejectedValue(new Error('unknown method'))
@@ -26,6 +28,22 @@ describe('handoffStartedByOrca', () => {
     const other = vi.fn()
     expect(await handoffStartedByOrca({ call: other, isRemote: false }, 'Fix the tests')).toBeNull()
     expect(other).not.toHaveBeenCalled()
+  })
+
+  it('asks for a handoff named anywhere in the prompt, but not for another chat’s (hq-handoff-once)', async () => {
+    vi.stubEnv('ORCA_AGENT_SESSION_ID', 'claude_old')
+    vi.stubEnv('CLAUDE_CODE_SESSION_ID', '1a2b3c')
+    const call = vi.fn().mockResolvedValue({ result: { taken: true } })
+    const own = 'W · T3, chat 3 of the chain. Продолжи из /w/.claude/handoff/handoff-1a2b3c.md'
+    expect(await handoffStartedByOrca({ call, isRemote: false }, own)).toContain('not starting')
+    const lead = vi.fn()
+    expect(
+      await handoffStartedByOrca(
+        { call: lead, isRemote: false },
+        'Continue from /w/.claude/handoff/handoff-9z9z.md'
+      )
+    ).toBeNull()
+    expect(lead).not.toHaveBeenCalled()
   })
 })
 
@@ -35,7 +53,10 @@ describe('continuesOwnHandoff (hq-handoff-parked)', () => {
     expect(continuesOwnHandoff(PROMPT)).toBe(true)
     // Why: a Lead relaunching a worker's handoff is not that worker's successor itself.
     expect(continuesOwnHandoff('Continue from .claude/handoff/handoff-9z9z.md')).toBe(false)
-    expect(continuesOwnHandoff('Fix the tests, see handoff-1a2b3c.md')).toBe(false)
+    // Custom build (hq-handoff-once): the chat's own first line before the path still counts.
+    expect(
+      continuesOwnHandoff('W · T3, chat 3. Продолжи из /w/.claude/handoff/handoff-1a2b3c.md')
+    ).toBe(true)
     expect(continuesOwnHandoff(undefined)).toBe(false)
     vi.stubEnv('CLAUDE_CODE_SESSION_ID', '')
     expect(continuesOwnHandoff(PROMPT)).toBe(false)

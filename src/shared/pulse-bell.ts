@@ -47,8 +47,13 @@ export function handoffBellItem(offer: ClaudeHandoffOffer): PulseBellInput {
     : null
   return {
     kind: PULSE_BELL_KIND.handoff,
-    title: 'Handoff saved, new session ready',
-    body: place || null,
+    // Custom build (hq-handoff-once): shown with auto-start on only when it did not start, and why.
+    title: offer.autoStartError
+      ? 'Handoff saved, the new chat did not start by itself'
+      : 'Handoff saved, new session ready',
+    body: offer.autoStartError
+      ? [place, offer.autoStartError].filter(Boolean).join('\n')
+      : place || null,
     refKind: 'handoff',
     refId: JSON.stringify({ offerId: offer.id, project, sessionId }),
     actions: [

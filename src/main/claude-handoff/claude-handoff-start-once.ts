@@ -11,7 +11,9 @@ import { ORCA_SESSION_ADDRESS_PREFIX } from '../../shared/agent-session/identity
 
 const NATIVE_CHAT_TAB = 'structured-agent-session-'
 
-type Started = { ok: true; tabId: string | undefined } | { ok: false; error: string }
+type Started =
+  | { ok: true; tabId: string | undefined }
+  | { ok: false; error: string; skipped?: true }
 
 export async function startClaudeHandoffOnce(args: {
   /** The old chat's Orca session id; null for a terminal chat, which no claim covers. */
@@ -19,25 +21,35 @@ export async function startClaudeHandoffOnce(args: {
   ownStarted: () => Promise<boolean>
   dismiss: () => void
   start: () => Promise<Started>
-  /** The «started a chat» card the old chat shows; the old chat's runtime and the new chat's task. */
-  card: { runtime: OrcaRuntimeService; task: string }
+  /** The «started a chat» card the old chat shows; the old chat's runtime and the new chat's task.
+   *  Absent when the old chat closes with the start («Continue in new chat»). */
+  card?: { runtime: OrcaRuntimeService; task: string }
   claims?: ClaudeHandoffClaims
 }): Promise<Started> {
   const { fromSessionId } = args
   const claims = args.claims ?? getClaudeHandoffClaims()
   if (fromSessionId) {
+    // Custom build (hq-handoff-once, owner 27.11): a chat already continues this one — started by the
+    // chat itself, a click, the sweep or a queue drain a moment ago. Any second start is a duplicate.
+    const successor = claims.successorOf(fromSessionId)
+    if (successor) {
+      args.dismiss()
+      return { ok: false, error: `This chat is already continued in ${successor}.`, skipped: true }
+    }
     // Why the offer stays: should the chat's own launch fail, its claim lapses and Orca+ starts it.
     if (!claims.claimForOrca(fromSessionId)) {
-      return { ok: false, error: 'A new chat for this handoff is already starting.' }
+      return { ok: false, error: 'A new chat for this handoff is already starting.', skipped: true }
     }
     if (await args.ownStarted()) {
       claims.release(fromSessionId)
       args.dismiss()
-      return { ok: false, error: 'The chat already started its new chat itself.' }
+      return { ok: false, error: 'The chat already started its new chat itself.', skipped: true }
     }
   }
   // Why: the old chat stays open, so it shows where its work went, as a chat's own launch does.
-  const publishCard = prepareClaudeHandoffCard(args.card.runtime, fromSessionId, args.card.task)
+  const publishCard = args.card
+    ? prepareClaudeHandoffCard(args.card.runtime, fromSessionId, args.card.task)
+    : null
   let started: Started
   try {
     started = await args.start()
