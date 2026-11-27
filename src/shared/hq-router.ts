@@ -264,10 +264,10 @@ export function hqRouteBySignals(input: HqRouterInput): HqRoute | null {
     const pick = chat ?? lead
     if (pick) {
       const others = [...(chat && lead ? [lead] : []), ...short]
-      const why =
-        chat || !input.crumb.chatTitle
-          ? `Breadcrumb: ${quote(pick.title)} sent the message they answer`
-          : `Breadcrumb: ${quote(input.crumb.chatTitle)} is closed; its Lead ${quote(pick.title)}`
+      // Why «the work» (router v2 T1): a closed work's Lead is named even when the footer had no title.
+      const why = chat
+        ? `Breadcrumb: ${quote(pick.title)} sent the message they answer`
+        : `Breadcrumb: ${input.crumb.chatTitle ? quote(input.crumb.chatTitle) : 'the work'} is closed; its Lead ${quote(pick.title)}`
       return routeTo(pick, 'crumb', why, others)
     }
   }

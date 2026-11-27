@@ -17,6 +17,7 @@ import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/class-names'
 import { useOutgoingApprovalOptions } from './use-outgoing-approval-options'
 import { OutgoingApprovalVenue } from './OutgoingApprovalVenue'
+import { OutgoingApprovalWork } from './OutgoingApprovalWork'
 import { useSteadyClick } from './use-steady-click'
 import type { OutgoingApprovalChoice } from '../../../../../shared/outgoing-approval/outgoing-approval-options'
 import { hqSpaceStripeStyle, useHqSpaces } from '../hq/use-hq-spaces'
@@ -49,7 +50,12 @@ export function OutgoingApprovalDecision({
   const [error, setError] = useState<string | null>(null)
   const [withFooter, setWithFooter] = useState(true)
   const [threadTs, setThreadTs] = useState<string | null>(null)
+  // Custom build (router v2 T1): the work the owner picked on the card; null keeps the card's own.
+  const [workId, setWorkId] = useState<string | null>(null)
   const options = useOutgoingApprovalOptions(item.refId)
+  const footer =
+    (workId ? options.work?.choices.find((choice) => choice.id === workId)?.footer : null) ??
+    options.footer
   const steady = useSteadyClick()
   const { head, text } = splitOutgoingApprovalBody(item.body)
   // Custom build (hq-spaces): a message about to leave through another workspace's messenger.
@@ -81,6 +87,7 @@ export function OutgoingApprovalDecision({
       .decide(item.refId, outcome, editedText, {
         footer: withFooter,
         ...(threadTs ? { threadTs } : {}),
+        ...(workId ? { workId } : {}),
         ...extra
       })
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
@@ -199,7 +206,7 @@ export function OutgoingApprovalDecision({
       </div>
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
       {/* Custom build (outgoing-footer): the line Approve adds, which the owner can leave off. */}
-      {options.footer ? (
+      {footer ? (
         <label className="flex items-start gap-1.5 text-xs text-muted-foreground">
           <Checkbox
             checked={withFooter}
@@ -208,9 +215,15 @@ export function OutgoingApprovalDecision({
             className="mt-px"
             aria-label={translate('auto.outgoingApproval.footer', 'Add the footer')}
           />
-          <span className="min-w-0 break-words [overflow-wrap:anywhere]">{options.footer}</span>
+          <span className="min-w-0 break-words [overflow-wrap:anywhere]">{footer}</span>
         </label>
       ) : null}
+      <OutgoingApprovalWork
+        work={options.work}
+        selected={workId}
+        busy={busy}
+        onSelect={setWorkId}
+      />
       <OutgoingApprovalVenue
         options={options}
         threadTs={threadTs}
