@@ -10,6 +10,7 @@ import type { HqOpenConversation } from '../orca-plus/pulse/pulse-ledger-open'
 import type { HqLedgerDmRule } from '../orca-plus/pulse/pulse-ledger-dm-rules'
 import type { HqFeedLedger, HqFeedMessage } from '../../shared/hq-feed-ledger'
 import type { HqAttributionAccuracy } from '../../shared/hq-attribution'
+import type { HqRouterStats } from '../../shared/hq-router-stats'
 import type { HqAttributionTake } from '../orca-plus/pulse/pulse-attribution'
 import type { HqLedgerDecision } from '../orca-plus/pulse/pulse-ledger-decision'
 import type {
@@ -371,6 +372,13 @@ export class RuntimePulseCommands {
   /** Custom build (hq-attribution-log): kept and changed guesses since a moment. */
   pulseAttributionAccuracy(since: number): HqAttributionAccuracy {
     return this.db().attribution.accuracy(since)
+  }
+
+  /** Custom build (hq-router T0): how the routed cards ended, per route class, over the last days. */
+  pulseRouterStats(days: number): HqRouterStats {
+    const now = Date.now()
+    this.db().router.reconcileOutcomes(now)
+    return { days, classes: this.db().router.stats(now - days * 24 * 60 * 60_000) }
   }
 
   /** Custom build (hq-request-ledger): whether a Slack message reached the ledger. */

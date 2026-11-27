@@ -29,6 +29,8 @@ import {
 import { printResult } from '../output/command-result-output'
 import type { HqAttributionAccuracy } from '../../shared/hq-attribution'
 import { formatHqAccuracy } from '../hq-accuracy-format'
+import { formatHqRouterStats } from '../hq-router-stats-format'
+import type { HqRouterStats } from '../../shared/hq-router-stats'
 import {
   formatHqDispatch,
   formatHqEvents,
@@ -169,6 +171,14 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       days: getOptionalPositiveIntegerFlag(flags, 'days')
     })
     printResult(result, json, formatHqAccuracy)
+  },
+
+  // Custom build (hq-router T0, owner 28.11)
+  'hq router-stats': async ({ flags, client, json }) => {
+    const result = await client.call<HqRouterStats>('hq.routerStats', {
+      days: getOptionalPositiveIntegerFlag(flags, 'days')
+    })
+    printResult(result, json, formatHqRouterStats)
   },
 
   'hq ladder': async ({ flags, client, json }) => {

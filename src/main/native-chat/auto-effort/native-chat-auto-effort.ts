@@ -60,6 +60,8 @@ export type AutoEffortLogEntry = {
   /** The chat's role when the pick was made; null for a chat with none. */
   role: ChatRole | null
   message: string
+  /** T0 (router v2): the whole message, for what the owner pasted from Slack; never journaled. */
+  full?: string
 }
 
 let log: ((entry: AutoEffortLogEntry) => void) | null = null
@@ -130,7 +132,8 @@ export async function autoEffortMessageOptions(input: {
       effort,
       result,
       role: input.role ?? null,
-      message: message.slice(0, 80)
+      message: message.slice(0, 80),
+      full: message
     })
   const route = effortRoute({
     role: input.role ?? null,
@@ -231,7 +234,10 @@ export function withAutoEffort(
 // The journal lives in SQLite now: the last agent reply comes from the conversation outline.
 const OUTLINE_BUDGET_BYTES = 64 * 1024
 
-async function previousAgentReply(journal: AgentSessionJournal, key: string): Promise<string | null> {
+async function previousAgentReply(
+  journal: AgentSessionJournal,
+  key: string
+): Promise<string | null> {
   const outline = await journal.reads.conversationOutline(OUTLINE_BUDGET_BYTES).catch(() => null)
   const entries = outline?.entries ?? []
   for (let index = entries.length - 1; index >= 0; index -= 1) {

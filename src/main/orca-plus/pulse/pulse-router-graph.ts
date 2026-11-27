@@ -28,7 +28,12 @@ CREATE TABLE IF NOT EXISTS router_log (
   top TEXT NOT NULL,
   auto INTEGER NOT NULL,
   chosen TEXT,
-  chosen_at INTEGER
+  chosen_at INTEGER,
+  outcome TEXT,
+  outcome_at INTEGER,
+  reason TEXT,
+  target_task TEXT,
+  chosen_task TEXT
 );
 CREATE TABLE IF NOT EXISTS router_card_routes (
   key TEXT PRIMARY KEY,
@@ -37,6 +42,32 @@ CREATE TABLE IF NOT EXISTS router_card_routes (
   tries INTEGER NOT NULL DEFAULT 1
 );
 `
+
+/** T0 (router v2): columns a router_log made before outcomes lacks; CREATE IF NOT EXISTS adds none. */
+const ROUTER_LOG_OUTCOME_COLUMNS = [
+  ['outcome', 'TEXT'],
+  ['outcome_at', 'INTEGER'],
+  ['reason', 'TEXT'],
+  ['target_task', 'TEXT'],
+  ['chosen_task', 'TEXT']
+] as const
+
+export function ensureRouterLogColumns(db: {
+  prepare: (sql: string) => { all: () => Record<string, unknown>[] }
+  exec: (sql: string) => unknown
+}): void {
+  const have = new Set(
+    db
+      .prepare('PRAGMA table_info(router_log)')
+      .all()
+      .map((row) => row.name)
+  )
+  for (const [name, type] of ROUTER_LOG_OUTCOME_COLUMNS) {
+    if (!have.has(name)) {
+      db.exec(`ALTER TABLE router_log ADD COLUMN ${name} ${type}`)
+    }
+  }
+}
 
 const MAX_HOPS = 32
 const LEADS = new Set(['lead', 'sublead'])
@@ -235,7 +266,7 @@ export type RouterLogEntry = {
 export function logRoute(core: PulseCore, entry: RouterLogEntry): void {
   core.db
     .prepare(
-      'INSERT OR IGNORE INTO router_log (key, at, how, target, top, auto) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT OR IGNORE INTO router_log (key, at, how, target, top, auto, target_task) VALUES (?, ?, ?, ?, ?, ?, ?)'
     )
     .run(
       entry.key,
@@ -243,15 +274,14 @@ export function logRoute(core: PulseCore, entry: RouterLogEntry): void {
       entry.how,
       entry.target,
       JSON.stringify(entry.top),
-      entry.auto ? 1 : 0
+      entry.auto ? 1 : 0,
+      taskOfTarget(core, entry.target)
     )
 }
 
-/** Where the owner sent the card in the end. */
-export function logChoice(core: PulseCore, key: string, chosen: string, at: number): void {
-  core.db
-    .prepare('UPDATE router_log SET chosen = ?, chosen_at = ? WHERE key = ? AND chosen IS NULL')
-    .run(chosen, at, key)
+/** The task a route's target chat carries; null for «new» or a target that is no chat. */
+export function taskOfTarget(core: PulseCore, target: string): string | null {
+  return target && target !== 'new' ? taskOfChat(core, target) : null
 }
 
 export type RouterCardRoute = { at: number; route: unknown; tries: number }
