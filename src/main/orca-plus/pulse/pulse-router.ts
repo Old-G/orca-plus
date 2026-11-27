@@ -11,7 +11,6 @@ import {
   cardRouteOf,
   chainBack,
   liveChatOf,
-  logChoice,
   logRoute,
   ownerTaskOf,
   routerBindingFor,
@@ -21,6 +20,12 @@ import {
   type RouterCardRoute,
   type RouterLogEntry
 } from './pulse-router-graph'
+import {
+  logChoice,
+  logOutcome,
+  reconcileRouterOutcomes,
+  routerStats
+} from './pulse-router-outcomes'
 import type { PulseCore } from './pulse-core'
 
 const LEAD_ROLES = new Set(['lead', 'sublead'])
@@ -247,6 +252,10 @@ export function pulseRouter(core: () => PulseCore) {
     logRoute: (entry: RouterLogEntry): void => logRoute(core(), entry),
     logChoice: (key: string, chosen: string, at: number): void =>
       logChoice(core(), key, chosen, at),
+    logOutcome: (key: string, input: Parameters<typeof logOutcome>[2]): void =>
+      logOutcome(core(), key, input),
+    reconcileOutcomes: (now: number): number => reconcileRouterOutcomes(core(), now),
+    stats: (since: number) => routerStats(core(), since),
     cardRoute: (key: string): RouterCardRoute | null => cardRouteOf(core(), key),
     saveCardRoute: (key: string, route: unknown, at: number): void =>
       saveCardRoute(core(), key, route, at)

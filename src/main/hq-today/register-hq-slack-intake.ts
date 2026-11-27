@@ -33,7 +33,7 @@ import { hqIntakeThreadOf } from './hq-intake-thread'
 import { createSlackLedgerApi } from '../slack/slack-ledger-api'
 import { hqLedgerReplacesScout } from './hq-ledger-cutover'
 import { hqRouterIntakeDeps, registerHqRouterLink } from './register-hq-router'
-import { hqIntakeCloseRoute } from './hq-intake-close-route'
+import { hqIntakeCloseRoute, hqRouterLogKey } from './hq-intake-close-route'
 import { hqSweepDraftOf, startHqRouterSweep } from './hq-router-sweep'
 import { hqNoteRaisedKeys, hqNotesInConversations, startHqNoteCards } from './hq-note-cards'
 import { HQ_SLACK_REQUEST_BELL_KIND } from '../../shared/hq-slack-request-bell'
@@ -145,7 +145,13 @@ export function registerHqSlackIntake(
               : []
           })
         : null,
-    sync: (kind, items) => void runtime.pulseSyncInboxKind(kind, items),
+    sync: (kind, items) => {
+      void runtime.pulseSyncInboxKind(kind, items)
+      // T0 (router v2): a card the bell just closed by itself (gone) gets its outcome now.
+      if (kind === HQ_INTAKE_KIND) {
+        runtime.pulseRouter().reconcileOutcomes(Date.now())
+      }
+    },
     now: Date.now,
     // Custom build (hq-router): where each new mark goes and why; the trial sends only a bound thread.
     ...hqRouterIntakeDeps(store, runtime, cache),
@@ -275,6 +281,14 @@ export function registerHqSlackIntake(
           bindChoice: (input) => router.bindChoice(input),
           logChoice: (logKey, target, at) => router.logChoice(logKey, target, at),
           now: Date.now()
+        })
+      }
+      // T0 (router v2): a card closed with no chat ends in the router's log too.
+      if (intake && !(action === 'sent' && chat)) {
+        runtime.pulseRouter().logOutcome(hqRouterLogKey(intake), {
+          outcome: action === 'sent' ? 'sent' : 'skipped',
+          at: Date.now(),
+          reason: action === 'sent' ? 'closed-without-chat' : 'skipped'
         })
       }
       // Custom build (hq-attribution-log): a skipped card says nothing about its guesses.
