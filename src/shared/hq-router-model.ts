@@ -246,9 +246,19 @@ export function readHqRoute(raw: unknown): HqRoute | null {
     project: str(raw, 'project'),
     level: level === 'lead' || level === 'new' ? level : 'worker',
     how:
-      (['crumb', 'thread', 'question', 'ref', 'model', 'fallback', 'new-mark'] as const).find(
-        (x) => x === how
-      ) ?? 'none',
+      (
+        [
+          'crumb',
+          'thread',
+          'question',
+          'ref',
+          'model',
+          'fallback',
+          'new-mark',
+          'topic',
+          'topics'
+        ] as const
+      ).find((x) => x === how) ?? 'none',
     why,
     auto: Reflect.get(raw, 'auto') === true,
     alternatives: (Array.isArray(alternatives) ? alternatives : []).flatMap((entry: unknown) => {
