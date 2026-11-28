@@ -36,7 +36,7 @@ describe('hq-plus-calm.css', () => {
       .filter(Boolean)
     expect(selectors.length).toBeGreaterThan(10)
     for (const sel of selectors) {
-      expect(sel.startsWith("html[data-hqp-decor='calm'] ")).toBe(true)
+      expect(sel.startsWith("html[data-hqp-decor='calm']")).toBe(true)
     }
   })
 
@@ -50,6 +50,7 @@ describe('hq-plus-calm.css', () => {
     expect(rules).toMatch(/box-shadow:\s*none/)
     expect(rules).toMatch(/text-transform:\s*none/)
     expect(rules).toMatch(/\.hqpc-apbar\s*\{\s*display:\s*none/)
+    expect(rules).toContain('.hqp-arc::after')
   })
 
   it('does not touch what carries meaning: no rule hides a pill or the Approve section', () => {

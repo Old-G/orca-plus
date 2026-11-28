@@ -4,8 +4,8 @@
    Classic and with Graphite & Paper.
    Off by default: it applies only when Settings → Appearance → «HQ+ decoration» is «Calm», which puts
    data-hqp-decor="calm" on <html> (hq-plus-theme.ts). Unset or «Full» = this file matches nothing.
-   Every selector starts with html[data-hqp-decor='calm'], which out-ranks the rules it undoes, so import
-   order does not matter. Rules are only added here; hq-plus*.css is untouched, so reverting this file and
+   Every selector starts with html[data-hqp-decor='calm'] (doubled where hq-plus-paper.css's html.light
+   rules tie with it), so import order does not matter. Rules are only added here; hq-plus*.css is untouched, so reverting this file and
    its import is the whole undo. */
 
 /* background spots */
@@ -22,16 +22,22 @@ html[data-hqp-decor='calm'] .hq-plus .hqp-tr u,
 html[data-hqp-decor='calm'] .hq-plus .hqp-badge[data-tone='working']::before,
 html[data-hqp-decor='calm'] .hq-plus .hqp-m[data-selected='true'] .hqp-card,
 html[data-hqp-decor='calm'] .hq-plus .hqpc[data-ap='true'],
-html[data-hqp-decor='calm'] .hq-plus .hqpc-apbar {
+html[data-hqp-decor='calm'] .hq-plus .hqpc-apbar,
+html[data-hqp-decor='calm'] .hq-plus .hqp-m[data-selected='true'] > .hqp-chatc {
+  box-shadow: none;
+}
+/* the pulsing glow rings (only drawn while motion is allowed) */
+html[data-hqp-decor='calm'] .hq-plus .hqp-arc::after,
+html[data-hqp-decor='calm'] .hq-plus .hqp-tr u::after {
+  content: none;
+  animation: none;
   box-shadow: none;
 }
 
 /* gradient edges and fills: the plain line and card */
-html[data-hqp-decor='calm'] .hq-plus .hqpc[data-ap='true'] {
+/* doubled attribute: ties with html.light in hq-plus-paper.css otherwise, and order would decide */
+html[data-hqp-decor='calm'][data-hqp-decor='calm'] .hq-plus .hqpc[data-ap='true'] {
   border-color: var(--hqp-line);
-  background: var(--hqp-card);
-}
-html[data-hqp-decor='calm'] .hq-plus .hqpc[data-you='true'] {
   background: var(--hqp-card);
 }
 
