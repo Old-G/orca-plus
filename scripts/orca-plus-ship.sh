@@ -45,7 +45,17 @@ state_files=(
   "$profile/slack/credential.enc"
   "$profile/slack/credential.json"
   "$HOME/.orca/clickup-credential.enc"
+  # A9: the router's OpenRouter key (T0). Orca+ starts without the shell's env, so this is its only key.
+  "$profile/hq-router.env"
 )
+# A9: a restart kills every chat's ScheduleWakeup, Monitor and background command, and the turn in
+# flight. Chats mid-turn, and open chats active within this many minutes, get a message after the
+# restart to re-arm (ship-restart-notice). 60: a ScheduleWakeup is at most an hour away; a background
+# command's default limit is half an hour. 0 = only the chats mid-turn.
+wake_window_min="${ORCA_PLUS_SHIP_WAKE_WINDOW_MIN:-60}"
+case "$wake_window_min" in
+  '' | *[!0-9]*) echo "orca-plus-ship: ORCA_PLUS_SHIP_WAKE_WINDOW_MIN must be whole minutes, got $wake_window_min" >&2; exit 2 ;;
+esac
 
 step() { echo "[$(date +%T)] $*"; }
 # Why: `open` hands this shell's env to Orca+; started from an agent chat that env names the chat's
@@ -66,6 +76,38 @@ app_running() { pgrep -a -f "^($app|$repo/dist/mac[^/]*/Orca Plus\.app)/Contents
 orca_plus_cli() { env -u ORCA_USER_DATA_PATH -u ORCA_PLUS_USER_DATA_PATH /usr/local/bin/orca-plus "$@"; }
 repo_count() {
   orca_plus_cli repo list --json | python3 -c "import json,sys;print(len(json.load(sys.stdin)['result']['repos']))"
+}
+# A9: automations and waits (the owner's notes, the chats' alarms in Pulse) live in the profile; a ship
+# must lose none. By id, one per line, sorted: a wait resolved or an automation added while the ship
+# waits for the owner is no loss, an id gone from the list is.
+automation_ids() {
+  orca_plus_cli automations list --json | python3 -c "
+import json, sys
+r = json.load(sys.stdin)['result']
+print('\n'.join(sorted(a['id'] for a in (r if isinstance(r, list) else r.get('automations', [])))))"
+}
+wait_ids() {
+  orca_plus_cli pulse wait list --status all --json | python3 -c "
+import json, sys
+print('\n'.join(sorted(w['id'] for w in json.load(sys.stdin)['result'])))"
+}
+list_ids() { if [ "$1" = automations ]; then automation_ids; else wait_ids; fi; }
+# Lines of the saved list ($1) missing from stdin; empty = nothing lost.
+ids_lost() { LC_ALL=C comm -23 "$1" -; }
+# A9: the chats whose turn or alarms the restart cuts off, one session id per line (see wake_window_min).
+# Why a warning and not a stop: without the list the ship still goes, the chats are only not told.
+chats_to_wake() {
+  { orca_plus_cli hq sessions --json 2>/dev/null | WINDOW_MIN="$wake_window_min" python3 -c "
+import json, os, sys, time
+window_ms = int(os.environ['WINDOW_MIN']) * 60_000
+now = time.time() * 1000
+r = json.load(sys.stdin).get('result') or []
+for s in r if isinstance(r, list) else r.get('sessions') or []:
+    if s.get('state') == 'closed' or not s.get('tabOpen'):
+        continue
+    if s.get('sessionId') and (s.get('midTurn') or s.get('state') == 'working'
+                               or now - (s.get('lastActivityAt') or 0) <= window_ms):
+        print(s['sessionId'])"; } || echo "WARNING: the open chats were not read — none will be told to re-arm" >&2
 }
 # Why: the selection survives a restart but the CLI login may not (plan 10.4); a mismatch means new
 # chats run under another org and lose its connectors. Empty output = nothing selected, skip.
@@ -127,12 +169,23 @@ wait_runtime_ready() {
   return 1
 }
 # Why the profile check: a chat of another Orca (DEV) has an id the installed one does not know.
+# A9: the marker also carries the chats to wake, so a ship from a plain terminal writes one too.
+# A DEV chat's own id is dropped, but the installed app's chats are still listed: they lose alarms all the same.
 write_restart_marker() {
-  [ -n "${ORCA_AGENT_SESSION_ID:-}" ] && [ "${ORCA_USER_DATA_PATH:-$profile}" = "$profile" ] || return 0
-  SESSION="$ORCA_AGENT_SESSION_ID" SHA=$(git -C "$repo" rev-parse --short HEAD) python3 -c "
+  local chats session="${ORCA_AGENT_SESSION_ID:-}" sha
+  [ "${ORCA_USER_DATA_PATH:-$profile}" = "$profile" ] || session=""
+  chats=$(chats_to_wake)
+  step "chats to wake after the restart: $(printf '%s' "$chats" | grep -c . || true)"
+  [ "$dry" = 1 ] && { printf '%s\n' "$chats" | sed '/^$/d; s/^/  would wake: /'; return 0; }
+  [ -n "$session" ] || [ -n "$chats" ] || return 0
+  # Why each step checked: called in an `||` list, errexit is off here, and a half-written marker
+  # (no sha, empty file) is one the app throws away without a word.
+  sha=$(git -C "$repo" rev-parse --short HEAD) && [ -n "$sha" ] || return 1
+  SESSION="$session" CHATS="$chats" SHA="$sha" python3 -c "
 import datetime, json, os
-print(json.dumps({'agentSessionId': os.environ['SESSION'], 'sha': os.environ['SHA'],
-  'writtenAt': datetime.datetime.now(datetime.timezone.utc).isoformat()}))" >"$restart_marker.tmp"
+print(json.dumps({'agentSessionId': os.environ['SESSION'] or None, 'sha': os.environ['SHA'],
+  'chats': [c for c in os.environ['CHATS'].split() if c],
+  'writtenAt': datetime.datetime.now(datetime.timezone.utc).isoformat()}))" >"$restart_marker.tmp" || return 1
   mv "$restart_marker.tmp" "$restart_marker"
 }
 # Why: each backup is a full profile plus the old app (~2.6 GB); unpruned, 40 of them ate 57 GB.
@@ -284,7 +337,13 @@ backup_profile() { { copy_profile || copy_profile || copy_profile; } && copy_dat
 run backup_profile
 if [ "$dry" = 0 ]; then
   shasum "${state_files[@]}" 2>/dev/null >"$backup/state.sha" || true
-  if [ "$installed_whole" = 1 ]; then repo_count >"$backup/repos.count"; fi
+  if [ "$installed_whole" = 1 ]; then
+    repo_count >"$backup/repos.count"
+    automation_ids >"$backup/automations.ids" ||
+      { rm -f "$backup/automations.ids"; step "WARNING: automations not read — the check after the restart skips them"; }
+    wait_ids >"$backup/waits.ids" ||
+      { rm -f "$backup/waits.ids"; step "WARNING: waits not read — the check after the restart skips them"; }
+  fi
   "$repo/scripts/orca-plus-shared-config-snapshot.sh" save "$backup/shared"
 fi
 
@@ -306,6 +365,13 @@ staged="$backup/Orca Plus.app.new"
 step "stage the new app beside the backup"
 run ditto "$new" "$staged"
 [ "$dry" = 0 ] && codesign --verify --deep --strict "$staged"
+# A9: say up front whether the restart will ask the Keychain again (see build-orca-plus-mac.sh).
+team_id=$(codesign -dv "$([ "$dry" = 1 ] && echo "${new:-/nonexistent}" || echo "$staged")" 2>&1 | sed -n 's/^TeamIdentifier=//p' || true)
+if [ "${team_id:-not set}" = "not set" ]; then
+  step "Keychain: the build has no team id — after the restart macOS asks «Always Allow» once (ORCA_PLUS_SIGN_IDENTITY with an Apple certificate ends that)"
+else
+  step "Keychain: team id $team_id — the saved keys open without asking (after the first «Always Allow» for this team)"
+fi
 
 # Why: a relaunch nobody is at the Mac for misses the Keychain prompt, and Slack, ClickUp and Gmail stay
 # unreadable until the next restart (01.11, ship at 05:20). Every build asks again: the Keychain item
@@ -339,7 +405,8 @@ if [ "$dry" = 0 ] && [ "${ORCA_PLUS_SHIP_WAIT_OWNER:-1}" != 0 ] && owner_away; t
 fi
 
 step "restart marker for chat ${ORCA_AGENT_SESSION_ID:-<none>}"
-run write_restart_marker
+# Why not fatal: a marker that fails only means no chat is told; the ship itself is fine.
+write_restart_marker || step "restart marker not written — no chat will be told to re-arm"
 
 # Why: a step that fails after the quit must not leave Orca+ closed, nor die without a word in the log.
 on_error() {
@@ -390,6 +457,20 @@ if [ "$dry" = 0 ]; then
   else
     echo "repo count not compared: the old app was incomplete — now $(repo_count)"
   fi
+  for list in automations waits; do
+    [ -f "$backup/$list.ids" ] || continue
+    if ! now_ids=$(list_ids "$list"); then
+      echo "$list not read after the restart"
+      ok=0
+      continue
+    fi
+    if ! lost=$(printf '%s\n' "$now_ids" | ids_lost "$backup/$list.ids"); then
+      echo "$list not compared"
+      ok=0
+      continue
+    fi
+    [ -z "$lost" ] || { echo "$list lost: $(echo $lost)"; ok=0; }
+  done
   "$repo/scripts/orca-plus-shared-config-snapshot.sh" check "$backup/shared" || ok=0
   claude_org_matches || ok=0
   version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")

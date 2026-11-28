@@ -28,9 +28,17 @@ export CSC_IDENTITY_AUTO_DISCOVERY=false
 # Why: an ad-hoc signature's designated requirement is its cdhash, so macOS drops every
 # privacy grant (Desktop, Full Disk Access, Accessibility) on each rebuild. A stable local
 # certificate keeps them. Create it once with scripts/orca-plus-signing-cert.sh.
-signing_identity="Orca+ Local Signing"
+# A9: the local certificate has no team id, so the Keychain item «orca Safe Storage» trusts one
+# build at a time and every ship asks «Always Allow» again. An Apple Developer certificate
+# (Apple Development / Developer ID Application) carries a team id the Keychain trusts across
+# builds: name it in ORCA_PLUS_SIGN_IDENTITY. Unset = the local certificate, as before.
+signing_identity="${ORCA_PLUS_SIGN_IDENTITY:-Orca+ Local Signing}"
 if security find-identity -v -p codesigning | grep -qF "\"$signing_identity\""; then
   mac_identity="$signing_identity"
+elif [ -n "${ORCA_PLUS_SIGN_IDENTITY:-}" ]; then
+  # Why stop: an ad hoc build would drop every privacy grant; a typo must not cost that.
+  echo "build-orca-plus-mac: ORCA_PLUS_SIGN_IDENTITY \"$signing_identity\" is not a trusted signing identity here" >&2
+  exit 1
 else
   echo "build-orca-plus-mac: no trusted \"$signing_identity\" certificate; signing ad hoc (privacy grants reset on every rebuild)" >&2
   mac_identity=-

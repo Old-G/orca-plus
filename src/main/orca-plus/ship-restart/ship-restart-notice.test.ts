@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   parseShipRestartMarker,
+  restartAlarmsPrompt,
   runShipRestartNotice,
   SHIP_RESTART_MAX_AGE_MS,
   shipRestartPrompt,
@@ -27,6 +28,9 @@ function harness(
     removeMarker: vi.fn(async () => {
       marker = null
     }),
+    writeMarker: vi.fn(async (next: string) => {
+      marker = next
+    }),
     deliver: vi.fn(async () => delivered.shift() ?? false),
     now: () => now,
     startedAt,
@@ -40,8 +44,20 @@ describe('parseShipRestartMarker', () => {
     expect(parseShipRestartMarker(MARKER)).toEqual({
       agentSessionId: 'claude_abc',
       sha: '1234abcd',
-      writtenAt: WRITTEN
+      writtenAt: WRITTEN,
+      chats: []
     })
+  })
+
+  it('A9: reads the cut-off chats, with or without the shipping chat', () => {
+    expect(
+      parseShipRestartMarker(
+        '{"sha":"1","writtenAt":"2026-10-19T10:00:00Z","chats":["a","",3,"b","a"]}'
+      )
+    ).toEqual({ agentSessionId: null, sha: '1', writtenAt: WRITTEN, chats: ['a', 'b'] })
+    expect(
+      parseShipRestartMarker('{"sha":"1","writtenAt":"2026-10-19T10:00:00Z","chats":[]}')
+    ).toBeNull()
   })
 
   it('refuses a marker without a session, sha or time', () => {
@@ -97,5 +113,71 @@ describe('runShipRestartNotice', () => {
     h.scheduled.shift()?.()
     await vi.waitFor(() => expect(h.marker()).toBeNull())
     expect(h.deps.deliver).toHaveBeenCalledTimes(2)
+  })
+
+  it('A9: tells every cut-off chat to re-arm, the shipping chat to check the ship', async () => {
+    const marker = JSON.stringify({
+      agentSessionId: 'ship',
+      sha: 'abc',
+      writtenAt: '2026-10-19T10:00:00Z',
+      chats: ['ship', 'w1', 'w2']
+    })
+    const h = harness(marker, [true, true, true])
+    await runShipRestartNotice(h.deps)
+    expect(vi.mocked(h.deps.deliver).mock.calls).toEqual([
+      ['ship', shipRestartPrompt('abc')],
+      ['w1', restartAlarmsPrompt('abc')],
+      ['w2', restartAlarmsPrompt('abc')]
+    ])
+    expect(h.marker()).toBeNull()
+  })
+
+  it('A9: retries only the chats that did not take it, then drops the marker', async () => {
+    const marker = JSON.stringify({
+      sha: 'abc',
+      writtenAt: '2026-10-19T10:00:00Z',
+      chats: ['w1', 'w2']
+    })
+    const h = harness(marker, [true, false, true])
+    await runShipRestartNotice(h.deps)
+    // Why: another restart now would tell only w2, not w1 again.
+    expect(parseShipRestartMarker(h.marker() ?? '')?.chats).toEqual(['w2'])
+    h.scheduled.shift()?.()
+    await vi.waitFor(() => expect(h.marker()).toBeNull())
+    expect(vi.mocked(h.deps.deliver).mock.calls.map(([id]) => id)).toEqual(['w1', 'w2', 'w2'])
+  })
+
+  it('A9: drops the marker after 30 minutes even with chats still untold', async () => {
+    const marker = JSON.stringify({
+      sha: 'abc',
+      writtenAt: '2026-10-19T10:00:00Z',
+      chats: ['w1']
+    })
+    let now = WRITTEN + 60_000
+    const h = harness(marker, [false])
+    h.deps.now = () => now
+    await runShipRestartNotice(h.deps)
+    expect(h.marker()).toBe(marker)
+    now += SHIP_RESTART_MAX_AGE_MS + 1
+    h.scheduled.shift()?.()
+    await vi.waitFor(() => expect(h.marker()).toBeNull())
+    expect(h.deps.deliver).toHaveBeenCalledOnce()
+  })
+
+  it('A9: keeps retrying when the marker cannot be rewritten', async () => {
+    const marker = JSON.stringify({
+      sha: 'abc',
+      writtenAt: '2026-10-19T10:00:00Z',
+      chats: ['w1', 'w2']
+    })
+    const h = harness(marker, [true, false, true])
+    h.deps.writeMarker = vi.fn(async () => {
+      throw new Error('disk full')
+    })
+    await runShipRestartNotice(h.deps)
+    expect(h.scheduled).toHaveLength(1)
+    h.scheduled.shift()?.()
+    await vi.waitFor(() => expect(h.marker()).toBeNull())
+    expect(h.deps.deliver).toHaveBeenCalledTimes(3)
   })
 })
