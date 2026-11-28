@@ -1,4 +1,5 @@
 // Custom build (pulse): waitings — "Ann waits for my answer" (on-me) and "I wait for Ann" (on-them).
+/* eslint-disable max-lines -- Why: one module for every waiting operation, one function each; split when it next grows */
 import type { SqliteBindings, SqliteRow } from '../../sqlite/sqlite-statement'
 import type {
   PulseWaiting,
