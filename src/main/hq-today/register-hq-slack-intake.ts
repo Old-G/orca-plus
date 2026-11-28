@@ -26,7 +26,8 @@ import {
   type HqIntakeActionDeps
 } from './hq-slack-intake-actions'
 import { guessHqIntake } from './hq-slack-intake-suggest'
-import { hqIntakeOwnerHandled, startHqSlackIntake } from './hq-slack-intake'
+import { hqIntakeOwnerHandled } from './hq-slack-intake'
+import { hqIntakeOwnerPushes, startHqSlackIntake } from './hq-slack-intake-watch'
 import { generateHqText } from './hq-task-questions'
 import { hqIntakeOfConversation, hqLedgerCardReady } from './hq-ledger-cards'
 import { hqIntakeThreadOf } from './hq-intake-thread'
@@ -54,6 +55,7 @@ export function registerHqSlackIntake(
   cache: SlackReaderCache
 ): void {
   const people = () => runtime.pulseListPeople()
+  const routerDeps = hqRouterIntakeDeps(store, runtime, cache)
   startHqSlackIntake({
     read: (run) =>
       withSlackReader((token, owner) => {
@@ -154,7 +156,9 @@ export function registerHqSlackIntake(
     },
     now: Date.now,
     // Custom build (hq-router): where each new mark goes and why; the trial sends only a bound thread.
-    ...hqRouterIntakeDeps(store, runtime, cache),
+    ...routerDeps,
+    // Router v2 T7: the owner's 👾 / 🆕 pushed over Socket Mode starts a quick pass at once.
+    pushes: hqIntakeOwnerPushes(store, routerDeps.noteMark),
     // Why: a failing poll used to leave cards stale with no word anywhere the owner looks (26.10).
     onError: (message) => {
       const key = message.slice(0, 120)
@@ -173,7 +177,7 @@ export function registerHqSlackIntake(
   })
 
   // Custom build (hq-router T7): the scout's Slack and ClickUp requests get the router's «→ chat» too.
-  const router = hqRouterIntakeDeps(store, runtime, cache)
+  const router = routerDeps
   if (router.route && router.cardRoute && router.saveCardRoute) {
     startHqRouterSweep({
       cards: () => runtime.pulseListInbox(false, { kind: HQ_SLACK_REQUEST_BELL_KIND }),

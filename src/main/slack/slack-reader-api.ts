@@ -166,6 +166,7 @@ export function slackTextLinks(text: string): string[] {
 // Why: reactions.list carries no permalink; a link built from the workspace URL costs no call.
 const workspaceUrls = new Map<string, string | null>()
 const REACTION_PAGES = 5
+const QUICK_REACTIONS = 20
 
 async function workspaceUrl(token: string): Promise<string | null> {
   if (!workspaceUrls.has(token)) {
@@ -201,16 +202,18 @@ export function createSlackIntakeApi(
   newEmoji: string | null = null
 ): HqIntakeReadApi {
   return {
-    marked: async () => {
+    marked: async (opts) => {
       // Why: a mark missing from a partial read would close its card, so the caller is told.
       const entries: unknown[] = []
       let cursor: string | null = null
-      for (let page = 0; page < REACTION_PAGES; page += 1) {
+      // Why (router v2 T7): a pushed mark is among the newest reactions; one short page is quick.
+      const pages = opts?.quick ? 1 : REACTION_PAGES
+      for (let page = 0; page < pages; page += 1) {
         let body: Record<string, unknown>
         try {
           body = await slackRequest(token, 'reactions.list', {
             full: true,
-            limit: 100,
+            limit: opts?.quick ? QUICK_REACTIONS : 100,
             ...(cursor ? { cursor } : {})
           })
         } catch (error) {
