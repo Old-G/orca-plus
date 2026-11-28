@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { PulseDb } from '../orca-plus/pulse/pulse-db'
 import type { HqCallerScope } from './hq-journal-rooms'
-import { createHqThreads, type HqThreads } from './hq-journal-threads'
+import { createHqThreads, type HqThreads, type HqThreadsDeps } from './hq-journal-threads'
 
 let db: PulseDb
 let threads: HqThreads
@@ -9,6 +9,7 @@ let clock: number
 let open: Set<string>
 let delivered: { sessionId: string; prompt: string }[]
 let reopened: string[]
+let deps: HqThreadsDeps
 
 const SCOPES: Record<string, HqCallerScope> = {
   claude_hq: { kind: 'overview', sessionId: 'claude_hq', worktreeId: null },
@@ -55,7 +56,7 @@ beforeEach(() => {
   open = new Set(['claude_api', 'claude_kite'])
   delivered = []
   reopened = []
-  threads = createHqThreads({
+  deps = {
     enabled: () => true,
     scope: async (caller) =>
       SCOPES[caller.sessionId ?? ''] ??
@@ -105,7 +106,8 @@ beforeEach(() => {
     },
     wait: async () => {},
     now: () => (clock += 1_000)
-  })
+  }
+  threads = createHqThreads(deps)
 })
 
 afterEach(() => db.close())
@@ -397,5 +399,132 @@ describe('HQ+ threads: chat addresses and roles (hq-chat-roles)', () => {
     await threads.report({ sessionId: 'claude_api' }, { done: 'Plan written' })
     threads.handoff('claude_api', 'claude_api_2')
     expect(db.chats.roleOf('claude_api_2')).toBe('lead')
+  })
+})
+
+describe('HQ+ threads: a send reaches an open chat (chat-send-live, A2)', () => {
+  const at = (sessionId: string, address: string, project = 'acme-api'): void =>
+    db.noteSessions([
+      {
+        sessionId,
+        address,
+        agent: 'claude',
+        worktreeId: 'r-api::/w/api',
+        workspace: 'acme',
+        project,
+        state: 'working',
+        contextPct: null,
+        parentSessionId: null,
+        taskRef: null,
+        at: (clock += 1_000)
+      }
+    ])
+  const live = (): HqThreads => createHqThreads({ ...deps, openTabs: () => open })
+
+  it('refuses a closed chat with the open chats of its project, and brings it back on revive', async () => {
+    at('claude_api', 'acme-api/refund-limits')
+    at('claude_web', 'acme-api/payouts')
+    const refused = live().send(
+      { sessionId: 'claude_kite' },
+      { address: 'acme-api/payouts', text: 'Stop.', onClosed: 'refuse' }
+    )
+    await expect(refused).rejects.toThrow(
+      'The chat on acme-api/payouts (claude_w) is closed. Not sent. Open chats of acme-api: acme-api/refund-limits (claude_api).'
+    )
+    await expect(refused).rejects.toThrow('orca chat send acme-api/payouts --revive')
+    await expect(
+      live().send(
+        { sessionId: 'claude_kite' },
+        { address: 'claude_web', text: 'Stop.', onClosed: 'refuse' }
+      )
+    ).rejects.toThrow(/The chat on acme-api\/payouts .* is closed/)
+    expect(reopened).toEqual([])
+    expect(delivered).toEqual([])
+
+    const revived = await live().send(
+      { sessionId: 'claude_kite' },
+      { address: 'acme-api/payouts', text: 'Go on.', onClosed: 'revive' }
+    )
+    expect(revived.reopened).toBe(true)
+    expect(reopened).toEqual(['claude_web'])
+  })
+
+  it('takes the one open chat of an address over a newer closed one', async () => {
+    at('claude_api', 'acme-api/refund-limits')
+    at('claude_old', 'acme-api/refund-limits')
+    for (const onClosed of ['refuse', 'revive'] as const) {
+      const sent = await live().send(
+        { sessionId: 'claude_kite' },
+        { address: 'acme-api/refund-limits', text: 'Status?', onClosed }
+      )
+      expect(sent).toMatchObject({ sessionId: 'claude_api', reopened: false })
+    }
+    expect(reopened).toEqual([])
+  })
+
+  it('refuses an address with two open chats unless it is named by sessionId', async () => {
+    at('claude_api', 'acme-api/refund-limits')
+    at('claude_kite', 'acme-api/refund-limits')
+    await expect(
+      live().send(
+        { sessionId: 'claude_web' },
+        { address: 'acme-api/refund-limits', text: 'Stop.', onClosed: 'refuse' }
+      )
+    ).rejects.toThrow(
+      /2 chats are open on acme-api\/refund-limits: claude_kite \(working\), claude_api \(working\)\. Not sent: send to one by its sessionId/
+    )
+    expect(delivered).toEqual([])
+    const sent = await live().send(
+      { sessionId: 'claude_web' },
+      { address: 'claude_api', text: 'Stop.', onClosed: 'refuse' }
+    )
+    expect(sent.sessionId).toBe('claude_api')
+  })
+
+  it('sends as before when the open tabs cannot be read, but brings back nothing without revive', async () => {
+    at('claude_api', 'acme-api/refund-limits')
+    at('claude_web', 'acme-api/payouts')
+    const unknown = createHqThreads({ ...deps, openTabs: () => null })
+    const sent = await unknown.send(
+      { sessionId: 'claude_kite' },
+      { address: 'acme-api/refund-limits', text: 'Go on.', onClosed: 'refuse' }
+    )
+    expect(sent.sessionId).toBe('claude_api')
+    await expect(
+      unknown.send(
+        { sessionId: 'claude_kite' },
+        { address: 'acme-api/payouts', text: 'Go on.', onClosed: 'refuse' }
+      )
+    ).rejects.toThrow(
+      'The chat on acme-api/payouts did not take the message: it is closed. Not sent. Bring it back with `orca chat send acme-api/payouts --revive "…"`'
+    )
+    expect(reopened).toEqual([])
+  })
+})
+
+describe('HQ+ threads: `orca chat send lead` (hq-lead-of, A1)', () => {
+  it("sends to the Lead of the sender's plan", async () => {
+    const asks: unknown[] = []
+    const withLead = createHqThreads({
+      ...deps,
+      leadOf: async (ask) => {
+        asks.push(ask)
+        return { plan: 'refunds.md', address: null, sessionId: 'claude_api', open: true }
+      }
+    })
+    const sent = await withLead.send(
+      { sessionId: 'claude_kite' },
+      { address: 'Lead', text: 'DONE · T1' }
+    )
+    expect(sent.sessionId).toBe('claude_api')
+    expect(asks).toEqual([{ sessionId: 'claude_kite' }])
+    expect(delivered.map((one) => one.sessionId)).toEqual(['claude_api'])
+    await expect(withLead.lead({ sessionId: 'claude_kite' }, 'refunds')).resolves.toMatchObject({
+      sessionId: 'claude_api'
+    })
+    expect(asks.at(-1)).toEqual({ sessionId: 'claude_kite', plan: 'refunds' })
+    await expect(
+      threads.send({ sessionId: 'claude_kite' }, { address: 'lead', text: 'DONE' })
+    ).rejects.toThrow(/send to its sessionId/)
   })
 })

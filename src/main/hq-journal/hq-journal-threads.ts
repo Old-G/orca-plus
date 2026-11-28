@@ -27,6 +27,9 @@ import { hqNewChatAddress } from './hq-journal-chat-role'
 import { hqHandOff } from './hq-journal-handoff'
 import type { HqLeadBatch } from './hq-lead-batch'
 import { createHqSend, HQ_JOURNAL_OFF as JOURNAL_OFF, hqRoomOf as roomOf } from './hq-journal-send'
+import type { HqSendOnClosed } from './hq-journal-send-live'
+import type { HqLeadOfAsk } from './hq-lead-of'
+import type { HqLeadResult } from '../../shared/hq-lead-of'
 
 export type HqThreadsDeps = {
   enabled: () => boolean
@@ -58,6 +61,10 @@ export type HqThreadsDeps = {
   now: () => number
   /** Custom build (hq-lead-batch): where a Lead's messages from other chats wait for one turn. */
   leadBatch?: HqLeadBatch
+  /** Custom build (chat-send-live, A2): the chats with a tab open; null when they could not be read. */
+  openTabs?: () => ReadonlySet<string> | null
+  /** Custom build (hq-lead-of, A1): the Lead of a chat's plan (`orca hq lead`, `orca chat send lead`). */
+  leadOf?: (ask: HqLeadOfAsk) => Promise<HqLeadResult>
 }
 
 export type HqThreads = {
@@ -66,8 +73,10 @@ export type HqThreads = {
   /** `address` is a thread's `<project>/<task>` or a chat's session id. */
   send: (
     caller: HqCaller,
-    message: { address: string; text: string; replyTo?: string }
+    message: { address: string; text: string; replyTo?: string; onClosed?: HqSendOnClosed }
   ) => Promise<HqChatSendResult>
+  /** Custom build (hq-lead-of, A1): the Lead of the caller's plan, or of `plan`. */
+  lead: (caller: HqCaller, plan?: string) => Promise<HqLeadResult>
   /** A handoff's new chat takes over the old one's thread; false when nothing was written (HQ+ off,
    *  or Orca+ never saw the old chat). */
   handoff: (fromSessionId: string, toSessionId: string) => boolean
@@ -220,6 +229,14 @@ export function createHqThreads(deps: HqThreadsDeps): HqThreads {
     },
 
     send: createHqSend(deps, addressFor),
+
+    async lead(caller, plan) {
+      if (!deps.leadOf) {
+        throw new Error('Finding the Lead is not available on this host.')
+      }
+      const scope = await deps.scope(caller)
+      return deps.leadOf({ sessionId: scope.sessionId, ...(plan ? { plan } : {}) })
+    },
 
     async settle(caller, input) {
       if (!deps.enabled()) {

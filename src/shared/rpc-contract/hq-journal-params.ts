@@ -48,8 +48,14 @@ export const ChatSendParams = z.object({
   ...CallerFields,
   address: requiredString('A thread address is required: <project>/<task>'),
   text: requiredString('A message is required'),
-  replyTo: OptionalString
+  replyTo: OptionalString,
+  /** Custom build (chat-send-live, A2): a closed chat is brought back (`revive`, the default) or the
+   *  send is refused (`refuse`, the CLI without --revive). */
+  onClosed: z.enum(['revive', 'refuse']).optional()
 })
+
+// Custom build (hq-lead-of, A1): `orca hq lead` — the Lead of the caller's plan, or of `plan`.
+export const HqLeadParams = z.object({ ...CallerFields, plan: OptionalString })
 
 // Custom build (hq-plus-routing)
 export const HqRouteParams = z.object({
