@@ -104,7 +104,7 @@ export function OutgoingApprovalDecision({
             {translate(`auto.pulseBell.kind.${item.kind}.${item.urgency}`, item.title)}
           </p>
           {/* Custom build (outgoing-approval-target): where it goes and from which chat, wrapped. */}
-          <p className="line-clamp-3 text-xs break-words text-muted-foreground" title={head}>
+          <p className="text-xs break-words text-muted-foreground" title={head}>
             {head}
           </p>
         </div>
@@ -125,7 +125,7 @@ export function OutgoingApprovalDecision({
         </p>
       ) : null}
       {editing === null ? (
-        <pre className="scrollbar-sleek max-h-40 overflow-auto rounded-md border border-border/60 bg-muted/40 px-2 py-1.5 font-mono text-[11px] leading-4 whitespace-pre-wrap [overflow-wrap:anywhere] text-foreground">
+        <pre className="scrollbar-sleek max-h-[70vh] overflow-auto rounded-md border border-border/60 bg-muted/40 px-2 py-1.5 font-sans text-[13.5px] leading-[1.5] whitespace-pre-wrap [overflow-wrap:anywhere] text-foreground">
           {text}
         </pre>
       ) : (

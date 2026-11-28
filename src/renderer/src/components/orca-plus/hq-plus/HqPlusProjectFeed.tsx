@@ -74,6 +74,39 @@ export function HqPlusProjectFeed({
     const element = scroller.current
     return element && newKeys ? observeHqPlusNewRows(element, markSeen) : undefined
   }, [newKeys, markSeen, feed, tab])
+  // Why (U4): in Board the feed is a window with no scrollbar; a fade on top and «↑ N more above» tell that
+  // cards wait above. It counts the rows wholly above the visible top; a window with no layout counts none.
+  const [above, setAbove] = useState(0)
+  useEffect(() => {
+    const element = scroller.current
+    if (!element || !board) {
+      return
+    }
+    const measure = (): void => {
+      let hidden = 0
+      if (element.clientHeight > 0) {
+        const top = element.getBoundingClientRect().top
+        // Why: the Inbox's rows sit in its stream section; the project cards sit right in the scroller.
+        const rows = element.querySelector('.hqpi-stream') ?? element
+        for (const child of Array.from(rows.children)) {
+          if (child.tagName !== 'BUTTON' && child.getBoundingClientRect().bottom <= top + 1) {
+            hidden += 1
+          }
+        }
+      }
+      element.dataset.above = hidden > 0 ? 'true' : 'false'
+      setAbove((value) => (value === hidden ? value : hidden))
+    }
+    measure()
+    element.addEventListener('scroll', measure, { passive: true })
+    const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null
+    resize?.observe(element)
+    return () => {
+      element.removeEventListener('scroll', measure)
+      resize?.disconnect()
+    }
+  }, [board, tab, feed])
+  const toTop = (): void => scroller.current?.scrollTo({ top: 0, behavior: 'smooth' })
   const atBottom = useRef(true)
   const [unseen, setUnseen] = useState<string | null>(null)
   // Why: what came last is the bottom card and its newest moment; a change of either is an arrival.
@@ -164,6 +197,11 @@ export function HqPlusProjectFeed({
           }
           ctx={ctx}
         />
+        {board && above > 0 ? (
+          <button type="button" className="hqp-jump hqp-jump-up" onClick={toTop}>
+            ↑ {above} more above
+          </button>
+        ) : null}
       </>
     )
   }
@@ -223,6 +261,11 @@ export function HqPlusProjectFeed({
           </div>
         ) : null}
       </div>
+      {board && above > 0 ? (
+        <button type="button" className="hqp-jump hqp-jump-up" onClick={toTop}>
+          ↑ {above} more above
+        </button>
+      ) : null}
       {unseen && (board || approvals.length === 0) ? (
         <button type="button" className="hqp-jump" onClick={toBottom}>
           ↓ new in {unseen}
@@ -241,7 +284,8 @@ const CHIP_LABEL: Record<HqPlusProjectFilter, string> = {
   fyi: 'FYI'
 }
 
-/** All · Approve · Chats · Your move · We wait · FYI, with their counts (Chats counts the asking ones). */
+/** «All ▾» (U4): the six filters in one menu — All · Approve · Chats · Your move · We wait · FYI, with their counts
+ *  (Chats counts the asking ones). The button wears the chosen one and flags a waiting Approve. */
 export function HqPlusProjectChips({
   filter,
   counts,
@@ -251,6 +295,8 @@ export function HqPlusProjectChips({
   counts: Feed['counts']
   onFilter: (filter: HqPlusProjectFilter) => void
 }): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
   const count: Record<HqPlusProjectFilter, number | null> = {
     all: null,
     approve: counts.approve,
@@ -259,22 +305,62 @@ export function HqPlusProjectChips({
     wait: counts.wait,
     fyi: counts.fyi
   }
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    const away = (event: Event): void => {
+      if (root.current && event.target instanceof Node && !root.current.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+    const esc = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', away)
+    document.addEventListener('keydown', esc)
+    return () => {
+      document.removeEventListener('pointerdown', away)
+      document.removeEventListener('keydown', esc)
+    }
+  }, [open])
   return (
-    <div className="hqp-chips" role="group" aria-label="Show in the feed">
-      {HQ_PLUS_PROJECT_FILTERS.map((name) => (
-        <button
-          key={name}
-          type="button"
-          className="hqp-chip-btn"
-          data-move={name === 'move' ? 'true' : undefined}
-          data-ap={name === 'approve' && counts.approve > 0 ? 'true' : undefined}
-          aria-pressed={filter === name}
-          onClick={() => onFilter(name)}
-        >
-          {CHIP_LABEL[name]}
-          {count[name] ? <span className="hqpc-n"> {count[name]}</span> : null}
-        </button>
-      ))}
+    <div className="hqp-fmenu" ref={root}>
+      <button
+        type="button"
+        className="hqp-chip-btn hqp-fmenu-btn"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        data-ap={filter !== 'approve' && counts.approve > 0 ? 'true' : undefined}
+        onClick={() => setOpen((value) => !value)}
+      >
+        {CHIP_LABEL[filter]}
+        {count[filter] ? <span className="hqpc-n"> {count[filter]}</span> : null}
+        <span aria-hidden="true"> ▾</span>
+      </button>
+      {open ? (
+        <div className="hqp-fmenu-list" role="menu" aria-label="Show in the feed">
+          {HQ_PLUS_PROJECT_FILTERS.map((name) => (
+            <button
+              key={name}
+              type="button"
+              role="menuitemradio"
+              aria-checked={filter === name}
+              className="hqp-fmenu-item"
+              data-ap={name === 'approve' && counts.approve > 0 ? 'true' : undefined}
+              onClick={() => {
+                setOpen(false)
+                onFilter(name)
+              }}
+            >
+              {CHIP_LABEL[name]}
+              {count[name] ? <span className="hqpc-n"> {count[name]}</span> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }

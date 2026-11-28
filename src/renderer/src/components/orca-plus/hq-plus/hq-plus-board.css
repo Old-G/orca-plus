@@ -267,3 +267,55 @@
 .hqb-split:has(.hqb-dock[data-empty='true']) > .hqb-window {
   flex: 1 1 0;
 }
+
+/* U4: the window is the anchor of «↑ N more above»; with cards above the visible top its edge fades out */
+.hqb-window {
+  position: relative;
+}
+.hqb-window > .hqp-log[data-above='true'] {
+  mask-image: linear-gradient(transparent, #000 32px);
+}
+.hqp-jump.hqp-jump-up {
+  top: 36px;
+  bottom: auto;
+}
+/* U4: «All ▾» — the feed's six filters in one menu */
+.hqp-fmenu {
+  position: relative;
+}
+.hqp-fmenu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 5;
+  min-width: 150px;
+  display: grid;
+  padding: 4px;
+  border: 1px solid var(--hqp-line-2);
+  border-radius: 10px;
+  background: var(--hqp-bg-2);
+}
+.hqp-fmenu-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--hqp-mute);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+}
+.hqp-fmenu-item:hover,
+.hqp-fmenu-item[aria-checked='true'] {
+  background: var(--hqp-soft-2);
+  color: var(--hqp-fg);
+}
+.hqp-fmenu-item[data-ap='true'] {
+  color: var(--hqp-red);
+}
+.hqb-window .hqp-jump:not(.hqp-jump-up) {
+  bottom: 16px;
+}

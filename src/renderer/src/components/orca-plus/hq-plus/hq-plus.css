@@ -1,6 +1,13 @@
 /* Custom build (hq-plus-ui): HQ+'s own look — a dark ice-blue HUD over a square grid with soft glows,
    rounded cards with a gradient edge. Scoped to .hq-plus; the rest of Orca keeps its tokens. */
 .hq-plus {
+  /* U4: the one rule for a card's text. Folded: 3 lines. Open: all of it, up to 70% of the screen, then the
+     text itself scrolls (the buttons stay put). Body font 13.5 / 1.5, mono only for code inside it. */
+  --hqp-body-fs: 13.5px;
+  --hqp-body-lh: 1.5;
+  --hqp-fold-lines: 3;
+  --hqp-fold-max: calc(var(--hqp-fold-lines) * var(--hqp-body-lh) * 1em);
+  --hqp-open-max: 70vh;
   --hqp-bg: #050a10;
   --hqp-bg-2: #08131c;
   --hqp-card: #0b1823;
@@ -585,11 +592,12 @@
 }
 .hqp-text {
   margin: 0;
-  font-size: 13.5px;
+  font-size: var(--hqp-body-fs);
+  line-height: var(--hqp-body-lh);
   color: var(--hqp-mute);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  max-height: 220px;
+  max-height: var(--hqp-open-max);
   overflow: auto;
 }
 .hqp-opts {
@@ -1874,7 +1882,7 @@ button.hqp-allproj {
   cursor: pointer;
 }
 .hqp-chatc-full {
-  max-height: 420px;
+  max-height: var(--hqp-open-max);
   overflow: auto;
   padding-top: 4px;
   cursor: auto;
@@ -2033,20 +2041,21 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   transition: height 0.2s ease-out;
 }
 .hqp-chatc-text {
-  max-height: 6em;
+  max-height: var(--hqp-fold-max);
   overflow: hidden;
-  line-height: 1.5;
+  font-size: var(--hqp-body-fs);
+  line-height: var(--hqp-body-lh);
 }
 .hqp-chatc-text[data-more='true'] {
   mask-image: linear-gradient(#000 calc(100% - 1.6em), transparent);
 }
 .hqp-chatc-text[data-open='true'] {
-  max-height: 60vh;
+  max-height: var(--hqp-open-max);
   overflow: auto;
   cursor: auto;
 }
 .hqp-q {
-  max-height: 260px;
+  max-height: var(--hqp-open-max);
   overflow: auto;
 }
 /* the queues: the whole text, formatted, with the actions under it */
@@ -2054,11 +2063,11 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
 .hqp-wf > span.hqp-qtext {
   display: block;
   min-width: 0;
-  max-height: 12em;
+  max-height: var(--hqp-open-max);
   overflow: auto;
   white-space: normal;
   text-overflow: clip;
-  line-height: 1.45;
+  line-height: var(--hqp-body-lh);
   -webkit-line-clamp: unset;
 }
 .hqp-wf {
@@ -3470,8 +3479,8 @@ button.hqp-wf[aria-expanded='true'] span:first-child {
   gap: 8px;
 }
 .hqp-q {
-  font-size: 15.5px;
-  line-height: 1.4;
+  font-size: var(--hqp-body-fs);
+  line-height: var(--hqp-body-lh);
   text-wrap: pretty;
 }
 .hqp-done {
@@ -3589,8 +3598,8 @@ button.hqp-chat-name[data-opens='true']:hover {
 .hqp-said {
   display: grid;
   gap: 8px;
-  font-size: 13.5px;
-  line-height: 1.55;
+  font-size: var(--hqp-body-fs);
+  line-height: var(--hqp-body-lh);
   font-weight: 400;
   color: var(--hqp-fg);
   overflow-wrap: anywhere;
@@ -3605,7 +3614,7 @@ button.hqp-chat-name[data-opens='true']:hover {
   padding-left: 12px;
 }
 .hqp-said[data-folded='true'] {
-  max-height: 11.5em;
+  max-height: var(--hqp-fold-max);
   overflow: hidden;
   mask-image: linear-gradient(#000 calc(100% - 3em), transparent);
 }

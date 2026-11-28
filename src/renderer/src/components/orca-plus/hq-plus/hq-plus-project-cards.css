@@ -517,12 +517,12 @@ button.hqpc-sum:hover {
   color: var(--hqp-mute);
 }
 .hqpc-said2 {
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: var(--hqp-body-fs);
+  line-height: var(--hqp-body-lh);
   color: var(--hqp-mute);
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: var(--hqp-fold-lines);
   -webkit-box-orient: vertical;
   overflow-wrap: anywhere;
 }
@@ -642,15 +642,23 @@ button.hqpc-sum:hover {
   padding: 8px;
 }
 .hqpc-ap .hqp-approve-host pre {
-  max-height: 16em;
+  max-height: var(--hqp-open-max);
   font-family: inherit;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: var(--hqp-body-fs);
+  line-height: var(--hqp-body-lh);
 }
 .hqpc-ap .hqp-approve-host [data-approval-decide='true'] {
   justify-content: flex-start;
   gap: 6px;
   margin-top: 4px;
+}
+/* U4: the decision row sticks to the bottom of the scrolling feed, so Approve is in reach however long the text */
+.hqp-approve-host [data-approval-decide='true'] {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: 6px 0 2px;
+  background: var(--hqp-card);
 }
 .hqpc-ap .hqp-approve-host [data-approval-decide='true'] > button {
   height: 32px;
