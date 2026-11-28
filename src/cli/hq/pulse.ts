@@ -107,6 +107,22 @@ function requiredDirection(flags: Map<string, string | boolean>): 'on-me' | 'on-
   return direction
 }
 
+/** Custom build (pulse-wake, C2): `--wake self` (or a bare `--wake`) is the chat running the command. */
+function wakeFlag(flags: Map<string, string | boolean>): string | undefined {
+  const wake = flags.get('wake')
+  if (wake === undefined || wake === false) {
+    return undefined
+  }
+  if (wake === true || wake === 'self') {
+    const own = process.env.ORCA_AGENT_SESSION_ID
+    if (!own) {
+      throw new Error('--wake self works from an Orca chat only; elsewhere give the chat address or session id')
+    }
+    return own
+  }
+  return wake
+}
+
 const source = (flags: Map<string, string | boolean>): string =>
   getOptionalStringFlag(flags, 'source') ?? DEFAULT_SOURCE
 
@@ -130,13 +146,15 @@ export const PULSE_HANDLERS: Record<string, CommandHandler> = {
       sourceRef: getOptionalStringFlag(flags, 'source-ref'),
       // Custom build (hq-waiting-replies): an answer reaches the chat that recorded the waiting.
       agentSessionId: process.env.ORCA_AGENT_SESSION_ID || undefined,
+      // Custom build (pulse-wake, C2): the chat the answer brings back; `self` is this chat.
+      wake: wakeFlag(flags),
       paneKey: process.env.ORCA_PANE_KEY || undefined,
       allowDuplicate: flags.get('force') === true || undefined
     })
     printResult(result, json, (w) =>
       w.duplicate
         ? `Already open, not added again: waiting ${w.id}: [${w.direction}] ${w.title} (--force adds anyway; pulse wait update changes it)`
-        : `Waiting ${w.id}: [${w.direction}] ${w.title}`
+        : `Waiting ${w.id}: [${w.direction}] ${w.title}${w.wake ? ` · the answer wakes chat ${w.agentSessionId}: you may close this chat` : ''}`
     )
   },
 

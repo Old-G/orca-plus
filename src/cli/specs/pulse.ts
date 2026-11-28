@@ -11,7 +11,7 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
     path: ['pulse', 'wait', 'add'],
     summary: 'Record that someone waits on you (on-me) or you wait on someone (on-them)',
     usage:
-      'orca pulse wait add --title <text> --direction <on-me|on-them> [--person <id|name>] [--project <slug>] [--detail <text>] [--next <text>] [--due <date>] [--source <name>] [--source-ref <url|id>] [--json]',
+      'orca pulse wait add --title <text> --direction <on-me|on-them> [--person <id|name>] [--project <slug>] [--detail <text>] [--next <text>] [--wake <self|address|sessionId>] [--due <date>] [--source <name>] [--source-ref <url|id>] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'title',
@@ -20,6 +20,7 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
       'project',
       'detail',
       'next',
+      'wake',
       'due',
       'source',
       'source-ref',
@@ -29,10 +30,12 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
       PERSON_NOTE,
       '--due takes an ISO date or date-time; --source defaults to agent.',
       '--next is what you will do once the answer comes («run the post-check, then close the row»); it is handed to your chat together with the answer.',
+      '--wake <self|address|sessionId>: blocked on a person? Record the waiting with --wake self and close your chat; when the person answers, Orca+ brings the chat back (or starts a new one from its handoff) with the answer and --next. Works whether or not the owner passes answers by rule; an answer about money, production or a deadline still waits for the owner.',
       'An open waiting about the same person that says the same is returned instead of a new one (marked duplicate); --force adds anyway. The one returned keeps its own text: to set --next on it, use `pulse wait update <id> --next`.'
     ],
     examples: [
-      'orca pulse wait add --direction on-them --person Ann --title "Signed contract" --project app-a'
+      'orca pulse wait add --direction on-them --person Ann --title "Signed contract" --project app-a',
+      'orca pulse wait add --direction on-them --person Ann --title "DB grant" --next "rerun the migration" --wake self'
     ]
   },
   {

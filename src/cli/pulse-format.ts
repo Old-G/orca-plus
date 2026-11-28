@@ -29,6 +29,7 @@ function waitingLine(waiting: PulseWaiting, name: string | null, now: number): s
     waiting.dueAt ? `· due ${new Date(waiting.dueAt).toISOString().slice(0, 10)}` : null,
     waiting.status === 'open' ? null : `· ${waiting.status}`,
     waiting.nextAction ? `· next: ${waiting.nextAction.replace(/\s+/g, ' ').trim()}` : null,
+    waiting.wake ? '· wakes its chat' : null,
     `  ${waiting.id}`
   ]
   return parts.filter((part): part is string => part !== null).join(' ')

@@ -64,6 +64,11 @@ export type HqReplyRoutingDeps = {
   log: (message: string) => void
   /** An answer's hold ended — sorted for the chat, or out of time: the bell reads its waitings again. */
   changed?: () => void
+  /**
+   * Custom build (pulse-wake, C2): a `--wake` waiting whose chat is closed — bring that chat back (or a
+   * new one from its handoff) with the answer; true once a chat took it.
+   */
+  wake?: (waiting: PulseWaiting, prompt: string) => Promise<boolean>
 }
 
 export type HqReplyRouteOptions = { dryRun: boolean; since?: number }
@@ -92,6 +97,9 @@ function pendingAnswer(waiting: PulseWaiting): boolean {
     Boolean(waiting.reply)
   )
 }
+
+/** Custom build (pulse-wake, C2): a `--wake` waiting asked for its answer back, rule or no rule. */
+const WAKE_RULE: HqReplyRule = { do: 'send_to_asking_session', since: null }
 
 export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
   const unread = new Map<string, { tries: number; at: number }>()
@@ -234,6 +242,29 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
     if (passed.reason === 'gone') {
       return action(waiting, 'wait', { note: 'already handled by the owner' })
     }
+    // Custom build (pulse-wake, C2): the chat closed on purpose to wait — the answer brings it back.
+    if (
+      passed.reason === 'chat-closed' &&
+      waiting.wake &&
+      deps.wake &&
+      (await deps.wake(waiting, passed.prompt ?? passPrompt(waiting)).catch((error: unknown) => {
+        deps.log(
+          `replies: waking the chat of ${waiting.id} failed: ${error instanceof Error ? error.message : String(error)}`
+        )
+        return false
+      }))
+    ) {
+      // Why: `skip` is the same mark as a delivered answer; the chat has it now.
+      deps.skip(waiting.id, replyTs)
+      const done = action(waiting, 'pass', { note: 'the closed chat was brought back' })
+      await record(
+        waiting,
+        done,
+        `${who}'s answer woke ${done.address ?? 'the asking chat'} (--wake)`,
+        false
+      )
+      return done
+    }
     // Why: an unreviewed answer may only resume the live chat that asked, never start a new one.
     const reasons = [HQ_REPLY_CARD_REASON.chatClosed]
     const note = hqReplyCardNote(reasons, null)
@@ -324,7 +355,8 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
     // Why: a verdict for the chat writes nothing to pulse, so the bell would keep the answer hidden
     // until its next 30-minute look; the owner's and noise verdicts write a journal row instead.
     let released = false
-    for (const waiting of deps.listWaitings().filter(pendingAnswer)) {
+    // Why: a `--wake` waiting is routed as if the rule passed answers on (C2), not sorted here.
+    for (const waiting of deps.listWaitings().filter((entry) => pendingAnswer(entry) && !entry.wake)) {
       const id = key(waiting)
       if (sorted.has(id)) {
         continue
@@ -368,6 +400,91 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
     timer.unref?.()
   }
 
+  const routeAnswers = async (
+    rule: HqReplyRule | null,
+    options: HqReplyRouteOptions,
+    rows: Map<string, HqJournalEntry>,
+    only: (waiting: PulseWaiting) => boolean
+  ): Promise<HqReplyRouteAction[]> => {
+    const passes = rule?.do === 'send_to_asking_session'
+    const all = deps.listWaitings()
+    if (!options.dryRun) {
+      settleHandled(rows, all)
+    }
+    const since = options.since ?? rule?.since ?? null
+    // Why: answers are judged in the order they came; the store lists newest first.
+    const candidates = all
+      .toReversed()
+      .filter(only)
+      .filter((waiting) =>
+        options.dryRun && options.since !== undefined
+          ? waiting.direction === 'on-them' && waiting.repliedAt !== null && waiting.reply
+          : pendingAnswer(waiting) && !rows.has(decidedKey(waiting))
+      )
+      .sort((a, b) => (a.repliedAt ?? 0) - (b.repliedAt ?? 0))
+    const actions: HqReplyRouteAction[] = []
+    for (const waiting of candidates) {
+      if (since !== null && (waiting.repliedAt ?? 0) < since) {
+        continue
+      }
+      // Custom build (hq-reply-auto, owner 25.11): with answers passing by themselves, a thanks and
+      // the owner's own talk are still sorted out first, as with the rule off — neither is a card.
+      // Why (Codex 25.11): money, production, a deadline, a question or instructions are a card by
+      // the text alone; no model verdict may settle them first, nor keep them waiting on its retries.
+      if (passes && !hqReplyOwnerText(waiting.reply)) {
+        const owner = await talkOf(waiting)
+        if (owner === null) {
+          actions.push(
+            action(waiting, 'wait', { note: 'the model did not answer; asked again later' })
+          )
+          continue
+        }
+        if (owner !== 'chat') {
+          actions.push(
+            options.dryRun
+              ? action(waiting, 'wait', {
+                  note:
+                    owner === 'noise' ? 'thanks or small talk, no card' : 'yours to reply in Slack'
+                })
+              : await settleTalk(waiting, owner)
+          )
+          continue
+        }
+      }
+      const judged = await judge(waiting, all)
+      if (!judged) {
+        actions.push(
+          action(waiting, 'wait', { note: 'the model did not answer; asked again later' })
+        )
+        continue
+      }
+      const reasons: HqReplyCardReason[] =
+        rule?.do === 'card' ? [HQ_REPLY_CARD_REASON.ruleCard, ...judged.reasons] : judged.reasons
+      if (reasons.length > 0) {
+        const note = hqReplyCardNote(reasons, judged.answered)
+        const card = action(waiting, 'card', { reasons, answered: judged.answered, note })
+        if (!options.dryRun && rule) {
+          notes.set(decidedKey(waiting), note)
+          await record(waiting, card, `${card.author}'s answer waits for the owner: ${note}`, true)
+        }
+        actions.push(card)
+        continue
+      }
+      if (options.dryRun || !rule) {
+        actions.push(action(waiting, 'pass', { answered: judged.answered }))
+        continue
+      }
+      actions.push(
+        await carryOut(waiting).catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error)
+          deps.log(`replies: ${waiting.id} failed: ${message}`)
+          return action(waiting, 'wait', { note: message })
+        })
+      )
+    }
+    return actions
+  }
+
   return {
     async route(rule, options) {
       activeRule = rule?.do === 'send_to_asking_session'
@@ -381,91 +498,12 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
         }
       }
       // Why: with no rule the owner decides every answer the chat should act on; his own talk is sorted out.
+      // Custom build (pulse-wake, C2): a chat that asked to be woken gets its answers as by the rule.
       if (!rule && !options.dryRun) {
-        return await sortOwnerTalk()
+        const talked = await sortOwnerTalk()
+        return [...talked, ...(await routeAnswers(WAKE_RULE, options, rows, (w) => w.wake === true))]
       }
-      const all = deps.listWaitings()
-      if (!options.dryRun) {
-        settleHandled(rows, all)
-      }
-      const since = options.since ?? rule?.since ?? null
-      // Why: answers are judged in the order they came; the store lists newest first.
-      const candidates = all
-        .toReversed()
-        .filter((waiting) =>
-          options.dryRun && options.since !== undefined
-            ? waiting.direction === 'on-them' && waiting.repliedAt !== null && waiting.reply
-            : pendingAnswer(waiting) && !rows.has(decidedKey(waiting))
-        )
-        .sort((a, b) => (a.repliedAt ?? 0) - (b.repliedAt ?? 0))
-      const actions: HqReplyRouteAction[] = []
-      for (const waiting of candidates) {
-        if (since !== null && (waiting.repliedAt ?? 0) < since) {
-          continue
-        }
-        // Custom build (hq-reply-auto, owner 25.11): with answers passing by themselves, a thanks and
-        // the owner's own talk are still sorted out first, as with the rule off — neither is a card.
-        // Why (Codex 25.11): money, production, a deadline, a question or instructions are a card by
-        // the text alone; no model verdict may settle them first, nor keep them waiting on its retries.
-        if (activeRule && !hqReplyOwnerText(waiting.reply)) {
-          const owner = await talkOf(waiting)
-          if (owner === null) {
-            actions.push(
-              action(waiting, 'wait', { note: 'the model did not answer; asked again later' })
-            )
-            continue
-          }
-          if (owner !== 'chat') {
-            actions.push(
-              options.dryRun
-                ? action(waiting, 'wait', {
-                    note:
-                      owner === 'noise'
-                        ? 'thanks or small talk, no card'
-                        : 'yours to reply in Slack'
-                  })
-                : await settleTalk(waiting, owner)
-            )
-            continue
-          }
-        }
-        const judged = await judge(waiting, all)
-        if (!judged) {
-          actions.push(
-            action(waiting, 'wait', { note: 'the model did not answer; asked again later' })
-          )
-          continue
-        }
-        const reasons: HqReplyCardReason[] =
-          rule?.do === 'card' ? [HQ_REPLY_CARD_REASON.ruleCard, ...judged.reasons] : judged.reasons
-        if (reasons.length > 0) {
-          const note = hqReplyCardNote(reasons, judged.answered)
-          const card = action(waiting, 'card', { reasons, answered: judged.answered, note })
-          if (!options.dryRun && rule) {
-            notes.set(decidedKey(waiting), note)
-            await record(
-              waiting,
-              card,
-              `${card.author}'s answer waits for the owner: ${note}`,
-              true
-            )
-          }
-          actions.push(card)
-          continue
-        }
-        if (options.dryRun || !rule) {
-          actions.push(action(waiting, 'pass', { answered: judged.answered }))
-          continue
-        }
-        actions.push(
-          await carryOut(waiting).catch((error: unknown) => {
-            const message = error instanceof Error ? error.message : String(error)
-            deps.log(`replies: ${waiting.id} failed: ${message}`)
-            return action(waiting, 'wait', { note: message })
-          })
-        )
-      }
-      return actions
+      return await routeAnswers(rule, options, rows, () => true)
     },
 
     note(waiting) {
@@ -475,7 +513,7 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
       }
       const fresh = (waiting.repliedAt ?? 0) > deps.now() - HQ_REPLY_HOLD_MS
       // Why: with the rule off an answer waits only until it is sorted, so the owner's talk never pops.
-      const hold = fresh && (activeRule || !sorted.has(key(waiting)))
+      const hold = fresh && (activeRule || waiting.wake === true || !sorted.has(key(waiting)))
       if (hold) {
         refreshAt(key(waiting), (waiting.repliedAt ?? 0) + HQ_REPLY_HOLD_MS)
       }

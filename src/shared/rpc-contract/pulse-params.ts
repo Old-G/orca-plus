@@ -42,6 +42,8 @@ export const PulseAddWaitingParams = z.object({
   // Custom build (hq-waiting-replies): the chat that waits; the CLI reads them from the agent's env.
   agentSessionId: OptionalString,
   paneKey: OptionalString,
+  // Custom build (pulse-wake, C2): the chat to bring back with the answer — an address or a session id.
+  wake: OptionalString,
   // Custom build (hq-notes-dedup)
   allowDuplicate: z.boolean().optional()
 })
