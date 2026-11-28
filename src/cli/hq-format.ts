@@ -211,37 +211,55 @@ function sweepLine(action: HqSweepAction, would: boolean): string {
   }
 }
 
-const SESSIONS_SHOWN = 25
-const DAY_MS = 86_400_000
+const SESSIONS_SHOWN = 20
+const SESSIONS_SHOWN_FILTERED = 50
 
-export function formatHqSessions(result: HqSessionsResult): string {
+function agoLabel(now: number, at: number): string {
+  const minutes = Math.max(0, Math.round((now - at) / 60_000))
+  if (minutes < 60) {
+    return `${minutes}m`
+  }
+  return minutes < 2880 ? `${Math.round(minutes / 60)}h` : `${Math.round(minutes / 1440)}d`
+}
+
+/**
+ * Custom build (hq-sessions-find, A6+A7): one short line per chat. Plain call: chats that are open or
+ * mid-turn, 20 at most; with filters (`filtered`) the list is what the filters kept, closed chats too.
+ */
+export function formatHqSessions(
+  result: HqSessionsResult,
+  options?: { filtered?: boolean }
+): string {
   const now = Date.now()
-  const recent = result.sessions.filter(
-    (session) => session.midTurn || now - session.lastActivityAt < DAY_MS
-  )
-  const rows = recent
-    .slice(0, SESSIONS_SHOWN)
+  const filtered = options?.filtered === true
+  const pool = filtered
+    ? result.sessions
+    : result.sessions.filter((session) => session.midTurn || session.state !== 'closed')
+  const cap = filtered ? SESSIONS_SHOWN_FILTERED : SESSIONS_SHOWN
+  const rows = pool
+    .slice(0, cap)
     .map((session) =>
       [
         session.state.padEnd(7),
         session.address ?? '—',
         session.name ? `«${session.name}»` : null,
         session.project ? `· ${session.project}` : null,
-        session.contextPct !== null ? `ctx ${session.contextPct}%` : null,
-        `active ${Math.round((now - session.lastActivityAt) / 60_000)} min ago`,
+        session.contextPct !== null ? `ctx ${Math.round(session.contextPct)}%` : null,
+        agoLabel(now, session.lastActivityAt),
         session.ownerAt !== null && now - session.ownerAt < 30 * 60_000 ? 'owner in it' : null,
-        session.tabOpen ? null : '(in History)',
+        session.tabOpen ? null : '(History)',
         session.sessionId
       ]
         .filter((part): part is string => part !== null)
         .join('  ')
     )
-  const older = result.sessions.length - Math.min(recent.length, SESSIONS_SHOWN)
+  const hidden = pool.length - rows.length
   const would = result.dryRun || result.mode !== 'on'
   return [
     `Dispatcher: ${result.mode}. Queued: ${result.queued}. Questions to the owner: ${result.unreviewed}.`,
-    ...(rows.length > 0 ? rows : ['No chat active in the last day.']),
-    ...(older > 0 ? [`… and ${older} older or quieter chats (--json lists all).`] : []),
+    ...(rows.length > 0 ? rows : [filtered ? 'No chat matches.' : 'No open chat.']),
+    ...(hidden > 0 ? [`… and ${hidden} more (--limit, --state, --find; --json lists all).`] : []),
+    ...(!filtered ? ['Closed chats: --state closed or --find <words>.'] : []),
     '',
     ...(result.actions.length > 0
       ? result.actions.map((action) => sweepLine(action, would))

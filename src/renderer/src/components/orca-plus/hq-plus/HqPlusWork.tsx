@@ -362,6 +362,7 @@ export function HqPlusWork({
                   key={session.sessionId}
                   type="button"
                   className="hqw-closed-row"
+                  title={translate('auto.hqPlus.bringBackChat', 'Bring back chat')}
                   onClick={() => actions.onOpenClosed(session)}
                 >
                   <span className="hqw-tt">
