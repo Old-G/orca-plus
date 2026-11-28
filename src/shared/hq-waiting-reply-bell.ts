@@ -27,6 +27,8 @@ export type HqWaitingReplyRef = {
   askedAt: number
   /** Custom build (hq-plus-cards): the owner's own words that asked, when the reader found them. */
   asked?: string | null
+  /** Custom build (pulse-next, C1): the chat's own plan for this answer (`--next`), so Pass-to-chat keeps it. */
+  nextAction?: string | null
   author: string
   replyTs: string
   reply: string
@@ -72,6 +74,7 @@ export function hqWaitingReplyBellItems(
       question: waiting.title,
       askedAt: waiting.createdAt,
       asked: readHqWaitingTags(waiting.detail).text?.slice(0, 600) ?? null,
+      nextAction: waiting.nextAction?.slice(0, 500) ?? null,
       author,
       replyTs: waiting.replyTs,
       reply: waiting.reply,
@@ -135,6 +138,7 @@ export function readHqWaitingReplyRef(refId: string | null): HqWaitingReplyRef |
     project: field('project'),
     question: field('question') ?? '',
     asked: field('asked'),
+    nextAction: field('nextAction'),
     askedAt:
       typeof Reflect.get(raw, 'askedAt') === 'number' ? Number(Reflect.get(raw, 'askedAt')) : 0,
     author: field('author') ?? 'Someone',

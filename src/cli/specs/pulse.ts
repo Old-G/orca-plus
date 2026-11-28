@@ -29,7 +29,7 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
       PERSON_NOTE,
       '--due takes an ISO date or date-time; --source defaults to agent.',
       '--next is what you will do once the answer comes («run the post-check, then close the row»); it is handed to your chat together with the answer.',
-      'An open waiting about the same person that says the same is returned instead of a new one (marked duplicate); --force adds anyway.'
+      'An open waiting about the same person that says the same is returned instead of a new one (marked duplicate); --force adds anyway. The one returned keeps its own text: to set --next on it, use `pulse wait update <id> --next`.'
     ],
     examples: [
       'orca pulse wait add --direction on-them --person Ann --title "Signed contract" --project app-a'
