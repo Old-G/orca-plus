@@ -74,6 +74,23 @@ describe('slackSourceMessage', () => {
     })
   })
 
+  it('skips the scout’s summaries and the ClickUp bot, which are not what a person said', () => {
+    const db = openDb()
+    db.ingestLedgerSignal(signal({}))
+    db.ingestLedgerSignal(
+      signal({ ts: 'req:1', at: 1_700_000_010_000, author: null, text: 'Summary' })
+    )
+    db.ingestLedgerSignal(
+      signal({
+        ts: '1700000003.000100',
+        at: 1_700_000_020_000,
+        authorId: '-1',
+        text: 'Bot comment'
+      })
+    )
+    expect(db.slackSourceMessage('C0HUB', '1700000000.000100')?.author).toBe('Ann')
+  })
+
   it('takes the newest incoming line of a DM when the reply has no thread', () => {
     const db = openDb()
     db.ingestLedgerSignal(

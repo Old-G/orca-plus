@@ -60,6 +60,7 @@ export function slackSourceMessage(
     ? core.db
         .prepare(
           `${columns} WHERE c.key = ? AND m.direction = 'in'
+             AND m.ts NOT LIKE 'req:%' AND COALESCE(m.author_id, '') <> '-1'
            ORDER BY m.at DESC, m.ts DESC LIMIT 1`
         )
         .get(`slack:${channel}:${threadTs}`)
@@ -67,6 +68,7 @@ export function slackSourceMessage(
       ? core.db
           .prepare(
             `${columns} WHERE c.key LIKE ? AND m.direction = 'in'
+             AND m.ts NOT LIKE 'req:%' AND COALESCE(m.author_id, '') <> '-1'
              ORDER BY m.at DESC, m.ts DESC LIMIT 1`
           )
           .get(`slack:${channel}:%`)
