@@ -284,6 +284,17 @@ describe('orca hq reassign', () => {
     expect(formatHqReassign(result)).toContain('record only, not told (closed)')
   })
 
+  it('with no row held at all, a whole team moves and nobody on it is woken', async () => {
+    holders = []
+    const result = await reassign.reassign({ sessionId: 'claude_l2' }, { from: 'hq/lead-payouts' })
+    expect(result.moved.map((chat) => [chat.sessionId, chat.quiet])).toEqual([
+      ['claude_w1', 'no plan row'],
+      ['claude_w2', 'no plan row']
+    ])
+    expect(to('claude_w1').concat(to('claude_w2'), to('claude_w3'))).toEqual([])
+    expect(result.toldNewLead).toBe(true)
+  })
+
   it('still tells an open chat on no row that is asked for by name', async () => {
     holders = []
     const result = await reassign.reassign(

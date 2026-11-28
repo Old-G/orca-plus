@@ -14,6 +14,7 @@ import {
   type HqTaskClaimResult,
   type HqTaskKey
 } from '../shared/hq-task-lock'
+import { continuesOwnHandoff } from './hq-handoff-claim'
 import type { RuntimeClient } from './runtime/client'
 import { RuntimeClientError } from './runtime/connection/types'
 
@@ -38,7 +39,9 @@ function note(line: string): void {
 /** The row this launch takes: `--task` wins, else the brief's task file; null for none. */
 export function hqTaskOfLaunch(
   flags: Map<string, string | boolean>,
-  promptText: string | undefined
+  promptText: string | undefined,
+  /** D1: refuse a worker brief with no row; false only warns (a remote host, a replay, a handoff). */
+  refuseUntasked = true
 ): HqTaskKey | null {
   const flag = flags.get('task')
   if (flag === true || flag === '') {
@@ -55,7 +58,9 @@ export function hqTaskOfLaunch(
   // Custom build (hq-task-lock, D1 28.11): a worker launched without its row is the duplicate the lock
   // cannot see (retro orca-ux: an untasked launch sat open beside the real worker); refuse, and let
   // `--task none` start it unlocked on purpose.
-  if (!key && promptText && hqBriefHoldsARow(promptText)) {
+  if (!key && promptText && hqBriefHoldsARow(promptText) && !refuseUntasked) {
+    note('warning: this worker brief names no plan row; the launch is not locked.')
+  } else if (!key && promptText && hqBriefHoldsARow(promptText)) {
     throw new RuntimeClientError(
       'task_required',
       'This worker brief names no plan row («Ход — в runs/<plan>/<row>.md»), so Orca+ cannot stop a second chat of it. Pass --task <plan>:<row>, or --task none to start it unlocked.'
@@ -73,7 +78,11 @@ export async function claimHqTaskLock(
   flags: Map<string, string | boolean>,
   launch: { prompt?: { text: string } }
 ): Promise<HqTaskLockHold | null> {
-  const key = hqTaskOfLaunch(flags, launch.prompt?.text)
+  // Why not refused: a remote host locks nothing; a replay or a chat's own handoff («Continue from
+  // …/handoff-<id>.md») continues a launch that already passed (review D1).
+  const text = launch.prompt?.text
+  const refuse = !client.isRemote && !flags.has('retry-launch') && !continuesOwnHandoff(text)
+  const key = hqTaskOfLaunch(flags, text, refuse)
   if (!key) {
     return null
   }

@@ -215,6 +215,7 @@ describe('plan-row lock (hq-task-lock, A3)', () => {
 
   // D1 (28.11): an untasked worker launch is the duplicate the lock cannot see.
   it('refuses a worker brief that names no row, unless --task says which or none', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     const t = setup()
     const untasked = { prompt: { text: 'W · T3 refund cap.\nХод — в the task file.' } }
     await expect(claimHqTaskLock(clientOf(t.lock), new Map(), untasked)).rejects.toMatchObject({
@@ -224,6 +225,17 @@ describe('plan-row lock (hq-task-lock, A3)', () => {
     expect(
       await claimHqTaskLock(clientOf(t.lock), new Map([['task', 'none']]), untasked)
     ).toBeNull()
+    const replay = await claimHqTaskLock(
+      clientOf(t.lock),
+      new Map([['retry-launch', 'op-1']]),
+      untasked
+    )
+    expect(replay).toBeNull()
+    vi.stubEnv('CLAUDE_CODE_SESSION_ID', 'abc')
+    const handoff = {
+      prompt: { text: 'W · T3, chat 3. Continue from .claude/handoff/handoff-abc.md' }
+    }
+    expect(await claimHqTaskLock(clientOf(t.lock), new Map(), handoff)).toBeNull()
     const named = await claimHqTaskLock(
       clientOf(t.lock),
       new Map([['task', '2026-11-28-refunds:T3']]),
@@ -260,6 +272,14 @@ describe('plan-row lock (hq-task-lock, A3)', () => {
       holder: { sessionId: W2 }
     })
     expect(t.lock.claim({ ...KEY, callerSessionId: W2 })).toMatchObject({ taken: true, own: true })
+  })
+
+  it('lets a parked chat 1 take the row as a plain move once chat 2 is closed', () => {
+    const t = setup({ open: [W1], successor: { [W1]: W2 } })
+    t.db.chats.setTaskLock({ ...KEY, sessionId: W2, at: 1 })
+    const claimed = t.lock.claim({ ...KEY, callerSessionId: W1 })
+    expect(claimed).toMatchObject({ taken: true, movedFrom: { sessionId: W2 } })
+    expect(claimed).not.toHaveProperty('own')
   })
 
   it('frees the row when the launch throws', async () => {
