@@ -17,6 +17,7 @@ import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/class-names'
 import { useOutgoingApprovalOptions } from './use-outgoing-approval-options'
 import { OutgoingApprovalVenue } from './OutgoingApprovalVenue'
+import { OutgoingApprovalSource } from './OutgoingApprovalSource'
 import { OutgoingApprovalWork } from './OutgoingApprovalWork'
 import { useSteadyClick } from './use-steady-click'
 import type { OutgoingApprovalChoice } from '../../../../../shared/outgoing-approval/outgoing-approval-options'
@@ -124,6 +125,8 @@ export function OutgoingApprovalDecision({
           )}
         </p>
       ) : null}
+      {/* Custom build (hq-approve-source): the message this answers, above the draft. */}
+      <OutgoingApprovalSource source={options.source} />
       {editing === null ? (
         <pre className="scrollbar-sleek max-h-[70vh] overflow-auto rounded-md border border-border/60 bg-muted/40 px-2 py-1.5 font-sans text-[13.5px] leading-[1.5] whitespace-pre-wrap [overflow-wrap:anywhere] text-foreground">
           {text}

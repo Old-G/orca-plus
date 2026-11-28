@@ -144,6 +144,7 @@ export function registerOutgoingApproval(runtime: OrcaRuntimeService): void {
     },
     taskId: (id) => pulseDb().router.ownerTask(id),
     lastTask: (id) => lastChatTask(pulseDb(), id),
+    slackSource: (channel, threadTs) => pulseDb().slackSourceMessage(channel, threadTs),
     clickUpTask: clickUpTaskRef
   }
   // Custom build (router v2 T1): the works a card offers, once per card.

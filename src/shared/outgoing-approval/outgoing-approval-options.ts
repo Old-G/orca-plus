@@ -1,5 +1,6 @@
 // Custom build (outgoing-footer, outgoing-venue): what an approval card offers beside Approve — the
 // footer it adds, another place to send the message, a thread to continue — and what the owner chose.
+import type { OutgoingSourceMessage } from './outgoing-approval-bell'
 import type { OutgoingMove, OutgoingThreadChoice } from './outgoing-venue'
 
 /** Custom build (router v2 T1): a work the message can be bound to — the chain of chats an answer to
@@ -32,13 +33,16 @@ export type OutgoingApprovalOptions = {
   threads: OutgoingThreadChoice[]
   /** Custom build (router v2 T1): the work the message binds to, and the others it may. */
   work?: OutgoingWorkOptions | null
+  /** Custom build (hq-approve-source, U5): the message this one answers, for «What came in». */
+  source?: OutgoingSourceMessage | null
 }
 
 export const NO_OUTGOING_APPROVAL_OPTIONS: OutgoingApprovalOptions = {
   footer: null,
   move: null,
   threads: [],
-  work: null
+  work: null,
+  source: null
 }
 
 export type OutgoingApprovalChoice = {

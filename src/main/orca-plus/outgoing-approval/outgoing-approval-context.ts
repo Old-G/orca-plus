@@ -2,7 +2,10 @@
 // person it reaches, the thread message it answers, the agent chat that sends it. Each part is best
 // effort: whatever cannot be named keeps the raw id the card showed before.
 import type { HqSlackScoutIndex } from '../../hq-today/hq-slack-scout-index'
-import type { OutgoingApprovalContext } from '../../../shared/outgoing-approval/outgoing-approval-bell'
+import type {
+  OutgoingApprovalContext,
+  OutgoingSourceMessage
+} from '../../../shared/outgoing-approval/outgoing-approval-bell'
 import { readInputString } from '../../../shared/outgoing-approval/outgoing-action'
 import {
   findOutgoingTask,
@@ -20,6 +23,11 @@ export type OutgoingContextSources = {
   taskId?: (agentSessionId: string) => string | null
   /** Custom build (outgoing-footer): the task this chat's last message was about. */
   lastTask: (agentSessionId: string) => OutgoingTaskRef | null
+  /** Custom build (hq-approve-source): the ledger's whole line a Slack reply answers; null when it has none. */
+  slackSource?: (
+    channel: string,
+    threadTs: string | null
+  ) => Omit<OutgoingSourceMessage, 'where'> | null
   /** The task's link and name from ClickUp; null when ClickUp cannot say. */
   clickUpTask: (id: string) => Promise<OutgoingTaskRef | null>
 }
@@ -87,11 +95,9 @@ export async function describeOutgoingDraft(
   const replyingTo = thread
     ? [thread.author, thread.said ? quoted(thread.said) : null].filter(Boolean).join(': ') || null
     : null
-  return {
-    chatName,
-    task,
-    ...crumb,
-    targetName: await slackTargetName(draft.target, sources, scout),
-    replyingTo
-  }
+  const targetName = await slackTargetName(draft.target, sources, scout)
+  const ledgerLine = channelId ? (sources.slackSource?.(channelId, threadTs ?? null) ?? null) : null
+  // Why where is filled here: the ledger names no places, the card already knows this one.
+  const source = ledgerLine ? { ...ledgerLine, where: targetName } : null
+  return { chatName, task, ...crumb, targetName, replyingTo, ...(source ? { source } : {}) }
 }

@@ -117,6 +117,7 @@ export function outgoingApprovalOptions(
   const work = workOptions(draft, context, plan, deps)
   return {
     work,
+    source: context.source ?? null,
     footer:
       work?.choices.find((choice) => choice.id === work.current)?.footer ??
       outgoingFooterFor(draft, context),

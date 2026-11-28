@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { indexHqSlackScout } from '../../hq-today/hq-slack-scout-index'
 import type { PulseDraft } from '../../../shared/pulse-types'
 import { describeOutgoingDraft, type OutgoingContextSources } from './outgoing-approval-context'
@@ -87,6 +87,36 @@ describe('describeOutgoingDraft', () => {
     expect(context.replyingTo).toBe(
       'Лиза: «Почему прогон 660 не переезжает в хаб, хотя я всё сделала по инструкции?»'
     )
+  })
+
+  it('carries the whole ledger line a thread reply answers, placed where the card says', async () => {
+    const line = {
+      author: 'Ann',
+      at: 5,
+      text: 'Whole question\nin two lines',
+      link: 'https://acme.example/p1'
+    }
+    const slackSource = vi.fn(() => line)
+    const context = await describeOutgoingDraft(
+      draft('C0AAAAAAAAA', { thread_ts: '1.1' }),
+      sources({ C0AAAAAAAAA: '#acme-hub' }, { slackSource })
+    )
+    expect(slackSource).toHaveBeenCalledWith('C0AAAAAAAAA', '1.1')
+    expect(context.source).toEqual({ ...line, where: '#acme-hub' })
+  })
+
+  it('has no source when the ledger has none, and for a call that is not Slack', async () => {
+    const none = sources({}, { slackSource: () => null })
+    expect(
+      (await describeOutgoingDraft(draft('C9', { thread_ts: '3.3' }), none)).source
+    ).toBeUndefined()
+    const taken = sources(
+      {},
+      { slackSource: () => ({ author: 'Ann', at: 1, text: 'x', link: null }) }
+    )
+    expect(
+      (await describeOutgoingDraft(draft('86abc', {}, 'ClickUp'), taken)).source
+    ).toBeUndefined()
   })
 
   it('reads a decided request for the thread when its draft is gone', async () => {

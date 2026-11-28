@@ -37,3 +37,47 @@ export function incomingState(
     ? { state: 'you', why: was.state_why == null ? null : String(was.state_why) }
     : { state: 'fyi', why: null }
 }
+
+/** Custom build (hq-approve-source, U5): the line a Slack reply answers, whole, as the ledger kept it.
+ *  In a thread: the thread's newest line from someone else (the root when nobody else spoke). In a DM
+ *  without a thread: the newest incoming line of that DM. A top-level post in a channel answers
+ *  nothing, so it has no source. */
+export type LedgerSlackSource = {
+  author: string | null
+  at: number
+  text: string
+  link: string | null
+}
+
+export function slackSourceMessage(
+  core: PulseCore,
+  channel: string,
+  threadTs: string | null
+): LedgerSlackSource | null {
+  const columns = `SELECT m.author, m.at, m.text, m.link
+       FROM conversation_messages m JOIN conversations c ON c.id = m.conversation_id`
+  const row = threadTs
+    ? core.db
+        .prepare(
+          `${columns} WHERE c.key = ? AND m.direction = 'in'
+           ORDER BY m.at DESC, m.ts DESC LIMIT 1`
+        )
+        .get(`slack:${channel}:${threadTs}`)
+    : /^D[A-Z0-9]+$/.test(channel)
+      ? core.db
+          .prepare(
+            `${columns} WHERE c.key LIKE ? AND m.direction = 'in'
+             ORDER BY m.at DESC, m.ts DESC LIMIT 1`
+          )
+          .get(`slack:${channel}:%`)
+      : undefined
+  if (!row) {
+    return null
+  }
+  return {
+    author: row.author == null ? null : String(row.author),
+    at: Number(row.at),
+    text: String(row.text),
+    link: row.link == null ? null : String(row.link)
+  }
+}

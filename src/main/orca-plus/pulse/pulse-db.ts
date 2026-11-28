@@ -31,6 +31,7 @@ import { forgetLedgerMail, type HqMailForgetResult } from './pulse-ledger-forget
 import { recordAgentSend, type HqAgentSend } from './pulse-sent'
 import { setConversationChat, setConversationChatIfNone } from './pulse-ledger-chat'
 import { pulseAttribution } from './pulse-attribution-api'
+import { slackSourceMessage } from './pulse-ledger-rows'
 import { listOpenLedgerConversations } from './pulse-ledger-open'
 import {
   closeLedgerConversation,
@@ -167,6 +168,11 @@ export class PulseDb {
   /** Custom build (hq-request-ledger): a project's open conversations, for its card. */
   listOpenLedgerConversations(project: string) {
     return listOpenLedgerConversations(this.core, project)
+  }
+
+  /** Custom build (hq-approve-source): the Slack line a held reply answers. */
+  slackSourceMessage(channel: string, threadTs: string | null) {
+    return slackSourceMessage(this.core, channel, threadTs)
   }
 
   setConversationChat(key: string, sessionId: string): void {

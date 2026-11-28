@@ -14,7 +14,23 @@ export const OUTGOING_APPROVAL_ACTION = {
 
 /** Custom build (outgoing-approval-target): who the call reaches and where it comes from, named for
  *  the owner; the raw target stands in for what could not be named. */
+/** Custom build (hq-approve-source, U5): the message a held reply answers, whole — the card's «What
+ *  came in» block. Read from the ledger, which keeps each Slack message's author, text and link. */
+export type OutgoingSourceMessage = {
+  /** Who wrote it; null when the ledger did not name them. */
+  author: string | null
+  /** Where it was said: `#channel`, `DM with Name`; null when it could not be named. */
+  where: string | null
+  /** When it was said, ms since the epoch. */
+  at: number
+  text: string
+  /** The message's permalink, when the ledger kept it. */
+  link: string | null
+}
+
 export type OutgoingApprovalContext = {
+  /** Custom build (hq-approve-source): the whole message the call answers, when the ledger has it. */
+  source?: OutgoingSourceMessage | null
   /** `#channel`, `DM with Name`, … */
   targetName?: string | null
   /** In a thread: who said what the call answers, when known. */
