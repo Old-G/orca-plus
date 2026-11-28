@@ -15,6 +15,7 @@ import type {
   HqSweepAction
 } from '../shared/hq-sessions'
 import type { HqLadderReport } from '../shared/hq-ladder'
+import { formatShipRange, type ShipRange } from './hq-ship-range'
 
 const BODY_PREVIEW = 160
 
@@ -148,7 +149,12 @@ export function formatHqRoute(result: HqRouteResult): string {
 }
 
 /** Custom build (hq-fix-now-all): what became of a merge-slot call. */
-export function formatHqMergeSlot(result: HqMergeSlotResult): string {
+export function formatHqMergeSlot(result: HqMergeSlotResult & { foreign?: ShipRange }): string {
+  const range = result.foreign ? `\n${formatShipRange(result.foreign)}` : ''
+  return `${mergeSlotLine(result)}${range}`
+}
+
+function mergeSlotLine(result: HqMergeSlotResult): string {
   if (result.action === 'status') {
     return result.slot
       ? `${result.project}: held by ${result.slot.holder} since ${new Date(result.slot.since).toLocaleTimeString()}`

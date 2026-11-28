@@ -36,6 +36,7 @@ import {
   hasHqSessionsFilter,
   hqSessionsFilterOfFlags
 } from '../hq-sessions-filter'
+import { readShipRange } from '../hq-ship-range'
 import { formatHqAccuracy } from '../hq-accuracy-format'
 import { formatHqRouterStats } from '../hq-router-stats-format'
 import type { HqRouterStats } from '../../shared/hq-router-stats'
@@ -228,7 +229,17 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       project: getRequiredStringFlag(flags, 'project'),
       action
     })
-    printResult(result, json, formatHqMergeSlot)
+    // Custom build (C5): next to a slot you hold (or look at), what else leaves with the next ship.
+    // Advice only — a failed read prints its reason and never blocks the merge.
+    const showsRange =
+      action === 'status' || (action === 'take' && result.action === 'take' && result.ok)
+    const foreign = showsRange
+      ? readShipRange(process.cwd(), {
+          since: getOptionalStringFlag(flags, 'since'),
+          target: getOptionalStringFlag(flags, 'target')
+        })
+      : undefined
+    printResult({ ...result, ...(foreign ? { foreign } : {}) }, json, formatHqMergeSlot)
   },
 
   'hq settle': async ({ flags, client, json }) => {
