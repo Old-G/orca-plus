@@ -24,6 +24,7 @@ import {
   hqReassignRows
 } from './hq-lead-reassign-notices'
 import { hqReassignCheckAsked, hqReassignNoLeadSides } from './hq-lead-reassign-checks'
+import { hqReassignIsOpen as isOpen, hqReassignQuietOf } from './hq-lead-reassign-quiet'
 
 const MAX_HOPS = 64
 
@@ -43,6 +44,8 @@ export type HqLeadReassignDeps = {
     links: () => HqChatLinksResult
     moveLead: (input: HqLeadMoveInput) => void
   }
+  /** Custom build (hq-task-lock, D1): the chats holding a plan row (A3's lock); see hqReassignQuiet. */
+  rowHolders?: () => readonly string[]
   /** The chats now; `tabOpen` tells an open chat from one in History. */
   live: () => Promise<HqLiveSession[]>
   /** True once the chat took the prompt, sent or queued. */
@@ -88,10 +91,6 @@ type Live = ReadonlyMap<string, HqLiveSession>
 
 function strip(chat: HqLeadReassignChat): HqLeadReassignChat {
   return { address: chat.address, sessionId: chat.sessionId, name: chat.name }
-}
-
-function isOpen(chat: HqLiveSession | undefined): boolean {
-  return chat !== undefined && chat.tabOpen && chat.state !== 'closed'
 }
 
 function under(parentOf: ReadonlyMap<string, string>, key: string, above: string): boolean {
@@ -171,7 +170,8 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
       children,
       leadOf: (key) => parentOf.get(key)
     })
-    const moved: (Spot & { open: boolean })[] = []
+    const quietOf = hqReassignQuietOf(deps.rowHolders, deps.pulse.liveSessionOf)
+    const moved: (Spot & { quiet: string | null })[] = []
     const kept: HqLeadReassignResult['kept'] = []
     for (const key of children) {
       const sessionId = newestOn(key)
@@ -195,7 +195,7 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
       if (why) {
         kept.push({ ...strip(spot), why })
       } else {
-        moved.push({ ...spot, open: isOpen(chat) })
+        moved.push({ ...spot, quiet: quietOf({ open: isOpen(chat), asked: !!asked, sessionId }) })
       }
     }
     return { moved, kept }
@@ -249,7 +249,8 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
         to: to ? strip(to) : null,
         moved: moved.map((chat) => ({
           ...strip(chat),
-          told: done.told?.get(chat.sessionId) ?? false
+          told: done.told?.get(chat.sessionId) ?? false,
+          ...(chat.quiet ? { quiet: chat.quiet } : {})
         })),
         kept,
         plans: done.plans ?? [],
@@ -289,8 +290,8 @@ export function createHqLeadReassign(deps: HqLeadReassignDeps): HqLeadReassign {
 
       const told = new Map<string, boolean>()
       for (const chat of moved) {
-        // Why: a chat in History learns it from the plan and the forward; a notice would reopen it.
-        const ok = chat.open
+        // Why: a chat in History learns it from the plan and the forward (D1: so does one on no row).
+        const ok = !chat.quiet
           ? await deps.deliver(chat.sessionId, notices.chat).catch(() => false)
           : false
         told.set(chat.sessionId, ok)

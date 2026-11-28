@@ -76,7 +76,12 @@ export const AGENT_LAUNCH_HANDLERS: Record<string, CommandHandler> = {
     )
     // Custom build (hq-plus-chat-tree): the calling chat is the new chat's parent in HQ+.
     // Custom build (hq-handoff-parked, T7): a chat starting its own successor parks itself on Orca+.
-    await linkLaunchedChat(client, result.result, continuesOwnHandoff(launch.prompt?.text))
+    // Custom build (hq-task-lock, D1): so does a chat starting the next chat of its own plan row.
+    await linkLaunchedChat(
+      client,
+      result.result,
+      continuesOwnHandoff(launch.prompt?.text) || hold?.continuesOwnRow === true
+    )
     printResult(result, json, formatAgentLaunch)
   }
 }

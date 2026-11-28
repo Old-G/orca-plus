@@ -23,6 +23,12 @@ export type HqTaskClaimResult =
       ticket: string
       /** The chat that held the row before, now closed (or the caller handing on its own row). */
       movedFrom?: HqTaskHolder
+      /**
+       * Custom build (hq-task-lock, D1 28.11): the caller holds the row and starts its next chat — a
+       * chain continuation. The CLI links the new chat as the caller's handoff, so Orca+ parks the old
+       * one (sends, the thread and the dispatcher go to the new chat) instead of leaving two live.
+       */
+      own?: true
     }
   | {
       taken: false

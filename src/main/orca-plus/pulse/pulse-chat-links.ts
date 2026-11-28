@@ -16,7 +16,7 @@ import {
   type HqLeadMoveInput
 } from './pulse-chat-lead-moves'
 import type { PulseCore } from './pulse-core'
-import { setTaskLock, taskLockOf, type PulseTaskLock } from './pulse-task-locks'
+import { setTaskLock, taskLockHolders, taskLockOf, type PulseTaskLock } from './pulse-task-locks'
 import type { HqTaskKey } from '../../../shared/hq-task-lock'
 
 const MAX_HOPS = 64
@@ -204,6 +204,7 @@ export function pulseChats(core: () => PulseCore) {
     /** Custom build (hq-task-lock, A3): the chat holding a plan row. */
     taskLockOf: (key: HqTaskKey): PulseTaskLock | null => taskLockOf(core(), key),
     setTaskLock: (lock: PulseTaskLock): void => setTaskLock(core(), lock),
+    taskLockHolders: (): string[] => taskLockHolders(core()),
     leadMoveOf: (chat: string, lead: string): string | null => leadMoveOf(core(), chat, lead)
   }
 }

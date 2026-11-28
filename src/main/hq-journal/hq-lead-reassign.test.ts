@@ -22,6 +22,8 @@ let saved: HqLeadHeld[]
 let hq: string
 /** Chats with no thread address, only a session id (ones the owner started by hand). */
 let bare: HqLiveSession[]
+/** The chats on a plan row (A3's lock); null: every chat is (as before D1). */
+let holders: string[] | null
 
 // Two Leads, three workers of the first (the third closed), an HQ chat that is no one's worker.
 const CHATS: Record<string, { address: string; project: string; name: string }> = {
@@ -101,6 +103,7 @@ beforeEach(async () => {
   closed = new Set(['claude_w3'])
   saved = []
   bare = []
+  holders = null
   hq = mkdtempSync(join(tmpdir(), 'hq-reassign-'))
   mkdirSync(join(hq, 'runs'))
   writeFileSync(join(hq, 'runs', '2026-11-16-payouts.md'), PLAN('hq/lead-payouts'))
@@ -174,6 +177,7 @@ beforeEach(async () => {
       links: () => db.chats.list(),
       moveLead: (input) => db.chats.moveLead(input)
     },
+    rowHolders: () => holders ?? live().map((chat) => chat.sessionId),
     live: async () => live(),
     deliver,
     leadBatch: batch,
@@ -222,6 +226,71 @@ describe('orca hq reassign', () => {
     expect(rows.map((row) => row.title)).toEqual([
       'Lead change: hq/lead-billing leads this chat now, not hq/lead-payouts'
     ])
+  })
+
+  // D1 (28.11): reassign woke the empty launch 398e3060 — its notice became the chat's first prompt.
+  it('tells only the chats on a plan row; an open chat on no row moves in HQ+ without a notice', async () => {
+    holders = ['claude_w1']
+    const dry = await reassign.reassign(
+      { sessionId: 'claude_l2' },
+      { from: 'hq/lead-payouts', dryRun: true }
+    )
+    expect(formatHqReassign(dry)).toContain(
+      'acme-web/w-payouts-page (claude_w2) — W · Payouts page — record only, not told (no plan row)'
+    )
+    const result = await reassign.reassign({ sessionId: 'claude_l2' }, { from: 'hq/lead-payouts' })
+    expect(result.moved.map((chat) => [chat.sessionId, chat.told, chat.quiet])).toEqual([
+      ['claude_w1', true, undefined],
+      ['claude_w2', false, 'no plan row']
+    ])
+    expect(parentOf('claude_w2')).toBe('claude_l2')
+    expect(to('claude_w2')).toEqual([])
+    expect(to('claude_w1')).toHaveLength(1)
+    expect(to('claude_w3')).toEqual([])
+  })
+
+  it('follows a row holder through its handoff: the chat continuing it is told', async () => {
+    holders = ['claude_w1_old']
+    db.noteSessions([
+      {
+        sessionId: 'claude_w1',
+        address: 'acme-api/w-payouts-report',
+        agent: 'claude',
+        worktreeId: 'w',
+        workspace: 'acme',
+        project: 'acme-api',
+        state: 'working',
+        contextPct: null,
+        parentSessionId: 'claude_w1_old',
+        taskRef: null,
+        at: 3
+      }
+    ])
+    const result = await reassign.reassign({ sessionId: 'claude_l2' }, { from: 'hq/lead-payouts' })
+    expect(result.moved.find((chat) => chat.sessionId === 'claude_w1')?.told).toBe(true)
+  })
+
+  it('never reopens a closed chat, even one asked for: it moves as a record only', async () => {
+    holders = ['claude_w3']
+    const result = await reassign.reassign(
+      { sessionId: 'claude_l2' },
+      { from: 'hq/lead-payouts', chats: ['claude_w3'] }
+    )
+    expect(result.moved.map((chat) => [chat.sessionId, chat.told, chat.quiet])).toEqual([
+      ['claude_w3', false, 'closed']
+    ])
+    expect(parentOf('claude_w3')).toBe('claude_l2')
+    expect(to('claude_w3')).toEqual([])
+    expect(formatHqReassign(result)).toContain('record only, not told (closed)')
+  })
+
+  it('still tells an open chat on no row that is asked for by name', async () => {
+    holders = []
+    const result = await reassign.reassign(
+      { sessionId: 'claude_l2' },
+      { from: 'hq/lead-payouts', chats: ['claude_w2'] }
+    )
+    expect(result.moved.map((chat) => [chat.sessionId, chat.told])).toEqual([['claude_w2', true]])
   })
 
   it('tells the chat that continued the new Lead, though it got another address', async () => {

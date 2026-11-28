@@ -119,7 +119,8 @@ export async function createWorktreeWithAgent(args: {
     )
   )
   // Custom build (hq-plus-chat-tree): the calling chat is the new chat's parent in HQ+.
-  await linkLaunchedChat(client, launched.result)
+  // Custom build (hq-task-lock, D1): a chat starting the next chat of its own plan row hands it on.
+  await linkLaunchedChat(client, launched.result, hold?.continuesOwnRow === true)
   const worktree = await showLaunchedWorktree(client, launched.result.worktreeId)
   const setupWarning = await folderSetupUnsupportedWarning(
     client,

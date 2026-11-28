@@ -243,6 +243,8 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
         links: () => runtime.pulseChats().list(),
         moveLead: (input) => runtime.pulseChats().moveLead(input)
       },
+      // Custom build (hq-task-lock, D1): who is on a plan row — only they hear a team's move.
+      rowHolders: () => runtime.pulseChats().taskLockHolders(),
       live: async () => (await getHqSessions()?.live()) ?? [],
       deliver: delivery.deliver,
       leadBatch,
