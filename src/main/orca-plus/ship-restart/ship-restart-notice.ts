@@ -137,8 +137,10 @@ export async function runShipRestartNotice(deps: ShipRestartNoticeDeps): Promise
       await deps.removeMarker()
       return
     }
+    // Why best-effort: a marker not rewritten only risks a repeat after another restart; a throw here
+    // would end the retries for the chats not told yet.
     if (progressed) {
-      await deps.writeMarker(remainingShipRestartMarker(marker, pending))
+      await deps.writeMarker(remainingShipRestartMarker(marker, pending)).catch(warn)
     }
     deps.schedule(() => void attempt().catch(warn), RETRY_MS)
   }

@@ -163,4 +163,21 @@ describe('runShipRestartNotice', () => {
     await vi.waitFor(() => expect(h.marker()).toBeNull())
     expect(h.deps.deliver).toHaveBeenCalledOnce()
   })
+
+  it('A9: keeps retrying when the marker cannot be rewritten', async () => {
+    const marker = JSON.stringify({
+      sha: 'abc',
+      writtenAt: '2026-10-19T10:00:00Z',
+      chats: ['w1', 'w2']
+    })
+    const h = harness(marker, [true, false, true])
+    h.deps.writeMarker = vi.fn(async () => {
+      throw new Error('disk full')
+    })
+    await runShipRestartNotice(h.deps)
+    expect(h.scheduled).toHaveLength(1)
+    h.scheduled.shift()?.()
+    await vi.waitFor(() => expect(h.marker()).toBeNull())
+    expect(h.deps.deliver).toHaveBeenCalledTimes(3)
+  })
 })
