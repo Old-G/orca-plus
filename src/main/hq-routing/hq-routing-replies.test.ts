@@ -187,6 +187,29 @@ describe('a --wake waiting', () => {
     expect(db.getWaiting(waiting.id)?.replyDeliveredAt).toBeNull()
   })
 
+  it('a second run while the first still wakes the chat does not wake it again', async () => {
+    chatOpen = false
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    let calls = 0
+    const replies = createHqReplyRouting({
+      ...routingDeps(),
+      wake: async () => {
+        calls += 1
+        await gate
+        return true
+      }
+    })
+    answered('The orders live in the reporting replica.', { wake: true })
+    const first = replies.route(null, { dryRun: false })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    const second = await replies.route(null, { dryRun: false })
+    expect(second.map((action) => action.kind)).not.toContain('card')
+    release()
+    await first
+    expect(calls).toBe(1)
+  })
+
   it('money in the answer is a card even for --wake', async () => {
     const replies = wakingRouting(true)
     chatOpen = false

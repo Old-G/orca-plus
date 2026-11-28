@@ -103,6 +103,8 @@ const WAKE_RULE: HqReplyRule = { do: 'send_to_asking_session', since: null }
 
 export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
   const unread = new Map<string, { tries: number; at: number }>()
+  /** Custom build (pulse-wake, C2): `--wake` waitings whose chat is being brought back now, by id. */
+  const waking = new Set<string>()
   /** Custom build (hq-reply-owner-talk): who acts on each answer, as the model said, by key. */
   const talk = new Map<string, 'owner' | 'chat' | 'noise'>()
   const unreadTalk = new Map<string, { tries: number; at: number }>()
@@ -243,17 +245,27 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
       return action(waiting, 'wait', { note: 'already handled by the owner' })
     }
     // Custom build (pulse-wake, C2): the chat closed on purpose to wait — the answer brings it back.
-    if (
-      passed.reason === 'chat-closed' &&
-      waiting.wake &&
-      deps.wake &&
-      (await deps.wake(waiting, passed.prompt ?? passPrompt(waiting)).catch((error: unknown) => {
-        deps.log(
-          `replies: waking the chat of ${waiting.id} failed: ${error instanceof Error ? error.message : String(error)}`
-        )
-        return false
-      }))
-    ) {
+    // Why: a second run (the CLI's) must not wake the same chat again while the first is still at it.
+    if (passed.reason === 'chat-closed' && waiting.wake && waking.has(waiting.id)) {
+      return action(waiting, 'wait', { note: 'its chat is being woken' })
+    }
+    const woke =
+      passed.reason === 'chat-closed' && waiting.wake && deps.wake
+        ? await (async () => {
+            waking.add(waiting.id)
+            try {
+              return await deps.wake?.(waiting, passed.prompt ?? passPrompt(waiting))
+            } catch (error: unknown) {
+              deps.log(
+                `replies: waking the chat of ${waiting.id} failed: ${error instanceof Error ? error.message : String(error)}`
+              )
+              return false
+            } finally {
+              waking.delete(waiting.id)
+            }
+          })()
+        : false
+    if (woke) {
       // Why: `skip` is the same mark as a delivered answer; the chat has it now.
       deps.skip(waiting.id, replyTs)
       const done = action(waiting, 'pass', { note: 'the closed chat was brought back' })
