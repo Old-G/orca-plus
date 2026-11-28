@@ -32,7 +32,9 @@ import {
 } from '../../../../../shared/hq-waiting-reply-bell'
 import { hqPlusSaid } from '../../../../../shared/hq-plus-said'
 import { doHqSlackRequest } from '../slack-requests/hq-slack-request-actions'
-import { hqPlusTakeHint, hqPlusTakeHintRepo } from './hq-plus-take-hint'
+import { hqPlusTakeChatChoice, hqPlusTakeHint, hqPlusTakeHintRepo } from './hq-plus-take-hint'
+import { hqPlusWorktreeOfSession } from './hq-plus-router'
+import { hqPlusLiveChatOf } from './hq-plus-live-chat'
 import { hqPlusTakeKey, recordHqPlusTake } from './hq-plus-take-record'
 import { HqPlusTakeGuess } from './HqPlusTakeGuess'
 
@@ -171,8 +173,10 @@ export function HqPlusTakePanel({
     const hint = hqPlusTakeHint(item.id)
     void Promise.all([
       loadRequest(item).catch(() => null),
-      hint?.project ? window.api.hqProjects.list().catch(() => null) : Promise.resolve(null)
-    ]).then(([loaded, pages]) => {
+      hint?.project ? window.api.hqProjects.list().catch(() => null) : Promise.resolve(null),
+      // Custom build (A8): the chat already carrying this work, from the router's registry.
+      hqPlusLiveChatOf(hint)
+    ]).then(([loaded, pages, liveChat]) => {
       if (!live) {
         return
       }
@@ -181,16 +185,24 @@ export function HqPlusTakePanel({
         pages?.ok ? pages.pages : [],
         useAppStore.getState().repos
       )
-      const repo = hinted ?? loaded?.repoId ?? null
+      // Why the live chat's own project last (A8): a card that names no project still opens the chat
+      // already carrying its work.
+      const liveWorktree = liveChat
+        ? hqPlusWorktreeOfSession(useAppStore.getState().unifiedTabsByWorktree, liveChat)
+        : null
+      const repo =
+        hinted ??
+        loaded?.repoId ??
+        (liveWorktree ? hqRepoOfWorktree(useAppStore.getState(), liveWorktree) : null)
       // Why only an open chat of that project: a closed one, or another project's, cannot take it.
-      const hintChatOpen =
-        !!hint?.sessionId &&
-        hqProjectChats(useAppStore.getState(), repo).some(
-          (entry) => entry.sessionId === hint.sessionId
-        )
+      const choice = hqPlusTakeChatChoice({
+        loaded: loaded?.chat,
+        hinted: hint?.sessionId ?? null,
+        live: liveChat,
+        openSessionIds: hqProjectChats(useAppStore.getState(), repo).map((entry) => entry.sessionId)
+      })
       const chatValue =
-        loaded?.chat ??
-        (hintChatOpen && hint?.sessionId ? hqRouteChatValue(hint.sessionId) : HQ_ROUTE_NEW_CHAT)
+        loaded?.chat ?? (choice.sessionId ? hqRouteChatValue(choice.sessionId) : HQ_ROUTE_NEW_CHAT)
       const proposedKind = hint?.guess?.kind ?? null
       proposed.current = { repoId: repo, chat: chatValue, kind: proposedKind }
       setKind(proposedKind ?? (loaded?.reply ? 'reply' : 'do'))

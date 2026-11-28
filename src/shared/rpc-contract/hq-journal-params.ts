@@ -259,6 +259,11 @@ export const HqTaskLockParams = z.object({
   ticket: z.string().trim().min(1).max(100).optional(),
   sessionId: z.string().trim().min(1).max(200).optional()
 })
+// Custom build (A8): the open chat that already carries a card's work, by its conversation key or a chat it names.
+export const HqLiveChatParams = z.object({
+  key: z.string().trim().min(1).max(500).optional(),
+  sessionId: z.string().trim().min(1).max(200).optional()
+})
 // Custom build (hq-lead-reassign): a Lead's chats go to another chat.
 export const HqReassignParams = z.object({
   ...CallerFields,

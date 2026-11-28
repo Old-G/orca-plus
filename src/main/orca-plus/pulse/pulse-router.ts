@@ -253,6 +253,32 @@ export function routerBoundChat(core: PulseCore, conversationKey: string): strin
   return row && typeof row.session_id === 'string' ? liveChatOf(core, row.session_id) : null
 }
 
+/**
+ * Custom build (A8, 28.11): the open chat already carrying a card's work — what «To work» opens instead of
+ * starting a new chat. A Slack thread sent before goes to the chat it was sent to; any chat the card names
+ * goes to the chat carrying its work now (handoffs followed). A closed chat, or none, is null: the picker
+ * then offers a new chat as before.
+ */
+export function routerLiveChatForCard(
+  core: PulseCore,
+  input: { key?: string | null; sessionId?: string | null }
+): string | null {
+  // Why each in turn: a thread bound to a chat that is closed now still has the card's own chat to try.
+  for (const named of [
+    input.key ? routerBoundChat(core, input.key) : null,
+    input.sessionId ?? null
+  ]) {
+    // Why the registry: it follows handoffs and returns null once the chat is closed.
+    const live = named
+      ? routerWorkTarget(core, taskOfChat(core, liveChatOf(core, named))).chat
+      : null
+    if (live) {
+      return live
+    }
+  }
+  return null
+}
+
 /** The live chats this Slack user's conversations were sent to, newest first. */
 export function routerAuthorHistory(core: PulseCore, slackUserId: string): string[] {
   const rows = core.db
@@ -279,6 +305,8 @@ export function pulseRouter(core: () => PulseCore) {
   return {
     crumb: (lookup: HqRouterCrumbLookup): HqRouterCrumb | null => routerCrumb(core(), lookup),
     boundChat: (key: string): string | null => routerBoundChat(core(), key),
+    liveChatForCard: (input: Parameters<typeof routerLiveChatForCard>[1]): string | null =>
+      routerLiveChatForCard(core(), input),
     authorHistory: (slackUserId: string): string[] => routerAuthorHistory(core(), slackUserId),
     topics: (input: Parameters<typeof routerPersonTopics>[1]) => routerPersonTopics(core(), input),
     leadOf: (sessionId: string): string | null => leadOfChat(core(), sessionId),

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { hqPlusTakeHint, hqPlusTakeHintRepo, noteHqPlusTakeHint } from './hq-plus-take-hint'
+import {
+  hqPlusTakeChatChoice,
+  hqPlusTakeHint,
+  hqPlusTakeHintRepo,
+  noteHqPlusTakeHint
+} from './hq-plus-take-hint'
 
 describe('To work picks the project and chat the card showed', () => {
   it('lets the conversation fill what a folded part did not know', () => {
@@ -38,5 +43,43 @@ describe('To work picks the project and chat the card showed', () => {
     expect(hqPlusTakeHintRepo('acme-web', pages, repos)).toBe('repo-2')
     expect(hqPlusTakeHintRepo('nope', pages, repos)).toBeNull()
     expect(hqPlusTakeHintRepo(null, pages, repos)).toBeNull()
+  })
+})
+
+// Custom build (A8, 28.11): a card whose work a chat already carries opens that chat, not a new one.
+describe('To work opens the chat already carrying the work', () => {
+  const open = ['claude_old', 'claude_live']
+  it('prefers the registry’s live chat over the one the card named (a handoff moved on)', () => {
+    expect(
+      hqPlusTakeChatChoice({
+        loaded: null,
+        hinted: 'claude_old',
+        live: 'claude_live',
+        openSessionIds: open
+      })
+    ).toEqual({ sessionId: 'claude_live', fromLive: true })
+  })
+  it('falls back to the card’s chat when the registry knows none, and to a new chat when it is not open', () => {
+    expect(
+      hqPlusTakeChatChoice({ loaded: null, hinted: 'claude_old', live: null, openSessionIds: open })
+    ).toEqual({ sessionId: 'claude_old', fromLive: false })
+    expect(
+      hqPlusTakeChatChoice({
+        loaded: null,
+        hinted: 'claude_gone',
+        live: 'claude_closed',
+        openSessionIds: open
+      })
+    ).toEqual({ sessionId: null, fromLive: false })
+  })
+  it('leaves the chat a person’s answer named to the request itself', () => {
+    expect(
+      hqPlusTakeChatChoice({
+        loaded: 'asked',
+        hinted: 'claude_old',
+        live: 'claude_live',
+        openSessionIds: open
+      })
+    ).toEqual({ sessionId: null, fromLive: false })
   })
 })
