@@ -3,7 +3,7 @@
 // A9 (wave 2): the marker also lists the chats a restart cuts off — a turn in flight, or a chat
 // active lately whose ScheduleWakeup, Monitor or background command dies with Orca+ — and each of
 // them is told to re-arm, since the CLI does not bring those back.
-import { readFile, rm } from 'node:fs/promises'
+import { readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { getAppEnvironment } from '../../../shared/app-lifecycle/app-environment'
 import { mintAgentSessionOperationId } from '../../runtime/orchestration/mailbox/structured-pointer/structured-pointer-operation-id'
@@ -75,9 +75,24 @@ export function shipRestartDeliveries(marker: ShipRestartMarker): Map<string, st
   return out
 }
 
+/** The marker with only the chats still to tell, so another restart does not tell the rest twice. */
+export function remainingShipRestartMarker(
+  marker: ShipRestartMarker,
+  pending: ReadonlyMap<string, string>
+): string {
+  return JSON.stringify({
+    agentSessionId:
+      marker.agentSessionId && pending.has(marker.agentSessionId) ? marker.agentSessionId : null,
+    sha: marker.sha,
+    writtenAt: new Date(marker.writtenAt).toISOString(),
+    chats: marker.chats.filter((chat) => pending.has(chat) && chat !== marker.agentSessionId)
+  })
+}
+
 export type ShipRestartNoticeDeps = {
   readMarker: () => Promise<string | null>
   removeMarker: () => Promise<void>
+  writeMarker: (text: string) => Promise<void>
   /** True once the chat took the message, sent or queued. */
   deliver: (sessionId: string, prompt: string) => Promise<boolean>
   now: () => number
@@ -107,6 +122,7 @@ export async function runShipRestartNotice(deps: ShipRestartNoticeDeps): Promise
       return
     }
     // Why one by one: the host is shared, and a burst of turns at startup is what it least needs.
+    let progressed = false
     for (const [sessionId, prompt] of pending) {
       const delivered = await deps.deliver(sessionId, prompt).catch((error: unknown) => {
         console.warn('[ship-restart-notice] delivery failed:', error)
@@ -114,11 +130,15 @@ export async function runShipRestartNotice(deps: ShipRestartNoticeDeps): Promise
       })
       if (delivered) {
         pending.delete(sessionId)
+        progressed = true
       }
     }
     if (pending.size === 0) {
       await deps.removeMarker()
       return
+    }
+    if (progressed) {
+      await deps.writeMarker(remainingShipRestartMarker(marker, pending))
     }
     deps.schedule(() => void attempt().catch(warn), RETRY_MS)
   }
@@ -142,6 +162,10 @@ export function startShipRestartNotice(): void {
   void runShipRestartNotice({
     readMarker: () => readFile(path, 'utf8').catch(() => null),
     removeMarker: () => rm(path, { force: true }),
+    writeMarker: async (text) => {
+      await writeFile(`${path}.tmp`, text)
+      await rename(`${path}.tmp`, path)
+    },
     deliver: (sessionId, prompt) =>
       deliverToNativeChat(sessionId, prompt, 'ship-restart-notice', operationIdFor(sessionId)),
     now: Date.now,

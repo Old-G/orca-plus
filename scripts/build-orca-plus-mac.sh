@@ -35,6 +35,10 @@ export CSC_IDENTITY_AUTO_DISCOVERY=false
 signing_identity="${ORCA_PLUS_SIGN_IDENTITY:-Orca+ Local Signing}"
 if security find-identity -v -p codesigning | grep -qF "\"$signing_identity\""; then
   mac_identity="$signing_identity"
+elif [ -n "${ORCA_PLUS_SIGN_IDENTITY:-}" ]; then
+  # Why stop: an ad hoc build would drop every privacy grant; a typo must not cost that.
+  echo "build-orca-plus-mac: ORCA_PLUS_SIGN_IDENTITY \"$signing_identity\" is not a trusted signing identity here" >&2
+  exit 1
 else
   echo "build-orca-plus-mac: no trusted \"$signing_identity\" certificate; signing ad hoc (privacy grants reset on every rebuild)" >&2
   mac_identity=-

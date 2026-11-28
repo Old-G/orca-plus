@@ -28,6 +28,9 @@ function harness(
     removeMarker: vi.fn(async () => {
       marker = null
     }),
+    writeMarker: vi.fn(async (next: string) => {
+      marker = next
+    }),
     deliver: vi.fn(async () => delivered.shift() ?? false),
     now: () => now,
     startedAt,
@@ -137,9 +140,27 @@ describe('runShipRestartNotice', () => {
     })
     const h = harness(marker, [true, false, true])
     await runShipRestartNotice(h.deps)
-    expect(h.marker()).toBe(marker)
+    // Why: another restart now would tell only w2, not w1 again.
+    expect(parseShipRestartMarker(h.marker() ?? '')?.chats).toEqual(['w2'])
     h.scheduled.shift()?.()
     await vi.waitFor(() => expect(h.marker()).toBeNull())
     expect(vi.mocked(h.deps.deliver).mock.calls.map(([id]) => id)).toEqual(['w1', 'w2', 'w2'])
+  })
+
+  it('A9: drops the marker after 30 minutes even with chats still untold', async () => {
+    const marker = JSON.stringify({
+      sha: 'abc',
+      writtenAt: '2026-10-19T10:00:00Z',
+      chats: ['w1']
+    })
+    let now = WRITTEN + 60_000
+    const h = harness(marker, [false])
+    h.deps.now = () => now
+    await runShipRestartNotice(h.deps)
+    expect(h.marker()).toBe(marker)
+    now += SHIP_RESTART_MAX_AGE_MS + 1
+    h.scheduled.shift()?.()
+    await vi.waitFor(() => expect(h.marker()).toBeNull())
+    expect(h.deps.deliver).toHaveBeenCalledOnce()
   })
 })
