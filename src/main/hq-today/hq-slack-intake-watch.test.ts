@@ -180,7 +180,7 @@ describe('a 👾 on an answer to a waiting (owner 28.11)', () => {
         waitingId: 'w1'
       }
     ]
-    const passAnswer = vi.fn(async () => true)
+    const passAnswer = vi.fn(async () => 'passed' as const)
     const notes: string[] = []
     deps.passAnswer = passAnswer
     deps.noteMark = (_key, outcome) => void notes.push(outcome)
@@ -203,10 +203,32 @@ describe('a 👾 on an answer to a waiting (owner 28.11)', () => {
       },
       { channel: mark.channel, authorSlackId: 'U1', at: mark.at, ts: mark.ts }
     ]
-    const passAnswer = vi.fn(async () => true)
+    const passAnswer = vi.fn(async () => 'passed' as const)
     deps.passAnswer = passAnswer
     await pollHqSlackIntake(deps)
     expect(passAnswer).not.toHaveBeenCalled()
+  })
+
+  it('routes the answer like any 👾 when the waiting’s chat is closed', async () => {
+    const answer = draft('1795853360.712189')
+    const { deps, synced } = watch([answer])
+    deps.answers = () => [
+      {
+        channel: answer.channel,
+        authorSlackId: 'U1',
+        at: answer.at,
+        ts: answer.ts,
+        waitingId: 'w1'
+      }
+    ]
+    deps.passAnswer = async () => 'chat-closed'
+    const route = vi.fn(async () => null)
+    deps.route = route
+    await pollHqSlackIntake(deps)
+    expect(route).toHaveBeenCalledTimes(1)
+    expect(synced[0]?.map((card) => card.dedupeKey)).toEqual([
+      'hq-intake:D0AAAAAAAAA:1795853360.712189'
+    ])
   })
 })
 
