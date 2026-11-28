@@ -106,8 +106,14 @@ describe('formatHqSessions', () => {
   })
 
   it('a line is short: no «active … ago» prose', () => {
-    expect(formatHqSessions(result([ALL[0]]))).toMatch(
-      /closed|done\s+orca\/lead-a {2}«Orca lead of wave 2» {2}· orca {2}ctx 12% {2}5m {2}s1/
+    const line = formatHqSessions(result([ALL[0]])).split('\n')[1]
+    expect(line).toMatch(
+      /^done\s+orca\/lead-a {2}«Orca lead of wave 2» {2}· orca {2}ctx 12% {2}5m {2}s1$/
     )
+  })
+
+  it('state and role match without regard to case', () => {
+    expect(filterHqSessions(ALL, { state: 'Closed' }).map((s) => s.sessionId)).toEqual(['s3'])
+    expect(filterHqSessions(ALL, { role: 'LEAD' }).map((s) => s.sessionId)).toEqual(['s1'])
   })
 })

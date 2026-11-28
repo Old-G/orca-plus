@@ -43,12 +43,12 @@ function has(text: string | null, needle: string): boolean {
 function matches(session: HqLiveSession, filter: HqSessionsFilter): boolean {
   const states = filter.state
     ?.split(',')
-    .map((state) => state.trim())
+    .map((state) => state.trim().toLowerCase())
     .filter(Boolean)
   if (states?.length && !states.includes(session.state)) {
     return false
   }
-  if (filter.role && session.role !== filter.role) {
+  if (filter.role && session.role?.toLowerCase() !== filter.role.toLowerCase()) {
     return false
   }
   if (filter.project && !has(session.project, filter.project)) {
