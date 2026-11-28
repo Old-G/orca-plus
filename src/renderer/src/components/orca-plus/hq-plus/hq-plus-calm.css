@@ -1,0 +1,94 @@
+/* Custom build (hq-decor, V2 of the AI-UX wave 2): «Calm» — HQ+ without its decoration (decisions.md#u2,
+   1c-2): no background spots, no glows and shadows, no gradient edges, no mono capitals, one plain edge on
+   project cards, no second Approve bar. Colours stay whatever the palette says (V1), so this works with
+   Classic and with Graphite & Paper.
+   Off by default: it applies only when Settings → Appearance → «HQ+ decoration» is «Calm», which puts
+   data-hqp-decor="calm" on <html> (hq-plus-theme.ts). Unset or «Full» = this file matches nothing.
+   Every selector starts with html[data-hqp-decor='calm'], which out-ranks the rules it undoes, so import
+   order does not matter. Rules are only added here; hq-plus*.css is untouched, so reverting this file and
+   its import is the whole undo. */
+
+/* background spots */
+html[data-hqp-decor='calm'] .hq-plus::before {
+  content: none;
+  background: none;
+}
+
+/* glows and drop shadows (focus rings and selected outlines stay) */
+html[data-hqp-decor='calm'] .hq-plus .hqp-arc,
+html[data-hqp-decor='calm'] .hq-plus .hqp-arc i,
+html[data-hqp-decor='calm'] .hq-plus .hqp-live i,
+html[data-hqp-decor='calm'] .hq-plus .hqp-tr u,
+html[data-hqp-decor='calm'] .hq-plus .hqp-badge[data-tone='working']::before,
+html[data-hqp-decor='calm'] .hq-plus .hqp-m[data-selected='true'] .hqp-card,
+html[data-hqp-decor='calm'] .hq-plus .hqpc[data-ap='true'],
+html[data-hqp-decor='calm'] .hq-plus .hqpc-apbar {
+  box-shadow: none;
+}
+
+/* gradient edges and fills: the plain line and card */
+html[data-hqp-decor='calm'] .hq-plus .hqpc[data-ap='true'] {
+  border-color: var(--hqp-line);
+  background: var(--hqp-card);
+}
+html[data-hqp-decor='calm'] .hq-plus .hqpc[data-you='true'] {
+  background: var(--hqp-card);
+}
+
+/* the project's own colour on the card edge: one plain edge (the dot in the head keeps the colour);
+   «your move» and Approve only brighten it */
+html[data-hqp-decor='calm'] .hq-plus .hqpc {
+  border-color: var(--hqp-line);
+}
+html[data-hqp-decor='calm'] .hq-plus .hqpc[data-you='true'] {
+  border-color: var(--hqp-line-2);
+}
+html[data-hqp-decor='calm'] .hq-plus .hqpc[data-ap='true'] {
+  border-color: var(--hqp-line-2);
+}
+
+/* the board's tinted rows: no stripe, no wash in the project colour */
+html[data-hqp-decor='calm'] .hq-plus .hqw-board .hqw-tr[data-tinted='true'] {
+  box-shadow: none;
+}
+html[data-hqp-decor='calm'] .hq-plus .hqw-board .hqw-tr[data-tinted='true']:not([data-you='true']) {
+  background: none;
+}
+html[data-hqp-decor='calm']
+  .hq-plus
+  .hqw-board
+  button.hqw-tr[data-tinted='true']:not([data-you='true']):hover,
+html[data-hqp-decor='calm']
+  .hq-plus
+  .hqw-board
+  .hqw-tr[data-tinted='true']:not([data-you='true'])[aria-current='true'] {
+  background: var(--hqp-soft-2);
+}
+
+/* mono capitals: labels read as written */
+html[data-hqp-decor='calm'] .hq-plus .hqp-hl,
+html[data-hqp-decor='calm'] .hq-plus .hqp-tg,
+html[data-hqp-decor='calm'] .hq-plus .hqp-lab,
+html[data-hqp-decor='calm'] .hq-plus .hqp-rep dt,
+html[data-hqp-decor='calm'] .hq-plus .hqp-lines .h,
+html[data-hqp-decor='calm'] .hq-plus .hqp-badge,
+html[data-hqp-decor='calm'] .hq-plus .hqp-txt-k,
+html[data-hqp-decor='calm'] .hq-plus .hqp-hist-h,
+html[data-hqp-decor='calm'] .hq-plus .hqp-day,
+html[data-hqp-decor='calm'] .hq-plus .hqp-agents-sum,
+html[data-hqp-decor='calm'] .hq-plus .hqp-roomform-l,
+html[data-hqp-decor='calm'] .hq-plus .hqp-side-sub,
+html[data-hqp-decor='calm'] .hq-plus .hqp-newchat-h,
+html[data-hqp-decor='calm'] .hq-plus .hqp-said-ctx .who,
+html[data-hqp-decor='calm'] .hq-plus .hqp-ticker-h,
+html[data-hqp-decor='calm'] .hq-plus .hqpc-room,
+html[data-hqp-decor='calm'] .hq-plus .hqpc-lab {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Approve shown twice: the card's own «Approve · N» section and the head pill stay (the pill is the only
+   mark while the card's sections are filtered); the bar at the feed's bottom goes */
+html[data-hqp-decor='calm'] .hq-plus .hqpc-apbar {
+  display: none;
+}
