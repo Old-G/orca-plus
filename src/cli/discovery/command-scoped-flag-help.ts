@@ -29,6 +29,9 @@ const COMMAND_SCOPED_FLAG_HELP: Record<string, Record<string, string>> = {
     state: '--state <state>        Only agents in this state: working, blocked, waiting or done'
   },
   'agent show': { id: AGENT_ID_FLAG_HELP },
+  'agent launch': {
+    task: '--task <plan>:<row>|none Lock this plan row to the new chat (default: the row a Lead brief names)'
+  },
   'agent read': {
     id: AGENT_ID_FLAG_HELP,
     limit: '--limit <n>            Newest entries to return (default 20, at most 100)'
@@ -70,6 +73,7 @@ const COMMAND_SCOPED_FLAG_HELP: Record<string, Record<string, string>> = {
     limit: '--limit <n>            Maximum matching workspaces (default 50)'
   },
   'worktree create': {
+    task: '--task <plan>:<row>|none Lock this plan row to the new chat (default: the row a Lead brief names)',
     branch: '--branch <name>        Git branch name to use instead of the prefixed default',
     reference:
       '--reference <url-or-jira-key> Attach an issue/review URL or Jira key; repeat for several',

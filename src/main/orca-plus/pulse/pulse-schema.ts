@@ -4,6 +4,7 @@ import type Database from '../../sqlite/sync-database'
 import { CHAT_LEAD_MOVES_TABLE } from './pulse-chat-lead-moves'
 import { ROUTER_TABLES, ensureRouterLogColumns } from './pulse-router-graph'
 import { PULSE_HOT_INDEXES } from './pulse-hot-indexes'
+import { TASK_LOCKS_TABLE } from './pulse-task-locks'
 
 const V1 = `
 CREATE TABLE people (
@@ -342,7 +343,9 @@ export function migratePulseSchema(db: Database.Database): void {
     )
   }
   if (stored === PULSE_SCHEMA_VERSION) {
-    db.exec(SIDE_TABLES + CHAT_LEAD_MOVES_TABLE + ROUTER_TABLES + PULSE_HOT_INDEXES)
+    db.exec(
+      SIDE_TABLES + CHAT_LEAD_MOVES_TABLE + ROUTER_TABLES + TASK_LOCKS_TABLE + PULSE_HOT_INDEXES
+    )
     ensureRouterLogColumns(db)
     return
   }
@@ -352,7 +355,9 @@ export function migratePulseSchema(db: Database.Database): void {
       db.exec(step)
     }
     db.pragma(`user_version = ${PULSE_SCHEMA_VERSION}`)
-    db.exec(SIDE_TABLES + CHAT_LEAD_MOVES_TABLE + ROUTER_TABLES + PULSE_HOT_INDEXES)
+    db.exec(
+      SIDE_TABLES + CHAT_LEAD_MOVES_TABLE + ROUTER_TABLES + TASK_LOCKS_TABLE + PULSE_HOT_INDEXES
+    )
     ensureRouterLogColumns(db)
     db.exec('COMMIT')
   } catch (error) {

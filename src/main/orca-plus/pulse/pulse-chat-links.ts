@@ -16,6 +16,8 @@ import {
   type HqLeadMoveInput
 } from './pulse-chat-lead-moves'
 import type { PulseCore } from './pulse-core'
+import { setTaskLock, taskLockOf, type PulseTaskLock } from './pulse-task-locks'
+import type { HqTaskKey } from '../../../shared/hq-task-lock'
 
 const MAX_HOPS = 64
 const MAX_ROWS = 2000
@@ -199,6 +201,9 @@ export function pulseChats(core: () => PulseCore) {
     successorSince: (sessionId: string, since: number): string | null =>
       successorSince(core(), sessionId, since),
     moveLead: (input: HqLeadMoveInput): void => moveChatLead(core(), input),
+    /** Custom build (hq-task-lock, A3): the chat holding a plan row. */
+    taskLockOf: (key: HqTaskKey): PulseTaskLock | null => taskLockOf(core(), key),
+    setTaskLock: (lock: PulseTaskLock): void => setTaskLock(core(), lock),
     leadMoveOf: (chat: string, lead: string): string | null => leadMoveOf(core(), chat, lead)
   }
 }

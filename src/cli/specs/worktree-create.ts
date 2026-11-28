@@ -6,7 +6,7 @@ export const WORKTREE_CREATE_COMMAND_SPEC: CommandSpec = {
   repeatableFlags: ['reference'],
   summary: 'Create a new Orca-managed worktree',
   usage:
-    'orca worktree create --name <name> [--repo <selector>|--project <id-or-name> [--host <host>]|--project-host-setup <id>] [--agent <id>] [--prompt <text>] [--model <id>] [--effort <level>] [--surface chat|terminal] [--role lead|sublead|worker|review] [--setup run|skip|inherit] [--base-branch <ref>] [--branch <name>] [--reference <url-or-jira-key>...] [--reference-site <id>] [--issue <number>] [--pr <number>] [--linear-issue <identifier-or-url>] [--gitlab-issue <number-or-url>] [--gitlab-mr <number-or-url>] [--comment <text>] [--parent-worktree <selector> [--parent-environment <environment>]] [--no-parent] [--run-hooks] [--activate] [--retry-launch <operationId>] [--json]',
+    'orca worktree create --name <name> [--repo <selector>|--project <id-or-name> [--host <host>]|--project-host-setup <id>] [--agent <id>] [--prompt <text>] [--model <id>] [--effort <level>] [--surface chat|terminal] [--role lead|sublead|worker|review] [--task <plan>:<row>|none] [--setup run|skip|inherit] [--base-branch <ref>] [--branch <name>] [--reference <url-or-jira-key>...] [--reference-site <id>] [--issue <number>] [--pr <number>] [--linear-issue <identifier-or-url>] [--gitlab-issue <number-or-url>] [--gitlab-mr <number-or-url>] [--comment <text>] [--parent-worktree <selector> [--parent-environment <environment>]] [--no-parent] [--run-hooks] [--activate] [--retry-launch <operationId>] [--json]',
   allowedFlags: [
     ...GLOBAL_FLAGS,
     'repo',
@@ -20,6 +20,7 @@ export const WORKTREE_CREATE_COMMAND_SPEC: CommandSpec = {
     'effort',
     'surface',
     'role',
+    'task',
     'retry-launch',
     'base-branch',
     'branch',
@@ -40,6 +41,7 @@ export const WORKTREE_CREATE_COMMAND_SPEC: CommandSpec = {
   ],
   notes: [
     "--role lead|sublead|worker|review (with --agent): the chat's role in a lead's work, as for `orca agent launch --role`.",
+    '--task <plan>:<row>|none (with --agent): the plan row lock, as for `orca agent launch`; it is taken before the checkout is created, so a refused launch creates nothing.',
     'Repeat --reference to attach full issue or review URLs, or Jira issue keys, before setup or agent startup. Use --reference-site to choose the Jira site for keys. Other providers require full URLs. Cannot combine with legacy link flags.',
     'This creates a new checkout. For a fresh agent in an existing worktree, use `orca agent launch` instead.',
     'By default, Orca records the new worktree as a child of the caller context when it can infer one from the Orca terminal or current directory.',

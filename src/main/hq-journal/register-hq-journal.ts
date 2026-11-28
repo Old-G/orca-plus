@@ -17,6 +17,7 @@ import { getHqSessions } from '../hq-sessions/hq-sessions'
 import { createHqLeadReassign, provideHqLeadReassign } from './hq-lead-reassign'
 import { hqRewritePlanLeads } from './hq-lead-plan-line'
 import { createHqLeadOf, hqReadPlanTexts } from './hq-lead-of'
+import { createHqTaskLock, provideHqTaskLock } from './hq-task-lock'
 import { hqChatTabIds } from '../hq-sessions/hq-session-live'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { provideNativeChatTabReveal } from '../orca-plus/waiting-replies/native-chat-tab-reveal'
@@ -213,6 +214,15 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
       sessionName: (sessionId) => record(sessionId)?.conversationName?.trim() || null,
       now: Date.now,
       leadBatch
+    })
+  )
+  // Custom build (hq-task-lock, A3): one open chat per plan row, taken by `orca agent launch`.
+  provideHqTaskLock(
+    createHqTaskLock({
+      store: () => runtime.pulseChats(),
+      getSession: threadPulse.getSession,
+      liveSessionOf: threadPulse.liveSessionOf,
+      openTabs
     })
   )
   registerHqSessions(store, runtime, service)
