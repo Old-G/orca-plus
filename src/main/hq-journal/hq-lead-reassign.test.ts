@@ -206,6 +206,9 @@ describe('orca hq reassign', () => {
     expect(parentOf('claude_w1')).toBe('claude_l2')
     expect(parentOf('claude_w2')).toBe('claude_l2')
     expect(parentOf('claude_w3')).toBe('claude_l1')
+    expect(formatHqReassign(result)).toContain(
+      'acme-api/w-payouts-old (claude_w3) — W · Old export — skipped (closed)'
+    )
     expect(db.chats.roleOf('claude_l2')).toBe('lead')
     expect(to('claude_w1')[0]?.prompt).toContain(
       'hq/lead-billing leads this chat now, not hq/lead-payouts'
@@ -236,7 +239,7 @@ describe('orca hq reassign', () => {
       { from: 'hq/lead-payouts', dryRun: true }
     )
     expect(formatHqReassign(dry)).toContain(
-      'acme-web/w-payouts-page (claude_w2) — W · Payouts page — record only, not told (no plan row)'
+      'acme-web/w-payouts-page (claude_w2) — W · Payouts page — skipped (no plan row): record only, not told'
     )
     const result = await reassign.reassign({ sessionId: 'claude_l2' }, { from: 'hq/lead-payouts' })
     expect(result.moved.map((chat) => [chat.sessionId, chat.told, chat.quiet])).toEqual([
@@ -281,7 +284,9 @@ describe('orca hq reassign', () => {
     ])
     expect(parentOf('claude_w3')).toBe('claude_l2')
     expect(to('claude_w3')).toEqual([])
-    expect(formatHqReassign(result)).toContain('record only, not told (closed)')
+    expect(formatHqReassign(result)).toContain(
+      'acme-api/w-payouts-old (claude_w3) — W · Old export — skipped (closed): record only, not told'
+    )
   })
 
   it('with no row held at all, a whole team moves and nobody on it is woken', async () => {

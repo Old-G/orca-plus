@@ -40,7 +40,7 @@ export function formatHqReassign(result: HqLeadReassignResult): string {
     for (const chat of result.moved) {
       // D1: a chat moved without a notice says why, in a dry run too — the Lead sees what stays asleep.
       if (chat.quiet) {
-        out.push(`  ${line(chat)} — record only, not told (${chat.quiet})`)
+        out.push(`  ${line(chat)} — skipped (${chat.quiet}): record only, not told`)
         continue
       }
       out.push(
@@ -51,7 +51,8 @@ export function formatHqReassign(result: HqLeadReassignResult): string {
   if (result.kept.length > 0) {
     out.push(result.from ? 'Kept with the old Lead:' : 'Not moved:')
     for (const chat of result.kept) {
-      out.push(`  ${line(chat)} — ${chat.why}`)
+      // D1 (retro 2a): a closed chat says it was skipped — nothing reopened it.
+      out.push(`  ${line(chat)} — ${chat.why === 'closed' ? 'skipped (closed)' : chat.why}`)
     }
   }
   if (result.plans.length > 0) {
