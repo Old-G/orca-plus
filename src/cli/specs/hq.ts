@@ -175,12 +175,14 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     path: ['hq', 'merge-slot'],
     summary:
       "Take or give back a project's merge slot, so chats working side by side merge one at a time",
-    usage: 'orca hq merge-slot <take|release|status> <project> [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'action', 'project'],
+    usage:
+      'orca hq merge-slot <take|release|status> <project> [--since <ref>] [--target <ref>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'action', 'project', 'since', 'target'],
     positionalArgs: ['action', 'project'],
     notes: [
       'take: busy means another chat is merging — wait 2 minutes and try again; then rebase on the fresh target, re-run tests, merge.',
-      'release right after merging, and on failure too; a slot nobody gave back frees itself after 30 minutes.'
+      'release right after merging, and on failure too; a slot nobody gave back frees itself after 30 minutes.',
+      "take (when yours) and status also list the commits on the target that the last ship did not carry — other chats' work that leaves with your merge. --since: last shipped ref (default git config orca.shipped, written by scripts/orca-plus-ship.sh); --target: ref the ship is cut from (default git config orca.shipTarget, then origin/HEAD)."
     ],
     examples: ['orca hq merge-slot take acme-api', 'orca hq merge-slot release acme-api']
   },

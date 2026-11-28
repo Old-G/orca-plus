@@ -29,6 +29,8 @@ for arg in "$@"; do
 done
 
 repo=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+# C5: the commit this ship builds; a chat committing while the build runs must not count as shipped.
+ship_head=$(git -C "$repo" rev-parse HEAD)
 app="/Applications/Orca Plus.app"
 bundle_id=com.oldg.orca-plus
 profile="$HOME/Library/Application Support/orca-plus"
@@ -56,6 +58,25 @@ wake_window_min="${ORCA_PLUS_SHIP_WAKE_WINDOW_MIN:-60}"
 case "$wake_window_min" in
   '' | *[!0-9]*) echo "orca-plus-ship: ORCA_PLUS_SHIP_WAKE_WINDOW_MIN must be whole minutes, got $wake_window_min" >&2; exit 2 ;;
 esac
+
+# C5: what this build carries that the last ship did not (git config orca.shipped = the last verified
+# ship's commit, written below). Printed so a ship started for one change shows the others' commits
+# leaving with it; information only, it never stops the ship. Same list as `orca hq merge-slot`.
+shipped_commits() {
+  local since
+  since=$(git -C "$repo" config --get orca.shipped 2>/dev/null) || since=""
+  if [ -z "$since" ]; then
+    step "commits in this build: last shipped commit unknown (first ship after C5)"
+  elif ! git -C "$repo" rev-parse --verify --quiet "$since^{commit}" >/dev/null; then
+    step "commits in this build: last shipped commit $since is not in this repo"
+  else
+    local n
+    n=$(git -C "$repo" rev-list --count "$since..HEAD")
+    step "commits in this build, not in the last ship ($since): $n — if they are not all yours, check the owner knows"
+    # Why the braces: under pipefail a `head` that quits early makes git die of SIGPIPE and would end the ship.
+    { git -C "$repo" log --reverse --format='    %h %an — %s' "$since..HEAD" | head -30; } || true
+  fi
+}
 
 step() { echo "[$(date +%T)] $*"; }
 # Why: `open` hands this shell's env to Orca+; started from an agent chat that env names the chat's
@@ -244,6 +265,7 @@ if [ "$dry" = 0 ] && [ "$detached" = 0 ]; then
   exit 0
 fi
 
+shipped_commits || true
 if [ "$dry" = 1 ]; then
   echo "  would run: Codex review of the unreviewed commits ($reviewer ship)"
 else
@@ -478,6 +500,8 @@ if [ "$dry" = 0 ]; then
   # Why: HQ+ shows the ship in thread job/ship, so nobody has to ask whether it landed (24.10).
   if [ "$ok" = 1 ]; then
     step "OK — Orca+ $version installed, profile intact. Backup: $backup"
+    # C5: the next ship and `orca hq merge-slot` count commits from here. Revert: git config --unset orca.shipped.
+    git -C "$repo" config orca.shipped "$ship_head" || step "could not record the shipped commit"
     orca_plus_cli hq job --job ship --did "Orca+ $version installed ($commit), profile intact${review_said:+; $review_said}" >/dev/null || true
     step "prune backups, keeping only this one"
     prune_backups 1

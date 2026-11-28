@@ -36,6 +36,7 @@ import {
   hasHqSessionsFilter,
   hqSessionsFilterOfFlags
 } from '../hq-sessions-filter'
+import { readShipRange, type ShipRange } from '../hq-ship-range'
 import { formatHqAccuracy } from '../hq-accuracy-format'
 import { formatHqRouterStats } from '../hq-router-stats-format'
 import type { HqRouterStats } from '../../shared/hq-router-stats'
@@ -70,6 +71,15 @@ function caller(): { callerSessionId?: string; callerWorktreeId?: string; caller
 function clockOf(at: number): string {
   const date = new Date(at)
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+/** Advice next to the merge slot: whatever goes wrong reading git is a printed reason, never a failed merge. */
+function safeShipRange(since?: string, target?: string): ShipRange {
+  try {
+    return readShipRange(process.cwd(), { since, target })
+  } catch (error) {
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+  }
 }
 
 export const HQ_HANDLERS: Record<string, CommandHandler> = {
@@ -228,7 +238,14 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       project: getRequiredStringFlag(flags, 'project'),
       action
     })
-    printResult(result, json, formatHqMergeSlot)
+    // Custom build (C5): next to a slot you hold (or look at), what else leaves with the next ship.
+    // Advice only — a failed read prints its reason and never blocks the merge.
+    const showsRange =
+      action === 'status' || (action === 'take' && result.action === 'take' && result.ok)
+    const foreign = showsRange
+      ? safeShipRange(getOptionalStringFlag(flags, 'since'), getOptionalStringFlag(flags, 'target'))
+      : undefined
+    printResult({ ...result, ...(foreign ? { foreign } : {}) }, json, formatHqMergeSlot)
   },
 
   'hq settle': async ({ flags, client, json }) => {
