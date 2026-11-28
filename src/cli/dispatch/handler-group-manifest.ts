@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Why: custom build (hq-task-progress, C7) adds one more hq command; the file was past the limit already, split it when it next grows */
 import type { CommandHandler } from './dispatch'
 import { AUTH_HANDLER_GROUP } from '../accounts/auth-handler-group'
 import { BOT_HANDLER_GROUPS } from '../bots/bot-handler-groups'
@@ -78,6 +79,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
       'hq accuracy',
       'hq router-stats',
       'hq settle',
+      'hq task-event',
       'hq merge-slot',
       'hq context',
       'hq step',

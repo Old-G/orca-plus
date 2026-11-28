@@ -82,6 +82,14 @@ export const HqMergeSlotParams = z.object({
   action: z.enum(['take', 'release', 'status'])
 })
 
+// Custom build (hq-task-progress, C7): a chat's work event for the «Ход» of its plan row.
+export const HqTaskEventParams = z.object({
+  ...CallerFields,
+  event: z.enum(['opened', 'merged', 'shipped']),
+  link: OptionalString,
+  note: OptionalString
+})
+
 export const HqSettleParams = z.object({
   ...CallerFields,
   id: requiredString('A journal entry id is required'),

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Why: custom build (hq-task-progress, C7) adds one more hq command; the file was past the limit already, split it when it next grows */
 import type { CommandSpec } from '../discovery/command-spec'
 import { CLI_GLOBAL_FLAGS as GLOBAL_FLAGS } from '../../shared/cli/cli-argument-boundary'
 
@@ -185,6 +186,25 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
       "take (when yours) and status also list the commits on the target that the last ship did not carry — other chats' work that leaves with your merge. --since: last shipped ref (default git config orca.shipped, written by scripts/orca-plus-ship.sh); --target: ref the ship is cut from (default git config orca.shipTarget, then origin/HEAD)."
     ],
     examples: ['orca hq merge-slot take acme-api', 'orca hq merge-slot release acme-api']
+  },
+  {
+    // Custom build (hq-task-progress, C7)
+    path: ['hq', 'task-event'],
+    summary:
+      'Add a line to «Ход» of this chat’s plan row file (runs/<plan>/<row>.md): PR opened, merged or shipped',
+    usage: 'orca hq task-event <opened|merged|shipped> [--link <url>] [--note <text>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'event', 'link', 'note'],
+    positionalArgs: ['event'],
+    notes: [
+      'The row is the one this chat holds (taken by `orca agent launch` from the brief); a chat without a row writes nothing.',
+      'Only the row file is written, never the plan. The same event and link twice adds one line. Settings: hqTaskProgressEnabled (default on); off, nothing is written.',
+      'Run it right after the event: opened — after `gh pr create` / `glab mr create`; merged — after the merge and `merge-slot release`; shipped — after the deploy is checked.'
+    ],
+    examples: [
+      'orca hq task-event opened --link https://github.com/acme/api/pull/9',
+      'orca hq task-event merged --link https://github.com/acme/api/pull/9',
+      'orca hq task-event shipped --note "1.4.283"'
+    ]
   },
   {
     path: ['hq', 'settle'],

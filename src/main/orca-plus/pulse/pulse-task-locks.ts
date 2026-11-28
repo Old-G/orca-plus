@@ -41,3 +41,16 @@ export function taskLockHolders(core: PulseCore): string[] {
     .all()
     .map((row) => String(row.session_id))
 }
+
+/** Custom build (hq-task-progress, C7): the plan rows held by any of these chats (the chat and where
+ *  its handoffs went), oldest first. */
+export function taskRowsOf(core: PulseCore, sessionIds: readonly string[]): HqTaskKey[] {
+  if (sessionIds.length === 0) {
+    return []
+  }
+  const marks = sessionIds.map(() => '?').join(', ')
+  return core.db
+    .prepare(`SELECT plan, row FROM task_locks WHERE session_id IN (${marks}) ORDER BY at`)
+    .all(...sessionIds)
+    .map((row) => ({ plan: String(row.plan), row: String(row.row) }))
+}

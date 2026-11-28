@@ -9,6 +9,12 @@ import {
   type HqWhoami
 } from '../../shared/hq-journal'
 import type { HqMergeSlotResult, HqRouteResult, HqSettleResult } from '../../shared/hq-routing'
+import {
+  HQ_TASK_EVENTS,
+  type HqTaskEvent,
+  type HqTaskProgressResult
+} from '../../shared/hq-task-progress'
+import { formatHqTaskEvent } from '../hq-task-event-format'
 import type { HqLadderReport } from '../../shared/hq-ladder'
 import type { HqDispatchResult, HqSessionsResult } from '../../shared/hq-sessions'
 import type { HqLeadReassignResult } from '../../shared/hq-chat-links'
@@ -246,6 +252,21 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       ? safeShipRange(getOptionalStringFlag(flags, 'since'), getOptionalStringFlag(flags, 'target'))
       : undefined
     printResult({ ...result, ...(foreign ? { foreign } : {}) }, json, formatHqMergeSlot)
+  },
+
+  // Custom build (hq-task-progress, C7)
+  'hq task-event': async ({ flags, client, json }) => {
+    const event = getRequiredStringFlag(flags, 'event')
+    if (!(HQ_TASK_EVENTS as readonly string[]).includes(event)) {
+      throw new Error(`Use ${HQ_TASK_EVENTS.join(', ')}, got "${event}"`)
+    }
+    const result = await client.call<HqTaskProgressResult>('hq.taskEvent', {
+      ...caller(),
+      event: event as HqTaskEvent,
+      link: getOptionalStringFlag(flags, 'link'),
+      note: getOptionalStringFlag(flags, 'note')
+    })
+    printResult(result, json, formatHqTaskEvent)
   },
 
   'hq settle': async ({ flags, client, json }) => {
