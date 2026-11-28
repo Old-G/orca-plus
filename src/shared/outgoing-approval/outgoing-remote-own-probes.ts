@@ -1,7 +1,8 @@
 // Custom build (remote-own-work, owner 06.11): what else the agent's own server work looks like — its
 // probe scripts in a listed container, its scratchpad by a variable set in the same command, and data
 // heredocs whose text no shell reads.
-import type { Binding, Word } from './outgoing-shell-words'
+import { isRemote } from './outgoing-remote-scope'
+import { inComment, type Binding, type Word } from './outgoing-shell-words'
 
 /** A name matches a list pattern; `*` stands for any part of it. */
 export function globMatch(pattern: string, name: string): boolean {
@@ -42,6 +43,85 @@ export function isOwnContainerScript(
       globMatch(pattern.slice(at + 1), path.slice(cut + 1))
     )
   })
+}
+
+// Custom build (C3, plan 15.18, owner 11.11): a probe the agent copies into a container and removes
+// after the run — `docker cp /tmp/q.mjs app:/app/q.mjs … docker exec app rm -f /app/q.mjs` — without a
+// list entry. Why only these: the destination is one literal script file, no `..`, glob or variable; the
+// source is a path, not the `-` tar stream that can unpack anything. Why scripts only: if the copy did
+// not run, the rm takes a file of that name already there — code the image brings back, never data
+// (`.db`, `.json`, `.env`; review 28.11).
+const DOCKER_CP_IN = new RegExp(
+  String.raw`(?:^|[\s;&|('"\x60])docker\s+cp\s+(?:-[aLq]+\s+)*(?!-\s)[^\s;&|<>'"\x60$()]+\s+([\w.-]+):(\/[\w./-]*\/\w[\w.-]*\.(?:[cm]?[jt]s|py|sh))(?=$|[\s;&|)'"])`,
+  'g'
+)
+// Why: a branch, group, function or background job may skip the copy and still run the rm; after a
+// comment, an escaped separator (`echo x \; docker cp …`) or inside a heredoc in quotes (which
+// contextKeys does not split off) it is no command at all (review 28.11).
+const BRANCHING =
+  /\|\||[{}#\\]|<<|(?:^|[\s;&|])(?:if|then|else|elif|do|case|while|until|for|function)(?=[\s;]|$)|(?:^|[^&>])&(?![&>])/
+
+export type ContainerCopy = { container: string; path: string; at: number }
+
+/**
+ * Files this command copies into a container by name — only a `docker cp` that is a command itself:
+ * after `;`, `&&`, a newline or the quote that opens the remote command, not in a comment, an echo or a
+ * string (review 28.11).
+ */
+export function copiesIntoContainers(command: string, keys: string[]): ContainerCopy[] {
+  return [...command.matchAll(DOCKER_CP_IN)].flatMap((match) => {
+    const path = match[2]
+    const at = (match.index ?? 0) + match[0].search(/docker\s/)
+    const before = command.slice(0, at).replace(/[ \t]+$/, '')
+    const open = /['"](\d+)$/.exec(keys[at] ?? '')
+    const starts =
+      /(?:;|&&|\n)$/.test(before) || (open !== null && Number(open[1]) === before.length - 1)
+    return path.includes('..') || path.includes('//') || !starts || inComment(command, at)
+      ? []
+      : [{ container: match[1], path, at }]
+  })
+}
+
+/** From the remote command's start to the rm, its own shell runs one straight line of commands. */
+function straightLine(command: string, keys: string[], from: number, to: number): boolean {
+  let text = ''
+  for (let k = from; k < to; k++) {
+    text += keys[k] === keys[to] ? command[k] : ' '
+  }
+  return !BRANCHING.test(text)
+}
+
+/**
+ * The target is a file an earlier `docker cp` of this command put into the same container, in the same
+ * shell of the same ssh call's remote command. Why `rm -f` is safe here: `container` is set only for an
+ * rm without `-r`, so at worst it removes one script of that name (owner 11.11: 185 of 185 approved).
+ */
+export function isCopiedHere(
+  command: string,
+  word: Word,
+  copies: ContainerCopy[],
+  container: string | null,
+  rmAt: number,
+  spans: [number, number][],
+  keys: string[]
+): boolean {
+  const span = spans.find(([start, end]) => start <= rmAt && rmAt < end)
+  return (
+    container !== null &&
+    span !== undefined &&
+    word.quote !== "'" &&
+    LITERAL_FILE.test(word.text) &&
+    straightLine(command, keys, span[0], rmAt) &&
+    copies.some(
+      (copy) =>
+        copy.container === container &&
+        copy.path === word.text &&
+        span[0] <= copy.at &&
+        copy.at < rmAt &&
+        keys[copy.at] === keys[rmAt] &&
+        isRemote(copy.at, spans, keys)
+    )
+  )
 }
 
 // Why: a container named in full and one file in a named folder, `*` only inside the file's name and

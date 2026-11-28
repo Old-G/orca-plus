@@ -4,8 +4,11 @@
 import type { HqRemoteNoApprove } from '../hq-autonomy'
 import { bindingsIn, contextKeys, readWords, type Binding, type Word } from './outgoing-shell-words'
 import {
+  type ContainerCopy,
   OWN_SCRIPT_ENTRY,
+  copiesIntoContainers,
   globMatch,
+  isCopiedHere,
   isOwnContainerScript,
   scratchBindings,
   withoutDataHeredocs
@@ -205,6 +208,7 @@ function isOwnSite(
   bindings: Map<string, Binding>,
   keys: string[],
   spans: [number, number][],
+  copies: ContainerCopy[],
   globs = false
 ): boolean {
   const at = site.index ?? 0
@@ -260,7 +264,8 @@ function isOwnSite(
     targets.every(
       (word) =>
         isOwnPath(word, resolve(word, bindings, keys), own, remote, globs) ||
-        isOwnContainerScript(word, own.containerRmPaths, container)
+        isOwnContainerScript(word, own.containerRmPaths, container) ||
+        isCopiedHere(command, word, copies, container, at, spans, keys)
     )
   )
 }
@@ -334,6 +339,8 @@ export function isOwnRemoteWork(command: string): boolean {
   // here pass the same way.
   const fastList: HqRemoteNoApprove = { ...NOTHING_LISTED, containerRmPaths: own.containerRmPaths }
   const scratch = scratchBindings(bindings)
+  // Why: only on listed hosts; `remote` in isOwnSite means inside any ssh call, listed or not.
+  const copies = own.hosts.length > 0 ? copiesIntoContainers(command, keys) : []
   // Custom build (remote-own-work, owner 04.11): on listed hosts, a command whose every destructive step
   // is an rm of literal /tmp names passes whatever else it runs (151 of 151 such cards approved). Why:
   // this rule sees only deletions written out (`ssh h 'X=rm; $X -rf /srv'` passes with no card), so a
@@ -351,7 +358,7 @@ export function isOwnRemoteWork(command: string): boolean {
     !HIDDEN_COMMAND_NAME.test(shellText.replace(/['"\\]/g, '')) &&
     // Why: `rm -f /tmp/x; curl … | sh` runs a script the text does not show (Codex at ship, 05.11).
     !hasPipeIntoScript(command) &&
-    sites.every((site) => isOwnSite(command, site, fastList, scratch, keys, spans, true))
+    sites.every((site) => isOwnSite(command, site, fastList, scratch, keys, spans, copies, true))
   ) {
     return true
   }
@@ -361,5 +368,5 @@ export function isOwnRemoteWork(command: string): boolean {
   if (hasUnknownExpansion(command, bindings) || hasUnreadableWords(command, rmWords)) {
     return false
   }
-  return sites.every((site) => isOwnSite(command, site, own, bindings, keys, spans))
+  return sites.every((site) => isOwnSite(command, site, own, bindings, keys, spans, copies))
 }

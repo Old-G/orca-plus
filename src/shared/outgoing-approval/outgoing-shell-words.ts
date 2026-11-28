@@ -154,7 +154,7 @@ function keysOf(text: string): string[] {
 
 const HEREDOC = /^<<(-?)[ \t]*(['"]?)(\w+)\2/
 
-function inComment(text: string, at: number): boolean {
+export function inComment(text: string, at: number): boolean {
   const line = text.slice(text.lastIndexOf('\n', at - 1) + 1, at)
   return /(?:^|\s)#/.test(line)
 }
