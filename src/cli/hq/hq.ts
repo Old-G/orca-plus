@@ -12,6 +12,8 @@ import type { HqLadderReport } from '../../shared/hq-ladder'
 import type { HqDispatchResult, HqSessionsResult } from '../../shared/hq-sessions'
 import type { HqLeadReassignResult } from '../../shared/hq-chat-links'
 import { formatHqReassign } from '../hq-reassign-format'
+import type { HqLeadResult } from '../../shared/hq-lead-of'
+import { formatHqLead } from '../hq-lead-format'
 import type {
   HqContextResult,
   HqRoomAddResult,
@@ -149,7 +151,9 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       ...caller(),
       address: getRequiredStringFlag(flags, 'address'),
       text: getRequiredStringFlag(flags, 'text'),
-      replyTo: getOptionalStringFlag(flags, 'reply-to')
+      replyTo: getOptionalStringFlag(flags, 'reply-to'),
+      // Custom build (chat-send-live, A2): an agent reaches an open chat; a closed one only on --revive.
+      onClosed: flags.get('revive') === true ? 'revive' : 'refuse'
     })
     printResult(
       result,
@@ -332,6 +336,15 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       run: flags.get('run') === true
     })
     printResult(result, json, formatHqSessions)
+  },
+
+  // Custom build (hq-lead-of, A1)
+  'hq lead': async ({ flags, client, json }) => {
+    const result = await client.call<HqLeadResult>('hq.lead', {
+      ...caller(),
+      plan: getOptionalStringFlag(flags, 'plan')
+    })
+    printResult(result, json, formatHqLead)
   },
 
   'hq whoami': async ({ client, json }) => {

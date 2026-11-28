@@ -16,6 +16,8 @@ import { registerHqSessions } from '../hq-sessions/register-hq-sessions'
 import { getHqSessions } from '../hq-sessions/hq-sessions'
 import { createHqLeadReassign, provideHqLeadReassign } from './hq-lead-reassign'
 import { hqRewritePlanLeads } from './hq-lead-plan-line'
+import { createHqLeadOf, hqReadPlanTexts } from './hq-lead-of'
+import { hqChatTabIds } from '../hq-sessions/hq-session-live'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { provideNativeChatTabReveal } from '../orca-plus/waiting-replies/native-chat-tab-reveal'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/host/structured-agent-session-registry'
@@ -186,10 +188,27 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
     log: (message) => console.warn('[hq-lead-batch]', message)
   })
   void leadBatch.start()
+  // Custom build (chat-send-live, A2): a send reaches an open chat; the tabs say which are open.
+  const openTabs = (): ReadonlySet<string> | null => hqChatTabIds(store)
   provideHqThreads(
     createHqThreads({
       ...delivery,
       enabled,
+      openTabs,
+      // Custom build (hq-lead-of, A1): the Lead of a chat's plan, as the plan's «Lead chat:» line names it.
+      leadOf: createHqLeadOf({
+        plans: async () => {
+          const hq = store.getSettings().hqPath
+          if (!hq) {
+            throw new Error('No HQ folder is set (Settings → Workspace → HQ).')
+          }
+          return hqReadPlanTexts(hq)
+        },
+        getSession: threadPulse.getSession,
+        listSessionsByAddress: threadPulse.listSessionsByAddress,
+        liveSessionOf: threadPulse.liveSessionOf,
+        openTabs
+      }),
       scope: (caller) => service.scope(caller),
       sessionName: (sessionId) => record(sessionId)?.conversationName?.trim() || null,
       now: Date.now,

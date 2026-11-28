@@ -2,6 +2,8 @@
 // thread's `<project>/<task>` or its session id, with the quote of what it answers. A chat in the
 // middle of its turn gets it queued for when the turn ends; a closed chat is brought back first.
 // A Lead's messages from other chats are held and go in one turn (hq-lead-batch).
+// Custom build (chat-send-live, A2): the CLI reaches an open chat only — a closed one on --revive.
+// Custom build (hq-lead-of, A1): `lead` is the Lead of the sender's plan.
 import {
   HQ_JOURNAL_ALL_ROOMS,
   HQ_JOURNAL_KIND,
@@ -12,6 +14,14 @@ import { journalEntryAsInput } from './hq-journal-adapters'
 import type { HqCallerScope } from './hq-journal-rooms'
 import type { HqThreads, HqThreadsDeps } from './hq-journal-threads'
 import { hqLeadBatchPrompt, hqLeadUrgent, type HqLeadHeld } from './hq-lead-batch'
+import {
+  hqNotTakenText,
+  hqPickOnAddress,
+  hqRefuseClosed,
+  hqSendAddress,
+  type HqSendLiveDeps,
+  type HqSendOnClosed
+} from './hq-journal-send-live'
 
 const SEND_SOURCE = 'chat-send'
 const LEAD_BATCH_SOURCE = 'lead-batch'
@@ -46,16 +56,17 @@ function stamp(at: number): string {
 
 type HqDeliverDeps = Pick<HqThreadsDeps, 'deliver' | 'reopen' | 'wait' | 'sessionWorkspace'>
 
-/** Hands the chat a prompt, bringing it back once when it is closed. */
+/** Hands the chat a prompt, bringing it back once when it is closed (unless `revive` is false). */
 async function deliverOrReopen(
   deps: HqDeliverDeps,
   target: { sessionId: string; worktreeId: string | null },
-  prompt: string
+  prompt: string,
+  revive = true
 ): Promise<{ taken: boolean; reopened: boolean; worktreeId: string | null }> {
   let reopened = false
   let taken = await deps.deliver(target.sessionId, prompt)
   const worktreeId = target.worktreeId ?? deps.sessionWorkspace(target.sessionId)
-  if (!taken && worktreeId && deps.reopen(target.sessionId, worktreeId)) {
+  if (!taken && revive && worktreeId && deps.reopen(target.sessionId, worktreeId)) {
     reopened = true
     for (let tries = 0; tries < REOPEN_TRIES && !taken; tries += 1) {
       await deps.wait(REOPEN_STEP_MS)
@@ -141,8 +152,15 @@ export function createHqSend(
     }
   }
 
-  /** The chat `to` names: a thread's newest chat, or a session id (a chat with no thread yet too). */
-  const locate = async (to: string) => {
+  const liveDeps: HqSendLiveDeps = {
+    getSession: (sessionId) => deps.pulse.getSession(sessionId),
+    liveSessionOf: deps.pulse.liveSessionOf,
+    openTabs: deps.openTabs
+  }
+
+  /** The chat `to` names: a thread's open chat (else its newest), or a session id (a chat with no
+   *  thread yet too). */
+  const locate = async (to: string, onClosed: HqSendOnClosed) => {
     const byId = !to.includes('/')
     // Why: a chat in one long first turn has no address yet; its session id still reaches it.
     const known = byId ? deps.pulse.getSession(to) : null
@@ -155,7 +173,7 @@ export function createHqSend(
             project: placed?.kind === 'room' ? placed.project : 'hq',
             worktreeId: placed?.worktreeId ?? null
           })
-        : (deps.pulse.listSessionsByAddress(to)[0] ?? null)
+        : hqPickOnAddress(liveDeps, to, deps.pulse.listSessionsByAddress(to), onClosed)
     if (!target) {
       throw new HqNotDeliveredError(
         `No chat works on ${to}; \`orca hq sessions --json\` lists the chats — send to its sessionId.`
@@ -170,8 +188,9 @@ export function createHqSend(
       throw new Error(HQ_JOURNAL_OFF)
     }
     const scope = await deps.scope(caller)
-    const asked = message.address.trim()
-    let spot = await locate(asked)
+    const onClosed = message.onClosed ?? 'revive'
+    const asked = await hqSendAddress(message.address.trim(), scope.sessionId, deps.leadOf)
+    let spot = await locate(asked, onClosed)
     // Custom build (hq-lead-reassign): a chat moved to another Lead reaches that Lead when it writes
     // to one it had before — a brief or a plan read before the change still names the old one.
     const callerKey = scope.sessionId
@@ -179,7 +198,7 @@ export function createHqSend(
       : null
     const movedTo = callerKey ? (deps.pulse.leadMoveOf?.(callerKey, spot.key) ?? null) : null
     if (movedTo) {
-      spot = await locate(movedTo)
+      spot = await locate(movedTo, onClosed)
     }
     // Custom build (hq-handoff-parked, T7 25.11): a chat that handed off is parked — what is sent to it
     // goes to the chat that continues it, the end of its handoff chain. A brief, a plan or a Lead's
@@ -190,9 +209,19 @@ export function createHqSend(
       live !== scope.sessionId &&
       spot.target.sessionId !== scope.sessionId
     if (successor) {
-      spot = await locate(live)
+      spot = await locate(live, onClosed)
     }
     const { to, byId, known, placed, target } = spot
+    // Why: a session id Orca+ never saw gets «No open chat <id>» below, not a closed chat of a guessed project.
+    if (!byId || known) {
+      hqRefuseClosed(
+        liveDeps,
+        target,
+        byId ? (known?.address ?? to) : to,
+        onClosed,
+        (text) => new HqNotDeliveredError(text)
+      )
+    }
     const address =
       (byId ? known?.address : to) ??
       addressFor(placed ?? { kind: 'overview', sessionId: to, worktreeId: null }, to)
@@ -228,12 +257,14 @@ export function createHqSend(
     } else {
       const prior = batch?.take(address) ?? null
       const outgoing = prior ? hqLeadBatchPrompt([...prior.prompts, prompt], prior.since) : prompt
-      const sent = await deliverOrReopen(deps, target, outgoing).catch((error: unknown) => {
-        if (prior) {
-          batch?.restore(prior)
+      const sent = await deliverOrReopen(deps, target, outgoing, onClosed === 'revive').catch(
+        (error: unknown) => {
+          if (prior) {
+            batch?.restore(prior)
+          }
+          throw error
         }
-        throw error
-      })
+      )
       reopened = sent.reopened
       worktreeId = sent.worktreeId
       if (sent.taken && prior) {
@@ -246,7 +277,7 @@ export function createHqSend(
         throw new HqNotDeliveredError(
           byId && !known && !worktreeId
             ? `No open chat ${to}; \`orca hq sessions --json\` lists the chats.`
-            : `The chat on ${address} is closed and Orca+ could not bring it back; open it from History and send again.`
+            : hqNotTakenText(address, onClosed)
         )
       }
     }

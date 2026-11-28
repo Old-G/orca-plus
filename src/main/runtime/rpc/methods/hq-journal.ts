@@ -12,6 +12,7 @@ import {
   HqReportParams,
   HqRouteParams,
   HqLadderParams,
+  HqLeadParams,
   HqSessionsParams,
   HqSettleParams,
   HqStepParams,
@@ -128,8 +129,17 @@ export const HQ_JOURNAL_METHODS = [
       threads().send(callerOf(params), {
         address: params.address,
         text: params.text,
-        replyTo: params.replyTo
+        replyTo: params.replyTo,
+        onClosed: params.onClosed
       })
+  }),
+  // Custom build (hq-lead-of, A1)
+  defineMethod({
+    name: 'hq.lead',
+
+    permission: 'workspace',
+    params: HqLeadParams,
+    handler: async (params) => threads().lead(callerOf(params), params.plan)
   }),
   defineMethod({
     name: 'hq.whoami',

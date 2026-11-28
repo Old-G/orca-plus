@@ -292,20 +292,3 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     allowedFlags: [...GLOBAL_FLAGS]
   }
 ]
-
-export const HQ_CHAT_COMMAND_SPECS: CommandSpec[] = [
-  {
-    // Custom build (hq-plus-reports)
-    path: ['chat', 'send'],
-    summary: 'Hand a message to the chat working on a thread; a closed chat is brought back',
-    usage: 'orca chat send <project>/<task>|<session id> <text> [--reply-to <journal id>] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'address', 'text', 'reply-to'],
-    positionalArgs: ['address', 'text'],
-    notes: [
-      // Custom build (chat-send-anywhere)
-      'To a chat of any room, by its thread address or its sessionId (`orca hq sessions --json` lists both).',
-      'A chat in the middle of its turn gets the message queued, when that turn ends.',
-      '--reply-to quotes the journal entry it answers, so the other chat sees what it replies to.'
-    ]
-  }
-]
