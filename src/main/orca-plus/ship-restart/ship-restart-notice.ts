@@ -107,7 +107,7 @@ export async function runShipRestartNotice(deps: ShipRestartNoticeDeps): Promise
       return
     }
     // Why one by one: the host is shared, and a burst of turns at startup is what it least needs.
-    for (const [sessionId, prompt] of [...pending]) {
+    for (const [sessionId, prompt] of pending) {
       const delivered = await deps.deliver(sessionId, prompt).catch((error: unknown) => {
         console.warn('[ship-restart-notice] delivery failed:', error)
         return false
