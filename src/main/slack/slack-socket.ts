@@ -24,6 +24,8 @@ const MAX_BACKOFF_MS = 60_000
 // stay half-open with no 'close' for many minutes while Slack hands events elsewhere or drops them.
 // A ping that gets no answer (nor any other frame) by the next tick means the connection is dead.
 export const SLACK_SOCKET_PING_MS = 10_000
+// Why: a handshake stuck after a network change would otherwise hang for the OS timeout (75 s+).
+const HANDSHAKE_TIMEOUT_MS = 15_000
 
 export class SlackSocket {
   private socket: WebSocket | null = null
@@ -51,14 +53,22 @@ export class SlackSocket {
       clearTimeout(this.retryTimer)
       this.retryTimer = null
     }
-    this.socket?.removeAllListeners()
-    this.socket?.close()
+    const socket = this.socket
     this.socket = null
+    if (socket) {
+      socket.removeAllListeners()
+      // Why: closing during the handshake makes ws emit 'error' a tick later; with no listener
+      // left that would be an uncaught exception in main. terminate() also drops a dead link at
+      // once instead of waiting for a close frame that will never come.
+      socket.on('error', () => {})
+      socket.terminate()
+    }
   }
 
   /** Drops the current connection and opens a new one with the tokens saved now. */
   restart(): void {
     this.stop()
+    this.backoffMs = MIN_BACKOFF_MS
     this.start()
   }
 
@@ -81,6 +91,7 @@ export class SlackSocket {
   private startHeartbeat(socket: WebSocket): void {
     this.stopHeartbeat()
     let heard = true
+    let lastTick = Date.now()
     const hear = (): void => {
       heard = true
     }
@@ -92,8 +103,15 @@ export class SlackSocket {
         this.stopHeartbeat()
         return
       }
-      if (!heard) {
-        this.deps.log?.(`no answer from Slack for ${SLACK_SOCKET_PING_MS / 1000} s, reconnecting`)
+      const now = Date.now()
+      // Why: a tick far later than planned (the process stalled or slept) may run before a pong
+      // already on the wire is read; ping again instead of dropping a connection that may be fine.
+      const late = now - lastTick > SLACK_SOCKET_PING_MS * 2
+      lastTick = now
+      if (!heard && !late) {
+        this.deps.log?.(
+          `no answer from Slack within ${SLACK_SOCKET_PING_MS / 1000} s of a ping, reconnecting`
+        )
         // Why: terminate() closes at once and fires 'close', which schedules the reconnect.
         socket.terminate()
         return
@@ -137,7 +155,10 @@ export class SlackSocket {
       this.running = false
       return
     }
-    const socket = (this.deps.createSocket ?? ((target) => new WebSocket(target)))(url)
+    const socket = (
+      this.deps.createSocket ??
+      ((target) => new WebSocket(target, { handshakeTimeout: HANDSHAKE_TIMEOUT_MS }))
+    )(url)
     this.socket = socket
     socket.on('message', (data) => void this.handleFrame(socket, data.toString()))
     socket.on('open', () => {
@@ -150,8 +171,9 @@ export class SlackSocket {
       if (this.socket === socket) {
         this.socket = null
         this.stopHeartbeat()
-        this.deps.log?.(`closed (${code ?? 'no code'}), reconnecting in ${this.backoffMs} ms`)
+        const delay = this.backoffMs
         this.scheduleReconnect(generation)
+        this.deps.log?.(`closed (${code ?? 'no code'}), reconnecting in ${delay} ms`)
       }
     })
   }
