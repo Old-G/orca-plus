@@ -93,6 +93,7 @@ const BELL_LABEL: Record<string, string> = {
   'claude-chat-limit': 'Claude limit',
   'claude-auth-stop': 'Claude sign-in',
   'claude-connector-gap': 'Claude connectors',
+  'keychain-lockout': 'Keychain',
   handoff: 'handoff ready'
 }
 

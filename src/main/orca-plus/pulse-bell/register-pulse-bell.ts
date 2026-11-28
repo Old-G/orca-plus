@@ -72,6 +72,7 @@ import { registerHqSlackLedger } from '../../hq-today/register-hq-slack-ledger'
 import { hqJobRow } from '../../hq-journal/hq-journal-jobs'
 import { HQ_JOURNAL_ALL_ROOMS } from '../../../shared/hq-journal'
 import { hqClickUpListProjects } from '../../hq-today/hq-clickup-list-projects'
+import { registerKeychainLockout } from '../keychain-lockout/register-keychain-lockout'
 
 const BROADCAST_DEBOUNCE_MS = 50
 const FEED_DAYS_MS = 3 * 24 * 60 * 60_000
@@ -198,6 +199,18 @@ export function registerPulseBell(
   })
   // Custom build (hq-mail-intake): GitLab and ClickUp emails join the requests and close waitings.
   registerHqMailIntake(store, runtime)
+  // Custom build (keychain-lockout, T6): a start the Keychain refused says so, not an hourly line.
+  registerKeychainLockout({
+    syncBell: sync,
+    journal: (found) =>
+      runtime.pulseRecordJournal([
+        hqJobRow(
+          { job: 'keychain', found },
+          { room: HQ_JOURNAL_ALL_ROOMS, project: null, firm: false },
+          Date.now()
+        )
+      ])
+  })
 
   // Custom build (hq-clickup-triage): task edits beyond comments, sorted by a small model.
   registerHqClickUpTriage(store, runtime, rateLimits)

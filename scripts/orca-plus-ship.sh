@@ -308,12 +308,23 @@ run ditto "$new" "$staged"
 [ "$dry" = 0 ] && codesign --verify --deep --strict "$staged"
 
 # Why: a relaunch nobody is at the Mac for misses the Keychain prompt, and Slack, ClickUp and Gmail stay
-# unreadable until the next restart (01.11, ship at 05:20). The swap waits until the screen is unlocked.
+# unreadable until the next restart (01.11, ship at 05:20). Every build asks again: the Keychain item
+# trusts Orca+ one build hash at a time (no team id), and in dark wake macOS refuses the window outright
+# («inDarkWake», 28.11 01:39 and 03:10 with the screen unlocked) — Chromium keeps that refusal for the
+# whole run. So the swap waits for the owner at the Mac: screen unlocked and a key or mouse touch within
+# ORCA_PLUS_SHIP_OWNER_IDLE_S seconds (120). ORCA_PLUS_SHIP_WAIT_OWNER=0 restarts at once.
 screen_locked() { ioreg -n Root -d1 | grep -q '"CGSSessionScreenIsLocked"=Yes'; }
-if [ "$dry" = 0 ] && screen_locked; then
-  step "screen locked — waiting for the owner before the restart"
-  while screen_locked; do sleep 30; done
-  step "screen unlocked — going on"
+owner_idle_s() { ioreg -c IOHIDSystem -d 4 | awk '/HIDIdleTime/ { print int($NF / 1000000000); exit }'; }
+owner_away() {
+  local idle
+  idle=$(owner_idle_s || true)
+  screen_locked || [ "${idle:-0}" -gt "${ORCA_PLUS_SHIP_OWNER_IDLE_S:-120}" ]
+}
+if [ "$dry" = 0 ] && [ "${ORCA_PLUS_SHIP_WAIT_OWNER:-1}" != 0 ] && owner_away; then
+  step "owner away from the Mac (screen locked or idle) — the restart waits, the Keychain will ask «Always Allow»"
+  osascript -e 'display notification "Touch the Mac to restart it — then press «Always Allow» in the Keychain window." with title "Orca+ update ready"' >/dev/null 2>&1 || true
+  while owner_away; do sleep 15; done
+  step "owner back — going on"
 fi
 
 step "restart marker for chat ${ORCA_AGENT_SESSION_ID:-<none>}"

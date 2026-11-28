@@ -16,7 +16,9 @@ export const PULSE_BELL_KIND = {
   claudeChatLimit: 'claude-chat-limit',
   claudeAuthStop: 'claude-auth-stop',
   /** Custom build (claude-connector-gap): connectors the account switched to lacks. */
-  claudeConnectorGap: 'claude-connector-gap'
+  claudeConnectorGap: 'claude-connector-gap',
+  /** Custom build (keychain-lockout): macOS refused the Keychain at this start; saved keys stay shut. */
+  keychainLockout: 'keychain-lockout'
 } as const
 
 export const PULSE_BELL_ACTION = {
@@ -24,7 +26,9 @@ export const PULSE_BELL_ACTION = {
   open: 'open',
   switchAccount: 'switch',
   continue: 'continue',
-  dismiss: 'dismiss'
+  dismiss: 'dismiss',
+  /** Custom build (keychain-lockout): restart Orca+ so the Keychain window comes up. */
+  restart: 'restart'
 } as const
 
 /** Kinds the renderer may sync itself; the others are owned by main. */

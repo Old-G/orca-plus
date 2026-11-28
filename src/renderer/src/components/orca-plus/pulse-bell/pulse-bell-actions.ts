@@ -184,6 +184,12 @@ export async function runPulseBellAction(item: PulseInboxItem, actionId: string)
       return true
     }
   }
+  // Custom build (keychain-lockout, T6): only a restart reopens the keys; the card stays until the new
+  // run opens them (its check clears it), so a restart that does not happen leaves it up.
+  if (item.kind === PULSE_BELL_KIND.keychainLockout && actionId === PULSE_BELL_ACTION.restart) {
+    await window.api.app.relaunch()
+    return true
+  }
   if (item.kind === PULSE_BELL_KIND.agentWaiting && actionId === PULSE_BELL_ACTION.open) {
     const ref = readPulseBellPaneRef(item.refId)
     if (ref) {
