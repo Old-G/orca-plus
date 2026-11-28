@@ -80,6 +80,26 @@ describe('waitings', () => {
     expect(() => db.updateWaiting(note.id, { title: 'x' })).toThrow(/already resolved/)
   })
 
+  it('keeps the next step, changes it on update and clears it with null', () => {
+    const db = openDb()
+    const note = db.addWaiting({
+      direction: 'on-them',
+      title: 'Export',
+      source: 'agent',
+      nextAction: 'Run the post-check'
+    })
+    expect(db.getWaiting(note.id)?.nextAction).toBe('Run the post-check')
+    expect(db.updateWaiting(note.id, { title: 'Export v2' }).nextAction).toBe('Run the post-check')
+    expect(db.updateWaiting(note.id, { nextAction: 'Close the row' }).nextAction).toBe(
+      'Close the row'
+    )
+    expect(db.listWaitings({ status: 'open' })[0]?.nextAction).toBe('Close the row')
+    expect(db.updateWaiting(note.id, { nextAction: null }).nextAction).toBeNull()
+    expect(
+      db.addWaiting({ direction: 'on-me', title: 'Plain', source: 'agent' }).nextAction
+    ).toBeNull()
+  })
+
   it('keeps the chat that waits and only the newest answer from the thread', () => {
     const db = openDb()
     const waiting = db.addWaiting({

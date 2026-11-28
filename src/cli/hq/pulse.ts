@@ -123,6 +123,8 @@ export const PULSE_HANDLERS: Record<string, CommandHandler> = {
       personId: await personIdFlag(client, flags, true),
       project: getOptionalStringFlag(flags, 'project'),
       detail: getOptionalStringFlag(flags, 'detail'),
+      // Custom build (pulse-next, C1): what to do once the answer comes.
+      nextAction: getOptionalStringFlag(flags, 'next'),
       dueAt: dueFlag(flags),
       source: source(flags),
       sourceRef: getOptionalStringFlag(flags, 'source-ref'),
@@ -141,11 +143,14 @@ export const PULSE_HANDLERS: Record<string, CommandHandler> = {
   'pulse wait update': async ({ flags, client, json }) => {
     const due = getOptionalStringFlag(flags, 'due')
     const detail = getOptionalStringFlag(flags, 'detail')
+    const next = getOptionalStringFlag(flags, 'next')
     const result = await client.call<PulseWaiting>('pulse.updateWaiting', {
       id: getRequiredStringFlag(flags, 'id'),
       title: getOptionalStringFlag(flags, 'title'),
       // Custom build (hq-plus-round6): `--detail none` clears it, as `--due none` does the date.
       ...(detail === undefined ? {} : { detail: detail === 'none' ? null : detail }),
+      // Custom build (pulse-next, C1): `--next none` clears it.
+      ...(next === undefined ? {} : { nextAction: next === 'none' ? null : next }),
       ...(due === undefined ? {} : { dueAt: due === 'none' ? null : dueFlag(flags) })
     })
     printResult(result, json, (w) => `Waiting ${w.id} updated: [${w.direction}] ${w.title}`)

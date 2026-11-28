@@ -20,7 +20,7 @@ export function printHelp(specs: CommandSpec[], commandPath: string[] = []): voi
   console.log(formatHelp(specs, commandPath))
 }
 
-function formatHelp(specs: CommandSpec[], commandPath: string[]): string {
+export function formatHelp(specs: CommandSpec[], commandPath: string[]): string {
   const exactSpec = findCommandSpec(specs, commandPath)
   if (exactSpec) {
     return withInvokedCliCommand(formatCommandHelp(exactSpec))

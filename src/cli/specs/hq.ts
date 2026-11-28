@@ -43,7 +43,7 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     ],
     repeatableFlags: ['link'],
     notes: [
-      'Run it once at the end of every turn in an Orca chat; it lands in the journal as chat.report.',
+      'It lands in the journal as chat.report. Where a Stop hook already writes the turn report from your answer (first line = what was done, a question at the end = the owner’s move), run this only for what the answer cannot carry: --blocked-by, --next, --link; a second report for the same turn doubles the entry.',
       'The first report names the thread <project>/<chat name>; --address names it yourself, and the name stays across handoffs.',
       "--ask makes it the owner's move; --blocked-by <name> makes it that person's."
     ],

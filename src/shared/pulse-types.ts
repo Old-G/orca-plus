@@ -37,6 +37,8 @@ export type PulseWaiting = {
   project: string | null
   title: string
   detail: string | null
+  /** Custom build (pulse-next, C1): what to do when the answer comes; handed to the chat with it. */
+  nextAction?: string | null
   /** Who recorded it: `agent`, `slack`, `clickup`, `manual`… */
   source: string
   sourceRef: string | null
@@ -82,6 +84,7 @@ export type PulseWaitingInput = {
   personId?: string | null
   project?: string | null
   detail?: string | null
+  nextAction?: string | null
   source: string
   sourceRef?: string | null
   dueAt?: number | null
@@ -99,6 +102,7 @@ export type PulseWaitingAdded = PulseWaiting & { duplicate?: boolean }
 export type PulseWaitingPatch = {
   title?: string
   detail?: string | null
+  nextAction?: string | null
   dueAt?: number | null
 }
 
