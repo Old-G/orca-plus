@@ -66,7 +66,13 @@ export function readShipRange(
   }
   let log: string
   try {
-    log = git(['log', '--reverse', `--format=${SHIP_LOG_FORMAT}`, `${since}..${target}`])
+    log = git([
+      'log',
+      '--reverse',
+      `--format=${SHIP_LOG_FORMAT}`,
+      '--end-of-options',
+      `${since}..${target}`
+    ])
   } catch {
     const known = tryGit(git, ['rev-parse', '--verify', '--quiet', `${since}^{commit}`]) !== null
     return {
@@ -84,7 +90,7 @@ export function formatShipRange(range: ShipRange): string {
     return `Others' commits in the next ship: unknown — ${range.reason}.`
   }
   if (range.commits.length === 0) {
-    return `Others' commits in the next ship: none (${range.target} is at the last ship).`
+    return `Others' commits in the next ship: none (${range.target} is at the last ship, as of the last git fetch).`
   }
   const rows = range.commits.slice(0, SHOWN).map((c) => `  ${c.sha} ${c.author} — ${c.subject}`)
   const more = range.commits.length - rows.length

@@ -29,7 +29,7 @@ describe('ship range', () => {
     const git = fakeGit({
       'config --get orca.shipped': 'aaa111',
       'config --get orca.shipTarget': 'origin/custom',
-      [`log --reverse --format=${SHIP_LOG_FORMAT} aaa111..origin/custom`]: `b1${US}Ann${US}one\nb2${US}Bob${US}two`
+      [`log --reverse --format=${SHIP_LOG_FORMAT} --end-of-options aaa111..origin/custom`]: `b1${US}Ann${US}one\nb2${US}Bob${US}two`
     })
     const range = readShipRange('/x', {}, git)
     expect(range).toEqual({
@@ -47,7 +47,7 @@ describe('ship range', () => {
 
   it('flags take precedence over git config', () => {
     const git = fakeGit({
-      [`log --reverse --format=${SHIP_LOG_FORMAT} v1..main`]: ''
+      [`log --reverse --format=${SHIP_LOG_FORMAT} --end-of-options v1..main`]: ''
     })
     const range = readShipRange('/x', { since: 'v1', target: 'main' }, git)
     expect(range).toMatchObject({ ok: true, commits: [] })
@@ -71,17 +71,29 @@ describe('ship range', () => {
     const git = fakeGit({
       'config --get orca.shipped': 'gone',
       'config --get orca.shipTarget': 'origin/custom',
-      [`log --reverse --format=${SHIP_LOG_FORMAT} gone..origin/custom`]: new Error('bad revision'),
+      [`log --reverse --format=${SHIP_LOG_FORMAT} --end-of-options gone..origin/custom`]: new Error(
+        'bad revision'
+      ),
       'rev-parse --verify --quiet gone^{commit}': new Error('exit 1')
     })
     expect(readShipRange('/x', {}, git)).toEqual({ ok: false, reason: 'gone is not a commit here' })
+  })
+
+  it('says so when no target is configured', () => {
+    const git = fakeGit({ 'config --get orca.shipped': 'aaa' })
+    expect(readShipRange('/x', {}, git)).toEqual({
+      ok: false,
+      reason: 'no target branch (git config orca.shipTarget, or --target <ref>)'
+    })
   })
 
   it('says the target is unknown when only it is bad', () => {
     const git = fakeGit({
       'config --get orca.shipped': 'aaa',
       'config --get orca.shipTarget': 'origin/nope',
-      [`log --reverse --format=${SHIP_LOG_FORMAT} aaa..origin/nope`]: new Error('bad'),
+      [`log --reverse --format=${SHIP_LOG_FORMAT} --end-of-options aaa..origin/nope`]: new Error(
+        'bad'
+      ),
       'rev-parse --verify --quiet aaa^{commit}': 'aaa'
     })
     expect(readShipRange('/x', {}, git)).toEqual({
