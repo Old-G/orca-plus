@@ -38,6 +38,11 @@ export function formatHqReassign(result: HqLeadReassignResult): string {
         : `Moved ${result.moved.length} chat(s) ${span}:`
     )
     for (const chat of result.moved) {
+      // D1: a chat moved without a notice says why, in a dry run too — the Lead sees what stays asleep.
+      if (chat.quiet) {
+        out.push(`  ${line(chat)} — record only, not told (${chat.quiet})`)
+        continue
+      }
       out.push(
         `  ${line(chat)}${result.dryRun ? '' : chat.told ? ' — told' : result.from && result.to ? ' — not told (closed or busy); the forward still reaches the new Lead' : ' — not told (closed or busy)'}`
       )

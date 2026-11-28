@@ -72,7 +72,11 @@ export function createHqTaskLock(deps: HqTaskLockDeps): HqTaskLock {
 
   return {
     claim: ({ callerSessionId, ...key }) => {
-      const caller = callerSessionId ? live(callerSessionId) : null
+      // Custom build (hq-task-lock, D1 28.11): a caller that handed its chat on already is not the
+      // row's chat any more; only the live end of a chain hands the row to a next chat (else a parked
+      // chat 1 could start a chat 3 beside chat 2).
+      const caller =
+        callerSessionId && live(callerSessionId) === callerSessionId ? callerSessionId : null
       const pending = pendingOf(key)
       // Why even the same caller is refused: a Lead sending one brief twice is the duplicate this
       // stops; a lost reply is retried with --retry-launch, which claims nothing.
@@ -86,10 +90,11 @@ export function createHqTaskLock(deps: HqTaskLockDeps): HqTaskLock {
       }
       const held = deps.store().taskLockOf(key)
       let movedFrom: HqTaskHolder | undefined
+      let own = false
       if (held) {
         const holder = live(held.sessionId)
         // Why the caller may take its own row: a worker starts the next chat of its chain (skill lead).
-        const own = caller !== null && holder === caller
+        own = caller !== null && holder === caller
         if (isOpen(holder, held.at) && !own) {
           return { taken: false, reason: 'open', holder: holderOf(holder) }
         }
@@ -97,7 +102,12 @@ export function createHqTaskLock(deps: HqTaskLockDeps): HqTaskLock {
       }
       const ticket = randomUUID()
       starting.set(keyOf(key), { ticket, at: now(), callerSessionId })
-      return { taken: true, ticket, ...(movedFrom ? { movedFrom } : {}) }
+      return {
+        taken: true,
+        ticket,
+        ...(movedFrom ? { movedFrom } : {}),
+        ...(own ? { own: true as const } : {})
+      }
     },
     bind: ({ ticket, sessionId, ...key }) => {
       const pending = pendingOf(key)

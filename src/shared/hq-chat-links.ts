@@ -62,8 +62,9 @@ export type HqLeadReassignResult = {
   from: HqLeadReassignChat | null
   /** Null: the chats have no Lead now (`--to none`). */
   to: HqLeadReassignChat | null
-  /** Moved under the new Lead (or, in a dry run, would be); `told` — the chat got the notice. */
-  moved: (HqLeadReassignChat & { told: boolean })[]
+  /** Moved under the new Lead (or, in a dry run, would be); `told` — the chat got the notice.
+   *  `quiet` (D1): why it is moved without a notice — `closed`, or `no plan row` (an empty launch). */
+  moved: (HqLeadReassignChat & { told: boolean; quiet?: string })[]
   /** Under the old Lead and left there, with why. */
   kept: (HqLeadReassignChat & { why: string })[]
   /** Plan files whose `Lead chat:` line now names the new Lead. */

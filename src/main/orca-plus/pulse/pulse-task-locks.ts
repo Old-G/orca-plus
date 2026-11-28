@@ -32,3 +32,12 @@ export function setTaskLock(core: PulseCore, lock: PulseTaskLock): void {
     )
     .run(lock.plan, lock.row, lock.sessionId, lock.at)
 }
+
+/** Custom build (hq-task-lock, D1 28.11): every chat that holds a row, as stored (not followed through
+ *  handoffs) — what `orca hq reassign` reads to tell a chat on a plan row from an empty launch. */
+export function taskLockHolders(core: PulseCore): string[] {
+  return core.db
+    .prepare('SELECT DISTINCT session_id FROM task_locks')
+    .all()
+    .map((row) => String(row.session_id))
+}
