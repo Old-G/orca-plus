@@ -69,6 +69,32 @@ describe('orca pulse wait --next', () => {
   })
 })
 
+describe('orca pulse wait add --wake', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('sends a chat address as the chat to wake, and a bare --wake as this chat', async () => {
+    vi.stubEnv('ORCA_AGENT_SESSION_ID', 'chat-self')
+    const named = run('pulse wait add', { direction: 'on-them', title: 'x', wake: 'acme/orders' })
+    await named.done
+    expect(paramsOf(named.calls, 'pulse.addWaiting')).toMatchObject({ wake: 'acme/orders' })
+    const own = run('pulse wait add', { direction: 'on-them', title: 'x', wake: true })
+    await own.done
+    expect(paramsOf(own.calls, 'pulse.addWaiting')).toMatchObject({ wake: 'chat-self' })
+    const none = run('pulse wait add', { direction: 'on-them', title: 'x' })
+    await none.done
+    expect(Reflect.get(Object(paramsOf(none.calls, 'pulse.addWaiting')), 'wake')).toBeUndefined()
+  })
+
+  it('refuses --wake self outside an Orca chat', async () => {
+    vi.stubEnv('ORCA_AGENT_SESSION_ID', '')
+    await expect(
+      run('pulse wait add', { direction: 'on-them', title: 'x', wake: 'self' }).done
+    ).rejects.toThrow(/--wake self/)
+  })
+})
+
 describe('orca pulse wait add', () => {
   it('resolves --person by exact name and defaults the source to agent', async () => {
     const { done, calls } = run('pulse wait add', {

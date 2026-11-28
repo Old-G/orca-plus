@@ -20,6 +20,7 @@ import { HQ_ROUTING_FILE } from '../../shared/hq-routing'
 import { HQ_JOURNAL_UNASSIGNED } from '../../shared/hq-journal'
 import { onPulseChanged, emitPulseChanged } from '../orca-plus/pulse/pulse-change-events'
 import { deliverWaitingReply } from '../orca-plus/waiting-replies/deliver-waiting-reply'
+import { runHqReopenChatOnDesktop } from '../hq-today/hq-request-on-desktop'
 import { passHqWaitingReply } from '../hq-today/hq-waiting-reply-pass'
 import { generateHqText } from '../hq-today/hq-task-questions'
 import { getHqJournalService } from '../hq-journal/hq-journal-service'
@@ -28,6 +29,8 @@ import { hqLadderReport, provideHqLadderReport } from './hq-ladder-report'
 import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 
 const EVERY_MS = 5 * 60_000
+const WAKE_TRIES = 15
+const WAKE_STEP_MS = 1_000
 const SENDER = 'hq-routing'
 // Why: a new answer is judged soon after it lands, not on the next five-minute tick.
 const REPLY_DEBOUNCE_MS = 3_000
@@ -143,6 +146,24 @@ export function registerHqRouting(
         replyTs,
         prompt
       ),
+    // Custom build (pulse-wake, C2): the chat closed to wait — reopen it with the answer, else a new chat
+    // from its handoff takes the answer as its work.
+    wake: async (waiting, prompt) => {
+      if (!waiting.agentSessionId) {
+        return false
+      }
+      const live = runtime.pulseLiveSessionOf(waiting.agentSessionId)
+      const worktreeId = runtime.pulseGetSession(live)?.worktreeId ?? waiting.worktreeId ?? null
+      if (worktreeId && runHqReopenChatOnDesktop(live, worktreeId).ok) {
+        for (let tries = 0; tries < WAKE_TRIES; tries += 1) {
+          await new Promise<void>((resolve) => setTimeout(resolve, WAKE_STEP_MS))
+          if (await deliverToNativeChat(live, prompt, SENDER)) {
+            return true
+          }
+        }
+      }
+      return (await getHqSessions()?.wakeFrom({ sessionId: live, work: prompt })) != null
+    },
     // Custom build (hq-reply-owner-talk, owner 09.11): a thanks is handled as the card's Skip would.
     skip: (waitingId, replyTs) => void runtime.pulseMarkWaitingReplyDelivered(waitingId, replyTs),
     address: (sessionId) => runtime.pulseGetSession(sessionId)?.address ?? null,

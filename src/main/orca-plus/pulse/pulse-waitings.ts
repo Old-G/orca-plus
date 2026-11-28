@@ -1,4 +1,5 @@
 // Custom build (pulse): waitings — "Ann waits for my answer" (on-me) and "I wait for Ann" (on-them).
+/* eslint-disable max-lines -- Why: one module for every waiting operation, one function each; split when it next grows */
 import type { SqliteBindings, SqliteRow } from '../../sqlite/sqlite-statement'
 import type {
   PulseWaiting,
@@ -35,6 +36,7 @@ function toWaiting(row: SqliteRow): PulseWaiting {
     createdAt: integer(row, 'created_at'),
     resolvedAt: optionalInteger(row, 'resolved_at'),
     agentSessionId: optionalText(row, 'agent_session_id'),
+    wake: optionalInteger(row, 'wake') === 1,
     paneKey: optionalText(row, 'pane_key'),
     worktreeId: optionalText(row, 'worktree_id'),
     reply: optionalText(row, 'reply'),
@@ -77,6 +79,7 @@ export function addWaiting(core: PulseCore, input: PulseWaitingInput): PulseWait
       createdAt: core.clock.now(),
       resolvedAt: null,
       agentSessionId: input.agentSessionId ?? null,
+      wake: input.wake === true,
       paneKey: input.paneKey ?? null,
       worktreeId: input.worktreeId ?? null,
       reply: null,
@@ -88,8 +91,8 @@ export function addWaiting(core: PulseCore, input: PulseWaitingInput): PulseWait
     core.db
       .prepare(
         'INSERT INTO waitings (id, direction, person_id, project, title, detail, source, ' +
-          'source_ref, status, due_at, created_at, agent_session_id, pane_key, worktree_id, next_action) ' +
-          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          'source_ref, status, due_at, created_at, agent_session_id, pane_key, worktree_id, next_action, wake) ' +
+          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       )
       .run(
         waiting.id,
@@ -106,7 +109,8 @@ export function addWaiting(core: PulseCore, input: PulseWaitingInput): PulseWait
         waiting.agentSessionId,
         waiting.paneKey,
         waiting.worktreeId,
-        waiting.nextAction
+        waiting.nextAction,
+        waiting.wake ? 1 : null
       )
     // Custom build (hq-request-ledger): what was sent, where and what it waits for.
     pairWaitingWithSend(core, waiting, waiting.createdAt)

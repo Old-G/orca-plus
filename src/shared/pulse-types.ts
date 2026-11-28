@@ -49,6 +49,9 @@ export type PulseWaiting = {
   resolvedAt: number | null
   /** Custom build (hq-waiting-replies): the agent chat that waits, so an answer can reach it. */
   agentSessionId: string | null
+  /** Custom build (pulse-wake, C2): the chat closed while it waits; the person's answer brings it back
+   *  (or a new chat from its handoff) with the answer, the owner's rule for answers on or off. */
+  wake?: boolean
   paneKey: string | null
   worktreeId: string | null
   /** The person's latest answer, as the Slack scout found it. */
@@ -91,6 +94,8 @@ export type PulseWaitingInput = {
   agentSessionId?: string | null
   paneKey?: string | null
   worktreeId?: string | null
+  /** Custom build (pulse-wake, C2) */
+  wake?: boolean
   /** Custom build (hq-notes-dedup): add even when an open waiting already says the same. */
   allowDuplicate?: boolean
 }

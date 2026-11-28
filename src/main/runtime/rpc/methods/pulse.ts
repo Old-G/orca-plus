@@ -2,6 +2,7 @@ import { defineMethod } from '../core'
 import { getHqProjectPagesService } from '../../../hq-project-pages/hq-project-pages-service'
 import { listHqProjectPages } from '../../../hq-project-pages/hq-project-pages'
 import { hqWaitingProject } from '../../../hq-today/hq-waiting-project'
+import { pulseWakeUnknown, resolvePulseWakeChat } from '../../../orca-plus/pulse/pulse-wake'
 import {
   PulseAddDraftParams,
   PulseAddInboxItemParams,
@@ -67,11 +68,31 @@ export const PULSE_METHODS = [
 
     permission: 'workspace',
     params: PulseAddWaitingParams,
-    handler: async (params, { runtime }) => {
+    handler: async ({ wake, ...input }, { runtime }) => {
+      // Custom build (pulse-wake, C2): --wake names the chat the answer brings back; it is the waiting chat.
+      const woken =
+        wake === undefined
+          ? undefined
+          : resolvePulseWakeChat(wake, {
+              isChat: (sessionId) =>
+                Boolean(
+                  runtime.openedAgentSessionRecordStore()?.getRecord(sessionId) ??
+                  runtime.pulseGetSession(sessionId)
+                ),
+              byAddress: (address) => runtime.pulseListSessionsByAddress(address),
+              liveOf: (sessionId) => runtime.pulseLiveSessionOf(sessionId)
+            })
+      if (woken === null) {
+        throw new Error(pulseWakeUnknown(wake ?? ''))
+      }
+      const params = woken ? { ...input, agentSessionId: woken, paneKey: undefined } : input
       // Custom build (hq-waiting-replies): only a chat this host knows may receive the answer later.
       const record = params.agentSessionId
         ? runtime.openedAgentSessionRecordStore()?.getRecord(params.agentSessionId)
         : undefined
+      if (woken && !record) {
+        throw new Error(pulseWakeUnknown(wake ?? ''))
+      }
       // Custom build (hq-waiting-project, plan 20.6): the project as HQ spells it, else the chat's (С10).
       const hqPath = getHqProjectPagesService()?.settings().hqPath
       const slugs = hqPath
@@ -84,7 +105,8 @@ export const PULSE_METHODS = [
         ...params,
         project: hqWaitingProject(params.project, chatProject, slugs),
         agentSessionId: record ? params.agentSessionId : null,
-        worktreeId: record?.location.workspaceId ?? null
+        worktreeId: record?.location.workspaceId ?? null,
+        wake: Boolean(woken)
       })
     }
   }),

@@ -121,6 +121,29 @@ describe('PulseDb schema', () => {
     check.close()
   })
 
+  it('adds the wake column to a current-version file and keeps the flag across a reopen', async () => {
+    const path = await tempPath()
+    const first = openDb(path)
+    first.addWaiting({ direction: 'on-them', title: 'Waking', source: 'manual', wake: true })
+    first.close()
+    const kept = openDb(path)
+    expect(kept.listWaitings().map((w) => [w.title, w.wake])).toEqual([['Waking', true]])
+    kept.close()
+    const raw = new Database(path)
+    raw.exec('ALTER TABLE waitings DROP COLUMN wake')
+    raw.close()
+    const reopened = openDb(path)
+    expect(reopened.listWaitings().map((w) => [w.title, Boolean(w.wake)])).toEqual([
+      ['Waking', false]
+    ])
+    reopened.close()
+    const check = new Database(path)
+    expect(check.pragma('table_info(waitings)')).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'wake' })])
+    )
+    check.close()
+  })
+
   it('lifts a version 5 feed to posts, dropping its old «sent» rows for the collector to redo', async () => {
     const path = await tempPath()
     const first = openDb(path)
