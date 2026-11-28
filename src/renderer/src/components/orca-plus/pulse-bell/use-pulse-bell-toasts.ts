@@ -34,7 +34,8 @@ const TOASTED_KINDS: ReadonlySet<string> = new Set([
   PULSE_BELL_KIND.agentFinished,
   PULSE_BELL_KIND.claudeChatLimit,
   PULSE_BELL_KIND.claudeAuthStop,
-  PULSE_BELL_KIND.claudeConnectorGap
+  PULSE_BELL_KIND.claudeConnectorGap,
+  PULSE_BELL_KIND.keychainLockout
 ])
 
 const toastId = (item: PulseInboxItem): string => `pulse-bell-toast-${item.id}`

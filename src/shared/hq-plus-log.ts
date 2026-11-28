@@ -112,6 +112,8 @@ export const HQ_PLUS_CARD_KINDS: ReadonlySet<string> = new Set([
   PULSE_BELL_KIND.claudeChatLimit,
   PULSE_BELL_KIND.claudeAuthStop,
   PULSE_BELL_KIND.claudeConnectorGap,
+  // Custom build (keychain-lockout): saved keys shut at this start — Slack, ClickUp, Gmail go unread.
+  PULSE_BELL_KIND.keychainLockout,
   PULSE_BELL_KIND.handoff,
   HQ_SLACK_REQUEST_BELL_KIND,
   HQ_INTAKE_KIND,
