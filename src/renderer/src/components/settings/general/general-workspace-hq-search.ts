@@ -7,6 +7,7 @@ import {
 } from './general-setting-anchors'
 import { translate } from '@/i18n/i18n'
 import { hqOpenLoopsSettingText } from './HqOpenLoopsSetting'
+import { claudeNetworkAutoContinueSettingText } from './ClaudeNetworkAutoContinueSetting'
 
 /** Each lives on the Workspace page's folder sub-page, beside the HQ Folder. */
 export function getGeneralWorkspaceHqSearchDescriptors(): GeneralSearchDescriptor[] {
@@ -49,6 +50,11 @@ export function getGeneralWorkspaceHqSearchDescriptors(): GeneralSearchDescripto
         'When a chat runs out of context and saves a handoff, a new chat in the same project starts from it in the background as soon as the file is written, also for a chat on your screen. One handoff gets one new chat, even if the old chat starts one itself. The old chat stays open with a link to the new one; close it when you like. A chat stopped on a limit waits until it lifts. Works whatever the session dispatcher is set to.'
       ),
       keywords: ['hq', 'hq+', 'handoff', 'context', 'new chat', 'continue', 'sessions']
+    }),
+    // Custom build (network auto-continue)
+    generalSetting(GENERAL_SETTING_ANCHORS.folder, {
+      ...claudeNetworkAutoContinueSettingText(),
+      keywords: ['claude', 'network', 'connection', 'offline', 'continue', 'retry', 'resume']
     }),
     // Custom build (hq-request-ledger)
     generalSetting(GENERAL_SETTING_ANCHORS.folder, {

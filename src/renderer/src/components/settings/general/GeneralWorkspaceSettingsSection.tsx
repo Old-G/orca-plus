@@ -12,6 +12,7 @@ import { HqFeedPopupsSetting } from './HqFeedPopupsSetting'
 import { HqJournalSetting } from './HqJournalSetting'
 import { HqSessionDispatcherSetting } from './HqSessionDispatcherSetting'
 import { HqHandoffAutoStartSetting } from './HqHandoffAutoStartSetting'
+import { ClaudeNetworkAutoContinueSetting } from './ClaudeNetworkAutoContinueSetting'
 import { HqLedgerSetting } from './HqLedgerSetting'
 import { HqOpenLoopsSetting } from './HqOpenLoopsSetting'
 import { HqPathSetting } from './HqPathSetting'
@@ -85,6 +86,7 @@ export function GeneralWorkspaceSettingsSection({
           <HqLedgerSetting settings={settings} updateSettings={updateSettings} />
           <HqOpenLoopsSetting settings={settings} updateSettings={updateSettings} />
           <HqHandoffAutoStartSetting settings={settings} updateSettings={updateSettings} />
+          <ClaudeNetworkAutoContinueSetting settings={settings} updateSettings={updateSettings} />
           <SearchableSetting
             id={GENERAL_SETTING_ANCHORS.nesting}
             title={t('settings.general.folder.perProject', 'Folder per project')}

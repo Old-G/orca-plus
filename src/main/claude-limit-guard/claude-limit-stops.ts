@@ -9,7 +9,7 @@ import {
   type ClaudeLimitStoppedAgent
 } from '../../shared/claude-limit-guard'
 import type { ProviderRateLimits } from '../../shared/agent-usage/rate-limits/rate-limit-types'
-import { claudeNetworkStopsDue, isClaudeTransientStopFrame } from './claude-network-stops'
+import { createClaudeNetworkStops, isClaudeTransientStopFrame } from './claude-network-stops'
 
 export type ClaudeLimitHookEvent = {
   paneKey: string
@@ -27,8 +27,9 @@ export type ClaudeLimitNativeFrame = Record<string, unknown>
 export type ClaudeLimitStopsDeps = {
   now: () => number
   activeAccountId: () => string | null
-  resumeTerminal: (paneKey: string) => Promise<boolean>
-  resumeNativeChat: (sessionId: string) => Promise<boolean>
+  /** Esc + the continue prompt; `prompt` replaces the plain one (a network nudge names itself). */
+  resumeTerminal: (paneKey: string, prompt?: string) => Promise<boolean>
+  resumeNativeChat: (sessionId: string, prompt?: string) => Promise<boolean>
   /** The subscription a native chat runs on; null for the base sign-in. */
   nativeChatSubscription?: (sessionId: string) => string | null
   onChanged: (stops: ClaudeLimitStoppedAgent[]) => void
@@ -38,6 +39,10 @@ export type ClaudeLimitStopsDeps = {
   nativeChatAccountId?: (sessionId: string) => string | null | undefined
   /** True when the stopped turn had written a handoff: that session moves on, it is not continued. */
   checkHandoff?: (stop: ClaudeLimitStoppedAgent) => Promise<boolean>
+  /** Custom build (network auto-continue): the owner's switch; unset = on. */
+  networkContinueEnabled?: () => boolean
+  /** Calls `onNetworkTick` once after `delayMs`: when the network stop just recorded falls due. */
+  scheduleNetworkTick?: (delayMs: number) => void
   log?: (message: string) => void
 }
 
@@ -84,6 +89,10 @@ function nativeStopReason(frame: ClaudeLimitNativeFrame): ClaudeLimitStopReason 
   return isClaudeLimitStopFrame(frame) ? 'limit' : isClaudeAuthStopFrame(frame) ? 'auth' : null
 }
 
+// Why: a terminal's hook events that prove the agent got through again; UserPromptSubmit does not,
+// the nudge itself raises it.
+const TERMINAL_PROGRESS_EVENTS = new Set(['PreToolUse', 'PostToolUse', 'Stop'])
+
 const HOOK_STOP_REASONS: Readonly<Record<string, ClaudeLimitStopReason>> = {
   rate_limit: 'limit',
   authentication_failed: 'auth'
@@ -110,9 +119,6 @@ function isUnderThreshold(limits: ProviderRateLimits): boolean {
 
 export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
   const stops = new Map<string, ClaudeLimitStoppedAgent>()
-  // Why: kept apart from `stops`, which every reader treats as a limit (cards, account switching).
-  const networkStops = new Map<string, ClaudeLimitStoppedAgent>()
-  const lastNetworkResumeAt = new Map<string, number>()
   const lastReliefResumeAt = new Map<string, number>()
   const resuming = new Set<string>()
 
@@ -131,13 +137,6 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
     void handedOff(stop)
   }
 
-  const recordNetwork = (stop: ClaudeLimitStoppedAgent): void => {
-    networkStops.set(stopId(stop.kind, stop.key), stop)
-    deps.log?.(
-      `${stop.kind} ${stop.key} stopped on a network error; continues when the API answers`
-    )
-  }
-
   const forget = (id: string): void => {
     if (stops.delete(id)) {
       publish()
@@ -154,7 +153,8 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
 
   const resume = async (
     stop: ClaudeLimitStoppedAgent,
-    from: Map<string, ClaudeLimitStoppedAgent> = stops
+    from: Map<string, ClaudeLimitStoppedAgent> = stops,
+    prompt?: string
   ): Promise<void> => {
     const id = stopId(stop.kind, stop.key)
     if (resuming.has(id)) {
@@ -170,10 +170,13 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
         }
         return
       }
+      // Why: a limit or sign-in nudge keeps the plain prompt; only a network nudge names itself.
+      const args: [string] | [string, string] =
+        prompt === undefined ? [stop.key] : [stop.key, prompt]
       const sent =
         stop.kind === 'terminal'
-          ? await deps.resumeTerminal(stop.key)
-          : await deps.resumeNativeChat(stop.key)
+          ? await deps.resumeTerminal(...args)
+          : await deps.resumeNativeChat(...args)
       deps.log?.(`${stop.kind} ${stop.key} ${sent ? 'nudged to continue' : 'could not be nudged'}`)
       // Why: a pane or session that no longer exists will never need the nudge.
       if (from.get(id) === stop) {
@@ -193,6 +196,16 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
     return own === undefined ? deps.activeAccountId() : own
   }
 
+  // Custom build (claude-network-continue): agents a network error cut, nudged on a schedule.
+  const network = createClaudeNetworkStops({
+    now: deps.now,
+    enabled: () => deps.networkContinueEnabled?.() !== false,
+    scheduleTick: deps.scheduleNetworkTick,
+    log: deps.log,
+    isResuming: (id) => resuming.has(id),
+    resume: (stop, from, prompt) => resume(stop, from, prompt)
+  })
+
   return {
     list(): ClaudeLimitStoppedAgent[] {
       return [...stops.values()]
@@ -208,7 +221,7 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
           ? HOOK_STOP_REASONS[event.stopFailureError ?? '']
           : undefined
       if (event.hookEventName === 'StopFailure' && event.stopFailureError === 'server_error') {
-        recordNetwork({
+        network.record(id, {
           kind: 'terminal',
           key: event.paneKey,
           worktreeId: event.worktreeId ?? null,
@@ -233,15 +246,18 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
       }
       if (event.hookEventName === 'UserPromptSubmit') {
         forget(id)
-        networkStops.delete(id)
+        network.answered(id)
+      }
+      if (TERMINAL_PROGRESS_EVENTS.has(event.hookEventName ?? '')) {
+        network.progress(id)
       }
     },
 
     onNativeFrame(sessionId: string, worktreeId: string | null, frame: ClaudeLimitNativeFrame) {
       const id = stopId('native-chat', sessionId)
       if (isClaudeTransientStopFrame(frame)) {
-        if (!networkStops.has(id)) {
-          recordNetwork({
+        if (!network.has(id)) {
+          network.record(id, {
             kind: 'native-chat',
             key: sessionId,
             worktreeId,
@@ -272,18 +288,18 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
       }
       if (isClaudeProgressFrame(frame)) {
         forget(id)
-        networkStops.delete(id)
+        network.progress(id)
       }
     },
 
     forgetTerminal(paneKey: string): void {
       forget(stopId('terminal', paneKey))
-      networkStops.delete(stopId('terminal', paneKey))
+      network.progress(stopId('terminal', paneKey))
     },
 
     forgetNativeChat(sessionId: string): void {
       forget(stopId('native-chat', sessionId))
-      networkStops.delete(stopId('native-chat', sessionId))
+      network.progress(stopId('native-chat', sessionId))
     },
 
     /** Another account became active: every agent stopped on a different account continues. */
@@ -312,14 +328,14 @@ export function createClaudeLimitStops(deps: ClaudeLimitStopsDeps) {
       return due.length
     },
 
+    /** Custom build (network auto-continue): nudges the network stops now due. */
+    onNetworkTick(): Promise<void> {
+      return network.tick()
+    },
+
     /** The active account has room again (window reset): agents stopped on it continue once. */
     async onActiveUsage(activeAccountId: string | null, limits: ProviderRateLimits): Promise<void> {
       const now = deps.now()
-      // Custom build (claude-network-continue): a usage reading that came back means the API is reachable.
-      if (limits.status === 'ok') {
-        const back = claudeNetworkStopsDue(networkStops, lastNetworkResumeAt, now)
-        await Promise.all(back.map((stop) => resume(stop, networkStops)))
-      }
       if (!isUnderThreshold(limits)) {
         return
       }
