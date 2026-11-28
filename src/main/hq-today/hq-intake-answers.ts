@@ -1,5 +1,6 @@
 // Custom build (hq-intake-one-card, T7): which Slack messages are a person's answer to a waiting — the
 // answer's own card (REPLY) stands for them, so they raise no second «To work».
+import { hqIntakeKey } from '../../shared/hq-slack-intake'
 import type { HqIntakeDraft } from './hq-slack-intake-suggest'
 
 const ANSWER_SPAN_MS = 15 * 60_000
@@ -11,14 +12,28 @@ export type HqIntakeAnswer = {
   authorSlackId: string | null
   at: number
   ts?: string | null
+  /** Router v2 T7: the waiting this answers, so a 👾 on the answer can pass it to its chat. */
+  waitingId?: string
 }
 
-/** The same Slack message, by its own ts (the channel too when the waiting names one). */
-function isAnswerMessage(draft: HqIntakeDraft, answers: readonly HqIntakeAnswer[]): boolean {
-  return answers.some(
-    (answer) =>
-      !!answer.ts && answer.ts === draft.ts && (!answer.channel || answer.channel === draft.channel)
+/** The answer that is this very Slack message, by its own ts (the channel too when the waiting
+ *  names one). */
+export function hqAnswerOfMessage(
+  draft: HqIntakeDraft,
+  answers: readonly HqIntakeAnswer[]
+): HqIntakeAnswer | null {
+  return (
+    answers.find(
+      (answer) =>
+        !!answer.ts &&
+        answer.ts === draft.ts &&
+        (!answer.channel || answer.channel === draft.channel)
+    ) ?? null
   )
+}
+
+function isAnswerMessage(draft: HqIntakeDraft, answers: readonly HqIntakeAnswer[]): boolean {
+  return hqAnswerOfMessage(draft, answers) !== null
 }
 
 export function answersWaiting(
@@ -40,4 +55,31 @@ export function answersWaiting(
         draft.at <= answer.at + 2 * 60_000
     )
   )
+}
+
+/** Router v2 T7: the owner's 👾 on the answer itself is his «pass it on» — before, the mark gave way
+ *  to the answer card and nothing went until he clicked it (28.11: a colleague's file sat there). */
+export async function hqPassMarkedAnswers(
+  deps: {
+    passAnswer?: (waitingId: string, replyTs: string) => Promise<boolean>
+    noteMark?: (key: string, outcome: string) => void
+    now: () => number
+  },
+  drafts: readonly HqIntakeDraft[],
+  answers: readonly HqIntakeAnswer[],
+  windowMs: number
+): Promise<void> {
+  for (const draft of drafts) {
+    const answer = hqAnswerOfMessage(draft, answers)
+    if (!answer?.waitingId || !deps.passAnswer || deps.now() - draft.at > windowMs) {
+      continue
+    }
+    const passed = await deps.passAnswer(answer.waitingId, draft.ts).catch(() => false)
+    deps.noteMark?.(
+      hqIntakeKey(draft),
+      passed
+        ? 'answer passed to the waiting chat'
+        : 'answer not passed (passed before or chat closed)'
+    )
+  }
 }

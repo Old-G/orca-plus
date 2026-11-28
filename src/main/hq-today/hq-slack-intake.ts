@@ -15,7 +15,7 @@ import {
 import type { PulseBellInput } from '../../shared/pulse-bell'
 import { INBOX_GONE_ACTION } from '../orca-plus/pulse/pulse-inbox'
 import type { HqIntakeDraft, HqIntakeGuess } from './hq-slack-intake-suggest'
-import { answersWaiting, type HqIntakeAnswer } from './hq-intake-answers'
+import { answersWaiting, hqPassMarkedAnswers, type HqIntakeAnswer } from './hq-intake-answers'
 import { routeToWorkCards, type HqCardRouteDeps } from './hq-card-route'
 import { applySendFirst, type HqRouterSendFirstDeps } from './hq-router-send-first'
 
@@ -95,6 +95,9 @@ export type HqSlackIntakeDeps = {
   cardRoute?: HqCardRouteDeps['cardRoute']
   saveCardRoute?: HqCardRouteDeps['saveCardRoute']
   sendFirst?: HqRouterSendFirstDeps // router v2 T5: a 👾 sent to its pick at once, «не моё» passed on
+  /** Router v2 T7 (owner 28.11): a 👾 on a person's answer to a waiting passes it to the waiting's
+   *  chat, as the answer card's Pass does; true when it went. */
+  passAnswer?: (waitingId: string, replyTs: string) => Promise<boolean>
 }
 
 /** Custom build (hq-router T1c, 26.11): keys the owner handled. A card the bell closed by itself
@@ -190,6 +193,7 @@ export async function pollHqSlackIntake(
     if (
       opts.quick &&
       intake &&
+      !handled.has(key) &&
       intake.via !== 'mention' &&
       !intake.pasted &&
       deps.now() - intake.at <= HQ_INTAKE_WINDOW_MS
@@ -207,6 +211,7 @@ export async function pollHqSlackIntake(
       cards.set(key, intake)
     }
   }
+  await hqPassMarkedAnswers(deps, read.marked.drafts, answers, HQ_INTAKE_WINDOW_MS)
   // Why (T7, owner 26.11): one message is one card — REPLY first, then a 👾 route, then a mention.
   const drafts = [
     ...read.marked.drafts.filter((draft) => !answersWaiting(draft, answers, { loose: false })),

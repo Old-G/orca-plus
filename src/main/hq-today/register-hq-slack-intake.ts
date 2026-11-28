@@ -26,7 +26,7 @@ import {
   type HqIntakeActionDeps
 } from './hq-slack-intake-actions'
 import { guessHqIntake } from './hq-slack-intake-suggest'
-import { hqIntakeOwnerHandled } from './hq-slack-intake'
+import { hqIntakeOwnerHandled, type HqSlackIntakeDeps } from './hq-slack-intake'
 import { hqIntakeOwnerPushes, startHqSlackIntake } from './hq-slack-intake-watch'
 import { generateHqText } from './hq-task-questions'
 import { hqIntakeOfConversation, hqLedgerCardReady } from './hq-ledger-cards'
@@ -52,7 +52,8 @@ function text(value: unknown): string {
 export function registerHqSlackIntake(
   store: Store,
   runtime: OrcaRuntimeService,
-  cache: SlackReaderCache
+  cache: SlackReaderCache,
+  passAnswer?: HqSlackIntakeDeps['passAnswer']
 ): void {
   const people = () => runtime.pulseListPeople()
   const routerDeps = hqRouterIntakeDeps(store, runtime, cache)
@@ -97,7 +98,8 @@ export function registerHqSlackIntake(
                 channel: thread?.channel ?? null,
                 authorSlackId: waiting.replyAuthorId ?? null,
                 at,
-                ts: waiting.replyTs
+                ts: waiting.replyTs,
+                waitingId: waiting.id
               }
             ]
           : []
@@ -159,6 +161,7 @@ export function registerHqSlackIntake(
     ...routerDeps,
     // Router v2 T7: the owner's 👾 / 🆕 pushed over Socket Mode starts a quick pass at once.
     pushes: hqIntakeOwnerPushes(store, routerDeps.noteMark),
+    passAnswer,
     // Why: a failing poll used to leave cards stale with no word anywhere the owner looks (26.10).
     onError: (message) => {
       const key = message.slice(0, 120)
