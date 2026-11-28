@@ -1,7 +1,7 @@
 // Custom build (paper-theme): HQ+ follows Orca's theme — the ice-blue HUD while Orca is dark, «Paper»
 // (hq-plus-paper.css) while it is light. Every HQ+ root takes its class from here; the `dark` class also
 // keeps shared components (native chat, menus) dark inside it.
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import { useDocumentDarkTheme } from '@/hooks/theme/use-document-dark-theme'
 import { useAppStore } from '@/store'
 import {
@@ -31,7 +31,7 @@ export function useHqPlusRootClass(extra?: string): string {
   const palette = useAppStore((s) => hqPlusPalette(s.settings))
   // Why not undone on unmount: several HQ+ roots can be mounted at once, and the rules only match inside
   // `.hq-plus`; every mount syncs the attribute again.
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyHqPlusPalette(document.documentElement, palette)
   }, [palette])
   return hqPlusRootClass(useDocumentDarkTheme(), extra)

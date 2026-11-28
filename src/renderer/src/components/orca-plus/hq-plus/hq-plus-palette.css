@@ -23,11 +23,11 @@ html[data-hqp-palette='graphite']:not(.light) .hq-plus-pop {
   --hqp-amber: #e8b04a;
   --hqp-red: #f2766c;
   --hqp-green: #62c993;
-  /* the colours without a meaning fall back to the neutral grey */
-  --hqp-rose: var(--hqp-faint);
+  /* errors keep the Approve red, «working / answered» keep amber; the colours without a meaning go neutral grey */
+  --hqp-rose: var(--hqp-red);
   --hqp-violet: var(--hqp-faint);
   --hqp-blue: var(--hqp-faint);
-  --hqp-yellow: var(--hqp-faint);
+  --hqp-yellow: var(--hqp-amber);
   --hqp-src-slack: var(--hqp-faint);
   --hqp-src-gmail: var(--hqp-faint);
   --hqp-src-router: var(--hqp-faint);
@@ -62,10 +62,10 @@ html.light[data-hqp-palette='graphite'] .hq-plus-pop {
   --hqp-amber: #8a5000;
   --hqp-red: #b3261e;
   --hqp-green: #0d6a3d;
-  --hqp-rose: var(--hqp-faint);
+  --hqp-rose: var(--hqp-red);
   --hqp-violet: var(--hqp-faint);
   --hqp-blue: var(--hqp-faint);
-  --hqp-yellow: var(--hqp-faint);
+  --hqp-yellow: var(--hqp-amber);
   --hqp-src-slack: var(--hqp-faint);
   --hqp-src-gmail: var(--hqp-faint);
   --hqp-src-router: var(--hqp-faint);
