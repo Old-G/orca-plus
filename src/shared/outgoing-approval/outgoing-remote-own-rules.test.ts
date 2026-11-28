@@ -483,3 +483,76 @@ describe('own work of 06.11', () => {
     expect(held(`ssh myserver 'docker exec agent-app rm -f /srv/e2e_x.py'`)).toBe(true)
   })
 })
+
+describe('a probe copied into a container and removed there (C3, plan 15.18)', () => {
+  beforeEach(() => setRemoteNoApprove(parseHqRemoteNoApprove(AUTONOMY)))
+  afterEach(() => setRemoteNoApprove(null))
+
+  const RUN = `docker cp /tmp/q.mjs app:/app/q.mjs && docker exec -w /app app node q.mjs`
+
+  it.each([
+    `ssh myserver "${RUN}; docker exec app rm -f /app/q.mjs"`,
+    `ssh myserver '${RUN}; docker exec -u 0 app rm -f /app/q.mjs; rm -f /tmp/q.mjs'`,
+    `ssh myserver '${RUN}; docker exec app rm -f -- "/app/q.mjs"'`,
+    // From the replay of 28.11, names replaced.
+    `B=$(base64 < q.mjs); ssh myserver "echo $B | base64 -d > /tmp/fbq.mjs && docker cp /tmp/fbq.mjs acme-bridge:/app/fbq.mjs && docker exec -w /app acme-bridge node fbq.mjs; docker exec acme-bridge rm -f /app/fbq.mjs; rm -f /tmp/fbq.mjs" 2>&1 | head -80`,
+    `scp -q tk.ts myserver:/tmp/fb-tk.ts && ssh myserver 'docker cp /tmp/fb-tk.ts acme-bridge:/app/scripts/prod/zz-tmp-tk.ts && docker exec -w /app acme-bridge npx tsx scripts/prod/zz-tmp-tk.ts; docker exec -u 0 acme-bridge rm -f /app/scripts/prod/zz-tmp-tk.ts; rm /tmp/fb-tk.ts' 2>&1 | tail -3`
+  ])('passes %s', (command) => {
+    expect(held(command)).toBe(false)
+  })
+
+  it.each([
+    // Not `rm -f` of exactly the copied file, in the same container, after the copy.
+    `ssh myserver '${RUN}; docker exec app rm -rf /app/q.mjs'`,
+    `ssh myserver '${RUN}; docker exec app rm -r -f /app/q.mjs'`,
+    `ssh myserver '${RUN}; docker exec app rm -f /app/q.mjs /app/main.mjs'`,
+    `ssh myserver '${RUN}; docker exec app rm -f /app/main.mjs'`,
+    `ssh myserver '${RUN}; docker exec app rm -f /app/q.mjs.bak'`,
+    `ssh myserver '${RUN}; docker exec app rm -f /app/*.mjs'`,
+    `ssh myserver '${RUN}; docker exec db rm -f /app/q.mjs'`,
+    `ssh myserver '${RUN}; docker compose exec app rm -f /app/q.mjs'`,
+    `ssh myserver '${RUN}; docker exec app sh -c "rm -f /app/q.mjs"'`,
+    `ssh myserver '${RUN}; rm -f /app/q.mjs'`,
+    `ssh myserver 'docker exec app rm -f /app/q.mjs; ${RUN}'`,
+    `ssh myserver 'docker exec app rm -f /app/q.mjs'`,
+    // The copy elsewhere: on this machine, in another ssh call, on a host not listed.
+    `${RUN}; ssh myserver 'docker exec app rm -f /app/q.mjs'`,
+    `ssh myserver '${RUN}'; ssh myserver 'docker exec app rm -f /app/q.mjs'`,
+    `ssh other-box '${RUN}; docker exec app rm -f /app/q.mjs'`,
+    `ssh myserver 'DOCKER_HOST=tcp://prod:2375 ${RUN}; docker exec app rm -f /app/q.mjs'`,
+    // A copy that can write anything, or names no plain file.
+    `ssh myserver 'docker cp - app:/app/q.mjs < /tmp/q.tar; docker exec app rm -f /app/q.mjs'`,
+    `ssh myserver 'docker cp /tmp/q.mjs app:/app/../srv/q.mjs; docker exec app rm -f /app/../srv/q.mjs'`,
+    `ssh myserver 'docker cp /tmp/data app:/app/data; docker exec app rm -f /app/data'`,
+    `ssh myserver 'docker cp /tmp/q.mjs app:/app/$F; docker exec app rm -f /app/$F'`,
+    `ssh myserver 'docker cp /tmp/q.mjs app:/app/q.mjs; docker exec app rm -f "/app/q.m"js'`,
+    // A copy that never runs as a command (review 28.11).
+    `ssh myserver 'echo "docker cp /x app:/app/main.py"; docker exec app rm -f /app/main.py'`,
+    `ssh myserver 'echo docker cp /x app:/app/main.py; docker exec app rm -f /app/main.py'`,
+    "ssh myserver '# x; docker cp /x app:/app/main.py\ndocker exec app rm -f /app/main.py'",
+    "ssh myserver 'cat > /tmp/n.txt <<EOF\ndocker cp /x app:/app/main.py\nEOF\ndocker exec app rm -f /app/main.py'",
+    `ssh myserver 'X=$(docker cp /x app:/app/main.py); docker exec app rm -f /app/main.py'`,
+    `ssh myserver 'false || docker cp /x app:/app/main.py; docker exec app rm -f /app/main.py'`,
+    `ssh myserver 'f() { docker cp /x app:/app/main.py; }; docker exec app rm -f /app/main.py'`,
+    `ssh myserver 'echo x \\; docker cp /x app:/app/main.py; docker exec app rm -f /app/main.py'`,
+    `ssh myserver 'echo x\\;docker cp /x app:/app/main.py; docker exec app rm -f /app/main.py'`,
+    `ssh myserver 'echo x \\&& docker cp /x app:/app/main.py; docker exec app rm -f /app/main.py'`,
+    `ssh myserver 'if false; then docker cp /x app:/app/main.py; fi; docker exec app rm -f /app/main.py'`,
+    `ssh myserver 'docker cp /x app:/app/main.py & docker exec app rm -f /app/main.py'`,
+    `ssh myserver 'docker cp /x app:/app/main.py; sh -c "docker exec app rm -f /app/main.py"'`,
+    // Data, not a script: a failed copy would leave the rm the real file (review 28.11).
+    `ssh myserver 'docker cp /tmp/q.mjs app:/data/prod.db; docker exec app rm -f /data/prod.db'`,
+    `ssh myserver 'docker cp /tmp/q.json app:/app/config.json; docker exec app rm -f /app/config.json'`,
+    `ssh myserver 'docker cp /tmp/q.env app:/app/.env; docker exec app rm -f /app/.env'`,
+    // A mount reaches the host's own files.
+    `ssh myserver '${RUN}; docker run --rm -v /srv:/app alpine rm -f /app/q.mjs'`,
+    // Real deletions next to the probe keep the card.
+    `ssh myserver '${RUN}; docker exec app rm -f /app/q.mjs; docker exec db psql -c "DROP TABLE orders"'`,
+    `ssh myserver '${RUN}; docker exec app rm -f /app/q.mjs; docker exec db psql -c "TRUNCATE sessions"'`,
+    `ssh myserver '${RUN}; docker exec app rm -f /app/q.mjs; docker rm -f app'`,
+    `ssh myserver '${RUN}; docker exec app rm -f /app/q.mjs; docker volume rm app-data'`,
+    `ssh myserver '${RUN}; docker exec app rm -f /app/q.mjs; rm -rf /srv/app'`
+  ])('holds %s', (command) => {
+    expect(held(command)).toBe(true)
+  })
+})
