@@ -140,7 +140,8 @@ function sameThread(card: HqIntake, draft: HqIntakeDraft): boolean {
   return cardRoot === draftRoot && !card.pasted
 }
 
-/** `quick` (router v2 T7): a pass for a pushed mark — the newest reactions only, no mentions. It is a
+/** Returns the number of new guesses, -1 when nothing was read (no token).
+ *  `quick` (router v2 T7): a pass for a pushed mark — the newest reactions only, no mentions. It is a
  *  partial read, so it closes no card; the half-minute pass still does the rest. */
 export async function pollHqSlackIntake(
   deps: HqSlackIntakeDeps,
@@ -165,7 +166,7 @@ export async function pollHqSlackIntake(
   }))
   // Why: no token or a failed read says nothing about which marks are gone.
   if (read === null) {
-    return 0
+    return -1
   }
   const raised = deps.raised()
   const handled = deps.handled?.() ?? new Set<string>()
@@ -179,6 +180,18 @@ export async function pollHqSlackIntake(
     if (
       intake?.pasted &&
       key.startsWith(HQ_ROUTER_KEY_PREFIX) &&
+      deps.now() - intake.at <= HQ_INTAKE_WINDOW_MS
+    ) {
+      cards.set(key, intake)
+      continue
+    }
+    // Why (router v2 T7): a quick read sees only the newest reactions; a mark card it does not reach
+    // still takes a reply 👾 in its thread, as on a full pass.
+    if (
+      opts.quick &&
+      intake &&
+      intake.via !== 'mention' &&
+      !intake.pasted &&
       deps.now() - intake.at <= HQ_INTAKE_WINDOW_MS
     ) {
       cards.set(key, intake)

@@ -12,6 +12,8 @@ import { pollHqSlackIntake, type HqSlackIntakeDeps } from './hq-slack-intake'
 // Why: no model is involved, and Slack allows about 20 reads a minute of each kind; 30 s uses two.
 const POLL_MS = 30_000
 const FIRST_POLL_MS = 25_000
+// Why: reactions.list may not show a mark the instant Slack pushes it; one more quick look covers it.
+const PUSH_RETRY_MS = 2_000
 
 export type HqIntakePushDeps = {
   /** The owner's Slack user id (the reader token's), null while none is saved. */
@@ -64,17 +66,22 @@ export function startHqSlackIntake(
     pushes?: (kick: () => void) => () => void
   }
 ): () => void {
-  // Why (router v2 T7): a quick pass only after a full one, so the first look of a run — which
-  // records the marks made before the trial — always sees every mark.
+  // Why (router v2 T7): a quick pass only after a full one that read, so the first look of a run —
+  // which records the marks made before the trial — always sees every mark; and a half-minute tick
+  // is never swallowed by a push that lands at the same time.
   let fullDone = false
+  let fullWanted = false
   let quickNext = false
   const flight = createDebouncedSingleFlight(
     async () => {
-      const quick = quickNext && fullDone
+      const quick = quickNext && fullDone && !fullWanted
       quickNext = false
       if (claudeBackgroundAllows('Slack intake')) {
-        await pollHqSlackIntake(deps, { quick })
-        fullDone ||= !quick
+        const read = await pollHqSlackIntake(deps, { quick })
+        if (!quick) {
+          fullWanted = false
+          fullDone ||= read >= 0
+        }
       }
     },
     (error) => {
@@ -83,16 +90,32 @@ export function startHqSlackIntake(
     },
     FIRST_POLL_MS
   )
-  const timer = setInterval(() => void flight.runNow(), POLL_MS)
+  const timer = setInterval(() => {
+    fullWanted = true
+    void flight.runNow()
+  }, POLL_MS)
   timer.unref?.()
   flight.schedule()
-  const unsubscribe = deps.pushes?.(() => {
+  const retries = new Set<ReturnType<typeof setTimeout>>()
+  const quickPass = (): void => {
     quickNext = true
     void flight.runNow()
+  }
+  const unsubscribe = deps.pushes?.(() => {
+    quickPass()
+    const retry = setTimeout(() => {
+      retries.delete(retry)
+      quickPass()
+    }, PUSH_RETRY_MS)
+    retry.unref?.()
+    retries.add(retry)
   })
   return () => {
     clearInterval(timer)
     flight.dispose()
     unsubscribe?.()
+    for (const retry of retries) {
+      clearTimeout(retry)
+    }
   }
 }
