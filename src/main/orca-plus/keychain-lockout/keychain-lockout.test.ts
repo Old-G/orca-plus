@@ -19,7 +19,7 @@ function deps(overrides: Partial<KeychainLockoutDeps> = {}) {
       { service: 'ClickUp', path: '/h/.orca/clickup-credential.enc' },
       { service: 'Gmail', path: '/p/gmail/token.enc' }
     ],
-    hasContent: vi.fn(async (path: string) => !path.includes('gmail')),
+    isSealed: vi.fn(async (path: string) => !path.includes('gmail')),
     syncBell: vi.fn(),
     notify: vi.fn(),
     journal: vi.fn(),
@@ -69,10 +69,12 @@ describe('keychain lockout', () => {
     expect(made.journal).not.toHaveBeenCalled()
   })
 
-  it('says nothing when no key is saved', async () => {
-    const { made } = deps({ hasContent: vi.fn(async () => false) })
+  it('with no Keychain-sealed key, neither probes (no window for nothing) nor keeps an old card', async () => {
+    const secretsOpen = vi.fn(() => false)
+    const { made } = deps({ isSealed: vi.fn(async () => false), secretsOpen })
     expect(await checkKeychainLockout(made)).toEqual([])
-    expect(made.syncBell).not.toHaveBeenCalled()
+    expect(secretsOpen).not.toHaveBeenCalled()
+    expect(made.syncBell).toHaveBeenCalledWith([])
     expect(made.notify).not.toHaveBeenCalled()
   })
 
@@ -84,9 +86,10 @@ describe('keychain lockout', () => {
     expect(made.syncBell).not.toHaveBeenCalled()
   })
 
-  it('checks after the first poll has read its key', () => {
+  it("clears the last run's card at start and checks after the first poll has read its key", () => {
     const { made } = deps()
     startKeychainLockoutWatch(made)
+    expect(made.syncBell).toHaveBeenCalledWith([])
     expect(made.schedule).toHaveBeenCalledWith(
       expect.any(Function),
       KEYCHAIN_LOCKOUT_FIRST_CHECK_MS

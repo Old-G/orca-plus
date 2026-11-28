@@ -313,8 +313,13 @@ run ditto "$new" "$staged"
 # («inDarkWake», 28.11 01:39 and 03:10 with the screen unlocked) — Chromium keeps that refusal for the
 # whole run. So the swap waits for the owner at the Mac: screen unlocked and a key or mouse touch within
 # ORCA_PLUS_SHIP_OWNER_IDLE_S seconds (120). ORCA_PLUS_SHIP_WAIT_OWNER=0 restarts at once.
-screen_locked() { ioreg -n Root -d1 | grep -q '"CGSSessionScreenIsLocked"=Yes'; }
-owner_idle_s() { ioreg -c IOHIDSystem -d 4 | awk '/HIDIdleTime/ { print int($NF / 1000000000); exit }'; }
+# Why a here-string: `ioreg | grep -q` under pipefail reads 141 (SIGPIPE) when grep stops early, and a
+# locked screen read as unlocked.
+screen_locked() { grep -q '"CGSSessionScreenIsLocked"=Yes' <<<"$(ioreg -n Root -d1)"; }
+owner_idle_s() { awk '/HIDIdleTime/ { print int($NF / 1000000000); exit }' <<<"$(ioreg -c IOHIDSystem -d 4)"; }
+tell_owner() {
+  osascript -e 'display notification "Touch the Mac to restart it — then press «Always Allow» in the Keychain window." with title "Orca+ update ready"' >/dev/null 2>&1 || true
+}
 owner_away() {
   local idle
   idle=$(owner_idle_s || true)
@@ -322,8 +327,14 @@ owner_away() {
 }
 if [ "$dry" = 0 ] && [ "${ORCA_PLUS_SHIP_WAIT_OWNER:-1}" != 0 ] && owner_away; then
   step "owner away from the Mac (screen locked or idle) — the restart waits, the Keychain will ask «Always Allow»"
-  osascript -e 'display notification "Touch the Mac to restart it — then press «Always Allow» in the Keychain window." with title "Orca+ update ready"' >/dev/null 2>&1 || true
-  while owner_away; do sleep 15; done
+  tell_owner
+  waited=0
+  while owner_away; do
+    sleep 15
+    waited=$((waited + 15))
+    # Why: one banner at night sinks in Notification Center; the ship has no end of its own.
+    [ $((waited % 3600)) = 0 ] && tell_owner
+  done
   step "owner back — going on"
 fi
 

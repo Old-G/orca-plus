@@ -16,9 +16,10 @@ export type KeychainLockoutDeps = {
   platform: NodeJS.Platform
   /** True when the secret store seals and opens a probe value in this run. */
   secretsOpen: () => boolean
-  /** Saved keys sealed by the store, by service — the lockout matters only when some exist. */
+  /** Saved keys by service — the lockout matters only when one of them is sealed by the Keychain. */
   sealed: readonly SealedCredential[]
-  hasContent: (path: string) => Promise<boolean>
+  /** True when the file holds Keychain-sealed text (a plaintext fallback reads without it). */
+  isSealed: (path: string) => Promise<boolean>
   syncBell: (items: PulseBellInput[]) => void
   notify: (title: string, body: string) => void
   journal: (found: string) => void
@@ -48,10 +49,10 @@ export function keychainLockoutBellItem(
   }
 }
 
-/** Services whose saved key exists; an empty file is no key. */
-async function savedServices(deps: KeychainLockoutDeps): Promise<string[]> {
+/** Services whose saved key is sealed by the Keychain. */
+async function sealedServices(deps: KeychainLockoutDeps): Promise<string[]> {
   const found = await Promise.all(
-    deps.sealed.map(async (entry) => ((await deps.hasContent(entry.path)) ? entry.service : null))
+    deps.sealed.map(async (entry) => ((await deps.isSealed(entry.path)) ? entry.service : null))
   )
   return [...new Set(found.filter((service): service is string => service !== null))]
 }
@@ -61,13 +62,11 @@ export async function checkKeychainLockout(deps: KeychainLockoutDeps): Promise<s
   if (deps.platform !== 'darwin') {
     return []
   }
-  if (deps.secretsOpen()) {
-    // Why: a card left by the last run's lockout is over once this run opens the keys.
+  const services = await sealedServices(deps)
+  // Why the files first: with no sealed key the probe would be this run's first Keychain call — a window
+  // for nothing. Either way a card left by the last run's lockout is over.
+  if (services.length === 0 || deps.secretsOpen()) {
     deps.syncBell([])
-    return []
-  }
-  const services = await savedServices(deps)
-  if (services.length === 0) {
     return []
   }
   const item = keychainLockoutBellItem(services, deps.startedAt)
@@ -86,6 +85,11 @@ export async function checkKeychainLockout(deps: KeychainLockoutDeps): Promise<s
 }
 
 export function startKeychainLockoutWatch(deps: KeychainLockoutDeps): void {
+  if (deps.platform !== 'darwin') {
+    return
+  }
+  // Why: the last run's card must not offer a restart for the 40 s before this run's check.
+  deps.syncBell([])
   deps.schedule(() => {
     void checkKeychainLockout(deps).catch((error: unknown) =>
       console.warn('[keychain-lockout] check failed:', error)
