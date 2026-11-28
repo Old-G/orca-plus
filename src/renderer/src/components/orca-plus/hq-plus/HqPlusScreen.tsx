@@ -155,6 +155,7 @@ import './hq-plus-work.css'
 import './hq-plus-board.css'
 import './hq-plus-paper.css'
 import './hq-plus-palette.css'
+import './hq-plus-calm.css'
 import { HqBackgroundPauseBadge } from '../hq/HqBackgroundPauseBadge'
 
 /** Custom build (hq-plus-map): the Map layout's «Card» tab — what is picked on the map. */

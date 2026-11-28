@@ -5,6 +5,7 @@ import { UIZoomControl } from './UIZoomControl'
 import { SearchableSetting } from '../section-layout/SearchableSetting'
 import { ReduceVisualEffectsSetting } from './ReduceVisualEffectsSetting'
 import { HqPlusPaletteSetting } from '../HqPlusPaletteSetting'
+import { HqPlusDecorSetting } from '../HqPlusDecorSetting'
 import { getReduceVisualEffectsEntries } from './appearance-reduce-visual-effects-search'
 import { SettingsGroupDisclosure } from '../section-layout/SettingsGroupDisclosure'
 import { SettingsSearchableSelect } from '../form-controls/SettingsSearchableSelect'
@@ -300,6 +301,15 @@ export function AppearanceInterfaceSection({
         keywords={['hq', 'palette', 'colors', 'graphite', 'paper', 'theme']}
       >
         <HqPlusPaletteSetting settings={settings} updateSettings={updateSettings} />
+      </SearchableSetting>
+
+      {/* Custom build (hq-decor): HQ+ without glows, gradient edges and capitals; full by default. */}
+      <SearchableSetting
+        title="HQ+ decoration"
+        description="Full, or Calm: HQ+ without glows, gradient edges and capital letters."
+        keywords={['hq', 'decoration', 'calm', 'glow', 'gradient', 'capitals', 'quiet']}
+      >
+        <HqPlusDecorSetting settings={settings} updateSettings={updateSettings} />
       </SearchableSetting>
 
       {showAdvanced ? (

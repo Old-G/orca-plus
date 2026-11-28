@@ -105,4 +105,7 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     /** Custom build (hq-palette): HQ+'s colours — `classic` (the old ice-blue / Paper) or `graphite`
      *  («Графит» dark, «Бумага» light). Unset = classic. */
     hqPlusPalette?: 'classic' | 'graphite'
+    /** Custom build (hq-decor): `calm` takes the glows, background spots, gradient edges, capitals and the
+     *  duplicate Approve bar off HQ+; unset = `full`, the look HQ+ always had. */
+    hqPlusDecor?: 'full' | 'calm'
   }
