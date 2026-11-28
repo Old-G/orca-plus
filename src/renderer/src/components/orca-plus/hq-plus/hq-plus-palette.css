@@ -1,0 +1,82 @@
+/* Custom build (hq-palette, V1 of the AI-UX wave 2): «Графит» (dark) and «Бумага» (light) — the quieter
+   palette from the U2 page (decisions.md#u2, 1c-1). Tokens only: four colours with a meaning (accent,
+   Approve red, your-turn amber, done green) over neutral greys; the glows and gradient edges that read the
+   tokens go quiet by themselves, the rules that draw them stay (that is V2).
+   Off by default: it applies only when Settings → Appearance → «HQ+ palette» is «Graphite & Paper», which
+   puts data-hqp-palette="graphite" on <html> (hq-plus-palette.ts). Unset or «Classic» = this file does
+   nothing. The selectors out-rank hq-plus.css (.hq-plus) and hq-plus-paper.css (html.light .hq-plus), so
+   import order does not matter; .hq-plus-pop is the menus that portal out of the HQ+ root. */
+html[data-hqp-palette='graphite']:not(.light) .hq-plus,
+html[data-hqp-palette='graphite']:not(.light) .hq-plus-pop {
+  --hqp-bg: #0e1114;
+  --hqp-bg-2: #14181c;
+  --hqp-card: #171b20;
+  --hqp-soft: rgba(255, 255, 255, 0.04);
+  --hqp-soft-2: rgba(255, 255, 255, 0.08);
+  --hqp-line: rgba(255, 255, 255, 0.09);
+  --hqp-line-2: rgba(255, 255, 255, 0.22);
+  --hqp-ice: #7fc8dc;
+  --hqp-ice-ink: #0b1418;
+  --hqp-fg: #e6eaed;
+  --hqp-mute: #aab4bb;
+  --hqp-faint: #8a949b;
+  --hqp-amber: #e8b04a;
+  --hqp-red: #f2766c;
+  --hqp-green: #62c993;
+  /* the colours without a meaning fall back to the neutral grey */
+  --hqp-rose: var(--hqp-faint);
+  --hqp-violet: var(--hqp-faint);
+  --hqp-blue: var(--hqp-faint);
+  --hqp-yellow: var(--hqp-faint);
+  --hqp-src-slack: var(--hqp-faint);
+  --hqp-src-gmail: var(--hqp-faint);
+  --hqp-src-router: var(--hqp-faint);
+  --hqp-rel: var(--hqp-faint);
+  --hqp-axis: var(--hqp-faint);
+  --hqp-node: var(--hqp-card);
+  /* gradient edges and tinted wells become the plain line and card */
+  --hqp-edge: var(--hqp-line);
+  --hqp-edge-move: var(--hqp-line);
+  --hqp-edge-ap: var(--hqp-line);
+  --hqp-edge-report: var(--hqp-line);
+  --hqp-open-move: linear-gradient(var(--hqp-card), var(--hqp-card));
+  --hqp-open-ap: linear-gradient(var(--hqp-card), var(--hqp-card));
+  --hqp-open-report: linear-gradient(var(--hqp-card), var(--hqp-card));
+}
+
+html.light[data-hqp-palette='graphite'] .hq-plus,
+html.light[data-hqp-palette='graphite'] .hq-plus-pop {
+  --hqp-bg: #f4f3ef;
+  --hqp-bg-2: #ebe9e3;
+  --hqp-card: #ffffff;
+  --hqp-soft: rgba(16, 42, 56, 0.04);
+  --hqp-soft-2: rgba(16, 42, 56, 0.08);
+  --hqp-line: rgba(16, 42, 56, 0.13);
+  --hqp-line-2: rgba(16, 42, 56, 0.32);
+  --hqp-ice: #0b6276;
+  --hqp-ice-ink: #ffffff;
+  --hqp-fg: #141a1d;
+  --hqp-hi: #141a1d;
+  --hqp-mute: #3e4a50;
+  --hqp-faint: #5c676d;
+  --hqp-amber: #8a5000;
+  --hqp-red: #b3261e;
+  --hqp-green: #0d6a3d;
+  --hqp-rose: var(--hqp-faint);
+  --hqp-violet: var(--hqp-faint);
+  --hqp-blue: var(--hqp-faint);
+  --hqp-yellow: var(--hqp-faint);
+  --hqp-src-slack: var(--hqp-faint);
+  --hqp-src-gmail: var(--hqp-faint);
+  --hqp-src-router: var(--hqp-faint);
+  --hqp-rel: var(--hqp-faint);
+  --hqp-axis: var(--hqp-faint);
+  --hqp-node: var(--hqp-card);
+  --hqp-edge: var(--hqp-line);
+  --hqp-edge-move: var(--hqp-line);
+  --hqp-edge-ap: var(--hqp-line);
+  --hqp-edge-report: var(--hqp-line);
+  --hqp-open-move: linear-gradient(var(--hqp-card), var(--hqp-card));
+  --hqp-open-ap: linear-gradient(var(--hqp-card), var(--hqp-card));
+  --hqp-open-report: linear-gradient(var(--hqp-card), var(--hqp-card));
+}

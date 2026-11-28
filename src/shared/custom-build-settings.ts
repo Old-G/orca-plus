@@ -99,4 +99,7 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqRouterSendFirst?: boolean
     /** Custom build (quiet-hours): no phone or Slack alerts but urgent ones; unset or null = off. */
     orcaPlusQuietHours?: OrcaPlusQuietHours | null
+    /** Custom build (hq-palette): HQ+'s colours — `classic` (the old ice-blue / Paper) or `graphite`
+     *  («Графит» dark, «Бумага» light). Unset = classic. */
+    hqPlusPalette?: 'classic' | 'graphite'
   }

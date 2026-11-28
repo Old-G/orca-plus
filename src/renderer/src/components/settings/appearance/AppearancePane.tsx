@@ -113,6 +113,11 @@ export function AppearancePane({
     ...getZoomEntries(),
     ...getTypographyEntries(),
     ...(SHOW_UI_LANGUAGE_SETTING ? getLanguageEntries() : []),
+    {
+      title: 'HQ+ palette',
+      description: 'Classic, or Graphite and Paper: a quieter palette for HQ+.',
+      keywords: ['hq', 'palette', 'colors', 'graphite', 'paper', 'theme']
+    },
     ...getTitlebarEntries(),
     ...getReduceVisualEffectsEntries(),
     ...getSystemTrayEntries({ showSystemTray: isDesktopWindows }),
