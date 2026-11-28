@@ -30,6 +30,7 @@ import { printHookWarning } from './worktree-removal-warnings'
 import { withSetupDecisionRecovery } from './worktree-setup-decision-recovery'
 import { withCliAgentLaunchRecovery } from '../agents/agent-launch-recovery'
 import { linkLaunchedChat } from '../hq-chat-link'
+import { claimHqTaskLock, withHqTaskLock } from '../hq-task-lock'
 import { HQ_CHAT_ROLE_SESSION_OPTION } from '../../shared/hq-chat-role'
 
 type WorktreeAgentLaunchResult = Pick<
@@ -100,18 +101,22 @@ export async function createWorktreeWithAgent(args: {
     printResult(created, json, formatWorktreeShow)
     return
   }
-  const launched = await withSetupDecisionRecovery(
-    callAgentLaunch(
-      client,
-      launch,
-      {
-        target: { kind: 'create-worktree', create },
-        presentation: create.activate === true ? 'focused' : 'background'
-      },
-      capabilities,
-      rawArgs
-    ),
-    launch.operationId !== undefined
+  // Custom build (hq-task-lock, A3): claimed before the checkout exists, so a refusal creates nothing.
+  const hold = await claimHqTaskLock(client, flags, launch)
+  const launched = await withHqTaskLock(hold, () =>
+    withSetupDecisionRecovery(
+      callAgentLaunch(
+        client,
+        launch,
+        {
+          target: { kind: 'create-worktree', create },
+          presentation: create.activate === true ? 'focused' : 'background'
+        },
+        capabilities,
+        rawArgs
+      ),
+      launch.operationId !== undefined
+    )
   )
   // Custom build (hq-plus-chat-tree): the calling chat is the new chat's parent in HQ+.
   await linkLaunchedChat(client, launched.result)

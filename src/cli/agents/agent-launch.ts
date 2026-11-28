@@ -16,6 +16,7 @@ import {
 import { CLAUDE_SUBSCRIPTION_SESSION_OPTION } from '../../shared/claude-subscriptions'
 import { linkLaunchedChat } from '../hq-chat-link'
 import { continuesOwnHandoff, handoffStartedByOrca } from '../hq-handoff-claim'
+import { claimHqTaskLock, withHqTaskLock } from '../hq-task-lock'
 
 export const AGENT_LAUNCH_HANDLERS: Record<string, CommandHandler> = {
   'agent launch': async ({ flags, client, cwd, json, rawArgs }) => {
@@ -59,15 +60,19 @@ export const AGENT_LAUNCH_HANDLERS: Record<string, CommandHandler> = {
       console.log(json ? JSON.stringify({ started: false, message: startedByOrca }) : startedByOrca)
       return
     }
-    const result = await callAgentLaunch(
-      client,
-      launch,
-      {
-        target: { kind: 'existing', worktree },
-        presentation: flags.get('focus') === true ? 'focused' : 'background'
-      },
-      capabilities,
-      rawArgs
+    // Custom build (hq-task-lock, A3): one open chat per plan row; a second launch of it is refused.
+    const hold = await claimHqTaskLock(client, flags, launch)
+    const result = await withHqTaskLock(hold, () =>
+      callAgentLaunch(
+        client,
+        launch,
+        {
+          target: { kind: 'existing', worktree },
+          presentation: flags.get('focus') === true ? 'focused' : 'background'
+        },
+        capabilities,
+        rawArgs
+      )
     )
     // Custom build (hq-plus-chat-tree): the calling chat is the new chat's parent in HQ+.
     // Custom build (hq-handoff-parked, T7): a chat starting its own successor parks itself on Orca+.

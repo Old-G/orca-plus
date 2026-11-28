@@ -249,6 +249,16 @@ export const HqChatLinksParams = z.object({})
 // Custom build (hq-handoff-auto): the chat that runs `orca agent launch` for its handoff asks first
 // whether Orca+ already started that handoff's new chat.
 export const HqHandoffClaimParams = z.object(CallerFields)
+// Custom build (hq-task-lock, A3): the lock on a plan row a launch takes — claim before the start, then
+// bind the started chat or release on failure.
+export const HqTaskLockParams = z.object({
+  ...CallerFields,
+  action: z.enum(['claim', 'bind', 'release']),
+  plan: z.string().trim().min(1, 'The plan name is required').max(200),
+  row: z.string().trim().min(1, 'The plan row is required').max(40),
+  ticket: z.string().trim().min(1).max(100).optional(),
+  sessionId: z.string().trim().min(1).max(200).optional()
+})
 // Custom build (hq-lead-reassign): a Lead's chats go to another chat.
 export const HqReassignParams = z.object({
   ...CallerFields,

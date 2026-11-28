@@ -6,7 +6,7 @@ export const AGENT_LAUNCH_COMMAND_SPECS: CommandSpec[] = [
     path: ['agent', 'launch'],
     summary: 'Start an agent in an existing workspace, as a chat or a terminal',
     usage:
-      'orca agent launch --agent <id> [--worktree <selector>] [--prompt <text>] [--model <id>] [--effort <level>] [--surface chat|terminal] [--focus] [--retry-launch <operationId>] [--subscription <id>] [--role lead|sublead|worker|review] [--json]',
+      'orca agent launch --agent <id> [--worktree <selector>] [--prompt <text>] [--model <id>] [--effort <level>] [--surface chat|terminal] [--focus] [--retry-launch <operationId>] [--subscription <id>] [--role lead|sublead|worker|review] [--task <plan>:<row>|none] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'agent',
@@ -18,7 +18,8 @@ export const AGENT_LAUNCH_COMMAND_SPECS: CommandSpec[] = [
       'focus',
       'retry-launch',
       'subscription',
-      'role'
+      'role',
+      'task'
     ],
     notes: [
       'Starts the agent the way a new agent tab does: as a chat when your Chat | CLI choice for the agent is Chat and the agent and host support it, otherwise as a terminal. The result says which (`outcome.kind`) and why (`receipt.detail`).',
@@ -28,6 +29,7 @@ export const AGENT_LAUNCH_COMMAND_SPECS: CommandSpec[] = [
       'The tab opens without switching focus; pass --focus to switch to it.',
       '--subscription (Claude): the Claude subscription id from Settings → Accounts, or `base` for the main sign-in; absent = the default subscription.',
       "--role lead|sublead|worker|review (chat only): the chat's role in a lead's work. Orca+ keeps it with the chat, gives the chat ORCA_CHAT_ROLE, names its address `<project>/<lead|sublead|w|review>-<task>` and shows it in HQ+; `orca hq sessions --json` lists it.",
+      "Custom build (Orca+): a worker brief from a Lead (first line «W ·» or «SUB-LEAD ·», with «Ход — в runs/<plan>/<row>.md» or a `<row>.lock` path) takes that plan row's lock in Orca+, and so does --task <plan>:<row>. While the chat holding the row is open, a second launch of it is refused with that chat's address and sessionId (error code task_locked); once that chat is closed the lock moves to the new chat, and a worker starting the next chat of its own row keeps it. --task none skips the lock.",
       'If the launch reply is lost, re-issue the same command from the same directory on the same host with --retry-launch <operationId> from the error. Never retry as a fresh launch; older hosts require inspecting the workspace first.'
     ],
     examples: [
