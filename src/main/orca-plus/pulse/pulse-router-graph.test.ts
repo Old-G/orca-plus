@@ -13,7 +13,7 @@ import {
   senderWorkOf,
   taskOfChat
 } from './pulse-router-graph'
-import { leadOfChat, routerCrumb, routerWorkTarget } from './pulse-router'
+import { leadOfChat, routerCrumb, routerLiveChatForCard, routerWorkTarget } from './pulse-router'
 import {
   logChoice,
   logOutcome,
@@ -375,5 +375,30 @@ describe('router v2 T1: works', () => {
       at: 20
     })
     expect(crumb).toEqual({ chat: next, lead: null, chatTitle: 'W · export' })
+  })
+})
+
+describe('A8: the live chat of a card', () => {
+  it('follows handoffs from the chat a card names, and gives none once that chat is closed', () => {
+    const c = core()
+    session(c, 'W1', 1)
+    session(c, 'W2', 2)
+    handoff(c, 'W1', 'W2', 2)
+    expect(routerLiveChatForCard(c, { sessionId: 'W1' })).toBe('W2')
+    expect(routerLiveChatForCard(c, {})).toBeNull()
+    c.db
+      .prepare("UPDATE sessions SET state = 'closed', closed_at = 5 WHERE session_id = 'W2'")
+      .run()
+    expect(routerLiveChatForCard(c, { sessionId: 'W1' })).toBeNull()
+  })
+  it('a thread sent before goes to the chat it was sent to', () => {
+    const c = core()
+    session(c, 'W1', 1)
+    c.db
+      .prepare(
+        "INSERT INTO conversations (id, key, title, session_id, created_at, last_at) VALUES ('c1', 'slack:C1:1.1', 'T', 'W1', 1, 1)"
+      )
+      .run()
+    expect(routerLiveChatForCard(c, { key: 'slack:C1:1.1' })).toBe('W1')
   })
 })

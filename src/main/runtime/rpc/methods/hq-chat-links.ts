@@ -5,6 +5,7 @@ import {
   HqChatLinksParams,
   HqHandoffClaimParams,
   HqLinkChatParams,
+  HqLiveChatParams,
   HqReassignParams,
   HqTaskLockParams
 } from '../../../../shared/rpc-contract/hq-journal-params'
@@ -57,6 +58,16 @@ export const HQ_CHAT_LINK_METHODS = [
     permission: 'workspace',
     params: HqChatLinksParams,
     handler: async (_params, { runtime }) => runtime.pulseChats().list()
+  }),
+  // Custom build (A8): «To work» opens the chat already carrying the card's work, not a new one.
+  defineMethod({
+    name: 'hq.liveChat',
+
+    permission: 'workspace',
+    params: HqLiveChatParams,
+    handler: async ({ key, sessionId }, { runtime }) => ({
+      sessionId: runtime.pulseRouter().liveChatForCard({ key, sessionId })
+    })
   }),
   // Custom build (hq-handoff-auto, owner 24.11): one handoff, one new chat.
   defineMethod({

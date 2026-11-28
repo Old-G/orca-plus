@@ -47,3 +47,28 @@ export function hqPlusTakeHintRepo(
     null
   )
 }
+
+/**
+ * Custom build (A8, 28.11): the chat «To work» opens on. The chat already carrying the card's work
+ * (`live`, from the router's registry) comes first, then the one the card named; either only while it is
+ * an open chat of the project — a new chat is the last resort, not the default.
+ */
+export function hqPlusTakeChatChoice(input: {
+  /** The chat the request itself named (a person's answer: the one that asked). */
+  loaded: string | null | undefined
+  hinted: string | null
+  live: string | null
+  openSessionIds: readonly string[]
+}): { sessionId: string | null; fromLive: boolean } {
+  if (input.loaded) {
+    return { sessionId: null, fromLive: false }
+  }
+  const open = new Set(input.openSessionIds)
+  if (input.live && open.has(input.live)) {
+    return { sessionId: input.live, fromLive: true }
+  }
+  return {
+    sessionId: input.hinted && open.has(input.hinted) ? input.hinted : null,
+    fromLive: false
+  }
+}
