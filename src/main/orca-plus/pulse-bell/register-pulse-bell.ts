@@ -24,7 +24,7 @@ import {
   type PulseBellInput
 } from '../../../shared/pulse-bell'
 import type { PulseInboxItem } from '../../../shared/pulse-types'
-import { onPulseChanged } from '../pulse/pulse-change-events'
+import { onPulseChanged, pulseChangeTouches } from '../pulse/pulse-change-events'
 import { startHqClickUpWaitingReplies } from '../../hq-today/hq-clickup-waiting-replies'
 import { startHqScoutContext } from '../../hq-today/hq-scout-context'
 import { startHqPeopleSync } from '../../hq-today/hq-people'
@@ -101,7 +101,11 @@ export function registerPulseBell(
       }
     })
   let settling: ReturnType<typeof setTimeout> | null = null
-  onPulseChanged(() => {
+  onPulseChanged((change) => {
+    // Custom build (p1-perf): requests are bell items; other writes cannot decide one.
+    if (!pulseChangeTouches(change, 'inbox')) {
+      return
+    }
     settling ??= setTimeout(() => {
       settling = null
       settle()
@@ -163,12 +167,16 @@ export function registerPulseBell(
     listPages: listHqProjectPages,
     sync,
     onChanged: onHqSlackScoutChanged,
-    covered: () =>
-      hqCoveredSlackMessages(
+    covered: () => {
+      const since = Date.now() - 2 * 24 * 60 * 60_000
+      // Custom build (p1-perf): only items from `since` count, so only they are read — the whole
+      // intake history was ~1 s of the main thread a minute (P1 28.11).
+      return hqCoveredSlackMessages(
         runtime.pulseListWaitings(),
-        runtime.pulseListInbox(true, { kind: HQ_INTAKE_KIND }),
-        Date.now() - 2 * 24 * 60 * 60_000
+        runtime.pulseListInbox(true, { kind: HQ_INTAKE_KIND, since }),
+        since
       )
+    }
   })
   // Custom build (hq-scout-digest): Slack in one bell item at the digest hours.
   startHqSlackDigest({

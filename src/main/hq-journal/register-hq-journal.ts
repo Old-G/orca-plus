@@ -2,7 +2,7 @@
 // Codex reports on a timer, and serves `hq.*` and `chat.send` through the runtime RPC.
 import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import { onPulseChanged } from '../orca-plus/pulse/pulse-change-events'
+import { onPulseChanged, pulseChangeBeyond } from '../orca-plus/pulse/pulse-change-events'
 import { PULSE_BELL_KIND } from '../../shared/pulse-bell'
 import { createHqJournalService, provideHqJournalService } from './hq-journal-service'
 import { effortJournal } from './hq-effort-journal'
@@ -53,6 +53,7 @@ import { setHqSpaceLiveGroups } from '../hq-today/hq-spaces'
 
 // Why: the evening review writes its report once a day; the pulse writes wake the journal sooner.
 const REREAD_EVERY_MS = 5 * 60_000
+const HQ_JOURNAL_SYNC_IGNORES = ['journal', 'conversation'] as const
 
 export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): void {
   // Custom build (hq-rooms): rooms read the sidebar's groups live, not HQ's pages of a past sync.
@@ -276,7 +277,14 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
       now: Date.now
     })
   )
-  onPulseChanged(() => service.schedule())
+  // Custom build (p1-perf): the sync reads waitings, drafts, decisions, the bell and people; its own
+  // rows and the ledger's talks change none of them. Half of all pulse writes are journal rows, and
+  // each re-read 14 days of everything (P1 28.11: ~45% of the main thread under writes).
+  onPulseChanged((change) => {
+    if (pulseChangeBeyond(change, HQ_JOURNAL_SYNC_IGNORES)) {
+      service.schedule()
+    }
+  })
   const timer = setInterval(() => service.schedule(), REREAD_EVERY_MS)
   timer.unref?.()
   service.schedule()
