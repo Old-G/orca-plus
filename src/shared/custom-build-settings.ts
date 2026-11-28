@@ -72,6 +72,9 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqReadAloud?: { rate: number; voiceURI: string | null; auto: boolean }
     /** Custom build (hq-night-shift): hour the night shift starts tasks queued «Tonight»; default 23. */
     hqNightShiftHour?: number
+    /** Custom build (network auto-continue, A10 28.11): an agent whose turn a network error cut
+     *  continues by itself — up to 3 nudges in a row, 1, 3 and 10 minutes after the stop. Default on. */
+    claudeNetworkAutoContinue?: boolean
     /** Custom build (chat-auto-effort): each message to a Claude chat picks medium, high or xhigh effort. */
     nativeChatAutoEffort?: boolean
     /** Custom build (hq-router, owner 26.11): the 👾 router — off, or the trial: every card waits on

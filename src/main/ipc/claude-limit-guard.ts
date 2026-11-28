@@ -12,9 +12,7 @@ import { createClaudeLimitStops } from '../claude-limit-guard/claude-limit-stops
 import { setClaudeNativeFrameListener } from '../claude-limit-guard/claude-native-frame-tap'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/host/structured-agent-session-registry'
 import { readStructuredSessionGateFacts } from '../runtime/orchestration/mailbox/structured-pointer/structured-mailbox-pointer-host'
-import {
-  mintAgentSessionOperationId
-} from '../runtime/orchestration/mailbox/structured-pointer/structured-pointer-operation-id'
+import { mintAgentSessionOperationId } from '../runtime/orchestration/mailbox/structured-pointer/structured-pointer-operation-id'
 import { sendAgentTurn } from '../runtime/orchestration/turn-delivery/send-agent-turn'
 import { mainProcessState } from '../startup/main-process-state'
 import {
@@ -44,6 +42,8 @@ const ESCAPE = '\x1b'
 const ESC_SETTLE_MS = 400
 // Why: a switch republishes the account pointer; a nudge sent first would run on the old account.
 const SWITCH_SETTLE_MS = 3_000
+// Custom build (network auto-continue): a timer that fires a hair late still finds its stop due.
+const NETWORK_TICK_SLACK_MS = 1_000
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -57,22 +57,25 @@ function broadcast(stops: ClaudeLimitStoppedAgent[]): void {
   }
 }
 
-async function resumeTerminal(runtime: OrcaRuntimeService, paneKey: string): Promise<boolean> {
+async function resumeTerminal(
+  runtime: OrcaRuntimeService,
+  paneKey: string,
+  prompt: string = CLAUDE_LIMIT_CONTINUE_PROMPT
+): Promise<boolean> {
   const handle = runtime.getTerminalHandleForPaneKey(paneKey)
   if (!handle) {
     return false
   }
   await runtime.sendTerminal(handle, { text: ESCAPE }, { inputKind: 'driving' })
   await delay(ESC_SETTLE_MS)
-  await runtime.sendTerminal(
-    handle,
-    { text: CLAUDE_LIMIT_CONTINUE_PROMPT, enter: true },
-    { inputKind: 'driving' }
-  )
+  await runtime.sendTerminal(handle, { text: prompt, enter: true }, { inputKind: 'driving' })
   return true
 }
 
-async function resumeNativeChat(sessionId: string): Promise<boolean> {
+async function resumeNativeChat(
+  sessionId: string,
+  prompt: string = CLAUDE_LIMIT_CONTINUE_PROMPT
+): Promise<boolean> {
   const host = getStructuredAgentSessionHost()
   const fence = host?.deps.store.getRecord(sessionId)?.lease.runtimeFence
   const gate = await readStructuredSessionGateFacts(sessionId)
@@ -83,7 +86,7 @@ async function resumeNativeChat(sessionId: string): Promise<boolean> {
   const body: AgentJournalMessageItem = {
     kind: 'message',
     role: 'user',
-    blocks: [{ type: 'text', text: CLAUDE_LIMIT_CONTINUE_PROMPT }]
+    blocks: [{ type: 'text', text: prompt }]
   }
   const outcome = await sendAgentTurn({
     kind: 'structured-session',
@@ -112,7 +115,9 @@ async function hasClaudeTranscript(input: {
 }
 
 async function routedClaudeConfigDir(): Promise<string | null> {
-  return (await mainProcessState.core.claudeRuntimeAuth?.prepareForClaudeLaunch())?.configDir ?? null
+  return (
+    (await mainProcessState.core.claudeRuntimeAuth?.prepareForClaudeLaunch())?.configDir ?? null
+  )
 }
 
 async function nativeChatOnOtherAccount(sessionId: string): Promise<boolean> {
@@ -122,7 +127,10 @@ async function nativeChatOnOtherAccount(sessionId: string): Promise<boolean> {
 }
 
 /** Moves the chat to the account launches run in now, then sends the continue prompt. */
-async function resumeNativeChatOnRoutedAccount(sessionId: string): Promise<boolean> {
+async function resumeNativeChatOnRoutedAccount(
+  sessionId: string,
+  prompt?: string
+): Promise<boolean> {
   const host = getStructuredAgentSessionHost()
   if (host) {
     await moveClaudeChatToRoutedAccount(
@@ -137,7 +145,7 @@ async function resumeNativeChatOnRoutedAccount(sessionId: string): Promise<boole
       sessionId
     )
   }
-  return resumeNativeChat(sessionId)
+  return resumeNativeChat(sessionId, prompt)
 }
 
 function nativeChatWorktreeId(sessionId: string): string | null {
@@ -186,7 +194,7 @@ export function registerClaudeLimitGuardHandlers(
   const stops = createClaudeLimitStops({
     now: Date.now,
     activeAccountId,
-    resumeTerminal: (paneKey) => resumeTerminal(runtime, paneKey),
+    resumeTerminal: (paneKey, prompt) => resumeTerminal(runtime, paneKey, prompt),
     resumeNativeChat: resumeNativeChatOnRoutedAccount,
     nativeChatSubscription: (sessionId) => claudeChatSubscriptionIdOf(chats, sessionId),
     nativeChatOnOtherAccount,
@@ -210,6 +218,16 @@ export function registerClaudeLimitGuardHandlers(
             claudeLimitStopTabId(stop)
           )
         : false
+    },
+    networkContinueEnabled: () => store.getSettings().claudeNetworkAutoContinue !== false,
+    scheduleNetworkTick: (delayMs) => {
+      setTimeout(() => {
+        stops
+          .onNetworkTick()
+          .catch((error: unknown) =>
+            console.warn('[claude-limit-guard] network nudge failed:', error)
+          )
+      }, delayMs + NETWORK_TICK_SLACK_MS).unref()
     },
     log: (message) => console.log('[claude-limit-guard]', message)
   })

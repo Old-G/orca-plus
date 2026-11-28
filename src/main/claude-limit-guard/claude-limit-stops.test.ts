@@ -299,50 +299,173 @@ describe('claude sign-in stops', () => {
     expect(resumeNativeChat).toHaveBeenCalledWith('chat-1')
   })
 
-  describe('network stops (claude-network-continue)', () => {
+  describe('network stops (claude-network-continue, auto-continue A10)', () => {
     const netFrame = {
       type: 'assistant',
       error: 'server_error',
       isApiErrorMessage: true,
       parent_tool_use_id: null
     }
+    const workFrame = { type: 'assistant', parent_tool_use_id: null }
 
-    it('continues a cut chat once the API answers again, never as a limit card, once per 10 minutes', async () => {
-      const { stops, resumeNativeChat, onChanged, advance } = setup()
+    function netSetup(enabled: { on: boolean } = { on: true }) {
+      let now = 1_000_000
+      const scheduled: number[] = []
+      const resumeTerminal = vi.fn(async (_key: string, _prompt?: string) => true)
+      const resumeNativeChat = vi.fn(async (_key: string, _prompt?: string) => true)
+      const onChanged = vi.fn()
+      const stops = createClaudeLimitStops({
+        now: () => now,
+        activeAccountId: () => 'lh',
+        resumeTerminal,
+        resumeNativeChat,
+        onChanged,
+        checkHandoff: async (stop) => stop.key === 'handed-off',
+        networkContinueEnabled: () => enabled.on,
+        scheduleNetworkTick: (ms) => scheduled.push(ms)
+      })
+      return {
+        stops,
+        resumeTerminal,
+        resumeNativeChat,
+        onChanged,
+        scheduled,
+        advance: (ms: number) => {
+          now += ms
+        }
+      }
+    }
+
+    it('continues a cut chat after a pause, as Orca+, never as a limit card', async () => {
+      const { stops, resumeNativeChat, onChanged, scheduled, advance } = netSetup()
       stops.onNativeFrame('chat-1', 'repo::/wt', netFrame)
       stops.onNativeFrame('chat-2', 'repo::/wt', { ...netFrame, parent_tool_use_id: 'sub' })
       expect(stops.list()).toEqual([])
       expect(onChanged).not.toHaveBeenCalled()
-      await stops.onActiveUsage('lh', usage(99))
+      expect(scheduled).toEqual([60_000])
+      advance(59_000)
+      await stops.onNetworkTick()
       expect(resumeNativeChat).not.toHaveBeenCalled()
+      advance(1_000)
+      await stops.onNetworkTick()
+      expect(resumeNativeChat).toHaveBeenCalledTimes(1)
+      expect(resumeNativeChat.mock.calls[0][0]).toBe('chat-1')
+      expect(resumeNativeChat.mock.calls[0][1]).toMatch(/^Orca\+ · .*попытка 1 из 3/)
+      // The stop is answered: a second tick sends nothing.
+      await stops.onNetworkTick()
+      expect(resumeNativeChat).toHaveBeenCalledTimes(1)
+    })
+
+    it('a usage reading no longer nudges; only the schedule does', async () => {
+      const { stops, resumeNativeChat, advance } = netSetup()
+      stops.onNativeFrame('chat-1', null, netFrame)
       advance(30_000)
-      await stops.onActiveUsage('lh', { ...usage(99), status: 'error' })
+      await stops.onActiveUsage('lh', usage(10))
       expect(resumeNativeChat).not.toHaveBeenCalled()
-      // Over the switch threshold is fine: the network, not the limit, stopped it.
-      await stops.onActiveUsage('lh', usage(99))
-      expect(resumeNativeChat).toHaveBeenCalledTimes(1)
-      expect(resumeNativeChat).toHaveBeenCalledWith('chat-1')
-      stops.onNativeFrame('chat-1', 'repo::/wt', netFrame)
+    })
+
+    it('stops after 3 nudges in a row with growing pauses; output starts the count over', async () => {
+      const { stops, resumeNativeChat, scheduled, advance } = netSetup()
+      for (const pause of [60_000, 3 * 60_000, 10 * 60_000]) {
+        stops.onNativeFrame('chat-1', null, netFrame)
+        advance(pause)
+        await stops.onNetworkTick()
+      }
+      expect(scheduled).toEqual([60_000, 180_000, 600_000])
+      expect(resumeNativeChat.mock.calls.map((call) => call[1])).toEqual([
+        expect.stringContaining('попытка 1 из 3'),
+        expect.stringContaining('попытка 2 из 3'),
+        expect.stringContaining('попытка 3 из 3')
+      ])
+      // A fourth stop in a row is left to the owner.
+      stops.onNativeFrame('chat-1', null, netFrame)
+      advance(60 * 60_000)
+      await stops.onNetworkTick()
+      expect(resumeNativeChat).toHaveBeenCalledTimes(3)
+      expect(scheduled).toHaveLength(3)
+      // The agent got through again: the next cut is a new incident.
+      stops.onNativeFrame('chat-1', null, workFrame)
+      stops.onNativeFrame('chat-1', null, netFrame)
       advance(60_000)
-      await stops.onActiveUsage('lh', usage(10))
-      expect(resumeNativeChat).toHaveBeenCalledTimes(1)
-      advance(10 * 60_000)
-      await stops.onActiveUsage('lh', usage(10))
-      expect(resumeNativeChat).toHaveBeenCalledTimes(2)
+      await stops.onNetworkTick()
+      expect(resumeNativeChat).toHaveBeenCalledTimes(4)
+      expect(resumeNativeChat.mock.calls[3][1]).toContain('попытка 1 из 3')
+    })
+
+    it('off: nothing is recorded or sent; switched off while waiting drops the waiting stops', async () => {
+      const enabled = { on: false }
+      const { stops, resumeNativeChat, scheduled, advance } = netSetup(enabled)
+      stops.onNativeFrame('chat-1', null, netFrame)
+      expect(scheduled).toEqual([])
+      enabled.on = true
+      stops.onNativeFrame('chat-2', null, netFrame)
+      enabled.on = false
+      advance(60_000)
+      await stops.onNetworkTick()
+      enabled.on = true
+      await stops.onNetworkTick()
+      expect(resumeNativeChat).not.toHaveBeenCalled()
+    })
+
+    it('limit and auth stops are not network stops', async () => {
+      const { stops, resumeNativeChat, scheduled, advance } = netSetup()
+      stops.onNativeFrame('chat-1', null, {
+        type: 'assistant',
+        error: 'rate_limit',
+        parent_tool_use_id: null
+      })
+      stops.onNativeFrame('chat-2', null, { type: 'result', is_error: true, api_error_status: 429 })
+      stops.onNativeFrame('chat-3', null, {
+        type: 'assistant',
+        error: 'authentication_failed',
+        parent_tool_use_id: null
+      })
+      expect(scheduled).toEqual([])
+      advance(60 * 60_000)
+      await stops.onNetworkTick()
+      expect(resumeNativeChat).not.toHaveBeenCalled()
+      expect(stops.list()).toHaveLength(3)
+    })
+
+    it('never nudges a chat that handed off', async () => {
+      const { stops, resumeNativeChat, advance } = netSetup()
+      stops.onNativeFrame('handed-off', 'repo::/wt', netFrame)
+      advance(60_000)
+      await stops.onNetworkTick()
+      expect(resumeNativeChat).not.toHaveBeenCalled()
     })
 
     it('drops the stop when the agent works again or the owner writes first; terminals too', async () => {
-      const { stops, resumeNativeChat, resumeTerminal, advance } = setup()
+      const { stops, resumeNativeChat, resumeTerminal, advance } = netSetup()
       stops.onNativeFrame('chat-1', null, netFrame)
-      stops.onNativeFrame('chat-1', null, { type: 'assistant', parent_tool_use_id: null })
+      stops.onNativeFrame('chat-1', null, workFrame)
       stops.onHookStatus({ ...limitStop, stopFailureError: 'server_error' })
       stops.onHookStatus({ ...limitStop, hookEventName: 'UserPromptSubmit' })
       stops.onHookStatus({ ...limitStop, paneKey: 'tab-2:leaf', stopFailureError: 'server_error' })
-      advance(30_000)
-      await stops.onActiveUsage('lh', usage(10))
+      advance(60_000)
+      await stops.onNetworkTick()
       expect(resumeNativeChat).not.toHaveBeenCalled()
       expect(resumeTerminal).toHaveBeenCalledTimes(1)
-      expect(resumeTerminal).toHaveBeenCalledWith('tab-2:leaf')
+      expect(resumeTerminal.mock.calls[0][0]).toBe('tab-2:leaf')
+      expect(resumeTerminal.mock.calls[0][1]).toContain('попытка 1 из 3')
+    })
+
+    it("a terminal's own nudge prompt does not reset its count; a tool call does", async () => {
+      const { stops, resumeTerminal, advance } = netSetup()
+      const cut = { ...limitStop, stopFailureError: 'server_error' }
+      stops.onHookStatus(cut)
+      advance(60_000)
+      await stops.onNetworkTick()
+      stops.onHookStatus({ ...limitStop, hookEventName: 'UserPromptSubmit' })
+      stops.onHookStatus(cut)
+      advance(3 * 60_000)
+      await stops.onNetworkTick()
+      expect(resumeTerminal.mock.calls[1][1]).toContain('попытка 2 из 3')
+      stops.onHookStatus({ ...limitStop, hookEventName: 'PostToolUse' })
+      stops.onHookStatus(cut)
+      advance(60_000)
+      await stops.onNetworkTick()
+      expect(resumeTerminal.mock.calls[2][1]).toContain('попытка 1 из 3')
     })
   })
 })
