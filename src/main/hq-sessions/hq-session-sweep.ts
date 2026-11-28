@@ -18,7 +18,7 @@ import { journalEntryAsInput } from '../hq-journal/hq-journal-adapters'
 import { carryOutHqDispatch } from './hq-session-act'
 import { decideHqChatCleanup } from './hq-session-cleanup'
 import { hqCloseCheck, hqRecordClose } from './hq-session-close'
-import { decideHqDispatch, decideHqHandoff } from './hq-session-decide'
+import { decideHqDispatch, decideHqHandoff, hqOwnerIn } from './hq-session-decide'
 import { carryOutHqLeadHandover, findHqLeadHandovers } from './hq-session-lead-handover'
 import {
   describeHqDispatch,
@@ -260,6 +260,12 @@ async function carryOutHqCleanup(
   const checked = await hqCloseCheck(deps, journal, action.sessionId, reason)
   if (!checked.ok) {
     deps.log(`sweep: ${label} stays open: ${checked.why}`)
+    return
+  }
+  // Why: the sweep's snapshot may be minutes old by now; a chat the owner opened or that started a turn stays.
+  const now = (await deps.live()).find((chat) => chat.sessionId === action.sessionId)
+  if (!now || now.state !== 'done' || now.midTurn || now.onScreen || hqOwnerIn(now, deps.now())) {
+    deps.log(`sweep: ${label} stays open: it is in use again`)
     return
   }
   if (!(await deps.closeChat(action.sessionId, action.worktreeId))) {
