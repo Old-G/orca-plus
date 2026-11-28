@@ -309,7 +309,7 @@
   text-align: left;
 }
 .hqp-fmenu-item:hover,
-.hqp-fmenu-item[aria-checked='true'] {
+.hqp-fmenu-item[aria-pressed='true'] {
   background: var(--hqp-soft-2);
   color: var(--hqp-fg);
 }

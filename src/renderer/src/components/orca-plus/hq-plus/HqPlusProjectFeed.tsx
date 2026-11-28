@@ -79,7 +79,11 @@ export function HqPlusProjectFeed({
   const [above, setAbove] = useState(0)
   useEffect(() => {
     const element = scroller.current
-    if (!element || !board) {
+    if (!element) {
+      return
+    }
+    if (!board) {
+      delete element.dataset.above
       return
     }
     const measure = (): void => {
@@ -331,7 +335,6 @@ export function HqPlusProjectChips({
       <button
         type="button"
         className="hqp-chip-btn hqp-fmenu-btn"
-        aria-haspopup="menu"
         aria-expanded={open}
         data-ap={filter !== 'approve' && counts.approve > 0 ? 'true' : undefined}
         onClick={() => setOpen((value) => !value)}
@@ -341,13 +344,12 @@ export function HqPlusProjectChips({
         <span aria-hidden="true"> ▾</span>
       </button>
       {open ? (
-        <div className="hqp-fmenu-list" role="menu" aria-label="Show in the feed">
+        <div className="hqp-fmenu-list" role="group" aria-label="Show in the feed">
           {HQ_PLUS_PROJECT_FILTERS.map((name) => (
             <button
               key={name}
               type="button"
-              role="menuitemradio"
-              aria-checked={filter === name}
+              aria-pressed={filter === name}
               className="hqp-fmenu-item"
               data-ap={name === 'approve' && counts.approve > 0 ? 'true' : undefined}
               onClick={() => {

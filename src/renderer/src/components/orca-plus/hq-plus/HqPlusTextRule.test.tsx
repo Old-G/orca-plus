@@ -56,12 +56,15 @@ describe('«All ▾» filter menu (U4)', () => {
   it('shows the chosen filter and opens the six with counts', () => {
     const onFilter = vi.fn()
     render(<HqPlusProjectChips filter="all" counts={counts} onFilter={onFilter} />)
-    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.queryByRole('group')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /All/ }))
-    expect(screen.getAllByRole('menuitemradio')).toHaveLength(6)
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Approve/ }))
+    expect(screen.getByRole('group').querySelectorAll('button')).toHaveLength(6)
+    fireEvent.click(screen.getByRole('button', { name: /Approve/ }))
     expect(onFilter).toHaveBeenCalledWith('approve')
-    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.queryByRole('group')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /All/ }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('group')).toBeNull()
   })
 
   it('wears the chosen filter and flags a waiting Approve', () => {
