@@ -76,22 +76,22 @@ export function HqPlusBoardSplit({
   }
   const onPointerDown = (event: React.PointerEvent<HTMLButtonElement>): void => {
     const height = box.current?.clientHeight ?? 0
-    if (height <= 0) {
+    if (height <= 0 || event.button !== 0) {
       return
     }
     event.currentTarget.setPointerCapture(event.pointerId)
-    drag.current = { y: event.clientY, pct, height }
+    drag.current = { y: event.clientY, pct, height, last: pct }
   }
   const onPointerMove = (event: React.PointerEvent<HTMLButtonElement>): void => {
     const start = drag.current
     if (start) {
-      set(start.pct + ((event.clientY - start.y) / start.height) * 100)
+      start.last = set(start.pct + ((event.clientY - start.y) / start.height) * 100)
     }
   }
   const onPointerUp = (): void => {
     if (drag.current) {
+      saveHqPlusFeedWindow(drag.current.last)
       drag.current = null
-      saveHqPlusFeedWindow(pct)
     }
   }
   const onKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>): void => {

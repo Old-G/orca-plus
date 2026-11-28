@@ -263,3 +263,7 @@
     max-height: 70vh;
   }
 }
+/* an empty dock is one line: the window takes the room it leaves */
+.hqb-split:has(.hqb-dock[data-empty='true']) > .hqb-window {
+  flex: 1 1 0;
+}

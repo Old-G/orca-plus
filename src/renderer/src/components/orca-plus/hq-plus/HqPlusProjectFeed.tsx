@@ -154,7 +154,7 @@ export function HqPlusProjectFeed({
           ref={scroller}
           feed={feed}
           filter={filter}
-          part={board ? 'window' : 'all'}
+          part={board && filter === 'all' ? 'window' : 'all'}
           emptyText={
             board
               ? 'Nothing else came in.'
@@ -196,8 +196,14 @@ export function HqPlusProjectFeed({
           <p className="hqp-empty">{EMPTY[filter]}</p>
         ) : null}
         {/* Why: one keyed list, so a card moving down keeps its open parts and drafts. */}
+        {/* Why (U3): in Board the dock lists Approve and «Your move» rows, so the cards do not repeat them. */}
         {feed.cards.map((card) => (
-          <HqPlusProjectCard key={card.slug} card={card} ctx={ctx} folded />
+          <HqPlusProjectCard
+            key={card.slug}
+            card={board ? { ...card, approve: [], you: [] } : card}
+            ctx={ctx}
+            folded
+          />
         ))}
         {/* Why: sticky at the scroller's bottom, so it never covers the Ask HQ box below the feed. */}
         {!board && approvals.length > 0 ? (

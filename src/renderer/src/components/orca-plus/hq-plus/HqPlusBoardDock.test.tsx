@@ -78,6 +78,14 @@ describe('Board feed window and «Waiting for you» (U3)', () => {
     expect(screen.queryByText('approve-card')).toBeNull()
   })
 
+  it('does not repeat the dock rows on the Projects tab', () => {
+    render(
+      <HqPlusProjectFeed feed={withApprove} filter="all" onFilter={() => {}} ctx={ctx} board />
+    )
+    fireEvent.click(screen.getByRole('tab', { name: /Projects/ }))
+    expect(screen.queryByText('approve-card')).toBeNull()
+  })
+
   it('shrinks to one line when nothing waits', () => {
     render(<HqPlusBoardDock feed={feedOf([card({})])} ctx={ctx} />)
     expect(screen.getByText('Nothing waits ✓')).toBeTruthy()
