@@ -20,6 +20,10 @@ export type SlackSocketDeps = {
 
 const MIN_BACKOFF_MS = 1_000
 const MAX_BACKOFF_MS = 60_000
+// Custom build (slack-socket-watchdog): after the Mac sleeps or the network changes, the socket can
+// stay half-open with no 'close' for many minutes while Slack hands events elsewhere or drops them.
+// A ping that gets no answer (nor any other frame) by the next tick means the connection is dead.
+export const SLACK_SOCKET_PING_MS = 10_000
 
 export class SlackSocket {
   private socket: WebSocket | null = null
@@ -27,6 +31,7 @@ export class SlackSocket {
   private backoffMs = MIN_BACKOFF_MS
   private retryTimer: ReturnType<typeof setTimeout> | null = null
   private generation = 0
+  private heartbeat: ReturnType<typeof setInterval> | null = null
 
   constructor(private readonly deps: SlackSocketDeps) {}
 
@@ -41,6 +46,7 @@ export class SlackSocket {
   stop(): void {
     this.running = false
     this.generation += 1
+    this.stopHeartbeat()
     if (this.retryTimer) {
       clearTimeout(this.retryTimer)
       this.retryTimer = null
@@ -56,8 +62,50 @@ export class SlackSocket {
     this.start()
   }
 
+  /** True while it is connected or trying to; false once stopped or while Slack is not connected. */
+  isRunning(): boolean {
+    return this.running
+  }
+
   isOpen(): boolean {
     return this.socket?.readyState === WebSocket.OPEN
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeat) {
+      clearInterval(this.heartbeat)
+      this.heartbeat = null
+    }
+  }
+
+  private startHeartbeat(socket: WebSocket): void {
+    this.stopHeartbeat()
+    let heard = true
+    const hear = (): void => {
+      heard = true
+    }
+    socket.on('pong', hear)
+    socket.on('ping', hear)
+    socket.on('message', hear)
+    this.heartbeat = setInterval(() => {
+      if (this.socket !== socket) {
+        this.stopHeartbeat()
+        return
+      }
+      if (!heard) {
+        this.deps.log?.(`no answer from Slack for ${SLACK_SOCKET_PING_MS / 1000} s, reconnecting`)
+        // Why: terminate() closes at once and fires 'close', which schedules the reconnect.
+        socket.terminate()
+        return
+      }
+      heard = false
+      try {
+        socket.ping()
+      } catch {
+        // A socket that cannot even send a ping is caught by the next tick.
+      }
+    }, SLACK_SOCKET_PING_MS)
+    this.heartbeat.unref?.()
   }
 
   private scheduleReconnect(generation: number): void {
@@ -94,11 +142,15 @@ export class SlackSocket {
     socket.on('message', (data) => void this.handleFrame(socket, data.toString()))
     socket.on('open', () => {
       this.backoffMs = MIN_BACKOFF_MS
+      this.deps.log?.('connected')
+      this.startHeartbeat(socket)
     })
     socket.on('error', (error) => this.deps.log?.(`socket error: ${error.message}`))
-    socket.on('close', () => {
+    socket.on('close', (code?: number) => {
       if (this.socket === socket) {
         this.socket = null
+        this.stopHeartbeat()
+        this.deps.log?.(`closed (${code ?? 'no code'}), reconnecting in ${this.backoffMs} ms`)
         this.scheduleReconnect(generation)
       }
     })
@@ -111,7 +163,19 @@ export class SlackSocket {
     } catch {
       return
     }
+    if (frame.type === 'hello') {
+      // Why: Slack hands each event to ONE of the app's connections; a second one (a dev build, an
+      // old process) silently takes a share of the owner's reactions.
+      const count = Number(frame.num_connections)
+      this.deps.log?.(
+        Number.isFinite(count) && count > 1
+          ? `hello: ${count} connections to this Slack app, events are split between them`
+          : 'hello: the only connection to this Slack app'
+      )
+      return
+    }
     if (frame.type === 'disconnect') {
+      this.deps.log?.(`Slack asked to reconnect (${String(frame.reason ?? 'no reason')})`)
       // Why: Slack rotates connections; closing lets the close handler open a fresh one.
       socket.close()
       return

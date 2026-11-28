@@ -1,7 +1,7 @@
 // Custom build (slack-socket): binds Socket Mode to this host's runtime. Agent input and launches go
 // through the same RPC methods the phone uses, dispatched in-process with a narrow allowlist.
 import { randomUUID } from 'node:crypto'
-import { app } from 'electron'
+import { app, powerMonitor } from 'electron'
 import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { RpcDispatcher } from '../runtime/rpc/dispatcher'
@@ -15,6 +15,7 @@ import { asSlackRecord, SlackApiError, slackRequest } from './slack-request'
 import { SlackSocket } from './slack-socket'
 import { isSlackPausedForThisInstance } from './slack-instance-gate'
 import { emitSlackReactionPush, slackReactionPushOf } from './slack-reaction-push'
+import { slackReactionLogLine, slackSocketLog } from './slack-socket-log'
 
 // Why: these mean Orca itself refused the input; anything else (timeouts, an SSH provider that is
 // gone, a host that stopped answering) says nothing about the agent and is reported unverifiable.
@@ -29,7 +30,7 @@ const REFUSAL_CODES = new Set([
 let service: SlackSocket | null = null
 
 function log(message: string): void {
-  console.warn(`[slack] ${message}`)
+  slackSocketLog(message)
 }
 
 function botToken(): string {
@@ -179,6 +180,7 @@ function createService(store: Store, runtime: OrcaRuntimeService): SlackSocket {
     onReaction: (event) => {
       const push = slackReactionPushOf(event)
       if (push) {
+        log(slackReactionLogLine(push, getStoredSlackMetadata()?.owner.id ?? null, Date.now()))
         emitSlackReactionPush(push)
       }
     }
@@ -212,6 +214,14 @@ export function installSlackSocketService(
   service = createService(store, runtime)
   service.start()
   app.once('will-quit', () => service?.stop())
+  // Custom build (slack-socket-watchdog): a connection from before the sleep is usually dead; a fresh
+  // one at wake keeps 👾 instant instead of waiting for the heartbeat to notice.
+  powerMonitor.on('resume', () => {
+    if (service?.isRunning()) {
+      log('woke from sleep, reconnecting')
+      service.restart()
+    }
+  })
   return service
 }
 

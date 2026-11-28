@@ -1,26 +1,38 @@
 import { EventEmitter } from 'node:events'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import WebSocket from 'ws'
-import { SlackSocket, type SlackSocketDeps } from './slack-socket'
+import { SLACK_SOCKET_PING_MS, SlackSocket, type SlackSocketDeps } from './slack-socket'
 
 class FakeSocket extends EventEmitter {
   readyState: number = WebSocket.OPEN
   sent: string[] = []
+  pings = 0
+  terminated = false
   send(data: string): void {
     this.sent.push(data)
   }
+  ping(): void {
+    this.pings += 1
+  }
   close(): void {
     this.readyState = WebSocket.CLOSED
-    this.emit('close')
+    this.emit('close', 1000)
+  }
+  terminate(): void {
+    this.terminated = true
+    this.readyState = WebSocket.CLOSED
+    this.emit('close', 1006)
   }
 }
 
 function makeSocket(onEnvelope = vi.fn<SlackSocketDeps['onEnvelope']>(async () => undefined)) {
   const sockets: FakeSocket[] = []
+  const lines: string[] = []
   const openUrl = vi.fn<SlackSocketDeps['openUrl']>(async () => 'wss://slack.test')
   const socket = new SlackSocket({
     openUrl,
     onEnvelope,
+    log: (line) => lines.push(line),
     createSocket: () => {
       const fake = new FakeSocket()
       sockets.push(fake)
@@ -28,7 +40,11 @@ function makeSocket(onEnvelope = vi.fn<SlackSocketDeps['onEnvelope']>(async () =
       return fake as unknown as WebSocket
     }
   })
-  return { socket, sockets, openUrl, onEnvelope }
+  return { socket, sockets, openUrl, onEnvelope, lines }
+}
+
+function frame(body: Record<string, unknown>): Buffer {
+  return Buffer.from(JSON.stringify(body))
 }
 
 afterEach(() => {
@@ -76,11 +92,84 @@ describe('SlackSocket', () => {
     expect(openUrl).toHaveBeenCalledTimes(2)
   })
 
+  it('keeps a live connection that answers pings', async () => {
+    vi.useFakeTimers()
+    const { socket, sockets } = makeSocket()
+    socket.start()
+    await vi.waitFor(() => expect(sockets).toHaveLength(1))
+    sockets[0].emit('open')
+    for (let tick = 0; tick < 3; tick += 1) {
+      await vi.advanceTimersByTimeAsync(SLACK_SOCKET_PING_MS)
+      sockets[0].emit('pong')
+    }
+    expect(sockets[0].pings).toBe(3)
+    expect(sockets[0].terminated).toBe(false)
+    expect(sockets).toHaveLength(1)
+    socket.stop()
+  })
+
+  it('drops a half-open connection that stopped answering and opens a fresh one', async () => {
+    vi.useFakeTimers()
+    const { socket, sockets, lines } = makeSocket()
+    socket.start()
+    await vi.waitFor(() => expect(sockets).toHaveLength(1))
+    sockets[0].emit('open')
+    await vi.advanceTimersByTimeAsync(SLACK_SOCKET_PING_MS)
+    expect(sockets[0].pings).toBe(1)
+    // No pong, no ping, no envelope until the next tick: the connection is dead.
+    await vi.advanceTimersByTimeAsync(SLACK_SOCKET_PING_MS)
+    expect(sockets[0].terminated).toBe(true)
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(sockets).toHaveLength(2)
+    expect(lines.some((line) => line.startsWith('no answer from Slack'))).toBe(true)
+    socket.stop()
+  })
+
+  it('counts any frame from Slack as a sign of life', async () => {
+    vi.useFakeTimers()
+    const { socket, sockets } = makeSocket()
+    socket.start()
+    await vi.waitFor(() => expect(sockets).toHaveLength(1))
+    sockets[0].emit('open')
+    await vi.advanceTimersByTimeAsync(SLACK_SOCKET_PING_MS)
+    sockets[0].emit('message', frame({ type: 'hello', num_connections: 1 }))
+    await vi.advanceTimersByTimeAsync(SLACK_SOCKET_PING_MS)
+    expect(sockets[0].terminated).toBe(false)
+    socket.stop()
+  })
+
+  it('stops pinging once stopped', async () => {
+    vi.useFakeTimers()
+    const { socket, sockets } = makeSocket()
+    socket.start()
+    await vi.waitFor(() => expect(sockets).toHaveLength(1))
+    sockets[0].emit('open')
+    socket.stop()
+    await vi.advanceTimersByTimeAsync(SLACK_SOCKET_PING_MS * 3)
+    expect(sockets[0].pings).toBe(0)
+    expect(socket.isRunning()).toBe(false)
+  })
+
+  it('says when another connection to the same app takes a share of the events', async () => {
+    const { socket, sockets, lines } = makeSocket()
+    socket.start()
+    await vi.waitFor(() => expect(sockets).toHaveLength(1))
+    sockets[0].emit('message', frame({ type: 'hello', num_connections: 2 }))
+    await vi.waitFor(() =>
+      expect(lines).toContain(
+        'hello: 2 connections to this Slack app, events are split between them'
+      )
+    )
+    expect(sockets[0].sent).toHaveLength(0)
+    socket.stop()
+  })
+
   it('stays idle while Slack is not connected', async () => {
     const { socket, sockets, openUrl } = makeSocket()
     openUrl.mockResolvedValueOnce(null)
     socket.start()
     await vi.waitFor(() => expect(openUrl).toHaveBeenCalled())
     expect(sockets).toHaveLength(0)
+    await vi.waitFor(() => expect(socket.isRunning()).toBe(false))
   })
 })
