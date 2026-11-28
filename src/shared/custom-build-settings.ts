@@ -108,4 +108,10 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     /** Custom build (hq-decor): `calm` takes the glows, background spots, gradient edges, capitals and the
      *  duplicate Approve bar off HQ+; unset = `full`, the look HQ+ always had. */
     hqPlusDecor?: 'full' | 'calm'
+    /** Custom build (lean-mcp, L4): chats launched with --role worker|review start without the MCP servers
+     *  in `agentLeanMcpDeny` when `lean`; unset = `full`, every server as before. */
+    agentMcpProfile?: 'full' | 'lean'
+    /** Custom build (lean-mcp): servers a lean chat hides, as their tools are named (`claude_ai_Gmail`);
+     *  unset or empty = the built-in list (agent-lean-mcp.ts). */
+    agentLeanMcpDeny?: string[]
   }

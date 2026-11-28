@@ -44,6 +44,7 @@ import type {
   StructuredAgentRuntimeRegistration
 } from './structured-agent-runtime-registration-types'
 import { getHqJournalService } from '../../../hq-journal/hq-journal-service'
+import { chatRoleOfSession } from '../../../orca-plus/chat-roles/chat-role-env'
 import { hqRoomDeniedTools } from '../../../hq-room-mcp/hq-room-mcp'
 
 function savedProviderTurns(context: StructuredAgentAdapterContext): SavedProviderTurnReads {
@@ -147,7 +148,13 @@ function createClaudeAdapter(
           ? { promptSuggestions: deps.nativeChatPromptSuggestions }
           : {}),
         // Custom build (hq-plus-room-mcp): a chat starts without the MCP servers its HQ room hides.
-        resolveDeniedTools: (chat) => hqRoomDeniedTools(getHqJournalService(), chat)
+        // Custom build (lean-mcp): and, on the owner's lean profile, those a worker or review chat skips.
+        resolveDeniedTools: async (chat) => [
+          ...new Set([
+            ...(await hqRoomDeniedTools(getHqJournalService(), chat)),
+            ...(deps.leanMcpDenied?.(chatRoleOfSession(chat.sessionId)) ?? [])
+          ])
+        ]
       })
     ),
     ...(deps.resolveClaudeCommand ? { resolveClaudeCommand: deps.resolveClaudeCommand } : {}),

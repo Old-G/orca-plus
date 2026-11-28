@@ -7,6 +7,7 @@ import {
 } from './general-setting-anchors'
 import { translate } from '@/i18n/i18n'
 import { hqOpenLoopsSettingText } from './HqOpenLoopsSetting'
+import { agentMcpProfileSettingText } from './AgentMcpProfileSetting'
 import { claudeNetworkAutoContinueSettingText } from './ClaudeNetworkAutoContinueSetting'
 
 /** Each lives on the Workspace page's folder sub-page, beside the HQ Folder. */
@@ -55,6 +56,11 @@ export function getGeneralWorkspaceHqSearchDescriptors(): GeneralSearchDescripto
     generalSetting(GENERAL_SETTING_ANCHORS.folder, {
       ...claudeNetworkAutoContinueSettingText(),
       keywords: ['claude', 'network', 'connection', 'offline', 'continue', 'retry', 'resume']
+    }),
+    // Custom build (lean-mcp)
+    generalSetting(GENERAL_SETTING_ANCHORS.folder, {
+      ...agentMcpProfileSettingText(),
+      keywords: ['mcp', 'lean', 'worker', 'review', 'tools', 'context', 'limits', 'tokens']
     }),
     // Custom build (hq-request-ledger)
     generalSetting(GENERAL_SETTING_ANCHORS.folder, {

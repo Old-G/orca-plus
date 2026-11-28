@@ -1,3 +1,4 @@
+import type { HqChatRole } from '../../../../shared/hq-chat-role'
 import type { ReadOnlySessionMode } from '../../../bots/bot-look-around-policy'
 import type { SessionMcpTools } from '../../../mcp-servers/session-mcp-tools'
 import type { StructuredAgentSessionHostDeps } from '../../../native-chat/agent-session-wire/host/structured-agent-session-host-types'
@@ -51,6 +52,8 @@ export type StructuredAgentSessionRuntimeDeps = StructuredAgentSessionTransportO
   piManagedExtensionsEnabled?: () => boolean
   /** This host's preference for agents' suggested next prompts, read when a chat starts one. */
   nativeChatPromptSuggestions?: () => boolean
+  /** Custom build (lean-mcp): MCP tool rules the owner's lean profile hides from a chat of this role. */
+  leanMcpDenied?: (role: HqChatRole | null) => string[]
   /** This host's opt-in to Codex chats sharing capped app-servers, read when a chat starts one. */
   sharedCodexServers?: () => boolean
   /** Required, and asserted at install time — saved Arguments must never be silently omitted. */
