@@ -167,6 +167,49 @@ describe('quick pass and the cards it did not read (review)', () => {
   })
 })
 
+describe('a 👾 on an answer to a waiting (owner 28.11)', () => {
+  it('passes the answer to the waiting’s chat and raises no To work card', async () => {
+    const answer = draft('1795853360.712189')
+    const { deps, synced } = watch([answer])
+    deps.answers = () => [
+      {
+        channel: answer.channel,
+        authorSlackId: 'U1',
+        at: answer.at,
+        ts: answer.ts,
+        waitingId: 'w1'
+      }
+    ]
+    const passAnswer = vi.fn(async () => true)
+    const notes: string[] = []
+    deps.passAnswer = passAnswer
+    deps.noteMark = (_key, outcome) => void notes.push(outcome)
+    await pollHqSlackIntake(deps)
+    expect(passAnswer).toHaveBeenCalledWith('w1', answer.ts)
+    expect(synced[0]).toEqual([])
+    expect(notes).toEqual(['answer passed to the waiting chat'])
+  })
+
+  it('leaves a message near an answer, and an answer with no waiting id, alone', async () => {
+    const mark = draft('1795853400.000100')
+    const { deps } = watch([mark])
+    deps.answers = () => [
+      {
+        channel: mark.channel,
+        authorSlackId: 'U1',
+        at: mark.at,
+        ts: '1795853360.712189',
+        waitingId: 'w1'
+      },
+      { channel: mark.channel, authorSlackId: 'U1', at: mark.at, ts: mark.ts }
+    ]
+    const passAnswer = vi.fn(async () => true)
+    deps.passAnswer = passAnswer
+    await pollHqSlackIntake(deps)
+    expect(passAnswer).not.toHaveBeenCalled()
+  })
+})
+
 describe('startHqSlackIntake with pushes', () => {
   afterEach(() => {
     vi.useRealTimers()

@@ -106,9 +106,6 @@ export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeServi
         ),
     now: Date.now
   })
-  // Custom build (hq-slack-intake): 👾-marked messages, read with the same token and name cache.
-  registerHqSlackIntake(store, runtime, cache)
-
   const passDeps = {
     listOpen,
     deliver: deliverWaitingReply,
@@ -116,6 +113,14 @@ export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeServi
     markDelivered: (id: string, replyTs: string | undefined) =>
       void runtime.pulseMarkWaitingReplyDelivered(id, replyTs)
   }
+  // Custom build (hq-slack-intake): 👾-marked messages, read with the same token and name cache; a 👾
+  // on an answer passes it like the answer card's Pass (router v2 T7).
+  registerHqSlackIntake(
+    store,
+    runtime,
+    cache,
+    async (waitingId, replyTs) => (await passHqWaitingReply(passDeps, waitingId, replyTs)).ok
+  )
   const shownTs = (value: unknown): string | undefined =>
     typeof value === 'string' && value ? value : undefined
   ipcMain.handle(
