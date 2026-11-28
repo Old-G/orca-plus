@@ -58,28 +58,45 @@ export function answersWaiting(
 }
 
 /** Router v2 T7: the owner's 👾 on the answer itself is his «pass it on» — before, the mark gave way
- *  to the answer card and nothing went until he clicked it (28.11: a colleague's file sat there). */
+ *  to the answer card and nothing went until he clicked it (28.11: a colleague's file sat there).
+ *  Returns the ts of marked answers whose chat could not take them (closed): they are routed like
+ *  any 👾 instead of waiting on the card. */
 export async function hqPassMarkedAnswers(
   deps: {
-    passAnswer?: (waitingId: string, replyTs: string) => Promise<boolean>
+    passAnswer?: (waitingId: string, replyTs: string) => Promise<HqAnswerPass>
     noteMark?: (key: string, outcome: string) => void
     now: () => number
   },
   drafts: readonly HqIntakeDraft[],
   answers: readonly HqIntakeAnswer[],
   windowMs: number
-): Promise<void> {
+): Promise<Set<string>> {
+  const toRoute = new Set<string>()
   for (const draft of drafts) {
     const answer = hqAnswerOfMessage(draft, answers)
     if (!answer?.waitingId || !deps.passAnswer || deps.now() - draft.at > windowMs) {
       continue
     }
-    const passed = await deps.passAnswer(answer.waitingId, draft.ts).catch(() => false)
-    deps.noteMark?.(
-      hqIntakeKey(draft),
-      passed
-        ? 'answer passed to the waiting chat'
-        : 'answer not passed (passed before or chat closed)'
-    )
+    // Why: 🆕 asks for a new chat, whatever the message answers.
+    if (draft.newMark) {
+      toRoute.add(draft.ts)
+      continue
+    }
+    const pass = await deps.passAnswer(answer.waitingId, draft.ts).catch(() => 'failed' as const)
+    if (pass === 'chat-closed' || pass === 'no-chat') {
+      toRoute.add(draft.ts)
+    }
+    deps.noteMark?.(hqIntakeKey(draft), HQ_ANSWER_PASS_NOTE[pass])
   }
+  return toRoute
+}
+
+export type HqAnswerPass = 'passed' | 'gone' | 'chat-closed' | 'no-chat' | 'failed'
+
+const HQ_ANSWER_PASS_NOTE: Record<HqAnswerPass, string> = {
+  passed: 'answer passed to the waiting chat',
+  gone: 'answer passed before',
+  'chat-closed': 'answer: the waiting chat is closed, routed instead',
+  'no-chat': 'answer: the waiting has no chat, routed instead',
+  failed: 'answer not passed (error)'
 }
