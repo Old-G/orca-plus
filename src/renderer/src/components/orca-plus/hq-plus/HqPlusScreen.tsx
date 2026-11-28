@@ -70,6 +70,7 @@ import { openHqRouteChat } from '../pulse-bell/hq-route-send'
 import { hqPlusThreadKey, type HqPlusLogContext } from './HqPlusLog'
 import { hqPlusTileFamilies, hqPlusTileOf } from '../../../../../shared/hq-plus-tile'
 import { HqPlusProjectChips, HqPlusProjectFeed } from './HqPlusProjectFeed'
+import { HqPlusBoardDock, HqPlusBoardSplit } from './HqPlusBoardDock'
 import type { HqPlusProjectCardContext } from './HqPlusProjectParts'
 import { useHqPlusDraftChats } from './use-hq-plus-drafts'
 import { HqPlusSide, type HqPlusTile } from './HqPlusSide'
@@ -728,6 +729,15 @@ export function HqPlusScreen(): React.JSX.Element {
     dayStart,
     now
   ])
+  // Custom build (U3): the dock under the Board's feed window is built with the «All» filter, so it keeps
+  // every Approve and question whatever chip the feed wears.
+  const dockFeed = useMemo(
+    () =>
+      layout === 'board'
+        ? hqPlusProjectFeed({ ...projectInput, filter: 'all', search: null })
+        : null,
+    [layout, projectInput]
+  )
   const projectFeed = useMemo(
     () =>
       hqPlusProjectFeed({
@@ -1807,12 +1817,27 @@ export function HqPlusScreen(): React.JSX.Element {
         />
       ) : null}
       {data.error && !data.feed ? <p className="hqp-error">{data.error}</p> : null}
-      <HqPlusProjectFeed
-        feed={projectFeed}
-        filter={feedFilter}
-        onFilter={changeFeedFilter}
-        ctx={projectCtx}
-      />
+      {boardLayout && dockFeed ? (
+        <HqPlusBoardSplit
+          window={
+            <HqPlusProjectFeed
+              feed={projectFeed}
+              filter={feedFilter}
+              onFilter={changeFeedFilter}
+              ctx={projectCtx}
+              board
+            />
+          }
+          dock={<HqPlusBoardDock feed={dockFeed} ctx={projectCtx} />}
+        />
+      ) : (
+        <HqPlusProjectFeed
+          feed={projectFeed}
+          filter={feedFilter}
+          onFilter={changeFeedFilter}
+          ctx={projectCtx}
+        />
+      )}
       <div className="hqp-composer">
         {scope ? (
           <HqPlusThreadComposer

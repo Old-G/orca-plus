@@ -163,3 +163,103 @@
     max-height: 50vh;
   }
 }
+/* U3 (owner 28.11, 1a): the feed is a window of --hqb-win % of the column, a grip under it, then «Waiting for
+   you» with its own scroll. The window and the dock scroll inside; the column itself does not. Board only. */
+.hqb-split {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+.hqb-window {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 calc(var(--hqb-win) * 1%);
+  min-height: 0;
+}
+.hqb-window > .hqp-log {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.hqb-grip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  height: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: row-resize;
+  touch-action: none;
+}
+.hqb-grip i {
+  width: 36px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--hqp-line);
+}
+.hqb-grip:hover i,
+.hqb-grip:focus-visible i {
+  background: var(--hqp-mute);
+}
+.hqb-dock {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+.hqb-dock[data-empty='true'] {
+  flex: none;
+}
+.hqb-dock-h {
+  flex: none;
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--hqp-mute);
+}
+.hqb-dock-list {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.hqb-dock[data-empty='true'] .hqb-dock-list {
+  flex: none;
+}
+.hqb-dock[data-empty='true'] .hqp-empty {
+  margin: 0;
+}
+/* the dock keeps no scrollbar either (T5b, owner 26.11) */
+.hqp-body[data-board='true'] > .hqb-feed .hqb-dock-list {
+  scrollbar-width: none;
+}
+.hqp-body[data-board='true'] > .hqb-feed .hqb-dock-list::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+/* narrow screens: the column is no longer a fixed height, so the window is 50vh and the dock follows */
+@media (max-width: 1220px) {
+  .hqb-split {
+    flex: none;
+  }
+  .hqb-window {
+    flex: none;
+    height: 50vh;
+  }
+  .hqb-grip {
+    display: none;
+  }
+  .hqb-dock {
+    flex: none;
+    margin-top: 8px;
+  }
+  .hqb-dock-list {
+    max-height: 40vh;
+  }
+}
+@media (max-width: 760px) {
+  /* the window itself is 50vh now; the column grows by the dock under it instead of clipping it */
+  .hqp-body[data-board='true'] > .hqb-feed {
+    max-height: 70vh;
+  }
+}

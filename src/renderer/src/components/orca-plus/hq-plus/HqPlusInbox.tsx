@@ -22,6 +22,7 @@ export function HqPlusInbox({
   filter,
   emptyText,
   ctx,
+  part = 'all',
   ref
 }: {
   feed: Feed
@@ -29,12 +30,22 @@ export function HqPlusInbox({
   filter: HqPlusProjectFilter
   emptyText: string
   ctx: HqPlusProjectCardContext
+  /** Board (U3): `window` is the feed without what waits for the owner, `dock` is only that, oldest first. */
+  part?: 'all' | 'window' | 'dock'
   /** The scroller, for the feed to mark the rows the owner has seen. */
   ref?: React.Ref<HTMLDivElement>
 }): React.JSX.Element {
   const [drawer, setDrawer] = useState<Drawer>(null)
   const [chatKey, setChatKey] = useState<string | null>(null)
-  const queue = hqPlusInboxQueue(feed)
+  const full = hqPlusInboxQueue(feed)
+  const waiting = (row: HqPlusInboxRow): boolean => row.type !== 'fyi'
+  const queue =
+    part === 'all'
+      ? full
+      : {
+          ...full,
+          stream: full.stream.filter((row) => (part === 'dock') === waiting(row))
+        }
   const bottomRef = useRef<HTMLDivElement>(null)
   const approveIds = queue.stream.flatMap((row) => (row.type === 'approve' ? [row.line.id] : []))
   const approveKey = approveIds.join('\n')
@@ -49,7 +60,10 @@ export function HqPlusInbox({
     const ids = approveKey ? approveKey.split('\n') : []
     if (seenApproves.current === null) {
       seenApproves.current = new Set(ids)
-      bottomRef.current?.scrollIntoView({ block: 'end' })
+      // Why: the dock lists oldest first and opens on top; the feed opens on its newest row.
+      if (part !== 'dock') {
+        bottomRef.current?.scrollIntoView({ block: 'end' })
+      }
       return
     }
     const fresh = ids.filter((id) => !seenApproves.current?.has(id))
@@ -77,6 +91,7 @@ export function HqPlusInbox({
     // Custom build (hq-approve-steady): not under a pointer over the feed — it may be aiming at a
     // button; the scroll comes once the pointer leaves.
     stopFollowWait.current = hqPlusMoveWhenPointerAway(scroller, follow)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approveKey])
   const project = (slug: string, unsorted: boolean): { name: string; color: string | null } =>
     unsorted
@@ -137,6 +152,14 @@ export function HqPlusInbox({
           project={project(row.slug, row.unsorted)}
         />
       </ul>
+    )
+  }
+  if (part === 'dock') {
+    return (
+      <div className="hqp-log hqpi hqb-dock-list scrollbar-sleek" ref={ref}>
+        {queue.stream.map((row) => streamRow(row))}
+        {empty ? <p className="hqp-empty">{emptyText}</p> : null}
+      </div>
     )
   }
   return (

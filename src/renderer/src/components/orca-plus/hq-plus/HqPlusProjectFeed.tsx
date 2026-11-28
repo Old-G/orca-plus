@@ -50,12 +50,15 @@ export function HqPlusProjectFeed({
   feed,
   filter,
   onFilter,
-  ctx
+  ctx,
+  board = false
 }: {
   feed: Feed
   filter: HqPlusProjectFilter
   onFilter: (filter: HqPlusProjectFilter) => void
   ctx: HqPlusProjectCardContext
+  /** Board (U3): Approve and the asks leave the feed for the dock under it, so no Approve bar here. */
+  board?: boolean
 }): React.JSX.Element {
   // Custom build (hq-plus-inbox, owner 02.11: variant B): Inbox — one queue of what to do next — and
   // Projects — the project cards, each its head line until opened.
@@ -151,7 +154,14 @@ export function HqPlusProjectFeed({
           ref={scroller}
           feed={feed}
           filter={filter}
-          emptyText={filter === 'all' ? 'Nothing waits on you.' : EMPTY[filter]}
+          part={board ? 'window' : 'all'}
+          emptyText={
+            board
+              ? 'Nothing else came in.'
+              : filter === 'all'
+                ? 'Nothing waits on you.'
+                : EMPTY[filter]
+          }
           ctx={ctx}
         />
       </>
@@ -190,7 +200,7 @@ export function HqPlusProjectFeed({
           <HqPlusProjectCard key={card.slug} card={card} ctx={ctx} folded />
         ))}
         {/* Why: sticky at the scroller's bottom, so it never covers the Ask HQ box below the feed. */}
-        {approvals.length > 0 ? (
+        {!board && approvals.length > 0 ? (
           <div className="hqpc-apbar" role="status">
             <span className="hqpc-lab">Approve · {approvals.length}</span>
             <span className="hqpc-apbar-list">
@@ -207,7 +217,7 @@ export function HqPlusProjectFeed({
           </div>
         ) : null}
       </div>
-      {unseen && approvals.length === 0 ? (
+      {unseen && (board || approvals.length === 0) ? (
         <button type="button" className="hqp-jump" onClick={toBottom}>
           ↓ new in {unseen}
         </button>
