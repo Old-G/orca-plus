@@ -15,7 +15,9 @@ export type PulseClock = {
 export class PulseCore {
   readonly db: Database.Database
   readonly clock: PulseClock
-  private emitted = false
+  // Custom build (p1-perf): what the open transaction touched, so followers can skip writes they
+  // do not read (a journal row every few seconds re-ran the whole journal sync).
+  private touched = new Set<PulseEntity>()
 
   constructor(path: (string & {}) | ':memory:', clock: Partial<PulseClock> = {}) {
     this.clock = { now: clock.now ?? Date.now, newId: clock.newId ?? randomUUID }
@@ -36,7 +38,7 @@ export class PulseCore {
   /** Runs `write` in one IMMEDIATE transaction; a throw rolls back the record and its event. */
   transaction<T>(write: () => T): T {
     this.db.exec('BEGIN IMMEDIATE')
-    this.emitted = false
+    this.touched = new Set()
     let result: T
     try {
       result = write()
@@ -46,15 +48,15 @@ export class PulseCore {
       throw error
     }
     // Why: followers hear only about writes that committed and changed something.
-    if (this.emitted) {
-      emitPulseChanged()
+    if (this.touched.size > 0) {
+      emitPulseChanged({ entities: this.touched })
     }
     return result
   }
 
   /** Call inside `transaction`. */
   emit(kind: string, entity: PulseEntity, entityId: string, payload: unknown): void {
-    this.emitted = true
+    this.touched.add(entity)
     this.db
       .prepare('INSERT INTO events (at, kind, entity, entity_id, payload) VALUES (?, ?, ?, ?, ?)')
       .run(this.clock.now(), kind, entity, entityId, JSON.stringify(payload))
