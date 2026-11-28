@@ -11,6 +11,7 @@ export const CLAUDE_NETWORK_CONTINUE_MAX_ATTEMPTS = 3
 // retried for a while before it gives up, so the first waits a minute; the last one covers an outage
 // of a quarter of an hour (19.11: 30 minutes, W47 median 15).
 const NETWORK_CONTINUE_DELAYS_MS = [60_000, 3 * 60_000, 10 * 60_000] as const
+const BUSY_RETRY_MS = 5_000
 
 /** The turn the agent gets: visible in the chat as Orca+'s, and still a plain «go on» to the agent. */
 export function claudeNetworkContinuePrompt(attempt: number): string {
@@ -112,17 +113,25 @@ export function createClaudeNetworkStops(deps: ClaudeNetworkStopsDeps) {
         stops.clear()
         return
       }
+      const ready = claudeNetworkStopsDue(stops, sentInRow, deps.now())
+      const due = ready.filter(({ id }) => !deps.isResuming(id))
+      if (due.length < ready.length) {
+        // Why: the guard is nudging that agent already; look again shortly, no timer is left for it.
+        deps.scheduleTick?.(BUSY_RETRY_MS)
+      }
       // Why: picked and counted before any await, so a second tick cannot send the same attempt.
-      const due = claudeNetworkStopsDue(stops, sentInRow, deps.now()).filter(
-        ({ id }) => !deps.isResuming(id)
-      )
       for (const { id, attempt } of due) {
         sentInRow.set(id, attempt)
       }
       await Promise.all(
-        due.map(({ stop, attempt }) =>
-          deps.resume(stop, stops, claudeNetworkContinuePrompt(attempt))
-        )
+        due.map(async ({ id, stop, attempt }) => {
+          await deps.resume(stop, stops, claudeNetworkContinuePrompt(attempt))
+          // Why: a nudge that threw leaves its stop behind with no timer, and a waiting stop would
+          // hide the chat's next cut; the attempt is spent, the next cut records afresh.
+          if (stops.get(id) === stop) {
+            stops.delete(id)
+          }
+        })
       )
     }
   }

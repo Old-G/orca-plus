@@ -427,6 +427,20 @@ describe('claude sign-in stops', () => {
       expect(stops.list()).toHaveLength(3)
     })
 
+    it('a nudge that throws spends its attempt and lets the next cut record afresh', async () => {
+      const { stops, resumeNativeChat, scheduled, advance } = netSetup()
+      resumeNativeChat.mockRejectedValueOnce(new Error('send failed'))
+      stops.onNativeFrame('chat-1', null, netFrame)
+      advance(60_000)
+      await stops.onNetworkTick()
+      stops.onNativeFrame('chat-1', null, netFrame)
+      expect(scheduled).toEqual([60_000, 180_000])
+      advance(3 * 60_000)
+      await stops.onNetworkTick()
+      expect(resumeNativeChat).toHaveBeenCalledTimes(2)
+      expect(resumeNativeChat.mock.calls[1][1]).toContain('попытка 2 из 3')
+    })
+
     it('never nudges a chat that handed off', async () => {
       const { stops, resumeNativeChat, advance } = netSetup()
       stops.onNativeFrame('handed-off', 'repo::/wt', netFrame)
