@@ -4,6 +4,7 @@ import type { GlobalSettings } from '../../../../../shared/settings/global-setti
 import { UIZoomControl } from './UIZoomControl'
 import { SearchableSetting } from '../section-layout/SearchableSetting'
 import { ReduceVisualEffectsSetting } from './ReduceVisualEffectsSetting'
+import { HqPlusPaletteSetting } from '../HqPlusPaletteSetting'
 import { getReduceVisualEffectsEntries } from './appearance-reduce-visual-effects-search'
 import { SettingsGroupDisclosure } from '../section-layout/SettingsGroupDisclosure'
 import { SettingsSearchableSelect } from '../form-controls/SettingsSearchableSelect'
@@ -290,6 +291,15 @@ export function AppearanceInterfaceSection({
             />
           }
         />
+      </SearchableSetting>
+
+      {/* Custom build (hq-palette): HQ+'s palette, classic by default. */}
+      <SearchableSetting
+        title="HQ+ palette"
+        description="Classic, or Graphite and Paper: a quieter palette for HQ+."
+        keywords={['hq', 'palette', 'colors', 'graphite', 'paper', 'theme']}
+      >
+        <HqPlusPaletteSetting settings={settings} updateSettings={updateSettings} />
       </SearchableSetting>
 
       {showAdvanced ? (
