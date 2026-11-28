@@ -162,6 +162,7 @@ export const ROOT_HELP_TEXT_PRIMARY = [
   '  hq sessions               List chats with their address and sessionId; filter or --find',
   '  hq lead                   The Lead of this chat’s plan now: address, sessionId, open or not',
   '  hq events|thread|who      Read the journal, one thread, and who is who',
+  '  hq task-event             Note «PR opened / merged / shipped» in the Ход of this chat’s plan row file',
   '  hq merge-slot             Take, release or show the project’s merge slot',
   '  Run `orca hq --help` for every hq command.',
   '',

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Why: custom build (hq-task-progress, C7) adds one more hq command; the file was past the limit already, split it when it next grows */
 import { journalEntryAsInput } from '../../../hq-journal/hq-journal-adapters'
 import { defineMethod } from '../core'
 import {
@@ -15,6 +16,7 @@ import {
   HqLeadParams,
   HqSessionsParams,
   HqSettleParams,
+  HqTaskEventParams,
   HqStepParams,
   HqThreadParams,
   HqWhereParams,
@@ -28,6 +30,7 @@ import { getHqThreads, type HqThreads } from '../../../hq-journal/hq-journal-thr
 import { getHqJournalService, type HqJournalService } from '../../../hq-journal/hq-journal-service'
 import { getHqRouting } from '../../../hq-routing/hq-routing'
 import { getHqMergeSlots } from '../../../hq-routing/hq-merge-slot'
+import { getHqTaskProgress } from '../../../hq-journal/hq-task-progress'
 import { getHqLadderReport } from '../../../hq-routing/hq-ladder-report'
 
 const LADDER_DEFAULT_MS = 30 * 24 * 60 * 60_000
@@ -213,6 +216,28 @@ export const HQ_JOURNAL_METHODS = [
       return action === 'take'
         ? { project, action, holder, ...slots.take(project, holder) }
         : { project, action, holder, ok: slots.release(project, holder) }
+    }
+  }),
+  // Custom build (hq-task-progress, C7): a PR opened, merged or shipped goes to the row file's «Ход».
+  defineMethod({
+    name: 'hq.taskEvent',
+
+    permission: 'workspace',
+    params: HqTaskEventParams,
+    handler: async ({ event, link, note, ...caller }) => {
+      const progress = getHqTaskProgress()
+      if (!progress) {
+        throw new Error('Plan row progress is not available on this host.')
+      }
+      const me = await journal().whoami({
+        sessionId: caller.callerSessionId,
+        worktreeId: caller.callerWorktreeId,
+        cwd: caller.callerCwd
+      })
+      if (!me.sessionId) {
+        throw new Error('Run it from an agent chat: the row is the one this chat holds.')
+      }
+      return progress.record({ callerSessionId: me.sessionId, event, link, note })
     }
   }),
   defineMethod({

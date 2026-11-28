@@ -49,6 +49,9 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     hqPlusFeedInsteadOfPopups?: boolean
     /** Custom build (hq-plus-journal): HQ+'s journal follows Orca+'s records; off stops it. Default on. */
     hqPlusJournalEnabled?: boolean
+    /** Custom build (hq-task-progress, C7): `orca hq task-event` adds a «Ход» line to the chat's row file
+     *  in HQ/runs; off, it writes nothing. Default on. */
+    hqTaskProgressEnabled?: boolean
     /** Custom build (hq-request-ledger): the request ledger — off, in shadow (reads the cards into
      *  conversations beside them, changes nothing shown) or on (one card per Slack conversation in
      *  place of the mention cards). Default on since 03.11 (hq-ledger-mode). */

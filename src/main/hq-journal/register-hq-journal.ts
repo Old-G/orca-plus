@@ -18,6 +18,7 @@ import { createHqLeadReassign, provideHqLeadReassign } from './hq-lead-reassign'
 import { hqRewritePlanLeads } from './hq-lead-plan-line'
 import { createHqLeadOf, hqReadPlanTexts } from './hq-lead-of'
 import { createHqTaskLock, provideHqTaskLock } from './hq-task-lock'
+import { createHqTaskProgress, provideHqTaskProgress } from './hq-task-progress'
 import { hqChatTabIds } from '../hq-sessions/hq-session-live'
 import { deliverToNativeChat } from '../orca-plus/waiting-replies/deliver-waiting-reply'
 import { provideNativeChatTabReveal } from '../orca-plus/waiting-replies/native-chat-tab-reveal'
@@ -223,6 +224,16 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
       getSession: threadPulse.getSession,
       liveSessionOf: threadPulse.liveSessionOf,
       openTabs
+    })
+  )
+  // Custom build (hq-task-progress, C7): a chat's work events go to «Ход» of its row file in HQ/runs.
+  provideHqTaskProgress(
+    createHqTaskProgress({
+      enabled: () => store.getSettings().hqTaskProgressEnabled !== false,
+      hqPath: () => store.getSettings().hqPath ?? null,
+      rowsOf: (ids) => runtime.pulseChats().taskRowsOf(ids),
+      liveSessionOf: threadPulse.liveSessionOf,
+      now: Date.now
     })
   )
   registerHqSessions(store, runtime, service)
