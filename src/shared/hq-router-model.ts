@@ -262,6 +262,7 @@ export function readHqRoute(raw: unknown): HqRoute | null {
       ).find((x) => x === how) ?? 'none',
     why,
     auto: Reflect.get(raw, 'auto') === true,
+    ...(Reflect.get(raw, 'sendFirst') === true ? { sendFirst: true } : {}),
     ...(isHqRouterAutoClass(Reflect.get(raw, 'autoClass'))
       ? { autoClass: Reflect.get(raw, 'autoClass') as HqRouterAutoClass }
       : {}),

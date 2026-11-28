@@ -19,6 +19,7 @@ import type { HqIntakeDraft, HqIntakeGuess } from './hq-slack-intake-suggest'
 import { answersWaiting, type HqIntakeAnswer } from './hq-intake-answers'
 import { routeToWorkCards, type HqCardRouteDeps } from './hq-card-route'
 import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
+import { applySendFirst, type HqRouterSendFirstDeps } from './hq-router-send-first'
 
 // Why: a mark older than this is an old reaction found on the first run, not a new request.
 export const HQ_INTAKE_WINDOW_MS = 7 * 24 * 60 * 60_000
@@ -97,6 +98,7 @@ export type HqSlackIntakeDeps = {
    *  `route` null when it found nothing; a card is routed once. */
   cardRoute?: HqCardRouteDeps['cardRoute']
   saveCardRoute?: HqCardRouteDeps['saveCardRoute']
+  sendFirst?: HqRouterSendFirstDeps // router v2 T5: a 👾 sent to its pick at once, «не моё» passed on
 }
 
 /** Custom build (hq-router T1c, 26.11): keys the owner handled. A card the bell closed by itself
@@ -307,6 +309,9 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
       autoSent.push([key, card])
     }
   }
+  // Router v2 T5 (owner 28.11): the middle zone's new cards go to their pick at once, and a chat that
+  // answered «не моё» passes its card on or gives it back to the owner.
+  await applySendFirst(cards, raised, upgraded, deps.sendFirst, deps.noteMark)
   // Custom build (hq-router T7): a mention card or a ledger conversation card has no route of its
   // own; the router gives each one, once.
   const routedLedger = await routeToWorkCards(deps, cards, ledger ?? [], handled, upgraded)

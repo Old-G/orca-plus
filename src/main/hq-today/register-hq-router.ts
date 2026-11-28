@@ -13,6 +13,7 @@ import {
   type HqIntake
 } from '../../shared/hq-slack-intake'
 import type { HqRoute } from '../../shared/hq-router'
+import { hqRouterSendFirstDeps } from './hq-router-send-first-deps'
 import { gateAndLogRoute } from './hq-router-auto-gate'
 import { readHqRoute } from '../../shared/hq-router-model'
 import { hqChatTabIds } from '../hq-sessions/hq-session-live'
@@ -80,6 +81,7 @@ export function hqRouterIntakeDeps(
   | 'noteMark'
   | 'cardRoute'
   | 'saveCardRoute'
+  | 'sendFirst'
 > {
   const on = (): boolean => (store.getSettings().hqRouter ?? 'trial') !== 'off'
   if (!on()) {
@@ -160,6 +162,7 @@ export function hqRouterIntakeDeps(
   }
   return {
     route,
+    sendFirst: hqRouterSendFirstDeps(runtime),
     // Why (T7): a To work card is routed once; the router keeps the answer by the card's key.
     cardRoute: (key) => {
       const kept = runtime.pulseRouter().cardRoute(key)
