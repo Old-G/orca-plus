@@ -4,6 +4,12 @@
 import type { PulseBellInput } from './pulse-bell'
 import type { HqRoute } from './hq-router'
 import { readHqRoute } from './hq-router-model'
+import {
+  readHqIntakeRefusals,
+  readHqIntakeSent,
+  type HqIntakeRefusal,
+  type HqIntakeSent
+} from './hq-router-send-first'
 
 export const HQ_INTAKE_KIND = 'hq-intake'
 /** `:space_invader:` — built into Slack and rare at work, so it never fires by accident. */
@@ -63,6 +69,10 @@ export type HqIntake = {
   route?: HqRoute
   /** Custom build (hq-router two marks): the owner marked it 🆕, not 👾 — new work, never an existing chat. */
   newMark?: boolean
+  /** Router v2 T5: the chat the router sent it to by itself (the middle zone); the card offers «Wrong chat». */
+  sent?: HqIntakeSent
+  /** Router v2 T5: chats that answered «не моё», in order. */
+  notMine?: HqIntakeRefusal[]
   /** Custom build (hq-router): a Slack link, text or Notes line the owner put to the router, not a 👾 mark. */
   pasted?: boolean
   /** Orca+'s guess at the project, and what is being sent, in one line. */
@@ -137,7 +147,10 @@ export function hqConversationCardPrefix(conversationId: string): string {
 }
 
 /** Custom build (hq-router): the card's «→ chat — why» line. */
-export function hqIntakeRouteLine(route: HqRoute): string {
+export function hqIntakeRouteLine(route: HqRoute, sent?: HqIntakeSent): string {
+  if (sent) {
+    return `→ sent to «${sent.title ?? sent.chat}» · Wrong chat? — ${route.why}`
+  }
   return `→ ${route.targetTitle ? `«${route.targetTitle}»` : 'a new chat'} — ${route.why}`
 }
 
@@ -170,7 +183,7 @@ export function hqIntakeBellItem(intake: HqIntake): PulseBellInput {
     body: [
       intake.summary,
       // Custom build (hq-router): where the router would send it and why.
-      ...(intake.route ? [hqIntakeRouteLine(intake.route)] : []),
+      ...(intake.route ? [hqIntakeRouteLine(intake.route, intake.sent)] : []),
       intake.text.replace(/\s+/g, ' ').slice(0, 300)
     ].join('\n'),
     urgency: 'urgent',
@@ -209,6 +222,8 @@ export function readHqIntake(refId: string | null): HqIntake | null {
   }
   const at = Reflect.get(raw, 'at')
   const route = readHqRoute(Reflect.get(raw, 'route'))
+  const sent = readHqIntakeSent(Reflect.get(raw, 'sent'))
+  const notMine = readHqIntakeRefusals(Reflect.get(raw, 'notMine'))
   return {
     channel,
     ts,
@@ -232,6 +247,8 @@ export function readHqIntake(refId: string | null): HqIntake | null {
     ...(route ? { route } : {}),
     ...(Reflect.get(raw, 'newMark') === true ? { newMark: true } : {}),
     ...(Reflect.get(raw, 'pasted') === true ? { pasted: true } : {}),
+    ...(sent ? { sent } : {}),
+    ...(notMine.length > 0 ? { notMine } : {}),
     repoId: text(raw, 'repoId'),
     project: text(raw, 'project'),
     summary: text(raw, 'summary') ?? ''

@@ -124,6 +124,7 @@ export type HqRoute = {
   /** Sent without the owner's «Send»: a 🆕, or a class the router log has proved (router v2 T4). */
   auto: boolean
   autoClass?: HqRouterAutoClass | null // T4: the exact signal's class; a model's pick has none
+  sendFirst?: boolean // T5: the middle zone — a 👾 sent to its pick at once; «Wrong chat» undoes it
   /** Two other open chats, best first (a «new» pick always shows them). */
   alternatives: {
     sessionId: string
@@ -222,10 +223,7 @@ export function hqRouterShortlist(input: HqRouterInput): HqRouterChat[] {
 }
 
 function levelOf(chat: HqRouterChat | null): HqRouteLevel {
-  if (!chat) {
-    return 'new'
-  }
-  return chat.role === 'lead' || chat.role === 'sublead' ? 'lead' : 'worker'
+  return !chat ? 'new' : chat.role === 'lead' || chat.role === 'sublead' ? 'lead' : 'worker'
 }
 
 /** A runner-up as the card keeps it: enough to name the chat and to reopen it. */

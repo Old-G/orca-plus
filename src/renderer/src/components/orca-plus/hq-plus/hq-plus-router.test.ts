@@ -6,6 +6,7 @@ import {
   hqPlusRouterCardOf,
   hqPlusRouterCards,
   hqPlusRouterChatWorktree,
+  hqPlusRouterOthers,
   hqPlusRouterSendsTo,
   hqPlusWorktreeOfSession
 } from './hq-plus-router'
@@ -122,5 +123,21 @@ describe('hqPlusRouterChatWorktree', () => {
     expect(hqPlusRouterChatWorktree(tabs, 'S1', 'w9')).toBe('w2')
     expect(hqPlusRouterChatWorktree(tabs, 'S5', 'w9')).toBe('w9')
     expect(hqPlusRouterChatWorktree(tabs, 'S5', null)).toBe('')
+  })
+})
+
+describe('router v2 T5: a card the router sent by itself', () => {
+  const alts = (...ids: string[]) =>
+    ids.map((id) => ({ sessionId: id, title: `Chat ${id}`, repoId: null }))
+  it('«Wrong chat» offers neither the chat that has it nor one that said «не моё»', () => {
+    const card = intake({
+      route: { ...route('S1'), alternatives: alts('S2', 'S3') },
+      sent: { chat: 'S2', title: 'Chat S2', at: 1 },
+      notMine: [{ chat: 'S1', title: 'Chat S1', reason: 'other repo' }]
+    })
+    expect(hqPlusRouterOthers(card).map((other) => other.sessionId)).toEqual(['S3'])
+    // A card back after two «не моё»: «Send» does not go to the pick that refused.
+    expect(hqPlusRouterSendsTo({ ...card, sent: undefined })).toBeNull()
+    expect(hqPlusRouterSendsTo(intake({ route: route('S1') }))).toBe('S1')
   })
 })
