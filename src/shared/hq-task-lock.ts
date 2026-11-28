@@ -43,13 +43,18 @@ const LOCK_FILE = new RegExp(`${IN_RUNS}\\.lock\\b`)
 // Workers and sub-leads hold a row; a reviewer of T3 or the Lead itself does not.
 const ROW_HOLDER_LABEL = /^\s*(?:W|SUB-?LEAD)\s*[·:|]/i
 
+/** A worker or sub-lead brief, which should name its row (the CLI warns when it does not). */
+export function hqBriefHoldsARow(text: string): boolean {
+  const firstLine = text.split('\n').find((line) => line.trim().length > 0) ?? ''
+  return ROW_HOLDER_LABEL.test(firstLine)
+}
+
 /** The plan row a Lead's brief starts a chat on; null for any other prompt. */
 export function hqTaskOfBrief(text: string | undefined): HqTaskKey | null {
   if (!text) {
     return null
   }
-  const firstLine = text.split('\n').find((line) => line.trim().length > 0) ?? ''
-  if (!ROW_HOLDER_LABEL.test(firstLine)) {
+  if (!hqBriefHoldsARow(text)) {
     return null
   }
   const match = PROGRESS_LINE.exec(text) ?? LOCK_FILE.exec(text)

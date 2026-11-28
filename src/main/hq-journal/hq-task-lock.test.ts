@@ -3,7 +3,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PulseDb } from '../orca-plus/pulse/pulse-db'
 import type { HqSession } from '../../shared/hq-journal'
-import { createHqTaskLock, HQ_TASK_STARTING_MS, type HqTaskLock } from './hq-task-lock'
+import {
+  createHqTaskLock,
+  HQ_TASK_STARTING_MS,
+  HQ_TASK_UNSEEN_HOLDER_MS,
+  type HqTaskLock
+} from './hq-task-lock'
 import { claimHqTaskLock, withHqTaskLock } from '../../cli/hq-task-lock'
 import type { RuntimeClient } from '../../cli/runtime/client'
 
@@ -161,6 +166,18 @@ describe('plan-row lock (hq-task-lock, A3)', () => {
     expect(t.lock.claim({ ...KEY, callerSessionId: LEAD }).taken).toBe(true)
   })
 
+  it('counts a holder the journal has not seen as open for a while, when the tabs are unknown', () => {
+    const t = setup({ open: null })
+    const unseen = '44444444-4444-4444-8444-444444444444'
+    t.db.chats.setTaskLock({ ...KEY, sessionId: unseen, at: 1_000 })
+    expect(t.lock.claim({ ...KEY, callerSessionId: LEAD })).toMatchObject({
+      taken: false,
+      reason: 'open'
+    })
+    t.tick(HQ_TASK_UNSEEN_HOLDER_MS)
+    expect(t.lock.claim({ ...KEY, callerSessionId: LEAD }).taken).toBe(true)
+  })
+
   it('refuses a launch of a row another launch is still starting, until it binds, fails or lapses', async () => {
     const t = setup()
     const first = t.lock.claim({ ...KEY, callerSessionId: LEAD })
@@ -179,6 +196,33 @@ describe('plan-row lock (hq-task-lock, A3)', () => {
     expect(t.lock.claim({ ...KEY, callerSessionId: LEAD }).taken).toBe(true)
   })
 
+  it('binds the chat a --retry-launch replay returns, after the lost first try freed the row', async () => {
+    vi.stubEnv('ORCA_AGENT_SESSION_ID', LEAD)
+    const t = setup({ open: [LEAD, W1] })
+    const client = clientOf(t.lock)
+    const first = await claimHqTaskLock(client, new Map(), { prompt: { text: BRIEF } })
+    await expect(
+      withHqTaskLock(first, async () => {
+        throw new Error('launch reply lost')
+      })
+    ).rejects.toThrow('launch reply lost')
+    const replay = await claimHqTaskLock(client, new Map([['retry-launch', 'op-1']]), {
+      prompt: { text: BRIEF }
+    })
+    await withHqTaskLock(replay, startedChat(W1))
+    expect(t.db.chats.taskLockOf(KEY)?.sessionId).toBe(W1)
+  })
+
+  it('warns when a worker brief names no row', async () => {
+    const warn = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const t = setup()
+    const hold = await claimHqTaskLock(clientOf(t.lock), new Map(), {
+      prompt: { text: 'W · T3 refund cap.\nХод — в the task file.' }
+    })
+    expect(hold).toBeNull()
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('names no plan row'))
+  })
+
   it('frees the row when the launch throws', async () => {
     vi.stubEnv('ORCA_AGENT_SESSION_ID', LEAD)
     const t = setup()
@@ -193,7 +237,7 @@ describe('plan-row lock (hq-task-lock, A3)', () => {
     expect(t.db.chats.taskLockOf(KEY)).toBeNull()
   })
 
-  it('locks nothing for a terminal start, a prompt without a row, --task none or a replay', async () => {
+  it('locks nothing for a terminal start, a prompt without a row or --task none', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const t = setup()
     const client = clientOf(t.lock)
@@ -209,9 +253,6 @@ describe('plan-row lock (hq-task-lock, A3)', () => {
     ).toBeNull()
     expect(
       await claimHqTaskLock(client, new Map([['task', 'none']]), { prompt: { text: BRIEF } })
-    ).toBeNull()
-    expect(
-      await claimHqTaskLock(client, new Map(), { prompt: { text: BRIEF }, operationId: 'op-1' })
     ).toBeNull()
   })
 

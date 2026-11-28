@@ -6,6 +6,7 @@
 import type { AgentLaunchResult } from '../shared/agent-launch/contracts/agent-launch-intent'
 import { readInjectedAgentSessionId } from '../shared/agent-session/lifecycle/launch/agent-session-caller-env'
 import {
+  hqBriefHoldsARow,
   hqTaskLabel,
   hqTaskOfBrief,
   hqTaskRefusalText,
@@ -47,22 +48,34 @@ export function hqTaskOfLaunch(
       throw new RuntimeClientError('invalid_argument', (error as Error).message)
     }
   }
-  return hqTaskOfBrief(promptText)
+  const key = hqTaskOfBrief(promptText)
+  if (!key && promptText && hqBriefHoldsARow(promptText)) {
+    note(
+      'warning: this worker brief names no plan row («Ход — в runs/<plan>/<row>.md»); the launch is not locked. Pass --task <plan>:<row>.'
+    )
+  }
+  return key
 }
 
 /**
  * Claims the launch's row. Throws when its chat is open or another launch is starting it; returns null
- * when there is no row, the launch is a --retry-launch replay, or the host cannot lock.
+ * when there is no row or the host cannot lock.
  */
 export async function claimHqTaskLock(
   client: LockClient,
   flags: Map<string, string | boolean>,
-  launch: { prompt?: { text: string }; operationId?: string }
+  launch: { prompt?: { text: string } }
 ): Promise<HqTaskLockHold | null> {
   const key = hqTaskOfLaunch(flags, launch.prompt?.text)
-  if (!key || launch.operationId || client.isRemote) {
+  if (!key) {
     return null
   }
+  if (client.isRemote) {
+    note(`${hqTaskLabel(key)} is not locked: the lock is kept by the local Orca+ only.`)
+    return null
+  }
+  // Why a --retry-launch replay claims too: its first try released the row when the reply was lost,
+  // and the chat it started is bound only here (review A3).
   const callerSessionId = readInjectedAgentSessionId() ?? undefined
   let claimed: HqTaskClaimResult
   try {

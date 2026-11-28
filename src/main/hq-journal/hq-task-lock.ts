@@ -31,6 +31,9 @@ export type HqTaskLock = {
 // the row after this, and `--task none` skips it sooner.
 export const HQ_TASK_STARTING_MS = 10 * 60_000
 
+// Why 6 h: a worker the journal never saw is new; an old lock of one is no reason to refuse.
+export const HQ_TASK_UNSEEN_HOLDER_MS = 6 * 60 * 60_000
+
 type Starting = { ticket: string; at: number; callerSessionId: string | null }
 
 function keyOf(key: HqTaskKey): string {
@@ -47,10 +50,15 @@ export function createHqTaskLock(deps: HqTaskLockDeps): HqTaskLock {
   }
 
   // Why the journal's closedAt stands in for the tabs: just after a restart the tabs read as none, and
-  // that is when a Lead relaunches its workers.
-  const isOpen = (sessionId: string): boolean => {
+  // that is when a Lead relaunches its workers. A holder the journal has not seen yet counts as open
+  // for a while after it took the row (review A3).
+  const isOpen = (sessionId: string, heldAt: number): boolean => {
     const open = deps.openTabs?.() ?? null
-    return open ? open.has(sessionId) : deps.getSession(sessionId)?.closedAt === null
+    if (open) {
+      return open.has(sessionId)
+    }
+    const session = deps.getSession(sessionId)
+    return session ? session.closedAt === null : now() - heldAt < HQ_TASK_UNSEEN_HOLDER_MS
   }
 
   const pendingOf = (key: HqTaskKey): Starting | null => {
@@ -82,7 +90,7 @@ export function createHqTaskLock(deps: HqTaskLockDeps): HqTaskLock {
         const holder = live(held.sessionId)
         // Why the caller may take its own row: a worker starts the next chat of its chain (skill lead).
         const own = caller !== null && holder === caller
-        if (isOpen(holder) && !own) {
+        if (isOpen(holder, held.at) && !own) {
           return { taken: false, reason: 'open', holder: holderOf(holder) }
         }
         movedFrom = holderOf(holder)
