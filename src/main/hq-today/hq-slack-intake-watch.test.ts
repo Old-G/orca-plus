@@ -145,6 +145,28 @@ describe('a pushed mark gets a quick pass', () => {
   })
 })
 
+describe('quick pass and the cards it did not read (review)', () => {
+  it('a reply 👾 joins the waiting card of its thread root, even when the root mark is past the quick page', async () => {
+    const { hqIntakeBellItem } = await import('../../shared/hq-slack-intake')
+    const root = draft('1795849000.000100')
+    const item = hqIntakeBellItem({ ...root, repoId: 'r1', project: 'acme', summary: 'Root' })
+    const reply = { ...draft('1795850000.000100'), threadTs: root.ts }
+    const { deps, synced } = watch([reply], new Map([[item.dedupeKey, item.refId ?? null]]))
+    const route = vi.fn(async () => null)
+    deps.route = route
+    await pollHqSlackIntake(deps, { quick: true })
+    expect(route).not.toHaveBeenCalled()
+    expect(synced[0]).toHaveLength(1)
+    expect(synced[0]?.[0]?.dedupeKey).toBe(item.dedupeKey)
+  })
+
+  it('says -1 when there is no token to read with', async () => {
+    const { deps } = watch([])
+    deps.read = async () => null
+    expect(await pollHqSlackIntake(deps)).toBe(-1)
+  })
+})
+
 describe('startHqSlackIntake with pushes', () => {
   afterEach(() => {
     vi.useRealTimers()
@@ -176,5 +198,36 @@ describe('startHqSlackIntake with pushes', () => {
     expect(reads).toContainEqual({ quick: false, mentions: true })
     stop()
     expect(unsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('without a token the pass after a push stays full, so the first real look sees every mark', async () => {
+    vi.useFakeTimers()
+    const { deps, reads } = watch([draft('1795850000.000100')])
+    let token = false
+    const read = deps.read
+    deps.read = async (run) => (token ? read(run) : null)
+    let kick: () => void = () => {}
+    const stop = startHqSlackIntake({ ...deps, pushes: (wake) => ((kick = wake), () => {}) })
+    kick()
+    await vi.advanceTimersByTimeAsync(0)
+    token = true
+    kick()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(reads.filter((r) => !r.mentions)).toEqual([{ quick: false, mentions: false }])
+    stop()
+  })
+
+  it('with no socket the half-minute poll goes on by itself', async () => {
+    vi.useFakeTimers()
+    const { deps, reads } = watch([draft('1795850000.000100')])
+    const stop = startHqSlackIntake(deps)
+    await vi.advanceTimersByTimeAsync(60_000)
+    // 25 s first look, then the 30 s and 60 s ticks.
+    expect(reads.filter((r) => !r.mentions)).toEqual([
+      { quick: false, mentions: false },
+      { quick: false, mentions: false },
+      { quick: false, mentions: false }
+    ])
+    stop()
   })
 })
