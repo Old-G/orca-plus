@@ -26,6 +26,7 @@ function toWaiting(row: SqliteRow): PulseWaiting {
     project: optionalText(row, 'project'),
     title: text(row, 'title'),
     detail: optionalText(row, 'detail'),
+    nextAction: optionalText(row, 'next_action'),
     source: text(row, 'source'),
     sourceRef: optionalText(row, 'source_ref'),
     status: oneOf(row, 'status', STATUSES),
@@ -67,6 +68,7 @@ export function addWaiting(core: PulseCore, input: PulseWaitingInput): PulseWait
       project: input.project ?? null,
       title: input.title,
       detail: input.detail ?? null,
+      nextAction: input.nextAction ?? null,
       source: input.source,
       sourceRef: input.sourceRef ?? null,
       status: 'open',
@@ -86,8 +88,8 @@ export function addWaiting(core: PulseCore, input: PulseWaitingInput): PulseWait
     core.db
       .prepare(
         'INSERT INTO waitings (id, direction, person_id, project, title, detail, source, ' +
-          'source_ref, status, due_at, created_at, agent_session_id, pane_key, worktree_id) ' +
-          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          'source_ref, status, due_at, created_at, agent_session_id, pane_key, worktree_id, next_action) ' +
+          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       )
       .run(
         waiting.id,
@@ -103,7 +105,8 @@ export function addWaiting(core: PulseCore, input: PulseWaitingInput): PulseWait
         waiting.createdAt,
         waiting.agentSessionId,
         waiting.paneKey,
-        waiting.worktreeId
+        waiting.worktreeId,
+        waiting.nextAction
       )
     // Custom build (hq-request-ledger): what was sent, where and what it waits for.
     pairWaitingWithSend(core, waiting, waiting.createdAt)
@@ -126,11 +129,14 @@ export function updateWaiting(core: PulseCore, id: string, patch: PulseWaitingPa
       ...existing,
       title: patch.title ?? existing.title,
       detail: patch.detail === undefined ? existing.detail : patch.detail,
-      dueAt: patch.dueAt === undefined ? existing.dueAt : patch.dueAt
+      dueAt: patch.dueAt === undefined ? existing.dueAt : patch.dueAt,
+      nextAction: patch.nextAction === undefined ? existing.nextAction : patch.nextAction
     }
     core.db
-      .prepare('UPDATE waitings SET title = ?, detail = ?, due_at = ? WHERE id = ?')
-      .run(updated.title, updated.detail, updated.dueAt, id)
+      .prepare(
+        'UPDATE waitings SET title = ?, detail = ?, due_at = ?, next_action = ? WHERE id = ?'
+      )
+      .run(updated.title, updated.detail, updated.dueAt, updated.nextAction ?? null, id)
     core.emit('waiting.updated', 'waiting', id, updated)
     return updated
   })

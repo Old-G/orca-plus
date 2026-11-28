@@ -12,6 +12,75 @@ const AGENT_ID_FLAG_HELP =
 const SKILLS_FORCE_FLAG_HELP =
   '--force                Replace skipped copies where possible, moving each to ~/.agents/.orca-skill-backups first.'
 
+// Custom build (pulse-next, C1): `orca pulse` and `orca hq report` reuse flag names that mean something
+// else in terminal commands (--title is a tab title there, --direction a scroll direction, --force a
+// worktree removal) and left the rest bare; say what each one means here.
+const PULSE_PERSON = '--person <id|name>     The person; an unknown name is added as a new person'
+const PULSE_PROJECT = '--project <slug>       HQ project slug the record belongs to'
+const PULSE_SOURCE = '--source <name>        Who recorded it (default agent)'
+const PULSE_WAIT_DIRECTION =
+  '--direction <on-me|on-them> on-them: you wait on someone; on-me: someone waits on you'
+
+const PULSE_AND_HQ_FLAG_HELP: Record<string, Record<string, string>> = {
+  'pulse wait add': {
+    title: '--title <text>         What you wait for (or what waits on you), in one line',
+    direction: PULSE_WAIT_DIRECTION,
+    person: PULSE_PERSON,
+    project: PULSE_PROJECT,
+    detail: '--detail <text>        The question or context in full',
+    next: '--next <text>          What you do once the answer comes; handed to your chat with it',
+    due: '--due <date>           ISO date or date-time the answer is due',
+    source: PULSE_SOURCE,
+    'source-ref': '--source-ref <url|id>  Link or id of where it came from (message, task)',
+    force: '--force                Add it even if an open waiting already says the same'
+  },
+  'pulse wait update': {
+    title: '--title <text>         New one-line text of the waiting',
+    detail: '--detail <text|none>   New detail; none clears it',
+    next: '--next <text|none>     New next step; none clears it',
+    due: '--due <date|none>      New due date; none clears it'
+  },
+  'pulse wait resolve': {
+    resolution: '--resolution <text>    One line on how it ended',
+    cancel: '--cancel               Close it as cancelled, not as resolved'
+  },
+  'pulse wait list': {
+    status: '--status <open|resolved|cancelled|all> Which waitings (default open)',
+    direction: PULSE_WAIT_DIRECTION,
+    person: PULSE_PERSON,
+    project: PULSE_PROJECT
+  },
+  'pulse decision log': {
+    title: '--title <text>         The decision in one line',
+    body: '--body <text>          Why, and what follows from it',
+    person: PULSE_PERSON,
+    project: PULSE_PROJECT,
+    source: PULSE_SOURCE
+  },
+  'pulse decision list': {
+    query: '--query <text>        Words the title, text or destination must all contain',
+    project: PULSE_PROJECT,
+    limit: '--limit <n>            Rows to print (default 30)'
+  },
+  'pulse draft add': {
+    title: '--title <text>         Short title of the draft',
+    body: '--body <text>          The text to send',
+    target: '--target <who|where>   A Slack user or channel, a ClickUp list or task',
+    person: PULSE_PERSON,
+    project: PULSE_PROJECT,
+    source: PULSE_SOURCE
+  },
+  'hq report': {
+    done: '--done <text>          What was done this turn, in one line',
+    ask: "--ask <question>       Your question to the owner; makes it the owner's move",
+    options: '--options <a|b|c>     Answers to offer with --ask',
+    next: '--next <text>          What comes next',
+    'blocked-by': "--blocked-by <name>  The person you wait on; makes it that person's move",
+    link: '--link <url>           A link for the report; repeat for several',
+    address: '--address <project>/<task> Name the thread yourself (default: from the chat name)'
+  }
+}
+
 const COMMAND_SCOPED_FLAG_HELP: Record<string, Record<string, string>> = {
   'bot item add': {
     title: BOT_ITEM_TITLE_HELP,
@@ -25,6 +94,7 @@ const COMMAND_SCOPED_FLAG_HELP: Record<string, Record<string, string>> = {
   'bot item comment': { text: "--text <text>          The comment's text" },
   'bot item link': { ref: '--ref <ref>            A worker, PR, URL or file to link' },
   'bot item list': { cursor: '--cursor <c>           Cursor printed with the previous page' },
+  ...PULSE_AND_HQ_FLAG_HELP,
   'agent list': {
     state: '--state <state>        Only agents in this state: working, blocked, waiting or done'
   },

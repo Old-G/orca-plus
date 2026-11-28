@@ -5,6 +5,7 @@ import { CHAT_LEAD_MOVES_TABLE } from './pulse-chat-lead-moves'
 import { ROUTER_TABLES, ensureRouterLogColumns } from './pulse-router-graph'
 import { PULSE_HOT_INDEXES } from './pulse-hot-indexes'
 import { TASK_LOCKS_TABLE } from './pulse-task-locks'
+import { ensureWaitingNextColumn } from './pulse-waiting-columns'
 
 const V1 = `
 CREATE TABLE people (
@@ -347,6 +348,7 @@ export function migratePulseSchema(db: Database.Database): void {
       SIDE_TABLES + CHAT_LEAD_MOVES_TABLE + ROUTER_TABLES + TASK_LOCKS_TABLE + PULSE_HOT_INDEXES
     )
     ensureRouterLogColumns(db)
+    ensureWaitingNextColumn(db)
     return
   }
   db.exec('BEGIN IMMEDIATE')
@@ -359,6 +361,7 @@ export function migratePulseSchema(db: Database.Database): void {
       SIDE_TABLES + CHAT_LEAD_MOVES_TABLE + ROUTER_TABLES + TASK_LOCKS_TABLE + PULSE_HOT_INDEXES
     )
     ensureRouterLogColumns(db)
+    ensureWaitingNextColumn(db)
     db.exec('COMMIT')
   } catch (error) {
     db.exec('ROLLBACK')

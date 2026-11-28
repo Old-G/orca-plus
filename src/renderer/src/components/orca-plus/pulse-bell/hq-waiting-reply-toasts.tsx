@@ -145,7 +145,8 @@ function HqWaitingReplyToast({
           title: ref.question,
           reply: ref.reply,
           replyAuthor: ref.author,
-          project: ref.project
+          project: ref.project,
+          nextAction: ref.nextAction
         },
         { note, askedElsewhere: !asked }
       )

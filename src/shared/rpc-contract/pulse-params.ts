@@ -34,6 +34,8 @@ export const PulseAddWaitingParams = z.object({
   personId: OptionalString,
   project: OptionalString,
   detail: OptionalString,
+  // Custom build (pulse-next, C1)
+  nextAction: OptionalString,
   source: requiredString('Waiting source is required'),
   sourceRef: OptionalString,
   dueAt: OptionalFiniteNumber,
@@ -49,6 +51,7 @@ export const PulseUpdateWaitingParams = z.object({
   id: requiredString('Waiting id is required'),
   title: OptionalString,
   detail: NullableText,
+  nextAction: NullableText,
   dueAt: z.number().finite().nullable().optional()
 })
 

@@ -55,6 +55,17 @@ describe('hqWaitingReplyBellItems', () => {
     })
   })
 
+  // Custom build (pulse-next, C1): Pass-to-chat reads the plan from the card's ref.
+  it('carries the chat’s own next step on the card, and nothing when it set none', () => {
+    const [withNext] = hqWaitingReplyBellItems(
+      [waiting({ nextAction: 'Run the post-check' })],
+      () => null
+    )
+    expect(readHqWaitingReplyRef(withNext?.refId ?? null)?.nextAction).toBe('Run the post-check')
+    const [plain] = hqWaitingReplyBellItems([waiting()], () => null)
+    expect(readHqWaitingReplyRef(plain?.refId ?? null)?.nextAction).toBeNull()
+  })
+
   // Custom build (hq-plus-person-replies)
   it('keeps an answer out while the routing rule judges it, then shows why it was left', () => {
     const judging = () => ({ hold: true, why: null })

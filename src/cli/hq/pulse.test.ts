@@ -46,6 +46,29 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+describe('orca pulse wait --next', () => {
+  it('sends the next step on add and clears it with none on update', async () => {
+    const add = run('pulse wait add', {
+      direction: 'on-them',
+      title: 'Signed contract',
+      next: 'Run the post-check, then close the row'
+    })
+    await add.done
+    expect(paramsOf(add.calls, 'pulse.addWaiting')).toMatchObject({
+      nextAction: 'Run the post-check, then close the row'
+    })
+    const set = run('pulse wait update', { id: 'w1', next: 'Merge the MR' })
+    await set.done
+    expect(paramsOf(set.calls, 'pulse.updateWaiting')).toMatchObject({ nextAction: 'Merge the MR' })
+    const clear = run('pulse wait update', { id: 'w1', next: 'none' })
+    await clear.done
+    expect(paramsOf(clear.calls, 'pulse.updateWaiting')).toMatchObject({ nextAction: null })
+    const untouched = run('pulse wait update', { id: 'w1', title: 'New' })
+    await untouched.done
+    expect(paramsOf(untouched.calls, 'pulse.updateWaiting')).not.toHaveProperty('nextAction')
+  })
+})
+
 describe('orca pulse wait add', () => {
   it('resolves --person by exact name and defaults the source to agent', async () => {
     const { done, calls } = run('pulse wait add', {

@@ -11,7 +11,7 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
     path: ['pulse', 'wait', 'add'],
     summary: 'Record that someone waits on you (on-me) or you wait on someone (on-them)',
     usage:
-      'orca pulse wait add --title <text> --direction <on-me|on-them> [--person <id|name>] [--project <slug>] [--detail <text>] [--due <date>] [--source <name>] [--source-ref <url|id>] [--json]',
+      'orca pulse wait add --title <text> --direction <on-me|on-them> [--person <id|name>] [--project <slug>] [--detail <text>] [--next <text>] [--due <date>] [--source <name>] [--source-ref <url|id>] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'title',
@@ -19,6 +19,7 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
       'person',
       'project',
       'detail',
+      'next',
       'due',
       'source',
       'source-ref',
@@ -27,7 +28,8 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
     notes: [
       PERSON_NOTE,
       '--due takes an ISO date or date-time; --source defaults to agent.',
-      'An open waiting about the same person that says the same is returned instead of a new one (marked duplicate); --force adds anyway.'
+      '--next is what you will do once the answer comes («run the post-check, then close the row»); it is handed to your chat together with the answer.',
+      'An open waiting about the same person that says the same is returned instead of a new one (marked duplicate); --force adds anyway. The one returned keeps its own text: to set --next on it, use `pulse wait update <id> --next`.'
     ],
     examples: [
       'orca pulse wait add --direction on-them --person Ann --title "Signed contract" --project app-a'
@@ -36,12 +38,14 @@ export const PULSE_COMMAND_SPECS: CommandSpec[] = [
   {
     // Custom build (hq-notes-dedup)
     path: ['pulse', 'wait', 'update'],
-    summary: 'Change an open waiting: its text, detail or due date',
+    summary: 'Change an open waiting: its text, detail, next step or due date',
     usage:
-      'orca pulse wait update <id> [--title <text>] [--detail <text|none>] [--due <date|none>] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'id', 'title', 'detail', 'due'],
+      'orca pulse wait update <id> [--title <text>] [--detail <text|none>] [--next <text|none>] [--due <date|none>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'id', 'title', 'detail', 'next', 'due'],
     positionalArgs: ['id'],
-    notes: ['--due none clears the due date; --detail none clears the detail.']
+    notes: [
+      '--due none clears the due date; --detail none clears the detail; --next none clears the next step.'
+    ]
   },
   {
     path: ['pulse', 'wait', 'resolve'],

@@ -140,6 +140,17 @@ describe('hqWaitingReplyPrompt', () => {
     expect(prompt).toContain('pulse wait resolve w1')
   })
 
+  it('hands the chat its own next step with the answer, but not another chat’s', () => {
+    const own = hqWaitingReplyPrompt(
+      waiting({ reply: 'Да', nextAction: 'Run the post-check\nthen close the row' })
+    )
+    expect(own).toContain('(set with --next): Run the post-check then close the row')
+    expect(hqWaitingReplyPrompt(waiting({ reply: 'Да' }))).not.toContain('--next')
+    expect(
+      hqWaitingReplyPrompt(waiting({ reply: 'Да', nextAction: 'x' }), { askedElsewhere: true })
+    ).not.toContain('--next')
+  })
+
   it('names the project the answer belongs to without guessing where it was said', () => {
     const prompt = hqWaitingReplyPrompt(
       waiting({ reply: 'Да', replyAuthor: 'Петя', source: 'clickup', project: 'phone-bot' })

@@ -104,6 +104,23 @@ describe('PulseDb schema', () => {
     expect(second.listWaitings().map((w) => w.title)).toEqual(['Contract from Ann'])
   })
 
+  it('adds the next-step column to a current-version file without touching its version', async () => {
+    const path = await tempPath()
+    const first = openDb(path)
+    first.addWaiting({ direction: 'on-them', title: 'Contract from Ann', source: 'manual' })
+    first.close()
+    const raw = new Database(path)
+    raw.exec('ALTER TABLE waitings DROP COLUMN next_action')
+    raw.close()
+    const reopened = openDb(path)
+    expect(reopened.listWaitings().map((w) => [w.title, w.nextAction])).toEqual([
+      ['Contract from Ann', null]
+    ])
+    const check = new Database(path)
+    expect(check.pragma('user_version', { simple: true })).toBe(PULSE_SCHEMA_VERSION)
+    check.close()
+  })
+
   it('lifts a version 5 feed to posts, dropping its old «sent» rows for the collector to redo', async () => {
     const path = await tempPath()
     const first = openDb(path)
