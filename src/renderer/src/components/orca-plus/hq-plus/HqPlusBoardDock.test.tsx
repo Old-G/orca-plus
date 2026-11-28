@@ -11,6 +11,12 @@ vi.mock('./HqPlusLog', async (original) => ({
   HqPlusLogCards: () => <span>approve-card</span>
 }))
 
+vi.mock('./HqPlusProjectCard', () => ({
+  HqPlusProjectCard: ({ card }: { card: { approve: unknown[]; you: unknown[] } }) => (
+    <span>{`card-rows:${card.approve.length + card.you.length}`}</span>
+  )
+}))
+
 import { HqPlusBoardDock, HqPlusBoardSplit } from './HqPlusBoardDock'
 import { HqPlusProjectFeed } from './HqPlusProjectFeed'
 
@@ -83,7 +89,7 @@ describe('Board feed window and «Waiting for you» (U3)', () => {
       <HqPlusProjectFeed feed={withApprove} filter="all" onFilter={() => {}} ctx={ctx} board />
     )
     fireEvent.click(screen.getByRole('tab', { name: /Projects/ }))
-    expect(screen.queryByText('approve-card')).toBeNull()
+    expect(screen.getByText('card-rows:0')).toBeTruthy()
   })
 
   it('shrinks to one line when nothing waits', () => {
