@@ -263,13 +263,20 @@ export function routerLiveChatForCard(
   core: PulseCore,
   input: { key?: string | null; sessionId?: string | null }
 ): string | null {
-  const bound = input.key ? routerBoundChat(core, input.key) : null
-  const named = bound ?? (input.sessionId ? liveChatOf(core, input.sessionId) : null)
-  if (!named) {
-    return null
+  // Why each in turn: a thread bound to a chat that is closed now still has the card's own chat to try.
+  for (const named of [
+    input.key ? routerBoundChat(core, input.key) : null,
+    input.sessionId ?? null
+  ]) {
+    // Why the registry: it follows handoffs and returns null once the chat is closed.
+    const live = named
+      ? routerWorkTarget(core, taskOfChat(core, liveChatOf(core, named))).chat
+      : null
+    if (live) {
+      return live
+    }
   }
-  // Why the registry: it follows handoffs and returns null once the chat is closed.
-  return routerWorkTarget(core, taskOfChat(core, named)).chat
+  return null
 }
 
 /** The live chats this Slack user's conversations were sent to, newest first. */

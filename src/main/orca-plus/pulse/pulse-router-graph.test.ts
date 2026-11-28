@@ -400,5 +400,11 @@ describe('A8: the live chat of a card', () => {
       )
       .run()
     expect(routerLiveChatForCard(c, { key: 'slack:C1:1.1' })).toBe('W1')
+    // Closed bound chat: the chat the card names is tried next.
+    session(c, 'W3', 3)
+    c.db
+      .prepare("UPDATE sessions SET state = 'closed', closed_at = 5 WHERE session_id = 'W1'")
+      .run()
+    expect(routerLiveChatForCard(c, { key: 'slack:C1:1.1', sessionId: 'W3' })).toBe('W3')
   })
 })
