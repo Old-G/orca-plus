@@ -212,13 +212,16 @@ export function createHqSend(
       spot = await locate(live, onClosed)
     }
     const { to, byId, known, placed, target } = spot
-    hqRefuseClosed(
-      liveDeps,
-      target,
-      byId ? (known?.address ?? to) : to,
-      onClosed,
-      (text) => new HqNotDeliveredError(text)
-    )
+    // Why: a session id Orca+ never saw gets «No open chat <id>» below, not a closed chat of a guessed project.
+    if (!byId || known) {
+      hqRefuseClosed(
+        liveDeps,
+        target,
+        byId ? (known?.address ?? to) : to,
+        onClosed,
+        (text) => new HqNotDeliveredError(text)
+      )
+    }
     const address =
       (byId ? known?.address : to) ??
       addressFor(placed ?? { kind: 'overview', sessionId: to, worktreeId: null }, to)

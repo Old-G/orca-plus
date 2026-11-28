@@ -47,7 +47,10 @@ function planName(plan: string): string {
 /** Reads every plan of `<hq>/runs`, newest first. */
 export async function hqReadPlanTexts(hqPath: string): Promise<HqPlanText[]> {
   const runs = join(hqPath, 'runs')
-  const names = (await readdir(runs)).filter((name) => name.endsWith('.md'))
+  const listed = await readdir(runs).catch((error: unknown) => {
+    throw new Error(`HQ plans not read from ${runs}: ${String(error)}`)
+  })
+  const names = listed.filter((name) => name.endsWith('.md'))
   const plans: HqPlanText[] = []
   for (const file of names) {
     const path = join(runs, file)

@@ -118,6 +118,6 @@ export async function hqSendAddress(
 /** Why a chat did not take the message, when Orca+ tried it. */
 export function hqNotTakenText(address: string, onClosed: HqSendOnClosed): string {
   return onClosed === 'refuse'
-    ? `The chat on ${address} did not take the message: it is closed. Not sent. Bring it back with \`orca chat send ${address} --revive "…"\`, or start a new chat from its brief.`
+    ? `The chat on ${address} did not take the message: it is closed or still starting. Not sent. Send again in a moment; a closed one comes back with \`orca chat send ${address} --revive "…"\`, or start a new chat from its brief.`
     : `The chat on ${address} is closed and Orca+ could not bring it back; open it from History and send again.`
 }

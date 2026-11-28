@@ -479,6 +479,12 @@ describe('HQ+ threads: a send reaches an open chat (chat-send-live, A2)', () => 
       { address: 'claude_api', text: 'Stop.', onClosed: 'refuse' }
     )
     expect(sent.sessionId).toBe('claude_api')
+    await expect(
+      live().send(
+        { sessionId: 'claude_web' },
+        { address: 'claude_nowhere', text: 'Stop.', onClosed: 'refuse' }
+      )
+    ).rejects.toThrow(/No open chat claude_nowhere; `orca hq sessions --json`/)
   })
 
   it('sends as before when the open tabs cannot be read, but brings back nothing without revive', async () => {
@@ -496,7 +502,7 @@ describe('HQ+ threads: a send reaches an open chat (chat-send-live, A2)', () => 
         { address: 'acme-api/payouts', text: 'Go on.', onClosed: 'refuse' }
       )
     ).rejects.toThrow(
-      'The chat on acme-api/payouts did not take the message: it is closed. Not sent. Bring it back with `orca chat send acme-api/payouts --revive "…"`'
+      'The chat on acme-api/payouts did not take the message: it is closed or still starting. Not sent.'
     )
     expect(reopened).toEqual([])
   })
