@@ -55,6 +55,7 @@ export async function sendFirstCard(
     return { ...card, sent: { chat: before.chat, title, at: before.at } }
   }
   const at = deps.now()
+  // A crash between deliver and rewriteOutcome can still send twice; accepted — the chat gets the same text.
   const went = await deps.deliver(route.target, card).catch(() => false)
   if (!went) {
     deps.unmarkAuto(logKey(card))

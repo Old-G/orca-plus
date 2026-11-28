@@ -13,6 +13,8 @@ describe('router v2 T5: «не моё» and the middle zone prompts', () => {
     expect(hqRouterNotMine('\n  **Не мое** — другой проект\nдальше текст')).toBe('другой проект')
     expect(hqRouterNotMine('«не моё»')).toBe('')
     expect(hqRouterNotMine('Not mine: wrong repo')).toBe('wrong repo')
+    expect(hqRouterNotMine('Не моё.')).toBe('')
+    expect(hqRouterNotMine('Не моё, это про оплату')).toBe('это про оплату')
     expect(hqRouterNotMine('Сверил: моё, беру. Не моё было бы, если…')).toBeNull()
     expect(hqRouterNotMine('не моёшный ответ')).toBeNull()
     expect(hqRouterNotMine('Не моё мнение, но лучше так')).toBeNull()

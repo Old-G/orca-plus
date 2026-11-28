@@ -18,7 +18,7 @@ export const HQ_ROUTER_NOT_MINE_WINDOW_MS = 6 * 60 * 60_000
 
 /** The words a chat answers with when the message is not its work (the instruction asks for the first). */
 const NOT_MINE =
-  /^[\s*_>`«"'“]*(?:не\s+мо[её]|not\s+mine)(?![\p{L}\p{N}])[*_`»"'”]*\s*(?:[:—–-]\s*(.*))?$/iu
+  /^[\s*_>`«"'“]*(?:не\s+мо[её]|not\s+mine)(?![\p{L}\p{N}])[*_`»"'”]*\s*(?:[:—–.,;!-]\s*(.*))?$/iu
 
 /** The reason when the text's first line is «не моё» alone or «не моё: …» ('' when none was given); null
  *  otherwise — «не моё мнение, но…» is not a refusal. */

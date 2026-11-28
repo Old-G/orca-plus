@@ -188,7 +188,8 @@ export function routerAutoRecords(
  * Router v2 T5: where a card the router sent by itself really belongs. `by: 'router'` — its own send
  * (send first, the runner-up after «не моё»): «sent-first» on the offered chat, which the T4 gate does
  * not count. `by: 'owner'` — his «OK» or «Wrong chat»: «sent» on the offered chat, which it does. Any
- * other chat is «other». Unlike logOutcome it rewrites an outcome already written, on an auto row only.
+ * other chat is «other» — so a runner-up after «не моё» counts against the class on purpose: the first
+ * chat said the pick was wrong. Unlike logOutcome it rewrites an outcome already written, on an auto row only.
  */
 export function rewriteAutoOutcome(
   core: PulseCore,
