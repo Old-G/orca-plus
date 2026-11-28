@@ -11,8 +11,9 @@ export function hqReassignIsOpen(chat: HqLiveSession | undefined): boolean {
   return chat !== undefined && chat.tabOpen && chat.state !== 'closed'
 }
 
-/** The live chats on a plan row — each row holder followed through its handoffs; null when not known. */
-function onRowNow(
+/** The live chats on a plan row — each row holder followed through its handoffs; null when not known.
+ *  Custom build (hq-dispatcher-cleanup, A5): the sweep's cleanup closes no chat in it. */
+export function hqOnPlanRowNow(
   rowHolders: (() => readonly string[]) | undefined,
   liveSessionOf: ((sessionId: string) => string) | undefined
 ): Set<string> | null {
@@ -33,7 +34,7 @@ export function hqReassignQuietOf(
   rowHolders: (() => readonly string[]) | undefined,
   liveSessionOf: ((sessionId: string) => string) | undefined
 ): (chat: { open: boolean; asked: boolean; sessionId: string }) => HqReassignQuiet | null {
-  const onRow = onRowNow(rowHolders, liveSessionOf)
+  const onRow = hqOnPlanRowNow(rowHolders, liveSessionOf)
   return ({ open, asked, sessionId }) =>
     !open ? 'closed' : !asked && onRow && !onRow.has(sessionId) ? 'no plan row' : null
 }

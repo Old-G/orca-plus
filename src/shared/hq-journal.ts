@@ -357,4 +357,7 @@ export type HqChatSendResult = {
   forwardedFrom?: string
   /** Custom build (hq-handoff-parked, T7): `forwardedFrom` handed off; the chat that continues it took it. */
   handedOff?: true
+  /** Custom build (hq-cold-handoff, L3): the chat named was quiet and full; a new chat started from its
+   *  report took the message instead, `sessionId`. */
+  coldHandoff?: true
 }

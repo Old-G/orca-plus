@@ -1,6 +1,7 @@
 // Custom build (hq-waiting-replies, slack-reply-reader, hq-reply-approve): everything between a
 // question a chat asked and the answer reaching it — the scout's files, Orca+'s own Slack reads, and
 // the owner's Pass / Skip on each answer.
+import { getHqSessions } from '../hq-sessions/hq-sessions'
 import { ipcMain } from 'electron'
 import type { HqWaitingReplyPassResult } from '../../shared/hq-waiting-reply-bell'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
@@ -110,6 +111,8 @@ export function registerHqWaitingReplies(store: Store, runtime: OrcaRuntimeServi
     listOpen,
     deliver: deliverWaitingReply,
     liveChat: (sessionId: string) => runtime.pulseLiveSessionOf(sessionId),
+    coldHandoff: async (request: { sessionId: string; work: string; from: null }) =>
+      (await getHqSessions()?.coldHandoff(request)) ?? null,
     markDelivered: (id: string, replyTs: string | undefined) =>
       void runtime.pulseMarkWaitingReplyDelivered(id, replyTs)
   }

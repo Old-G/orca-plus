@@ -17,6 +17,7 @@ import {
 import {
   HQ_SESSION_SOURCE,
   type HqDispatchDecision,
+  type HqDispatcherCleanupMode,
   type HqLiveSession,
   type HqSessionDispatchMode
 } from '../../shared/hq-sessions'
@@ -88,6 +89,16 @@ export type HqSessionsDeps = {
   ) => Promise<{ ok: true; moved: number } | { ok: false; error: string }>
   /** Closes the chat's tab like the tab's ×; it stays in History. */
   closeChat: (sessionId: string, worktreeId: string | null) => Promise<boolean>
+  /** Custom build (hq-dispatcher-cleanup, A5): the sweep's own closes; absent, it closes nothing. */
+  cleanupMode?: () => HqDispatcherCleanupMode
+  /** The live chats on a plan row (row holders followed through their handoffs); null when unknown. */
+  planRowChats?: () => ReadonlySet<string> | null
+  /** Who launched the chat with `orca agent launch`, and when; null for a chat the owner opened. */
+  launchOf?: (sessionId: string) => { by: string; at: number } | null
+  /** Custom build (hq-cold-handoff, L3): a message to a quiet, full chat starts a new chat instead. */
+  coldChatHandoff?: () => boolean
+  /** The chat's context tokens in use; null when unknown or slow. */
+  contextTokens?: (sessionId: string) => Promise<number | null>
   /** Brings the journal up to date (finished turns become reports). */
   sync: () => Promise<void>
   now: () => number

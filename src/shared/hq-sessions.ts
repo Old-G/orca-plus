@@ -36,6 +36,32 @@ export const HQ_SESSION_LEAD_HANDOVER_GRACE_MS = 2 * 60_000
  */
 export const HQ_SESSION_LEAD_HANDOVER_MAX_MS = 10 * 60_000
 
+/**
+ * Custom build (hq-dispatcher-cleanup, A5 28.11): the sweep closes, to History, chats nobody needs open —
+ * parked after a handoff, launched by another chat and quiet this long with a report, or launched and
+ * never used. Off leaves them, report only writes «Would close …» rows. Why on (owner 28.11, «чтобы можно
+ * было откатить»): the rules touch only finished chats off every plan row; Off is the way back.
+ */
+export const HQ_DISPATCHER_CLEANUP_MODES = ['off', 'report', 'on'] as const
+export type HqDispatcherCleanupMode = (typeof HQ_DISPATCHER_CLEANUP_MODES)[number]
+export const HQ_DISPATCHER_CLEANUP_DEFAULT_MODE: HqDispatcherCleanupMode = 'on'
+/** A chat another chat launched closes once it is this quiet and its last turn is in the journal. */
+export const HQ_CLEANUP_QUIET_MS = 2 * 60 * 60_000
+/** A launched chat with no turn closes this long after its launch. */
+export const HQ_CLEANUP_EMPTY_MS = 30 * 60_000
+/** At most this many closes per sweep. */
+export const HQ_CLEANUP_MAX_PER_SWEEP = 5
+/** Why a chat is closed: parked after a handoff, quiet with a report, or a launch never used. */
+export type HqCleanupReason = 'parked' | 'quiet' | 'empty'
+
+/**
+ * Custom build (hq-cold-handoff, L3 28.11, L1 measure №3): a message to a chat this quiet and this full
+ * does not wake it — re-reading its whole context costs more than a new chat started from its report.
+ * Off by default: messages are delivered as before.
+ */
+export const HQ_COLD_CHAT_QUIET_MS = 60 * 60_000
+export const HQ_COLD_CHAT_MIN_TOKENS = 100_000
+
 /** queued → working → waiting (on the owner) → done → closed (in History). */
 export const HQ_SESSION_LIFECYCLE = ['queued', 'working', 'waiting', 'done', 'closed'] as const
 export type HqSessionLifecycle = (typeof HQ_SESSION_LIFECYCLE)[number]
@@ -94,6 +120,15 @@ export type HqSweepAction =
   /** Custom build (hq-lead-handover, T2): the plan's Lead is another live chat; the old Lead's chats move
    *  under it, then the old chat closes. `sameThread`: a handoff on the Lead's own address, nothing to move. */
   | { kind: 'lead-handover'; from: string; to: string; sameThread: boolean; why: string }
+  /** Custom build (hq-dispatcher-cleanup, A5): a chat the sweep closes to History (report mode: would). */
+  | {
+      kind: 'cleanup'
+      sessionId: string
+      worktreeId: string
+      address: string | null
+      reason: HqCleanupReason
+      why: string
+    }
   /** Work handed to a thread no chat is on; only reported. */
   | { kind: 'lost'; address: string; entryIds: string[]; why: string }
 

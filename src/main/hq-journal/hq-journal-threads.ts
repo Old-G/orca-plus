@@ -65,6 +65,13 @@ export type HqThreadsDeps = {
   openTabs?: () => ReadonlySet<string> | null
   /** Custom build (hq-lead-of, A1): the Lead of a chat's plan (`orca hq lead`, `orca chat send lead`). */
   leadOf?: (ask: HqLeadOfAsk) => Promise<HqLeadResult>
+  /** Custom build (hq-cold-handoff, L3): a new chat that took the message for a cold chat instead; null
+   *  delivers it as before. */
+  coldHandoff?: (request: {
+    sessionId: string
+    work: string
+    from: string | null
+  }) => Promise<string | null>
 }
 
 export type HqThreads = {

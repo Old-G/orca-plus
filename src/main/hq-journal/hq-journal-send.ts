@@ -15,10 +15,12 @@ import type { HqCallerScope } from './hq-journal-rooms'
 import type { HqThreads, HqThreadsDeps } from './hq-journal-threads'
 import { hqLeadBatchPrompt, hqLeadUrgent, type HqLeadHeld } from './hq-lead-batch'
 import {
+  hqColdChat,
   hqNotTakenText,
   hqPickOnAddress,
   hqRefuseClosed,
   hqSendAddress,
+  hqSendStamp,
   type HqSendLiveDeps,
   type HqSendOnClosed
 } from './hq-journal-send-live'
@@ -46,12 +48,6 @@ export function isHqNotDelivered(error: unknown): boolean {
 
 export function hqRoomOf(scope: HqCallerScope): string {
   return scope.kind === 'room' ? scope.room : HQ_JOURNAL_ALL_ROOMS
-}
-
-function stamp(at: number): string {
-  const date = new Date(at)
-  const pad = (value: number): string => String(value).padStart(2, '0')
-  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 type HqDeliverDeps = Pick<HqThreadsDeps, 'deliver' | 'reopen' | 'wait' | 'sessionWorkspace'>
@@ -236,7 +232,7 @@ export function createHqSend(
     const fromRoom =
       scope.kind === 'room' && scope.room !== target.workspace ? ` (room ${scope.room})` : ''
     const head = quoted
-      ? `Orca+ · a message from thread ${from}${fromRoom}, in reply to «${quoted.title}» (${stamp(quoted.at)}):`
+      ? `Orca+ · a message from thread ${from}${fromRoom}, in reply to «${quoted.title}» (${hqSendStamp(quoted.at)}):`
       : `Orca+ · a message from thread ${from}${fromRoom}:`
     const prompt = [head, '"""', message.text, '"""'].join('\n')
     // Custom build (hq-lead-batch): a Lead takes other chats' messages in one turn; the owner's
@@ -252,9 +248,12 @@ export function createHqSend(
     let reopened = false
     let held: { dueAt: number } | undefined
     let worktreeId = target.worktreeId ?? deps.sessionWorkspace(target.sessionId)
+    // Custom build (hq-cold-handoff, L3): a quiet, full chat is not woken; a new chat from its report takes it.
+    const cold = batch ? null : await hqColdChat(deps, target.sessionId, prompt, scope.sessionId)
+    const deliveredTo = cold ?? target.sessionId
     if (batch && hold) {
       held = batch.hold(address, target.sessionId, prompt)
-    } else {
+    } else if (!cold) {
       const prior = batch?.take(address) ?? null
       const outgoing = prior ? hqLeadBatchPrompt([...prior.prompts, prompt], prior.since) : prompt
       const sent = await deliverOrReopen(deps, target, outgoing, onClosed === 'revive').catch(
@@ -314,7 +313,7 @@ export function createHqSend(
         at: deps.now(),
         project: target.project,
         address,
-        sessionId: target.sessionId,
+        sessionId: deliveredTo,
         personId: null,
         title: hqJournalTitle(`From ${from}: ${message.text}`),
         body: quoted ? `> ${quoted.title}\n\n${message.text}` : message.text,
@@ -322,7 +321,7 @@ export function createHqSend(
         status: 'done',
         replyTo: quoted?.id ?? null,
         refKind: 'session',
-        refId: target.sessionId,
+        refId: deliveredTo,
         source: SEND_SOURCE,
         dedupeKey: null
       },
@@ -330,7 +329,7 @@ export function createHqSend(
     ])
     // Custom build (hq-plus-chat-tree): a chat that hands another chat work is its parent in HQ+'s
     // «By work» tree, unless it already has one; the owner typing in HQ+ is no chat.
-    if (scope.sessionId && scope.sessionId !== target.sessionId) {
+    if (!cold && scope.sessionId && scope.sessionId !== target.sessionId) {
       deps.pulse.linkChat?.({
         sessionId: target.sessionId,
         parentSessionId: scope.sessionId,
@@ -342,13 +341,15 @@ export function createHqSend(
     if (!entry) {
       throw new Error('The message was delivered but not recorded.')
     }
-    const forwarded = successor
-      ? { forwardedFrom: asked, handedOff: true as const }
-      : movedTo
-        ? { forwardedFrom: asked }
-        : {}
+    const forwarded = cold
+      ? { forwardedFrom: asked, coldHandoff: true as const }
+      : successor
+        ? { forwardedFrom: asked, handedOff: true as const }
+        : movedTo
+          ? { forwardedFrom: asked }
+          : {}
     return held
       ? { entry, sessionId: target.sessionId, reopened, heldUntil: held.dueAt, ...forwarded }
-      : { entry, sessionId: target.sessionId, reopened, ...forwarded }
+      : { entry, sessionId: deliveredTo, reopened, ...forwarded }
   }
 }

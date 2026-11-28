@@ -5,6 +5,7 @@
 import type { HqSession } from '../../shared/hq-journal'
 import { HQ_SEND_TO_LEAD, type HqLeadResult } from '../../shared/hq-lead-of'
 import type { HqLeadOfAsk } from './hq-lead-of'
+import type { HqThreadsDeps } from './hq-journal-threads'
 
 /** What `orca chat send` does with a closed chat: `revive` brings it back (HQ+, the phone, the
  *  dispatcher); `refuse` says so and sends nothing (the CLI without --revive). */
@@ -120,4 +121,22 @@ export function hqNotTakenText(address: string, onClosed: HqSendOnClosed): strin
   return onClosed === 'refuse'
     ? `The chat on ${address} did not take the message: it is closed or still starting. Not sent. Send again in a moment; a closed one comes back with \`orca chat send ${address} --revive "…"\`, or start a new chat from its brief.`
     : `The chat on ${address} is closed and Orca+ could not bring it back; open it from History and send again.`
+}
+
+/** Custom build (hq-cold-handoff, L3): the new chat that took the message for a cold chat; null delivers
+ *  it as before (switch off, a warm chat, a failed start). */
+export async function hqColdChat(
+  deps: Pick<HqThreadsDeps, 'coldHandoff'>,
+  sessionId: string,
+  work: string,
+  from: string | null
+): Promise<string | null> {
+  return (await deps.coldHandoff?.({ sessionId, work, from }).catch(() => null)) ?? null
+}
+
+/** «28.11 19:47»: when a quoted entry was written. */
+export function hqSendStamp(at: number): string {
+  const date = new Date(at)
+  const pad = (value: number): string => String(value).padStart(2, '0')
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
