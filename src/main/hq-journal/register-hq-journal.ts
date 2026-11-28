@@ -212,6 +212,8 @@ export function registerHqJournal(store: Store, runtime: OrcaRuntimeService): vo
         openTabs
       }),
       scope: (caller) => service.scope(caller),
+      // Custom build (hq-cold-handoff, L3): the dispatcher decides; off by default.
+      coldHandoff: async (request) => (await getHqSessions()?.coldHandoff(request)) ?? null,
       sessionName: (sessionId) => record(sessionId)?.conversationName?.trim() || null,
       now: Date.now,
       leadBatch

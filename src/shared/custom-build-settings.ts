@@ -68,6 +68,12 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
     /** Custom build (hq-handoff-auto): a chat's handoff starts the new chat by itself, whatever the
      *  dispatcher's mode; default on. */
     hqHandoffAutoStart?: boolean
+    /** Custom build (hq-dispatcher-cleanup, A5 28.11): the dispatcher's sweep closes parked, finished
+     *  launched and empty launched chats off every plan row; default on, report only writes «Would close». */
+    hqDispatcherCleanup?: 'off' | 'report' | 'on'
+    /** Custom build (hq-cold-handoff, L3 28.11): a message to a chat quiet over 1 h with 100k+ tokens of
+     *  context starts a new chat from its report instead of waking it; default off. */
+    hqColdChatHandoff?: boolean
     /** Custom build (worktree-sweep): a chat the owner closes takes its worktree with it once the work there
      *  is merged and nothing else is open in it; default on. */
     worktreeSweepOnChatClose?: boolean

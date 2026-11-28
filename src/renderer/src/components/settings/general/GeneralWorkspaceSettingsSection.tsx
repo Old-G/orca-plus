@@ -13,6 +13,8 @@ import { HqJournalSetting } from './HqJournalSetting'
 import { HqSessionDispatcherSetting } from './HqSessionDispatcherSetting'
 import { HqHandoffAutoStartSetting } from './HqHandoffAutoStartSetting'
 import { AgentMcpProfileSetting } from './AgentMcpProfileSetting'
+import { HqDispatcherCleanupSetting } from './HqDispatcherCleanupSetting'
+import { HqColdChatHandoffSetting } from './HqColdChatHandoffSetting'
 import { ClaudeNetworkAutoContinueSetting } from './ClaudeNetworkAutoContinueSetting'
 import { HqLedgerSetting } from './HqLedgerSetting'
 import { HqOpenLoopsSetting } from './HqOpenLoopsSetting'
@@ -87,6 +89,8 @@ export function GeneralWorkspaceSettingsSection({
           <HqLedgerSetting settings={settings} updateSettings={updateSettings} />
           <HqOpenLoopsSetting settings={settings} updateSettings={updateSettings} />
           <HqHandoffAutoStartSetting settings={settings} updateSettings={updateSettings} />
+          <HqDispatcherCleanupSetting settings={settings} updateSettings={updateSettings} />
+          <HqColdChatHandoffSetting settings={settings} updateSettings={updateSettings} />
           <ClaudeNetworkAutoContinueSetting settings={settings} updateSettings={updateSettings} />
           <AgentMcpProfileSetting settings={settings} updateSettings={updateSettings} />
           <SearchableSetting

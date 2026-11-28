@@ -17,6 +17,7 @@ import { hqLeadHandoverDeps } from './register-hq-lead-handover'
 import { claudeLimitStoppedNow } from '../ipc/claude-limit-guard'
 import { HQ_JOURNAL_KIND, HQ_JOURNAL_MAX_LIMIT } from '../../shared/hq-journal'
 import {
+  HQ_DISPATCHER_CLEANUP_DEFAULT_MODE,
   HQ_SESSION_DISPATCH_DEFAULT_MODE,
   HQ_SESSION_HANDOFF_AUTO_GRACE_MS,
   HQ_SESSION_QUIET_MS,
@@ -42,8 +43,10 @@ const WORKTREE_PS_LIMIT = 500
 // Why: the sweep after a new handoff runs just past its grace, not on the edge of it.
 const HANDOFF_SWEEP_SLACK_MS = 2_000
 
-/** The chat's context share, as its own journal last measured it; null when unknown or slow. */
-async function readContextPct(sessionId: string): Promise<number | null> {
+/** The chat's context use, as its own journal last measured it; null when unknown or slow. */
+async function readContextUsage(
+  sessionId: string
+): Promise<{ percentage: number; usedTokens: number } | null> {
   const host = getStructuredAgentSessionHost()
   if (!host) {
     return null
@@ -52,12 +55,16 @@ async function readContextPct(sessionId: string): Promise<number | null> {
     .readOptions(sessionId)
     .then((options) =>
       options.contextUsage
-        ? (selectStructuredAgentContextUsage([], options.contextUsage.current)?.percentage ?? null)
+        ? (selectStructuredAgentContextUsage([], options.contextUsage.current) ?? null)
         : null
     )
     .catch(() => null)
   const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), CONTEXT_READ_MS))
   return Promise.race([read, timeout])
+}
+
+async function readContextPct(sessionId: string): Promise<number | null> {
+  return (await readContextUsage(sessionId))?.percentage ?? null
 }
 
 export function registerHqSessions(
@@ -91,6 +98,9 @@ export function registerHqSessions(
     )
   }
   const autoHandoff = (): boolean => store.getSettings().hqHandoffAutoStart !== false
+  // Custom build (hq-dispatcher-cleanup, A5): the sweep's own closes, by their own switch.
+  const cleanupMode = () =>
+    store.getSettings().hqDispatcherCleanup ?? HQ_DISPATCHER_CLEANUP_DEFAULT_MODE
   const service = createHqSessions({
     mode: () => store.getSettings().hqSessionDispatcher ?? HQ_SESSION_DISPATCH_DEFAULT_MODE,
     enabled: () => store.getSettings().hqPlusJournalEnabled !== false,
@@ -222,6 +232,10 @@ export function registerHqSessions(
     },
     handoffNotStarted: (offerId, why) => getClaudeHandoffLauncher()?.notStarted(offerId, why),
     ...hqLeadHandoverDeps(runtime, hqPath),
+    cleanupMode,
+    // Custom build (hq-cold-handoff, L3): off unless the owner turns it on.
+    coldChatHandoff: () => store.getSettings().hqColdChatHandoff === true,
+    contextTokens: async (sessionId) => (await readContextUsage(sessionId))?.usedTokens ?? null,
     sync: async () => {
       await journal.sync()
     },
@@ -245,7 +259,11 @@ export function registerHqSessions(
       .catch((error: unknown) => console.warn('[hq-sessions] sweep failed:', error))
   }
   const timer = setInterval(() => {
-    if (store.getSettings().hqSessionDispatcher === 'off' && !autoHandoff()) {
+    if (
+      store.getSettings().hqSessionDispatcher === 'off' &&
+      !autoHandoff() &&
+      cleanupMode() === 'off'
+    ) {
       return
     }
     sweep()

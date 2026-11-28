@@ -16,7 +16,9 @@ import {
 } from '../../shared/hq-sessions'
 import { journalEntryAsInput } from '../hq-journal/hq-journal-adapters'
 import { carryOutHqDispatch } from './hq-session-act'
-import { decideHqDispatch, decideHqHandoff } from './hq-session-decide'
+import { decideHqChatCleanup } from './hq-session-cleanup'
+import { hqCloseCheck, hqRecordClose } from './hq-session-close'
+import { decideHqDispatch, decideHqHandoff, hqOwnerIn } from './hq-session-decide'
 import { carryOutHqLeadHandover, findHqLeadHandovers } from './hq-session-lead-handover'
 import {
   describeHqDispatch,
@@ -114,6 +116,20 @@ export async function sweepHqSessions(
       why: `${entryIds.length} open ${entryIds.length === 1 ? 'row waits' : 'rows wait'} for a chat on ${address}, and none is open`
     })
   }
+  // Custom build (hq-dispatcher-cleanup, A5): chats nobody needs open, by their own switch.
+  const cleanup = deps.enabled() ? (deps.cleanupMode?.() ?? 'off') : 'off'
+  if (cleanup !== 'off' && deps.planRowChats && deps.launchOf) {
+    const launchOf = deps.launchOf
+    actions.push(
+      ...decideHqChatCleanup({
+        sessions: live,
+        onRow: deps.planRowChats(),
+        launch: (sessionId) => launchOf(sessionId),
+        hasReport: (sessionId) => journal.lastReport(sessionId) !== null,
+        now
+      })
+    )
+  }
   const result: HqSessionsResult = {
     mode,
     dryRun: !run,
@@ -123,7 +139,7 @@ export async function sweepHqSessions(
     actions
   }
   const dispatching = mode !== 'off' && deps.enabled()
-  if (!run || (!dispatching && !auto)) {
+  if (!run || (!dispatching && !auto && cleanup === 'off')) {
     return result
   }
   for (const action of actions) {
@@ -180,6 +196,8 @@ export async function sweepHqSessions(
           continue
         }
         await carryOutHqLeadHandover(deps, journal, action, live)
+      } else if (action.kind === 'cleanup') {
+        await carryOutHqCleanup(deps, journal, action, cleanup === 'on')
       } else if (action.kind === 'drain') {
         if (!dispatching) {
           continue
@@ -217,4 +235,42 @@ export async function sweepHqSessions(
     }
   }
   return result
+}
+
+/** Custom build (hq-dispatcher-cleanup, A5): report mode writes «Would close …»; on closes the tab — the
+ *  same check `mayClose` asks first, the journal row only once the tab is closed. */
+async function carryOutHqCleanup(
+  deps: HqSessionsDeps,
+  journal: HqSessionJournal,
+  action: Extract<HqSweepAction, { kind: 'cleanup' }>,
+  act: boolean
+): Promise<void> {
+  const label = action.address ?? action.sessionId
+  if (!act) {
+    await journal.plan(
+      `close ${label} to History: ${action.why}`,
+      action.address?.split('/')[0] ?? null,
+      action.address,
+      `${HQ_JOURNAL_KIND.sessionPlan}:cleanup:${action.sessionId}:${action.reason}`
+    )
+    return
+  }
+  const reason =
+    action.reason === 'parked' ? 'handoff' : action.reason === 'empty' ? 'empty' : 'cleanup'
+  const checked = await hqCloseCheck(deps, journal, action.sessionId, reason)
+  if (!checked.ok) {
+    deps.log(`sweep: ${label} stays open: ${checked.why}`)
+    return
+  }
+  // Why: the sweep's snapshot may be minutes old by now; a chat the owner opened or that started a turn stays.
+  const now = (await deps.live()).find((chat) => chat.sessionId === action.sessionId)
+  if (!now || now.state !== 'done' || now.midTurn || now.onScreen || hqOwnerIn(now, deps.now())) {
+    deps.log(`sweep: ${label} stays open: it is in use again`)
+    return
+  }
+  if (!(await deps.closeChat(action.sessionId, action.worktreeId))) {
+    deps.log(`sweep: ${label} could not be closed`)
+    return
+  }
+  hqRecordClose(deps, journal, action.sessionId, reason, checked.session)
 }

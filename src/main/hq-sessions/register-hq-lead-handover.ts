@@ -4,23 +4,37 @@ import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { closeHqNativeChat } from '../ipc/claude-handoff'
 import { hqReadPlanLeadRefs } from '../hq-journal/hq-lead-plan-line'
 import { getHqLeadReassign } from '../hq-journal/hq-lead-reassign'
+import { hqOnPlanRowNow } from '../hq-journal/hq-lead-reassign-quiet'
 import type { HqSessionsDeps } from './hq-session-journal'
 
 export function hqLeadHandoverDeps(
   runtime: OrcaRuntimeService,
   hqPath: () => string | null
-): Pick<HqSessionsDeps, 'planLeads' | 'launchedBy' | 'reassignLead' | 'closeChat'> {
+): Pick<
+  HqSessionsDeps,
+  'planLeads' | 'launchedBy' | 'reassignLead' | 'closeChat' | 'launchOf' | 'planRowChats'
+> {
+  const launchLink = (sessionId: string) =>
+    runtime
+      .pulseChats()
+      .list()
+      .links.find((link) => link.sessionId === sessionId && link.via === 'launch')
   return {
     planLeads: async () => {
       const hq = hqPath()
       return hq ? hqReadPlanLeadRefs(hq) : []
     },
-    launchedBy: (sessionId) =>
-      runtime
-        .pulseChats()
-        .list()
-        .links.find((link) => link.sessionId === sessionId && link.via === 'launch')
-        ?.parentSessionId ?? null,
+    launchedBy: (sessionId) => launchLink(sessionId)?.parentSessionId ?? null,
+    // Custom build (hq-dispatcher-cleanup, A5): who launched a chat and when, and which chats hold a plan row.
+    launchOf: (sessionId) => {
+      const link = launchLink(sessionId)
+      return link ? { by: link.parentSessionId, at: link.at } : null
+    },
+    planRowChats: () =>
+      hqOnPlanRowNow(
+        () => runtime.pulseChats().taskLockHolders(),
+        (sessionId) => runtime.pulseLiveSessionOf(sessionId)
+      ),
     reassignLead: async (from, to, chats, quietOldLead) => {
       const reassign = getHqLeadReassign()
       if (!reassign) {

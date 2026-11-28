@@ -1,5 +1,6 @@
 // Custom build (hq-plus-routing): starts HQ+'s routing — HQ/routing.yaml read and carried out every
 // five minutes, and `orca hq route` for a look or a run by hand.
+import { getHqSessions } from '../hq-sessions/hq-sessions'
 import { readFile } from 'node:fs/promises'
 import type { Store } from '../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
@@ -134,6 +135,8 @@ export function registerHqRouting(
           listOpen: () => runtime.pulseListWaitings({ status: 'open' }),
           deliver: deliverWaitingReply,
           liveChat: (sessionId: string) => runtime.pulseLiveSessionOf(sessionId),
+          coldHandoff: async (request: { sessionId: string; work: string; from: null }) =>
+            (await getHqSessions()?.coldHandoff(request)) ?? null,
           markDelivered: (id, ts) => void runtime.pulseMarkWaitingReplyDelivered(id, ts)
         },
         waitingId,
