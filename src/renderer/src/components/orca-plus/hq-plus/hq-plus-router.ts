@@ -27,10 +27,24 @@ export function hqPlusRouterCards(items: readonly PulseInboxItem[]): HqPlusRoute
     .sort((a, b) => b.item.createdAt - a.item.createdAt)
 }
 
-/** «Send» goes straight to the router's pick; a new chat, or no pick, needs the owner's choice. */
+/** «Send» goes straight to the router's pick; a new chat, no pick, or a pick that answered «не моё»
+ *  (router v2 T5) needs the owner's choice. */
 export function hqPlusRouterSendsTo(intake: HqIntake): string | null {
   const target = intake.route?.target
-  return target && target !== 'new' ? target : null
+  return target && target !== 'new' && !intake.notMine?.some((no) => no.chat === target)
+    ? target
+    : null
+}
+
+/** Router v2 T5: the runner-ups still worth offering — not the chat that has it, none that said «не моё». */
+export function hqPlusRouterOthers(
+  intake: HqIntake
+): NonNullable<HqIntake['route']>['alternatives'] {
+  return (intake.route?.alternatives ?? []).filter(
+    (other) =>
+      other.sessionId !== intake.sent?.chat &&
+      !intake.notMine?.some((no) => no.chat === other.sessionId)
+  )
 }
 
 /** Where the chat sits, so a closed one can be reopened: the worktree whose tab holds the session. */

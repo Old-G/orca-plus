@@ -36,24 +36,46 @@ export function gateAndLogRoute(
   routed: HqRoute,
   input: {
     mark: boolean
-    settings: Parameters<typeof withAutoGate>[1]
+    settings: Parameters<typeof withAutoGate>[1] & { hqRouterSendFirst?: boolean }
     router: Parameters<typeof withAutoGate>[2] & { logRoute: (entry: RouterLogEntry) => void }
     key: string
   },
   now: number = Date.now()
 ): HqRoute {
-  const done = input.mark
+  const gated = input.mark
     ? withAutoGate(routed, input.settings, input.router, now)
     : { ...routed, auto: false }
+  const done = withSendFirst(gated, input.mark, input.settings)
   input.router.logRoute({
     key: input.key,
     at: now,
     how: done.how,
     target: done.target,
     top: [done.target, ...done.alternatives.map((other) => other.sessionId)].slice(0, 3),
-    auto: done.auto,
+    // Why (T5): the middle zone sends too, so its row is auto=1; a failed send writes it back to 0.
+    auto: done.auto || done.sendFirst === true,
     autoClass: done.autoClass,
     replace: input.mark
   })
   return done
+}
+
+/**
+ * Router v2 T5 (owner 28.11): the middle zone — a 👾 whose route names a chat but did not pass the gate
+ * (its class is still gathering, or a model picked) goes to that chat at once, with «check first»; on by
+ * default, `hqRouterSendFirst: false` keeps the card waiting for «Send». A 🆕, a «new chat» pick and any
+ * draft that is not a 👾 never do.
+ */
+export function withSendFirst(
+  route: HqRoute,
+  mark: boolean,
+  settings: { hqRouterSendFirst?: boolean }
+): HqRoute {
+  const middle =
+    mark &&
+    !route.auto &&
+    route.how !== 'new-mark' &&
+    route.target !== 'new' &&
+    settings.hqRouterSendFirst !== false
+  return middle ? { ...route, sendFirst: true } : route
 }

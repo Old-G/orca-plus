@@ -2,7 +2,7 @@
 // screen on the right. Every message (a 👾 mark, a pasted Slack link, pasted text) is one card: where the
 // router would send it, why, and how sure. «Send» hands it to that chat; another chat is one click (its
 // two runner-ups) or the full picker. One model call per message in main, nothing remembered between
-// them; in the trial nothing leaves without «Send».
+// them. Since T5 (owner 28.11) a 👾 goes to its pick at once and its card offers «Wrong chat».
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -22,12 +22,14 @@ import { useAppStore } from '@/store'
 import { sendHqRoutePrompt } from '../pulse-bell/hq-route-send'
 import {
   hqPlusRouterCards,
+  hqPlusRouterOthers,
   hqPlusRouterSendsTo,
   hqPlusRouterChatWorktree,
   type HqPlusRouterCard
 } from './hq-plus-router'
 import { noteHqPlusTakeHint } from './hq-plus-take-hint'
 import { HqPlusBadges } from './HqPlusBadge'
+import { HqPlusRouterNotMine, HqPlusRouterSentActions } from './HqPlusRouterSent'
 import './hq-plus-router.css'
 
 /** The router's open cards, kept fresh with the bell. */
@@ -191,6 +193,8 @@ export function HqPlusRouterCardView({
     onTake(item)
   }
   const when = intake.at ? formatShortTimeAgo(intake.at, now) : null
+  // Router v2 T5: the router already sent it (the middle zone) — the card is its «Wrong chat».
+  const sent = intake.sent ?? null
   return (
     <article className="hqr-card" aria-busy={busy}>
       <div className="hqr-from">
@@ -215,13 +219,17 @@ export function HqPlusRouterCardView({
           →
         </span>
         <span className="hqr-tt">
-          {route
-            ? target
-              ? (route.targetTitle ?? target)
-              : translate('auto.hqPlus.router.newChat', 'a new chat')
-            : translate('auto.hqPlus.router.noRoute', 'no pick — choose a chat')}
+          {sent
+            ? translate('auto.hqPlus.router.sentTo', 'sent to {{chat}}', {
+                chat: sent.title ?? sent.chat
+              })
+            : route
+              ? target
+                ? (route.targetTitle ?? target)
+                : translate('auto.hqPlus.router.newChat', 'a new chat')
+              : translate('auto.hqPlus.router.noRoute', 'no pick — choose a chat')}
         </span>
-        {route && route.level === 'lead' ? <span className="hqr-lvl">LEAD</span> : null}
+        {route?.level === 'lead' && !intake.notMine ? <span className="hqr-lvl">LEAD</span> : null}
         {route?.project ? <span className="hqr-proj">{route.project}</span> : null}
         {sure ? (
           <span className="hqr-sure" data-tone={sure.tone}>
@@ -230,54 +238,74 @@ export function HqPlusRouterCardView({
         ) : null}
       </div>
       {route?.why ? <p className="hqr-why">{route.why}</p> : null}
-      <div className="hqr-acts">
-        {target ? (
+      <HqPlusRouterNotMine intake={intake} />
+      {sent ? (
+        <HqPlusRouterSentActions
+          card={card}
+          sent={sent}
+          busy={busy}
+          run={run}
+          onOther={(other) => sendTo(other.sessionId, other.title, other.worktreeId)}
+          onPick={pick}
+        />
+      ) : (
+        <div className="hqr-acts">
+          {target ? (
+            <button
+              type="button"
+              className="hqp-opt"
+              data-main="true"
+              disabled={busy}
+              onClick={() =>
+                run(() => sendTo(target, route?.targetTitle ?? target, route?.worktreeId))
+              }
+            >
+              {translate('auto.hqPlus.router.send', 'Send')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="hqp-opt"
+              data-main="true"
+              disabled={busy}
+              onClick={pick}
+            >
+              {translate('auto.hqPlus.router.pick', 'Pick a chat')}
+            </button>
+          )}
+          {hqPlusRouterOthers(intake).map((other) => (
+            <button
+              key={other.sessionId}
+              type="button"
+              className="hqp-opt"
+              disabled={busy}
+              title={translate('auto.hqRouter.other', 'Pick this chat instead')}
+              onClick={() => run(() => sendTo(other.sessionId, other.title, other.worktreeId))}
+            >
+              {other.title.slice(0, 40)}
+            </button>
+          ))}
+          {target ? (
+            <button type="button" className="hqp-opt" disabled={busy} onClick={pick}>
+              {translate('auto.hqPlus.router.other', 'Other chat…')}
+            </button>
+          ) : null}
+          <span className="hqp-spacer" />
           <button
             type="button"
             className="hqp-opt"
-            data-main="true"
+            data-ghost="true"
             disabled={busy}
             onClick={() =>
-              run(() => sendTo(target, route?.targetTitle ?? target, route?.worktreeId))
+              run(() =>
+                window.api.pulseBell.closeIntake(item.id, 'skipped', 'Skipped in the router')
+              )
             }
           >
-            {translate('auto.hqPlus.router.send', 'Send')}
+            {translate('auto.hqIntake.skip', 'Skip')}
           </button>
-        ) : (
-          <button type="button" className="hqp-opt" data-main="true" disabled={busy} onClick={pick}>
-            {translate('auto.hqPlus.router.pick', 'Pick a chat')}
-          </button>
-        )}
-        {(route?.alternatives ?? []).map((other) => (
-          <button
-            key={other.sessionId}
-            type="button"
-            className="hqp-opt"
-            disabled={busy}
-            title={translate('auto.hqRouter.other', 'Pick this chat instead')}
-            onClick={() => run(() => sendTo(other.sessionId, other.title, other.worktreeId))}
-          >
-            {other.title.slice(0, 40)}
-          </button>
-        ))}
-        {target ? (
-          <button type="button" className="hqp-opt" disabled={busy} onClick={pick}>
-            {translate('auto.hqPlus.router.other', 'Other chat…')}
-          </button>
-        ) : null}
-        <span className="hqp-spacer" />
-        <button
-          type="button"
-          className="hqp-opt"
-          data-ghost="true"
-          disabled={busy}
-          onClick={() =>
-            run(() => window.api.pulseBell.closeIntake(item.id, 'skipped', 'Skipped in the router'))
-          }
-        >
-          {translate('auto.hqIntake.skip', 'Skip')}
-        </button>
-      </div>
+        </div>
+      )}
     </article>
   )
 }
@@ -339,7 +367,7 @@ export function HqPlusRouter({
         <span className="hqr-h-s">
           {translate(
             'auto.hqPlus.router.summary',
-            '{{count}} to check · nothing is sent before «Send»',
+            '{{count}} to check · a 👾 goes to its chat at once; «Wrong chat» moves it',
             {
               count: cards.length
             }

@@ -5,7 +5,9 @@ import type { RouterClassStats } from '../../../shared/hq-router-stats'
 import type { PulseCore } from './pulse-core'
 import { taskOfTarget } from './pulse-router-graph'
 
-export type RouterOutcome = 'sent' | 'auto' | 'paste' | 'skipped' | 'gone'
+// Why 'sent-first' apart from 'auto' (T5 review): the middle zone's send is the router's guess, not the
+// owner's word — kept out of routerAutoRecords, so a gathering class never proves itself on its own sends.
+export type RouterOutcome = 'sent' | 'auto' | 'paste' | 'skipped' | 'gone' | 'sent-first'
 
 /**
  * How a card ended, once: sent / auto / paste take a chat (chosen); skipped and gone take a reason.
@@ -27,7 +29,7 @@ export function logOutcome(
     input.outcome === 'sent' && chosen !== null && chosen !== row.target ? 'other' : input.outcome
   core.db
     .prepare(
-      'UPDATE router_log SET outcome = ?, outcome_at = ?, reason = ?, chosen = COALESCE(chosen, ?), ' +
+      'UPDATE router_log SET outcome = ?, outcome_at = ?, reason = COALESCE(?, reason), chosen = COALESCE(chosen, ?), ' +
         'chosen_at = CASE WHEN chosen IS NULL AND ? IS NOT NULL THEN ? ELSE chosen_at END, ' +
         'chosen_task = COALESCE(chosen_task, ?) WHERE key = ? AND outcome IS NULL'
     )
@@ -180,6 +182,65 @@ export function routerAutoRecords(
     )
     .all(since) as { auto_class: string; n: number; right: number | null }[]
   return new Map(rows.map((row) => [row.auto_class, { n: row.n, right: row.right ?? 0 }]))
+}
+
+/**
+ * Router v2 T5: where a card the router sent by itself really belongs. `by: 'router'` — its own send
+ * (send first, the runner-up after «не моё»): «sent-first» on the offered chat, which the T4 gate does
+ * not count. `by: 'owner'` — his «OK» or «Wrong chat»: «sent» on the offered chat, which it does. Any
+ * other chat is «other» — so a runner-up after «не моё» counts against the class on purpose: the first
+ * chat said the pick was wrong. Unlike logOutcome it rewrites an outcome already written, on an auto row only.
+ */
+export function rewriteAutoOutcome(
+  core: PulseCore,
+  key: string,
+  input: { chosen: string; at: number; reason: string; by: 'router' | 'owner' }
+): void {
+  core.db
+    .prepare(
+      "UPDATE router_log SET outcome = CASE WHEN target = ? THEN ? ELSE 'other' END, outcome_at = ?, " +
+        'reason = ?, chosen = ?, chosen_at = ?, chosen_task = ? WHERE key = ? AND auto = 1'
+    )
+    .run(
+      input.chosen,
+      input.by === 'owner' ? 'sent' : 'sent-first',
+      input.at,
+      input.reason,
+      input.chosen,
+      input.at,
+      taskOfTarget(core, input.chosen),
+      key
+    )
+}
+
+/** Router v2 T5: the chat the router itself last sent this card to, from the log — so a poll that sent
+ *  but never saved the card (a crash, a failed sync) does not send it again. */
+export function autoSentTo(core: PulseCore, key: string): { chat: string; at: number } | null {
+  const row = core.db
+    .prepare(
+      "SELECT chosen, chosen_at FROM router_log WHERE key = ? AND auto = 1 AND reason IN ('send-first', 'not-mine') " +
+        'AND chosen IS NOT NULL'
+    )
+    .get(key) as { chosen: string; chosen_at: number | null } | undefined
+  return row ? { chat: row.chosen, at: row.chosen_at ?? 0 } : null
+}
+
+/**
+ * Router v2 T5: a send-first card back with the owner after two «не моё» (or no chat left to try) — the
+ * row is open again, so his «Send» writes the outcome; the reason stays until then.
+ */
+export function reopenAutoOutcome(core: PulseCore, key: string, reason: string): void {
+  core.db
+    .prepare(
+      'UPDATE router_log SET outcome = NULL, outcome_at = NULL, chosen = NULL, chosen_at = NULL, ' +
+        'chosen_task = NULL, reason = ? WHERE key = ? AND auto = 1'
+    )
+    .run(reason, key)
+}
+
+/** Router v2 T5: the send-first did not go (the chat could not take it) — the card waits as before. */
+export function unmarkAutoRoute(core: PulseCore, key: string): void {
+  core.db.prepare('UPDATE router_log SET auto = 0 WHERE key = ? AND outcome IS NULL').run(key)
 }
 
 /** Where the owner sent the card in the end. */

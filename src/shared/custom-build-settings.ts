@@ -93,6 +93,10 @@ export type CustomBuildSettings = ClaudeSubscriptionSettings &
      *  log of the last `days` holds at least `minN` decided cards of it and `minRight` (0..1) of them went
      *  to the offered chat. Unset fields = 30 cards, 0.98, 30 days. */
     hqRouterAuto?: { minN?: number; minRight?: number; days?: number } | null
+    /** Custom build (hq-router send first, router v2 T5): a 👾 to a chat that is not auto yet goes there at
+     *  once with a «check first» instruction; «не моё» passes it on, «Wrong chat» on the card undoes it.
+     *  Default on; false = the card waits for «Send» as before. */
+    hqRouterSendFirst?: boolean
     /** Custom build (quiet-hours): no phone or Slack alerts but urgent ones; unset or null = off. */
     orcaPlusQuietHours?: OrcaPlusQuietHours | null
   }

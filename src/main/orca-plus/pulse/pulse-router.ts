@@ -23,11 +23,15 @@ import {
   type RouterLogEntry
 } from './pulse-router-graph'
 import {
+  autoSentTo,
   logChoice,
   logOutcome,
   reconcileRouterOutcomes,
+  reopenAutoOutcome,
+  rewriteAutoOutcome,
   routerAutoRecords,
-  routerStats
+  routerStats,
+  unmarkAutoRoute
 } from './pulse-router-outcomes'
 import type { PulseCore } from './pulse-core'
 import { routerPersonTopics } from './pulse-router-topics'
@@ -299,6 +303,12 @@ export function pulseRouter(core: () => PulseCore) {
     logOutcome: (key: string, input: Parameters<typeof logOutcome>[2]): void =>
       logOutcome(core(), key, input),
     reconcileOutcomes: (now: number): number => reconcileRouterOutcomes(core(), now),
+    rewriteAutoOutcome: (key: string, input: Parameters<typeof rewriteAutoOutcome>[2]): void =>
+      rewriteAutoOutcome(core(), key, input),
+    reopenAutoOutcome: (key: string, reason: string): void =>
+      reopenAutoOutcome(core(), key, reason),
+    unmarkAutoRoute: (key: string): void => unmarkAutoRoute(core(), key),
+    autoSentTo: (key: string) => autoSentTo(core(), key),
     stats: (since: number) => routerStats(core(), since),
     autoRecords: (since: number) => routerAutoRecords(core(), since),
     cardRoute: (key: string): RouterCardRoute | null => cardRouteOf(core(), key),
