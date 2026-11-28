@@ -131,6 +131,73 @@ beforeEach(() => {
   judge = vi.fn(async (prompt: string) => (prompt.includes(TALK_PROMPT) ? talk : verdict))
 })
 
+// Custom build (pulse-wake, C2): `pulse wait add --wake` — the chat closed to wait, the answer wakes it.
+describe('a --wake waiting', () => {
+  const woken: { sessionId: string | null; prompt: string }[] = []
+  function wakingRouting(wake: boolean) {
+    woken.length = 0
+    return createHqReplyRouting({
+      ...routingDeps(),
+      wake: async (waiting, prompt) => {
+        woken.push({ sessionId: waiting.agentSessionId ?? null, prompt })
+        return wake
+      }
+    })
+  }
+
+  it('with the rule off wakes the closed chat with the answer and marks it delivered', async () => {
+    const replies = wakingRouting(true)
+    chatOpen = false
+    const waiting = answered('The orders live in the reporting replica.', { wake: true })
+    const actions = await replies.route(null, { dryRun: false })
+    expect(actions.map((action) => action.kind)).toEqual(['pass'])
+    expect(woken).toHaveLength(1)
+    expect(woken[0]?.sessionId).toBe('chat-1')
+    expect(woken[0]?.prompt).toContain('reporting replica')
+    expect(db.getWaiting(waiting.id)?.replyDeliveredAt).not.toBeNull()
+    expect(
+      decisions()
+        .map((row) => row.title)
+        .join('\n')
+    ).toContain('(--wake)')
+  })
+
+  it('delivers to a still-open chat without waking anything', async () => {
+    const replies = wakingRouting(true)
+    answered('The orders live in the reporting replica.', { wake: true })
+    await replies.route(null, { dryRun: false })
+    expect(delivered).toHaveLength(1)
+    expect(woken).toEqual([])
+  })
+
+  it('a waiting without --wake and a closed chat stays a card, the wake never called', async () => {
+    const replies = wakingRouting(true)
+    chatOpen = false
+    const waiting = answered('The orders live in the reporting replica.')
+    expect((await replies.route(RULE, { dryRun: false }))[0]?.reasons).toEqual(['chat-closed'])
+    expect(woken).toEqual([])
+    expect(db.getWaiting(waiting.id)?.replyDeliveredAt).toBeNull()
+  })
+
+  it('when the wake fails the answer becomes a card, not lost', async () => {
+    const replies = wakingRouting(false)
+    chatOpen = false
+    const waiting = answered('The orders live in the reporting replica.', { wake: true })
+    expect((await replies.route(RULE, { dryRun: false }))[0]?.kind).toBe('card')
+    expect(db.getWaiting(waiting.id)?.replyDeliveredAt).toBeNull()
+  })
+
+  it('money in the answer is a card even for --wake', async () => {
+    const replies = wakingRouting(true)
+    chatOpen = false
+    verdict = VERDICT({ money: true })
+    answered('Pay 5000 USD for it.', { wake: true })
+    const actions = await replies.route(RULE, { dryRun: false })
+    expect(actions[0]?.kind).toBe('card')
+    expect(woken).toEqual([])
+  })
+})
+
 describe('person.reply routing', () => {
   it('hands a complete answer to the chat that asked, quoting the question, once', async () => {
     const replies = routing()

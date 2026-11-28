@@ -356,7 +356,9 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
     // until its next 30-minute look; the owner's and noise verdicts write a journal row instead.
     let released = false
     // Why: a `--wake` waiting is routed as if the rule passed answers on (C2), not sorted here.
-    for (const waiting of deps.listWaitings().filter((entry) => pendingAnswer(entry) && !entry.wake)) {
+    for (const waiting of deps
+      .listWaitings()
+      .filter((entry) => pendingAnswer(entry) && !entry.wake)) {
       const id = key(waiting)
       if (sorted.has(id)) {
         continue
@@ -501,7 +503,10 @@ export function createHqReplyRouting(deps: HqReplyRoutingDeps): HqReplyRouting {
       // Custom build (pulse-wake, C2): a chat that asked to be woken gets its answers as by the rule.
       if (!rule && !options.dryRun) {
         const talked = await sortOwnerTalk()
-        return [...talked, ...(await routeAnswers(WAKE_RULE, options, rows, (w) => w.wake === true))]
+        return [
+          ...talked,
+          ...(await routeAnswers(WAKE_RULE, options, rows, (w) => w.wake === true))
+        ]
       }
       return await routeAnswers(rule, options, rows, () => true)
     },

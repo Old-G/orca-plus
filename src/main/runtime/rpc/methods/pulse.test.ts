@@ -78,6 +78,36 @@ describe('pulse RPC methods', () => {
     expect(await call('pulse.listWaitings', { status: 'open' })).toEqual([])
   })
 
+  it('--wake: a chat this host does not know is an error, a known one becomes the waiting chat', async () => {
+    const { commands, dispatcher } = setup()
+    const known = { 'chat-1': { location: { workspaceId: 'wt-1' } } } as Record<string, unknown>
+    const host = {
+      getRuntimeId: () => 'runtime-test',
+      getSubscriptionRegistrationVersion: () => 0,
+      pulseAddWaiting: commands.pulseAddWaiting.bind(commands),
+      openedAgentSessionRecordStore: () => ({ getRecord: (id: string) => known[id] }),
+      pulseGetSession: () => null,
+      pulseListSessionsByAddress: () => [],
+      pulseLiveSessionOf: (id: string) => id
+    }
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the handler reads only the methods above.
+    const runtime = host as unknown as OrcaRuntimeService
+    const wakeDispatcher = new RpcDispatcher({ runtime, methods: PULSE_METHODS })
+    const call = (params: unknown) =>
+      wakeDispatcher.dispatch({
+        id: randomUUID(),
+        authToken: '',
+        method: 'pulse.addWaiting',
+        params
+      })
+    const bad = await call({ direction: 'on-them', title: 'x', source: 'agent', wake: 'ghost' })
+    expect(bad.ok).toBe(false)
+    const good = await call({ direction: 'on-them', title: 'y', source: 'agent', wake: 'chat-1' })
+    expect(good.ok || good.error).toBe(true)
+    expect(good.ok && good.result).toMatchObject({ wake: true, agentSessionId: 'chat-1' })
+    expect(dispatcher).toBeDefined()
+  })
+
   it('dedupes drafts and inbox items through the RPC as well', async () => {
     const { call } = setup()
     const draft = { kind: 'message', body: 'Any news?', source: 'agent', fingerprint: 'f1' }

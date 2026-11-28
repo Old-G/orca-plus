@@ -77,7 +77,7 @@ export const PULSE_METHODS = [
               isChat: (sessionId) =>
                 Boolean(
                   runtime.openedAgentSessionRecordStore()?.getRecord(sessionId) ??
-                    runtime.pulseGetSession(sessionId)
+                  runtime.pulseGetSession(sessionId)
                 ),
               byAddress: (address) => runtime.pulseListSessionsByAddress(address),
               liveOf: (sessionId) => runtime.pulseLiveSessionOf(sessionId)

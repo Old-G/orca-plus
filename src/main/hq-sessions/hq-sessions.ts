@@ -44,6 +44,12 @@ export type HqSessionsService = {
     work: string
     from: string | null
   }) => Promise<string | null>
+  /**
+   * Custom build (pulse-wake, C2): a closed chat that asked to be woken by an answer (`--wake`) gets a new
+   * chat on its thread, seeded from it, taking `work`; its session id, or null (dispatcher off, no
+   * address, the chat did not start).
+   */
+  wakeFrom: (request: { sessionId: string; work: string }) => Promise<string | null>
   /** Custom build (hq-lead-reassign): the chats now, nothing carried out. */
   live: () => Promise<HqLiveSession[]>
 }
@@ -146,6 +152,39 @@ export function createHqSessions(deps: HqSessionsDeps): HqSessionsService {
     },
 
     mayClose: (sessionId, reason) => hqMayClose(deps, journal, sessionId, reason),
+
+    async wakeFrom(request) {
+      if (!deps.enabled()) {
+        return null
+      }
+      try {
+        const session = (await deps.live()).find(
+          (candidate) => candidate.sessionId === request.sessionId
+        )
+        if (!session?.address) {
+          return null
+        }
+        const done = await carryOutHqDispatch(
+          deps,
+          journal,
+          deps.dispatcherCaller(),
+          {
+            kind: 'new',
+            address: session.address,
+            project: session.address.split('/')[0] ?? '',
+            seedFrom: session.sessionId,
+            why: 'an answer came to a chat that closed to wait for it (--wake)'
+          },
+          request.work
+        )
+        return done.sessionId
+      } catch (error) {
+        deps.log(
+          `wake handoff of ${request.sessionId} failed: ${error instanceof Error ? error.message : String(error)}`
+        )
+        return null
+      }
+    },
 
     async coldHandoff(request) {
       if (deps.coldChatHandoff?.() !== true || !deps.enabled()) {

@@ -116,7 +116,9 @@ function wakeFlag(flags: Map<string, string | boolean>): string | undefined {
   if (wake === true || wake === 'self') {
     const own = process.env.ORCA_AGENT_SESSION_ID
     if (!own) {
-      throw new Error('--wake self works from an Orca chat only; elsewhere give the chat address or session id')
+      throw new Error(
+        '--wake self works from an Orca chat only; elsewhere give the chat address or session id'
+      )
     }
     return own
   }
