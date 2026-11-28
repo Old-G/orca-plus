@@ -27,11 +27,16 @@ function fileSink(): LocalFileSink | null {
 }
 
 export function slackSocketLog(message: string, now: Date = new Date()): void {
-  console.warn(`[slack] ${message}`)
+  // Why: logging must never break the socket (a closed stdout throws EPIPE in a packaged app).
+  try {
+    console.warn(`[slack] ${message}`)
+  } catch {
+    // ignore
+  }
   try {
     fileSink()?.push({ at: now.toISOString(), message })
   } catch {
-    // Why: logging must never break the socket.
+    // ignore
   }
 }
 

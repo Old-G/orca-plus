@@ -25,7 +25,21 @@ class FakeSocket extends EventEmitter {
   }
 }
 
-function makeSocket(onEnvelope = vi.fn<SlackSocketDeps['onEnvelope']>(async () => undefined)) {
+/** Like ws while the handshake runs: terminate() reports the abort as an 'error' a tick later. */
+class ConnectingSocket extends FakeSocket {
+  readyState: number = WebSocket.CONNECTING
+  close(): void {
+    this.terminate()
+  }
+  terminate(): void {
+    process.nextTick(() => this.emit('error', new Error('closed before the connection')))
+  }
+}
+
+function makeSocket(
+  onEnvelope = vi.fn<SlackSocketDeps['onEnvelope']>(async () => undefined),
+  Fake: typeof FakeSocket = FakeSocket
+) {
   const sockets: FakeSocket[] = []
   const lines: string[] = []
   const openUrl = vi.fn<SlackSocketDeps['openUrl']>(async () => 'wss://slack.test')
@@ -34,7 +48,7 @@ function makeSocket(onEnvelope = vi.fn<SlackSocketDeps['onEnvelope']>(async () =
     onEnvelope,
     log: (line) => lines.push(line),
     createSocket: () => {
-      const fake = new FakeSocket()
+      const fake = new Fake()
       sockets.push(fake)
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: SlackSocket only uses on/send/close/readyState/removeAllListeners, which FakeSocket implements.
       return fake as unknown as WebSocket
@@ -161,6 +175,61 @@ describe('SlackSocket', () => {
       )
     )
     expect(sockets[0].sent).toHaveLength(0)
+    socket.stop()
+  })
+
+  it('takes a ping from Slack as a sign of life too', async () => {
+    vi.useFakeTimers()
+    const { socket, sockets } = makeSocket()
+    socket.start()
+    await vi.waitFor(() => expect(sockets).toHaveLength(1))
+    sockets[0].emit('open')
+    await vi.advanceTimersByTimeAsync(SLACK_SOCKET_PING_MS)
+    sockets[0].emit('ping')
+    await vi.advanceTimersByTimeAsync(SLACK_SOCKET_PING_MS)
+    expect(sockets[0].terminated).toBe(false)
+    socket.stop()
+  })
+
+  it('does not drop the connection on a tick that comes late after a stall', async () => {
+    vi.useFakeTimers()
+    const { socket, sockets } = makeSocket()
+    socket.start()
+    await vi.waitFor(() => expect(sockets).toHaveLength(1))
+    sockets[0].emit('open')
+    await vi.advanceTimersByTimeAsync(SLACK_SOCKET_PING_MS)
+    vi.setSystemTime(Date.now() + 5 * 60_000)
+    await vi.advanceTimersByTimeAsync(SLACK_SOCKET_PING_MS)
+    expect(sockets[0].terminated).toBe(false)
+    expect(sockets[0].pings).toBe(2)
+    // The next on-time tick with still no answer does drop it.
+    await vi.advanceTimersByTimeAsync(SLACK_SOCKET_PING_MS)
+    expect(sockets[0].terminated).toBe(true)
+    socket.stop()
+  })
+
+  it('stops cleanly while the handshake is still running', async () => {
+    const { socket, sockets } = makeSocket(undefined, ConnectingSocket)
+    socket.start()
+    await vi.waitFor(() => expect(sockets).toHaveLength(1))
+    socket.stop()
+    // Why: an 'error' with no listener would throw here as an uncaught exception.
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(socket.isRunning()).toBe(false)
+  })
+
+  it('retries at once after restart, not at the backoff a long outage built up', async () => {
+    vi.useFakeTimers()
+    const { socket, openUrl } = makeSocket()
+    openUrl.mockRejectedValue(new Error('offline'))
+    socket.start()
+    await vi.advanceTimersByTimeAsync(1_000 + 2_000 + 4_000)
+    expect(openUrl).toHaveBeenCalledTimes(4)
+    socket.restart()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(openUrl).toHaveBeenCalledTimes(5)
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(openUrl).toHaveBeenCalledTimes(6)
     socket.stop()
   })
 
