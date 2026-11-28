@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Why: custom build (hq-sessions-find) adds the sessions filters; split the hq handlers when this next grows */
 // Custom build (hq-plus-journal): `orca hq …` over the hq.* RPC.
 import {
   parseHqJournalSince,
@@ -30,6 +31,11 @@ import {
 } from '../arguments/flags'
 import { printResult } from '../output/command-result-output'
 import type { HqAttributionAccuracy } from '../../shared/hq-attribution'
+import {
+  filterHqSessionsResult,
+  hasHqSessionsFilter,
+  hqSessionsFilterOfFlags
+} from '../hq-sessions-filter'
 import { formatHqAccuracy } from '../hq-accuracy-format'
 import { formatHqRouterStats } from '../hq-router-stats-format'
 import type { HqRouterStats } from '../../shared/hq-router-stats'
@@ -335,7 +341,14 @@ export const HQ_HANDLERS: Record<string, CommandHandler> = {
       ...caller(),
       run: flags.get('run') === true
     })
-    printResult(result, json, formatHqSessions)
+    // Custom build (hq-sessions-find, A6+A7): filters apply here; with none, --json is the whole list as before.
+    const filter = hqSessionsFilterOfFlags(flags)
+    const filtered = hasHqSessionsFilter(filter)
+    printResult(
+      filtered ? { ...result, result: filterHqSessionsResult(result.result, filter) } : result,
+      json,
+      (value) => formatHqSessions(value, filtered ? { filtered: true } : undefined)
+    )
   },
 
   // Custom build (hq-lead-of, A1)

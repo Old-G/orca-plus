@@ -208,7 +208,10 @@ export function HqPlusSession({
         </button>
         {onOpenChat ? (
           <button type="button" className="hqp-opt" onClick={onOpenChat}>
-            {translate('auto.hqPlus.openChat', 'Open chat')}
+            {live && !live.tabOpen
+              ? // Custom build (hq-sessions-find, A6): a closed chat lives in History; this brings it back.
+                translate('auto.hqPlus.bringBackChat', 'Bring back chat')
+              : translate('auto.hqPlus.openChat', 'Open chat')}
           </button>
         ) : null}
       </div>

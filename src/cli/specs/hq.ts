@@ -278,11 +278,29 @@ export const HQ_COMMAND_SPECS: CommandSpec[] = [
     path: ['hq', 'sessions'],
     summary:
       'The chats now — thread, state, context, the owner in it — and what the dispatcher would do',
-    usage: 'orca hq sessions [--run] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'run'],
+    usage:
+      'orca hq sessions [--state <working|waiting|done|closed,…>] [--role <role>] [--project <text>] [--address <text>] [--name <text>] [--find <words>] [--limit <n>] [--run] [--json]',
+    allowedFlags: [
+      ...GLOBAL_FLAGS,
+      'run',
+      'state',
+      'role',
+      'project',
+      'address',
+      'name',
+      'find',
+      'limit'
+    ],
     notes: [
+      'Plain call: open chats and those mid-turn, newest first, 20 at most, one short line each.',
+      '--find <words>: chats whose name, address, project or session id has every word — closed chats too (a closed chat is brought back from History: «Bring back chat» in HQ+). --state closed lists only closed ones.',
+      '--state, --role, --project, --address, --name narrow by field (substring, case-insensitive; --state a comma list); --limit cuts the list. With any of them --json prints the filtered sessions; with none, --json is the whole list as before.',
       'Lists queued work that can go, handoffs nobody took up, and threads with open work but no chat.',
       '--run carries it out now, as Orca+ does every two minutes when the dispatcher is on.'
+    ],
+    examples: [
+      'orca hq sessions --find "orca lead"',
+      'orca hq sessions --project orca --state working'
     ]
   },
   {
