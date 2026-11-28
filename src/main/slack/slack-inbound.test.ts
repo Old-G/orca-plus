@@ -159,3 +159,23 @@ describe('Slack text helpers', () => {
     })
   })
 })
+
+describe('reactions pushed on behalf of the owner (router v2 T7)', () => {
+  it('hands a reaction_added event over and answers nothing', async () => {
+    const onReaction = vi.fn()
+    const { deps } = harness()
+    const handle = createSlackInboundHandler({ ...deps, onReaction })
+    const event = {
+      type: 'reaction_added',
+      user: 'UOWNER',
+      reaction: 'space_invader',
+      item: { type: 'message', channel: 'C1', ts: '300.1' }
+    }
+    expect(
+      await handle({ envelopeId: 'e2', type: 'events_api', payload: { event } })
+    ).toBeUndefined()
+    expect(onReaction).toHaveBeenCalledWith(event)
+    expect(deps.reply).not.toHaveBeenCalled()
+    expect(deps.react).not.toHaveBeenCalled()
+  })
+})

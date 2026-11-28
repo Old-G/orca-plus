@@ -13,25 +13,21 @@ import {
   type HqIntake
 } from '../../shared/hq-slack-intake'
 import type { PulseBellInput } from '../../shared/pulse-bell'
-import { createDebouncedSingleFlight } from '../orca-plus/debounced-single-flight'
 import { INBOX_GONE_ACTION } from '../orca-plus/pulse/pulse-inbox'
 import type { HqIntakeDraft, HqIntakeGuess } from './hq-slack-intake-suggest'
 import { answersWaiting, type HqIntakeAnswer } from './hq-intake-answers'
 import { routeToWorkCards, type HqCardRouteDeps } from './hq-card-route'
-import { claudeBackgroundAllows } from '../claude-limit-guard/claude-background-gate'
 import { applySendFirst, type HqRouterSendFirstDeps } from './hq-router-send-first'
 
 // Why: a mark older than this is an old reaction found on the first run, not a new request.
 export const HQ_INTAKE_WINDOW_MS = 7 * 24 * 60 * 60_000
-// Why: no model is involved, and Slack allows about 20 reads a minute of each kind; 30 s uses two.
-const POLL_MS = 30_000
-const FIRST_POLL_MS = 25_000
 // Why: a mention older than this on a look is history (Orca+ was off), left to the Slack scout.
 export const HQ_MENTION_FRESH_MS = 2 * 60 * 60_000
 
 export type HqIntakeReadApi = {
-  /** The owner's 👾-marked messages, newest first; `complete` is false when older reactions went unread. */
-  marked: () => Promise<{ drafts: HqIntakeDraft[]; complete: boolean }>
+  /** The owner's 👾-marked messages, newest first; `complete` is false when older reactions went unread.
+   *  `quick` (router v2 T7): only his newest reactions, for a mark Slack just pushed. */
+  marked: (opts?: { quick?: boolean }) => Promise<{ drafts: HqIntakeDraft[]; complete: boolean }>
   /** Messages since `since` (ms) that @mention the owner, newest first. */
   mentioned: (since: number) => Promise<HqIntakeDraft[]>
 }
@@ -144,20 +140,28 @@ function sameThread(card: HqIntake, draft: HqIntakeDraft): boolean {
   return cardRoot === draftRoot && !card.pasted
 }
 
-export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number> {
+/** `quick` (router v2 T7): a pass for a pushed mark — the newest reactions only, no mentions. It is a
+ *  partial read, so it closes no card; the half-minute pass still does the rest. */
+export async function pollHqSlackIntake(
+  deps: HqSlackIntakeDeps,
+  opts: { quick?: boolean } = {}
+): Promise<number> {
   const ledger = deps.ledgerCards?.() ?? null
   const read = await deps.read(async (api) => ({
-    marked: await api.marked(),
+    marked: opts.quick
+      ? { ...(await api.marked({ quick: true })), complete: false }
+      : await api.marked(),
     // Why: a token without search:read still serves the 👾 marks.
-    mentioned: ledger
-      ? []
-      : await api.mentioned(deps.now() - HQ_MENTION_FRESH_MS).catch((error: unknown) => {
-          console.warn(
-            '[hq-slack-intake] mentions not read:',
-            error instanceof Error ? error.message : error
-          )
-          return []
-        })
+    mentioned:
+      ledger || opts.quick
+        ? []
+        : await api.mentioned(deps.now() - HQ_MENTION_FRESH_MS).catch((error: unknown) => {
+            console.warn(
+              '[hq-slack-intake] mentions not read:',
+              error instanceof Error ? error.message : error
+            )
+            return []
+          })
   }))
   // Why: no token or a failed read says nothing about which marks are gone.
   if (read === null) {
@@ -339,30 +343,6 @@ export async function pollHqSlackIntake(deps: HqSlackIntakeDeps): Promise<number
     deps.settle?.(key, card)
   }
   return guessed
-}
-
-export function startHqSlackIntake(
-  deps: HqSlackIntakeDeps & { onError?: (message: string) => void }
-): () => void {
-  const flight = createDebouncedSingleFlight(
-    async () => {
-      if (claudeBackgroundAllows('Slack intake')) {
-        await pollHqSlackIntake(deps)
-      }
-    },
-    (error) => {
-      console.warn('[hq-slack-intake] poll failed:', error)
-      deps.onError?.(error instanceof Error ? error.message : String(error))
-    },
-    FIRST_POLL_MS
-  )
-  const timer = setInterval(() => void flight.runNow(), POLL_MS)
-  timer.unref?.()
-  flight.schedule()
-  return () => {
-    clearInterval(timer)
-    flight.dispose()
-  }
 }
 
 export type { HqIntakeAnswer }

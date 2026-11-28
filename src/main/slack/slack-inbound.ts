@@ -24,6 +24,8 @@ export type SlackInboundDeps = {
   /** threadTs null posts at the top level of the channel. */
   reply: (channel: string, threadTs: string | null, text: string) => Promise<void>
   announce: (worktreeId: string, title: string, text: string) => Promise<void>
+  /** Custom build (hq-router v2 T7): a reaction_added event, pushed on behalf of the owner. */
+  onReaction?: (event: Record<string, unknown>) => void
   log?: (message: string) => void
 }
 
@@ -166,6 +168,8 @@ export function createSlackInboundHandler(deps: SlackInboundDeps) {
         const record = Object.fromEntries(Object.entries(event))
         if (record.type === 'message') {
           onMessage(metadata, record)
+        } else if (record.type === 'reaction_added') {
+          deps.onReaction?.(record)
         }
       }
       return undefined

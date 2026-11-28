@@ -14,6 +14,7 @@ import { getSlackNotificationChannel, sharedSlackThreadStore } from './slack-not
 import { asSlackRecord, SlackApiError, slackRequest } from './slack-request'
 import { SlackSocket } from './slack-socket'
 import { isSlackPausedForThisInstance } from './slack-instance-gate'
+import { emitSlackReactionPush, slackReactionPushOf } from './slack-reaction-push'
 
 // Why: these mean Orca itself refused the input; anything else (timeouts, an SSH provider that is
 // gone, a host that stopped answering) says nothing about the agent and is reported unverifiable.
@@ -173,7 +174,14 @@ function createService(store: Store, runtime: OrcaRuntimeService): SlackSocket {
         ...(threadTs ? { thread_ts: threadTs } : {})
       })
     },
-    announce: (worktreeId, title, text) => notifier.announce(worktreeId, title, text)
+    announce: (worktreeId, title, text) => notifier.announce(worktreeId, title, text),
+    // Custom build (hq-router v2 T7): the owner's 👾 comes down this socket; the intake picks it up.
+    onReaction: (event) => {
+      const push = slackReactionPushOf(event)
+      if (push) {
+        emitSlackReactionPush(push)
+      }
+    }
   })
   return new SlackSocket({
     log,

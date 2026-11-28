@@ -116,6 +116,21 @@ describe('createSlackIntakeApi', () => {
     requestMock.mockReset()
   })
 
+  it('quick: one short page of the newest reactions (router v2 T7)', async () => {
+    requestMock.mockReset()
+    requestMock.mockResolvedValue({
+      ok: true,
+      items: [],
+      response_metadata: { next_cursor: 'more' }
+    })
+    const api = createSlackIntakeApi('xoxp-1', 'UOWNER', async (id) => id)
+    expect((await api.marked({ quick: true })).complete).toBe(false)
+    const lists = requestMock.mock.calls.filter((call) => call[1] === 'reactions.list')
+    expect(lists).toHaveLength(1)
+    expect(lists[0]?.[2]).toMatchObject({ limit: 20 })
+    requestMock.mockReset()
+  })
+
   it('says the read is partial when reactions run past the pages it reads', async () => {
     requestMock.mockReset()
     requestMock.mockResolvedValue({
